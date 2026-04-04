@@ -758,6 +758,21 @@ input:focus,select:focus,textarea:focus{
 .assign-membre-role{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;}
 .assign-btn-row{display:flex;gap:0.6rem;margin-top:1rem;}
 
+
+/* GUIDE AMELIORE */
+.guide-tabs{display:flex;border-bottom:2px solid var(--gris-bord);margin-bottom:2rem;gap:0;flex-wrap:wrap;}
+.guide-tab{font-family:"IBM Plex Mono",monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.6rem 1.2rem;cursor:pointer;border:none;background:transparent;color:var(--gris);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.14s;}
+.guide-tab.active{color:var(--rouge);border-bottom-color:var(--rouge);font-weight:600;}
+.guide-tab:hover:not(.active){color:var(--encre);}
+.guide-section{display:none;}
+.guide-section.active{display:block;}
+.guide-role-badge{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:0.3em 0.9em;border-radius:2px;margin-bottom:1.2rem;}
+.badge-redac{background:var(--rouge-clair);color:var(--rouge);border:1px solid var(--rouge);}
+.badge-corr{background:var(--bleu-clair);color:var(--bleu);border:1px solid var(--bleu);}
+.badge-admin{background:#EAF3DE;color:#27500A;border:1px solid #27500A;}
+.guide-schema{background:var(--encre);color:white;padding:1rem 1.4rem;font-family:"IBM Plex Mono",monospace;font-size:0.72rem;line-height:1.8;margin-bottom:1.8rem;}
+.step-tip{margin-top:0.6rem;padding:0.5rem 0.8rem;background:var(--gris-clair);font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:var(--gris);border-left:3px solid var(--rouge);}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1657,17 +1672,50 @@ input:focus,select:focus,textarea:focus{
 
 <!-- GUIDE -->
 <div class="page" id="page-guide">
-  <div class="page-title">Comment ça marche ?</div>
-  <div class="page-sub">Le workflow éditorial d'Ipsum Média en 5 étapes</div>
-  <div class="schema"><strong>En résumé :</strong><br>📋 Tu reçois un communiqué → Tu l'enregistres → Tu rédiges l'article en le liant → Tu envoies le fichier au correcteur → Il corrige et valide → Tu publies sur Substack</div>
-  <div class="guide-step"><div class="step-num">01</div><div><div class="step-titre">Enregistrer un communiqué de presse</div><div class="step-desc">Quand tu reçois un communiqué par email, va dans "Enregistrer un communiqué". Remplis les infos (qui l'envoie, comment les contacter, date). Clique sur "Enregistrer" - ça crée un petit fichier que tu gardes sur ton ordinateur.</div></div></div>
-  <div class="guide-step"><div class="step-num">02</div><div><div class="step-titre">Rédiger ton article</div><div class="step-desc">Va dans "Rédiger un article". Si tu as un communiqué source, attache-le - ses infos s'affichent à côté. Remplis le titre, l'intro et ton texte. Clique sur "💾 Sauvegarder le brouillon" régulièrement pour ne pas perdre ton travail.</div></div></div>
-  <div class="guide-step"><div class="step-num">03</div><div><div class="step-titre">Envoyer l'article pour correction</div><div class="step-desc">Quand tu as fini, clique sur "Envoyer l'article" - ça télécharge un fichier sur ton ordinateur. Envoie ce fichier au rédacteur en chef ou au SR via WhatsApp ou email.</div></div></div>
-  <div class="guide-step"><div class="step-num">04</div><div><div class="step-titre">Corriger l'article (SR / rédac chef)</div><div class="step-desc">Va dans "Corriger un article", ouvre le fichier reçu. Tu vois le texte original, tu corriges dans le champ d'à côté. Les modifications apparaissent en rouge/vert pour que l'auteur voie ce qui a changé. Valide et renvoie le fichier corrigé.</div></div></div>
-  <div class="guide-step"><div class="step-num">05</div><div><div class="step-titre">Publier sur Substack</div><div class="step-desc">Ouvre l'article validé dans "Lire un article", clique sur "Préparer pour Substack" - le texte formaté est copié automatiquement dans ton presse-papier. Colle-le directement dans Substack.</div></div></div>
+  <div class="panel-title">Manuel Compo</div>
+  <div class="panel-subtitle">Tout ce qu'il faut savoir pour utiliser Compo au quotidien</div>
+  <div class="guide-tabs">
+    <button class="guide-tab active" onclick="guideTab('redacteur',this)">Redacteur</button>
+    <button class="guide-tab" onclick="guideTab('correcteur',this)">Correcteur</button>
+    <button class="guide-tab" onclick="guideTab('admin',this)">Admin</button>
+    <button class="guide-tab" onclick="guideTab('general',this)">General</button>
+  </div>
+  <div class="guide-section active" id="guide-redacteur">
+    <div class="guide-role-badge badge-redac">Role : Redacteur</div>
+    <div class="guide-schema">Ton workflow : Recois un CP, enregistre-le, redige ton article, envoie en correction, suis le statut, publie sur Substack</div>
+    <div class="guide-step"><div class="step-num">01</div><div><div class="step-titre">Enregistrer un communique de presse</div><div class="step-desc">Va dans Redacteur &gt; Communique. Remplis les infos (organisation, contact, embargo, type). Joints le PDF si disponible. Clique sur Enregistrer -- l'article est sauvegarde dans la base et un lien de partage est genere.</div><div class="step-tip">Le lien permet a tout membre de lire le CP ou de partir en redaction depuis celui-ci.</div></div></div>
+    <div class="guide-step"><div class="step-num">02</div><div><div class="step-titre">Rediger un article ou une breve</div><div class="step-desc">Va dans Redacteur &gt; Rediger. Choisis le type (Article ou Breve, max 400 car.). Remplis le titre, chapeau, angle editorial et corps du texte. Ajoute rubrique, tags et image. La barre de stats affiche en temps reel mots et temps de lecture.</div><div class="step-tip">Clique sur Sauvegarder le brouillon regulierement -- stocke sur cet appareil.</div></div></div>
+    <div class="guide-step"><div class="step-num">03</div><div><div class="step-titre">Envoyer dans le cloud</div><div class="step-desc">Clique sur Envoyer l'article. Il est sauvegarde dans Supabase et un lien de partage s'affiche. Copie ce lien et partage-le sur WhatsApp -- n'importe quel membre connecte peut l'ouvrir directement dans Compo.</div><div class="step-tip">Exporter en JSON genere une copie locale sur ton ordinateur.</div></div></div>
+    <div class="guide-step"><div class="step-num">04</div><div><div class="step-titre">Envoyer en correction</div><div class="step-desc">Clique sur Envoyer en correction. Une fenetre s'ouvre avec la liste des correcteurs disponibles. Selectionne le correcteur. L'article passe au statut En relecture et apparait dans son onglet En correction.</div><div class="step-tip">Suis tes articles dans Mes articles &gt; onglet En correction.</div></div></div>
+    <div class="guide-step"><div class="step-num">05</div><div><div class="step-titre">Generer les visuels Instagram</div><div class="step-desc">Clique sur Generer les visuels depuis la redaction -- titre, rubrique et image sont pre-remplis. Ajuste le mode (normal/urgent) et la couleur du badge. Telecharge la publication (1:1) et la story (9:16) en PNG haute resolution.</div></div></div>
+    <div class="guide-step"><div class="step-num">06</div><div><div class="step-titre">Publier sur Substack</div><div class="step-desc">Une fois valide, va dans Lecture, ouvre l'article. Clique sur Preparer pour Substack -- le Markdown est copie dans le presse-papier. Colle-le dans l'editeur Substack.</div></div></div>
+  </div>
+  <div class="guide-section" id="guide-correcteur">
+    <div class="guide-role-badge badge-corr">Role : Correcteur</div>
+    <div class="guide-schema">Ton workflow : Recois un article assigne, ouvre-le via En correction, corrige avec les modifications suivies, change le statut</div>
+    <div class="guide-step"><div class="step-num">01</div><div><div class="step-titre">Trouver les articles a corriger</div><div class="step-desc">Va dans Mes articles &gt; onglet En correction. Tu vois uniquement les articles qui t'ont ete assignes, avec statut, auteur et date. Clique sur Corriger pour en ouvrir un.</div><div class="step-tip">Tu peux aussi ouvrir directement le lien partage par le redacteur -- la modale te proposera l'option Corriger.</div></div></div>
+    <div class="guide-step"><div class="step-num">02</div><div><div class="step-titre">Corriger avec les modifications suivies</div><div class="step-desc">Le mode correction affiche le texte original. Tes modifications apparaissent en vert (ajouts) et en rouge barre (suppressions). Tu peux laisser une note globale au redacteur dans le champ prevu.</div></div></div>
+    <div class="guide-step"><div class="step-num">03</div><div><div class="step-titre">Valider et changer le statut</div><div class="step-desc">Une fois la correction terminee, change le statut en Corrige. Sauvegarde -- l'article est mis a jour dans la base. Le redacteur peut voir les modifications depuis son onglet En correction.</div><div class="step-tip">Si l'article necessite une reecriture importante, repasse-le en statut Brouillon.</div></div></div>
+  </div>
+  <div class="guide-section" id="guide-admin">
+    <div class="guide-role-badge badge-admin">Role : Admin</div>
+    <div class="guide-schema">Tes responsabilites : Gerer les membres, suivre le statut edition, preparer le briefing, assembler la newsletter, coordonner la publication</div>
+    <div class="guide-step"><div class="step-num">01</div><div><div class="step-titre">Gerer les membres</div><div class="step-desc">Les comptes sont crees depuis le dashboard Supabase (Authentication &gt; Users &gt; Add user). Apres creation, ajoute une ligne dans la table membres avec l'UUID, prenom, nom et role (redacteur / correcteur / admin). Pour desactiver un membre, passe actif a false.</div><div class="step-tip">Un membre avec le role admin a acces a toutes les fonctionnalites.</div></div></div>
+    <div class="guide-step"><div class="step-num">02</div><div><div class="step-titre">Suivre le statut de l'edition</div><div class="step-desc">Va dans Statut de l'edition. Clique sur Charger depuis la base pour voir tous les articles avec leur statut en temps reel. Filtre par statut, ouvre un article directement depuis le tableau.</div></div></div>
+    <div class="guide-step"><div class="step-num">03</div><div><div class="step-titre">Preparer le briefing</div><div class="step-desc">Va dans Redacteur &gt; Briefing. Cree les sujets de la semaine avec titre, type, priorite et responsable. Exporte en PDF pour partager avec l'equipe. Le bouton Rediger ce sujet bascule directement en redaction.</div></div></div>
+    <div class="guide-step"><div class="step-num">04</div><div><div class="step-titre">Assembler la newsletter du jeudi</div><div class="step-desc">Va dans Redacteur &gt; Newsletter. Importe les articles valides, reordonne-les par drag & drop. Genere le Markdown pret a coller dans Substack. La newsletter est ensuite envoyee depuis Substack aux abonnes.</div></div></div>
+    <div class="guide-step"><div class="step-num">05</div><div><div class="step-titre">Mettre a jour Compo</div><div class="step-desc">Depose le nouveau fichier index.html sur le depot GitHub compo-ipsum. GitHub Pages deploie automatiquement. Tous les membres ont la nouvelle version au prochain chargement -- aucune manipulation de leur cote.</div></div></div>
+  </div>
+  <div class="guide-section" id="guide-general">
+    <div class="guide-role-badge" style="background:var(--gris-clair);color:var(--gris);border:1px solid var(--gris-bord);">Infos generales</div>
+    <div class="guide-schema">compo.ipsummedia.fr &middot; Authentification requise &middot; Donnees sur Supabase &middot; Fonctionne sur tous les navigateurs</div>
+    <div class="guide-step"><div class="step-num">01</div><div><div class="step-titre">Connexion et profil</div><div class="step-desc">Connecte-toi avec ton email et mot de passe fournis par l'admin. La session est memorisee. Pour modifier ton profil, clique sur Modifier mon profil dans la barre de bienvenue -- synchronise automatiquement en base.</div></div></div>
+    <div class="guide-step"><div class="step-num">02</div><div><div class="step-titre">Brouillons locaux vs cloud</div><div class="step-desc">Local (Sur cet appareil) : sauvegarde avec Sauvegarder le brouillon, uniquement sur cet appareil. Cloud : sauvegarde avec Envoyer l'article, accessible partout et partageable par lien. Tu peux envoyer un brouillon local vers le cloud depuis l'onglet correspondant.</div></div></div>
+    <div class="guide-step"><div class="step-num">03</div><div><div class="step-titre">Statuts d'un article</div><div class="step-desc">Brouillon : en redaction &mdash; En relecture : chez le correcteur &mdash; Corrige : correction faite &mdash; Valide : pret pour publication &mdash; Publie : en ligne sur Substack</div></div></div>
+    <div class="guide-step"><div class="step-num">04</div><div><div class="step-titre">Identifiants des articles</div><div class="step-desc">Format IPM-AAMMM-XXXX (ex: IPM-2604-4U6F). Permanent, visible dans le lien de partage et dans la page Statut de l'edition.</div></div></div>
+  </div>
 </div>
 
-<!-- JOURNAL (LOG) -->
 <div class="page" id="page-log">
   <div class="page-title">Journal d'activité</div>
   <div class="page-sub">Accès réservé aux administrateurs</div>
@@ -4667,6 +4715,15 @@ function syncProfilBase(prenom, nom, role){
 function getUserId(){
   var user = getSessionUser();
   return user ? user.id : null;
+}
+
+
+function guideTab(section, btn){
+  document.querySelectorAll('.guide-section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.guide-tab').forEach(function(b){ b.classList.remove('active'); });
+  var el = document.getElementById('guide-'+section);
+  if(el) el.classList.add('active');
+  btn.classList.add('active');
 }
 
 // Init
