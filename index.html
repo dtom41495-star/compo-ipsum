@@ -3097,24 +3097,54 @@ function preremplirCorrecteur(){
 
 // SPLASH
 window.addEventListener('DOMContentLoaded',function(){
+  // Masquer le splash après 3s max dans tous les cas (sécurité)
+  var splashTimeout = setTimeout(function(){
+    var s = document.getElementById('splash');
+    if(s) s.style.display = 'none';
+  }, 3500);
+
+  function afficherLogin(){
+    clearTimeout(splashTimeout);
+    var s = document.getElementById('splash');
+    if(s) s.style.display = 'none';
+    var ls = document.getElementById('login-screen');
+    if(ls) ls.classList.add('visible');
+    var mdp = document.getElementById('login-mdp');
+    var em = document.getElementById('login-email');
+    if(mdp) mdp.addEventListener('keydown', function(e){ if(e.key==='Enter') loginValider(); });
+    if(em) em.addEventListener('keydown', function(e){ if(e.key==='Enter') mdp.focus(); });
+  }
+
   // Vérifier session auth
   if(initAuth()){
+    clearTimeout(splashTimeout);
     // Session valide - mettre à jour le header auth
     SB_HEADERS['Authorization'] = 'Bearer ' + _session.access_token;
-    // Lancer Compo directement
-    lancerCompo();
-    chargerDepuisURL();
+    // Tenter refresh si token proche d'expiration (moins de 5 min)
+    var expiresAt = _session.expires_at ? new Date(_session.expires_at * 1000) : null;
+    var bientotExpire = expiresAt && (expiresAt - new Date()) < 5 * 60 * 1000;
+    if(bientotExpire && _session.refresh_token){
+      fetch('https://ctmekufqaxdelgfyjwly.supabase.co/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: _session.refresh_token })
+      }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.access_token){
+          _session = data;
+          localStorage.setItem('ipsum_session', JSON.stringify(data));
+          SB_HEADERS['Authorization'] = 'Bearer ' + data.access_token;
+        }
+      }).catch(function(){}).finally(function(){
+        lancerCompo();
+        chargerDepuisURL();
+      });
+    } else {
+      lancerCompo();
+      chargerDepuisURL();
+    }
   } else {
-    // Pas de session - afficher login
-    document.getElementById('splash').style.display = 'none';
-    document.getElementById('login-screen').classList.add('visible');
-    // Enter pour valider
-    document.getElementById('login-mdp').addEventListener('keydown', function(e){
-      if(e.key === 'Enter') loginValider();
-    });
-    document.getElementById('login-email').addEventListener('keydown', function(e){
-      if(e.key === 'Enter') document.getElementById('login-mdp').focus();
-    });
+    afficherLogin();
   }
 });
 
