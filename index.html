@@ -2895,8 +2895,10 @@ function bvnValider(){
   if(!ok) return;
   localStorage.setItem('ipsum_user_prenom',p);
   localStorage.setItem('ipsum_user_nom',n);
-  // Rôle déjà sauvegardé par bvnSetRole
-  if(!localStorage.getItem('ipsum_user_role')) localStorage.setItem('ipsum_user_role','redacteur');
+  // Lire le bouton rôle actif au moment de valider
+  var activeRole = document.querySelector('.bvn-role-btn.active');
+  var role = activeRole ? activeRole.dataset.role : 'redacteur';
+  localStorage.setItem('ipsum_user_role', role);
   document.getElementById('bienvenue').classList.remove('visible');
   afficherBonjour();
   appliquerRole();
@@ -4187,6 +4189,86 @@ function envoyerBrouillonCloud(doc){
     notif('Article envoyé dans le cloud !');
     logAction('cloud-upload', doc.titre, doc.id);
   }).catch(function(){ notif('Erreur envoi cloud'); });
+}
+
+
+// Afficher le tableau statut
+function renderStatut(){
+  var el = document.getElementById('statut-content');
+  var tableEl = document.getElementById('statut-table');
+  var comptEl = document.getElementById('statut-compteurs');
+  if(!el || !tableEl) return;
+  el.style.display = 'block';
+  if(!statutDocs || !statutDocs.length){ tableEl.innerHTML='<p style="color:var(--gris);">Aucun article.</p>'; return; }
+
+  var filtre = statutFiltreActif || 'tous';
+  var sorted = statutDocs.slice().sort(function(a,b){
+    return new Date(b.modifie_le||b.cree_le||0) - new Date(a.modifie_le||a.cree_le||0);
+  });
+  var filtered = filtre === 'tous' ? sorted : sorted.filter(function(d){ return d.statut === filtre; });
+
+  // Compteurs
+  var statuts = ['brouillon','en-relecture','corrige','valide','publie'];
+  var statDef = {
+    brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404',bc:'#856404'},
+    'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276',bc:'#1A5276'},
+    corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460',bc:'#0C5460'},
+    valide:{l:'Validé',bg:'#D4EDDA',c:'#155724',bc:'#155724'},
+    publie:{l:'Publié',bg:'#1A1A2E',c:'white',bc:'#1A1A2E'}
+  };
+  var urgBg = {'normal':'#D4EDDA','moyen':'#FFF3CD','urgent':'#F8D7DA'};
+
+  urgBg = {'normal':'#D4EDDA','moyen':'#FFF3CD','urgent':'#F8D7DA'};
+  urgC = {'normal':'#155724','moyen':'#856404','urgent':'#721C24'};
+  var typeLbl = {article:'Article',breve:'Brève'};
+
+  if(comptEl){
+    comptEl.innerHTML = '<span style="font-family:monospace;font-size:0.72rem;color:var(--gris);">'+statutDocs.length+' articles au total</span> ' +
+      statuts.map(function(s){
+        var n = statutDocs.filter(function(d){return d.statut===s;}).length;
+        if(!n) return '';
+        var sd = statDef[s];
+        return '<span style="font-family:monospace;font-size:0.65rem;padding:2px 8px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.bc+';">'+sd.l+' : '+n+'</span>';
+      }).join('');
+  }
+
+  var html = '<table class="statut-table"><thead><tr><th>Titre</th><th>Auteur</th><th>Rédaction</th><th>Urgence</th><th>Statut</th><th>Type</th><th>Fraîcheur</th><th></th></tr></thead><tbody>';
+  filtered.forEach(function(d){
+    var s = d.statut||'brouillon';
+    var sd = statDef[s]||{l:s,bg:'#eee',c:'#333',bc:'#999'};
+    var urg = d.urgence||'normal';
+    var age = badgeFraicheur(d.modifie_le||d.cree_le);
+    var type = typeLbl[d.type]||d.type||'—';
+    var lienBtn = d._from_db
+      ? '<button onclick="statutOuvrirArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid var(--bleu);background:var(--bleu-clair);color:var(--bleu);">Ouvrir</button>'
+      : '';
+    html += '<tr data-statut="'+s+'">' +
+      '<td style="max-width:220px;"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(d.titre||'Sans titre')+'</strong></td>' +
+      '<td style="white-space:nowrap;">'+esc(d.auteur||'—')+'</td>' +
+      '<td style="white-space:nowrap;font-size:0.78rem;color:var(--gris);">'+esc(d.redaction||'—')+'</td>' +
+      '<td><span style="font-family:monospace;font-size:0.62rem;padding:2px 6px;background:'+urgBg[urg]+';color:'+urgC[urg]+';border:1px solid '+urgC[urg]+';">'+urg+'</span></td>' +
+      '<td><span style="font-family:monospace;font-size:0.62rem;padding:2px 6px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.bc+';">'+sd.l+'</span></td>' +
+      '<td style="font-size:0.78rem;color:var(--gris);">'+esc(type)+'</td>' +
+      '<td>'+age+'</td>' +
+      '<td>'+lienBtn+'</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  tableEl.innerHTML = html;
+}
+
+function statutFiltrer(btn){
+  document.querySelectorAll('#page-statut .statut-filtre').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  statutFiltreActif = btn.dataset.filtre;
+  renderStatut();
+}
+
+function statutReset(){
+  statutDocs = [];
+  var el = document.getElementById('statut-content');
+  if(el) el.style.display = 'none';
+  notif('Liste vidée');
 }
 
 // Init
