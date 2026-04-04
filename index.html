@@ -1222,6 +1222,7 @@ input:focus,select:focus,textarea:focus{
     <div class="section-label">Historique</div><div id="e-hist"></div>
     <div class="btn-row">
       <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
+      <button class="btn sec" onclick="ouvrirAssignationDepuisEdition()">🔍 Envoyer en correction</button>
       <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)">📄 Exporter en JSON</button>
       <button class="btn sec" onclick="genMd('edit')">Préparer pour Substack</button>
     </div>
@@ -4039,11 +4040,17 @@ function mesArticlesOuvrir(id, action){
       cree_le:doc.created_at, modifie_le:doc.updated_at
     };
     currentDoc = docCompo;
-    go(action);
-    setTimeout(function(){
-      if(action === 'lecture') renderLecture(docCompo);
-      else if(action === 'edition') renderEdition(docCompo);
-    }, 100);
+    if(action === 'lecture'){
+      go('lecture');
+      setTimeout(function(){ renderLecture(docCompo); }, 100);
+    } else if(action === 'edition'){
+      chargerDansRedaction(docCompo);
+    } else if(action === 'correction'){
+      go('correction');
+      setTimeout(function(){ renderCorrection(docCompo); }, 100);
+    } else {
+      go(action);
+    }
   }).catch(function(){ notif('Erreur chargement'); });
 }
 
@@ -4853,6 +4860,89 @@ function uploadImageStorage(file, articleId){
 
 // Variable pour stocker le fichier image en attente d'upload
 var imgFile = null;
+
+
+function ouvrirAssignationDepuisEdition(){
+  if(!currentDoc){ notif('Aucun article ouvert'); return; }
+  // Sauvegarder d'abord puis ouvrir la modale
+  exporterEdition();
+  setTimeout(function(){
+    ouvrirAssignationDepuisDoc(currentDoc);
+  }, 500);
+}
+
+function ouvrirAssignationDepuisDoc(doc){
+  if(!doc){ notif('Aucun article'); return; }
+  _assignDoc = doc;
+  _assignDoc.statut = 'en-relecture';
+  _assignCorrecteur = null;
+  _assignCorrecteurId = null;
+
+  var t = document.getElementById('assign-article-titre');
+  if(t) t.textContent = doc.titre || 'Sans titre';
+  document.getElementById('modal-assign').classList.add('visible');
+
+  var list = document.getElementById('assign-membres-list');
+  list.innerHTML = 'Chargement...';
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc',{headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(membres){
+    if(!membres||!membres.length){ list.innerHTML='<p style="color:var(--gris);">Aucun membre.</p>'; return; }
+    list.innerHTML='';
+    var nomAuteur = getUserNomComplet();
+    membres.filter(function(m){
+      return (m.role==='correcteur'||m.role==='admin') && (m.prenom+' '+m.nom)!==nomAuteur;
+    }).forEach(function(m){
+      var el=document.createElement('div');
+      el.className='assign-membre';
+      el.innerHTML='<div><div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)+'</div><div class="assign-membre-role">'+esc(m.role)+'</div></div>';
+      el.onclick=(function(membre){return function(){
+        document.querySelectorAll('.assign-membre').forEach(function(b){b.classList.remove('selected');});
+        el.classList.add('selected');
+        _assignCorrecteur=membre.prenom+' '+membre.nom;
+        _assignCorrecteurId=membre.id;
+      };})(m);
+      list.appendChild(el);
+    });
+    if(!list.children.length) list.innerHTML='<p style="color:var(--gris);">Aucun correcteur disponible.</p>';
+  }).catch(function(){ list.innerHTML='<p style="color:var(--rouge);">Erreur chargement.</p>'; });
+}
+
+
+function chargerDansRedaction(doc){
+  go('redaction');
+  setTimeout(function(){
+    setType(doc.type||'article');
+    document.getElementById('r-auteur').value = doc.auteur||'';
+    document.getElementById('r-titre').value = doc.titre||'';
+    document.getElementById('r-chapeau').value = doc.chapeau||'';
+    document.getElementById('r-angle').value = doc.angle||'';
+    document.getElementById('r-corps').value = doc.corps||'';
+    document.getElementById('r-redaction').value = doc.redaction||'Redaction Tarn';
+    document.getElementById('r-rubrique').value = doc.rubrique||'';
+    document.getElementById('r-datepub').value = doc.date_publication||'';
+    tags = doc.tags||[]; renderTags();
+    cpLies = doc.communiques||[]; renderCpLies();
+    // Image : si c'est une URL Storage, l'afficher directement
+    if(doc.image){
+      imgB64 = doc.image;
+      var prev = document.getElementById('r-img-prev');
+      var rem = document.getElementById('r-img-rem');
+      var leg = document.getElementById('r-img-leg');
+      if(prev){ prev.src = doc.image; prev.style.display = 'block'; }
+      if(rem) rem.style.display = 'inline-block';
+      if(leg){ leg.style.display = 'block'; leg.value = doc.image_legende||''; }
+    }
+    setUrg(doc.urgence||'normal');
+    updateStats();
+    currentDoc = doc;
+    // Afficher le lien de partage si l'article a déjà un ID en base
+    var shareDiv = document.getElementById('r-share-link');
+    var shareUrl = document.getElementById('r-share-url');
+    if(shareDiv && doc.id){ shareDiv.style.display='block'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
+    notif('Article charge : '+(doc.titre||'Sans titre'));
+  }, 100);
+}
 
 // Init
 setType('article');
