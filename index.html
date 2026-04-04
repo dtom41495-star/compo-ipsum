@@ -3097,234 +3097,47 @@ function preremplirCorrecteur(){
 
 // SPLASH
 window.addEventListener('DOMContentLoaded',function(){
-  // Masquer le splash après 3s max dans tous les cas (sécurité)
-  var splashTimeout = setTimeout(function(){
-    var s = document.getElementById('splash');
-    if(s) s.style.display = 'none';
-  }, 3500);
+  var splash = document.getElementById('splash');
+  var loginScreen = document.getElementById('login-screen');
 
-  function afficherLogin(){
-    clearTimeout(splashTimeout);
-    var s = document.getElementById('splash');
-    if(s) s.style.display = 'none';
-    var ls = document.getElementById('login-screen');
-    if(ls) ls.classList.add('visible');
+  function showLogin(){
+    if(splash) splash.style.display = 'none';
+    if(loginScreen) loginScreen.classList.add('visible');
     var mdp = document.getElementById('login-mdp');
     var em = document.getElementById('login-email');
     if(mdp) mdp.addEventListener('keydown', function(e){ if(e.key==='Enter') loginValider(); });
     if(em) em.addEventListener('keydown', function(e){ if(e.key==='Enter') mdp.focus(); });
   }
 
-  // Vérifier session auth
-  if(initAuth()){
-    clearTimeout(splashTimeout);
-    // Session valide - mettre à jour le header auth
-    SB_HEADERS['Authorization'] = 'Bearer ' + _session.access_token;
-    // Tenter refresh si token proche d'expiration (moins de 5 min)
-    var expiresAt = _session.expires_at ? new Date(_session.expires_at * 1000) : null;
-    var bientotExpire = expiresAt && (expiresAt - new Date()) < 5 * 60 * 1000;
-    if(bientotExpire && _session.refresh_token){
-      fetch('https://ctmekufqaxdelgfyjwly.supabase.co/auth/v1/token?grant_type=refresh_token', {
-        method: 'POST',
-        headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: _session.refresh_token })
-      }).then(function(r){ return r.json(); })
-      .then(function(data){
-        if(data.access_token){
-          _session = data;
-          localStorage.setItem('ipsum_session', JSON.stringify(data));
-          SB_HEADERS['Authorization'] = 'Bearer ' + data.access_token;
-        }
-      }).catch(function(){}).finally(function(){
-        lancerCompo();
-        chargerDepuisURL();
-      });
-    } else {
-      lancerCompo();
+  function startApp(){
+    setTimeout(function(){
+      if(splash){ splash.classList.add('fade-out'); setTimeout(function(){ splash.style.display='none'; }, 500); }
+      afficherBonjour();
+      appliquerRole();
+      construireNav();
+      chargerAccueilArticles();
       chargerDepuisURL();
+    }, 1200);
+  }
+
+  // Timeout de sécurité absolu - 5s max
+  var hardTimeout = setTimeout(showLogin, 5000);
+
+  try {
+    if(initAuth()){
+      clearTimeout(hardTimeout);
+      SB_HEADERS['Authorization'] = 'Bearer ' + _session.access_token;
+      startApp();
+    } else {
+      clearTimeout(hardTimeout);
+      showLogin();
     }
-  } else {
-    afficherLogin();
+  } catch(e) {
+    clearTimeout(hardTimeout);
+    console.error('Init error:', e);
+    showLogin();
   }
 });
-
-// ENTER dans bienvenue
-document.addEventListener('keydown',function(e){
-  var bvn=document.getElementById('bienvenue');
-  if(e.key==='Enter'&&bvn&&bvn.classList.contains('visible')) bvnValider();
-});
-
-
-
-// ===== VISUELS INSTAGRAM =====
-var visPhotoB64 = null;
-var visRubrique = 'MUNICIPALES';
-var visBadgeColor = '#ea5b1c';
-var visMode = 'normal';
-
-var VIS_GRADIENTS = {
-  normal: 'linear-gradient(to top, rgba(234,91,28,0.92) 0%, rgba(236,91,103,0.6) 35%, rgba(0,0,0,0.15) 65%, transparent 100%)',
-  urgent: 'linear-gradient(to top, rgba(192,57,43,0.95) 0%, rgba(120,0,0,0.65) 35%, rgba(0,0,0,0.15) 65%, transparent 100%)'
-};
-
-function visSetMode(mode){
-  visMode = mode;
-  document.getElementById('vis-mode-normal').classList[mode==='normal'?'add':'remove']('active');
-  document.getElementById('vis-mode-urgent').classList[mode==='urgent'?'add':'remove']('active');
-  visUpdate();
-}
-
-function visSetRubrique(btn){
-  document.querySelectorAll('.vis-rubrique-btn').forEach(function(b){
-    if(b.id!=='vis-mode-normal'&&b.id!=='vis-mode-urgent') b.classList.remove('active');
-  });
-  btn.classList.add('active');
-  visRubrique = btn.dataset.val;
-  document.getElementById('vis-rubrique-custom').value = '';
-  visUpdate();
-}
-
-function visUpdateRubrique(val){
-  if(val.trim()){
-    document.querySelectorAll('.vis-rubrique-btn').forEach(function(b){
-      if(b.id!=='vis-mode-normal'&&b.id!=='vis-mode-urgent') b.classList.remove('active');
-    });
-    visRubrique = val.trim().toUpperCase();
-    visUpdate();
-  }
-}
-
-function visSetColor(btn){
-  document.querySelectorAll('.vis-color-btn').forEach(function(b){ b.classList.remove('active'); });
-  btn.classList.add('active');
-  visBadgeColor = btn.dataset.color;
-  visUpdate();
-}
-
-function visLoadPhoto(event){
-  var file = event.target.files[0]; if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e){
-    visPhotoB64 = e.target.result;
-    document.getElementById('vis-photo-preview').style.display = 'block';
-    document.getElementById('vis-photo-img').src = visPhotoB64;
-    visUpdate();
-  };
-  reader.readAsDataURL(file);
-}
-
-function visClearPhoto(){
-  visPhotoB64 = null;
-  document.getElementById('vis-photo-preview').style.display = 'none';
-  document.getElementById('vis-photo-img').src = '';
-  document.getElementById('vis-photo-input').value = '';
-  visUpdate();
-}
-
-function visUpdate(){
-  var titre = document.getElementById('vis-titre-input').value.trim() || 'Ton titre apparaitra ici';
-  var pos = document.getElementById('vis-photo-pos').value || 'center center';
-  var gradient = VIS_GRADIENTS[visMode] || VIS_GRADIENTS.normal;
-
-  var photoBg = visPhotoB64
-    ? 'url(' + visPhotoB64 + ') ' + pos + ' / cover no-repeat'
-    : 'linear-gradient(135deg,#2c2c2c,#1a1a1a)';
-
-  // Publication
-  var pp = document.getElementById('vis-publi-photo');
-  if(pp) pp.style.background = photoBg;
-  var pg = document.getElementById('vis-publi-gradient');
-  if(pg) pg.style.background = gradient;
-  var pb = document.getElementById('vis-publi-badge');
-  if(pb){ pb.textContent = visRubrique; pb.style.background = visBadgeColor; }
-  var pt = document.getElementById('vis-publi-titre');
-  if(pt) pt.textContent = titre;
-
-  // Story
-  var sp = document.getElementById('vis-story-photo');
-  if(sp) sp.style.background = photoBg;
-  var sg = document.getElementById('vis-story-gradient');
-  if(sg) sg.style.background = gradient;
-  var sb = document.getElementById('vis-story-badge');
-  if(sb){ sb.textContent = visRubrique; sb.style.background = visBadgeColor; }
-  var st = document.getElementById('vis-story-titre');
-  if(st) st.textContent = titre;
-}
-
-// Export PNG via html2canvas
-function visExporter(elementId, filename){
-  var el = document.getElementById(elementId);
-  if(!el){ notif('Element non trouve'); return; }
-  notif('Export en cours...');
-  html2canvas(el, {
-    scale: 3,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: null,
-    logging: false
-  }).then(function(canvas){
-    var link = document.createElement('a');
-    link.download = filename;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    notif('Visuel exporté : ' + filename);
-  }).catch(function(err){
-    notif('Erreur export - essaie de recharger la photo');
-  });
-}
-
-// Init visuels quand on arrive sur la page
-
-
-// Générer visuels depuis la page rédaction
-function genererVisuelsDepuisRedaction(){
-  var titre = document.getElementById('r-titre').value.trim();
-  var rubrique = document.getElementById('r-rubrique').value.trim();
-
-  if(!titre){ notif('Ajoute un titre avant de générer les visuels'); return; }
-
-  // Basculer sur la page visuels
-  go('visuels');
-
-  setTimeout(function(){
-    // Pré-remplir le titre
-    var titreInput = document.getElementById('vis-titre-input');
-    if(titreInput) titreInput.value = titre;
-
-    // Pré-remplir la rubrique si elle correspond à un bouton existant
-    if(rubrique){
-      var rubUp = rubrique.toUpperCase();
-      var trouve = false;
-      document.querySelectorAll('.vis-rubrique-btn').forEach(function(b){
-        if(b.dataset && b.dataset.val && b.dataset.val === rubUp){
-          visSetRubrique(b);
-          trouve = true;
-        }
-      });
-      if(!trouve){
-        // Rubrique custom
-        var custom = document.getElementById('vis-rubrique-custom');
-        if(custom){ custom.value = rubrique; visRubrique = rubUp; }
-      }
-    }
-
-    // Pré-remplir l'image si elle existe
-    if(imgB64){
-      visPhotoB64 = imgB64;
-      var preview = document.getElementById('vis-photo-preview');
-      var img = document.getElementById('vis-photo-img');
-      if(preview) preview.style.display = 'block';
-      if(img) img.src = imgB64;
-    }
-
-    // Mettre à jour les aperçus
-    visUpdate();
-    notif('Visuels pré-remplis depuis ton article');
-  }, 100);
-}
-
 
 // ===== VISUELS PRO =====
 var vproSelectedEl = null;
