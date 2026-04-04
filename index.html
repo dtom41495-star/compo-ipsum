@@ -1881,8 +1881,15 @@ function updateStats(){
 // ===== IMAGE =====
 function loadImg(event){
   const f=event.target.files[0];if(!f)return;
+  imgFile = f; // Stocker le fichier pour upload Storage
   const r=new FileReader();
-  r.onload=e=>{imgB64=e.target.result;document.getElementById('r-img-prev').src=imgB64;document.getElementById('r-img-prev').style.display='block';document.getElementById('r-img-rem').style.display='inline-block';document.getElementById('r-img-leg').style.display='block';notif('Image ajoutée');};
+  r.onload=e=>{
+    imgB64=e.target.result;
+    document.getElementById('r-img-prev').src=imgB64;
+    document.getElementById('r-img-prev').style.display='block';
+    var rem = document.getElementById('r-img-rem');
+    if(rem) rem.style.display='inline-block';
+  };
   r.readAsDataURL(f);
 }
 function removeImg(){imgB64=null;['r-img-prev','r-img-rem','r-img-leg'].forEach(id=>{const el=document.getElementById(id);el.style.display='none';if(el.tagName==='INPUT')el.value='';});document.getElementById('r-img').value='';}
@@ -1983,35 +1990,46 @@ function exporterArticle(){
   var auteur=document.getElementById('r-auteur').value.trim();
   var titre=document.getElementById('r-titre').value.trim();
   var corps=document.getElementById('r-corps').value.trim();
-  if(!auteur||!titre||!corps){notif('Prénom, titre et texte requis');return;}
-  if(currentType==='breve'&&corps.length>400){notif('Brève trop longue (max 400 caractères)');return;}
+  if(!auteur||!titre||!corps){notif('Prenom, titre et texte requis');return;}
+  if(currentType==='breve'&&corps.length>400){notif('Breve trop longue (max 400 caracteres)');return;}
   var doc=buildDoc();
-  // Sauvegarder en base Supabase
   notif('Sauvegarde en cours...');
-  db.sauvegarderArticle(doc).then(function(){
-    var lien = genererLien(doc.id);
-    var shareDiv = document.getElementById('r-share-link');
-    var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv) shareDiv.style.display = 'block';
-    if(shareUrl) shareUrl.textContent = lien;
-    // Sauvegarder aussi en brouillon local
-    var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-    var idx=drafts.findIndex(function(d){return d.id===doc.id;});
-    if(idx>=0) drafts[idx]=doc; else drafts.push(doc);
-    localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
-    logAction('sauvegarde-db', doc.titre, doc.id);
-    notif('Article sauvegardé ! Lien de partage généré.');
-  }).catch(function(){
-    notif('Hors ligne - export JSON local');
-    exporterFichier(doc, doc.id);
-  });
+
+  function sauvegarder(imageUrl){
+    if(imageUrl) doc.image = imageUrl;
+    db.sauvegarderArticle(doc).then(function(){
+      var lien=genererLien(doc.id);
+      var shareDiv=document.getElementById('r-share-link');
+      var shareUrl=document.getElementById('r-share-url');
+      if(shareDiv) shareDiv.style.display='block';
+      if(shareUrl) shareUrl.textContent=lien;
+      notif('Article sauvegarde ! Lien genere.');
+      var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+      var idx=drafts.findIndex(function(d){return d.id===doc.id;});
+      if(idx>=0) drafts[idx]=doc; else drafts.push(doc);
+      localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
+    }).catch(function(){ exporterFichier(doc,doc.id); notif('Hors ligne - export JSON'); });
+  }
+
+  // Si une image a été choisie, l'uploader d'abord
+  if(imgFile){
+    uploadImageStorage(imgFile, doc.id).then(function(url){
+      imgFile = null;
+      sauvegarder(url);
+    }).catch(function(){
+      notif('Upload image echoue - sauvegarde sans image');
+      sauvegarder(null);
+    });
+  } else {
+    sauvegarder(null);
+  }
 }
 
 function resetRedaction(){
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
   document.getElementById('r-redaction').value='Rédaction Tarn';
-  tags=[];renderTags();imgB64=null;cpLies=[];
+  tags=[];renderTags();imgB64=null; imgFile=null;cpLies=[];
   removeImg();renderCpLies();
   document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>';
   setUrg('normal');updateStats();
@@ -4803,6 +4821,38 @@ function construireAccueil(){
     outils.appendChild(outil('📒','Journal','Log des actions','log'));
   }
 }
+
+
+// ===== SUPABASE STORAGE =====
+function uploadImageStorage(file, articleId){
+  return new Promise(function(resolve, reject){
+    var ext = file.name.split('.').pop() || 'jpg';
+    var path = 'articles/' + articleId + '.' + ext;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var arrayBuffer = e.target.result;
+      fetch(SB_URL + '/storage/v1/object/images-articles/' + path, {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY),
+          'Content-Type': file.type || 'image/jpeg',
+          'x-upsert': 'true'
+        },
+        body: arrayBuffer
+      }).then(function(r){
+        if(!r.ok){ return r.text().then(function(t){ reject(new Error(t)); }); }
+        var publicUrl = SB_URL + '/storage/v1/object/public/images-articles/' + path;
+        resolve(publicUrl);
+      }).catch(reject);
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Variable pour stocker le fichier image en attente d'upload
+var imgFile = null;
 
 // Init
 setType('article');
