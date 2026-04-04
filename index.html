@@ -4637,14 +4637,30 @@ function assignFermer(){
 // Synchroniser le profil avec la base Supabase
 function syncProfilBase(prenom, nom, role){
   var user = getSessionUser();
-  if(!user) return; // Pas connecté
+  if(!user || !_session || !_session.access_token) return;
+
+  var headers = {
+    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE',
+    'Authorization': 'Bearer ' + _session.access_token,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal'
+  };
+
   fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?id=eq.' + user.id, {
     method: 'PATCH',
-    headers: Object.assign({}, SB_HEADERS, {'Prefer': 'return=minimal'}),
+    headers: headers,
     body: JSON.stringify({ prenom: prenom, nom: nom, role: role })
   }).then(function(r){
-    if(r.ok) console.log('Profil synchronisé en base');
-  }).catch(function(){ console.log('Sync profil impossible hors ligne'); });
+    if(r.ok){
+      notif('Profil mis a jour en base !');
+    } else {
+      r.text().then(function(t){ console.log('Sync erreur:', r.status, t); });
+      notif('Profil enregistre localement (sync base echouee)');
+    }
+  }).catch(function(e){
+    console.log('Sync profil impossible:', e);
+    notif('Profil enregistre localement');
+  });
 }
 
 // Récupérer l'UUID du membre courant depuis la session
