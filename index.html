@@ -628,6 +628,60 @@ input:focus,select:focus,textarea:focus{
 .modal-action-label{font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.1rem;}
 .modal-action-desc{font-size:0.75rem;color:var(--gris);}
 
+
+/* BOUTON SPLIT EXPORT */
+.split-btn-wrap{position:relative;display:inline-flex;}
+.split-btn-main{
+  font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:500;
+  letter-spacing:0.05em;text-transform:uppercase;
+  padding:0.65rem 1.1rem;cursor:pointer;border:none;
+  background:linear-gradient(135deg,var(--rouge),var(--rouge2));
+  color:white;transition:all 0.16s;
+  box-shadow:0 4px 14px rgba(234,91,28,0.35);
+  border-right:1px solid rgba(255,255,255,0.25);
+}
+.split-btn-main:hover{opacity:0.9;transform:translateY(-1px);}
+.split-btn-arrow{
+  font-family:'IBM Plex Mono',monospace;font-size:0.7rem;
+  padding:0.65rem 0.7rem;cursor:pointer;border:none;
+  background:linear-gradient(135deg,var(--rouge),var(--rouge2));
+  color:white;transition:all 0.16s;
+  box-shadow:0 4px 14px rgba(234,91,28,0.35);
+}
+.split-btn-arrow:hover{opacity:0.9;}
+.split-dropdown{
+  display:none;position:absolute;top:100%;left:0;
+  background:var(--encre);min-width:200px;z-index:50;
+  box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  flex-direction:column;
+}
+.split-dropdown.open{display:flex;}
+.split-dropdown-item{
+  padding:0.6rem 1rem;font-family:'IBM Plex Mono',monospace;
+  font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;
+  cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,0.85);
+  text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);
+  transition:all 0.12s;
+}
+.split-dropdown-item:last-child{border-bottom:none;}
+.split-dropdown-item:hover{background:var(--rouge);color:white;}
+
+
+/* MES ARTICLES */
+.ma-card{
+  border:1.5px solid var(--gris-bord);background:white;padding:1rem 1.2rem;
+  margin-bottom:0.7rem;box-shadow:var(--shadow-sm);
+  display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;
+  transition:border-color 0.14s;
+}
+.ma-card:hover{border-color:var(--rouge);}
+.ma-card-info{flex:1;min-width:200px;}
+.ma-card-titre{font-family:'Poppins',sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.3rem;}
+.ma-card-chapeau{font-size:0.8rem;color:var(--gris);margin-bottom:0.5rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ma-card-meta{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;}
+.ma-card-actions{display:flex;gap:0.5rem;flex-wrap:wrap;flex-shrink:0;align-items:flex-start;}
+.ma-card.filtre-masque{display:none;}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -718,6 +772,7 @@ input:focus,select:focus,textarea:focus{
         <button class="dropdown-item" onclick="go('communique');closeDD()">📋 Enregistrer un communiqué</button>
         <button class="dropdown-item" onclick="go('redaction');closeDD()">✍️ Rédiger un article</button>
         <button class="dropdown-item" onclick="go('brouillons');closeDD()">📝 Mes brouillons</button>
+        <button class="dropdown-item" onclick="go('mes-articles');closeDD()">🗂️ Mes articles</button>
         <button class="dropdown-item" onclick="go('lecture');closeDD()">📰 Lire un article</button>
         <button class="dropdown-item" onclick="go('lire-cp');closeDD()">🔎 Lire un communiqué</button>
         <button class="dropdown-item" onclick="go('newsletter');closeDD()">📨 Newsletter</button>
@@ -829,6 +884,16 @@ input:focus,select:focus,textarea:focus{
     <div id="rss-feed"><div class="rss-loading">Chargement des articles...</div></div>
   </div>
 
+
+  <!-- MES ARTICLES ACCUEIL -->
+  <div style="margin-top:2rem;" id="accueil-mes-articles">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <div class="accueil-section-label" style="margin-bottom:0;">Mes articles</div>
+      <button onclick="go('mes-articles')" style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--rouge);text-decoration:none;text-transform:uppercase;letter-spacing:0.06em;border:none;background:transparent;cursor:pointer;">Voir tout →</button>
+    </div>
+    <div id="accueil-articles-list"><div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>
+  </div>
+
 </div>
 </div>
 
@@ -862,7 +927,13 @@ input:focus,select:focus,textarea:focus{
     </div>
   </div>
   <div class="btn-row">
-    <button class="btn" onclick="exporterCP()">Enregistrer le communiqué</button>
+    <div class="split-btn-wrap">
+      <button class="split-btn-main" onclick="exporterCP()">Enregistrer le communiqué</button>
+      <button class="split-btn-arrow" onclick="toggleSplit('split-cp')" title="Plus d'options">▾</button>
+      <div class="split-dropdown" id="split-cp">
+        <button class="split-dropdown-item" onclick="exporterCPJSON();closeSplit('split-cp')">📄 Exporter en fichier JSON</button>
+      </div>
+    </div>
     <button class="btn sec" onclick="resetCP()">Tout effacer</button>
   </div>
 </div>
@@ -948,7 +1019,13 @@ input:focus,select:focus,textarea:focus{
     </div>
   </div>
   <div class="btn-row">
-    <button class="btn" onclick="exporterArticle()">Envoyer l'article</button>
+    <div class="split-btn-wrap">
+      <button class="split-btn-main" onclick="exporterArticle()">Envoyer l'article</button>
+      <button class="split-btn-arrow" onclick="toggleSplit('split-article')" title="Plus d'options">▾</button>
+      <div class="split-dropdown" id="split-article">
+        <button class="split-dropdown-item" onclick="exporterArticleJSON();closeSplit('split-article')">📄 Exporter en fichier JSON</button>
+      </div>
+    </div>
     <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
     <button class="btn sec" onclick="genererVisuelsDepuisRedaction()">🎨 Générer les visuels</button>
     <button class="btn sec" onclick="ouvrirFS('r')">Relecture plein écran</button>
@@ -1431,6 +1508,25 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
+
+<!-- MES ARTICLES -->
+<div class="page" id="page-mes-articles">
+  <div class="panel-title">Mes articles</div>
+  <div class="panel-subtitle" id="mes-articles-sub">Chargement...</div>
+
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.2rem;align-items:center;">
+    <button class="statut-filtre active" data-filtre="tous" onclick="mesArticlesFiltrer(this)">Tous</button>
+    <button class="statut-filtre" data-filtre="brouillon" onclick="mesArticlesFiltrer(this)">Brouillon</button>
+    <button class="statut-filtre" data-filtre="en-relecture" onclick="mesArticlesFiltrer(this)">En relecture</button>
+    <button class="statut-filtre" data-filtre="corrige" onclick="mesArticlesFiltrer(this)">Corrigé</button>
+    <button class="statut-filtre" data-filtre="valide" onclick="mesArticlesFiltrer(this)">Validé</button>
+    <button class="statut-filtre" data-filtre="publie" onclick="mesArticlesFiltrer(this)">Publié</button>
+    <button class="btn sec" style="margin-left:auto;font-size:0.65rem;padding:0.35rem 0.8rem;" onclick="chargerMesArticles()">Actualiser</button>
+  </div>
+
+  <div id="mes-articles-list"></div>
+</div>
+
 <!-- GUIDE -->
 <div class="page" id="page-guide">
   <div class="page-title">Comment ça marche ?</div>
@@ -1613,7 +1709,8 @@ function go(id){
   document.querySelectorAll('.nav-btn,.dropdown-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(id==='brouillons') chargerBrouillons();
-  if(id==='accueil') chargerRSS();
+  if(id==='mes-articles') chargerMesArticles();
+  if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); }
   if(id==='redaction') setTimeout(preremplirAuteur,50);
   if(id==='correction') setTimeout(preremplirCorrecteur,50);
   closeDD();
@@ -2766,6 +2863,7 @@ window.addEventListener('DOMContentLoaded',function(){
       document.getElementById('bienvenue').classList.add('visible');
     } else {
       afficherBonjour();
+      chargerAccueilArticles();
     }
   },1700);
 });
@@ -3561,6 +3659,262 @@ function afficherCPDansLecteur(cp){
     }
     reader.innerHTML = html;
   }
+}
+
+
+// SPLIT BUTTONS
+function toggleSplit(id){
+  var dd = document.getElementById(id);
+  if(!dd) return;
+  var isOpen = dd.classList.contains('open');
+  // Fermer tous
+  document.querySelectorAll('.split-dropdown').forEach(function(d){ d.classList.remove('open'); });
+  if(!isOpen) dd.classList.add('open');
+}
+function closeSplit(id){
+  var dd = document.getElementById(id);
+  if(dd) dd.classList.remove('open');
+}
+// Fermer si clic dehors
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.split-btn-wrap')){
+    document.querySelectorAll('.split-dropdown').forEach(function(d){ d.classList.remove('open'); });
+  }
+});
+
+// Export article en JSON (fallback)
+function exporterArticleJSON(){
+  var auteur = document.getElementById('r-auteur').value.trim();
+  var titre = document.getElementById('r-titre').value.trim();
+  var corps = document.getElementById('r-corps').value.trim();
+  if(!auteur||!titre||!corps){ notif('Prénom, titre et texte requis'); return; }
+  var doc = buildDoc();
+  exporterFichier(doc, doc.id);
+  notif('Article exporté en JSON : ' + doc.id);
+}
+
+// Export CP en JSON
+function exporterCPJSON(){
+  var objet = document.getElementById('cp-objet').value.trim();
+  if(!objet){ notif('Le sujet est obligatoire'); return; }
+  // Récupérer le dernier CP construit
+  var cp = buildCP();
+  if(cp) exporterFichier(cp, cp.id);
+  notif('Communiqué exporté en JSON');
+}
+
+
+function buildCP(){
+  var org = document.getElementById('cp-org') ? document.getElementById('cp-org').value.trim() : '';
+  var objet = document.getElementById('cp-objet').value.trim();
+  var typeActu = document.querySelector('.toggle-btn.active') ? document.querySelector('.toggle-btn.active').dataset.val || 'local' : 'local';
+  return {
+    id: 'CP-' + new Date().getFullYear().toString().slice(2) + pad(new Date().getMonth()+1) + '-' + Math.random().toString(36).substr(2,4).toUpperCase(),
+    type: 'communique',
+    objet: objet,
+    organisation: org,
+    type_actu: typeActu,
+    cree_le: new Date().toISOString()
+  };
+}
+
+
+// ===== MES ARTICLES =====
+var mesArticlesFiltreCourant = 'tous';
+
+function chargerMesArticles(){
+  var nom = getUserNomComplet();
+  var list = document.getElementById('mes-articles-list');
+  var sub = document.getElementById('mes-articles-sub');
+  if(!list) return;
+
+  if(!nom){
+    list.innerHTML = '<div style="font-family:monospace;font-size:0.82rem;color:var(--gris);padding:1rem 0;">Enregistre ton nom dans le profil pour voir tes articles.</div>';
+    if(sub) sub.textContent = 'Profil non configuré';
+    return;
+  }
+
+  if(sub) sub.textContent = 'Chargement...';
+  list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);padding:1rem 0;">Recherche en cours...</div>';
+
+  var prenom = getUserPrenom() || '';
+  var query = SB_URL + '/rest/v1/articles?or=(auteur.eq.' + encodeURIComponent(nom) + ',auteur.ilike.*' + encodeURIComponent(prenom) + '*)&select=*&order=updated_at.desc';
+
+  fetch(query, { headers: SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(articles){
+    if(!articles || !articles.length){
+      list.innerHTML = '<div style="font-family:monospace;font-size:0.82rem;color:var(--gris);padding:1rem 0;">Aucun article trouvé pour <strong>' + esc(nom) + '</strong>.</div>';
+      if(sub) sub.textContent = 'Aucun article';
+      return;
+    }
+    if(sub) sub.textContent = articles.length + ' article(s) pour ' + nom;
+
+    var statDef = {
+      brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404',bc:'#856404'},
+      'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276',bc:'#1A5276'},
+      corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460',bc:'#0C5460'},
+      valide:{l:'Validé',bg:'#D4EDDA',c:'#155724',bc:'#155724'},
+      publie:{l:'Publié',bg:'#1A1A2E',c:'white',bc:'#1A1A2E'}
+    };
+
+    list.innerHTML = '';
+    articles.forEach(function(doc){
+      var s = doc.statut||'brouillon';
+      var sd = statDef[s]||{l:s,bg:'#eee',c:'#333',bc:'#999'};
+      var age = badgeFraicheur(doc.updated_at||doc.created_at);
+      var lien = genererLien(doc.id);
+
+      var card = document.createElement('div');
+      card.className = 'ma-card';
+      card.dataset.statut = s;
+
+      var info = document.createElement('div');
+      info.className = 'ma-card-info';
+      info.innerHTML = '<div class="ma-card-titre">'+esc(doc.titre||'Sans titre')+'</div>' +
+        (doc.chapeau ? '<div class="ma-card-chapeau">'+esc(doc.chapeau)+'</div>' : '') +
+        '<div class="ma-card-meta">' +
+          '<span class="badge" style="background:'+sd.bg+';color:'+sd.c+';border-color:'+sd.bc+';">'+sd.l+'</span>' +
+          (doc.rubrique ? '<span style="font-family:monospace;font-size:0.62rem;color:var(--gris);">'+esc(doc.rubrique)+'</span>' : '') +
+          age +
+        '</div>';
+
+      var actions = document.createElement('div');
+      actions.className = 'ma-card-actions';
+
+      var btnLire = document.createElement('button');
+      btnLire.className = 'btn sec';
+      btnLire.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
+      btnLire.textContent = 'Lire';
+      btnLire.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
+
+      var btnEdit = document.createElement('button');
+      btnEdit.className = 'btn sec';
+      btnEdit.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
+      btnEdit.textContent = 'Modifier';
+      btnEdit.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'edition'); }; })(doc.id);
+
+      var btnLien = document.createElement('button');
+      btnLien.className = 'btn sec';
+      btnLien.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
+      btnLien.textContent = 'Copier lien';
+      btnLien.onclick = (function(l){ return function(){ navigator.clipboard.writeText(l).then(function(){ notif('Lien copié !'); }); }; })(lien);
+
+      actions.appendChild(btnLire);
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnLien);
+      card.appendChild(info);
+      card.appendChild(actions);
+      list.appendChild(card);
+    });
+    mesArticlesFiltrerActif();
+  })
+  .catch(function(){
+    list.innerHTML = '<div style="font-family:monospace;font-size:0.82rem;color:var(--rouge);padding:1rem 0;">Erreur de connexion.</div>';
+    if(sub) sub.textContent = 'Erreur';
+  });
+}
+
+function mesArticlesOuvrir(id, action){
+  notif('Chargement...');
+  db.getArticle(id).then(function(doc){
+    if(!doc){ notif('Article introuvable'); return; }
+    var docCompo = {
+      id:doc.id, type:doc.type, statut:doc.statut, urgence:doc.urgence,
+      auteur:doc.auteur, redaction:doc.redaction, titre:doc.titre,
+      chapeau:doc.chapeau, angle:doc.angle, rubrique:doc.rubrique,
+      corps:doc.corps, tags:doc.tags||[], sources:doc.sources||[],
+      image:doc.image, image_legende:doc.image_legende,
+      date_publication:doc.date_publication,
+      cree_le:doc.created_at, modifie_le:doc.updated_at
+    };
+    currentDoc = docCompo;
+    go(action);
+    setTimeout(function(){
+      if(action === 'lecture') renderLecture(docCompo);
+      else if(action === 'edition') renderEdition(docCompo);
+    }, 100);
+  }).catch(function(){ notif('Erreur chargement'); });
+}
+
+function mesArticlesFiltrer(btn){
+  document.querySelectorAll('#page-mes-articles .statut-filtre').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  mesArticlesFiltreCourant = btn.dataset.filtre;
+  mesArticlesFiltrerActif();
+}
+
+function mesArticlesFiltrerActif(){
+  var cards = document.querySelectorAll('.ma-card');
+  cards.forEach(function(c){
+    if(mesArticlesFiltreCourant === 'tous' || c.dataset.statut === mesArticlesFiltreCourant){
+      c.classList.remove('filtre-masque');
+    } else {
+      c.classList.add('filtre-masque');
+    }
+  });
+}
+
+
+// Délégation d'événements pour mes-articles
+document.addEventListener('click', function(e){
+  var btnLire = e.target.closest('.ma-btn-lire');
+  var btnEdit = e.target.closest('.ma-btn-edit');
+  var btnLien = e.target.closest('.ma-btn-lien');
+  if(btnLire){ mesArticlesOuvrir(btnLire.dataset.id, 'lecture'); }
+  if(btnEdit){ mesArticlesOuvrir(btnEdit.dataset.id, 'edition'); }
+  if(btnLien){ navigator.clipboard.writeText(btnLien.dataset.lien).then(function(){ notif('Lien copié !'); }); }
+});
+
+
+function chargerAccueilArticles(){
+  var nom = getUserNomComplet();
+  var list = document.getElementById('accueil-articles-list');
+  if(!list) return;
+  if(!nom){
+    list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);">Configure ton profil pour voir tes articles ici.</div>';
+    return;
+  }
+  var prenom = getUserPrenom()||'';
+  fetch(SB_URL+'/rest/v1/articles?or=(auteur.eq.'+encodeURIComponent(nom)+',auteur.ilike.*'+encodeURIComponent(prenom)+'*)&select=id,titre,statut,updated_at,rubrique&order=updated_at.desc&limit=3', {headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(articles){
+    if(!articles||!articles.length){
+      list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun article en base pour linstant.</div>';
+      return;
+    }
+    var statDef = {
+      brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404',bc:'#856404'},
+      'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276',bc:'#1A5276'},
+      corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460',bc:'#0C5460'},
+      valide:{l:'Validé',bg:'#D4EDDA',c:'#155724',bc:'#155724'},
+      publie:{l:'Publié',bg:'#1A1A2E',c:'white',bc:'#1A1A2E'}
+    };
+    list.innerHTML = '';
+    articles.forEach(function(doc){
+      var s = doc.statut||'brouillon';
+      var sd = statDef[s]||{l:s,bg:'#eee',c:'#333',bc:'#999'};
+      var age = badgeFraicheur(doc.updated_at);
+      var card = document.createElement('div');
+      card.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.65rem 0.9rem;background:white;border:1.5px solid var(--gris-bord);margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.14s;';
+      card.onmouseover = function(){ this.style.borderColor='var(--rouge)'; };
+      card.onmouseout = function(){ this.style.borderColor='var(--gris-bord)'; };
+      card.innerHTML =
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(doc.titre||'Sans titre')+'</div>' +
+          '<div style="display:flex;gap:0.4rem;margin-top:0.2rem;flex-wrap:wrap;align-items:center;">' +
+            '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.bc+';">'+sd.l+'</span>' +
+            (doc.rubrique?'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+esc(doc.rubrique)+'</span>':'')+
+            age +
+          '</div>' +
+        '</div>';
+      card.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
+      list.appendChild(card);
+    });
+  })
+  .catch(function(){
+    list.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Non disponible hors connexion.</div>';
+  });
 }
 
 // Init
