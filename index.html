@@ -682,6 +682,19 @@ input:focus,select:focus,textarea:focus{
 .ma-card-actions{display:flex;gap:0.5rem;flex-wrap:wrap;flex-shrink:0;align-items:flex-start;}
 .ma-card.filtre-masque{display:none;}
 
+
+.bvn-role-btn{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;padding:0.4rem 0.8rem;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);flex:1;transition:all 0.12s;}
+.bvn-role-btn.active{background:var(--encre);color:white;border-color:var(--encre);}
+.bvn-role-btn:hover:not(.active){border-color:var(--rouge);color:var(--rouge);}
+
+
+.brf-onglet{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.5rem 1rem;cursor:pointer;border:none;background:transparent;color:var(--gris);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.14s;}
+.brf-onglet.active{color:var(--rouge);border-bottom-color:var(--rouge);}
+.brf-onglet:hover:not(.active){color:var(--encre);}
+.brouillon-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:0.58rem;padding:0.12rem 0.45rem;border:1px solid;text-transform:uppercase;letter-spacing:0.04em;}
+.badge-local{background:#FFF3CD;color:#856404;border-color:#856404;}
+.badge-cloud{background:#D6EAF8;color:#1A5276;border-color:#1A5276;}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -701,6 +714,14 @@ input:focus,select:focus,textarea:focus{
     <div class="bvn-row">
       <div class="bvn-group"><label>Prénom *</label><input type="text" id="bvn-prenom" placeholder="Marie" autocomplete="given-name"></div>
       <div class="bvn-group"><label>Nom *</label><input type="text" id="bvn-nom" placeholder="Dupont" autocomplete="family-name"></div>
+    </div>
+    <div class="bvn-group" style="margin-bottom:0.8rem;">
+      <label>Ton rôle</label>
+      <div style="display:flex;gap:0.5rem;margin-top:0.4rem;">
+        <button class="bvn-role-btn active" data-role="redacteur" onclick="bvnSetRole(this)">✍️ Rédacteur</button>
+        <button class="bvn-role-btn" data-role="correcteur" onclick="bvnSetRole(this)">🔍 Correcteur</button>
+        <button class="bvn-role-btn" data-role="admin" onclick="bvnSetRole(this)">⚙️ Admin</button>
+      </div>
     </div>
     <button class="bvn-btn" onclick="bvnValider()">Commencer →</button>
   </div>
@@ -834,8 +855,8 @@ input:focus,select:focus,textarea:focus{
 
 <!-- BONJOUR -->
 <div class="accueil-bonjour" id="accueil-bonjour" style="display:none;">
-  <div class="bonjour-txt">Bonjour <strong id="bonjour-prenom"></strong> 👋 — Bonne session de rédaction !</div>
-  <button class="bonjour-edit" onclick="bvnModifier()">Modifier mon nom</button>
+  <div class="bonjour-txt">Bonjour <strong id="bonjour-prenom"></strong> 👋 — <span id="bonjour-role" style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;background:var(--encre);color:white;padding:0.15em 0.5em;border-radius:2px;"></span></div>
+  <button class="bonjour-edit" onclick="bvnModifier()">Modifier mon profil</button>
 </div>
 
 <!-- CONTENU -->
@@ -1035,17 +1056,25 @@ input:focus,select:focus,textarea:focus{
 
 <!-- BROUILLONS -->
 <div class="page" id="page-brouillons">
-  <div class="panel-title">Mes brouillons</div>
-  <div class="panel-subtitle">Articles sauvegardés sur cet appareil - pas encore envoyés</div>
-  <div class="btn-row" style="margin-bottom:1.2rem;">
-    <button class="btn" onclick="toutExporter()">Tout exporter</button>
-    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">Importer des brouillons</button>
-    <input type="file" id="import-brouillons" accept="*/*" style="display:none" onchange="importerBrouillons(event)" multiple>
-    <button class="btn sec" onclick="exporterCache()">Sauvegarder le cache</button>
-    <button class="btn sec" onclick="document.getElementById('import-cache').click()">Restaurer le cache</button>
-    <input type="file" id="import-cache" accept="*/*" style="display:none" onchange="importerCache(event)">
-    <button class="btn sec" onclick="chargerBrouillons()">Actualiser</button>
+  <div class="panel-title">Mes articles</div>
+  <div class="panel-subtitle">Articles sur cet appareil et dans le cloud</div>
+
+  <div style="display:flex;border-bottom:2px solid var(--gris-bord);margin-bottom:1.2rem;gap:0;">
+    <button class="brf-onglet active" onclick="brouillonsOnglet('local',this)">📱 Sur cet appareil</button>
+    <button class="brf-onglet" onclick="brouillonsOnglet('cloud',this)">☁️ Cloud</button>
+    <button class="brf-onglet" onclick="brouillonsOnglet('correction',this)">🔍 En correction</button>
   </div>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;" id="actions-local">
+    <button class="btn sec" onclick="chargerBrouillons()">Actualiser</button>
+    <button class="btn sec" onclick="toutExporter()">Tout exporter</button>
+    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">Importer</button>
+    <input type="file" id="import-brouillons" accept="*/*" style="display:none" onchange="importerBrouillons(event)" multiple>
+    <button class="btn sec" onclick="exporterCache()">Sauvegarder cache</button>
+    <button class="btn sec" onclick="document.getElementById('import-cache').click()">Restaurer cache</button>
+    <input type="file" id="import-cache" accept="*/*" style="display:none" onchange="importerCache(event)">
+  </div>
+
   <div id="brouillons-list"><p style="color:var(--gris);font-size:0.88rem;">Aucun brouillon pour linstant.</p></div>
 </div>
 
@@ -2816,6 +2845,13 @@ function getUserPrenom(){ return localStorage.getItem('ipsum_user_prenom')||null
 function getUserNom(){ return localStorage.getItem('ipsum_user_nom')||null; }
 function getUserNomComplet(){ var p=getUserPrenom(),n=getUserNom(); return (p&&n)?p+' '+n:(p||n||''); }
 
+function bvnSetRole(btn){
+  document.querySelectorAll('.bvn-role-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  localStorage.setItem('ipsum_user_role', btn.dataset.role);
+}
+function getUserRole(){ return localStorage.getItem('ipsum_user_role')||'redacteur'; }
+
 function bvnValider(){
   var p=document.getElementById('bvn-prenom').value.trim();
   var n=document.getElementById('bvn-nom').value.trim();
@@ -2825,8 +2861,35 @@ function bvnValider(){
   if(!ok) return;
   localStorage.setItem('ipsum_user_prenom',p);
   localStorage.setItem('ipsum_user_nom',n);
+  // Rôle déjà sauvegardé par bvnSetRole
+  if(!localStorage.getItem('ipsum_user_role')) localStorage.setItem('ipsum_user_role','redacteur');
   document.getElementById('bienvenue').classList.remove('visible');
   afficherBonjour();
+  appliquerRole();
+}
+
+function bvnModifier(){
+  document.getElementById('bvn-prenom').value=getUserPrenom()||'';
+  document.getElementById('bvn-nom').value=getUserNom()||'';
+  // Pré-sélectionner le rôle actuel
+  var role = getUserRole();
+  document.querySelectorAll('.bvn-role-btn').forEach(function(b){
+    b.classList[b.dataset.role===role?'add':'remove']('active');
+  });
+  document.getElementById('bienvenue').classList.add('visible');
+}
+
+function appliquerRole(){
+  var role = getUserRole();
+  // Masquer/afficher les sections selon le rôle
+  var navCorr = document.getElementById('nav-group-corr');
+  var navRedac = document.getElementById('nav-group-redac');
+  // Rédacteur : voit rédacteur mais pas correcteur dans le nav
+  if(navCorr) navCorr.style.display = (role==='correcteur'||role==='admin') ? '' : 'none';
+  // Mettre à jour le badge rôle dans l'accueil
+  var badge = document.getElementById('bonjour-role');
+  var roleLabels = {redacteur:'Rédacteur',correcteur:'Correcteur',admin:'Admin'};
+  if(badge) badge.textContent = roleLabels[role]||role;
 }
 function bvnModifier(){
   document.getElementById('bvn-prenom').value=getUserPrenom()||'';
@@ -3915,6 +3978,181 @@ function chargerAccueilArticles(){
   .catch(function(){
     list.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Non disponible hors connexion.</div>';
   });
+}
+
+
+// ===== ONGLETS BROUILLONS =====
+var brouillonsOngletActif = 'local';
+
+function brouillonsOnglet(onglet, btn){
+  brouillonsOngletActif = onglet;
+  document.querySelectorAll('.brf-onglet').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var actionsLocal = document.getElementById('actions-local');
+  if(actionsLocal) actionsLocal.style.display = onglet === 'local' ? 'flex' : 'none';
+  if(onglet === 'local') chargerBrouillons();
+  else if(onglet === 'cloud') chargerBrouillonsCloud();
+  else if(onglet === 'correction') chargerArticlesEnCorrection();
+}
+
+// Charger brouillons cloud (mes articles en base)
+function chargerBrouillonsCloud(){
+  var list = document.getElementById('brouillons-list');
+  var nom = getUserNomComplet();
+  if(!list) return;
+  if(!nom){
+    list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Configure ton profil pour voir tes articles cloud.</p>';
+    return;
+  }
+  list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Chargement...</p>';
+  var prenom = getUserPrenom()||'';
+  fetch(SB_URL+'/rest/v1/articles?or=(auteur.eq.'+encodeURIComponent(nom)+',auteur.ilike.*'+encodeURIComponent(prenom)+'*)&select=*&order=updated_at.desc', {headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(articles){
+    if(!articles||!articles.length){
+      list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Aucun article dans le cloud.</p>';
+      return;
+    }
+    list.innerHTML = '';
+    articles.forEach(function(doc){
+      list.appendChild(renderBrouillonCard({
+        id:doc.id, titre:doc.titre, auteur:doc.auteur, redaction:doc.redaction,
+        type:doc.type, statut:doc.statut, urgence:doc.urgence,
+        modifie_le:doc.updated_at, cree_le:doc.created_at
+      }, 'cloud'));
+    });
+  })
+  .catch(function(){ list.innerHTML = '<p style="color:var(--rouge);font-size:0.88rem;">Erreur connexion.</p>'; });
+}
+
+// Charger articles en correction (envoyés à ce correcteur)
+function chargerArticlesEnCorrection(){
+  var list = document.getElementById('brouillons-list');
+  if(!list) return;
+  list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Chargement...</p>';
+  // Chercher les articles avec statut en-relecture ou corrige
+  fetch(SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc', {headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(articles){
+    if(!articles||!articles.length){
+      list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Aucun article en attente de correction.</p>';
+      return;
+    }
+    list.innerHTML = '';
+    articles.forEach(function(doc){
+      list.appendChild(renderBrouillonCard({
+        id:doc.id, titre:doc.titre, auteur:doc.auteur, redaction:doc.redaction,
+        type:doc.type, statut:doc.statut, urgence:doc.urgence,
+        modifie_le:doc.updated_at, cree_le:doc.created_at
+      }, 'correction'));
+    });
+  })
+  .catch(function(){ list.innerHTML = '<p style="color:var(--rouge);font-size:0.88rem;">Erreur connexion.</p>'; });
+}
+
+// Rendre une carte brouillon (unifiée local + cloud)
+function renderBrouillonCard(doc, source){
+  var card = document.createElement('div');
+  card.className = 'draft-item';
+  var statDef = {
+    brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404',bc:'#856404'},
+    'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276',bc:'#1A5276'},
+    corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460',bc:'#0C5460'},
+    valide:{l:'Validé',bg:'#D4EDDA',c:'#155724',bc:'#155724'},
+    publie:{l:'Publié',bg:'#1A1A2E',c:'white',bc:'#1A1A2E'}
+  };
+  var s = doc.statut||'brouillon';
+  var sd = statDef[s]||{l:s,bg:'#eee',c:'#333',bc:'#999'};
+  var age = badgeFraicheur(doc.modifie_le||doc.cree_le);
+
+  var sourceBadge = source === 'cloud'
+    ? '<span class="brouillon-badge badge-cloud">☁️ Cloud</span>'
+    : source === 'correction'
+    ? '<span class="brouillon-badge" style="background:#EAF3DE;color:#27500A;border-color:#27500A;">🔍 Correction</span>'
+    : '<span class="brouillon-badge badge-local">📱 Appareil</span>';
+
+  var info = document.createElement('div');
+  info.className = 'draft-info';
+  info.innerHTML =
+    '<div class="draft-titre">'+esc(doc.titre||'Sans titre')+'</div>'+
+    '<div class="draft-meta" style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">'+
+      sourceBadge+
+      '<span style="font-family:monospace;font-size:0.58rem;padding:1px 5px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.bc+';">'+sd.l+'</span>'+
+      (doc.auteur ? '<span>'+esc(doc.auteur)+'</span>' : '')+
+      age+
+    '</div>';
+
+  var actions = document.createElement('div');
+  actions.className = 'draft-actions';
+
+  if(source === 'local'){
+    var btnReprendre = document.createElement('button');
+    btnReprendre.className = 'btn-reprendre';
+    btnReprendre.textContent = 'Reprendre';
+    btnReprendre.onclick = (function(id){ return function(){ reprendreBrouillon(id); }; })(doc.id);
+
+    var btnCloud = document.createElement('button');
+    btnCloud.className = 'btn-exporter-d';
+    btnCloud.textContent = 'Envoyer cloud';
+    btnCloud.title = 'Sauvegarder dans la base de données';
+    btnCloud.onclick = (function(d){ return function(){ envoyerBrouillonCloud(d); }; })(doc);
+
+    var btnSuppr = document.createElement('button');
+    btnSuppr.className = 'btn-suppr-d';
+    btnSuppr.textContent = 'Supprimer';
+    btnSuppr.onclick = (function(id){ return function(){ supprimerBrouillon(id); }; })(doc.id);
+
+    actions.appendChild(btnReprendre);
+    actions.appendChild(btnCloud);
+    actions.appendChild(btnSuppr);
+
+  } else if(source === 'cloud'){
+    var btnLire = document.createElement('button');
+    btnLire.className = 'btn-reprendre';
+    btnLire.textContent = 'Lire';
+    btnLire.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
+
+    var btnModif = document.createElement('button');
+    btnModif.className = 'btn-exporter-d';
+    btnModif.textContent = 'Modifier';
+    btnModif.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'edition'); }; })(doc.id);
+
+    var btnLien = document.createElement('button');
+    btnLien.className = 'btn-reprendre';
+    btnLien.textContent = 'Lien';
+    btnLien.onclick = (function(id){ return function(){ navigator.clipboard.writeText(genererLien(id)).then(function(){ notif('Lien copié !'); }); }; })(doc.id);
+
+    actions.appendChild(btnLire);
+    actions.appendChild(btnModif);
+    actions.appendChild(btnLien);
+
+  } else if(source === 'correction'){
+    var btnCorr = document.createElement('button');
+    btnCorr.className = 'btn-reprendre';
+    btnCorr.textContent = 'Corriger';
+    btnCorr.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'correction'); }; })(doc.id);
+
+    var btnLienC = document.createElement('button');
+    btnLienC.className = 'btn-exporter-d';
+    btnLienC.textContent = 'Lien';
+    btnLienC.onclick = (function(id){ return function(){ navigator.clipboard.writeText(genererLien(id)).then(function(){ notif('Lien copié !'); }); }; })(doc.id);
+
+    actions.appendChild(btnCorr);
+    actions.appendChild(btnLienC);
+  }
+
+  card.appendChild(info);
+  card.appendChild(actions);
+  return card;
+}
+
+// Envoyer un brouillon local vers le cloud
+function envoyerBrouillonCloud(doc){
+  notif('Envoi vers le cloud...');
+  db.sauvegarderArticle(doc).then(function(){
+    notif('Article envoyé dans le cloud !');
+    logAction('cloud-upload', doc.titre, doc.id);
+  }).catch(function(){ notif('Erreur envoi cloud'); });
 }
 
 // Init
