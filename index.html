@@ -855,6 +855,13 @@ input:focus,select:focus,textarea:focus{
     <div class="form-group"><label>Date de publication souhaitée</label><input type="date" id="r-datepub"></div>
   </div>
 
+  <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
+      <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
+    </div>
+  </div>
   <div class="btn-row">
     <button class="btn" onclick="exporterArticle()">Envoyer l'article</button>
     <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
@@ -3101,6 +3108,226 @@ function chargerRSS(){
             });
         });
     });
+}
+
+
+// ===== SUPABASE =====
+var SB_URL = 'https://ctmekufqaxdelgfyjwly.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE';
+
+var SB_HEADERS = {
+  'apikey': SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+// CRUD articles
+var db = {
+
+  // Sauvegarder ou mettre à jour un article
+  sauvegarderArticle: function(doc){
+    var payload = {
+      id: doc.id,
+      type: doc.type || 'article',
+      statut: doc.statut || 'brouillon',
+      urgence: doc.urgence || 'normal',
+      auteur: doc.auteur || '',
+      redaction: doc.redaction || '',
+      titre: doc.titre || '',
+      chapeau: doc.chapeau || '',
+      angle: doc.angle || '',
+      rubrique: doc.rubrique || '',
+      corps: doc.corps || '',
+      tags: doc.tags || [],
+      sources: doc.sources || [],
+      image: doc.image || null,
+      image_legende: doc.image_legende || '',
+      date_publication: doc.date_publication || null,
+      note_interne: doc.note_interne || ''
+    };
+    return fetch(SB_URL + '/rest/v1/articles', {
+      method: 'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer': 'resolution=merge-duplicates,return=representation'}),
+      body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      // Sauvegarder historique
+      if(doc.historique && doc.historique.length){
+        var derniere = doc.historique[doc.historique.length-1];
+        return fetch(SB_URL + '/rest/v1/historique', {
+          method: 'POST',
+          headers: SB_HEADERS,
+          body: JSON.stringify({article_id: doc.id, action: derniere.action, auteur: derniere.auteur, note: derniere.note||''})
+        }).then(function(){ return data; });
+      }
+      return data;
+    });
+  },
+
+  // Récupérer un article par ID
+  getArticle: function(id){
+    return fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(id) + '&select=*', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){ return data && data[0] ? data[0] : null; });
+  },
+
+  // Lister tous les articles
+  listerArticles: function(){
+    return fetch(SB_URL + '/rest/v1/articles?select=id,titre,auteur,redaction,type,statut,urgence,rubrique,updated_at,created_at&order=updated_at.desc', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); });
+  },
+
+  // Sauvegarder un communique
+  sauvegarderCommunique: function(cp){
+    return fetch(SB_URL + '/rest/v1/communiques', {
+      method: 'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer': 'resolution=merge-duplicates,return=representation'}),
+      body: JSON.stringify({
+        id: cp.id, objet: cp.objet, organisation: cp.organisation,
+        type_actu: cp.type_actu, contact_nom: cp.contact ? cp.contact.nom : '',
+        contact_email: cp.contact ? cp.contact.email : '',
+        contact_tel: cp.contact ? cp.contact.tel : '',
+        embargo: cp.embargo, date_reception: cp.date_reception,
+        fichier_b64: cp.fichier_b64 || null
+      })
+    }).then(function(r){ return r.json(); });
+  },
+
+  // Récupérer un communique par ID
+  getCommunique: function(id){
+    return fetch(SB_URL + '/rest/v1/communiques?id=eq.' + encodeURIComponent(id) + '&select=*', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){ return data && data[0] ? data[0] : null; });
+  },
+
+  // Lister les communiques
+  listerCommuniques: function(){
+    return fetch(SB_URL + '/rest/v1/communiques?select=id,objet,organisation,type_actu,embargo,created_at&order=created_at.desc', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); });
+  },
+
+  // Récupérer historique d'un article
+  getHistorique: function(articleId){
+    return fetch(SB_URL + '/rest/v1/historique?article_id=eq.' + encodeURIComponent(articleId) + '&order=created_at.asc&select=*', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); });
+  }
+};
+
+// Générer lien de partage
+function genererLien(id){
+  var base = window.location.origin + window.location.pathname;
+  return base + '?article=' + encodeURIComponent(id);
+}
+
+function genererLienCP(id){
+  var base = window.location.origin + window.location.pathname;
+  return base + '?communique=' + encodeURIComponent(id);
+}
+
+function copierLien(id, type){
+  var lien = type === 'communique' ? genererLienCP(id) : genererLien(id);
+  navigator.clipboard.writeText(lien).then(function(){
+    notif('Lien copié dans le presse-papier');
+  });
+}
+
+// Charger article/communique depuis URL au démarrage
+function chargerDepuisURL(){
+  var params = new URLSearchParams(window.location.search);
+  var articleId = params.get('article');
+  var communiqueId = params.get('communique');
+  if(articleId){
+    db.getArticle(articleId).then(function(doc){
+      if(!doc){ notif('Article introuvable'); return; }
+      // Reconstruire le doc au format Compo
+      var docCompo = {
+        id: doc.id, type: doc.type, statut: doc.statut, urgence: doc.urgence,
+        auteur: doc.auteur, redaction: doc.redaction, titre: doc.titre,
+        chapeau: doc.chapeau, angle: doc.angle, rubrique: doc.rubrique,
+        corps: doc.corps, tags: doc.tags||[], sources: doc.sources||[],
+        image: doc.image, image_legende: doc.image_legende,
+        date_publication: doc.date_publication,
+        cree_le: doc.created_at, modifie_le: doc.updated_at
+      };
+      currentDoc = docCompo;
+      go('lecture');
+      setTimeout(function(){ renderLecture(docCompo); }, 100);
+      notif('Article chargé depuis le lien partagé');
+    }).catch(function(){ notif('Erreur chargement article'); });
+  }
+  if(communiqueId){
+    db.getCommunique(communiqueId).then(function(cp){
+      if(!cp){ notif('Communiqué introuvable'); return; }
+      go('lire-cp');
+      setTimeout(function(){
+        // Simuler un chargement de fichier CP
+        var cpCompo = {
+          id: cp.id, type: 'communique', objet: cp.objet,
+          organisation: cp.organisation, type_actu: cp.type_actu,
+          contact: {nom: cp.contact_nom, email: cp.contact_email, tel: cp.contact_tel},
+          embargo: cp.embargo, date_reception: cp.date_reception,
+          fichier_b64: cp.fichier_b64, cree_le: cp.created_at
+        };
+        document.getElementById('lect-cp-content').style.display = 'block';
+        afficherCP(cpCompo);
+      }, 100);
+      notif('Communiqué chargé depuis le lien partagé');
+    }).catch(function(){ notif('Erreur chargement communiqué'); });
+  }
+}
+
+
+// Charger statut depuis Supabase
+function statutChargerDB(){
+  var feed = document.getElementById('statut-content');
+  notif('Chargement depuis la base...');
+  db.listerArticles().then(function(articles){
+    if(!articles || !articles.length){ notif('Aucun article en base'); return; }
+    statutDocs = articles.map(function(a){
+      return {
+        id: a.id, titre: a.titre, auteur: a.auteur, redaction: a.redaction,
+        type: a.type, statut: a.statut, urgence: a.urgence, rubrique: a.rubrique,
+        modifie_le: a.updated_at, cree_le: a.created_at,
+        _from_db: true
+      };
+    });
+    renderStatut();
+    notif(articles.length + ' article(s) chargés depuis la base');
+  }).catch(function(err){
+    notif('Erreur connexion base - vérifiez votre connexion');
+  });
+}
+
+
+function statutOuvrirArticle(id){
+  notif('Chargement...');
+  db.getArticle(id).then(function(doc){
+    if(!doc){ notif('Article introuvable'); return; }
+    var docCompo = {
+      id:doc.id, type:doc.type, statut:doc.statut, urgence:doc.urgence,
+      auteur:doc.auteur, redaction:doc.redaction, titre:doc.titre,
+      chapeau:doc.chapeau, angle:doc.angle, rubrique:doc.rubrique,
+      corps:doc.corps, tags:doc.tags||[], sources:doc.sources||[],
+      image:doc.image, image_legende:doc.image_legende,
+      date_publication:doc.date_publication,
+      cree_le:doc.created_at, modifie_le:doc.updated_at
+    };
+    currentDoc = docCompo;
+    go('lecture');
+    setTimeout(function(){ renderLecture(docCompo); }, 100);
+  }).catch(function(){ notif('Erreur chargement'); });
 }
 
 // Init
