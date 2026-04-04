@@ -630,36 +630,39 @@ input:focus,select:focus,textarea:focus{
 
 
 /* BOUTON SPLIT EXPORT */
-.split-btn-wrap{position:relative;display:inline-flex;}
+.split-btn-wrap{position:relative;display:flex;flex-shrink:0;}
 .split-btn-main{
   font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:500;
   letter-spacing:0.05em;text-transform:uppercase;
   padding:0.65rem 1.1rem;cursor:pointer;border:none;
   background:linear-gradient(135deg,var(--rouge),var(--rouge2));
-  color:white;transition:all 0.16s;
+  color:white;transition:opacity 0.16s;
   box-shadow:0 4px 14px rgba(234,91,28,0.35);
   border-right:1px solid rgba(255,255,255,0.25);
+  white-space:nowrap;
 }
-.split-btn-main:hover{opacity:0.9;transform:translateY(-1px);}
+.split-btn-main:hover{opacity:0.88;}
 .split-btn-arrow{
-  font-family:'IBM Plex Mono',monospace;font-size:0.7rem;
-  padding:0.65rem 0.7rem;cursor:pointer;border:none;
+  font-family:'IBM Plex Mono',monospace;font-size:0.75rem;
+  padding:0.65rem 0.75rem;cursor:pointer;border:none;
   background:linear-gradient(135deg,var(--rouge),var(--rouge2));
-  color:white;transition:all 0.16s;
+  color:white;transition:opacity 0.16s;
   box-shadow:0 4px 14px rgba(234,91,28,0.35);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
 }
-.split-btn-arrow:hover{opacity:0.9;}
+.split-btn-arrow:hover{opacity:0.88;}
 .split-dropdown{
-  display:none;position:absolute;top:100%;left:0;
-  background:var(--encre);min-width:200px;z-index:50;
-  box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  display:none;position:absolute;top:calc(100% + 2px);left:0;
+  background:var(--encre);min-width:210px;z-index:500;
+  box-shadow:0 8px 24px rgba(0,0,0,0.3);
   flex-direction:column;
 }
 .split-dropdown.open{display:flex;}
 .split-dropdown-item{
-  padding:0.6rem 1rem;font-family:'IBM Plex Mono',monospace;
+  padding:0.65rem 1rem;font-family:'IBM Plex Mono',monospace;
   font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;
-  cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,0.85);
+  cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,0.9);
   text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);
   transition:all 0.12s;
 }
@@ -1173,7 +1176,13 @@ input:focus,select:focus,textarea:focus{
     </div>
     <div class="section-label">Historique</div><div id="e-hist"></div>
     <div class="btn-row">
-      <button class="btn" onclick="exporterEdition()">Sauvegarder et envoyer</button>
+      <div class="split-btn-wrap">
+        <button class="split-btn-main" onclick="exporterEdition()">Sauvegarder</button>
+        <button class="split-btn-arrow" onclick="toggleSplit('split-edition')" title="Plus d options">▾</button>
+        <div class="split-dropdown" id="split-edition">
+          <button class="split-dropdown-item" onclick="exporterFichier(currentDoc,currentDoc.id);closeSplit('split-edition')">📄 Exporter en JSON</button>
+        </div>
+      </div>
       <button class="btn sec" onclick="genMd('edit')">Préparer pour Substack</button>
     </div>
     <div class="md-out" id="md-edit"></div>
@@ -2069,32 +2078,57 @@ function renderLecture(){
 // ===== ÉDITION =====
 function loadEdition(event){importerFichier(event.target.files[0],doc=>{currentDoc=doc;renderEdition(doc);});}
 function renderEdition(doc){
-  document.getElementById('edit-iz').style.display='none';
-  document.getElementById('edit-content').style.display='block';
-  document.getElementById('e-codeid').innerHTML='<span class="code-id">'+doc.id+'</span>';
-  document.getElementById('e-statbadge').innerHTML=bStat(doc.statut);
-  document.getElementById('e-auteur').value=doc.auteur||'';
-  document.getElementById('e-titre').value=doc.titre||'';
-  document.getElementById('e-corps').value=doc.corps||'';
-  document.getElementById('e-redaction').value=doc.redaction||'Rédaction Tarn';
-  document.getElementById('eg-ch').style.display=doc.type==='article'?'flex':'none';
-  if(doc.type==='article')document.getElementById('e-chapeau').value=doc.chapeau||'';
-  currentStatEdit=doc.statut;
-  document.querySelectorAll('#e-statrow .status-opt').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+doc.statut+"'")));
-  renderHist('e-hist',doc.historique);
+  currentDoc = doc;
+  var editIz = document.getElementById('edit-iz');
+  var editContent = document.getElementById('edit-content');
+  if(editIz) editIz.style.display='none';
+  if(editContent) editContent.style.display='block';
+  var eCode = document.getElementById('e-codeid');
+  if(eCode) eCode.innerHTML='<span class="code-id">'+doc.id+'</span>';
+  var eStat = document.getElementById('e-statbadge');
+  if(eStat) eStat.innerHTML=bStat(doc.statut);
+  var eAuteur = document.getElementById('e-auteur'); if(eAuteur) eAuteur.value=doc.auteur||'';
+  var eTitre = document.getElementById('e-titre'); if(eTitre) eTitre.value=doc.titre||'';
+  var eCorps = document.getElementById('e-corps'); if(eCorps) eCorps.value=doc.corps||'';
+  var eRedac = document.getElementById('e-redaction'); if(eRedac) eRedac.value=doc.redaction||'Rédaction Tarn';
+  var egCh = document.getElementById('eg-ch'); if(egCh) egCh.style.display=doc.type==='article'?'flex':'none';
+  var eCh = document.getElementById('e-chapeau'); if(eCh && doc.type==='article') eCh.value=doc.chapeau||'';
+  currentStatEdit = doc.statut;
+  document.querySelectorAll('#e-statrow .status-opt').forEach(function(b){
+    var onclick = b.getAttribute('onclick')||'';
+    b.classList.toggle('active', onclick.indexOf(doc.statut) >= 0);
+  });
+  renderHist('e-hist', doc.historique||[]);
 }
 function setStatEdit(v){currentStatEdit=v;document.querySelectorAll('#e-statrow .status-opt').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+v+"'")));}
 function exporterEdition(){
-  if(!currentDoc)return;
-  currentDoc.titre=document.getElementById('e-titre').value.trim();
-  currentDoc.corps=document.getElementById('e-corps').value.trim();
-  currentDoc.auteur=document.getElementById('e-auteur').value.trim();
-  currentDoc.redaction=document.getElementById('e-redaction').value;
-  if(currentDoc.type==='article')currentDoc.chapeau=document.getElementById('e-chapeau').value.trim();
-  if(currentStatEdit)currentDoc.statut=currentStatEdit;
-  currentDoc.modifie_le=new Date().toISOString();
-  currentDoc.historique.push({action:'edition',auteur:currentDoc.auteur,date:new Date().toISOString(),note:'Édition libre'});
-  exporterFichier(currentDoc,currentDoc.id);
+  if(!currentDoc) return;
+  currentDoc.titre = document.getElementById('e-titre').value.trim();
+  currentDoc.corps = document.getElementById('e-corps').value.trim();
+  currentDoc.auteur = document.getElementById('e-auteur').value.trim();
+  currentDoc.redaction = document.getElementById('e-redaction').value;
+  if(currentDoc.type==='article') currentDoc.chapeau = document.getElementById('e-chapeau').value.trim();
+  if(currentStatEdit) currentDoc.statut = currentStatEdit;
+  currentDoc.modifie_le = new Date().toISOString();
+  if(!currentDoc.historique) currentDoc.historique = [];
+  currentDoc.historique.push({action:'edition', auteur:currentDoc.auteur, date:new Date().toISOString(), note:'Edition libre'});
+
+  notif('Sauvegarde en cours...');
+  db.sauvegarderArticle(currentDoc).then(function(){
+    var lien = genererLien(currentDoc.id);
+    var shareDiv = document.getElementById('r-share-link');
+    var shareUrl = document.getElementById('r-share-url');
+    if(shareDiv) shareDiv.style.display = 'block';
+    if(shareUrl) shareUrl.textContent = lien;
+    notif('Article mis a jour dans le cloud !');
+    // Mettre à jour brouillon local si présent
+    var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var idx = drafts.findIndex(function(d){ return d.id === currentDoc.id; });
+    if(idx >= 0){ drafts[idx] = currentDoc; localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
+  }).catch(function(){
+    exporterFichier(currentDoc, currentDoc.id);
+    notif('Hors ligne - export JSON local');
+  });
 }
 
 // ===== COMPARAISON =====
