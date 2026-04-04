@@ -774,7 +774,6 @@ input:focus,select:focus,textarea:focus{
 .step-tip{margin-top:0.6rem;padding:0.5rem 0.8rem;background:var(--gris-clair);font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:var(--gris);border-left:3px solid var(--rouge);}
 
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1854,29 +1853,29 @@ function construireAccueil(){
   }
 
   if(role === 'redacteur'){
-    makeAction('✍️','Rédiger','Nouvel article ou brève','redaction','action-primary');
+    makeAction('✍️','Rédiger','Nouvel article ou breve','redaction','action-primary');
     makeAction('📝','Brouillons','Reprendre un article','brouillons','action-orange');
-    makeAction('🎨','Visuels','Créer les visuels Instagram','visuels','action-blue');
+    makeAction('🎨','Visuels','Creer les visuels Instagram','visuels','action-blue');
     makeAction('🗓️','Briefing','Sujets de la semaine','briefing','action-green');
-    makeOutil('📰','Lire','Prévisualiser un article','lecture');
+    makeOutil('📰','Lire','Previsualiser un article','lecture');
     makeOutil('✨','Visuels avancés','Mode drag & drop','visuels-pro');
     makeOutil('📖','Manuel','Comment utiliser Compo','guide');
 
   } else if(role === 'correcteur'){
-    makeAction('🔍','En correction','Articles qui m'attendent','brouillons','action-blue');
+    makeAction('🔍','En correction','Articles en attente','brouillons','action-blue');
     makeAction('✏️','Corriger','Ouvrir un article','correction','action-primary');
-    makeAction('📨','Newsletter','Assembler l'édition','newsletter','action-green');
-    makeOutil('📝','Modifier','Éditer un article','edition');
-    makeOutil('⚖️','Comparer','Deux versions côte à côte','comparaison');
+    makeAction('📨','Newsletter','Assembler l edition','newsletter','action-green');
+    makeOutil('📝','Modifier','Editer un article','edition');
+    makeOutil('⚖️','Comparer','Deux versions cote a cote','comparaison');
     makeOutil('📖','Manuel','Comment utiliser Compo','guide');
 
   } else {
-    makeAction('✍️','Rédiger','Nouvel article ou brève','redaction','action-primary');
+    makeAction('✍️','Rédiger','Nouvel article ou breve','redaction','action-primary');
     makeAction('📝','Brouillons','Reprendre un article','brouillons','action-orange');
-    makeAction('🔍','Corriger','Relire un article reçu','correction','action-blue');
-    makeAction('📨','Newsletter','Assembler l'édition','newsletter','action-green');
+    makeAction('🔍','Corriger','Relire un article recu','correction','action-blue');
+    makeAction('📨','Newsletter','Assembler l edition','newsletter','action-green');
     makeOutil('📋','Communiqué','Enregistrer un CP','communique');
-    makeOutil('📊','Statut édition','Vue d'ensemble','statut');
+    makeOutil('📊','Statut édition','Vue d ensemble','statut');
     makeOutil('🎨','Visuels Insta','Publication et story','visuels');
     makeOutil('🗓️','Briefing','Sujets de la semaine','briefing');
     makeOutil('📖','Manuel','Comment utiliser Compo','guide');
@@ -3341,19 +3340,21 @@ function vproExporter(){
   if(toolbar) toolbar.classList.remove('visible');
 
   setTimeout(function(){
-    html2canvas(canvas, {
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false
-    }).then(function(c){
-      var link = document.createElement('a');
-      link.download = 'visuel-ipsum-pro.png';
-      link.href = c.toDataURL('image/png', 1.0);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      notif('Visuel exporté !');
-    }).catch(function(){ notif('Erreur export'); });
+    chargerHtml2Canvas(function(){
+      html2canvas(canvas, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false
+      }).then(function(c){
+        var link = document.createElement('a');
+        link.download = 'visuel-ipsum-pro.png';
+        link.href = c.toDataURL('image/png', 1.0);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        notif('Visuel exporté !');
+      }).catch(function(){ notif('Erreur export'); });
+    });
   }, 100);
 }
 
