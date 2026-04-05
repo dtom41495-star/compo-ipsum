@@ -7036,15 +7036,14 @@ function ssAfficher(){
   if(_ssActive) return;
   _ssActive = true;
   var el = document.getElementById('screensaver');
-  if(el) el.classList.add('visible');
-  ssMajHeure();
+  if(el){ el.style.display = 'flex'; ssMajHeure(); }
 }
 
 function ssMasquer(){
   if(!_ssActive) return;
   _ssActive = false;
   var el = document.getElementById('screensaver');
-  if(el) el.classList.remove('visible');
+  if(el) el.style.display = 'none';
   ssResetTimer();
 }
 
