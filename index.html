@@ -1125,6 +1125,284 @@ input:focus,select:focus,textarea:focus{
   </div>
 
 
+<!-- COMMUNIQUÉ -->
+<div class="page" id="page-communique">
+  <div class="page-title">Enregistrer un communiqué de presse</div>
+  <div class="page-sub">Remplis les informations du communiqué - tu pourras ensuite l'attacher à un article</div>
+  <div class="form-grid">
+    <div class="form-group full"><label>Sujet du communiqué <span class="req">*</span></label><input type="text" id="cp-objet" placeholder="De quoi parle ce communiqué ?"></div>
+    <div class="form-group"><label>Organisation qui l'envoie <span class="req">*</span></label><input type="text" id="cp-org" placeholder="Nom de l'organisation"></div>
+    <div class="form-group"><label>Type d'actualité</label><select id="cp-type"><option value="local">Locale (Tarn)</option><option value="national">Nationale</option></select></div>
+    <div class="form-group"><label>Contact presse - Nom</label><input type="text" id="cp-cnom" placeholder="Prénom Nom"></div>
+    <div class="form-group"><label>Contact presse - Email</label><input type="email" id="cp-cemail" placeholder="email@organisation.fr"></div>
+    <div class="form-group"><label>Contact presse - Téléphone</label><input type="tel" id="cp-ctel" placeholder="06 XX XX XX XX"></div>
+    <div class="form-group"><label>Reçu le</label><input type="date" id="cp-recep"></div>
+    <div class="form-group"><label>Ne pas publier avant le (embargo)</label><input type="date" id="cp-embargo"></div>
+    <div class="form-group full">
+      <label>Fichier PDF du communiqué</label>
+      <div class="upload-zone" onclick="document.getElementById('cp-pdf').click()">
+        <div style="font-size:1.4rem;">📄</div>
+        <p id="cp-pdf-label">Clique ici pour ajouter le PDF</p>
+        <input type="file" id="cp-pdf" accept="*/*" style="display:none" onchange="loadCpPdf(event)">
+      </div>
+    </div>
+  </div>
+  <div id="cp-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">✅ Communiqué sauvegardé — Lien de partage</div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <code id="cp-share-url" style="font-size:0.75rem;color:var(--encre);flex:1;word-break:break-all;"></code>
+      <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('cp-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="exporterCP()">Enregistrer le communiqué</button>
+    <button class="btn sec" onclick="exporterCPJSON()">📄 Exporter en JSON</button>
+    <button class="btn sec" onclick="resetCP()">Tout effacer</button>
+  </div>
+</div>
+
+<!-- RÉDACTION -->
+<div class="page" id="page-redaction">
+  <div class="page-title">Rédiger un article</div>
+  <div class="page-sub">Remplis les champs ci-dessous - sauvegarde régulièrement dans tes brouillons</div>
+
+  <div class="toggle-row">
+    <button class="toggle-btn active" id="tb-article" onclick="setType('article')">Article</button>
+    <button class="toggle-btn" id="tb-breve" onclick="setType('breve')">Brève</button>
+  </div>
+
+  <!-- Communiqués liés -->
+  <div class="section-label">Communiqués sources liés à cet article</div>
+  <div id="cp-lies-list"></div>
+  <div class="import-zone" onclick="document.getElementById('r-cp-import').click()" style="padding:0.9rem;margin-bottom:1rem;">
+    <p style="margin:0;">+ Attacher un communiqué enregistré</p>
+    <input type="file" id="r-cp-import" accept="*/*" style="display:none" onchange="attacherCP(event)">
+  </div>
+  <div id="cp-meta-display"></div>
+
+  <div class="form-grid">
+    <div class="form-group"><label>Ton prénom et nom <span class="req">*</span></label><input type="text" id="r-auteur" placeholder="Prénom Nom"></div>
+    <div class="form-group"><label>Ta rédaction <span class="req">*</span></label>
+      <select id="r-redaction">
+        <option value="Rédaction Tarn" selected>Rédaction Tarn</option>
+        <option value="Rédaction Aveyron">Rédaction Aveyron</option>
+        <option value="Rédaction Hérault">Rédaction Hérault</option>
+        <option value="Rédaction Ariège">Rédaction Ariège</option>
+        <option value="Rédaction Haute-Garonne">Rédaction Haute-Garonne</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Rubrique</label>
+      <select id="r-rubrique"><option value="">— Choisir —</option><option>Actu locale</option><option>Actu nationale</option><option>Reportage</option><option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option></select>
+    </div>
+    <div class="form-group"><label>Urgence</label>
+      <div class="urgence-row">
+        <button class="urg-btn an" id="ub-normal" onclick="setUrg('normal')">Normal</button>
+        <button class="urg-btn" id="ub-moyen" onclick="setUrg('moyen')">Moyen</button>
+        <button class="urg-btn" id="ub-urgent" onclick="setUrg('urgent')">Urgent</button>
+      </div>
+    </div>
+    <div class="form-group full"><label>Titre <span class="req">*</span></label><input type="text" id="r-titre" placeholder="Titre de l'article"></div>
+    <div class="form-group full" id="rg-chapeau"><label>Introduction (chapeau)</label><input type="text" id="r-chapeau" placeholder="Résumé en une phrase — accroche du lecteur"></div>
+    <div class="form-group full" id="rg-angle"><label>Ton angle éditorial</label><input type="text" id="r-angle" placeholder="Pourquoi ce sujet ? Quel point de vue tu défends ?"></div>
+    <div class="form-group full">
+      <label>Texte de l'article <span class="req">*</span></label>
+      <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()"></textarea>
+      <div class="stats-bar" id="stats-bar"></div>
+      <div class="lisib-bar"><div class="lisib-fill" id="lisib-fill" style="width:0%;background:var(--gris);"></div></div>
+      <div class="lisib-label" id="lisib-label">Lisibilité —</div>
+    </div>
+    <div class="form-group full">
+      <label>Image d'illustration</label>
+      <div class="upload-zone" onclick="document.getElementById('r-img').click()">
+        <div style="font-size:1.3rem;">🖼</div>
+        <p>Clique pour ajouter une image (JPG, PNG)</p>
+        <input type="file" id="r-img" accept="image/*" style="display:none" onchange="loadImg(event)">
+      </div>
+      <img id="r-img-prev" class="img-preview">
+      <button class="img-remove" id="r-img-rem" onclick="removeImg()">Supprimer l'image</button>
+      <input type="text" id="r-img-leg" placeholder="Légende de l'image" style="margin-top:0.4rem;display:none;">
+    </div>
+    <div class="form-group full">
+      <label>Mots-clés (tags)</label>
+      <div class="tags-wrap" id="tags-wrap"><input class="tag-input" id="tag-input" placeholder="Ajouter un mot-clé + Entrée" onkeydown="addTag(event)"></div>
+    </div>
+    <div class="form-group full" id="rg-sources">
+      <label>Sources utilisées</label>
+      <div class="sources-list" id="sources-list"><div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div></div>
+      <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
+    </div>
+    <div class="form-group"><label>Date de publication souhaitée</label><input type="date" id="r-datepub"></div>
+  </div>
+
+  <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
+      <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="exporterArticle()">Envoyer l'article</button>
+    <button class="btn sec" onclick="ouvrirAssignation()">🔍 Envoyer en correction</button>
+    <button class="btn sec" onclick="exporterArticleJSON()">📄 Exporter en JSON</button>
+    <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
+    <button class="btn sec" onclick="genererVisuelsDepuisRedaction()">🎨 Générer les visuels</button>
+    <button class="btn sec" onclick="ouvrirFS('r')">Relecture plein écran</button>
+    <button class="btn sec" onclick="resetRedaction()">Tout effacer</button>
+  </div>
+</div>
+
+<!-- BROUILLONS -->
+<div class="page" id="page-brouillons">
+  <div class="panel-title">Mes articles</div>
+  <div class="panel-subtitle">Articles sur cet appareil et dans le cloud</div>
+
+  <div style="display:flex;border-bottom:2px solid var(--gris-bord);margin-bottom:1.2rem;gap:0;">
+    <button class="brf-onglet active" onclick="brouillonsOnglet('local',this)">📱 Sur cet appareil</button>
+    <button class="brf-onglet" onclick="brouillonsOnglet('cloud',this)">☁️ Cloud</button>
+    <button class="brf-onglet" onclick="brouillonsOnglet('correction',this)">🔍 En correction</button>
+  </div>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;" id="actions-local">
+    <button class="btn sec" onclick="chargerBrouillons()">Actualiser</button>
+    <button class="btn sec" onclick="toutExporter()">Tout exporter</button>
+    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">Importer</button>
+    <input type="file" id="import-brouillons" accept="*/*" style="display:none" onchange="importerBrouillons(event)" multiple>
+    <button class="btn sec" onclick="exporterCache()">Sauvegarder cache</button>
+    <button class="btn sec" onclick="document.getElementById('import-cache').click()">Restaurer cache</button>
+    <input type="file" id="import-cache" accept="*/*" style="display:none" onchange="importerCache(event)">
+  </div>
+
+  <div id="brouillons-list"><p style="color:var(--gris);font-size:0.88rem;">Aucun brouillon pour linstant.</p></div>
+</div>
+
+<!-- CORRECTION -->
+<div class="page" id="page-correction">
+  <div class="page-title">Corriger un article</div>
+  <div class="page-sub">Ouvre le fichier envoyé par le rédacteur - tes corrections seront tracées</div>
+  <div class="import-zone" onclick="document.getElementById('corr-file').click()">
+    <div class="iz-icon">↑</div><p>Ouvre le fichier de l'article à corriger</p>
+    <input type="file" id="corr-file" accept="*/*" style="display:none" onchange="loadCorrection(event)">
+  </div>
+  <div id="corr-content" style="display:none">
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+      <div id="c-codeid"></div><div id="c-statbadge"></div><div id="c-urgbadge"></div><div id="c-fraicheur"></div>
+    </div>
+    <div id="c-cpinfo"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Auteur</label><input type="text" id="c-auteur" disabled></div>
+      <div class="form-group"><label>Ton prénom (correcteur) <span class="req">*</span></label><input type="text" id="c-correcteur" placeholder="Ton prénom Nom"></div>
+      <div class="form-group full"><label>Nouveau statut</label>
+        <div class="status-row" id="c-statrow">
+          <button class="status-opt" onclick="setStatCorr('en-relecture')">En relecture</button>
+          <button class="status-opt" onclick="setStatCorr('corrige')">Corrigé</button>
+          <button class="status-opt active" onclick="setStatCorr('valide')">Validé ✓</button>
+          <button class="status-opt" onclick="setStatCorr('publie')">Publié</button>
+        </div>
+      </div>
+      <div class="form-group full"><label>Titre original</label><div class="diff-block" id="c-titre-orig"></div></div>
+      <div class="form-group full"><label>Titre corrigé</label><input type="text" id="c-titre-new"></div>
+      <div class="form-group full" id="cg-ch"><label>Introduction originale</label><div class="diff-block" id="c-ch-orig" style="min-height:auto;"></div></div>
+      <div class="form-group full" id="cg-chn"><label>Introduction corrigée</label><input type="text" id="c-ch-new"></div>
+      <div class="form-group full"><label>Texte original</label><div class="diff-block" id="c-corps-orig"></div></div>
+      <div class="form-group full"><label>Texte corrigé</label><textarea id="c-corps-new"></textarea></div>
+      <div class="form-group full"><label>Note pour le rédacteur</label><input type="text" id="c-note" placeholder="Explique tes corrections..."></div>
+    </div>
+    <div class="section-label">Historique des modifications</div><div id="c-hist"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="validerCorr()">Valider et sauvegarder</button>
+      <button class="btn sec" onclick="exporterCorrige()">Envoyer l'article corrigé</button>
+    </div>
+  </div>
+</div>
+
+<!-- LECTURE -->
+<div class="page" id="page-lecture">
+  <div class="page-title">Lire un article</div>
+  <div class="page-sub">Ouvre un article pour le prévisualiser ou l'exporter vers Substack</div>
+  <div class="import-zone" onclick="document.getElementById('lect-file').click()">
+    <div class="iz-icon">↑</div><p>Ouvre l'article à lire</p>
+    <input type="file" id="lect-file" accept="*/*" style="display:none" onchange="loadLecture(event)">
+  </div>
+  <div id="lect-content" style="display:none">
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
+      <div id="l-codeid"></div><div id="l-statbadge"></div><div id="l-urgbadge"></div><div id="l-fraicheur"></div>
+    </div>
+    <div class="art-preview" id="art-preview"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="genMd('lect')">Préparer pour Substack</button>
+      <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
+      <button class="btn sec" onclick="ouvrirFS('lect')">Relecture plein écran</button>
+      <button class="btn sec" onclick="go('edition');renderEdition(currentDoc)">Modifier</button>
+    </div>
+    <div class="md-out" id="md-lect"></div>
+  </div>
+</div>
+
+<!-- ÉDITION -->
+<div class="page" id="page-edition">
+  <div class="page-title">Modifier un article</div>
+  <div class="page-sub">Ouvre un article pour le modifier librement</div>
+  <div class="import-zone" id="edit-iz" onclick="document.getElementById('edit-file').click()">
+    <div class="iz-icon">↑</div><p>Ouvre l'article à modifier</p>
+    <input type="file" id="edit-file" accept="*/*" style="display:none" onchange="loadEdition(event)">
+  </div>
+  <div id="edit-content" style="display:none">
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+      <div id="e-codeid"></div><div id="e-statbadge"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Auteur</label><input type="text" id="e-auteur"></div>
+      <div class="form-group"><label>Rédaction</label>
+        <select id="e-redaction"><option value="Rédaction Tarn">Rédaction Tarn</option><option value="Rédaction Aveyron">Rédaction Aveyron</option><option value="Rédaction Hérault">Rédaction Hérault</option><option value="Rédaction Ariège">Rédaction Ariège</option><option value="Rédaction Haute-Garonne">Rédaction Haute-Garonne</option></select>
+      </div>
+      <div class="form-group full"><label>Titre</label><input type="text" id="e-titre"></div>
+      <div class="form-group full" id="eg-ch"><label>Introduction</label><input type="text" id="e-chapeau"></div>
+      <div class="form-group full"><label>Texte</label><textarea id="e-corps"></textarea></div>
+      <div class="form-group full"><label>Statut</label>
+        <div class="status-row" id="e-statrow">
+          <button class="status-opt" onclick="setStatEdit('brouillon')">Brouillon</button>
+          <button class="status-opt" onclick="setStatEdit('en-relecture')">En relecture</button>
+          <button class="status-opt" onclick="setStatEdit('corrige')">Corrigé</button>
+          <button class="status-opt" onclick="setStatEdit('valide')">Validé</button>
+          <button class="status-opt" onclick="setStatEdit('publie')">Publié</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Historique</div><div id="e-hist"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
+      <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)">📄 Exporter en JSON</button>
+      <button class="btn sec" onclick="genMd('edit')">Préparer pour Substack</button>
+    </div>
+    <div class="md-out" id="md-edit"></div>
+  </div>
+</div>
+
+<!-- COMPARAISON -->
+<div class="page" id="page-comparaison">
+  <div class="page-title">Comparer deux versions</div>
+  <div class="page-sub">Charge deux versions du même article pour voir les différences</div>
+  <div class="cmp-grid">
+    <div>
+      <div class="cmp-label" style="color:var(--bleu)">Version A</div>
+      <div class="import-zone" onclick="document.getElementById('cmp-a').click()"><div class="iz-icon">↑</div><p>Ouvre la version A</p><input type="file" id="cmp-a" accept="*/*" style="display:none" onchange="loadCmp('a',event)"></div>
+      <div id="cmp-a-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-a-id" class="code-id"></span><span id="cmp-a-stat"></span></div><div class="cmp-content cmp-a" id="cmp-a-txt"></div></div>
+    </div>
+    <div>
+      <div class="cmp-label" style="color:var(--rouge)">Version B</div>
+      <div class="import-zone" onclick="document.getElementById('cmp-b').click()"><div class="iz-icon">↑</div><p>Ouvre la version B</p><input type="file" id="cmp-b" accept="*/*" style="display:none" onchange="loadCmp('b',event)"></div>
+      <div id="cmp-b-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-b-id" class="code-id"></span><span id="cmp-b-stat"></span></div><div class="cmp-content cmp-b" id="cmp-b-txt"></div></div>
+    </div>
+  </div>
+  <div id="cmp-diff" style="display:none;margin-top:1.5rem;">
+    <hr class="divider">
+    <div class="section-label">Différences</div>
+    <div class="diff-block" id="cmp-diff-out" style="min-height:60px;"></div>
+  </div>
+</div>
+
+
 <!-- BRIEFING -->
 <div class="page" id="page-briefing">
   <div class="panel-title">Briefing rédaction</div>
