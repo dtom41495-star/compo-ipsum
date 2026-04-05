@@ -6344,23 +6344,16 @@ function reserverSujetModal(){
 
 
 // ===== TICKETS =====
-var RESEND_KEY = 're_ipCUmmhh_Dc7xn66Y13F2wcaYbWbwZdMy';
 var ADMIN_EMAIL = 'contact@ipsummedia.fr';
-var _ticketFiltre = 'tous';
 
 function envoyerEmailResend(to, subject, html){
-  return fetch('https://api.resend.com/emails', {
+  return fetch('https://ctmekufqaxdelgfyjwly.supabase.co/functions/v1/envoyer-email', {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer ' + RESEND_KEY,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY)
     },
-    body: JSON.stringify({
-      from: 'Compo Ipsum Media <onboarding@resend.dev>',
-      to: [to],
-      subject: subject,
-      html: html
-    })
+    body: JSON.stringify({ to: to, subject: subject, html: html })
   });
 }
 
