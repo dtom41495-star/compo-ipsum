@@ -2134,7 +2134,7 @@ function go(id){
   var pageEl=document.getElementById('page-'+id); if(pageEl) pageEl.classList.add('active');
   if(id==='brouillons') chargerBrouillons();
   if(id==='mes-articles') chargerMesArticles();
-  if(id==='accueil'){ chargerAnnonces(); chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAccueilBriefing(); chargerAlertCorrection(); chargerAlertPublication(); }
+  if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAnnonces(); chargerAccueilBriefing(); chargerAlertCorrection(); chargerAlertPublication(); }
   if(id==='redaction') setTimeout(preremplirAuteur,50);
   if(id==='correction') setTimeout(preremplirCorrecteur,50);
   closeDD();
