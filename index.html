@@ -3926,7 +3926,10 @@ var db = {
     return fetch(SB_URL + '/rest/v1/articles?select=id,titre,auteur,redaction,type,statut,urgence,rubrique,updated_at,created_at&order=updated_at.desc', {
       headers: SB_HEADERS
     })
-    .then(function(r){ return r.json(); });
+    .then(function(r){
+      if(!r.ok){ return r.json().then(function(e){ throw new Error(e.message||e.hint||r.status); }); }
+      return r.json();
+    });
   },
 
   // Sauvegarder un communique
@@ -4070,6 +4073,12 @@ function statutChargerDB(){
   var tableEl = document.getElementById('statut-table');
   if(tableEl) tableEl.innerHTML = skeletonCards(5);
   db.listerArticles().then(function(articles){
+    // Si Supabase retourne une erreur (objet avec .code)
+    if(articles && articles.code){
+      notif('Erreur base : ' + (articles.message || articles.code));
+      console.error('Supabase error:', articles);
+      return;
+    }
     if(!articles || !articles.length){ notif('Aucun article en base'); return; }
     statutDocs = articles.map(function(a){
       return {
