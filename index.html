@@ -5358,6 +5358,7 @@ function assignValider(){
   _assignDoc.correcteur = _assignCorrecteur;
   _assignDoc.correcteur_id = _assignCorrecteurId || null;
   _assignDoc.statut = 'en-relecture';
+  var _assignDoc2 = Object.assign({}, _assignDoc); // Copie avant assignFermer
 
   notif('Envoi en correction...');
   db.sauvegarderArticle(_assignDoc).then(function(){
@@ -5372,7 +5373,27 @@ function assignValider(){
     if(idx >= 0) drafts[idx] = _assignDoc; else drafts.push(_assignDoc);
     localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
     assignFermer();
-    notif('Article envoyé en correction à ' + _assignCorrecteur + ' !');
+    notif('Article envoye en correction a ' + _assignCorrecteur + ' !');
+
+    // Email au correcteur
+    if(_assignCorrecteurId){
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignCorrecteurId+'&select=email,prenom', {headers:SB_HEADERS})
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var membre = data && data[0] ? data[0] : null;
+        if(membre && membre.email){
+          var html = '<h2>Un article t attend en correction 🔍</h2>'+
+            '<p>Bonjour '+membre.prenom+',</p>'+
+            '<p><strong>'+(_assignDoc2.auteur||'Un redacteur')+'</strong> t a assigne l article suivant a corriger :</p>'+
+            '<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+(_assignDoc2.titre||'Sans titre')+'</p>'+
+            '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
+            'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article. '+
+            'Cette adresse email ne recoit pas de messages.</p>';
+          envoyerEmailResend(membre.email, '[Compo] Article a corriger : '+(_assignDoc2.titre||'Sans titre'), html)
+            .catch(function(){ console.warn('Email correcteur non envoye'); });
+        }
+      }).catch(function(){});
+    }
   }).catch(function(){
     notif('Erreur - export JSON local');
     exporterFichier(_assignDoc, _assignDoc.id);
