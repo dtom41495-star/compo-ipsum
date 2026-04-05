@@ -5809,14 +5809,44 @@ function publierArticle(id){
   }).then(function(r){
     if(r.ok){
       notif('Article marque comme publie !');
-      chargerAlertPublication(); // Rafraichir le badge
+      chargerAlertPublication();
       // Ajouter dans historique
       fetch(SB_URL+'/rest/v1/historique', {
         method: 'POST',
         headers: SB_HEADERS,
         body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note:'Publie sur Substack'})
       }).catch(function(){});
-      // Rafraichir le tableau
+
+      // Email au rédacteur
+      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=titre,auteur,auteur_id', {
+        headers: SB_HEADERS
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var article = data && data[0] ? data[0] : null;
+        if(!article) return;
+        // Chercher l'email du rédacteur dans membres
+        fetch(SB_URL+'/rest/v1/membres?nom=neq.null&select=email,prenom,nom', {headers:SB_HEADERS})
+        .then(function(r){ return r.json(); })
+        .then(function(membres){
+          if(!membres) return;
+          // Trouver le membre dont le nom complet correspond à l'auteur
+          var membre = membres.find(function(m){
+            return (m.prenom+' '+m.nom).trim() === (article.auteur||'').trim();
+          });
+          if(membre && membre.email){
+            var html = '<h2>Ton article a ete publie ! 🎉</h2>'+
+              '<p>Bonjour '+membre.prenom+',</p>'+
+              '<p>Ton article <strong>"'+article.titre+'"</strong> a ete valide et publie sur Substack par la redaction en chef.</p>'+
+              '<p>Bravo pour ce travail !</p>'+
+              '<p style="color:#155724;background:#D4EDDA;padding:0.8rem;border-left:3px solid #155724;">'+
+              'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>';
+            envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html)
+              .catch(function(){ console.warn('Email publication non envoye'); });
+          }
+        }).catch(function(){});
+      }).catch(function(){});
+
       statutChargerDB();
     } else {
       notif('Erreur lors de la publication');
@@ -6505,6 +6535,14 @@ function renderTicket(t){
     textarea.rows = 2;
     textarea.style.cssText = 'flex:1;min-width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);font-family:"DM Sans",sans-serif;font-size:0.85rem;resize:vertical;';
 
+    var btnRepondre = document.createElement('button');
+    btnRepondre.className = 'btn sec';
+    btnRepondre.textContent = 'Repondre';
+    btnRepondre.style.cssText = 'white-space:nowrap;';
+    btnRepondre.onclick = (function(ticket, ta){ return function(){
+      ticketRepondre(ticket, ta.value.trim());
+    }; })(t, textarea);
+
     var btnFermer = document.createElement('button');
     btnFermer.className = 'btn';
     btnFermer.textContent = 'Repondre et fermer';
@@ -6514,6 +6552,7 @@ function renderTicket(t){
     }; })(t, textarea);
 
     actions.appendChild(textarea);
+    actions.appendChild(btnRepondre);
     actions.appendChild(btnFermer);
     body.appendChild(actions);
   }
@@ -6553,7 +6592,9 @@ function ticketFermer(ticket, reponse){
           '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
           '<p><strong>Reponse de l admin :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
           '<p>Ce ticket est maintenant ferme.</p>'+
-          '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
+          '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
+          'Pour ouvrir un nouveau ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
+          'Cette adresse email ne recoit pas de messages.</p>';
         envoyerEmailResend(membre.email, '[Compo] Ticket resolu : '+ticket.titre, htmlMembre)
           .catch(function(){ console.warn('Email membre non envoye'); });
       }
@@ -6587,6 +6628,45 @@ function chargerAlertTickets(){
       badge.style.display = 'none';
     }
   }).catch(function(){});
+}
+
+
+function ticketRepondre(ticket, reponse){
+  if(!reponse){ notif('Saisis une reponse'); return; }
+  notif('Envoi de la reponse...');
+
+  // Ajouter la réponse dans le champ reponse (on concatène si déjà une réponse)
+  var nouvelleReponse = ticket.reponse
+    ? ticket.reponse + '\n\n[' + getUserNomComplet() + '] ' + reponse
+    : '[' + getUserNomComplet() + '] ' + reponse;
+
+  fetch(SB_URL+'/rest/v1/tickets?id=eq.'+ticket.id, {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+    body: JSON.stringify({reponse: nouvelleReponse, updated_at: new Date().toISOString()})
+  }).then(function(r){
+    if(!r.ok) throw new Error('patch failed');
+    notif('Reponse envoyee !');
+    chargerTickets();
+
+    // Email au membre
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom', {headers:SB_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var membre = data && data[0] ? data[0] : null;
+      if(membre && membre.email){
+        var html = '<h2>Nouvelle reponse sur ton ticket</h2>'+
+          '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
+          '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
+          '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
+          '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
+          'Pour repondre ou suivre ce ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
+          'Cette adresse email ne recoit pas de messages.</p>';
+        envoyerEmailResend(membre.email, '[Compo] Reponse sur ton ticket : '+ticket.titre, html)
+          .catch(function(){ console.warn('Email non envoye'); });
+      }
+    }).catch(function(){});
+  }).catch(function(){ notif('Erreur envoi reponse'); });
 }
 
 // Init (differe apres chargement DOM)
