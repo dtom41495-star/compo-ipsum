@@ -3923,12 +3923,17 @@ var db = {
 
   // Lister tous les articles
   listerArticles: function(){
-    return fetch(SB_URL + '/rest/v1/articles?select=id,titre,auteur,redaction,type,statut,urgence,rubrique,updated_at,created_at&order=updated_at.desc', {
+    return fetch(SB_URL + '/rest/v1/articles?select=id,titre,auteur,redaction,type,statut,urgence,rubrique,updated_at,created_at&order=updated_at.desc&limit=100', {
       headers: SB_HEADERS
     })
     .then(function(r){
-      if(!r.ok){ return r.json().then(function(e){ throw new Error(e.message||e.hint||r.status); }); }
+      console.log('listerArticles status:', r.status);
+      if(!r.ok){ return r.json().then(function(e){ console.error('listerArticles error:', e); throw new Error(e.message||e.hint||r.status); }); }
       return r.json();
+    })
+    .then(function(data){
+      console.log('listerArticles data:', data);
+      return data;
     });
   },
 
@@ -4091,7 +4096,10 @@ function statutChargerDB(){
     renderStatut();
     notif(articles.length + ' article(s) chargés depuis la base');
   }).catch(function(err){
-    notif('Erreur connexion base - vérifiez votre connexion');
+    console.error('statutChargerDB catch:', err);
+    var tableEl = document.getElementById('statut-table');
+    if(tableEl) tableEl.innerHTML = '<p style="color:var(--rouge);font-family:monospace;font-size:0.78rem;padding:1rem;">Erreur : ' + (err && err.message ? esc(err.message) : 'connexion impossible') + '</p>';
+    notif('Erreur connexion base');
   });
 }
 
