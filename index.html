@@ -1145,6 +1145,24 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
+<!-- MODALE SUJET BRIEFING -->
+<div id="modal-sujet" style="position:fixed;inset:0;z-index:9000;background:rgba(26,26,46,0.6);display:none;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:white;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="background:var(--encre);padding:1.2rem 1.4rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+      <div id="sujet-modal-titre" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1rem;color:white;line-height:1.4;">Titre du sujet</div>
+      <button onclick="fermerModalSujet()" style="border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:1.4rem;cursor:pointer;line-height:1;flex-shrink:0;">&times;</button>
+    </div>
+    <div style="padding:1.4rem;">
+      <div id="sujet-modal-meta" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+      <div id="sujet-modal-note" style="display:none;background:var(--gris-clair);padding:0.8rem 1rem;font-size:0.85rem;color:var(--encre);line-height:1.6;margin-bottom:1.2rem;border-left:3px solid var(--rouge);"></div>
+    </div>
+    <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
+      <button class="btn" onclick="reserverSujetModal()">Reserver et rediger</button>
+      <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODALE ASSIGNATION CORRECTION -->
 <div id="modal-assign">
   <div class="assign-card">
