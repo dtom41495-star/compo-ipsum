@@ -1932,6 +1932,7 @@ input:focus,select:focus,textarea:focus{
 const ADMIN_PW = btoa('IpSuM@2024#Tarn!');
 
 let currentDoc = null, currentType = 'article', currentUrg = 'normal';
+var statutDocs = [], statutFiltreActif = null;
 let currentStatCorr = 'valide', currentStatEdit = null;
 let tags = [], cpLies = [], imgB64 = null, cpDocs = {a:null,b:null};
 
@@ -4798,10 +4799,10 @@ function renderStatut(){
     var type = typeLbl[d.type]||d.type||'—';
     var publierBtn = '';
     if(d._from_db && d.statut === 'valide'){
-      publierBtn = '<button onclick="publierArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid #155724;background:#D4EDDA;color:#155724;margin-left:4px;">Publier</button>';
+      publierBtn = '<button class="statut-publier-btn" data-id="'+esc(d.id)+'" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid #155724;background:#D4EDDA;color:#155724;margin-left:4px;">Publier</button>';
     }
     var lienBtn = d._from_db
-      ? '<button onclick="statutOuvrirArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid var(--bleu);background:var(--bleu-clair);color:var(--bleu);">Ouvrir</button>' + publierBtn
+      ? '<button class="statut-ouvrir-btn" data-id="'+esc(d.id)+'" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid var(--bleu);background:var(--bleu-clair);color:var(--bleu);">Ouvrir</button>' + publierBtn
       : '';
     html += '<tr data-statut="'+s+'">' +
       '<td style="max-width:220px;"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(d.titre||'Sans titre')+'</strong></td>' +
@@ -4816,6 +4817,14 @@ function renderStatut(){
   });
   html += '</tbody></table>';
   tableEl.innerHTML = html;
+
+  // Délégation d'événements pour les boutons Ouvrir et Publier
+  tableEl.onclick = function(e){
+    var ouvrir = e.target.closest('.statut-ouvrir-btn');
+    var publier = e.target.closest('.statut-publier-btn');
+    if(ouvrir) statutOuvrirArticle(ouvrir.dataset.id);
+    if(publier) publierArticle(publier.dataset.id);
+  };
 }
 
 function statutFiltrer(btn){
