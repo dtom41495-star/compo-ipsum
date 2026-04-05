@@ -937,6 +937,59 @@ input:focus,select:focus,textarea:focus{
 .dash-step.done { background: var(--rouge); opacity: 1; }
 .dash-step.publie { background: #155724; opacity: 1; }
 
+
+/* BADGE CORRECTION */
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+.correction-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--rouge);
+  color: white;
+  border-radius: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-left: 6px;
+  animation: pulse-badge 1.6s ease-in-out infinite;
+  vertical-align: middle;
+}
+.accueil-correction-alert {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: white;
+  border: 2px solid var(--rouge);
+  margin-bottom: 1.5rem;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+.accueil-correction-alert-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+.accueil-correction-alert-text {
+  flex: 1;
+}
+.accueil-correction-alert-titre {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--encre);
+}
+.accueil-correction-alert-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--gris);
+  margin-top: 0.2rem;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1127,6 +1180,12 @@ input:focus,select:focus,textarea:focus{
   <div class="accueil-section-label" style="margin-top:2rem;">Tous les outils</div>
   <div id="accueil-outils" class="menu-grid"></div>
 
+  <!-- ALERTE CORRECTION -->
+  <div id="accueil-correction-alert" style="display:none;margin-bottom:0;"></div>
+
+  <!-- ALERTE PUBLICATION -->
+  <div id="accueil-publication-alert" style="display:none;margin-bottom:0;"></div>
+
   <!-- TABLEAU DE BORD ACCUEIL -->
   <div id="accueil-dashboard" style="margin-top:2rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
@@ -1265,6 +1324,10 @@ input:focus,select:focus,textarea:focus{
     <div class="form-group"><label>Date de publication souhaitée</label><input type="date" id="r-datepub"></div>
   </div>
 
+  <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;margin-bottom:0.5rem;display:none;align-items:center;justify-content:space-between;gap:1rem;">
+    <span style="font-family:monospace;font-size:0.65rem;color:#856404;">Sujet reserve - les autres ne le voient plus</span>
+    <button onclick="brfAbandonnerSujet()" style="font-family:monospace;font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;">Abandonner</button>
+  </div>
   <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
     <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
@@ -1364,7 +1427,7 @@ input:focus,select:focus,textarea:focus{
       <button class="btn" onclick="genMd('lect')">Préparer pour Substack</button>
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
       <button class="btn sec" onclick="ouvrirFS('lect')">Relecture plein écran</button>
-      <button class="btn sec" onclick="go('edition');renderEdition(currentDoc)">Modifier</button>
+      <button class="btn sec" onclick="chargerDansRedaction(currentDoc)">Modifier</button>
     </div>
     <div class="md-out" id="md-lect"></div>
   </div>
@@ -2003,7 +2066,7 @@ function go(id){
   var pageEl=document.getElementById('page-'+id); if(pageEl) pageEl.classList.add('active');
   if(id==='brouillons') chargerBrouillons();
   if(id==='mes-articles') chargerMesArticles();
-  if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAccueilBriefing(); }
+  if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAccueilBriefing(); chargerAlertCorrection(); chargerAlertPublication(); }
   if(id==='redaction') setTimeout(preremplirAuteur,50);
   if(id==='correction') setTimeout(preremplirCorrecteur,50);
   closeDD();
@@ -4999,6 +5062,8 @@ function lancerCompo(){
     chargerRSS();
     chargerAccueilArticles();
     chargerAccueilBriefing();
+    chargerAlertCorrection();
+    chargerAlertPublication();
     chargerDepuisURL();
   }, 1700);
 }
@@ -5178,6 +5243,15 @@ function construireNav(){
       var it = document.createElement('button');
       it.className = 'dropdown-item';
       it.textContent = item[0];
+      // Badge optionnel (item[2] = true ou id string)
+      if(item[2]){
+        var badge = document.createElement('span');
+        badge.id = item[2] === true ? 'nav-correction-badge' : 'nav-publication-badge';
+        badge.className = 'correction-badge';
+        badge.style.cssText = 'display:none;' + (item[2] !== true ? 'background:#155724;' : '');
+        badge.textContent = '0';
+        it.appendChild(badge);
+      }
       it.onclick = (function(p){ return function(){ go(p); closeDD(); }; })(item[1]);
       dd.appendChild(it);
     });
@@ -5201,7 +5275,7 @@ function construireNav(){
 
   if(role === 'correcteur' || role === 'admin'){
     menu.appendChild(groupe('Correcteur', 'dd-corr', [
-      ['Articles en correction', 'brouillons'],
+      ['Articles en correction', 'brouillons', true],
       ['Corriger un article', 'correction'],
       ['Modifier un article', 'edition'],
       ['Comparer deux versions', 'comparaison'],
@@ -5212,7 +5286,7 @@ function construireNav(){
   if(role === 'admin'){
     menu.appendChild(groupe('Admin', 'dd-admin', [
       ['Communiques de presse', 'communique'],
-      ['Statut de l edition', 'statut']
+      ['Statut de l edition', 'statut', 'pub']
     ]));
   }
 
@@ -5498,6 +5572,7 @@ function publierArticle(id){
   }).then(function(r){
     if(r.ok){
       notif('Article marque comme publie !');
+      chargerAlertPublication(); // Rafraichir le badge
       // Ajouter dans historique
       fetch(SB_URL+'/rest/v1/historique', {
         method: 'POST',
@@ -5579,14 +5654,22 @@ function brfChargerDB(){
       right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0;';
       right.innerHTML =
         '<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO[prio]+';border:1px solid '+PRIO[prio]+';">'+prio+'</span>'+
-        '<button onclick="brfPartirRedaction('+JSON.stringify(s.titre)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:1px solid var(--rouge);background:var(--rouge-clair);color:var(--rouge);cursor:pointer;">Rediger</button>'+
-        '<button onclick="brfArchiverSujet('+JSON.stringify(s.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:1px solid var(--gris-bord);background:transparent;color:var(--gris);cursor:pointer;">Archiver</button>';
+        '<button class="brf-partir-btn" data-titre="'+esc(s.titre)+'" data-id="'+esc(s.id)+'" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:1px solid var(--rouge);background:var(--rouge-clair);color:var(--rouge);cursor:pointer;">Rediger</button>'+
+        '<button class="brf-arch-btn" data-id="'+esc(s.id)+'" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:1px solid var(--gris-bord);background:transparent;color:var(--gris);cursor:pointer;">Archiver</button>';
       card.appendChild(left);
       card.appendChild(right);
       list.appendChild(card);
     });
   })
   .catch(function(){ list.innerHTML = '<div style="font-size:0.72rem;color:var(--rouge);padding:1rem;">Erreur connexion.</div>'; });
+
+  // Délégation pour les boutons Rédiger
+  list.onclick = function(e){
+    var btn = e.target.closest('.brf-partir-btn');
+    if(btn) brfPartirRedaction(btn.dataset.titre, btn.dataset.id);
+    var arch = e.target.closest('.brf-arch-btn');
+    if(arch) brfArchiverSujet(arch.dataset.id);
+  };
 }
 
 function brfArchiverSujet(id){
@@ -5599,14 +5682,50 @@ function brfArchiverSujet(id){
   }).catch(function(){ notif('Erreur'); });
 }
 
-function brfPartirRedaction(titre){
+function brfPartirRedaction(titre, sujetId){
+  // Passer le sujet en "en_cours" dans la base
+  if(sujetId){
+    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {
+      method: 'PATCH',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+      body: JSON.stringify({statut:'en_cours', responsable: getUserNomComplet()})
+    }).then(function(){
+      chargerAccueilBriefing(); // Rafraichir le widget
+    }).catch(function(){});
+  }
   go('redaction');
   setTimeout(function(){
     var el = document.getElementById('r-titre');
     if(el) el.value = titre;
     preremplirAuteur();
-    notif('Sujet charge dans la redaction');
+    // Stocker l'id du sujet pour pouvoir abandonner
+    if(sujetId){
+      var abandonBtn = document.getElementById('r-abandon-sujet');
+      if(abandonBtn){
+        abandonBtn.style.display = 'inline-block';
+        abandonBtn.dataset.sujetId = sujetId;
+        abandonBtn.dataset.sujetTitre = titre;
+      }
+    }
+    notif('Sujet reserve pour toi - les autres ne le voient plus');
   }, 150);
+}
+
+function brfAbandonnerSujet(){
+  var btn = document.getElementById('r-abandon-sujet');
+  if(!btn || !btn.dataset.sujetId) return;
+  var id = btn.dataset.sujetId;
+  if(!confirm('Remettre ce sujet dans la liste pour les autres ?')) return;
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(id), {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+    body: JSON.stringify({statut:'ouvert'})
+  }).then(function(){
+    btn.style.display = 'none';
+    btn.dataset.sujetId = '';
+    chargerAccueilBriefing();
+    notif('Sujet remis dans la liste');
+  }).catch(function(){ notif('Erreur'); });
 }
 
 
@@ -5646,19 +5765,123 @@ function chargerAccueilBriefing(){
       var btn = document.createElement('button');
       btn.textContent = 'Rediger';
       btn.style.cssText = 'font-family:monospace;font-size:0.6rem;padding:3px 9px;border:1.5px solid var(--rouge);background:var(--rouge-clair);color:var(--rouge);cursor:pointer;white-space:nowrap;';
-      btn.onclick = (function(titre){ return function(e){
+      btn.onclick = (function(titre, id){ return function(e){
         e.stopPropagation();
-        brfPartirRedaction(titre);
-      }; })(s.titre);
+        brfPartirRedaction(titre, id);
+      }; })(s.titre, s.id);
 
       right.appendChild(btn);
       card.appendChild(left);
       card.appendChild(right);
-      card.onclick = (function(titre){ return function(){ brfPartirRedaction(titre); }; })(s.titre);
+      card.onclick = (function(titre, id){ return function(){ brfPartirRedaction(titre, id); }; })(s.titre, s.id);
       list.appendChild(card);
     });
   })
   .catch(function(){ widget.style.display = 'none'; });
+}
+
+
+function chargerAlertCorrection(){
+  var role = getUserRole();
+  // Seulement pour correcteur et admin
+  if(role !== 'correcteur' && role !== 'admin') return;
+
+  var nom = getUserNomComplet();
+  var userId = getUserId();
+  var alertEl = document.getElementById('accueil-correction-alert');
+  if(!alertEl) return;
+
+  var query = userId
+    ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&select=id,titre,statut&order=updated_at.desc'
+    : SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&select=id,titre,statut&order=updated_at.desc';
+
+  fetch(query, {headers: SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(articles){
+    if(!articles || !articles.length){
+      alertEl.style.display = 'none';
+      // Retirer badge de la nav
+      var badge = document.getElementById('nav-correction-badge');
+      if(badge) badge.style.display = 'none';
+      return;
+    }
+
+    var n = articles.length;
+
+    // Alerte sur l'accueil
+    alertEl.style.display = 'flex';
+    alertEl.className = 'accueil-correction-alert';
+        alertEl.innerHTML = '';
+    var _icon = document.createElement('div'); _icon.className='accueil-correction-alert-icon'; _icon.textContent='🔍';
+    var _txt = document.createElement('div'); _txt.className='accueil-correction-alert-text';
+    var _t = document.createElement('div'); _t.className='accueil-correction-alert-titre'; _t.textContent=n+' article'+(n>1?'s':'')+' en attente de correction';
+    var _s = document.createElement('div'); _s.className='accueil-correction-alert-sub'; _s.textContent=articles.map(function(a){return a.titre||'Sans titre';}).join(', ');
+    _txt.appendChild(_t); _txt.appendChild(_s);
+    var _btn = document.createElement('button'); _btn.textContent='Corriger';
+    _btn.style.cssText='font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:1.5px solid var(--rouge);background:var(--rouge);color:white;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+    _btn.onclick=function(){go('brouillons');};
+    alertEl.appendChild(_icon); alertEl.appendChild(_txt); alertEl.appendChild(_btn);
+
+    // Badge dans la nav sur le bouton "En correction"
+    var badge = document.getElementById('nav-correction-badge');
+    if(badge){
+      badge.textContent = n;
+      badge.style.display = 'inline-flex';
+    }
+  })
+  .catch(function(){});
+}
+
+
+function chargerAlertPublication(){
+  var role = getUserRole();
+  if(role !== 'admin') return;
+
+  var alertEl = document.getElementById('accueil-publication-alert');
+  if(!alertEl) return;
+
+  fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&select=id,titre,auteur&order=updated_at.desc', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(articles){
+    if(!articles || !articles.length || articles.code){
+      alertEl.style.display = 'none';
+      var badge = document.getElementById('nav-publication-badge');
+      if(badge) badge.style.display = 'none';
+      return;
+    }
+    var n = articles.length;
+    alertEl.style.display = 'flex';
+    alertEl.className = 'accueil-correction-alert';
+    alertEl.style.borderColor = '#155724';
+    alertEl.innerHTML = '';
+
+    var _icon = document.createElement('div');
+    _icon.className = 'accueil-correction-alert-icon';
+    _icon.textContent = '📰';
+
+    var _txt = document.createElement('div');
+    _txt.className = 'accueil-correction-alert-text';
+    var _t = document.createElement('div');
+    _t.className = 'accueil-correction-alert-titre';
+    _t.textContent = n + ' article' + (n>1?'s':'') + ' pret' + (n>1?'s':'') + ' a publier';
+    var _s = document.createElement('div');
+    _s.className = 'accueil-correction-alert-sub';
+    _s.textContent = articles.map(function(a){ return a.titre||'Sans titre'; }).join(', ');
+    _txt.appendChild(_t); _txt.appendChild(_s);
+
+    var _btn = document.createElement('button');
+    _btn.textContent = 'Publier';
+    _btn.style.cssText = 'font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:1.5px solid #155724;background:#155724;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+    _btn.onclick = function(){ go('statut'); setTimeout(statutChargerDB, 200); };
+
+    alertEl.appendChild(_icon); alertEl.appendChild(_txt); alertEl.appendChild(_btn);
+
+    var badge = document.getElementById('nav-publication-badge');
+    if(badge){ badge.textContent = n; badge.style.display = 'inline-flex'; }
+  })
+  .catch(function(){});
 }
 
 // Init (differe apres chargement DOM)
