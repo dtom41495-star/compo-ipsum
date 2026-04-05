@@ -2024,6 +2024,36 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
+<div class="page" id="page-tickets">
+  <div class="panel-title">Tickets</div>
+  <div class="panel-subtitle">Signalement et demandes d equipe</div>
+  <div style="background:white;border:1.5px solid var(--gris-bord);padding:1.2rem;margin-bottom:1.5rem;">
+    <div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.8rem;">Nouveau ticket</div>
+    <div class="form-group" style="margin-bottom:0.7rem;">
+      <label>Titre *</label>
+      <input type="text" id="ticket-titre" placeholder="Decris brievement le probleme ou la demande">
+    </div>
+    <div class="form-group" style="margin-bottom:0.7rem;">
+      <label>Description</label>
+      <textarea id="ticket-desc" rows="3" placeholder="Donne le maximum de details..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+      <select id="ticket-priorite" style="font-family:monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
+        <option value="normale">Normale</option>
+        <option value="urgente">Urgente</option>
+        <option value="faible">Faible</option>
+      </select>
+      <button class="btn" onclick="ticketCreer()">Envoyer le ticket</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <button class="statut-filtre active" onclick="ticketFiltrer('tous',this)" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Tous</button>
+    <button class="statut-filtre" onclick="ticketFiltrer('ouvert',this)" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Ouverts</button>
+    <button class="statut-filtre" onclick="ticketFiltrer('ferme',this)" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Fermes</button>
+  </div>
+  <div id="tickets-list"><div class="loading-msg"><span class="spinner"></span>Chargement...</div></div>
+</div>
+
 <div class="page" id="page-log">
   <div class="page-title">Journal d'activité</div>
   <div class="page-sub">Accès réservé aux administrateurs</div>
