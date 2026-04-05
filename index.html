@@ -1077,6 +1077,58 @@ input:focus,select:focus,textarea:focus{
 .ticket-reponse { background:#EAF3DE;border-left:3px solid #155724;padding:0.7rem 0.9rem;font-size:0.85rem;margin-top:0.6rem; }
 .ticket-reponse-label { font-family:monospace;font-size:0.6rem;color:#155724;text-transform:uppercase;margin-bottom:0.3rem; }
 
+
+/* PATCH NOTE */
+#modal-patchnote {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(26,26,46,0.7);
+  display: none; align-items: center; justify-content: center; padding: 1rem;
+}
+#modal-patchnote.visible { display: flex; }
+.patchnote-card {
+  background: white;
+  max-width: 540px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+}
+.patchnote-header {
+  background: var(--encre);
+  padding: 1.4rem 1.6rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.patchnote-version {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem; color: var(--rouge);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 0.3rem;
+}
+.patchnote-titre {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700; font-size: 1.1rem; color: white;
+}
+.patchnote-body { padding: 1.4rem 1.6rem; }
+.patchnote-section {
+  margin-bottom: 1.2rem;
+}
+.patchnote-section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gris);
+  margin-bottom: 0.5rem;
+}
+.patchnote-item {
+  display: flex; gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 0.85rem; color: var(--encre);
+  line-height: 1.5; margin-bottom: 0.4rem;
+}
+.patchnote-emoji { flex-shrink: 0; font-size: 1rem; }
+.patchnote-footer {
+  padding: 1rem 1.6rem 1.4rem;
+  display: flex; justify-content: flex-end; gap: 0.6rem;
+  border-top: 1px solid var(--gris-bord);
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -5282,6 +5334,7 @@ function lancerCompo(){
     }
     go('accueil');
     afficherBonjour();
+    setTimeout(afficherPatchNote, 800);
     appliquerRole();
     construireNav();
     construireAccueil();
@@ -6786,7 +6839,7 @@ function ticketRepondreRedacteur(ticket, message){
 function chargerListeCorrecteurs(){
   var sel = document.getElementById('ticket-correcteur-id');
   if(!sel || sel.children.length > 1) return; // Déjà chargé
-  fetch(SB_URL+'/rest/v1/membres?role=in.(correcteur,admin)&actif=eq.true&select=id,prenom,nom,email&order=prenom.asc', {
+  fetch(SB_URL+'/rest/v1/membres?role=eq.correcteur&actif=eq.true&select=id,prenom,nom,email&order=prenom.asc', {
     headers: SB_HEADERS
   })
   .then(function(r){ return r.json(); })
@@ -6814,6 +6867,22 @@ function ticketToggleCorrecteur(val){
   } else {
     div.style.display = 'none';
   }
+}
+
+
+var COMPO_VERSION = '1.0';
+
+function afficherPatchNote(){
+  var vu = localStorage.getItem('compo_patchnote_vu');
+  if(vu === COMPO_VERSION) return; // Déjà vu cette version
+  var modal = document.getElementById('modal-patchnote');
+  if(modal) modal.classList.add('visible');
+}
+
+function fermerPatchNote(){
+  localStorage.setItem('compo_patchnote_vu', COMPO_VERSION);
+  var modal = document.getElementById('modal-patchnote');
+  if(modal) modal.classList.remove('visible');
 }
 
 // Init (differe apres chargement DOM)
