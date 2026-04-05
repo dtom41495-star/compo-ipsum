@@ -2025,8 +2025,8 @@ input:focus,select:focus,textarea:focus{
 </div>
 
 <div class="page" id="page-tickets">
-  <div class="panel-title">Tickets</div>
-  <div class="panel-subtitle">Signalement et demandes d equipe</div>
+  <div class="panel-title">Assistance 🚨</div>
+  <div class="panel-subtitle">Besoin d aide ? Ouvre une demande d assistance.</div>
   <div style="background:white;border:1.5px solid var(--gris-bord);padding:1.2rem;margin-bottom:1.5rem;">
     <div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.8rem;">Nouveau ticket</div>
     <div class="form-group" style="margin-bottom:0.7rem;">
@@ -5509,7 +5509,6 @@ function construireNav(){
     menu.appendChild(groupe('Redacteur', 'dd-redac', [
       ['Rediger un article', 'redaction'],
       ['Mes brouillons', 'brouillons'],
-      ['Tickets', 'tickets'],
       ['Visuels Instagram', 'visuels'],
       ['Visuels avance', 'visuels-pro'],
       ['Briefing', 'briefing'],
@@ -5531,7 +5530,7 @@ function construireNav(){
     menu.appendChild(groupe('Admin', 'dd-admin', [
       ['Communiques de presse', 'communique'],
       ['Statut de l edition', 'statut', 'pub'],
-      ['Tickets', 'tickets', 'tkt']
+      ['Assistance 🚨', 'tickets', 'tkt']
     ]));
   }
 
@@ -5540,6 +5539,14 @@ function construireNav(){
   if(role === 'admin'){
     menu.appendChild(btn('Journal', 'log'));
   }
+
+  // Bouton Assistance visible pour tous
+  var bAssist = document.createElement('button');
+  bAssist.className = 'nav-btn';
+  bAssist.textContent = 'Assistance';
+  bAssist.style.cssText = 'background:#E8461E;color:white;font-weight:700;margin-left:0.3rem;border-color:#E8461E;';
+  bAssist.onclick = function(){ go('tickets'); closeDD(); };
+  menu.appendChild(bAssist);
 }
 
 function construireAccueil(){
@@ -6412,7 +6419,7 @@ function ticketCreer(){
   var titre = document.getElementById('ticket-titre').value.trim();
   var desc = document.getElementById('ticket-desc').value.trim();
   var priorite = document.getElementById('ticket-priorite').value;
-  if(!titre){ notif('Saisis un titre pour le ticket'); return; }
+  if(!titre){ notif('Saisis un titre pour ta demande'); return; }
 
   var auteur = getUserNomComplet();
   var auteurId = getUserId();
@@ -6438,7 +6445,7 @@ function ticketCreer(){
     // Vider le formulaire
     document.getElementById('ticket-titre').value = '';
     document.getElementById('ticket-desc').value = '';
-    notif('Ticket envoye !');
+    notif('Demande envoyee !');
     chargerTickets();
 
     // Email a l'admin
@@ -6449,7 +6456,7 @@ function ticketCreer(){
       (desc ? '<p><strong>Description :</strong><br>'+desc.replace(/\n/g,'<br>')+'</p>' : '')+
       '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
 
-    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Nouveau ticket : '+titre, html)
+    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Nouvelle assistance : '+titre, html)
       .catch(function(){ console.warn('Email admin non envoye'); });
   })
   .catch(function(){ notif('Erreur creation ticket'); });
@@ -6583,7 +6590,7 @@ function renderTicket(t){
 }
 
 function ticketFermer(ticket, reponse){
-  if(!reponse){ notif('Saisis une reponse avant de fermer'); return; }
+  if(!reponse){ notif('Saisis une reponse avant de fermer la demande'); return; }
   notif('Fermeture en cours...');
 
   fetch(SB_URL+'/rest/v1/tickets?id=eq.'+ticket.id, {
@@ -6592,14 +6599,14 @@ function ticketFermer(ticket, reponse){
     body: JSON.stringify({statut:'ferme', reponse: reponse})
   }).then(function(r){
     if(!r.ok) throw new Error('patch failed');
-    notif('Ticket ferme !');
+    notif('Demande fermee !');
     chargerTickets();
 
     // Email au membre
-    var html = '<h2>Ton ticket a ete traite</h2>'+
+    var html = '<h2>Ta demande a ete traitee</h2>'+
       '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
       '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
-      '<p>Ticket ferme par l administrateur.</p>'+
+      '<p>Demande fermee par l administrateur.</p>'+
       '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
 
     // Envoyer email au membre via sa colonne email dans membres
@@ -6608,7 +6615,7 @@ function ticketFermer(ticket, reponse){
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
       if(membre && membre.email){
-        var htmlMembre = '<h2>Ton ticket a ete traite !</h2>'+
+        var htmlMembre = '<h2>Ta demande d assistance a ete traitee !</h2>'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
           '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
           '<p><strong>Reponse de l admin :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
@@ -6616,13 +6623,13 @@ function ticketFermer(ticket, reponse){
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour ouvrir un nouveau ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
           'Cette adresse email ne recoit pas de messages.</p>';
-        envoyerEmailResend(membre.email, '[Compo] Ticket resolu : '+ticket.titre, htmlMembre)
+        envoyerEmailResend(membre.email, '[Compo] Assistance resolue : '+ticket.titre, htmlMembre)
           .catch(function(){ console.warn('Email membre non envoye'); });
       }
       // Pas d'annonce publique - la reponse est privee (email uniquement)
     }).catch(function(){});
 
-    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Ticket ferme : '+ticket.titre, html)
+    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Assistance resolue : '+ticket.titre, html)
       .catch(function(){});
   }).catch(function(){ notif('Erreur fermeture ticket'); });
 }
@@ -6676,14 +6683,14 @@ function ticketRepondre(ticket, reponse){
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
       if(membre && membre.email){
-        var html = '<h2>Nouvelle reponse sur ton ticket</h2>'+
+        var html = '<h2>Nouvelle reponse sur ta demande d assistance</h2>'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
           '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
           '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour repondre ou suivre ce ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
           'Cette adresse email ne recoit pas de messages.</p>';
-        envoyerEmailResend(membre.email, '[Compo] Reponse sur ton ticket : '+ticket.titre, html)
+        envoyerEmailResend(membre.email, '[Compo] Reponse sur ton assistance : '+ticket.titre, html)
           .catch(function(){ console.warn('Email non envoye'); });
       }
     }).catch(function(){});
