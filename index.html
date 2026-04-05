@@ -5428,6 +5428,18 @@ function construireAccueil(){
     actions.appendChild(action('📝','Brouillons','Reprendre un article','brouillons','action-orange'));
     actions.appendChild(action('🔍','Corriger','Relire un article','correction','action-blue'));
     actions.appendChild(action('📨','Newsletter','Assembler l edition','newsletter','action-green'));
+    var btnAnnonce = document.createElement('button');
+    btnAnnonce.className = 'action-card';
+    btnAnnonce.style.cssText = 'background:linear-gradient(135deg,#1A1A2E,#2C3E70);color:white;';
+    btnAnnonce.onclick = function(){
+      var f = document.getElementById('accueil-annonce-form');
+      if(f) f.style.display = (f.style.display === 'none' || f.style.display === '') ? 'block' : 'none';
+    };
+    var _ai = document.createElement('div'); _ai.className='action-icon'; _ai.textContent='📣';
+    var _at = document.createElement('div'); _at.className='action-titre'; _at.textContent='Annonce';
+    var _ad = document.createElement('div'); _ad.className='action-desc'; _ad.textContent='Message pour l equipe';
+    btnAnnonce.appendChild(_ai); btnAnnonce.appendChild(_at); btnAnnonce.appendChild(_ad);
+    actions.appendChild(btnAnnonce);
     outils.appendChild(outil('📋','Communique','Enregistrer un CP','communique'));
     outils.appendChild(outil('📊','Statut','Vue d ensemble','statut'));
     outils.appendChild(outil('🎨','Visuels Insta','Publication et story','visuels'));
