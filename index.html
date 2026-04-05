@@ -2037,13 +2037,23 @@ input:focus,select:focus,textarea:focus{
       <label>Description</label>
       <textarea id="ticket-desc" rows="3" placeholder="Donne le maximum de details..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
     </div>
-    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.6rem;">
+      <select id="ticket-destinataire" onchange="ticketToggleCorrecteur(this.value)" style="font-family:monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
+        <option value="admin">Admin</option>
+        <option value="correcteur">Correcteur</option>
+      </select>
       <select id="ticket-priorite" style="font-family:monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
         <option value="normale">Normale</option>
         <option value="urgente">Urgente</option>
         <option value="faible">Faible</option>
       </select>
-      <button class="btn" onclick="ticketCreer()">Envoyer le ticket</button>
+    </div>
+    <div id="ticket-correcteur-select" style="display:none;margin-bottom:0.6rem;">
+      <select id="ticket-correcteur-id" style="font-family:monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);width:100%;">
+        <option value="">Choisir un correcteur...</option>
+      </select>
+    </div>
+    <button class="btn" onclick="ticketCreer()">Envoyer</button>
     </div>
   </div>
   <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
@@ -2408,7 +2418,8 @@ function exporterArticle(){
       var shareUrl=document.getElementById('r-share-url');
       if(shareDiv) shareDiv.style.display='block';
       if(shareUrl) shareUrl.textContent=lien;
-      notif('Article sauvegarde ! Lien genere.');
+      currentDoc = doc; // Mémoriser l'ID pour les prochaines sauvegardes
+      notif('Article sauvegarde !');
       var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
       var idx=drafts.findIndex(function(d){return d.id===doc.id;});
       if(idx>=0) drafts[idx]=doc; else drafts.push(doc);
@@ -6423,6 +6434,23 @@ function ticketCreer(){
 
   var auteur = getUserNomComplet();
   var auteurId = getUserId();
+  var destEl = document.getElementById('ticket-destinataire');
+  var dest = destEl ? destEl.value : 'admin';
+
+  // Trouver l'email du destinataire
+  var destEmail = ADMIN_EMAIL;
+  var destNom = 'Admin';
+  if(dest === 'correcteur'){
+    var corrSel = document.getElementById('ticket-correcteur-id');
+    if(corrSel && corrSel.value){
+      var opt = corrSel.options[corrSel.selectedIndex];
+      destEmail = opt.dataset.email || ADMIN_EMAIL;
+      destNom = opt.textContent;
+    } else {
+      notif('Choisis un correcteur');
+      return;
+    }
+  }
 
   notif('Envoi en cours...');
 
@@ -6441,25 +6469,27 @@ function ticketCreer(){
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    var ticket = data && data[0] ? data[0] : data;
-    // Vider le formulaire
     document.getElementById('ticket-titre').value = '';
     document.getElementById('ticket-desc').value = '';
-    notif('Demande envoyee !');
+    if(destEl) destEl.value = 'admin';
+    var corrDiv = document.getElementById('ticket-correcteur-select');
+    if(corrDiv) corrDiv.style.display = 'none';
+    notif('Demande envoyee a ' + destNom + ' !');
     chargerTickets();
 
-    // Email a l'admin
-    var html = '<h2>Nouveau ticket Compo</h2>'+
+    var html = '<h2>Nouvelle demande d assistance</h2>'+
       '<p><strong>De :</strong> '+auteur+'</p>'+
       '<p><strong>Titre :</strong> '+titre+'</p>'+
       '<p><strong>Priorite :</strong> '+priorite+'</p>'+
       (desc ? '<p><strong>Description :</strong><br>'+desc.replace(/\n/g,'<br>')+'</p>' : '')+
-      '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
+      '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
+      'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
+      'Cette adresse email ne recoit pas de messages.</p>';
 
-    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Nouvelle assistance : '+titre, html)
-      .catch(function(){ console.warn('Email admin non envoye'); });
+    envoyerEmailResend(destEmail, '[Compo] Nouvelle assistance : '+titre, html)
+      .catch(function(){ console.warn('Email non envoye'); });
   })
-  .catch(function(){ notif('Erreur creation ticket'); });
+  .catch(function(){ notif('Erreur creation demande'); });
 }
 
 function chargerTickets(){
@@ -6551,6 +6581,30 @@ function renderTicket(t){
     rep.className = 'ticket-reponse';
     rep.innerHTML = '<div class="ticket-reponse-label">Reponse de l admin</div>' + esc(t.reponse);
     body.appendChild(rep);
+  }
+
+  // Actions rédacteur sur ses propres tickets ouverts
+  var nom = getUserNomComplet();
+  if(role !== 'admin' && t.statut === 'ouvert' && t.auteur === nom){
+    var actionsRedac = document.createElement('div');
+    actionsRedac.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;align-items:flex-start;';
+
+    var textareaRedac = document.createElement('textarea');
+    textareaRedac.placeholder = 'Ajouter un message...';
+    textareaRedac.rows = 2;
+    textareaRedac.style.cssText = 'flex:1;min-width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);font-family:"DM Sans",sans-serif;font-size:0.85rem;resize:vertical;';
+
+    var btnRepRedac = document.createElement('button');
+    btnRepRedac.className = 'btn sec';
+    btnRepRedac.textContent = 'Repondre';
+    btnRepRedac.style.cssText = 'white-space:nowrap;';
+    btnRepRedac.onclick = (function(ticket, ta){ return function(){
+      ticketRepondreRedacteur(ticket, ta.value.trim());
+    }; })(t, textareaRedac);
+
+    actionsRedac.appendChild(textareaRedac);
+    actionsRedac.appendChild(btnRepRedac);
+    body.appendChild(actionsRedac);
   }
 
   // Actions admin
@@ -6695,6 +6749,72 @@ function ticketRepondre(ticket, reponse){
       }
     }).catch(function(){});
   }).catch(function(){ notif('Erreur envoi reponse'); });
+}
+
+
+function ticketRepondreRedacteur(ticket, message){
+  if(!message){ notif('Saisis un message'); return; }
+  notif('Envoi en cours...');
+
+  var auteur = getUserNomComplet();
+  var nouvelleReponse = ticket.reponse
+    ? ticket.reponse + '\n\n[' + auteur + '] ' + message
+    : '[' + auteur + '] ' + message;
+
+  fetch(SB_URL+'/rest/v1/tickets?id=eq.'+ticket.id, {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+    body: JSON.stringify({reponse: nouvelleReponse, updated_at: new Date().toISOString()})
+  }).then(function(r){
+    if(!r.ok) throw new Error('patch failed');
+    notif('Message envoye !');
+    chargerTickets();
+
+    // Email a l'admin
+    var html = '<h2>Nouvelle reponse sur une demande d assistance</h2>'+
+      '<p><strong>'+auteur+'</strong> a repondu sur la demande : <strong>'+ticket.titre+'</strong></p>'+
+      '<p><strong>Message :</strong><br>'+message.replace(/\n/g,'<br>')+'</p>'+
+      '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
+      'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
+      'Cette adresse email ne recoit pas de messages.</p>';
+
+    envoyerEmailResend(ADMIN_EMAIL, '[Compo] Reponse de '+auteur+' : '+ticket.titre, html)
+      .catch(function(){ console.warn('Email admin non envoye'); });
+  }).catch(function(){ notif('Erreur envoi message'); });
+}
+
+
+function chargerListeCorrecteurs(){
+  var sel = document.getElementById('ticket-correcteur-id');
+  if(!sel || sel.children.length > 1) return; // Déjà chargé
+  fetch(SB_URL+'/rest/v1/membres?role=in.(correcteur,admin)&actif=eq.true&select=id,prenom,nom,email&order=prenom.asc', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(membres){
+    if(!membres || !membres.length) return;
+    sel.innerHTML = '<option value="">Choisir un correcteur...</option>';
+    membres.forEach(function(m){
+      var opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.prenom + ' ' + m.nom;
+      opt.dataset.email = m.email || '';
+      opt.dataset.prenom = m.prenom || '';
+      sel.appendChild(opt);
+    });
+  }).catch(function(){});
+}
+
+
+function ticketToggleCorrecteur(val){
+  var div = document.getElementById('ticket-correcteur-select');
+  if(!div) return;
+  if(val === 'correcteur'){
+    div.style.display = 'block';
+    chargerListeCorrecteurs();
+  } else {
+    div.style.display = 'none';
+  }
 }
 
 // Init (differe apres chargement DOM)
