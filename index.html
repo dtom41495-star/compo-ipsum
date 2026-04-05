@@ -1690,7 +1690,7 @@ function clearLog(){
 function go(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn,.dropdown-item').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
+  var pageEl=document.getElementById('page-'+id); if(pageEl) pageEl.classList.add('active');
   if(id==='brouillons') chargerBrouillons();
   if(id==='mes-articles') chargerMesArticles();
   if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); }
@@ -1724,10 +1724,10 @@ setInterval(majH,1000);majH();
 // ===== TYPE =====
 function setType(t){
   currentType=t;
-  document.getElementById('tb-article').classList.toggle('active',t==='article');
-  document.getElementById('tb-breve').classList.toggle('active',t==='breve');
-  ['rg-chapeau','rg-angle','rg-sources'].forEach(id=>document.getElementById(id).style.display=t==='article'?'flex':'none');
-  document.getElementById('r-corps').placeholder=t==='breve'?'Écris ta brève ici (400 caractères max)...':'Écris ton article ici...';
+  var tbA=document.getElementById('tb-article'); if(tbA) tbA.classList.toggle('active',t==='article');
+  var tbB=document.getElementById('tb-breve'); if(tbB) tbB.classList.toggle('active',t==='breve');
+  ['rg-chapeau','rg-angle','rg-sources'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display=t==='article'?'flex':'none'; });
+  var corps=document.getElementById('r-corps'); if(corps) corps.placeholder=t==='breve'?'Ecris ta breve ici (400 caracteres max)...':'Ecris ton article ici...';
   updateStats();
 }
 
@@ -5069,8 +5069,8 @@ function renderDiffLecture(doc){
   if(titreEl) titreEl.textContent = doc.titre || 'Sans titre';
 }
 
-// Init
-setType('article');
+// Init (differe apres chargement DOM)
+document.addEventListener('DOMContentLoaded', function(){ try{ setType('article'); }catch(e){} });
 </script>
 </body>
 </html>
