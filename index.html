@@ -773,6 +773,61 @@ input:focus,select:focus,textarea:focus{
 .guide-schema{background:var(--encre);color:white;padding:1rem 1.4rem;font-family:"IBM Plex Mono",monospace;font-size:0.72rem;line-height:1.8;margin-bottom:1.8rem;}
 .step-tip{margin-top:0.6rem;padding:0.5rem 0.8rem;background:var(--gris-clair);font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:var(--gris);border-left:3px solid var(--rouge);}
 
+
+/* ANIMATIONS CHARGEMENT */
+@keyframes shimmer {
+  0%{ background-position: -400px 0; }
+  100%{ background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 3px;
+}
+.skeleton-line { height: 14px; margin-bottom: 8px; }
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.full { width: 100%; }
+.skeleton-card { padding: 1rem; border: 1.5px solid var(--gris-bord); margin-bottom: 0.7rem; }
+
+.rss-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.rss-loading::before,
+.rss-loading::after {
+  content: '';
+  display: block;
+  height: 80px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--gris-bord);
+  border-top-color: var(--rouge);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+.loading-msg {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  color: var(--gris);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -3515,50 +3570,70 @@ function rssRendre(articles){
 function chargerRSS(){
   var feed = document.getElementById('rss-feed');
   if(!feed) return;
+  feed.innerHTML = '<div class="rss-loading"></div>';
+
+  var SUBSTACK_URL = 'https://ipsummedia.substack.com';
+  var RSS_FEED = SUBSTACK_URL + '/feed';
+
+  function afficherEchec(){
+    feed.innerHTML = '<div class="rss-error">Articles non disponibles. <a href="' + SUBSTACK_URL + '" target="_blank" style="color:var(--rouge);">Voir sur Substack &rarr;</a></div>';
+  }
+
+  function rendrePosts(posts){
+    if(!posts || !posts.length){ afficherEchec(); return; }
+    rssRendre(posts);
+  }
 
   // Proxy 1 : API Substack native
-  fetch('https://ipsummedia.substack.com/api/v1/posts?limit=6')
-    .then(function(r){ if(!r.ok) throw new Error('api'); return r.json(); })
-    .then(function(posts){
-      if(!posts||!posts.length) throw new Error('vide');
-      var articles = posts.slice(0,6).map(function(p){
-        var tmp=document.createElement('div'); tmp.innerHTML=p.subtitle||p.description||'';
-        var descTxt=(tmp.textContent||tmp.innerText||'').replace(/\s+/g,' ').trim().slice(0,160);
+  fetch(SUBSTACK_URL + '/api/v1/posts?limit=6')
+  .then(function(r){ if(!r.ok) throw new Error('api'); return r.json(); })
+  .then(function(posts){
+    if(!posts || !posts.length) throw new Error('vide');
+    rendrePosts(posts.slice(0,6).map(function(p){
+      var tmp=document.createElement('div'); tmp.innerHTML=p.subtitle||p.description||'';
+      var desc=(tmp.textContent||tmp.innerText||'').replace(/\s+/g,' ').trim().slice(0,160);
+      var dateStr='';
+      try{ if(p.post_date) dateStr=new Date(p.post_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){}
+      return {titre:p.title||'Sans titre', lien:SUBSTACK_URL+'/p/'+(p.slug||''), dateStr:dateStr, descTxt:desc};
+    }));
+  })
+  .catch(function(){
+    // Proxy 2 : rss2json
+    fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(RSS_FEED)+'&count=6&api_key=')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.items || !d.items.length) throw new Error('vide');
+      rendrePosts(d.items.map(function(item){
+        var tmp=document.createElement('div'); tmp.innerHTML=item.description||'';
+        var desc=(tmp.textContent||tmp.innerText||'').replace(/\s+/g,' ').trim().slice(0,160);
         var dateStr='';
-        if(p.post_date){ try{ dateStr=new Date(p.post_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){} }
-        return {titre:p.title||'Sans titre', lien:'https://ipsummedia.substack.com/p/'+(p.slug||''), dateStr:dateStr, descTxt:descTxt};
-      });
-      rssRendre(articles);
+        try{ if(item.pubDate) dateStr=new Date(item.pubDate).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){}
+        return {titre:item.title||'Sans titre', lien:item.link||'#', dateStr:dateStr, descTxt:desc};
+      }));
     })
     .catch(function(){
-      // Proxy 2 : rss2json
-      fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(RSS_URL)+'&count=6')
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          if(!d.items||!d.items.length) throw new Error('vide');
-          var articles = d.items.map(function(item){
-            var tmp=document.createElement('div'); tmp.innerHTML=item.description||'';
-            var descTxt=(tmp.textContent||tmp.innerText||'').replace(/\s+/g,' ').trim().slice(0,160);
-            var dateStr='';
-            if(item.pubDate){ try{ dateStr=new Date(item.pubDate).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){} }
-            return {titre:item.title||'Sans titre', lien:item.link||'#', dateStr:dateStr, descTxt:descTxt};
-          });
-          rssRendre(articles);
+      // Proxy 3 : allorigins
+      fetch('https://api.allorigins.win/get?url='+encodeURIComponent(RSS_FEED))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.contents) throw new Error('vide');
+        var arts = rssParserXML(d.contents);
+        if(!arts.length) throw new Error('vide');
+        rendrePosts(arts);
+      })
+      .catch(function(){
+        // Proxy 4 : corsproxy.io
+        fetch('https://corsproxy.io/?'+encodeURIComponent(RSS_FEED))
+        .then(function(r){ return r.text(); })
+        .then(function(txt){
+          var arts = rssParserXML(txt);
+          if(!arts.length) throw new Error('vide');
+          rendrePosts(arts);
         })
-        .catch(function(){
-          // Proxy 3 : corsproxy
-          fetch('https://corsproxy.io/?'+encodeURIComponent(RSS_URL))
-            .then(function(r){ return r.text(); })
-            .then(function(txt){
-              var arts = rssParserXML(txt);
-              if(!arts.length) throw new Error('vide');
-              rssRendre(arts);
-            })
-            .catch(function(){
-              feed.innerHTML='<div class="rss-error">Articles non disponibles. <a href="https://ipsummedia.substack.com" target="_blank" style="color:var(--rouge);">Voir sur Substack →</a></div>';
-            });
-        });
+        .catch(afficherEchec);
+      });
     });
+  });
 }
 
 
@@ -3774,6 +3849,8 @@ function modalActionFermer(){
 function statutChargerDB(){
   var feed = document.getElementById('statut-content');
   notif('Chargement depuis la base...');
+  var tableEl = document.getElementById('statut-table');
+  if(tableEl) tableEl.innerHTML = skeletonCards(5);
   db.listerArticles().then(function(articles){
     if(!articles || !articles.length){ notif('Aucun article en base'); return; }
     statutDocs = articles.map(function(a){
@@ -4158,7 +4235,7 @@ function chargerBrouillonsCloud(){
     list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Configure ton profil pour voir tes articles cloud.</p>';
     return;
   }
-  list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Chargement...</p>';
+  list.innerHTML = skeletonCards(3);
   var prenom = getUserPrenom()||'';
   fetch(SB_URL+'/rest/v1/articles?or=(auteur.eq.'+encodeURIComponent(nom)+',auteur.ilike.*'+encodeURIComponent(prenom)+'*)&select=*&order=updated_at.desc', {headers:SB_HEADERS})
   .then(function(r){return r.json();})
@@ -4183,7 +4260,7 @@ function chargerBrouillonsCloud(){
 function chargerArticlesEnCorrection(){
   var list = document.getElementById('brouillons-list');
   if(!list) return;
-  list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">Chargement...</p>';
+  list.innerHTML = skeletonCards(3);
   // Chercher les articles avec statut en-relecture ou corrige
   var nom = getUserNomComplet();
   var role = getUserRole();
@@ -4542,6 +4619,7 @@ function lancerCompo(){
     appliquerRole();
     construireNav();
     construireAccueil();
+    chargerRSS();
     chargerAccueilArticles();
     chargerDepuisURL();
   }, 1700);
@@ -4942,6 +5020,18 @@ function chargerDansRedaction(doc){
     if(shareDiv && doc.id){ shareDiv.style.display='block'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
     notif('Article charge : '+(doc.titre||'Sans titre'));
   }, 100);
+}
+
+
+function loadingHtml(msg){
+  return '<div class="loading-msg"><span class="spinner"></span>' + (msg||'Chargement...') + '</div>';
+}
+function skeletonCards(n){
+  var h = '';
+  for(var i=0;i<(n||3);i++){
+    h += '<div class="skeleton-card"><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short" style="margin-top:6px;"></div></div>';
+  }
+  return h;
 }
 
 // Init
