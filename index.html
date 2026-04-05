@@ -7068,16 +7068,16 @@ function ssResetTimer(){
 }
 
 function ssInit(){
-  // Événements qui réinitialisent le timer
-  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(evt){
+  // Masquer sur interaction humaine reelle uniquement
+  ['mousedown','keydown','touchstart','click'].forEach(function(evt){
     document.addEventListener(evt, function(){
-      if(_ssActive){
-        ssMasquer();
-      } else {
-        ssResetTimer();
-      }
+      if(_ssActive){ ssMasquer(); } else { ssResetTimer(); }
     }, { passive: true });
   });
+  // mousemove reset le timer mais ne masque pas (evite les faux positifs CSS)
+  document.addEventListener('mousemove', function(){
+    if(!_ssActive) ssResetTimer();
+  }, { passive: true });
   ssResetTimer();
 }
 
