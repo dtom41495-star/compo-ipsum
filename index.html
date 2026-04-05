@@ -159,7 +159,7 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .draft-item{border:1.5px solid var(--gris-bord);padding:0.9rem 1rem;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;background:white;}
 .draft-info{flex:1;}
 .draft-titre{font-weight:500;font-size:0.92rem;margin-bottom:0.2rem;}
-.draft-meta{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--gris);}
+.draft-meta{font-family:monospace;font-size:0.65rem;color:var(--gris);}
 .draft-actions{display:flex;gap:0.4rem;}
 .draft-actions button{font-family:'IBM Plex Mono',monospace;font-size:0.63rem;padding:0.22rem 0.65rem;cursor:pointer;border:1.5px solid;background:transparent;text-transform:uppercase;}
 .btn-reprendre{color:var(--encre);border-color:var(--encre);}
@@ -192,7 +192,7 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .cp-reader{border:1.5px solid var(--bleu);background:white;padding:1.5rem;}
 .cp-reader-title{font-family:'Poppins',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:1rem;border-bottom:2px solid var(--bleu);padding-bottom:0.6rem;}
 .cp-field{display:flex;gap:1rem;padding:0.4rem 0;border-bottom:1px solid var(--gris-bord);font-size:0.86rem;}
-.cp-field-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--gris);min-width:140px;padding-top:0.1rem;text-transform:uppercase;letter-spacing:0.05em;}
+.cp-field-label{font-family:monospace;font-size:0.65rem;color:var(--gris);min-width:140px;padding-top:0.1rem;text-transform:uppercase;letter-spacing:0.05em;}
 .cp-field-val{flex:1;font-size:0.88rem;}
 .cp-pdf-embed{width:100%;height:500px;border:1px solid var(--gris-bord);margin-top:1rem;}
 
@@ -257,7 +257,7 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .brf-card{border:1.5px solid var(--gris-bord);padding:1rem;margin-bottom:0.8rem;background:white;}
 .brf-card-titre{font-weight:500;font-size:0.95rem;margin-bottom:0.3rem;color:var(--encre);}
 .brf-card-angle{font-style:italic;font-size:0.88rem;color:var(--gris);margin-bottom:0.5rem;border-left:3px solid var(--rouge);padding-left:0.6rem;}
-.brf-card-meta{display:flex;gap:0.8rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--gris);}
+.brf-card-meta{display:flex;gap:0.8rem;flex-wrap:wrap;font-family:monospace;font-size:0.65rem;color:var(--gris);}
 
 /* NOTIF */
 .notif{position:fixed;bottom:1.3rem;right:1.3rem;background:var(--encre);color:white;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:0.65rem 1rem;z-index:999;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;}
@@ -828,6 +828,96 @@ input:focus,select:focus,textarea:focus{
   font-size: 0.72rem;
 }
 
+
+/* TABLEAU DE BORD ACCUEIL */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+.dash-stat {
+  background: white;
+  border: 1.5px solid var(--gris-bord);
+  padding: 0.9rem 0.7rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dash-stat:hover { border-color: var(--rouge); transform: translateY(-2px); }
+.dash-stat.active { border-color: var(--rouge); background: var(--rouge-clair); }
+.dash-stat-count {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
+  font-size: 1.8rem;
+  color: var(--encre);
+  line-height: 1;
+}
+.dash-stat-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gris);
+  margin-top: 0.3rem;
+}
+.dash-stat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.dash-articles-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.dash-article-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1.5px solid var(--gris-bord);
+  cursor: pointer;
+  transition: border-color 0.14s;
+}
+.dash-article-card:hover { border-color: var(--rouge); }
+.dash-article-titre {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--encre);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.dash-article-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--gris);
+  white-space: nowrap;
+}
+.dash-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+.dash-step {
+  width: 20px; height: 4px;
+  background: var(--gris-bord);
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+.dash-step.done { background: var(--rouge); }
+.dash-step.current { background: var(--rouge); opacity: 0.5; }
+.dash-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gris);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1018,295 +1108,21 @@ input:focus,select:focus,textarea:focus{
   <div class="accueil-section-label" style="margin-top:2rem;">Tous les outils</div>
   <div id="accueil-outils" class="menu-grid"></div>
 
-  <!-- MES ARTICLES ACCUEIL -->
-  <div style="margin-top:2rem;" id="accueil-mes-articles">
+  <!-- TABLEAU DE BORD ACCUEIL -->
+  <div id="accueil-dashboard" style="margin-top:2rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
       <div class="accueil-section-label" style="margin-bottom:0;">Mes articles</div>
-      <button onclick="go('mes-articles')" style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--rouge);text-decoration:none;text-transform:uppercase;letter-spacing:0.06em;border:none;background:transparent;cursor:pointer;">Voir tout →</button>
+      <button onclick="go('brouillons')" style="font-family:monospace;font-size:0.62rem;color:var(--rouge);text-decoration:none;text-transform:uppercase;letter-spacing:0.06em;border:none;background:transparent;cursor:pointer;">Voir tout &rarr;</button>
     </div>
-    <div id="accueil-articles-list"><div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>
-  </div>
-
-</div>
-</div>
-
-<!-- COMMUNIQUÉ -->
-<div class="page" id="page-communique">
-  <div class="page-title">Enregistrer un communiqué de presse</div>
-  <div class="page-sub">Remplis les informations du communiqué - tu pourras ensuite l'attacher à un article</div>
-  <div class="form-grid">
-    <div class="form-group full"><label>Sujet du communiqué <span class="req">*</span></label><input type="text" id="cp-objet" placeholder="De quoi parle ce communiqué ?"></div>
-    <div class="form-group"><label>Organisation qui l'envoie <span class="req">*</span></label><input type="text" id="cp-org" placeholder="Nom de l'organisation"></div>
-    <div class="form-group"><label>Type d'actualité</label><select id="cp-type"><option value="local">Locale (Tarn)</option><option value="national">Nationale</option></select></div>
-    <div class="form-group"><label>Contact presse - Nom</label><input type="text" id="cp-cnom" placeholder="Prénom Nom"></div>
-    <div class="form-group"><label>Contact presse - Email</label><input type="email" id="cp-cemail" placeholder="email@organisation.fr"></div>
-    <div class="form-group"><label>Contact presse - Téléphone</label><input type="tel" id="cp-ctel" placeholder="06 XX XX XX XX"></div>
-    <div class="form-group"><label>Reçu le</label><input type="date" id="cp-recep"></div>
-    <div class="form-group"><label>Ne pas publier avant le (embargo)</label><input type="date" id="cp-embargo"></div>
-    <div class="form-group full">
-      <label>Fichier PDF du communiqué</label>
-      <div class="upload-zone" onclick="document.getElementById('cp-pdf').click()">
-        <div style="font-size:1.4rem;">📄</div>
-        <p id="cp-pdf-label">Clique ici pour ajouter le PDF</p>
-        <input type="file" id="cp-pdf" accept="*/*" style="display:none" onchange="loadCpPdf(event)">
-      </div>
+    <div class="dash-grid" id="dash-stats"></div>
+    <div id="dash-filtre" style="font-family:monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.7rem;display:none;">
+      Filtre : <span id="dash-filtre-label"></span>
+      <button onclick="dashFiltrer(null)" style="margin-left:0.5rem;border:none;background:transparent;color:var(--rouge);cursor:pointer;font-size:0.65rem;">Effacer</button>
+    </div>
+    <div class="dash-articles-list" id="dash-articles-list">
+      <div class="dash-empty">Chargement...</div>
     </div>
   </div>
-  <div id="cp-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">✅ Communiqué sauvegardé — Lien de partage</div>
-    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-      <code id="cp-share-url" style="font-size:0.75rem;color:var(--encre);flex:1;word-break:break-all;"></code>
-      <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('cp-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button class="btn" onclick="exporterCP()">Enregistrer le communiqué</button>
-    <button class="btn sec" onclick="exporterCPJSON()">📄 Exporter en JSON</button>
-    <button class="btn sec" onclick="resetCP()">Tout effacer</button>
-  </div>
-</div>
-
-<!-- RÉDACTION -->
-<div class="page" id="page-redaction">
-  <div class="page-title">Rédiger un article</div>
-  <div class="page-sub">Remplis les champs ci-dessous - sauvegarde régulièrement dans tes brouillons</div>
-
-  <div class="toggle-row">
-    <button class="toggle-btn active" id="tb-article" onclick="setType('article')">Article</button>
-    <button class="toggle-btn" id="tb-breve" onclick="setType('breve')">Brève</button>
-  </div>
-
-  <!-- Communiqués liés -->
-  <div class="section-label">Communiqués sources liés à cet article</div>
-  <div id="cp-lies-list"></div>
-  <div class="import-zone" onclick="document.getElementById('r-cp-import').click()" style="padding:0.9rem;margin-bottom:1rem;">
-    <p style="margin:0;">+ Attacher un communiqué enregistré</p>
-    <input type="file" id="r-cp-import" accept="*/*" style="display:none" onchange="attacherCP(event)">
-  </div>
-  <div id="cp-meta-display"></div>
-
-  <div class="form-grid">
-    <div class="form-group"><label>Ton prénom et nom <span class="req">*</span></label><input type="text" id="r-auteur" placeholder="Prénom Nom"></div>
-    <div class="form-group"><label>Ta rédaction <span class="req">*</span></label>
-      <select id="r-redaction">
-        <option value="Rédaction Tarn" selected>Rédaction Tarn</option>
-        <option value="Rédaction Aveyron">Rédaction Aveyron</option>
-        <option value="Rédaction Hérault">Rédaction Hérault</option>
-        <option value="Rédaction Ariège">Rédaction Ariège</option>
-        <option value="Rédaction Haute-Garonne">Rédaction Haute-Garonne</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Rubrique</label>
-      <select id="r-rubrique"><option value="">— Choisir —</option><option>Actu locale</option><option>Actu nationale</option><option>Reportage</option><option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option></select>
-    </div>
-    <div class="form-group"><label>Urgence</label>
-      <div class="urgence-row">
-        <button class="urg-btn an" id="ub-normal" onclick="setUrg('normal')">Normal</button>
-        <button class="urg-btn" id="ub-moyen" onclick="setUrg('moyen')">Moyen</button>
-        <button class="urg-btn" id="ub-urgent" onclick="setUrg('urgent')">Urgent</button>
-      </div>
-    </div>
-    <div class="form-group full"><label>Titre <span class="req">*</span></label><input type="text" id="r-titre" placeholder="Titre de l'article"></div>
-    <div class="form-group full" id="rg-chapeau"><label>Introduction (chapeau)</label><input type="text" id="r-chapeau" placeholder="Résumé en une phrase — accroche du lecteur"></div>
-    <div class="form-group full" id="rg-angle"><label>Ton angle éditorial</label><input type="text" id="r-angle" placeholder="Pourquoi ce sujet ? Quel point de vue tu défends ?"></div>
-    <div class="form-group full">
-      <label>Texte de l'article <span class="req">*</span></label>
-      <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()"></textarea>
-      <div class="stats-bar" id="stats-bar"></div>
-      <div class="lisib-bar"><div class="lisib-fill" id="lisib-fill" style="width:0%;background:var(--gris);"></div></div>
-      <div class="lisib-label" id="lisib-label">Lisibilité —</div>
-    </div>
-    <div class="form-group full">
-      <label>Image d'illustration</label>
-      <div class="upload-zone" onclick="document.getElementById('r-img').click()">
-        <div style="font-size:1.3rem;">🖼</div>
-        <p>Clique pour ajouter une image (JPG, PNG)</p>
-        <input type="file" id="r-img" accept="image/*" style="display:none" onchange="loadImg(event)">
-      </div>
-      <img id="r-img-prev" class="img-preview">
-      <button class="img-remove" id="r-img-rem" onclick="removeImg()">Supprimer l'image</button>
-      <input type="text" id="r-img-leg" placeholder="Légende de l'image" style="margin-top:0.4rem;display:none;">
-    </div>
-    <div class="form-group full">
-      <label>Mots-clés (tags)</label>
-      <div class="tags-wrap" id="tags-wrap"><input class="tag-input" id="tag-input" placeholder="Ajouter un mot-clé + Entrée" onkeydown="addTag(event)"></div>
-    </div>
-    <div class="form-group full" id="rg-sources">
-      <label>Sources utilisées</label>
-      <div class="sources-list" id="sources-list"><div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div></div>
-      <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
-    </div>
-    <div class="form-group"><label>Date de publication souhaitée</label><input type="date" id="r-datepub"></div>
-  </div>
-
-  <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
-    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-      <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
-      <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button class="btn" onclick="exporterArticle()">Envoyer l'article</button>
-    <button class="btn sec" onclick="ouvrirAssignation()">🔍 Envoyer en correction</button>
-    <button class="btn sec" onclick="exporterArticleJSON()">📄 Exporter en JSON</button>
-    <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
-    <button class="btn sec" onclick="genererVisuelsDepuisRedaction()">🎨 Générer les visuels</button>
-    <button class="btn sec" onclick="ouvrirFS('r')">Relecture plein écran</button>
-    <button class="btn sec" onclick="resetRedaction()">Tout effacer</button>
-  </div>
-</div>
-
-<!-- BROUILLONS -->
-<div class="page" id="page-brouillons">
-  <div class="panel-title">Mes articles</div>
-  <div class="panel-subtitle">Articles sur cet appareil et dans le cloud</div>
-
-  <div style="display:flex;border-bottom:2px solid var(--gris-bord);margin-bottom:1.2rem;gap:0;">
-    <button class="brf-onglet active" onclick="brouillonsOnglet('local',this)">📱 Sur cet appareil</button>
-    <button class="brf-onglet" onclick="brouillonsOnglet('cloud',this)">☁️ Cloud</button>
-    <button class="brf-onglet" onclick="brouillonsOnglet('correction',this)">🔍 En correction</button>
-  </div>
-
-  <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;" id="actions-local">
-    <button class="btn sec" onclick="chargerBrouillons()">Actualiser</button>
-    <button class="btn sec" onclick="toutExporter()">Tout exporter</button>
-    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">Importer</button>
-    <input type="file" id="import-brouillons" accept="*/*" style="display:none" onchange="importerBrouillons(event)" multiple>
-    <button class="btn sec" onclick="exporterCache()">Sauvegarder cache</button>
-    <button class="btn sec" onclick="document.getElementById('import-cache').click()">Restaurer cache</button>
-    <input type="file" id="import-cache" accept="*/*" style="display:none" onchange="importerCache(event)">
-  </div>
-
-  <div id="brouillons-list"><p style="color:var(--gris);font-size:0.88rem;">Aucun brouillon pour linstant.</p></div>
-</div>
-
-<!-- CORRECTION -->
-<div class="page" id="page-correction">
-  <div class="page-title">Corriger un article</div>
-  <div class="page-sub">Ouvre le fichier envoyé par le rédacteur - tes corrections seront tracées</div>
-  <div class="import-zone" onclick="document.getElementById('corr-file').click()">
-    <div class="iz-icon">↑</div><p>Ouvre le fichier de l'article à corriger</p>
-    <input type="file" id="corr-file" accept="*/*" style="display:none" onchange="loadCorrection(event)">
-  </div>
-  <div id="corr-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;flex-wrap:wrap;">
-      <div id="c-codeid"></div><div id="c-statbadge"></div><div id="c-urgbadge"></div><div id="c-fraicheur"></div>
-    </div>
-    <div id="c-cpinfo"></div>
-    <div class="form-grid">
-      <div class="form-group"><label>Auteur</label><input type="text" id="c-auteur" disabled></div>
-      <div class="form-group"><label>Ton prénom (correcteur) <span class="req">*</span></label><input type="text" id="c-correcteur" placeholder="Ton prénom Nom"></div>
-      <div class="form-group full"><label>Nouveau statut</label>
-        <div class="status-row" id="c-statrow">
-          <button class="status-opt" onclick="setStatCorr('en-relecture')">En relecture</button>
-          <button class="status-opt" onclick="setStatCorr('corrige')">Corrigé</button>
-          <button class="status-opt active" onclick="setStatCorr('valide')">Validé ✓</button>
-          <button class="status-opt" onclick="setStatCorr('publie')">Publié</button>
-        </div>
-      </div>
-      <div class="form-group full"><label>Titre original</label><div class="diff-block" id="c-titre-orig"></div></div>
-      <div class="form-group full"><label>Titre corrigé</label><input type="text" id="c-titre-new"></div>
-      <div class="form-group full" id="cg-ch"><label>Introduction originale</label><div class="diff-block" id="c-ch-orig" style="min-height:auto;"></div></div>
-      <div class="form-group full" id="cg-chn"><label>Introduction corrigée</label><input type="text" id="c-ch-new"></div>
-      <div class="form-group full"><label>Texte original</label><div class="diff-block" id="c-corps-orig"></div></div>
-      <div class="form-group full"><label>Texte corrigé</label><textarea id="c-corps-new"></textarea></div>
-      <div class="form-group full"><label>Note pour le rédacteur</label><input type="text" id="c-note" placeholder="Explique tes corrections..."></div>
-    </div>
-    <div class="section-label">Historique des modifications</div><div id="c-hist"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="validerCorr()">Valider et sauvegarder</button>
-      <button class="btn sec" onclick="exporterCorrige()">Envoyer l'article corrigé</button>
-    </div>
-  </div>
-</div>
-
-<!-- LECTURE -->
-<div class="page" id="page-lecture">
-  <div class="page-title">Lire un article</div>
-  <div class="page-sub">Ouvre un article pour le prévisualiser ou l'exporter vers Substack</div>
-  <div class="import-zone" onclick="document.getElementById('lect-file').click()">
-    <div class="iz-icon">↑</div><p>Ouvre l'article à lire</p>
-    <input type="file" id="lect-file" accept="*/*" style="display:none" onchange="loadLecture(event)">
-  </div>
-  <div id="lect-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
-      <div id="l-codeid"></div><div id="l-statbadge"></div><div id="l-urgbadge"></div><div id="l-fraicheur"></div>
-    </div>
-    <div class="art-preview" id="art-preview"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="genMd('lect')">Préparer pour Substack</button>
-      <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
-      <button class="btn sec" onclick="ouvrirFS('lect')">Relecture plein écran</button>
-      <button class="btn sec" onclick="go('edition');renderEdition(currentDoc)">Modifier</button>
-    </div>
-    <div class="md-out" id="md-lect"></div>
-  </div>
-</div>
-
-<!-- ÉDITION -->
-<div class="page" id="page-edition">
-  <div class="page-title">Modifier un article</div>
-  <div class="page-sub">Ouvre un article pour le modifier librement</div>
-  <div class="import-zone" id="edit-iz" onclick="document.getElementById('edit-file').click()">
-    <div class="iz-icon">↑</div><p>Ouvre l'article à modifier</p>
-    <input type="file" id="edit-file" accept="*/*" style="display:none" onchange="loadEdition(event)">
-  </div>
-  <div id="edit-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;flex-wrap:wrap;">
-      <div id="e-codeid"></div><div id="e-statbadge"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Auteur</label><input type="text" id="e-auteur"></div>
-      <div class="form-group"><label>Rédaction</label>
-        <select id="e-redaction"><option value="Rédaction Tarn">Rédaction Tarn</option><option value="Rédaction Aveyron">Rédaction Aveyron</option><option value="Rédaction Hérault">Rédaction Hérault</option><option value="Rédaction Ariège">Rédaction Ariège</option><option value="Rédaction Haute-Garonne">Rédaction Haute-Garonne</option></select>
-      </div>
-      <div class="form-group full"><label>Titre</label><input type="text" id="e-titre"></div>
-      <div class="form-group full" id="eg-ch"><label>Introduction</label><input type="text" id="e-chapeau"></div>
-      <div class="form-group full"><label>Texte</label><textarea id="e-corps"></textarea></div>
-      <div class="form-group full"><label>Statut</label>
-        <div class="status-row" id="e-statrow">
-          <button class="status-opt" onclick="setStatEdit('brouillon')">Brouillon</button>
-          <button class="status-opt" onclick="setStatEdit('en-relecture')">En relecture</button>
-          <button class="status-opt" onclick="setStatEdit('corrige')">Corrigé</button>
-          <button class="status-opt" onclick="setStatEdit('valide')">Validé</button>
-          <button class="status-opt" onclick="setStatEdit('publie')">Publié</button>
-        </div>
-      </div>
-    </div>
-    <div class="section-label">Historique</div><div id="e-hist"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
-      <button class="btn sec" onclick="ouvrirAssignationDepuisEdition()">🔍 Envoyer en correction</button>
-      <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)">📄 Exporter en JSON</button>
-      <button class="btn sec" onclick="genMd('edit')">Préparer pour Substack</button>
-    </div>
-    <div class="md-out" id="md-edit"></div>
-  </div>
-</div>
-
-<!-- COMPARAISON -->
-<div class="page" id="page-comparaison">
-  <div class="page-title">Comparer deux versions</div>
-  <div class="page-sub">Charge deux versions du même article pour voir les différences</div>
-  <div class="cmp-grid">
-    <div>
-      <div class="cmp-label" style="color:var(--bleu)">Version A</div>
-      <div class="import-zone" onclick="document.getElementById('cmp-a').click()"><div class="iz-icon">↑</div><p>Ouvre la version A</p><input type="file" id="cmp-a" accept="*/*" style="display:none" onchange="loadCmp('a',event)"></div>
-      <div id="cmp-a-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-a-id" class="code-id"></span><span id="cmp-a-stat"></span></div><div class="cmp-content cmp-a" id="cmp-a-txt"></div></div>
-    </div>
-    <div>
-      <div class="cmp-label" style="color:var(--rouge)">Version B</div>
-      <div class="import-zone" onclick="document.getElementById('cmp-b').click()"><div class="iz-icon">↑</div><p>Ouvre la version B</p><input type="file" id="cmp-b" accept="*/*" style="display:none" onchange="loadCmp('b',event)"></div>
-      <div id="cmp-b-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-b-id" class="code-id"></span><span id="cmp-b-stat"></span></div><div class="cmp-content cmp-b" id="cmp-b-txt"></div></div>
-    </div>
-  </div>
-  <div id="cmp-diff" style="display:none;margin-top:1.5rem;">
-    <hr class="divider">
-    <div class="section-label">Différences</div>
-    <div class="diff-block" id="cmp-diff-out" style="min-height:60px;"></div>
-  </div>
-</div>
 
 
 <!-- BRIEFING -->
@@ -2181,23 +1997,69 @@ function renderCorrection(){
 }
 
 function validerCorr(){
-  const corr=document.getElementById('c-correcteur').value.trim();
-  if(!corr){notif('Indique ton prénom');return;}
-  const tN=document.getElementById('c-titre-new').value.trim();
-  const cN=document.getElementById('c-corps-new').value.trim();
-  const chN=document.getElementById('c-ch-new').value.trim();
-  const note=document.getElementById('c-note').value.trim();
-  document.getElementById('c-titre-orig').innerHTML=diff(currentDoc.titre,tN);
-  document.getElementById('c-corps-orig').innerHTML=diff(currentDoc.corps,cN);
-  if(currentDoc.chapeau)document.getElementById('c-ch-orig').innerHTML=diff(currentDoc.chapeau,chN);
-  currentDoc.titre=tN;currentDoc.corps=cN;
-  if(currentDoc.chapeau!==undefined)currentDoc.chapeau=chN;
-  currentDoc.statut=_statCorr;currentDoc.modifie_le=new Date().toISOString();
-  currentDoc.historique.push({action:'correction',auteur:corr,date:new Date().toISOString(),note:note||'Correction SR'});
-  document.getElementById('c-statbadge').innerHTML=bStat(currentDoc.statut);
-  renderHist('c-hist',currentDoc.historique);notif('Corrections validées');
+  var corr = getUserNomComplet() || document.getElementById('c-correcteur').value.trim();
+  if(!corr){ notif('Impossible de determiner le correcteur'); return; }
+  var tN = document.getElementById('c-titre-new').value.trim();
+  var cN = document.getElementById('c-corps-new').value.trim();
+  var chN = document.getElementById('c-ch-new').value.trim();
+  var note = document.getElementById('c-note').value.trim();
+  if(note) currentDoc.note_correcteur = note;
+
+  // Afficher le diff
+  document.getElementById('c-titre-orig').innerHTML = diff(currentDoc.titre, tN);
+  document.getElementById('c-corps-orig').innerHTML = diff(currentDoc.corps, cN);
+  if(currentDoc.chapeau) document.getElementById('c-ch-orig').innerHTML = diff(currentDoc.chapeau, chN);
+
+  // Garder l'original avant correction
+  if(!currentDoc.titre_original) currentDoc.titre_original = currentDoc.titre;
+  if(!currentDoc.corps_original) currentDoc.corps_original = currentDoc.corps;
+  if(!currentDoc.chapeau_original && currentDoc.chapeau) currentDoc.chapeau_original = currentDoc.chapeau;
+
+  // Mettre a jour currentDoc
+  currentDoc.titre = tN;
+  currentDoc.corps = cN;
+  if(currentDoc.chapeau !== undefined) currentDoc.chapeau = chN;
+  currentDoc.statut = _statCorr;
+  currentDoc.correcteur = corr;
+  currentDoc.correcteur_id = getUserId();
+  currentDoc.modifie_le = new Date().toISOString();
+  if(!currentDoc.historique) currentDoc.historique = [];
+  currentDoc.historique.push({
+    action: 'correction',
+    auteur: corr,
+    date: new Date().toISOString(),
+    note: note || 'Correction'
+  });
+
+  document.getElementById('c-statbadge').innerHTML = bStat(currentDoc.statut);
+  if(currentDoc.historique) renderHist('c-hist', currentDoc.historique);
+
+  // Sauvegarder en base
+  notif('Sauvegarde en cours...');
+  db.sauvegarderArticle(currentDoc).then(function(){
+    // Sauvegarder note dans historique Supabase
+    if(note || corr){
+      fetch(SB_URL+'/rest/v1/historique', {
+        method: 'POST',
+        headers: SB_HEADERS,
+        body: JSON.stringify({
+          article_id: currentDoc.id,
+          action: 'correction',
+          auteur: corr,
+          note: note || 'Correction effectuee'
+        })
+      }).catch(function(){});
+    }
+    notif('Correction sauvegardee en base !');
+  }).catch(function(){
+    notif('Sauvegarde locale uniquement (hors ligne)');
+  });
 }
-function exporterCorrige(){if(!currentDoc)return;exporterFichier(currentDoc,currentDoc.id+'-corrige');}
+function exporterCorrige(){
+  if(!currentDoc) return;
+  exporterFichier(currentDoc, currentDoc.id+'-corrige');
+  notif('JSON exporte pour mise en page newsletter');
+}
 
 // ===== LECTURE =====
 function loadLecture(event){importerFichier(event.target.files[0],doc=>{currentDoc=doc;renderLecture();});}
@@ -4125,6 +3987,9 @@ function mesArticlesOuvrir(id, action){
     } else if(action === 'correction'){
       go('correction');
       setTimeout(function(){ renderCorrection(docCompo); }, 100);
+    } else if(action === 'diff'){
+      go('lecture');
+      setTimeout(function(){ renderDiffLecture(docCompo); }, 100);
     } else {
       go(action);
     }
@@ -4163,53 +4028,139 @@ document.addEventListener('click', function(e){
 
 function chargerAccueilArticles(){
   var nom = getUserNomComplet();
-  var list = document.getElementById('accueil-articles-list');
-  if(!list) return;
-  if(!nom){
-    list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);">Configure ton profil pour voir tes articles ici.</div>';
-    return;
-  }
-  var prenom = getUserPrenom()||'';
-  fetch(SB_URL+'/rest/v1/articles?or=(auteur.eq.'+encodeURIComponent(nom)+',auteur.ilike.*'+encodeURIComponent(prenom)+'*)&select=id,titre,statut,updated_at,rubrique&order=updated_at.desc&limit=3', {headers:SB_HEADERS})
-  .then(function(r){return r.json();})
+  var statsList = document.getElementById('dash-stats');
+  var articlesList = document.getElementById('dash-articles-list');
+  if(!statsList || !articlesList) return;
+  if(!nom){ articlesList.innerHTML = '<div class="dash-empty">Non connecte</div>'; return; }
+
+  articlesList.innerHTML = skeletonCards(3);
+
+  var STAT_DEF = {
+    brouillon:    {c:'#856404', bg:'#FFF3CD', l:'Brouillon'},
+    'en-relecture':{c:'#1A5276', bg:'#D6EAF8', l:'En relecture'},
+    corrige:      {c:'#0C5460', bg:'#D1ECF1', l:'Corrige'},
+    valide:       {c:'#155724', bg:'#D4EDDA', l:'Valide'},
+    publie:       {c:'#1A1A2E', bg:'#E8E8F0', l:'Publie'}
+  };
+
+  var STEPS = ['brouillon','en-relecture','corrige','valide','publie'];
+
+  fetch(SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=id,titre,statut,urgence,rubrique,updated_at,correcteur&order=updated_at.desc&limit=20',{headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
   .then(function(articles){
-    if(!articles||!articles.length){
-      list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun article en base pour linstant.</div>';
+    if(!articles || !articles.length){
+      statsList.innerHTML = '';
+      articlesList.innerHTML = '<div class="dash-empty">Aucun article en base.<br>Commence par rediger !</div>';
       return;
     }
-    var statDef = {
-      brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404',bc:'#856404'},
-      'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276',bc:'#1A5276'},
-      corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460',bc:'#0C5460'},
-      valide:{l:'Validé',bg:'#D4EDDA',c:'#155724',bc:'#155724'},
-      publie:{l:'Publié',bg:'#1A1A2E',c:'white',bc:'#1A1A2E'}
-    };
-    list.innerHTML = '';
-    articles.forEach(function(doc){
-      var s = doc.statut||'brouillon';
-      var sd = statDef[s]||{l:s,bg:'#eee',c:'#333',bc:'#999'};
-      var age = badgeFraicheur(doc.updated_at);
+
+    // Calculer les compteurs par statut
+    var counts = {};
+    STEPS.forEach(function(s){ counts[s] = 0; });
+    articles.forEach(function(a){ if(counts[a.statut]!==undefined) counts[a.statut]++; });
+
+    // Afficher les stats
+    statsList.innerHTML = '';
+    STEPS.forEach(function(s){
+      if(counts[s] === 0) return;
+      var sd = STAT_DEF[s];
       var card = document.createElement('div');
-      card.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.65rem 0.9rem;background:white;border:1.5px solid var(--gris-bord);margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.14s;';
-      card.onmouseover = function(){ this.style.borderColor='var(--rouge)'; };
-      card.onmouseout = function(){ this.style.borderColor='var(--gris-bord)'; };
-      card.innerHTML =
-        '<div style="flex:1;min-width:0;">' +
-          '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(doc.titre||'Sans titre')+'</div>' +
-          '<div style="display:flex;gap:0.4rem;margin-top:0.2rem;flex-wrap:wrap;align-items:center;">' +
-            '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.bc+';">'+sd.l+'</span>' +
-            (doc.rubrique?'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+esc(doc.rubrique)+'</span>':'')+
-            age +
-          '</div>' +
-        '</div>';
-      card.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
-      list.appendChild(card);
+      card.className = 'dash-stat';
+      card.title = sd.l;
+      card.innerHTML = '<div class="dash-stat-count" style="color:'+sd.c+'">'+counts[s]+'</div><div class="dash-stat-label"><span class="dash-stat-dot" style="background:'+sd.c+'"></span>'+sd.l+'</div>';
+      card.onclick = (function(statut){ return function(){ dashFiltrer(statut); }; })(s);
+      statsList.appendChild(card);
     });
+
+    // Stocker pour le filtrage
+    window._dashArticles = articles;
+    window._dashFiltre = null;
+    dashRendreArticles(articles, STAT_DEF, STEPS);
   })
   .catch(function(){
-    list.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Non disponible hors connexion.</div>';
+    articlesList.innerHTML = '<div class="dash-empty">Impossible de charger les articles.</div>';
   });
 }
+
+function dashFiltrer(statut){
+  window._dashFiltre = statut;
+  var filtreEl = document.getElementById('dash-filtre');
+  var filtreLabel = document.getElementById('dash-filtre-label');
+  var STAT_DEF = {
+    brouillon:    {c:'#856404', bg:'#FFF3CD', l:'Brouillon'},
+    'en-relecture':{c:'#1A5276', bg:'#D6EAF8', l:'En relecture'},
+    corrige:      {c:'#0C5460', bg:'#D1ECF1', l:'Corrige'},
+    valide:       {c:'#155724', bg:'#D4EDDA', l:'Valide'},
+    publie:       {c:'#1A1A2E', bg:'#E8E8F0', l:'Publie'}
+  };
+  var STEPS = ['brouillon','en-relecture','corrige','valide','publie'];
+
+  if(filtreEl) filtreEl.style.display = statut ? 'block' : 'none';
+  if(filtreLabel && statut) filtreLabel.textContent = STAT_DEF[statut] ? STAT_DEF[statut].l : statut;
+
+  document.querySelectorAll('.dash-stat').forEach(function(c){ c.classList.remove('active'); });
+  if(statut){
+    document.querySelectorAll('.dash-stat').forEach(function(c){
+      if(c.title === (STAT_DEF[statut]||{}).l) c.classList.add('active');
+    });
+  }
+
+  var articles = window._dashArticles || [];
+  var filtered = statut ? articles.filter(function(a){ return a.statut === statut; }) : articles;
+  dashRendreArticles(filtered, STAT_DEF, STEPS);
+}
+
+function dashRendreArticles(articles, STAT_DEF, STEPS){
+  var list = document.getElementById('dash-articles-list');
+  if(!list) return;
+  list.innerHTML = '';
+
+  if(!articles.length){
+    list.innerHTML = '<div class="dash-empty">Aucun article pour ce filtre.</div>';
+    return;
+  }
+
+  articles.slice(0,8).forEach(function(doc){
+    var sd = STAT_DEF[doc.statut] || {c:'#666',bg:'#eee',l:doc.statut};
+    var stepIdx = STEPS.indexOf(doc.statut);
+
+    var card = document.createElement('div');
+    card.className = 'dash-article-card';
+    card.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
+
+    // Barre de progression
+    var progressHtml = '<div class="dash-progress">';
+    STEPS.forEach(function(s, i){
+      var cls = i < stepIdx ? 'done' : (i === stepIdx ? 'current' : '');
+      progressHtml += '<div class="dash-step '+cls+'" title="'+((STAT_DEF[s]||{}).l||s)+'"></div>';
+    });
+    progressHtml += '</div>';
+
+    // Date
+    var dateStr = '';
+    if(doc.updated_at){
+      try{ dateStr = new Date(doc.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){}
+    }
+
+    var left = document.createElement('div');
+    left.style.cssText = 'flex:1;min-width:0;';
+    left.innerHTML =
+      '<div class="dash-article-titre">'+esc(doc.titre||'Sans titre')+'</div>'+
+      progressHtml;
+
+    var right = document.createElement('div');
+    right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:0.3rem;flex-shrink:0;';
+    right.innerHTML =
+      '<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:'+sd.bg+';color:'+sd.c+';border:1px solid '+sd.c+';">'+sd.l+'</span>'+
+      (doc.correcteur ? '<span class="dash-article-meta">'+esc(doc.correcteur)+'</span>' : '')+
+      '<span class="dash-article-meta">'+dateStr+'</span>';
+
+    card.appendChild(left);
+    card.appendChild(right);
+    list.appendChild(card);
+  });
+}
+
 
 
 // ===== ONGLETS BROUILLONS =====
@@ -4276,7 +4227,7 @@ function chargerArticlesEnCorrection(){
       query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
     }
   } else {
-    query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
+    query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide,publie)&auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
   }
   fetch(query, {headers:SB_HEADERS})
   .then(function(r){return r.json();})
@@ -4380,8 +4331,16 @@ function renderBrouillonCard(doc, source){
   } else if(source === 'correction'){
     var btnCorr = document.createElement('button');
     btnCorr.className = 'btn-reprendre';
-    btnCorr.textContent = 'Corriger';
-    btnCorr.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'correction'); }; })(doc.id);
+    var role = getUserRole();
+    var nomUser = getUserNomComplet();
+    // Si c'est l'auteur -> vue diff, si c'est le correcteur/admin -> page correction
+    if(doc.auteur === nomUser && role === 'redacteur'){
+      btnCorr.textContent = 'Voir corrections';
+      btnCorr.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'diff'); }; })(doc.id);
+    } else {
+      btnCorr.textContent = 'Corriger';
+      btnCorr.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'correction'); }; })(doc.id);
+    }
 
     var btnLienC = document.createElement('button');
     btnLienC.className = 'btn-exporter-d';
@@ -5032,6 +4991,82 @@ function skeletonCards(n){
     h += '<div class="skeleton-card"><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short" style="margin-top:6px;"></div></div>';
   }
   return h;
+}
+
+
+function renderDiffLecture(doc){
+  var el = document.getElementById('lect-content');
+  if(!el) return;
+
+  var aOriginal = doc.corps_original || doc.corps;
+  var aCorrige = doc.corps;
+  var tOriginal = doc.titre_original || doc.titre;
+  var tCorrige = doc.titre;
+  var chOriginal = doc.chapeau_original || doc.chapeau || '';
+  var chCorrige = doc.chapeau || '';
+
+  var aModifie = doc.corps_original && doc.corps_original !== doc.corps;
+  var tModifie = doc.titre_original && doc.titre_original !== doc.titre;
+  var chModifie = doc.chapeau_original && doc.chapeau_original !== doc.chapeau;
+
+  var html = '<div style="margin-bottom:1.5rem;">';
+
+  // Badge statut
+  html += bStat(doc.statut) + ' ';
+  if(doc.correcteur) html += '<span style="font-family:monospace;font-size:0.65rem;color:var(--gris);">Corrige par ' + esc(doc.correcteur) + '</span>';
+
+  // Note du correcteur
+  if(doc.note_correcteur){
+    html += '<div style="margin-top:1rem;padding:0.8rem 1rem;background:#EAF3DE;border-left:3px solid #27500A;">';
+    html += '<div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;color:#27500A;margin-bottom:0.3rem;">Note du correcteur</div>';
+    html += '<div style="font-size:0.88rem;">' + esc(doc.note_correcteur) + '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Titre
+  html += '<div style="margin-bottom:1.5rem;">';
+  html += '<div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;">Titre</div>';
+  if(tModifie){
+    html += '<div style="font-size:1.1rem;font-weight:700;line-height:1.4;">' + diff(tOriginal, tCorrige) + '</div>';
+  } else {
+    html += '<div style="font-size:1.1rem;font-weight:700;">' + esc(tCorrige) + '</div>';
+  }
+  html += '</div>';
+
+  // Chapeau
+  if(chCorrige){
+    html += '<div style="margin-bottom:1.5rem;">';
+    html += '<div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;">Chapeau</div>';
+    if(chModifie){
+      html += '<div style="font-size:0.95rem;line-height:1.6;">' + diff(chOriginal, chCorrige) + '</div>';
+    } else {
+      html += '<div style="font-size:0.95rem;line-height:1.6;">' + esc(chCorrige) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Corps
+  html += '<div>';
+  html += '<div style="font-family:monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;">Corps de l article</div>';
+  if(aModifie){
+    html += '<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">' + diff(aOriginal, aCorrige) + '</div>';
+    html += '<div style="margin-top:1rem;font-family:monospace;font-size:0.65rem;color:var(--gris);">';
+    html += '<span style="background:#D4EDDA;color:#155724;padding:1px 6px;margin-right:0.5rem;">Texte ajoute</span>';
+    html += '<span style="background:#F8D7DA;color:#721C24;padding:1px 6px;text-decoration:line-through;">Texte supprime</span>';
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">' + esc(aCorrige) + '</div>';
+    html += '<div style="margin-top:0.8rem;font-family:monospace;font-size:0.65rem;color:var(--gris);">Aucune modification du corps.</div>';
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+
+  // Mettre a jour le titre de la page lecture
+  var titreEl = document.getElementById('lect-titre');
+  if(titreEl) titreEl.textContent = doc.titre || 'Sans titre';
 }
 
 // Init
