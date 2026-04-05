@@ -1142,6 +1142,56 @@ input:focus,select:focus,textarea:focus{
   animation: pulse-badge 2s ease-in-out infinite;
 }
 
+
+/* SCREENSAVER */
+#screensaver {
+  position: fixed; inset: 0; z-index: 99999;
+  background: #0D0D1A;
+  display: none;
+  align-items: center; justify-content: center;
+  cursor: none;
+  flex-direction: column;
+  gap: 1rem;
+}
+#screensaver.visible { display: flex; }
+.ss-clock {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: clamp(4rem, 15vw, 9rem);
+  font-weight: 300;
+  color: white;
+  letter-spacing: -0.02em;
+  animation: ss-float 8s ease-in-out infinite;
+  text-align: center;
+}
+.ss-date {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: clamp(0.8rem, 2.5vw, 1.1rem);
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+.ss-logo {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.15);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-top: 3rem;
+}
+.ss-hint {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.12);
+  letter-spacing: 0.1em;
+  position: absolute;
+  bottom: 2rem;
+}
+@keyframes ss-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1533,8 +1583,8 @@ input:focus,select:focus,textarea:focus{
     </div>
   </div>
   <div class="btn-row">
-    <button class="btn" onclick="exporterArticle()">Envoyer l'article</button>
-    <button class="btn sec" onclick="ouvrirAssignation()">🔍 Envoyer en correction</button>
+    <button class="btn" onclick="ouvrirAssignation()">🔍 Envoyer en correction</button>
+    <button class="btn sec" onclick="exporterArticle()">🔗 Creer un lien</button>
     <button class="btn sec" onclick="exporterArticleJSON()">📄 Exporter en JSON</button>
     <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
     <button class="btn sec" onclick="genererVisuelsDepuisRedaction()">🎨 Générer les visuels</button>
@@ -2450,10 +2500,13 @@ function closeDrawer(){
 
 // ===== RÉDACTION =====
 function buildDoc(){
+  var docId = (currentDoc && currentDoc.id) ? currentDoc.id : genId();
+  var docStatut = (currentDoc && currentDoc.statut) ? currentDoc.statut : 'brouillon';
   return {
-    id:genId(),type:currentType,statut:'brouillon',urgence:currentUrg,
+    id:docId,type:currentType,statut:docStatut,urgence:currentUrg,
     redaction:document.getElementById('r-redaction').value,
     auteur:document.getElementById('r-auteur').value.trim(),
+    auteur_id:getUserId(),
     titre:document.getElementById('r-titre').value.trim(),
     chapeau:currentType==='article'?document.getElementById('r-chapeau').value.trim():'',
     angle:currentType==='article'?document.getElementById('r-angle').value.trim():'',
@@ -5364,6 +5417,7 @@ function lancerCompo(){
     chargerAlertTickets();
     chargerAlertTicketsAccueil();
     chargerDepuisURL();
+    ssInit();
   }, 1700);
 }
 
@@ -5926,7 +5980,7 @@ function publierArticle(id){
         body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note:'Publie sur Substack'})
       }).catch(function(){});
 
-      // Email au rédacteur
+      // Email au rédacteur via auteur_id
       fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=titre,auteur,auteur_id', {
         headers: SB_HEADERS
       })
@@ -5934,17 +5988,23 @@ function publierArticle(id){
       .then(function(data){
         var article = data && data[0] ? data[0] : null;
         if(!article) return;
-        // Chercher l'email du rédacteur dans membres
-        fetch(SB_URL+'/rest/v1/membres?nom=neq.null&select=email,prenom,nom', {headers:SB_HEADERS})
+        // Chercher directement par auteur_id si disponible
+        var query = article.auteur_id
+          ? SB_URL+'/rest/v1/membres?id=eq.'+article.auteur_id+'&select=email,prenom'
+          : SB_URL+'/rest/v1/membres?select=email,prenom,nom';
+        fetch(query, {headers:SB_HEADERS})
         .then(function(r){ return r.json(); })
         .then(function(membres){
-          if(!membres) return;
-          // Trouver le membre dont le nom complet correspond à l'auteur
-          var membre = membres.find(function(m){
-            return (m.prenom+' '+m.nom).trim() === (article.auteur||'').trim();
-          });
+          var membre = null;
+          if(article.auteur_id){
+            membre = membres && membres[0] ? membres[0] : null;
+          } else {
+            membre = (membres||[]).find(function(m){
+              return (m.prenom+' '+m.nom).trim().toLowerCase() === (article.auteur||'').trim().toLowerCase();
+            });
+          }
           if(membre && membre.email){
-            var html = '<h2>Ton article a ete publie ! 🎉</h2>'+
+            var html = '<h2>Ton article a ete publie !</h2>'+
               '<p>Bonjour '+membre.prenom+',</p>'+
               '<p>Ton article <strong>"'+article.titre+'"</strong> a ete valide et publie sur Substack par la redaction en chef.</p>'+
               '<p>Bravo pour ce travail !</p>'+
@@ -5952,9 +6012,11 @@ function publierArticle(id){
               'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>';
             envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html)
               .catch(function(){ console.warn('Email publication non envoye'); });
+          } else {
+            console.warn('Membre non trouve pour auteur:', article.auteur, article.auteur_id);
           }
-        }).catch(function(){});
-      }).catch(function(){});
+        }).catch(function(e){ console.error('Email pub membres:', e); });
+      }).catch(function(e){ console.error('Email pub article:', e); });
 
       statutChargerDB();
     } else {
@@ -6954,6 +7016,62 @@ function chargerAlertTicketsAccueil(){
     if(badge){ badge.textContent = n; badge.style.display = 'inline-flex'; }
   })
   .catch(function(){});
+}
+
+
+// ===== SCREENSAVER =====
+var _ssTimer = null;
+var _ssActive = false;
+var _SS_DELAY = 30 * 1000; // 30 secondes
+
+function ssAfficher(){
+  if(_ssActive) return;
+  _ssActive = true;
+  var el = document.getElementById('screensaver');
+  if(el) el.classList.add('visible');
+  ssMajHeure();
+}
+
+function ssMasquer(){
+  if(!_ssActive) return;
+  _ssActive = false;
+  var el = document.getElementById('screensaver');
+  if(el) el.classList.remove('visible');
+  ssResetTimer();
+}
+
+function ssMajHeure(){
+  if(!_ssActive) return;
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2,'0');
+  var m = String(now.getMinutes()).padStart(2,'0');
+  var clockEl = document.getElementById('ss-clock');
+  if(clockEl) clockEl.textContent = h + ':' + m;
+  var jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  var mois = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+  var dateEl = document.getElementById('ss-date');
+  if(dateEl) dateEl.textContent = jours[now.getDay()] + ' ' + now.getDate() + ' ' + mois[now.getMonth()] + ' ' + now.getFullYear();
+  setTimeout(ssMajHeure, 10000);
+}
+
+function ssResetTimer(){
+  if(_ssActive) return;
+  clearTimeout(_ssTimer);
+  _ssTimer = setTimeout(ssAfficher, _SS_DELAY);
+}
+
+function ssInit(){
+  // Événements qui réinitialisent le timer
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(evt){
+    document.addEventListener(evt, function(){
+      if(_ssActive){
+        ssMasquer();
+      } else {
+        ssResetTimer();
+      }
+    }, { passive: true });
+  });
+  ssResetTimer();
 }
 
 // Init (differe apres chargement DOM)
