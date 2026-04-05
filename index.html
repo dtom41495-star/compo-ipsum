@@ -3422,8 +3422,36 @@ function appliquerRole(){
   if(badge) badge.textContent = roleLabels[role]||role;
 }
 function bvnModifier(){
-  document.getElementById('bvn-prenom').value=getUserPrenom()||'';
-  document.getElementById('bvn-nom').value=getUserNom()||'';
+  var role = getUserRole();
+  // Rédacteur ne peut pas modifier son profil
+  if(role === 'redacteur'){ notif('Contacte un admin pour modifier ton profil'); return; }
+
+  document.getElementById('bvn-prenom').value = getUserPrenom()||'';
+  document.getElementById('bvn-nom').value = getUserNom()||'';
+
+  // Adapter les boutons de rôle selon le rôle actuel
+  var btnAdmin = document.querySelector('[data-role="admin"]');
+  var btnRedac = document.querySelector('[data-role="redacteur"]');
+  var btnCorr  = document.querySelector('[data-role="correcteur"]');
+
+  if(role === 'correcteur'){
+    // Correcteur : peut choisir entre redacteur et correcteur uniquement
+    if(btnAdmin) btnAdmin.style.display = 'none';
+    if(btnRedac) btnRedac.style.display = '';
+    if(btnCorr)  btnCorr.style.display  = '';
+  } else if(role === 'admin'){
+    // Admin : tous les rôles disponibles
+    if(btnAdmin) btnAdmin.style.display = '';
+    if(btnRedac) btnRedac.style.display = '';
+    if(btnCorr)  btnCorr.style.display  = '';
+  }
+
+  // Pré-sélectionner le rôle actuel
+  document.querySelectorAll('.bvn-role-btn').forEach(function(b){
+    b.classList.toggle('active', b.dataset.role === role);
+    if(b.dataset.role === role) window._bvnRoleSelectionne = role;
+  });
+
   document.getElementById('bienvenue').classList.add('visible');
 }
 function afficherBonjour(){
@@ -3432,6 +3460,9 @@ function afficherBonjour(){
   var s=document.getElementById('bonjour-prenom');
   if(b) b.style.display='flex';
   if(s) s.textContent=p;
+  // Masquer le bouton modifier pour les rédacteurs
+  var btnEdit = document.querySelector('.bonjour-edit');
+  if(btnEdit) btnEdit.style.display = (getUserRole()==='redacteur') ? 'none' : '';
   // Afficher le rôle
   var roleLabels = {redacteur:'Rédacteur',correcteur:'Correcteur',admin:'Admin'};
   var badge = document.getElementById('bonjour-role');
