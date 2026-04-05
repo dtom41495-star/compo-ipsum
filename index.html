@@ -1124,6 +1124,9 @@ input:focus,select:focus,textarea:focus{
     </div>
   </div>
 
+</div>
+</div>
+
 
 <!-- COMMUNIQUÉ -->
 <div class="page" id="page-communique">
@@ -4500,9 +4503,9 @@ function chargerArticlesEnCorrection(){
   if(role === 'correcteur' || role === 'admin'){
     // Chercher par UUID d'abord, fallback sur le nom
     if(userId){
-      query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&select=*&order=updated_at.desc';
+      query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&select=*&order=updated_at.desc';
     } else {
-      query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
+      query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide)&correcteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
     }
   } else {
     query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide,publie)&auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc';
@@ -4512,7 +4515,7 @@ function chargerArticlesEnCorrection(){
   .then(function(articles){
     if(!articles||!articles.length){
       var msg = (role==='correcteur'||role==='admin')
-        ? 'Aucun article en attente de correction pour toi.'
+        ? 'Aucun article en correction ou valide pour toi.'
         : 'Aucun de tes articles en cours de correction.';
       list.innerHTML = '<p style="color:var(--gris);font-size:0.88rem;">'+msg+'</p>';
       return;
@@ -4691,8 +4694,12 @@ function renderStatut(){
     var urg = d.urgence||'normal';
     var age = badgeFraicheur(d.modifie_le||d.cree_le);
     var type = typeLbl[d.type]||d.type||'—';
+    var publierBtn = '';
+    if(d._from_db && d.statut === 'valide'){
+      publierBtn = '<button onclick="publierArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid #155724;background:#D4EDDA;color:#155724;margin-left:4px;">Publier</button>';
+    }
     var lienBtn = d._from_db
-      ? '<button onclick="statutOuvrirArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid var(--bleu);background:var(--bleu-clair);color:var(--bleu);">Ouvrir</button>'
+      ? '<button onclick="statutOuvrirArticle('+JSON.stringify(d.id)+')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;cursor:pointer;border:1px solid var(--bleu);background:var(--bleu-clair);color:var(--bleu);">Ouvrir</button>' + publierBtn
       : '';
     html += '<tr data-statut="'+s+'">' +
       '<td style="max-width:220px;"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(d.titre||'Sans titre')+'</strong></td>' +
@@ -4852,6 +4859,7 @@ function lancerCompo(){
   setTimeout(function(){
     var s = document.getElementById('splash');
     if(s){ s.classList.add('fade-out'); setTimeout(function(){s.style.display='none';},500); }
+    go('accueil');
     afficherBonjour();
     appliquerRole();
     construireNav();
@@ -5345,6 +5353,30 @@ function renderDiffLecture(doc){
   // Mettre a jour le titre de la page lecture
   var titreEl = document.getElementById('lect-titre');
   if(titreEl) titreEl.textContent = doc.titre || 'Sans titre';
+}
+
+
+function publierArticle(id){
+  if(!confirm('Marquer cet article comme publie sur Substack ?')) return;
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+    body: JSON.stringify({statut:'publie'})
+  }).then(function(r){
+    if(r.ok){
+      notif('Article marque comme publie !');
+      // Ajouter dans historique
+      fetch(SB_URL+'/rest/v1/historique', {
+        method: 'POST',
+        headers: SB_HEADERS,
+        body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note:'Publie sur Substack'})
+      }).catch(function(){});
+      // Rafraichir le tableau
+      statutChargerDB();
+    } else {
+      notif('Erreur lors de la publication');
+    }
+  }).catch(function(){ notif('Erreur reseau'); });
 }
 
 // Init (differe apres chargement DOM)
