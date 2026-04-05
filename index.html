@@ -2364,6 +2364,7 @@ function exporterArticle(){
 }
 
 function resetRedaction(){
+  currentDoc = null; // Nouvel article -> nouvel ID
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
   document.getElementById('r-redaction').value='Rédaction Tarn';
