@@ -6349,10 +6349,7 @@ var ADMIN_EMAIL = 'contact@ipsummedia.fr';
 function envoyerEmailResend(to, subject, html){
   return fetch('https://ctmekufqaxdelgfyjwly.supabase.co/functions/v1/envoyer-email', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY)
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to: to, subject: subject, html: html })
   }).then(function(r){
     if(!r.ok){ return r.json().then(function(e){ console.error('Email error:', e); }); }
@@ -6560,15 +6557,7 @@ function ticketFermer(ticket, reponse){
         envoyerEmailResend(membre.email, '[Compo] Ticket resolu : '+ticket.titre, htmlMembre)
           .catch(function(){ console.warn('Email membre non envoye'); });
       }
-      // Annonce sur l'accueil
-      fetch(SB_URL+'/rest/v1/annonces', {
-        method:'POST',
-        headers: Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
-        body: JSON.stringify({
-          message: 'Ticket resolu : "'+ticket.titre+'" - '+reponse,
-          type:'succes', actif:true, auteur:'Admin'
-        })
-      }).catch(function(){});
+      // Pas d'annonce publique - la reponse est privee (email uniquement)
     }).catch(function(){});
 
     envoyerEmailResend(ADMIN_EMAIL, '[Compo] Ticket ferme : '+ticket.titre, html)
