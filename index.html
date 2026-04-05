@@ -1129,6 +1129,19 @@ input:focus,select:focus,textarea:focus{
   border-top: 1px solid var(--gris-bord);
 }
 
+
+/* ALERTE TICKETS */
+.accueil-ticket-alert {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: white;
+  border: 2px solid #856404;
+  margin-bottom: 0.6rem;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1366,6 +1379,9 @@ input:focus,select:focus,textarea:focus{
 
   <!-- ALERTE PUBLICATION -->
   <div id="accueil-publication-alert" style="display:none;margin-bottom:0;"></div>
+
+  <!-- ALERTE TICKETS -->
+  <div id="accueil-ticket-alert" style="display:none;margin-bottom:0;"></div>
 
   <!-- TABLEAU DE BORD ACCUEIL -->
   <div id="accueil-dashboard" style="margin-top:2rem;">
@@ -3551,6 +3567,7 @@ function bvnValider(){
     chargerAlertCorrection();
     chargerAlertPublication();
     chargerAlertTickets();
+    chargerAlertTicketsAccueil();
     notif('Profil mis a jour - interface actualisee');
   } else {
     notif('Profil mis a jour');
@@ -5345,6 +5362,7 @@ function lancerCompo(){
     chargerAlertCorrection();
     chargerAlertPublication();
     chargerAlertTickets();
+    chargerAlertTicketsAccueil();
     chargerDepuisURL();
   }, 1700);
 }
@@ -6527,6 +6545,7 @@ function ticketCreer(){
     var corrDiv = document.getElementById('ticket-correcteur-select');
     if(corrDiv) corrDiv.style.display = 'none';
     notif('Demande envoyee a ' + destNom + ' !');
+    chargerAlertTicketsAccueil();
     chargerTickets();
 
     var html = '<h2>Nouvelle demande d assistance</h2>'+
@@ -6552,7 +6571,7 @@ function chargerTickets(){
   var role = getUserRole();
   var nom = getUserNomComplet();
   // Toujours charger tous les tickets puis filtrer côté client
-  var url = role === 'admin'
+  var url = (role === 'admin' || role === 'correcteur')
     ? SB_URL+'/rest/v1/tickets?order=created_at.desc&select=*'
     : SB_URL+'/rest/v1/tickets?auteur=eq.'+encodeURIComponent(nom)+'&order=created_at.desc&select=*';
 
@@ -6631,7 +6650,7 @@ function renderTicket(t){
   if(t.reponse){
     var rep = document.createElement('div');
     rep.className = 'ticket-reponse';
-    rep.innerHTML = '<div class="ticket-reponse-label">Reponse de l admin</div>' + esc(t.reponse);
+    rep.innerHTML = '<div class="ticket-reponse-label">Echanges</div>' + esc(t.reponse).replace(/\n/g,'<br>');
     body.appendChild(rep);
   }
 
@@ -6659,8 +6678,8 @@ function renderTicket(t){
     body.appendChild(actionsRedac);
   }
 
-  // Actions admin
-  if(role === 'admin' && t.statut === 'ouvert'){
+  // Actions admin et correcteur (peuvent repondre et fermer)
+  if((role === 'admin' || role === 'correcteur') && t.statut === 'ouvert'){
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;align-items:flex-start;';
 
@@ -6883,6 +6902,58 @@ function fermerPatchNote(){
   localStorage.setItem('compo_patchnote_vu', COMPO_VERSION);
   var modal = document.getElementById('modal-patchnote');
   if(modal) modal.classList.remove('visible');
+}
+
+
+function chargerAlertTicketsAccueil(){
+  var role = getUserRole();
+  if(role !== 'admin' && role !== 'correcteur') return;
+
+  var alertEl = document.getElementById('accueil-ticket-alert');
+  if(!alertEl) return;
+
+  fetch(SB_URL+'/rest/v1/tickets?statut=eq.ouvert&select=id,titre,auteur&order=created_at.desc', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(tickets){
+    if(!tickets || !tickets.length || tickets.code){
+      alertEl.style.display = 'none';
+      var badge = document.getElementById('nav-tickets-badge');
+      if(badge) badge.style.display = 'none';
+      return;
+    }
+    var n = tickets.length;
+    alertEl.style.display = 'flex';
+    alertEl.className = 'accueil-ticket-alert';
+    alertEl.innerHTML = '';
+
+    var _icon = document.createElement('div');
+    _icon.className = 'accueil-correction-alert-icon';
+    _icon.textContent = '🎫';
+
+    var _txt = document.createElement('div');
+    _txt.className = 'accueil-correction-alert-text';
+    var _t = document.createElement('div');
+    _t.className = 'accueil-correction-alert-titre';
+    _t.textContent = n + ' demande' + (n>1?'s':'') + ' d assistance en attente';
+    var _s = document.createElement('div');
+    _s.className = 'accueil-correction-alert-sub';
+    _s.textContent = tickets.map(function(t){ return t.auteur+' : '+t.titre; }).join(' · ');
+    _txt.appendChild(_t); _txt.appendChild(_s);
+
+    var _btn = document.createElement('button');
+    _btn.textContent = 'Voir';
+    _btn.style.cssText = 'font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:1.5px solid #856404;background:#856404;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+    _btn.onclick = function(){ go('tickets'); };
+
+    alertEl.appendChild(_icon); alertEl.appendChild(_txt); alertEl.appendChild(_btn);
+
+    // Badge nav
+    var badge = document.getElementById('nav-tickets-badge');
+    if(badge){ badge.textContent = n; badge.style.display = 'inline-flex'; }
+  })
+  .catch(function(){});
 }
 
 // Init (differe apres chargement DOM)
