@@ -1574,6 +1574,8 @@ body {
 .stats-hist-note { font-size: 0.68rem; color: var(--gris); flex: 1; font-style: italic; }
 .stats-hist-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
 
+
+
 /* CSS des pages originales */
 
 :root{--rouge:#ea5b1c;--rouge-clair:#fde8dc;--encre:#1A1A2E;--gris:#6B7280;--gris-clair:#F3F4F6;--gris-bord:#E5E7EB;--blanc:#FAFAF8;--ajout:#D4EDDA;--ajout-txt:#155724;--suppr:#F8D7DA;--suppr-txt:#721C24;--or:#B7950B;--bleu:#1A5276;--bleu-clair:#D6EAF8;}
@@ -2764,6 +2766,7 @@ input:focus,select:focus,textarea:focus{
 
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -3905,12 +3908,11 @@ input:focus,select:focus,textarea:focus{
       <textarea id="nl-edito" style="min-height:90px;" placeholder="Quelques mots pour cette édition..."></textarea>
     </div>
   </div>
-  <div class="section-label">Articles et brèves de la semaine</div>
-  <div class="import-zone" onclick="document.getElementById('input-nl').click()" style="padding:0.9rem;margin-bottom:0.7rem;">
-    <div class="import-icon">+</div>
-    <p>Ajouter un ou plusieurs articles validés (sélection multiple possible)</p>
-    <input type="file" id="input-nl" accept="*/*" style="display:none" onchange="nlImporter(event)" multiple>
+  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+    <span>Articles et brèves de la semaine</span>
+    <button class="btn" onclick="nlChargerDepuisBase()" style="font-size:0.75rem;padding:0.4rem 0.9rem;">☁️ Charger depuis la base</button>
   </div>
+  <div id="nl-base-articles" style="margin-bottom:0.8rem;"></div>
   <div id="nl-articles-list" style="margin-bottom:1.2rem;"></div>
   <div id="nl-apercu-section" style="display:none;">
     <hr style="border:none;border-top:1px solid var(--gris-bord);margin:1.5rem 0;">
@@ -4246,18 +4248,21 @@ var SB_HEADERS = {
   'Authorization': 'Bearer ' + SB_KEY,
   'Content-Type': 'application/json',
   'Prefer': 'return=representation'
-};
+}
 
-
-// ===== CONSTANTES =====
-const ADMIN_PW = btoa('IpSuM@2024#Tarn!');
-
-let currentDoc = null, currentType = 'article', currentUrg = 'normal';
+// Variables globales
 var statutDocs = [], statutFiltreActif = null, _ticketFiltre = 'tous';
-let currentStatCorr = 'valide', currentStatEdit = null;
-let tags = [], cpLies = [], imgB64 = null, cpDocs = {a:null,b:null};
+var currentDoc = null;
+var imgFile = null;
+var imgB64 = null;
+var nlArticles = [];
+var _sujetCourant = null;
+var cpLies = [];
+var tags = [];
+;
 
-// ===== EXPORT / IMPORT (JSON simple, sans chiffrement) =====
+
+
 function exporterFichier(obj, nom){
   try{
     const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
@@ -4610,26 +4615,26 @@ function loadCorrection(event){importerFichier(event.target.files[0],doc=>{curre
 
 function renderCorrection(){
   const doc=currentDoc;
-  document.getElementById('corr-content').style.display='block';
-  document.getElementById('c-codeid').innerHTML='<span class="code-id">'+doc.id+'</span>';
-  document.getElementById('c-statbadge').innerHTML=bStat(doc.statut);
-  document.getElementById('c-urgbadge').innerHTML=doc.urgence?bUrg(doc.urgence):'';
-  document.getElementById('c-fraicheur').innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le);
-  document.getElementById('c-auteur').value=doc.auteur||'';
-  document.getElementById('c-titre-orig').textContent=doc.titre||'';
-  document.getElementById('c-titre-new').value=doc.titre||'';
+  (osGetEl('corr-content')||document.getElementById('corr-content')).style.display='block';
+  (osGetEl('c-codeid')||document.getElementById('c-codeid')).innerHTML='<span class="code-id">'+doc.id+'</span>';
+  (osGetEl('c-statbadge')||document.getElementById('c-statbadge')).innerHTML=bStat(doc.statut);
+  (osGetEl('c-urgbadge')||document.getElementById('c-urgbadge')).innerHTML=doc.urgence?bUrg(doc.urgence):'';
+  (osGetEl('c-fraicheur')||document.getElementById('c-fraicheur')).innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le);
+  (osGetEl('c-auteur')||document.getElementById('c-auteur')).value=doc.auteur||'';
+  (osGetEl('c-titre-orig')||document.getElementById('c-titre-orig')).textContent=doc.titre||'';
+  (osGetEl('c-titre-new')||document.getElementById('c-titre-new')).value=doc.titre||'';
   const hasCh=doc.type==='article'&&doc.chapeau;
-  document.getElementById('cg-ch').style.display=hasCh?'flex':'none';
-  document.getElementById('cg-chn').style.display=hasCh?'flex':'none';
-  if(hasCh){document.getElementById('c-ch-orig').textContent=doc.chapeau;document.getElementById('c-ch-new').value=doc.chapeau;}
-  document.getElementById('c-corps-orig').textContent=doc.corps||'';
-  document.getElementById('c-corps-new').value=doc.corps||'';
+  (osGetEl('cg-ch')||document.getElementById('cg-ch')).style.display=hasCh?'flex':'none';
+  (osGetEl('cg-chn')||document.getElementById('cg-chn')).style.display=hasCh?'flex':'none';
+  if(hasCh){(osGetEl('c-ch-orig')||document.getElementById('c-ch-orig')).textContent=doc.chapeau;(osGetEl('c-ch-new')||document.getElementById('c-ch-new')).value=doc.chapeau;}
+  (osGetEl('c-corps-orig')||document.getElementById('c-corps-orig')).textContent=doc.corps||'';
+  (osGetEl('c-corps-new')||document.getElementById('c-corps-new')).value=doc.corps||'';
   // Communiqués liés
   if(doc.communiques&&doc.communiques.length){
-    document.getElementById('c-cpinfo').innerHTML='<div class="cp-panel"><div class="cp-panel-title">Communiqués sources liés</div>'+doc.communiques.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - '+esc(cp.organisation)+'</span><div class="cp-actions"><button class="btn-lire" onclick="lireCP(\''+cp.id+'\')">Lire</button></div></div>').join('')+'</div>';
+    (osGetEl('c-cpinfo')||document.getElementById('c-cpinfo')).innerHTML='<div class="cp-panel"><div class="cp-panel-title">Communiqués sources liés</div>'+doc.communiques.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - '+esc(cp.organisation)+'</span><div class="cp-actions"><button class="btn-lire" onclick="lireCP(\''+cp.id+'\')">Lire</button></div></div>').join('')+'</div>';
     // override lireCP pour mode correction
     window._corrCPs=doc.communiques;
-  }else document.getElementById('c-cpinfo').innerHTML='';
+  }else (osGetEl('c-cpinfo')||document.getElementById('c-cpinfo')).innerHTML='';
   renderHist('c-hist',doc.historique);
 }
 
@@ -6887,7 +6892,11 @@ var brouillonsOngletActif = 'local';
 
 function brouillonsOnglet(onglet, btn){
   brouillonsOngletActif = onglet;
-  document.querySelectorAll('.brf-onglet').forEach(function(b){ b.classList.remove('active'); });
+  if(!btn) btn = document.querySelector('.brf-onglet');
+  if(!btn) return;
+  var container = btn.closest ? btn.closest('.os-window-content, .page') : document;
+  var scope = container || document;
+  scope.querySelectorAll('.brf-onglet').forEach(function(b){ if(b) b.classList.remove('active'); });
   btn.classList.add('active');
   var actionsLocal = document.getElementById('actions-local');
   if(actionsLocal) actionsLocal.style.display = onglet === 'local' ? 'flex' : 'none';
@@ -7813,15 +7822,35 @@ function chargerDansRedaction(doc){
     document.getElementById('r-datepub').value = doc.date_publication||'';
     tags = doc.tags||[]; renderTags();
     cpLies = doc.communiques||[]; renderCpLies();
-    // Image : si c'est une URL Storage, l'afficher directement
+    // Image : afficher depuis URL Storage ou base64
+    imgFile = null; // reset - pas de nouveau fichier à uploader
     if(doc.image){
       imgB64 = doc.image;
-      var prev = document.getElementById('r-img-prev');
-      var rem = document.getElementById('r-img-rem');
-      var leg = document.getElementById('r-img-leg');
-      if(prev){ prev.src = doc.image; prev.style.display = 'block'; }
+      // Chercher dans la fenêtre active OU dans le DOM global
+      var winContent = document.getElementById('wincontent-redaction');
+      var ctx = winContent || document;
+      var prev = ctx.querySelector('#r-img-prev') || document.getElementById('r-img-prev');
+      var rem  = ctx.querySelector('#r-img-rem')  || document.getElementById('r-img-rem');
+      var leg  = ctx.querySelector('#r-img-leg')  || document.getElementById('r-img-leg');
+      if(prev){
+        prev.crossOrigin = 'anonymous';
+        prev.src = doc.image + '?t=' + Date.now(); // cache-bust
+        prev.style.display = 'block';
+        prev.onerror = function(){
+          // Si CORS bloque, essayer sans cache-bust
+          prev.src = doc.image;
+        };
+      }
       if(rem) rem.style.display = 'inline-block';
       if(leg){ leg.style.display = 'block'; leg.value = doc.image_legende||''; }
+    } else {
+      imgB64 = null; imgFile = null;
+      var winContent2 = document.getElementById('wincontent-redaction');
+      var ctx2 = winContent2 || document;
+      var prev2 = ctx2.querySelector('#r-img-prev') || document.getElementById('r-img-prev');
+      var rem2  = ctx2.querySelector('#r-img-rem')  || document.getElementById('r-img-rem');
+      if(prev2){ prev2.src=''; prev2.style.display='none'; }
+      if(rem2) rem2.style.display='none';
     }
     setUrg(doc.urgence||'normal');
     updateStats();
@@ -7949,20 +7978,38 @@ function publierArticle(id){
         var article = data && data[0] ? data[0] : null;
         if(!article) return;
         // Chercher directement par auteur_id si disponible
-        var query = article.auteur_id
-          ? SB_URL+'/rest/v1/membres?id=eq.'+article.auteur_id+'&select=email,prenom'
-          : SB_URL+'/rest/v1/membres?select=email,prenom,nom';
-        fetch(query, {headers:SB_HEADERS})
+        // Récupérer tous les membres pour trouver le rédacteur
+        fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom', {headers:SB_HEADERS})
         .then(function(r){ return r.json(); })
         .then(function(membres){
           var membre = null;
+          var auteurNom = (article.auteur||'').trim().toLowerCase();
+          membres = membres || [];
+          
+          // 1. Match par auteur_id (le plus fiable)
           if(article.auteur_id){
-            membre = membres && membres[0] ? membres[0] : null;
-          } else {
-            membre = (membres||[]).find(function(m){
-              return (m.prenom+' '+m.nom).trim().toLowerCase() === (article.auteur||'').trim().toLowerCase();
+            membre = membres.find(function(m){ return m.id === article.auteur_id; });
+          }
+          // 2. Fallback : match nom complet exact
+          if(!membre && auteurNom){
+            membre = membres.find(function(m){
+              return (m.prenom+' '+m.nom).trim().toLowerCase() === auteurNom;
             });
           }
+          // 3. Fallback : match prénom seul (si auteur = "Tom")
+          if(!membre && auteurNom){
+            membre = membres.find(function(m){
+              return (m.prenom||'').trim().toLowerCase() === auteurNom;
+            });
+          }
+          // 4. Fallback : match partiel (auteur contient le prénom)
+          if(!membre && auteurNom){
+            membre = membres.find(function(m){
+              var prenom = (m.prenom||'').trim().toLowerCase();
+              return prenom && auteurNom.indexOf(prenom) >= 0;
+            });
+          }
+          
           if(membre && membre.email){
             var html = '<h2>Ton article a ete publie !</h2>'+
               '<p>Bonjour '+membre.prenom+',</p>'+
@@ -7973,7 +8020,7 @@ function publierArticle(id){
             envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html)
               .catch(function(){ console.warn('Email publication non envoye'); });
           } else {
-            console.warn('Membre non trouve pour auteur:', article.auteur, article.auteur_id);
+            console.warn('[Email pub] Membre non trouve pour auteur:', article.auteur, 'id:', article.auteur_id);
           }
         }).catch(function(e){ console.error('Email pub membres:', e); });
       }).catch(function(e){ console.error('Email pub article:', e); });
@@ -9078,6 +9125,23 @@ document.addEventListener('DOMContentLoaded', function(){ try{ setType('article'
 
 
 // ===== IPSUM OS =====
+// Helper pour trouver un élément dans la fenêtre OS active
+function osGetEl(id){
+  var winIds = ['wincontent-newsletter','wincontent-lecture','wincontent-redaction',
+                'wincontent-correction','wincontent-brouillons','wincontent-mes-articles',
+                'wincontent-statut','wincontent-stats-dashboard','wincontent-params',
+                'wincontent-fichiers','wincontent-tutos','wincontent-sujets',
+                'wincontent-bugs','wincontent-briefing','wincontent-journal'];
+  for(var i=0;i<winIds.length;i++){
+    var wc = document.getElementById(winIds[i]);
+    if(wc){
+      var el = wc.querySelector('#'+id);
+      if(el) return el;
+    }
+  }
+  return document.getElementById(id);
+}
+
 var _windows = {}; // windowId -> { el, zIndex, page }
 var _zCounter = 100;
 var _osReady = false;
@@ -9125,7 +9189,6 @@ function osLancer(){
   osBuildDesktopIcons();
   osAppliquerThemeAuDemarrage();
   osAppliquerWallpaperAuDemarrage();
-  // Plein écran automatique
   setTimeout(osRequestFullscreen, 500);
   setTimeout(osShowFsTooltip, 2000);
   // Ouvrir accueil au démarrage
@@ -11569,6 +11632,8 @@ function fermerPreview(){
 
 // ===== SERVICE WORKER (OFFLINE) =====
 function osEnregistrerServiceWorker(){
+  // Ne pas enregistrer en local (file://)
+  if(window.location.protocol === 'file:') return;
   if('serviceWorker' in navigator){
     var swCode = `
 const CACHE = 'compo-os-v1';
@@ -12769,13 +12834,15 @@ function osMesArticlesCharger(list){
 var _bugCooldown = false;
 var _bugIgnorePatterns = [
   'SW non enregistre',
+  'ServiceWorker',
   'requestFullscreen',
   'Permissions check failed',
   'file://',
   'protocol',
-  'ServiceWorker',
   'net::ERR',
   'favicon',
+  'null origin',
+  'URL protocol',
 ];
 
 function bugEnvoyer(message, stack, source){
@@ -12968,15 +13035,147 @@ function pnToggle(section){
   if(arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
+
+// ===== NEWSLETTER - Chargement depuis la base =====
+var _nlArticlesBase = []; // Articles disponibles en base
+var _nlSelectionnes = []; // Articles sélectionnés pour la NL
+
+function nlChargerDepuisBase(){
+  var zone = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
+  if(!zone) return;
+  zone.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:0.5rem;">Chargement...</div>';
+
+  fetch(SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,chapeau,type,auteur,statut,updated_at,corps&limit=30', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(articles){
+    _nlArticlesBase = (articles && !articles.code) ? articles : [];
+    if(!_nlArticlesBase.length){
+      zone.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Aucun article validé ou publié en base.</div>';
+      return;
+    }
+    nlAfficherArticlesBase(zone);
+  }).catch(function(){
+    zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur de chargement</div>';
+  });
+}
+
+function nlAfficherArticlesBase(zone){
+  zone.innerHTML = '';
+
+  var label = document.createElement('div');
+  label.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
+  label.textContent = _nlArticlesBase.length+' articles disponibles — coche ceux à inclure';
+  zone.appendChild(label);
+
+  var STATUT = { valide:'#155724', publie:'#0C5460' };
+  var STATUT_BG = { valide:'#D4EDDA', publie:'#D1ECF1' };
+
+  _nlArticlesBase.forEach(function(art){
+    var isSelected = _nlSelectionnes.some(function(s){ return s.id === art.id; });
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:0.7rem;padding:0.7rem 0.8rem;'+
+      'border:1.5px solid '+(isSelected?'var(--rouge)':'var(--gris-bord)')+';'+
+      'border-radius:7px;margin-bottom:0.4rem;cursor:pointer;transition:border-color 0.15s;'+
+      'background:'+(isSelected?'rgba(232,70,30,0.04)':'white')+';';
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = isSelected;
+    cb.style.cssText = 'margin-top:3px;flex-shrink:0;accent-color:var(--rouge);width:16px;height:16px;cursor:pointer;';
+
+    var body = document.createElement('div');
+    body.style.cssText = 'flex:1;min-width:0;';
+
+    var st = art.statut || 'valide';
+    var dateStr = art.updated_at ? new Date(art.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+
+    body.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem;">'+
+        '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;background:'+STATUT_BG[st]+';color:'+STATUT[st]+';border:1px solid '+STATUT[st]+';">'+st+'</span>'+
+        '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:#F0EEE9;color:var(--gris);border-radius:3px;">'+(art.type||'article')+'</span>'+
+        '<span style="font-family:monospace;font-size:0.58rem;color:var(--gris);">'+dateStr+'</span>'+
+      '</div>'+
+      '<div style="font-weight:700;font-size:0.85rem;color:var(--encre);">'+esc(art.titre||'Sans titre')+'</div>'+
+      (art.chapeau?'<div style="font-size:0.75rem;color:var(--gris);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(art.chapeau)+'</div>':'')+
+      '<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Par '+(art.auteur||'—')+'</div>';
+
+    row.appendChild(cb);
+    row.appendChild(body);
+
+    // Toggle sélection
+    function toggle(){
+      var idx = _nlSelectionnes.findIndex(function(s){ return s.id === art.id; });
+      if(idx >= 0){
+        _nlSelectionnes.splice(idx, 1);
+        cb.checked = false;
+        row.style.borderColor = 'var(--gris-bord)';
+        row.style.background = 'white';
+      } else {
+        _nlSelectionnes.push(art);
+        cb.checked = true;
+        row.style.borderColor = 'var(--rouge)';
+        row.style.background = 'rgba(232,70,30,0.04)';
+      }
+      nlMajArticlesListe();
+    }
+
+    row.onclick = function(e){ if(e.target !== cb) toggle(); };
+    cb.onchange = toggle;
+    zone.appendChild(row);
+  });
+
+  // Bouton ajouter la sélection
+  var btnAjouter = document.createElement('button');
+  btnAjouter.className = 'btn';
+  btnAjouter.style.cssText = 'width:100%;margin-top:0.5rem;font-size:0.8rem;';
+  btnAjouter.textContent = 'Ajouter les articles sélectionnés →';
+  btnAjouter.onclick = function(){
+    if(!_nlSelectionnes.length){ notif('Sélectionne au moins un article'); return; }
+    // Convertir au format NL attendu par nlArticles
+    _nlSelectionnes.forEach(function(art){
+      // Éviter les doublons
+      if(nlArticles.some(function(a){ return a.id === art.id; })) return;
+      nlArticles.push({
+        id: art.id,
+        type: art.type || 'article',
+        titre: art.titre || '',
+        chapeau: art.chapeau || '',
+        corps: art.corps || '',
+        auteur: art.auteur || '',
+        lien: ''
+      });
+    });
+    _nlSelectionnes = [];
+    nlRenderListe();
+    // Masquer la zone de sélection
+    var z = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
+    if(z) z.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;">✓ '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
+    notif(nlArticles.length+' article(s) prets pour la newsletter !');
+  };
+  zone.appendChild(btnAjouter);
+}
+
+function nlMajArticlesListe(){
+  // Mettre à jour le compteur
+  var btnAjouter = document.querySelector('#nl-base-articles .btn');
+  if(btnAjouter) btnAjouter.textContent = 'Ajouter les '+_nlSelectionnes.length+' articles sélectionnés →';
+}
+
+
+
 // ===== INIT OS =====
 (function(){
-  // Horloge login
+
+  function demarrer(){
   function loginClock(){
     var now = new Date();
     var h = String(now.getHours()).padStart(2,'0');
     var m = String(now.getMinutes()).padStart(2,'0');
     var jours=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-    var mois=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    var mois=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
     var el = document.getElementById('os-login-clock');
     var del = document.getElementById('os-login-date');
     if(el) el.textContent = h+':'+m;
@@ -12984,7 +13183,7 @@ function pnToggle(section){
     setTimeout(loginClock, 10000);
   }
   loginClock();
-  
+
   // Vérifier session existante
   try {
     var stored = localStorage.getItem('ipsum_session');
@@ -12993,34 +13192,47 @@ function pnToggle(section){
       if(sess && sess.access_token && sess.expires_at > Date.now()){
         _session = sess;
         var role = localStorage.getItem('ipsum_user_role') || 'redacteur';
-        if(role === 'interdit'){ localStorage.removeItem('ipsum_session'); return; }
-        var loginEl = document.getElementById('os-login');
-        if(loginEl) loginEl.style.display = 'none';
-        // Rafraîchir le profil depuis la base puis lancer
-        chargerProfilMembre(sess.user.id);
-        var _wp=0, _wi=setInterval(function(){
-          _wp+=100;
-          var p=localStorage.getItem('ipsum_user_prenom');
-          var n=localStorage.getItem('ipsum_user_nom');
-          if((p&&n&&p!=='null'&&n!=='null')||_wp>3000){
-            clearInterval(_wi);
-            osLancer(); afficherBonjour(); appliquerRole();
-            setTimeout(afficherPatchNote,1200);
-          }
-        },100);
-        return;
+        if(role === 'interdit'){ localStorage.removeItem('ipsum_session'); }
+        else {
+          var loginEl = document.getElementById('os-login');
+          if(loginEl) loginEl.style.display = 'none';
+          chargerProfilMembre(sess.user.id);
+          setTimeout(function(){
+            osLancer();
+            afficherBonjour();
+            appliquerRole();
+          }, 700);
+          return;
+        }
       }
     }
   } catch(e){}
-  
-  // Afficher login
+
+  // Pas de session - afficher login
   var loginEl = document.getElementById('os-login');
   if(loginEl) loginEl.style.display = 'flex';
+  } // fin demarrer()
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', demarrer);
+  } else {
+    demarrer();
+  }
+
 })();
 
 document.addEventListener('DOMContentLoaded', function(){
   try{ setType('article'); }catch(e){}
 });
+
+// Intercepter les flèches navigateur pour éviter de quitter Compo OS
+window.addEventListener('popstate', function(e){
+  // Repousser dans l'historique pour rester sur la page
+  window.history.pushState(null, '', window.location.href);
+});
+
+// Initialiser l'état dans l'historique au chargement
+window.history.pushState(null, '', window.location.href);
 </script>
 </body>
 </html>
