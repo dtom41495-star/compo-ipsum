@@ -54,7 +54,7 @@ body {
 #os-bg {
   position: absolute;
   inset: 0;
-  background: url('https://cdn.discordapp.com/attachments/692793098451025964/1490373410201534617/fond_decembre_2025.png?ex=69d86f26&is=69d71da6&hm=9fb40290605b0dc75f5be0a25913af08e0f262893fab2cdfb48412be3db4c33b&') center/cover no-repeat;
+  background: url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
   z-index: 0;
 }
 #os-bg::before {
@@ -344,7 +344,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: url('https://cdn.discordapp.com/attachments/692793098451025964/1490373410201534617/fond_decembre_2025.png?ex=69d86f26&is=69d71da6&hm=9fb40290605b0dc75f5be0a25913af08e0f262893fab2cdfb48412be3db4c33b&') center/cover no-repeat;
+  background: url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -462,13 +462,21 @@ body {
   top: 16px;
   left: 16px;
   display: grid;
-  grid-template-columns: repeat(2, 72px);
+  grid-template-columns: repeat(3, 72px);
   grid-auto-rows: auto;
   gap: 8px;
   z-index: 10;
   pointer-events: all;
   align-content: start;
   max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+@media (max-height: 600px) {
+  #os-desktop-icons { grid-template-columns: repeat(3, 68px); gap: 5px; top: 8px; left: 8px; }
+}
+@media (max-width: 500px) {
+  #os-desktop-icons { grid-template-columns: repeat(2, 64px); gap: 6px; top: 8px; left: 8px; }
+  .desktop-icon-img { width: 48px !important; height: 48px !important; font-size: 1.4rem !important; }
 }
 .desktop-icon {
   display: flex;
@@ -2274,7 +2282,7 @@ input:focus,select:focus,textarea:focus{
 /* ===== LOGIN ===== */
 #login-screen{
   position:fixed;inset:0;z-index:9995;
-  background:#1A1A2E url('https://cdn.discordapp.com/attachments/692793098451025964/1490373410201534617/fond_decembre_2025.png?ex=69d86f26&is=69d71da6&hm=9fb40290605b0dc75f5be0a25913af08e0f262893fab2cdfb48412be3db4c33b&') center/cover no-repeat;
+  background:#1A1A2E url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
   display:none;align-items:center;justify-content:center;padding:1rem;
 }
 #login-screen::before{
@@ -2932,7 +2940,7 @@ input:focus,select:focus,textarea:focus{
     <div class="status-pill" id="status-time"></div>
     <div class="status-pill" id="status-user"></div>
     <div class="status-pill" id="os-notif-btn" onclick="osToggleNotifCenter()" style="cursor:pointer;pointer-events:all;position:relative;">
-      🔔
+      <span id="nc-bell-emoji">🔔</span>
       <span class="nc-badge" id="nc-badge" style="position:absolute;top:-6px;right:-6px;writing-mode:horizontal-tb;"></span>
     </div>
     <div class="status-pill rouge" id="os-fs-btn" onclick="osToggleFullscreen()" style="cursor:pointer;pointer-events:all;" title="Plein écran">⛶ Plein écran</div>
@@ -3168,6 +3176,60 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
+
+<!-- PAGE CPS LECTURE (tous) -->
+<div class="page" id="page-cps">
+  <div class="panel-title">📰 Communiqués de presse</div>
+  <div class="panel-subtitle">Consultez les communiqués reçus par Ipsum Média</div>
+  <div id="cps-abonnement-zone" style="margin-bottom:1rem;"></div>
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;">🔄 Actualiser</button>
+  </div>
+  <div id="cps-liste"></div>
+</div>
+
+<!-- PAGE CPS ADMIN -->
+<div class="page" id="page-cps-admin">
+  <div class="panel-title">📰 Gestion des communiqués</div>
+  <div class="panel-subtitle">Créer, publier et envoyer les communiqués aux membres abonnés</div>
+  
+  <div style="display:flex;gap:0.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+    <button class="btn" onclick="cpsAdminNouveauForm()" style="font-size:0.8rem;">+ Nouveau CP</button>
+    <button class="btn sec" onclick="cpsAdminCharger()" style="font-size:0.8rem;">🔄 Actualiser</button>
+  </div>
+
+  <!-- Formulaire création -->
+  <div id="cps-form" style="display:none;background:var(--fond-page);border:1.5px solid var(--gris-bord);border-radius:10px;padding:1.2rem;margin-bottom:1.2rem;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.8rem;" id="cps-form-titre-label">Nouveau communiqué</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Titre / Objet <span class="req">*</span></label>
+        <input type="text" id="cps-titre" placeholder="Objet du communiqué">
+      </div>
+      <div class="form-group">
+        <label>Source / Organisation</label>
+        <input type="text" id="cps-source" placeholder="Mairie de Castres, Préfecture...">
+      </div>
+      <div class="form-group">
+        <label>Date du communiqué</label>
+        <input type="date" id="cps-date">
+      </div>
+      <div class="form-group full">
+        <label>Contenu</label>
+        <textarea id="cps-corps" style="min-height:150px;" placeholder="Colle ou rédige le contenu du communiqué ici..."></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">
+      <button class="btn" onclick="cpsAdminSauvegarder('brouillon')" style="font-size:0.8rem;">💾 Sauvegarder brouillon</button>
+      <button class="btn" onclick="cpsAdminSauvegarder('publie')" style="font-size:0.8rem;background:linear-gradient(135deg,#155724,#1E7E34);">📤 Publier et envoyer</button>
+      <button class="btn sec" onclick="document.getElementById('cps-form').style.display='none'" style="font-size:0.8rem;">Annuler</button>
+    </div>
+  </div>
+
+  <!-- Liste des CPs -->
+  <div id="cps-admin-liste"></div>
+</div>
+
 <!-- RÉDACTION -->
 <div class="page" id="page-redaction">
   <div class="page-title">Rédiger un article</div>
@@ -3181,9 +3243,8 @@ input:focus,select:focus,textarea:focus{
   <!-- Communiqués liés -->
   <div class="section-label">Communiqués sources liés à cet article</div>
   <div id="cp-lies-list"></div>
-  <div class="import-zone" onclick="document.getElementById('r-cp-import').click()" style="padding:0.9rem;margin-bottom:1rem;">
-    <p style="margin:0;">+ Attacher un communiqué enregistré</p>
-    <input type="file" id="r-cp-import" accept="*/*" style="display:none" onchange="attacherCP(event)">
+  <div class="import-zone" onclick="cpsRechercherPourLiaison()" style="padding:0.9rem;margin-bottom:1rem;cursor:pointer;">
+    <p style="margin:0;">+ Lier un communiqué depuis la base</p>
   </div>
   <div id="cp-meta-display"></div>
 
@@ -9153,6 +9214,7 @@ var DOCK_APPS = {
     { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
     { id:'visuels', icon:'🖼️', label:'Visuels', color:'#1A5276' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels Pro', color:'#155724' },
+    { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'tickets', icon:'🚨', label:'Assistance', color:'#721C24' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
@@ -9162,6 +9224,7 @@ var DOCK_APPS = {
     { id:'correction', icon:'✏️', label:'Corriger', color:'#E8461E' },
     { id:'comparaison', icon:'⚖️', label:'Comparer', color:'#856404' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
+    { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'tickets', icon:'🚨', label:'Assistance', color:'#721C24' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
@@ -9172,7 +9235,7 @@ var DOCK_APPS = {
     { id:'app-correction', icon:'🔍', label:'Corrections', color:'#1A5276' },
     { id:'statut', icon:'📊', label:'Statut', color:'#155724' },
     { id:'briefing', icon:'📋', label:'Briefing', color:'#1A5276' },
-    { id:'communique', icon:'📰', label:'CPs', color:'#4A235A' },
+    { id:'cps-admin', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'visuels', icon:'🖼️', label:'Visuels', color:'#0C5460' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
     { id:'tickets', icon:'🚨', label:'Assistance', color:'#721C24' },
@@ -9298,7 +9361,7 @@ function osOpenWindow(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -9490,12 +9553,13 @@ function osLoadPageContent(pageId, winEl){
     }
     if(pageId === 'brouillons') osMesArticlesRender();
     if(pageId === 'mes-articles') osMesArticlesRender();
-    if(pageId === 'mes-articles') osMesArticlesRender();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'statut') statutChargerDB();
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'redaction') setTimeout(preremplirAuteur, 100);
     if(pageId === 'briefing') brfChargerDB();
+    if(pageId === 'cps') cpsCharger();
+    if(pageId === 'cps-admin') cpsAdminCharger();
   }, 100);
 }
 
@@ -10139,6 +10203,8 @@ function osAddNotif(msg, type, action, silent){
   // Badge
   var badge = document.getElementById('nc-badge');
   if(badge){ badge.textContent = _ncItems.length; badge.style.display = 'inline'; }
+  var bell = document.getElementById('nc-bell-emoji');
+  if(bell){ bell.style.animation = 'none'; void bell.offsetWidth; bell.style.animation = 'bellShake 0.5s ease'; }
   osRenderNotifCenter();
   // Notif flottante - en file d'attente si silent=false
   if(!silent){
@@ -10212,6 +10278,8 @@ function osClearNotifs(){
   _ncItems = [];
   var badge = document.getElementById('nc-badge');
   if(badge) badge.style.display = 'none';
+  var bell = document.getElementById('nc-bell-emoji');
+  if(bell) bell.style.animation = 'none';
   osRenderNotifCenter();
 }
 
@@ -11454,7 +11522,7 @@ function osParamsRenderSection(section, container){
     wpGrid.className = 'wallpaper-grid';
     
     var WPS = [
-      { id:'default', url:'https://cdn.discordapp.com/attachments/692793098451025964/1490373410201534617/fond_decembre_2025.png?ex=69d86f26&is=69d71da6&hm=9fb40290605b0dc75f5be0a25913af08e0f262893fab2cdfb48412be3db4c33b&', label:'Ipsum Original' },
+      { id:'default', url:'https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png', label:'Ipsum Original' },
       { id:'dark', url:'', label:'Sombre uni', color:'linear-gradient(135deg,#0D0D1A,#1A1A2E)' },
       { id:'rouge', url:'', label:'Rouge Ipsum', color:'linear-gradient(135deg,#E8461E,#C73A18)' },
     ];
@@ -11580,7 +11648,7 @@ function osAppliquerWallpaper(id, url, color){
 
 function osAppliquerWallpaperAuDemarrage(){
   var id = localStorage.getItem('compo_os_wallpaper') || 'default';
-  var DEFAULT_WP = 'https://cdn.discordapp.com/attachments/692793098451025964/1490373410201534617/fond_decembre_2025.png?ex=69d86f26&is=69d71da6&hm=9fb40290605b0dc75f5be0a25913af08e0f262893fab2cdfb48412be3db4c33b&';
+  var DEFAULT_WP = 'https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png';
   if(id === 'custom'){
     var custom = localStorage.getItem('compo_os_wallpaper_custom');
     if(custom) osAppliquerWallpaper('custom', custom, null);
@@ -12962,7 +13030,7 @@ function bugAfficherBanniere(message){
 // CSS animation
 (function(){
   var style = document.createElement('style');
-  style.textContent = '@keyframes slideUpIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+  style.textContent = '@keyframes slideUpIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@keyframes bellShake{0%{transform:rotate(0)}15%{transform:rotate(20deg)}30%{transform:rotate(-18deg)}45%{transform:rotate(14deg)}60%{transform:rotate(-10deg)}75%{transform:rotate(6deg)}100%{transform:rotate(0)}}';
   document.head.appendChild(style);
 })();
 
@@ -13165,6 +13233,381 @@ function nlMajArticlesListe(){
 }
 
 
+
+
+// ===== APP COMMUNIQUÉS DE PRESSE =====
+var _cpEditId = null;
+
+// --- LECTURE (tous rôles) ---
+function cpsCharger(){
+  var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
+  if(!liste) return;
+  liste.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:1rem;">Chargement...</div>';
+
+  // Vérifier abonnement
+  cpsAfficherAbonnement();
+
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps || cps.code || !cps.length){
+      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué publié pour le moment.</div>';
+      return;
+    }
+    liste.innerHTML = '';
+    cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+  }).catch(function(){
+    liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
+  });
+}
+
+function cpsMakeCard(cp, isAdmin){
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border:1.5px solid var(--gris-bord);border-radius:8px;padding:1rem 1.2rem;margin-bottom:0.6rem;';
+
+  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) :
+                cp.created_at ? new Date(cp.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+
+  var statutBadge = cp.statut === 'publie'
+    ? '<span style="background:#D4EDDA;color:#155724;border:1px solid #155724;font-family:monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Publié</span>'
+    : '<span style="background:#FFF3CD;color:#856404;border:1px solid #856404;font-family:monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Brouillon</span>';
+
+    var adminBtns = isAdmin ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;">' +
+    '<button class="btn sec" onclick="cpsAdminEditer(\"'+cp.id+'\")" style="font-size:0.65rem;padding:0.25rem 0.6rem;">✏️ Modifier</button>' +
+    (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\"'+cp.id+'\")" style="font-size:0.65rem;padding:0.25rem 0.6rem;">📤 Publier</button>' : '') +
+    '<button class="btn sec" onclick="cpsAdminSupprimer(\"'+cp.id+'\")" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;">🗑️</button>' +
+    '</div>') : '';
+
+  card.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
+      '<div style="font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
+      statutBadge +
+    '</div>' +
+    (cp.source ? '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;">📍 '+esc(cp.source)+'</div>' : '') +
+    (dateStr ? '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.5rem;">📅 '+dateStr+'</div>' : '') +
+    (cp.corps ? '<div style="font-size:0.8rem;color:var(--encre);line-height:1.6;white-space:pre-wrap;max-height:120px;overflow:hidden;position:relative;" id="cps-corps-'+cp.id+'">'+esc(cp.corps)+'</div>' +
+      '<button onclick="cpsToggleCorps(\"'+cp.id+'\")" style="background:none;border:none;color:var(--rouge);font-size:0.7rem;cursor:pointer;padding:0.2rem 0;font-family:monospace;">▼ Lire la suite</button>'
+    : '') +
+    adminBtns;
+
+  return card;
+}
+
+function cpsToggleCorps(id){
+  var el = document.getElementById('cps-corps-'+id);
+  var btn = el && el.nextElementSibling;
+  if(!el) return;
+  if(el.style.maxHeight === 'none'){
+    el.style.maxHeight = '120px';
+    if(btn) btn.textContent = '▼ Lire la suite';
+  } else {
+    el.style.maxHeight = 'none';
+    if(btn) btn.textContent = '▲ Réduire';
+  }
+}
+
+// --- ABONNEMENT ---
+function cpsAfficherAbonnement(){
+  var zone = osGetEl('cps-abonnement-zone') || document.getElementById('cps-abonnement-zone');
+  if(!zone) return;
+  var uid = getUserId();
+  if(!uid){ zone.innerHTML = ''; return; }
+
+  fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+uid+'&select=id', {
+    headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var abonne = data && data.length > 0;
+    zone.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;border-radius:8px;'+
+      (abonne ? 'background:#D4EDDA;border:1.5px solid #155724;' : 'background:#F8F9FA;border:1.5px solid var(--gris-bord);') + '">' +
+      '<span style="font-size:1.1rem;">'+(abonne?'🔔':'🔕')+'</span>' +
+      '<div style="flex:1;">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:var(--encre);">'+(abonne?'Tu es abonné aux CPs':'Recevoir les CPs par email ?')+'</div>' +
+        '<div style="font-size:0.72rem;color:var(--gris);">'+(abonne?'Tu reçois un email à chaque nouveau communiqué publié.':'Active les notifications pour recevoir chaque CP par email.')+'</div>' +
+      '</div>' +
+      '<button class="btn'+(abonne?' sec':'')+'" onclick="cpsToggleAbonnement('+abonne+')" style="font-size:0.72rem;padding:0.35rem 0.8rem;">'+(abonne?'Se désabonner':"S'abonner")+'</button>' +
+      '</div>';
+  }).catch(function(){ zone.innerHTML=''; });
+}
+
+function cpsToggleAbonnement(estAbonne){
+  var uid = getUserId();
+  if(!uid) return;
+  var headers = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
+
+  if(estAbonne){
+    fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+uid, { method:'DELETE', headers:headers })
+    .then(function(){ notif('Désabonné des CPs'); cpsAfficherAbonnement(); });
+  } else {
+    fetch(SB_URL+'/rest/v1/abonnements_cp', {
+      method:'POST',
+      headers: Object.assign({}, headers, {'Prefer':'return=minimal'}),
+      body: JSON.stringify({ membre_id: uid })
+    }).then(function(){ notif('Abonné aux CPs !'); cpsAfficherAbonnement(); });
+  }
+}
+
+// --- ADMIN ---
+function cpsAdminCharger(){
+  var liste = osGetEl('cps-admin-liste') || document.getElementById('cps-admin-liste');
+  if(!liste) return;
+  liste.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:1rem;">Chargement...</div>';
+
+  fetch(SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*', { headers:SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps || cps.code || !cps.length){
+      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué. Crée le premier !</div>';
+      return;
+    }
+    liste.innerHTML = '';
+    var label = document.createElement('div');
+    label.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
+    label.textContent = cps.length+' communiqué(s)';
+    liste.appendChild(label);
+    cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
+  }).catch(function(){
+    liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
+  });
+}
+
+function cpsAdminNouveauForm(){
+  _cpEditId = null;
+  var form = osGetEl('cps-form') || document.getElementById('cps-form');
+  var label = osGetEl('cps-form-titre-label') || document.getElementById('cps-form-titre-label');
+  var titre = osGetEl('cps-titre') || document.getElementById('cps-titre');
+  var source = osGetEl('cps-source') || document.getElementById('cps-source');
+  var date = osGetEl('cps-date') || document.getElementById('cps-date');
+  var corps = osGetEl('cps-corps') || document.getElementById('cps-corps');
+  if(!form) return;
+  if(label) label.textContent = 'Nouveau communiqué';
+  if(titre) titre.value = '';
+  if(source) source.value = '';
+  if(date) date.value = '';
+  if(corps) corps.value = '';
+  form.style.display = 'block';
+  form.scrollIntoView({ behavior:'smooth' });
+}
+
+function cpsAdminEditer(id){
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+id+'&select=*', { headers:SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0];
+    if(!cp) return;
+    _cpEditId = id;
+    var form = osGetEl('cps-form') || document.getElementById('cps-form');
+    var label = osGetEl('cps-form-titre-label') || document.getElementById('cps-form-titre-label');
+    var titre = osGetEl('cps-titre') || document.getElementById('cps-titre');
+    var source = osGetEl('cps-source') || document.getElementById('cps-source');
+    var date = osGetEl('cps-date') || document.getElementById('cps-date');
+    var corps = osGetEl('cps-corps') || document.getElementById('cps-corps');
+    if(!form) return;
+    if(label) label.textContent = 'Modifier le communiqué';
+    if(titre) titre.value = cp.titre || '';
+    if(source) source.value = cp.source || '';
+    if(date) date.value = cp.date_cp || '';
+    if(corps) corps.value = cp.corps || '';
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior:'smooth' });
+  });
+}
+
+function cpsAdminSauvegarder(statut){
+  var titre = (osGetEl('cps-titre')||document.getElementById('cps-titre')||{}).value || '';
+  var source = (osGetEl('cps-source')||document.getElementById('cps-source')||{}).value || '';
+  var date = (osGetEl('cps-date')||document.getElementById('cps-date')||{}).value || '';
+  var corps = (osGetEl('cps-corps')||document.getElementById('cps-corps')||{}).value || '';
+
+  if(!titre.trim()){ notif('Le titre est obligatoire'); return; }
+
+  var payload = {
+    titre: titre.trim(),
+    source: source.trim() || null,
+    date_cp: date || null,
+    corps: corps.trim() || null,
+    statut: statut,
+    updated_at: new Date().toISOString()
+  };
+
+  var isNew = !_cpEditId;
+  if(isNew) payload.created_by = getUserId();
+
+  var url = isNew
+    ? SB_URL+'/rest/v1/communiques'
+    : SB_URL+'/rest/v1/communiques?id=eq.'+_cpEditId;
+  var method = isNew ? 'POST' : 'PATCH';
+
+  fetch(url, {
+    method: method,
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=representation'
+    }),
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = Array.isArray(data) ? data[0] : data;
+    notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé');
+    var form = osGetEl('cps-form') || document.getElementById('cps-form');
+    if(form) form.style.display = 'none';
+    _cpEditId = null;
+    cpsAdminCharger();
+
+    // Si publication -> envoyer aux abonnés
+    if(statut === 'publie' && cp && cp.id){
+      cpsEnvoyerAuxAbonnes(cp);
+    }
+  }).catch(function(){ notif('Erreur sauvegarde'); });
+}
+
+function cpsAdminPublier(id){
+  if(!confirm('Publier ce communiqué et envoyer aux abonnés ?')) return;
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+id+'&select=*', { headers:SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0];
+    if(!cp) return;
+    fetch(SB_URL+'/rest/v1/communiques?id=eq.'+id, {
+      method:'PATCH',
+      headers: Object.assign({}, SB_HEADERS, {
+        'Authorization':'Bearer '+(_session&&_session.access_token||''),
+        'Prefer':'return=minimal'
+      }),
+      body: JSON.stringify({ statut:'publie', updated_at: new Date().toISOString() })
+    }).then(function(r){
+      if(r.ok){
+        notif('CP publié !');
+        cpsAdminCharger();
+        cpsEnvoyerAuxAbonnes(cp);
+      }
+    });
+  });
+}
+
+function cpsAdminSupprimer(id){
+  if(!confirm('Supprimer ce communiqué ?')) return;
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+id, {
+    method:'DELETE',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+    })
+  }).then(function(r){
+    if(r.ok){ notif('CP supprimé'); cpsAdminCharger(); }
+  });
+}
+
+function cpsEnvoyerAuxAbonnes(cp){
+  // Récupérer les abonnés
+  fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id', {
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(abonnements){
+    if(!abonnements || !abonnements.length){ notif('Aucun abonné aux CPs'); return; }
+    var ids = abonnements.map(function(a){ return a.membre_id; });
+    // Récupérer les emails
+    fetch(SB_URL+'/rest/v1/membres?select=email,prenom,nom&id=in.('+ids.join(',')+')', {
+      headers: SB_HEADERS
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(membres){
+      if(!membres || !membres.length) return;
+      var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+      var nbEnvoyes = 0;
+      membres.forEach(function(m){
+        if(!m.email) return;
+        var html =
+          '<h2 style="color:#E8461E;">📰 Nouveau communiqué de presse</h2>'+
+          '<p>Bonjour '+esc(m.prenom||'')+'</p>'+
+          '<p>Un nouveau communiqué de presse a été publié sur Compo :</p>'+
+          '<div style="background:#F8F9FA;border-left:4px solid #E8461E;padding:1rem;margin:1rem 0;">'+
+            '<h3 style="margin:0 0 0.5rem;">'+esc(cp.titre)+'</h3>'+
+            (cp.source ? '<p style="margin:0.3rem 0;color:#666;font-size:0.9rem;">📍 '+esc(cp.source)+'</p>' : '')+
+            (dateStr ? '<p style="margin:0.3rem 0;color:#666;font-size:0.9rem;">📅 '+dateStr+'</p>' : '')+
+            (cp.corps ? '<p style="margin:1rem 0 0;white-space:pre-wrap;">'+esc(cp.corps).substring(0,500)+(cp.corps.length>500?'...':'')+'</p>' : '')+
+          '</div>'+
+          '<p><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'+
+          '<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux communiqués de presse sur Compo. Tu peux te désabonner depuis l\'appli.</p>';
+        envoyerEmailResend(m.email, '[Compo] CP : '+cp.titre, html);
+        nbEnvoyes++;
+      });
+      notif(nbEnvoyes+' email(s) envoyé(s) aux abonnés');
+    });
+  }).catch(function(){ console.warn('Erreur envoi CPs'); });
+}
+
+// Liaison CP depuis la base dans la rédaction
+function cpsRechercherPourLiaison(){
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,source,date_cp&limit=20', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps || cps.code || !cps.length){ notif('Aucun CP disponible en base'); return; }
+    cpsAfficherPickerLiaison(cps);
+  });
+}
+
+function cpsAfficherPickerLiaison(cps){
+  var existing = document.getElementById('cps-picker-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cps-picker-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:12px;padding:1.5rem;max-width:480px;width:100%;max-height:70vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.3);';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);margin-bottom:1rem;';
+  title.textContent = 'Choisir un communiqué à lier';
+  card.appendChild(title);
+
+  cps.forEach(function(cp){
+    var row = document.createElement('div');
+    row.style.cssText = 'padding:0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;margin-bottom:0.4rem;cursor:pointer;transition:border-color 0.15s;';
+    row.onmouseover = function(){ this.style.borderColor='var(--rouge)'; };
+    row.onmouseout  = function(){ this.style.borderColor='var(--gris-bord)'; };
+
+    var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR') : '';
+    row.innerHTML =
+      '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);">'+esc(cp.titre)+'</div>'+
+      (cp.source||dateStr ? '<div style="font-size:0.7rem;color:var(--gris);margin-top:2px;">'+(cp.source?esc(cp.source):'')+( cp.source&&dateStr?' · ':'')+dateStr+'</div>' : '');
+
+    row.onclick = function(){
+      // Vérifier doublon
+      if(!cpLies.some(function(c){ return c.id === cp.id; })){
+        cpLies.push({ id:cp.id, titre:cp.titre, source:cp.source, date_cp:cp.date_cp });
+        renderCpLies();
+        notif('CP lié : '+cp.titre);
+      } else {
+        notif('Ce CP est déjà lié');
+      }
+      document.body.removeChild(overlay);
+    };
+    card.appendChild(row);
+  });
+
+  var btnClose = document.createElement('button');
+  btnClose.className = 'btn sec';
+  btnClose.style.cssText = 'width:100%;margin-top:0.8rem;font-size:0.8rem;';
+  btnClose.textContent = 'Annuler';
+  btnClose.onclick = function(){ document.body.removeChild(overlay); };
+  card.appendChild(btnClose);
+
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
+  document.body.appendChild(overlay);
+}
 
 // ===== INIT OS =====
 (function(){
