@@ -7404,7 +7404,8 @@ function chargerProfilMembre(userId){
         : Promise.resolve();
 
       garantieAdmin.then(function(){
-        document.getElementById('login-screen').classList.remove('visible');
+        var ls = document.getElementById('login-screen');
+        if(ls) ls.classList.remove('visible');
         construireNav();
         _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
       });
@@ -7422,13 +7423,15 @@ function chargerProfilMembre(userId){
       localStorage.setItem('ipsum_user_prenom', prenom);
       localStorage.setItem('ipsum_user_nom', '');
       localStorage.setItem('ipsum_user_role', 'redacteur');
-      document.getElementById('login-screen').classList.remove('visible');
+      var ls2 = document.getElementById('login-screen');
+      if(ls2) ls2.classList.remove('visible');
       construireNav();
       _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
     }
   })
   .catch(function(){
-    document.getElementById('login-screen').classList.remove('visible');
+    var ls3 = document.getElementById('login-screen');
+    if(ls3) ls3.classList.remove('visible');
     var uid = getUserId();
     _chargerAppsUtilisateur(uid, function(){ lancerCompo(); });
   });
