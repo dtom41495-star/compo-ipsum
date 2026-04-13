@@ -1845,6 +1845,143 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 
 @media(max-width:600px){.form-grid,.cmp-grid{grid-template-columns:1fr;}.page{padding:1.3rem 1rem;}.accueil-titre{font-size:2rem;}}
 
+/* ===== MODE MOBILE ===== */
+@media (max-width: 768px) {
+
+  /* Fenêtres plein écran */
+  .os-window {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    transform: none !important;
+    z-index: 500 !important;
+  }
+
+  /* Titlebar mobile : plus haute, bouton retour à gauche */
+  .os-titlebar {
+    height: 52px !important;
+    padding: 0 1rem !important;
+    border-radius: 0 !important;
+  }
+  .os-btn-min, .os-btn-max { display: none !important; }
+  .os-btn-close {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    background: rgba(0,0,0,0.08) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .os-btn-close .win-icon {
+    font-size: 14px !important;
+    color: rgba(0,0,0,0.5) !important;
+  }
+  .os-titlebar-title {
+    font-size: 0.85rem !important;
+    text-align: left !important;
+    padding-left: 0.5rem !important;
+  }
+
+  /* Dock horizontal scrollable en bas */
+  #os-dock {
+    height: auto !important;
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom)) !important;
+  }
+  #os-dock-inner {
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    background: rgba(15,15,25,0.88) !important;
+    border: none !important;
+    border-top: 1px solid rgba(255,255,255,0.08) !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    justify-content: flex-start !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  #os-dock-inner::-webkit-scrollbar { display: none; }
+
+  .dock-icon-img {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.1rem !important;
+    border-radius: 9px !important;
+  }
+  .dock-icon-label {
+    display: none !important;
+  }
+  .dock-icon:hover .dock-icon-img {
+    transform: none !important;
+  }
+  .dock-sep {
+    display: none !important;
+  }
+
+  /* Cacher les icônes bureau */
+  #os-desktop-icons { display: none !important; }
+
+  /* Status bar en haut à gauche sur mobile */
+  #os-status-bar {
+    top: 8px !important;
+    right: 8px !important;
+    gap: 0.3rem !important;
+  }
+  .status-pill {
+    font-size: 0.52rem !important;
+    padding: 3px 7px !important;
+  }
+
+  /* Contenu fenêtre : prendre tout l'espace sous la titlebar */
+  .os-window-content {
+    height: calc(100vh - 52px) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+
+  /* Notifications : plein largeur en haut */
+  .os-notif {
+    left: 8px !important;
+    right: 8px !important;
+    max-width: none !important;
+    min-width: unset !important;
+    top: 8px !important;
+    transform: translateY(-120%) !important;
+  }
+  .os-notif.show { transform: translateY(0) !important; }
+
+  /* Contenu interne : padding adapté */
+  .os-window-content .page {
+    padding: 1rem !important;
+  }
+
+  /* Modales overlay : plein écran sur mobile */
+  #carnet-fiche-overlay,
+  #carnet-form-overlay,
+  #carnet-echange-overlay,
+  #cp-detail-overlay,
+  #benv-fiche-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  #carnet-fiche-overlay > div,
+  #carnet-form-overlay > div,
+  #carnet-echange-overlay > div,
+  #cp-detail-overlay > div,
+  #benv-fiche-overlay > div {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 92vh !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+}
+
 /* ===== DESIGN UPGRADES - ajouts uniquement ===== */
 
 /* Nav dark */
@@ -9493,24 +9630,41 @@ function osOpenWindow(pageId){
   var ws = document.getElementById('os-workspace');
   var wsW = ws ? ws.offsetWidth : window.innerWidth;
   var wsH = ws ? ws.offsetHeight : window.innerHeight;
-  var w = Math.min(860, wsW - 80);
-  var h = Math.min(600, wsH - 80);
-  var x = Math.random() * Math.max(0, wsW - w - 40) + 20;
-  var y = Math.random() * Math.max(0, wsH - h - 60) + 10;
+  var isMobile = window.innerWidth <= 768;
+
+  if(isMobile){
+    // Plein écran sur mobile — pas de position/taille manuelle, CSS gère tout
+    win.style.width = '';
+    win.style.height = '';
+    win.style.left = '';
+    win.style.top = '';
+  } else {
+    var w = Math.min(860, wsW - 80);
+    var h = Math.min(600, wsH - 80);
+    var x = Math.random() * Math.max(0, wsW - w - 40) + 20;
+    var y = Math.random() * Math.max(0, wsH - h - 60) + 10;
+    win.style.width = w+'px';
+    win.style.height = h+'px';
+    win.style.left = x+'px';
+    win.style.top = y+'px';
+  }
   
-  win.style.width = w+'px';
-  win.style.height = h+'px';
-  win.style.left = x+'px';
-  win.style.top = y+'px';
-  
+  // Sur mobile : fermer toutes les autres fenêtres
+  if(isMobile){
+    Object.keys(_windows).forEach(function(pid){
+      if(pid !== pageId) osCloseWindow(pid);
+    });
+  }
+
   if(ws) ws.appendChild(win);
   
   _windows[pageId] = { el: win, page: pageId, maximized: false };
   
-  // Drag
-  osMakeDraggable(win, tb);
-  // Resize
-  osMakeResizable(win);
+  // Drag & resize (desktop seulement)
+  if(!isMobile){
+    osMakeDraggable(win, tb);
+    osMakeResizable(win);
+  }
   // Focus au clic
   win.addEventListener('mousedown', function(){ osFocusWindow(pageId); });
   
