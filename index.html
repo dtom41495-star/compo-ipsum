@@ -13865,6 +13865,28 @@ function cpsToggleAbonnementSource(contactId, activer){
   }
 }
 
+function cpsAdminCharger(){
+  var liste = osGetEl('cps-admin-liste') || document.getElementById('cps-admin-liste');
+  if(!liste) return;
+  liste.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:1rem;">Chargement...</div>';
+  fetch(SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*', { headers:SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps || cps.code || !cps.length){
+      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué. Crée le premier !</div>';
+      return;
+    }
+    liste.innerHTML = '';
+    var label = document.createElement('div');
+    label.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
+    label.textContent = cps.length+' communiqué(s)';
+    liste.appendChild(label);
+    cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
+  }).catch(function(){
+    liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
+  });
+}
+
 function cpsEnvoyerAuxAbonnes(cp){
   var headers = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
   Promise.all([
