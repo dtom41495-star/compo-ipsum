@@ -9417,6 +9417,8 @@ var DOCK_APPS = {
     { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
     { id:'tableau', icon:'📢', label:'Annonces', color:'#4A235A' },
     { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'visuels', icon:'🖼️', label:'Visuels', color:'#1A5276' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels Pro', color:'#155724' },
     { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
@@ -9430,6 +9432,8 @@ var DOCK_APPS = {
     { id:'comparaison', icon:'⚖️', label:'Comparer', color:'#856404' },
     { id:'tableau', icon:'📢', label:'Annonces', color:'#4A235A' },
     { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
     { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'tickets', icon:'🚨', label:'Assistance', color:'#721C24' },
@@ -9444,6 +9448,8 @@ var DOCK_APPS = {
     { id:'briefing', icon:'📋', label:'Briefing', color:'#1A5276' },
     { id:'tableau', icon:'📢', label:'Annonces', color:'#4A235A' },
     { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'cps-admin', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'visuels', icon:'🖼️', label:'Visuels', color:'#0C5460' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
@@ -9573,7 +9579,7 @@ function osOpenWindow(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -9709,6 +9715,31 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'carnet'){
     setTimeout(function(){ osCarnetRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'notes'){
+    setTimeout(function(){ osNotesRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'minuteur'){
+    setTimeout(function(){ osMinuteurRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'compteur'){
+    setTimeout(function(){ osCompteurRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'titres'){
+    setTimeout(function(){ osTitresRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'compo-store'){
+    setTimeout(function(){ osStoreRender(); }, 50);
     return;
   }
 
@@ -14848,6 +14879,619 @@ function tableauVerifierNonVus(){
   }).catch(function(){});
 }
 
+// ===== MINUTEUR =====
+
+var _minuteurInterval = null;
+var _minuteurDepart = null;
+var _minuteurPause = 0;
+var _minuteurMode = 'chrono'; // 'chrono' ou 'minuteur'
+var _minuteurCible = 0;
+
+function osMinuteurRender(){
+  var wc = document.getElementById('wincontent-minuteur');
+  if(!wc) return;
+
+  wc.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2rem;gap:1.5rem;">'
+
+  // Affichage temps
+  + '<div id="min-affichage" style="font-family:\'IBM Plex Mono\',monospace;font-size:4rem;font-weight:500;color:var(--encre);letter-spacing:0.1em;min-width:280px;text-align:center;">00:00:00</div>'
+
+  // Barre de progression (mode minuteur)
+  + '<div id="min-barre-wrap" style="width:100%;max-width:320px;height:6px;background:var(--gris-bord);border-radius:3px;display:none;"><div id="min-barre" style="height:6px;background:var(--rouge);border-radius:3px;width:0%;transition:width 0.5s;"></div></div>'
+
+  // Onglets mode
+  + '<div style="display:flex;gap:0;border:0.5px solid var(--gris-bord);border-radius:8px;overflow:hidden;">'
+  + '<button onclick="osMinuteurSetMode(\'chrono\')" id="min-tab-chrono" style="padding:0.4rem 1.2rem;font-family:monospace;font-size:0.7rem;background:var(--rouge);color:white;border:none;cursor:pointer;">Chrono</button>'
+  + '<button onclick="osMinuteurSetMode(\'minuteur\')" id="min-tab-minuteur" style="padding:0.4rem 1.2rem;font-family:monospace;font-size:0.7rem;background:white;color:var(--gris);border:none;cursor:pointer;">Minuteur</button>'
+  + '</div>'
+
+  // Réglage minuteur
+  + '<div id="min-reglage" style="display:none;flex-direction:column;align-items:center;gap:0.5rem;">'
+  + '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.08em;">Durée</div>'
+  + '<div style="display:flex;gap:0.5rem;align-items:center;">'
+  + '<input type="number" id="min-h" min="0" max="23" value="0" style="width:52px;text-align:center;font-family:monospace;font-size:1.2rem;padding:0.3rem;border:1.5px solid var(--gris-bord);border-radius:5px;"> h'
+  + '<input type="number" id="min-m" min="0" max="59" value="5" style="width:52px;text-align:center;font-family:monospace;font-size:1.2rem;padding:0.3rem;border:1.5px solid var(--gris-bord);border-radius:5px;"> min'
+  + '<input type="number" id="min-s" min="0" max="59" value="0" style="width:52px;text-align:center;font-family:monospace;font-size:1.2rem;padding:0.3rem;border:1.5px solid var(--gris-bord);border-radius:5px;"> sec'
+  + '</div></div>'
+
+  // Boutons
+  + '<div style="display:flex;gap:0.7rem;">'
+  + '<button id="min-btn-start" onclick="osMinuteurToggle()" style="background:var(--rouge);color:white;border:none;border-radius:10px;padding:0.7rem 2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;cursor:pointer;min-width:120px;">▶ Démarrer</button>'
+  + '<button onclick="osMinuteurReset()" style="background:var(--gris-clair);color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 1.2rem;font-family:monospace;font-size:0.8rem;cursor:pointer;">↺ Reset</button>'
+  + '</div>'
+
+  // Laps (chrono)
+  + '<div id="min-laps" style="width:100%;max-width:320px;max-height:140px;overflow-y:auto;"></div>'
+
+  + '</div>';
+}
+
+function osMinuteurSetMode(mode){
+  _minuteurMode = mode;
+  osMinuteurReset();
+  var regl = document.getElementById('min-reglage');
+  var barre = document.getElementById('min-barre-wrap');
+  var tabC = document.getElementById('min-tab-chrono');
+  var tabM = document.getElementById('min-tab-minuteur');
+  if(regl) regl.style.display = mode === 'minuteur' ? 'flex' : 'none';
+  if(barre) barre.style.display = mode === 'minuteur' ? 'block' : 'none';
+  if(tabC){ tabC.style.background = mode==='chrono'?'var(--rouge)':'white'; tabC.style.color = mode==='chrono'?'white':'var(--gris)'; }
+  if(tabM){ tabM.style.background = mode==='minuteur'?'var(--rouge)':'white'; tabM.style.color = mode==='minuteur'?'white':'var(--gris)'; }
+}
+
+function osMinuteurToggle(){
+  var btn = document.getElementById('min-btn-start');
+  if(_minuteurInterval){
+    // Pause
+    clearInterval(_minuteurInterval);
+    _minuteurInterval = null;
+    _minuteurPause = Date.now() - _minuteurDepart;
+    if(btn) btn.innerHTML = '▶ Reprendre';
+  } else {
+    // Démarrer ou reprendre
+    if(_minuteurMode === 'minuteur' && !_minuteurDepart){
+      var h = parseInt((document.getElementById('min-h')||{}).value)||0;
+      var m = parseInt((document.getElementById('min-m')||{}).value)||0;
+      var s = parseInt((document.getElementById('min-s')||{}).value)||0;
+      _minuteurCible = (h*3600 + m*60 + s) * 1000;
+      if(!_minuteurCible){ notif('Configure une durée'); return; }
+    }
+    _minuteurDepart = Date.now() - (_minuteurPause||0);
+    _minuteurInterval = setInterval(osMinuteurTick, 100);
+    if(btn) btn.innerHTML = '⏸ Pause';
+  }
+}
+
+function osMinuteurTick(){
+  var elapsed = Date.now() - _minuteurDepart;
+  var t = _minuteurMode === 'minuteur' ? Math.max(0, _minuteurCible - elapsed) : elapsed;
+  var h = Math.floor(t/3600000);
+  var m = Math.floor((t%3600000)/60000);
+  var s = Math.floor((t%60000)/1000);
+  var aff = document.getElementById('min-affichage');
+  if(aff) aff.textContent = pad(h)+':'+pad(m)+':'+pad(s);
+  if(_minuteurMode === 'minuteur'){
+    var pct = Math.round((1 - t/_minuteurCible)*100);
+    var barre = document.getElementById('min-barre');
+    if(barre) barre.style.width = pct+'%';
+    if(t <= 0){
+      clearInterval(_minuteurInterval); _minuteurInterval = null;
+      var btn = document.getElementById('min-btn-start');
+      if(btn) btn.innerHTML = '▶ Démarrer';
+      if(aff) aff.style.color = 'var(--rouge)';
+      notif('⏰ Minuteur terminé !');
+    }
+  }
+}
+
+function osMinuteurReset(){
+  if(_minuteurInterval){ clearInterval(_minuteurInterval); _minuteurInterval = null; }
+  _minuteurDepart = null; _minuteurPause = 0; _minuteurCible = 0;
+  var aff = document.getElementById('min-affichage');
+  if(aff){ aff.textContent = '00:00:00'; aff.style.color = 'var(--encre)'; }
+  var btn = document.getElementById('min-btn-start');
+  if(btn) btn.innerHTML = '▶ Démarrer';
+  var barre = document.getElementById('min-barre');
+  if(barre) barre.style.width = '0%';
+  var laps = document.getElementById('min-laps');
+  if(laps) laps.innerHTML = '';
+}
+
+// ===== COMPTEUR DE MOTS =====
+
+function osCompteurRender(){
+  var wc = document.getElementById('wincontent-compteur');
+  if(!wc) return;
+  wc.innerHTML =
+    '<div style="display:flex;flex-direction:column;height:100%;padding:1rem 1.2rem;gap:0.8rem;">'
+    + '<textarea id="cpt-texte" oninput="osCompteurMaj()" placeholder="Colle ou tape ton texte ici…" style="flex:1;resize:none;border:1.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;outline:none;"></textarea>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.6rem;" id="cpt-stats">'
+    + _cptStatCard('0','Mots')
+    + _cptStatCard('0','Caractères (avec espaces)')
+    + _cptStatCard('0','Caractères (sans espaces)')
+    + _cptStatCard('0 sec','Temps de lecture')
+    + _cptStatCard('0','Paragraphes')
+    + _cptStatCard('0','Phrases')
+    + '</div>'
+    + '<button onclick="document.getElementById(\'cpt-texte\').value=\'\';osCompteurMaj()" style="font-family:monospace;font-size:0.65rem;color:var(--gris);background:none;border:none;cursor:pointer;align-self:flex-start;">Effacer</button>'
+    + '</div>';
+}
+
+function _cptStatCard(val, label){
+  return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.9rem;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.3rem;color:var(--encre);" id="cpt-'+label.replace(/[^a-z]/gi,'-')+'">'+val+'</div>'
+    +'<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div>'
+    +'</div>';
+}
+
+function osCompteurMaj(){
+  var txt = (document.getElementById('cpt-texte')||{}).value || '';
+  var mots = txt.trim() ? txt.trim().split(/\s+/).length : 0;
+  var avecEsp = txt.length;
+  var sansEsp = txt.replace(/\s/g,'').length;
+  var paras = txt.trim() ? txt.split(/\n\s*\n/).filter(function(p){ return p.trim(); }).length : 0;
+  var phrases = txt.trim() ? txt.split(/[.!?]+/).filter(function(p){ return p.trim(); }).length : 0;
+  var lectureSec = Math.round(mots / 200 * 60);
+  var lectureStr = lectureSec < 60 ? lectureSec+' sec' : Math.floor(lectureSec/60)+'min '+( lectureSec%60)+'s';
+
+  var vals = {
+    'Mots': mots,
+    'Caract-res--avec-espaces-': avecEsp,
+    'Caract-res--sans-espaces-': sansEsp,
+    'Temps-de-lecture': lectureStr,
+    'Paragraphes': paras,
+    'Phrases': phrases,
+  };
+  Object.keys(vals).forEach(function(k){
+    var el = document.getElementById('cpt-'+k);
+    if(el) el.textContent = vals[k];
+  });
+}
+
+// ===== GÉNÉRATEUR DE TITRES IA =====
+
+function osTitresRender(){
+  var wc = document.getElementById('wincontent-titres');
+  if(!wc) return;
+  wc.innerHTML =
+    '<div style="display:flex;flex-direction:column;height:100%;padding:1rem 1.2rem;gap:0.8rem;">'
+    + '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);">Résumé ou chapeau de l\'article</div>'
+    + '<textarea id="titres-input" placeholder="Ex : La mairie de Castres a inauguré sa nouvelle médiathèque samedi. Environ 500 personnes étaient présentes pour l\'occasion…" style="flex:1;resize:none;border:1.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem;font-family:DM Sans,sans-serif;font-size:0.85rem;line-height:1.7;outline:none;max-height:180px;"></textarea>'
+    + '<button onclick="osTitresGenerer()" id="titres-btn" style="background:var(--rouge);color:white;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;align-self:flex-start;">🎲 Générer 5 titres</button>'
+    + '<div id="titres-resultat" style="flex:1;overflow-y:auto;"></div>'
+    + '</div>';
+}
+
+function osTitresGenerer(){
+  var input = document.getElementById('titres-input');
+  var btn = document.getElementById('titres-btn');
+  var res = document.getElementById('titres-resultat');
+  if(!input||!input.value.trim()){ notif('Saisis un résumé'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Génération…';
+  res.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:1rem;text-align:center;">Claude réfléchit…</div>';
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 400,
+      messages:[{
+        role:'user',
+        content: 'Tu es rédacteur en chef d\'Ipsum Média, un média associatif jeune basé dans le Tarn. '
+          +'Génère exactement 5 titres d\'articles journalistiques percutants pour le sujet suivant. '
+          +'Les titres doivent être courts (max 10 mots), accrocheurs, sans clickbait excessif, adaptés à un média local sérieux. '
+          +'Réponds UNIQUEMENT avec les 5 titres, un par ligne, sans numérotation ni ponctuation finale.\n\n'
+          +'Sujet : '+input.value.trim()
+      }]
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    btn.disabled = false;
+    btn.textContent = '🎲 Générer 5 titres';
+    var text = data.content && data.content[0] ? data.content[0].text : '';
+    if(!text){ res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur de génération.</div>'; return; }
+    var titres = text.split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+    var html = '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
+    titres.forEach(function(t){
+      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;" onclick="osTitresCopier(this,\''+esc(t)+'\')" title="Cliquer pour copier">';
+      html += '<div style="flex:1;font-size:0.88rem;font-weight:500;color:var(--encre);line-height:1.4;">'+esc(t)+'</div>';
+      html += '<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);flex-shrink:0;">Copier</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    res.innerHTML = html;
+  })
+  .catch(function(){
+    btn.disabled = false;
+    btn.textContent = '🎲 Générer 5 titres';
+    res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur réseau.</div>';
+  });
+}
+
+function osTitresCopier(el, titre){
+  navigator.clipboard.writeText(titre).then(function(){
+    el.style.background = 'var(--gris-clair)';
+    var span = el.querySelector('span');
+    if(span) span.textContent = '✓ Copié !';
+    setTimeout(function(){
+      el.style.background = 'white';
+      if(span) span.textContent = 'Copier';
+    }, 1500);
+  }).catch(function(){ notif('Copier : '+titre); });
+}
+
+// ===== COMPO STORE =====
+
+function osStoreRender(){
+  var wc = document.getElementById('wincontent-compo-store');
+  if(!wc) return;
+  var uid = getUserId();
+
+  // Charger les apps installées
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+uid+'&select=app_id', { headers:SB_HEADERS })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var installees = (!data||data.code) ? [] : data.map(function(d){ return d.app_id; });
+    var storeApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.store; });
+
+    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
+
+    // Header
+    html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
+    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">🏪 Compo Store</div>';
+    html += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Mini-apps optionnelles — installe ce qui t\'est utile.</div>';
+    html += '</div>';
+
+    // Grille d'apps
+    html += '<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
+
+    storeApps.forEach(function(app){
+      var installe = installees.includes(app.id);
+      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;">';
+
+      // Icône + nom
+      html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
+      html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+app.icon+'</div>';
+      html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(app.label)+'</div>';
+      if(installe) html += '<div style="font-family:monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
+      html += '</div></div>';
+
+      // Description
+      html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.55;flex:1;">'+esc(app.desc||'')+'</div>';
+
+      // Bouton
+      if(installe){
+        html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
+      } else {
+        html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--rouge);border-radius:6px;background:var(--rouge);color:white;cursor:pointer;width:100%;">+ Installer</button>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div></div></div>';
+    wc.innerHTML = html;
+  }).catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+  });
+}
+
+function osStoreInstaller(appId){
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres_apps', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal,resolution=ignore-duplicates'
+    }),
+    body: JSON.stringify({ membre_id: uid, app_id: appId })
+  }).then(function(r){
+    if(r.ok){
+      var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
+      notif((app?app.label:appId)+' installée ! Reconnecte-toi pour la voir dans le dock.');
+      // Mettre à jour _userApps localement et reconstruire le dock
+      if(window._userApps && app){
+        window._userApps.push(app);
+        osBuildDock();
+      }
+      osStoreRender();
+    }
+  }).catch(function(){ notif('Erreur installation'); });
+}
+
+function osStoreDesinstaller(appId){
+  var uid = getUserId(); if(!uid) return;
+  var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
+  if(!confirm('Désinstaller '+(app?app.label:appId)+' ?')) return;
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+uid+'&app_id=eq.'+encodeURIComponent(appId), {
+    method:'DELETE',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+    })
+  }).then(function(r){
+    if(r.ok){
+      notif((app?app.label:appId)+' désinstallée.');
+      if(window._userApps){
+        window._userApps = window._userApps.filter(function(a){ return a.id !== appId; });
+        osBuildDock();
+      }
+      // Fermer la fenêtre de l'app si ouverte
+      osCloseWindow(appId);
+      osStoreRender();
+    }
+  }).catch(function(){ notif('Erreur désinstallation'); });
+}
+
+// ===== NOTES =====
+
+var NOTE_COULEURS = {
+  jaune:  { bg:'#FFF9C4', border:'#F9A825', dot:'#F9A825' },
+  rose:   { bg:'#FCE4EC', border:'#E91E63', dot:'#E91E63' },
+  vert:   { bg:'#E8F5E9', border:'#43A047', dot:'#43A047' },
+  bleu:   { bg:'#E3F2FD', border:'#1E88E5', dot:'#1E88E5' },
+  orange: { bg:'#FFF3E0', border:'#FB8C00', dot:'#FB8C00' },
+  blanc:  { bg:'white',   border:'var(--gris-bord)', dot:'var(--gris)' },
+};
+
+var _notesDebounce = {};
+var _notesData = [];
+var _noteSelectionnee = null;
+
+function osNotesRender(){
+  var wc = document.getElementById('wincontent-notes');
+  if(!wc) return;
+  wc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement...</div>';
+
+  var uid = getUserId();
+  if(!uid){ wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gris);">Non connecté.</div>'; return; }
+
+  fetch(SB_URL+'/rest/v1/notes?membre_id=eq.'+uid+'&order=updated_at.desc&select=*', {
+    headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(notes){
+    _notesData = (!notes||notes.code) ? [] : notes;
+    _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+    osNotesBuildUI(wc);
+  }).catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+  });
+}
+
+function osNotesBuildUI(wc){
+  var html = '<div style="display:flex;height:100%;overflow:hidden;">';
+
+  // Colonne gauche — liste des notes
+  html += '<div id="notes-sidebar" style="width:200px;flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);">';
+  html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
+  html += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+_notesData.length+' note(s)</span>';
+  html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:monospace;cursor:pointer;">+ Nouvelle</button>';
+  html += '</div>';
+  html += '<div style="flex:1;overflow-y:auto;" id="notes-liste">';
+
+  if(!_notesData.length){
+    html += '<div style="padding:1rem;text-align:center;font-size:0.78rem;color:var(--gris);">Aucune note.<br>Crée ta première !</div>';
+  } else {
+    _notesData.forEach(function(n){
+      var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
+      var actif = n.id === _noteSelectionnee;
+      var dateStr = _benvFormatDate(new Date(n.updated_at));
+      html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
+      html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(n.titre||'Sans titre')+'</div>';
+      html += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
+      html += '</div>';
+    });
+  }
+
+  html += '</div></div>'; // liste + sidebar
+
+  // Zone d'édition
+  html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
+
+  if(_noteSelectionnee){
+    var note = _notesData.find(function(n){ return n.id === _noteSelectionnee; });
+    if(note) html += osNotesEditorHTML(note);
+  } else {
+    html += '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gris);font-size:0.85rem;flex-direction:column;gap:0.5rem;">';
+    html += '<div style="font-size:2rem;">📝</div>';
+    html += '<div>Sélectionne une note ou crée-en une</div>';
+    html += '</div>';
+  }
+
+  html += '</div>'; // editor zone
+  html += '</div>'; // flex main
+
+  wc.innerHTML = html;
+}
+
+function osNotesEditorHTML(note){
+  var col = NOTE_COULEURS[note.couleur] || NOTE_COULEURS.blanc;
+  var html = '';
+
+  // Toolbar de l'éditeur
+  html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.5rem;flex-shrink:0;background:'+col.bg+';">';
+
+  // Sélecteur couleur
+  Object.keys(NOTE_COULEURS).forEach(function(c){
+    var cc = NOTE_COULEURS[c];
+    html += '<button onclick="osNotesCouleur(\''+note.id+'\',\''+c+'\')" title="'+c+'" style="width:16px;height:16px;border-radius:50%;background:'+cc.bg+';border:2px solid '+cc.dot+';cursor:pointer;'+(note.couleur===c?'transform:scale(1.3);':'')+'"></button>';
+  });
+
+  html += '<div style="flex:1;"></div>';
+  html += '<span id="notes-status" style="font-family:monospace;font-size:0.58rem;color:var(--gris);"></span>';
+  html += '<button onclick="osNoteSupprimer(\''+note.id+'\')" style="background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Supprimer">🗑️</button>';
+  html += '</div>';
+
+  // Titre
+  html += '<input id="note-titre" type="text" value="'+esc(note.titre||'')+'" placeholder="Titre de la note" oninput="osNotesDebounce(\''+note.id+'\')" style="width:100%;padding:0.8rem 1rem;border:none;border-bottom:1px solid var(--gris-bord);font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);background:'+col.bg+';outline:none;box-sizing:border-box;">';
+
+  // Contenu
+  html += '<textarea id="note-contenu" oninput="osNotesDebounce(\''+note.id+'\')" placeholder="Écris ta note ici..." style="flex:1;width:100%;padding:1rem;border:none;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;color:var(--encre);background:'+col.bg+';outline:none;resize:none;box-sizing:border-box;overflow-y:auto;">'+esc(note.contenu||'')+'</textarea>';
+
+  return html;
+}
+
+function osNotesSelectionner(id){
+  _noteSelectionnee = id;
+  var wc = document.getElementById('wincontent-notes');
+  if(!wc) return;
+  osNotesBuildUI(wc);
+}
+
+function osNoteNouvelle(){
+  var uid = getUserId(); if(!uid) return;
+  var id = 'NOTE-'+genId().slice(4);
+  var payload = {
+    id: id,
+    membre_id: uid,
+    titre: '',
+    contenu: '',
+    couleur: 'jaune',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  fetch(SB_URL+'/rest/v1/notes', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal'
+    }),
+    body: JSON.stringify(payload)
+  }).then(function(r){
+    if(r.ok){
+      _notesData.unshift(payload);
+      _noteSelectionnee = id;
+      var wc = document.getElementById('wincontent-notes');
+      if(wc) osNotesBuildUI(wc);
+      setTimeout(function(){
+        var t = document.getElementById('note-titre');
+        if(t) t.focus();
+      }, 100);
+    }
+  }).catch(function(){ notif('Erreur création note'); });
+}
+
+function osNotesDebounce(id){
+  // Indicateur "en cours"
+  var st = document.getElementById('notes-status');
+  if(st) st.textContent = '...';
+
+  if(_notesDebounce[id]) clearTimeout(_notesDebounce[id]);
+  _notesDebounce[id] = setTimeout(function(){
+    osNotesSauvegarder(id);
+  }, 1000);
+}
+
+function osNotesSauvegarder(id){
+  var titre   = (document.getElementById('note-titre')||{}).value || '';
+  var contenu = (document.getElementById('note-contenu')||{}).value || '';
+  var uid = getUserId(); if(!uid) return;
+
+  var payload = {
+    titre: titre,
+    contenu: contenu,
+    updated_at: new Date().toISOString()
+  };
+
+  fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), {
+    method:'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal'
+    }),
+    body: JSON.stringify(payload)
+  }).then(function(r){
+    var st = document.getElementById('notes-status');
+    if(r.ok){
+      if(st) st.textContent = '✓ Sauvegardé';
+      setTimeout(function(){ if(st) st.textContent = ''; }, 2000);
+      // Mettre à jour le cache local
+      var idx = _notesData.findIndex(function(n){ return n.id === id; });
+      if(idx >= 0){
+        _notesData[idx].titre = titre;
+        _notesData[idx].contenu = contenu;
+        _notesData[idx].updated_at = payload.updated_at;
+        // Rafraîchir la liste sans toucher à l'éditeur
+        var liste = document.getElementById('notes-liste');
+        if(liste) _notesRafraichirListe(liste);
+      }
+    } else {
+      if(st) st.textContent = '⚠️ Erreur';
+    }
+  }).catch(function(){
+    var st = document.getElementById('notes-status');
+    if(st) st.textContent = '⚠️ Hors ligne';
+  });
+}
+
+function _notesRafraichirListe(liste){
+  var html = '';
+  _notesData.forEach(function(n){
+    var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
+    var actif = n.id === _noteSelectionnee;
+    var dateStr = _benvFormatDate(new Date(n.updated_at));
+    html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
+    html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(n.titre||'Sans titre')+'</div>';
+    html += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
+    html += '</div>';
+  });
+  liste.innerHTML = html;
+}
+
+function osNotesCouleur(id, couleur){
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), {
+    method:'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal'
+    }),
+    body: JSON.stringify({ couleur: couleur, updated_at: new Date().toISOString() })
+  }).then(function(r){
+    if(r.ok){
+      var idx = _notesData.findIndex(function(n){ return n.id === id; });
+      if(idx >= 0) _notesData[idx].couleur = couleur;
+      // Recharger l'éditeur pour changer la couleur de fond
+      var zone = document.getElementById('notes-editor-zone');
+      if(zone){
+        var note = _notesData[idx];
+        // Préserver le contenu tapé non encore sauvegardé
+        var t = document.getElementById('note-titre');
+        var c = document.getElementById('note-contenu');
+        if(t) note.titre = t.value;
+        if(c) note.contenu = c.value;
+        zone.innerHTML = osNotesEditorHTML(note);
+      }
+      var liste = document.getElementById('notes-liste');
+      if(liste) _notesRafraichirListe(liste);
+    }
+  }).catch(function(){});
+}
+
+function osNoteSupprimer(id){
+  if(!confirm('Supprimer cette note définitivement ?')) return;
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), {
+    method:'DELETE',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+    })
+  }).then(function(r){
+    if(r.ok){
+      _notesData = _notesData.filter(function(n){ return n.id !== id; });
+      _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+      var wc = document.getElementById('wincontent-notes');
+      if(wc) osNotesBuildUI(wc);
+      notif('Note supprimée');
+    }
+  }).catch(function(){ notif('Erreur suppression'); });
+}
+
 // ===== NETTOYAGE =====
 
 function osNettoyageRender(){
@@ -15183,6 +15827,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'statut',         icon:'📊', label:'Statut',         color:'#155724', roles:['admin'] },
   { id:'briefing',       icon:'📋', label:'Briefing',       color:'#1A5276', roles:['admin'] },
   { id:'tableau',        icon:'📢', label:'Annonces',       color:'#4A235A', roles:['redacteur','correcteur','admin'] },
+  { id:'notes',          icon:'📝', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'📇', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps',            icon:'📰', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'cps-admin',      icon:'📰', label:'CPs Admin',      color:'#4A235A', roles:['admin'] },
@@ -15196,13 +15841,18 @@ var ALL_APPS_CATALOGUE = [
   { id:'gestion-apps',   icon:'⚙️', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'🧹', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'📜', label:'Journal',        color:'#2C3E50', roles:['admin'] },
+  // Apps Store
+  { id:'minuteur',       icon:'⏱️', label:'Minuteur',       color:'#1A5276', roles:['redacteur','correcteur','admin'], store:true, desc:'Chrono et minuteur pour tes interviews et réunions. 100% local.' },
+  { id:'compteur',       icon:'📏', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
+  { id:'titres',         icon:'🎲', label:'Titres IA',      color:'#4A235A', roles:['redacteur','correcteur','admin'], store:true, desc:'Colle un résumé, Claude te propose 5 titres percutants.' },
+  { id:'compo-store',    icon:'🏪', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
 ];
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['accueil','redaction','mes-articles','tableau','cps','visuels','visuels-pro','tickets','tutos'],
-  correcteur: ['accueil','brouillons','correction','comparaison','tableau','newsletter','cps','tickets','tutos'],
-  admin:      ['accueil','redaction','mes-articles','app-correction','statut','briefing','tableau','carnet','cps-admin','visuels','newsletter','tickets','stats-dashboard','benevoles','gestion-apps','nettoyage','log'],
+  redacteur: ['accueil','redaction','mes-articles','tableau','carnet','notes','compo-store','cps','visuels','visuels-pro','tickets','tutos'],
+  correcteur: ['accueil','brouillons','correction','comparaison','tableau','carnet','notes','compo-store','newsletter','cps','tickets','tutos'],
+  admin:      ['accueil','redaction','mes-articles','app-correction','statut','briefing','tableau','carnet','notes','compo-store','cps-admin','visuels','newsletter','tickets','stats-dashboard','benevoles','gestion-apps','nettoyage','log'],
 };
 
 window._userApps = null;
