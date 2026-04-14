@@ -1188,11 +1188,184 @@ body {
   --window-bg: rgba(255,255,255,0.97);
   --dock-bg: rgba(255,255,255,0.25);
 }
+
+/* ===== THÈME SOMBRE ===== */
 :root.theme-dark {
-  --os-bg-overlay: rgba(0,0,0,0.25);
-  --window-bg: rgba(245,243,239,0.96);
-  --dock-bg: rgba(255,255,255,0.1);
+  --rouge: #FF6B3D;
+  --rouge-hover: #E8461E;
+  --rouge-clair: rgba(255,107,61,0.12);
+  --encre: #E8E6E1;
+  --blanc: #1A1A2E;
+  --gris-bord: rgba(255,255,255,0.1);
+  --gris: #9A9590;
+  --gris-clair: rgba(255,255,255,0.06);
+  --bleu: #5B9BD5;
+  --bleu-clair: rgba(91,155,213,0.15);
+  --fond: #0D0D1A;
+  --fond-page: #131320;
+  --ajout: rgba(39,80,10,0.3);
+  --ajout-txt: #7DD45F;
+  --suppr: rgba(114,28,36,0.3);
+  --suppr-txt: #F09595;
+  --os-bg-overlay: rgba(0,0,0,0.4);
+  --window-bg: rgba(18,18,32,0.97);
+  --window-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4);
 }
+
+/* Appliquer le fond sombre au body et aux éléments blancs en thème sombre */
+:root.theme-dark body { background: #0D0D1A; }
+:root.theme-dark .os-titlebar { background: rgba(30,30,50,0.95) !important; border-bottom-color: rgba(255,255,255,0.08) !important; }
+:root.theme-dark .os-titlebar-title { color: rgba(255,255,255,0.7) !important; }
+:root.theme-dark .os-window { border-color: rgba(255,255,255,0.1) !important; }
+:root.theme-dark .os-window-content { background: var(--window-bg); }
+:root.theme-dark .os-window-content .page { background: transparent; color: var(--encre); }
+
+/* Éléments de base */
+:root.theme-dark input,
+:root.theme-dark textarea,
+:root.theme-dark select {
+  background: rgba(255,255,255,0.07) !important;
+  color: var(--encre) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+:root.theme-dark input::placeholder,
+:root.theme-dark textarea::placeholder { color: rgba(255,255,255,0.25) !important; }
+
+/* Cartes et blocs blancs */
+:root.theme-dark .annonce-card,
+:root.theme-dark .card,
+:root.theme-dark .btn.sec { background: rgba(255,255,255,0.06) !important; }
+:root.theme-dark .btn.sec { color: var(--encre) !important; border-color: rgba(255,255,255,0.15) !important; }
+
+/* Panels et fonds gris clair */
+:root.theme-dark [style*="background:white"],
+:root.theme-dark [style*="background: white"] {
+  background: rgba(255,255,255,0.05) !important;
+}
+:root.theme-dark [style*="background:var(--gris-clair)"],
+:root.theme-dark [style*="background: var(--gris-clair)"] {
+  background: rgba(255,255,255,0.07) !important;
+}
+:root.theme-dark [style*="color:var(--encre)"],
+:root.theme-dark [style*="color: var(--encre)"] {
+  color: var(--encre) !important;
+}
+:root.theme-dark [style*="border:1.5px solid var(--gris-bord)"],
+:root.theme-dark [style*="border: 1.5px solid var(--gris-bord)"],
+:root.theme-dark [style*="border:0.5px solid var(--gris-bord)"] {
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+/* Menu démarrer, modales */
+:root.theme-dark #os-start-menu { background: rgba(15,15,28,0.98) !important; }
+:root.theme-dark .start-menu-item { color: var(--encre) !important; }
+:root.theme-dark .start-menu-item:hover { background: rgba(255,255,255,0.07) !important; }
+
+/* Scrollbars */
+:root.theme-dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15) !important; }
+:root.theme-dark ::-webkit-scrollbar-track { background: transparent !important; }
+
+/* ===== OOBE ===== */
+#oobe-screen {
+  position: fixed; inset: 0; z-index: 99997;
+  background: #0D0D1A;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 2rem 1rem;
+}
+#oobe-screen.visible { display: flex; }
+.oobe-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 520px;
+  width: 100%;
+  backdrop-filter: blur(20px);
+}
+.oobe-step { display: none; }
+.oobe-step.active { display: block; }
+.oobe-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700; font-size: 1.5rem;
+  color: white; margin-bottom: 0.4rem;
+}
+.oobe-sub {
+  font-family: monospace; font-size: 0.7rem;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.06em; margin-bottom: 2rem;
+}
+.oobe-label {
+  font-family: monospace; font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4); display: block; margin-bottom: 0.4rem;
+}
+.oobe-input {
+  width: 100%; padding: 0.65rem 0.9rem;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; color: white;
+  font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+  outline: none; box-sizing: border-box; margin-bottom: 1.1rem;
+  transition: border-color 0.15s;
+}
+.oobe-input:focus { border-color: #ea5b1c; }
+.oobe-input::placeholder { color: rgba(255,255,255,0.2); }
+.oobe-btn {
+  background: #ea5b1c; color: white; border: none;
+  border-radius: 10px; padding: 0.75rem 2rem;
+  font-family: 'Poppins', sans-serif; font-weight: 700;
+  font-size: 0.9rem; cursor: pointer; width: 100%;
+  margin-top: 0.5rem; transition: opacity 0.15s;
+}
+.oobe-btn:hover { opacity: 0.88; }
+.oobe-btn-sec {
+  background: transparent; color: rgba(255,255,255,0.4);
+  border: none; font-family: monospace; font-size: 0.68rem;
+  cursor: pointer; display: block; margin: 0.8rem auto 0;
+  text-decoration: underline;
+}
+.oobe-progress {
+  display: flex; gap: 6px; justify-content: center; margin-bottom: 2rem;
+}
+.oobe-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); transition: background 0.3s;
+}
+.oobe-dot.active { background: #ea5b1c; }
+.oobe-dot.done  { background: rgba(255,255,255,0.4); }
+.oobe-theme-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.2rem;
+}
+.oobe-theme-card {
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 1rem;
+  cursor: pointer; transition: border-color 0.2s;
+  text-align: center;
+}
+.oobe-theme-card.selected { border-color: #ea5b1c; }
+.oobe-theme-preview {
+  height: 60px; border-radius: 8px; margin-bottom: 0.5rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+}
+.oobe-theme-label {
+  font-family: monospace; font-size: 0.7rem; color: rgba(255,255,255,0.6);
+}
+.oobe-apps-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr));
+  gap: 0.6rem; margin-bottom: 1.2rem; max-height: 260px; overflow-y: auto;
+}
+.oobe-app-card {
+  border: 1.5px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 0.7rem 0.5rem;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+}
+.oobe-app-card:hover { background: rgba(255,255,255,0.05); }
+.oobe-app-card.selected { border-color: #ea5b1c; background: rgba(234,91,28,0.1); }
+.oobe-app-icon { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
+.oobe-app-name { font-size: 0.65rem; color: rgba(255,255,255,0.6); font-family: monospace; }
 
 /* ===== APP PARAMÈTRES ===== */
 .params-app { padding:0; display:flex; height:100%; }
@@ -3051,6 +3224,68 @@ input:focus,select:focus,textarea:focus{
 
 
 <!-- OS LOGIN -->
+<!-- OOBE — Première connexion -->
+<div id="oobe-screen">
+  <div class="oobe-card">
+
+    <!-- Progression -->
+    <div class="oobe-progress" id="oobe-progress">
+      <div class="oobe-dot active" id="oobe-dot-0"></div>
+      <div class="oobe-dot" id="oobe-dot-1"></div>
+      <div class="oobe-dot" id="oobe-dot-2"></div>
+      <div class="oobe-dot" id="oobe-dot-3"></div>
+    </div>
+
+    <!-- Étape 0 : Bienvenue -->
+    <div class="oobe-step active" id="oobe-step-0">
+      <div class="oobe-title">Bienvenue sur Compo 👋</div>
+      <div class="oobe-sub">Ipsum Média · Configuration initiale</div>
+      <p style="color:rgba(255,255,255,0.6);font-size:0.88rem;line-height:1.7;margin-bottom:1.5rem;">
+        On va configurer ton espace en quelques étapes. Ça prend moins de 2 minutes.
+      </p>
+      <button class="oobe-btn" onclick="oobeNext(0)">Commencer →</button>
+    </div>
+
+    <!-- Étape 1 : Profil -->
+    <div class="oobe-step" id="oobe-step-1">
+      <div class="oobe-title">Ton profil</div>
+      <div class="oobe-sub">Ces infos apparaîtront dans Compo</div>
+      <label class="oobe-label">Prénom</label>
+      <input type="text" id="oobe-prenom" class="oobe-input" placeholder="Ex : Tom" autocomplete="given-name">
+      <label class="oobe-label">Nom</label>
+      <input type="text" id="oobe-nom" class="oobe-input" placeholder="Ex : Martin" autocomplete="family-name">
+      <button class="oobe-btn" onclick="oobeNext(1)">Continuer →</button>
+    </div>
+
+    <!-- Étape 2 : Thème -->
+    <div class="oobe-step" id="oobe-step-2">
+      <div class="oobe-title">Ton thème</div>
+      <div class="oobe-sub">Tu pourras changer ça dans les paramètres</div>
+      <div class="oobe-theme-grid">
+        <div class="oobe-theme-card selected" id="oobe-theme-light" onclick="oobeSelectTheme('light')">
+          <div class="oobe-theme-preview" style="background:#F0EEE9;">🌤️</div>
+          <div class="oobe-theme-label">Clair</div>
+        </div>
+        <div class="oobe-theme-card" id="oobe-theme-dark" onclick="oobeSelectTheme('dark')">
+          <div class="oobe-theme-preview" style="background:#1A1A2E;">🌙</div>
+          <div class="oobe-theme-label">Sombre</div>
+        </div>
+      </div>
+      <button class="oobe-btn" onclick="oobeNext(2)">Continuer →</button>
+    </div>
+
+    <!-- Étape 3 : Apps -->
+    <div class="oobe-step" id="oobe-step-3">
+      <div class="oobe-title">Tes apps</div>
+      <div class="oobe-sub">Choisis ce que tu veux dans le dock (max 8)</div>
+      <div class="oobe-apps-grid" id="oobe-apps-grid"></div>
+      <button class="oobe-btn" onclick="oobeTerminer()">C'est parti 🚀</button>
+      <button class="oobe-btn-sec" onclick="oobeTerminer()">Passer cette étape</button>
+    </div>
+
+  </div>
+</div>
+
 <div id="os-login">
   <div class="os-login-time" id="os-login-clock">00:00</div>
   <div class="os-login-date" id="os-login-date"></div>
@@ -4320,8 +4555,8 @@ input:focus,select:focus,textarea:focus{
     <div style="background:linear-gradient(135deg,#0D0D1A,#1A1A2E);padding:1.6rem 2rem;border-radius:16px 16px 0 0;display:flex;align-items:flex-start;justify-content:space-between;">
       <div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--rouge);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:0.4rem;">Compo OS · Avril 2026</div>
-        <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.4rem;color:white;">Version 1.2</div>
-        <div style="font-family:monospace;font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Interface OS · Statistiques · Fichiers · Corrections</div>
+        <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.4rem;color:white;">Version 2.0</div>
+        <div style="font-family:monospace;font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Launchpad · Carnet de sources · Abonnements CPs · Notes · Store</div>
       </div>
       <button onclick="fermerPatchNote()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:1.1rem;cursor:pointer;border-radius:8px;padding:4px 10px;line-height:1.4;">&times;</button>
     </div>
@@ -4330,125 +4565,95 @@ input:focus,select:focus,textarea:focus{
     <div style="padding:1.2rem 2rem;border-bottom:1px solid var(--gris-bord);">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.7rem;">En bref</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🖥️ <span>Interface style macOS</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📊 <span>Tableau de bord stats</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📂 <span>App Fichiers (IndexedDB)</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔍 <span>App Corrections dédiée</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔔 <span>Centre de notifications</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🐛 <span>Détection automatique de bugs</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📌 <span>App Sujets avec badge</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">☁️ <span>Images → Supabase Storage</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔲 <span>Launchpad + dock personnalisable</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📇 <span>Carnet de sources (53 contacts)</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔔 <span>Abonnements CPs par source</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📝 <span>App Notes temps réel</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🏪 <span>Compo Store</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">⚙️ <span>Gestion des apps par utilisateur</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📢 <span>Tableau d'affichage (annonces)</span></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🧹 <span>App Nettoyage + quota emails</span></div>
       </div>
     </div>
 
     <!-- Détail des changements -->
     <div style="padding:1.2rem 2rem;">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.8rem;">Détail des changements</div>
-
       <div id="pn-sections">
 
-        <!-- Interface OS -->
         <div style="margin-bottom:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('os')">
-            <span style="font-size:1rem;">🖥️</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Interface Compo OS</span>
-            <span id="pn-arrow-os" style="font-size:0.7rem;color:var(--gris);transition:transform 0.2s;">▼</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('dock')">
+            <span style="font-size:1rem;">🔲</span>
+            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Launchpad & Dock</span>
+            <span id="pn-arrow-dock" style="font-size:0.7rem;color:var(--gris);">▼</span>
           </div>
-          <div id="pn-os" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Bureau style macOS avec dock, fenêtres draggables et redimensionnables</div>
-            <div>• Boutons trafic lights (rouge/jaune/vert) avec symboles ✕ — ⤢</div>
-            <div>• Menu démarrer 📰 avec profil, paramètres, recherche Spotlight (Ctrl+K)</div>
-            <div>• Icônes sur le bureau adaptées au rôle</div>
-            <div>• Mode plein écran automatique au démarrage</div>
-            <div>• Screensaver avec messages alternants</div>
-            <div>• Fond d'écran configurable (3 presets + import perso)</div>
-            <div>• Thème clair / sombre dans les paramètres</div>
-            <div>• Bannière hors ligne + sync automatique au retour d'internet</div>
+          <div id="pn-dock" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
+            <div>• Dock limité à 8 apps épinglées</div>
+            <div>• Icône 🔲 Launchpad toujours présente — accès à toutes les apps</div>
+            <div>• Clic droit dans le Launchpad pour épingler/désépingler au dock</div>
+            <div>• Appui long sur mobile pour le même effet</div>
+            <div>• Point orange = app épinglée dans le dock</div>
           </div>
         </div>
 
-        <!-- Notifications -->
         <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('notifs')">
-            <span style="font-size:1rem;">🔔</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Centre de notifications</span>
-            <span id="pn-arrow-notifs" style="font-size:0.7rem;color:var(--gris);">▼</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('carnet')">
+            <span style="font-size:1rem;">📇</span>
+            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Carnet de sources</span>
+            <span id="pn-arrow-carnet" style="font-size:0.7rem;color:var(--gris);">▼</span>
           </div>
-          <div id="pn-notifs" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Bouton 🔔 en haut à droite avec badge compteur</div>
-            <div>• Notifications séquentielles au démarrage (tickets, corrections, publications, sujets)</div>
-            <div>• Suppression individuelle par notif</div>
-            <div>• Notifs sujets affichées une seule fois par sujet</div>
-            <div>• Demandes de suppression visibles pour les admins</div>
+          <div id="pn-carnet" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
+            <div>• 53 contacts importés (Excel presse + Notion)</div>
+            <div>• Catégories, fiabilité, notes internes, historique des échanges</div>
+            <div>• Liaison bidirectionnelle avec les CPs</div>
+            <div>• RLS activé — chaque membre ne voit que les contacts autorisés</div>
           </div>
         </div>
 
-        <!-- Stats -->
         <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('stats')">
-            <span style="font-size:1rem;">📊</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Tableau de bord statistiques</span>
-            <span id="pn-arrow-stats" style="font-size:0.7rem;color:var(--gris);">▼</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('cps2')">
+            <span style="font-size:1rem;">📰</span>
+            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Communiqués de presse</span>
+            <span id="pn-arrow-cps2" style="font-size:0.7rem;color:var(--gris);">▼</span>
           </div>
-          <div id="pn-stats" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• KPIs animés (total mois, cumulé, moyenne, newsletter)</div>
-            <div>• Courbe d'évolution avec point actif mis en évidence</div>
-            <div>• Jauge avec aiguille basée sur le mois précédent</div>
-            <div>• Barres par plateforme (Facebook, TikTok, Instagram, etc.)</div>
-            <div>• Sélecteur de mois pour naviguer dans l'historique</div>
-            <div>• Prédictions : tendance, prévision mois prochain, cap à atteindre</div>
-            <div>• Formulaire de saisie admin avec calcul automatique du total</div>
-            <div>• Mode édition pour modifier un mois existant</div>
+          <div id="pn-cps2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
+            <div>• Modale de lecture avec PDF intégré</div>
+            <div>• Liaison CP ↔ contact du carnet</div>
+            <div>• Abonnements par source (plus seulement global)</div>
+            <div>• Bouton S'abonner à cette source depuis la modale CP</div>
+            <div>• Fix bug "Unexpected end of input"</div>
           </div>
         </div>
 
-        <!-- Rédaction -->
         <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('redac')">
-            <span style="font-size:1rem;">✍️</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Rédaction & Articles</span>
-            <span id="pn-arrow-redac" style="font-size:0.7rem;color:var(--gris);">▼</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('store2')">
+            <span style="font-size:1rem;">🏪</span>
+            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Compo Store & nouvelles apps</span>
+            <span id="pn-arrow-store2" style="font-size:0.7rem;color:var(--gris);">▼</span>
           </div>
-          <div id="pn-redac" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Bouton "Enregistrer dans le cloud" (brouillon sans envoyer en correction)</div>
-            <div>• Images uploadées dans Supabase Storage (plus de base64 en base)</div>
-            <div>• Articles publiés non modifiables pour les rédacteurs</div>
-            <div>• Articles en correction verrouillés pour les rédacteurs</div>
-            <div>• Alerte "Voulez-vous enregistrer ?" à la fermeture de la fenêtre</div>
-            <div>• App "Mes Articles" unifiée (cloud + local + correction en un seul endroit)</div>
+          <div id="pn-store2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
+            <div>• 🏪 Compo Store — installe/désinstalle des mini-apps</div>
+            <div>• 📝 Notes — bloc-notes personnel synchronisé en temps réel</div>
+            <div>• ⏱️ Minuteur — chrono et compte à rebours</div>
+            <div>• 📏 Compteur — mots, signes, temps de lecture</div>
+            <div>• 🎲 Générateur de titres — 5 titres IA en un clic</div>
           </div>
         </div>
 
-        <!-- Corrections -->
         <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('corr')">
-            <span style="font-size:1rem;">🔍</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Correction</span>
-            <span id="pn-arrow-corr" style="font-size:0.7rem;color:var(--gris);">▼</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('admin2')">
+            <span style="font-size:1rem;">⚙️</span>
+            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Outils admin</span>
+            <span id="pn-arrow-admin2" style="font-size:0.7rem;color:var(--gris);">▼</span>
           </div>
-          <div id="pn-corr" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• App 🔍 Corrections dédiée pour les correcteurs et admins</div>
-            <div>• Bouton "Valider" directement depuis la liste si article corrigé</div>
-            <div>• Badges de statut colorés (en relecture, corrigé, validé)</div>
-          </div>
-        </div>
-
-        <!-- Divers -->
-        <div style="margin-bottom:0.5rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('divers')">
-            <span style="font-size:1rem;">🔧</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Divers & Technique</span>
-            <span id="pn-arrow-divers" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-divers" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• App 📂 Fichiers avec stockage IndexedDB local (~50-100 Mo)</div>
-            <div>• App 📖 Guide avec 7 thèmes et navigation par étapes</div>
-            <div>• App ⚙️ Paramètres (email, changement de rôle, apparence)</div>
-            <div>• Détection automatique de bugs → envoi en base + notification</div>
-            <div>• App 🐛 Bugs pour les admins</div>
-            <div>• Agenda Luma intégré (ouvre dans le navigateur)</div>
-            <div>• Proposition de visite guidée au premier lancement</div>
-            <div>• Mode hors ligne avec bannière et sync automatique</div>
+          <div id="pn-admin2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
+            <div>• Gestion des apps par utilisateur (pas par rôle)</div>
+            <div>• Profils prédéfinis : Rédacteur / Correcteur / Admin</div>
+            <div>• App Nettoyage — purge brouillons, base64, historique</div>
+            <div>• Quota emails Resend — compteur journalier et mensuel</div>
+            <div>• Dashboard bénévoles avec délai moyen de publication</div>
+            <div>• Tableau d'affichage avec épinglage et expiration auto</div>
+            <div>• Mode mobile optimisé (plein écran, dock scrollable)</div>
           </div>
         </div>
 
@@ -4456,9 +4661,9 @@ input:focus,select:focus,textarea:focus{
     </div>
 
     <!-- Footer -->
-    <div style="padding:1rem 2rem 1.4rem;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--gris-bord);">
-      <div style="font-size:0.72rem;color:var(--gris);">Ipsum Média · Compo OS 1.2</div>
-      <button class="btn" onclick="fermerPatchNote()" style="padding:0.6rem 1.4rem;">C'est parti 🚀</button>
+    <div style="padding:1rem 2rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Compo OS v2.0 · Ipsum Média · Tarn</div>
+      <button onclick="fermerPatchNote()" class="btn" style="font-size:0.8rem;padding:0.45rem 1.2rem;">C'est parti 🚀</button>
     </div>
   </div>
 </div>
@@ -7544,7 +7749,15 @@ function chargerProfilMembre(userId){
         var ls = document.getElementById('login-screen');
         if(ls) ls.classList.remove('visible');
         construireNav();
-        _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
+
+        // OOBE si première connexion
+        if(oobeVerifier(userId, membre)){
+          var loginEl = document.getElementById('os-login');
+          if(loginEl) loginEl.style.display = 'none';
+          oobeOuvrir(userId, membre.role || getUserRole());
+        } else {
+          _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
+        }
       });
 
       // Mettre à jour l'UI OS si disponible
@@ -9219,19 +9432,123 @@ function ticketToggleCorrecteur(val){
 }
 
 
-var COMPO_VERSION = '1.2';
+var COMPO_VERSION = '2.0';
+
+// Étapes fictives de la mise à jour (affichées pendant l'animation)
+var COMPO_UPDATE_STEPS = [
+  { label: 'Vérification des modules…',        dur: 600  },
+  { label: 'Mise à jour du carnet de sources…', dur: 700  },
+  { label: 'Installation du Launchpad…',        dur: 650  },
+  { label: 'Déploiement du Compo Store…',       dur: 550  },
+  { label: 'Synchronisation des apps…',         dur: 600  },
+  { label: 'Optimisation de la base…',          dur: 500  },
+  { label: 'Finalisation…',                     dur: 400  },
+];
 
 function afficherPatchNote(){
   var vuVersion = localStorage.getItem('compo_patchnote_version');
   if(vuVersion === COMPO_VERSION) return;
-  var modal = document.getElementById('modal-patchnote');
-  if(modal) modal.style.display = 'flex';
+  // Lancer l'animation de mise à jour puis afficher les notes
+  osUpdateAnimer(function(){
+    var modal = document.getElementById('modal-patchnote');
+    if(modal) modal.style.display = 'flex';
+  });
 }
 
 function fermerPatchNote(){
   localStorage.setItem('compo_patchnote_version', COMPO_VERSION);
   var modal = document.getElementById('modal-patchnote');
   if(modal) modal.style.display = 'none';
+}
+
+function osUpdateAnimer(callback){
+  // Créer l'écran de mise à jour
+  var overlay = document.createElement('div');
+  overlay.id = 'compo-update-screen';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;';
+
+  // Logo Ipsum
+  var logo = document.createElement('div');
+  logo.style.cssText = 'margin-bottom:2.5rem;opacity:0;transition:opacity 0.8s;';
+  logo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 130 210 145" width="120" height="80" preserveAspectRatio="xMidYMid meet">'
+    + '<g fill="#ea5b1c"><g transform="translate(112.066506,176.159328)"><path d="M 17.265625 0 L 3.640625 0 C 3.023438 0 2.71875 -0.285156 2.71875 -0.859375 L 2.71875 -3.921875 C 2.71875 -4.492188 3.023438 -4.78125 3.640625 -4.78125 L 7.5625 -4.78125 L 7.5625 -30.328125 L 3.640625 -30.328125 C 3.023438 -30.328125 2.71875 -30.613281 2.71875 -31.1875 L 2.71875 -34.25 C 2.71875 -34.820312 3.023438 -35.109375 3.640625 -35.109375 L 12.625 -35.109375 C 13.195312 -35.109375 13.484375 -34.820312 13.484375 -34.25 L 13.484375 -4.78125 L 17.265625 -4.78125 C 17.890625 -4.78125 18.203125 -4.492188 18.203125 -3.921875 L 18.203125 -0.859375 C 18.203125 -0.285156 17.890625 0 17.265625 0 Z"/></g></g>'
+    + '</svg>';
+
+  // Titre
+  var titre = document.createElement('div');
+  titre.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;margin-bottom:0.4rem;opacity:0;transition:opacity 0.8s;';
+  titre.textContent = 'Mise à jour Compo OS';
+
+  var version = document.createElement('div');
+  version.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2.5rem;opacity:0;transition:opacity 0.8s;';
+  version.textContent = 'Version '+COMPO_VERSION;
+
+  // Étape courante
+  var etapeEl = document.createElement('div');
+  etapeEl.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.45);margin-bottom:0.8rem;height:1.2em;transition:opacity 0.3s;min-width:300px;text-align:center;';
+  etapeEl.textContent = '';
+
+  // Barre de progression
+  var barreBg = document.createElement('div');
+  barreBg.style.cssText = 'width:300px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-bottom:2.5rem;';
+  var barreFill = document.createElement('div');
+  barreFill.style.cssText = 'height:3px;background:#ea5b1c;border-radius:2px;width:0%;transition:width 0.5s ease;';
+  barreBg.appendChild(barreFill);
+
+  // Pourcentage
+  var pctEl = document.createElement('div');
+  pctEl.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.25);';
+  pctEl.textContent = '0%';
+
+  overlay.appendChild(logo);
+  overlay.appendChild(titre);
+  overlay.appendChild(version);
+  overlay.appendChild(etapeEl);
+  overlay.appendChild(barreBg);
+  overlay.appendChild(pctEl);
+  document.body.appendChild(overlay);
+
+  // Fade in des éléments
+  setTimeout(function(){ logo.style.opacity='1'; }, 100);
+  setTimeout(function(){ titre.style.opacity='1'; version.style.opacity='1'; }, 400);
+
+  // Jouer les étapes
+  var steps = COMPO_UPDATE_STEPS;
+  var totalDur = steps.reduce(function(s,st){ return s+st.dur; }, 0);
+  var elapsed = 0;
+  var i = 0;
+
+  function nextStep(){
+    if(i >= steps.length){
+      // Terminer
+      barreFill.style.width = '100%';
+      pctEl.textContent = '100%';
+      etapeEl.textContent = 'Prêt !';
+      setTimeout(function(){
+        overlay.style.transition = 'opacity 0.6s';
+        overlay.style.opacity = '0';
+        setTimeout(function(){
+          if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          if(callback) callback();
+        }, 650);
+      }, 500);
+      return;
+    }
+    var step = steps[i];
+    etapeEl.style.opacity = '0';
+    setTimeout(function(){
+      etapeEl.textContent = step.label;
+      etapeEl.style.opacity = '1';
+    }, 150);
+    elapsed += step.dur;
+    var pct = Math.round((elapsed / totalDur) * 100);
+    barreFill.style.width = pct+'%';
+    pctEl.textContent = pct+'%';
+    i++;
+    setTimeout(nextStep, step.dur);
+  }
+
+  setTimeout(nextStep, 800);
 }
 
 
@@ -9509,6 +9826,10 @@ function osBuildDock(){
   }
   var role = getUserRole();
   var apps = window._userApps || DOCK_APPS[role] || DOCK_APPS.redacteur;
+
+  // Filtrer : max 8 apps épinglées dans le dock
+  apps = apps.slice(0, 8);
+
   apps.forEach(function(app, i){
     var icon = document.createElement('div');
     icon.className = 'dock-icon';
@@ -9557,6 +9878,26 @@ function osBuildDock(){
       dock.insertBefore(sep, icon);
     }
   });
+
+  // Séparateur + bouton Launchpad (toujours en dernier)
+  var sepLaunch = document.createElement('div');
+  sepLaunch.className = 'dock-sep';
+  dock.appendChild(sepLaunch);
+
+  var launchIcon = document.createElement('div');
+  launchIcon.className = 'dock-icon';
+  launchIcon.title = 'Toutes les apps';
+  var launchImg = document.createElement('div');
+  launchImg.className = 'dock-icon-img';
+  launchImg.style.cssText = 'background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);';
+  launchImg.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="1" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/></svg>';
+  var launchLabel = document.createElement('div');
+  launchLabel.className = 'dock-icon-label';
+  launchLabel.textContent = 'Apps';
+  launchIcon.appendChild(launchImg);
+  launchIcon.appendChild(launchLabel);
+  launchIcon.onclick = function(){ osLaunchpadToggle(); };
+  dock.appendChild(launchIcon);
 }
 
 function osOpenWindow(pageId){
@@ -15124,6 +15465,217 @@ function osTitresCopier(el, titre){
   }).catch(function(){ notif('Copier : '+titre); });
 }
 
+// ===== LAUNCHPAD =====
+
+var _launchpadVisible = false;
+
+function osLaunchpadToggle(){
+  var lp = document.getElementById('os-launchpad');
+  if(!lp){
+    osLaunchpadCreer();
+    return;
+  }
+  _launchpadVisible = !_launchpadVisible;
+  lp.style.opacity = _launchpadVisible ? '1' : '0';
+  lp.style.pointerEvents = _launchpadVisible ? 'all' : 'none';
+  lp.style.transform = _launchpadVisible ? 'scale(1)' : 'scale(1.05)';
+  if(_launchpadVisible) osLaunchpadRendre(lp);
+}
+
+function osLaunchpadCreer(){
+  var lp = document.createElement('div');
+  lp.id = 'os-launchpad';
+  lp.style.cssText = 'position:fixed;inset:0;z-index:800;background:rgba(10,10,20,0.7);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 6rem;transition:opacity 0.25s,transform 0.25s;opacity:0;pointer-events:none;transform:scale(1.05);';
+  lp.onclick = function(e){ if(e.target===lp) osLaunchpadToggle(); };
+
+  // Recherche
+  var searchWrap = document.createElement('div');
+  searchWrap.style.cssText = 'width:100%;max-width:400px;margin-bottom:2rem;';
+  var search = document.createElement('input');
+  search.type = 'text';
+  search.id = 'launchpad-search';
+  search.placeholder = 'Rechercher une app…';
+  search.style.cssText = 'width:100%;padding:0.7rem 1rem;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:white;font-size:0.9rem;font-family:DM Sans,sans-serif;outline:none;box-sizing:border-box;text-align:center;';
+  search.oninput = function(){ osLaunchpadFiltrer(this.value); };
+  searchWrap.appendChild(search);
+  lp.appendChild(searchWrap);
+
+  // Grille
+  var grid = document.createElement('div');
+  grid.id = 'launchpad-grid';
+  grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:center;align-items:flex-start;width:100%;max-width:700px;overflow-y:auto;';
+  lp.appendChild(grid);
+
+  document.body.appendChild(lp);
+  _launchpadVisible = true;
+  lp.style.opacity = '1';
+  lp.style.pointerEvents = 'all';
+  lp.style.transform = 'scale(1)';
+  osLaunchpadRendre(lp);
+  setTimeout(function(){ search.focus(); }, 200);
+}
+
+function osLaunchpadRendre(lp){
+  var grid = document.getElementById('launchpad-grid');
+  if(!grid) return;
+  var uid = getUserId();
+  var allApps = window._userAppsAll || ALL_APPS_CATALOGUE;
+  var epingles = (window._userApps||[]).map(function(a){ return a.id; });
+
+  // Toujours inclure compo-store dans le launchpad
+  var appsAff = allApps.slice();
+  if(!appsAff.find(function(a){ return a.id==='compo-store'; })){
+    var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
+    if(storeApp) appsAff.push(storeApp);
+  }
+
+  grid.innerHTML = '';
+  appsAff.forEach(function(app){
+    var epingle = epingles.includes(app.id);
+    var icon = document.createElement('div');
+    icon.className = 'launchpad-icon';
+    icon.dataset.appid = app.id;
+    icon.dataset.label = app.label.toLowerCase();
+    icon.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:0.4rem;cursor:pointer;width:80px;position:relative;';
+
+    var img = document.createElement('div');
+    img.style.cssText = 'width:58px;height:58px;border-radius:13px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.6rem;transition:transform 0.15s;';
+    img.textContent = app.icon;
+
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:0.65rem;color:rgba(255,255,255,0.85);text-align:center;line-height:1.3;font-family:DM Sans,sans-serif;max-width:80px;';
+    label.textContent = app.label;
+
+    // Badge épinglé
+    if(epingle){
+      var badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;top:-4px;right:4px;width:10px;height:10px;border-radius:50%;background:#ea5b1c;border:1.5px solid rgba(0,0,0,0.3);';
+      icon.appendChild(badge);
+    }
+
+    icon.appendChild(img);
+    icon.appendChild(label);
+
+    // Clic : ouvrir l'app + fermer launchpad
+    icon.onclick = function(e){
+      if(e.target.closest('.lp-ctx-menu')) return;
+      osLaunchpadToggle();
+      osOpenWindow(app.id);
+    };
+
+    // Long press / clic droit : menu épingler
+    var pressTimer;
+    icon.addEventListener('contextmenu', function(e){
+      e.preventDefault();
+      osLaunchpadContextMenu(app, epingle, e.clientX, e.clientY);
+    });
+    icon.addEventListener('touchstart', function(){ pressTimer = setTimeout(function(){ osLaunchpadContextMenu(app, epingle, 0, 0); }, 600); }, {passive:true});
+    icon.addEventListener('touchend', function(){ clearTimeout(pressTimer); });
+
+    img.addEventListener('mouseover', function(){ img.style.transform='scale(1.1)'; });
+    img.addEventListener('mouseout',  function(){ img.style.transform=''; });
+
+    grid.appendChild(icon);
+  });
+}
+
+function osLaunchpadFiltrer(q){
+  var icons = document.querySelectorAll('.launchpad-icon');
+  icons.forEach(function(icon){
+    var match = !q || icon.dataset.label.includes(q.toLowerCase());
+    icon.style.display = match ? 'flex' : 'none';
+  });
+}
+
+function osLaunchpadContextMenu(app, estEpingle, x, y){
+  // Supprimer menu existant
+  var old = document.getElementById('lp-ctx-menu');
+  if(old) old.parentNode.removeChild(old);
+
+  var menu = document.createElement('div');
+  menu.id = 'lp-ctx-menu';
+  menu.className = 'lp-ctx-menu';
+  menu.style.cssText = 'position:fixed;z-index:9999;background:rgba(30,30,45,0.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:0.4rem 0;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+
+  // Position : centré si touch
+  if(x === 0 && y === 0){
+    menu.style.top = '50%'; menu.style.left = '50%';
+    menu.style.transform = 'translate(-50%,-50%)';
+  } else {
+    menu.style.top = Math.min(y, window.innerHeight-150)+'px';
+    menu.style.left = Math.min(x, window.innerWidth-200)+'px';
+  }
+
+  function menuItem(label, fn){
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:0.5rem 1rem;font-size:0.82rem;color:rgba(255,255,255,0.85);cursor:pointer;font-family:DM Sans,sans-serif;';
+    item.textContent = label;
+    item.onmouseover = function(){ item.style.background='rgba(255,255,255,0.1)'; };
+    item.onmouseout  = function(){ item.style.background=''; };
+    item.onclick = function(e){ e.stopPropagation(); fn(); document.body.removeChild(menu); };
+    return item;
+  }
+
+  // Ouvrir
+  menu.appendChild(menuItem('▶ Ouvrir', function(){
+    osLaunchpadToggle();
+    osOpenWindow(app.id);
+  }));
+
+  // Épingler / désépingler
+  if(estEpingle){
+    menu.appendChild(menuItem('📌 Retirer du dock', function(){
+      osLaunchpadToggleEpingle(app.id, false);
+    }));
+  } else {
+    var dockCount = (window._userApps||[]).length;
+    if(dockCount < 8){
+      menu.appendChild(menuItem('📌 Épingler dans le dock', function(){
+        osLaunchpadToggleEpingle(app.id, true);
+      }));
+    } else {
+      menu.appendChild(menuItem('📌 Dock plein (max 8)', function(){}));
+    }
+  }
+
+  document.body.appendChild(menu);
+  // Fermer au clic extérieur
+  setTimeout(function(){
+    document.addEventListener('click', function rm(){ document.body.removeChild(menu); document.removeEventListener('click', rm); }, { once:true });
+  }, 50);
+}
+
+function osLaunchpadToggleEpingle(appId, epingle){
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(uid)+'&app_id=eq.'+encodeURIComponent(appId), {
+    method:'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal'
+    }),
+    body: JSON.stringify({ epingle: epingle })
+  }).then(function(r){
+    if(r.ok){
+      notif(epingle ? 'App épinglée dans le dock !' : 'App retirée du dock');
+      // Mettre à jour le cache local
+      var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
+      if(app){
+        if(epingle){
+          if(!window._userApps) window._userApps = [];
+          if(!window._userApps.find(function(a){ return a.id===appId; }))
+            window._userApps.push(app);
+        } else {
+          window._userApps = (window._userApps||[]).filter(function(a){ return a.id!==appId; });
+        }
+      }
+      osBuildDock();
+      // Rafraîchir le launchpad
+      var lp = document.getElementById('os-launchpad');
+      if(lp && _launchpadVisible) osLaunchpadRendre(lp);
+    }
+  }).catch(function(){ notif('Erreur épinglage'); });
+}
+
 // ===== COMPO STORE =====
 
 function osStoreRender(){
@@ -15183,22 +15735,28 @@ function osStoreRender(){
 
 function osStoreInstaller(appId){
   var uid = getUserId(); if(!uid) return;
+  var dockCount = (window._userApps||[]).length;
+  var epingle = dockCount < 8;
   fetch(SB_URL+'/rest/v1/membres_apps', {
     method:'POST',
     headers: Object.assign({}, SB_HEADERS, {
       'Authorization':'Bearer '+(_session&&_session.access_token||''),
       'Prefer':'return=minimal,resolution=ignore-duplicates'
     }),
-    body: JSON.stringify({ membre_id: uid, app_id: appId })
+    body: JSON.stringify({ membre_id: uid, app_id: appId, epingle: epingle })
   }).then(function(r){
     if(r.ok){
       var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
-      notif((app?app.label:appId)+' installée ! Reconnecte-toi pour la voir dans le dock.');
-      // Mettre à jour _userApps localement et reconstruire le dock
-      if(window._userApps && app){
-        window._userApps.push(app);
+      if(app){
+        if(!window._userAppsAll) window._userAppsAll = [];
+        if(!window._userAppsAll.find(function(a){ return a.id===appId; })) window._userAppsAll.push(app);
+        if(epingle){
+          if(!window._userApps) window._userApps = [];
+          if(!window._userApps.find(function(a){ return a.id===appId; })) window._userApps.push(app);
+        }
         osBuildDock();
       }
+      notif((app?app.label:appId)+' installée !'+(epingle?' Épinglée dans le dock.':' Accessible via le Launchpad.'));
       osStoreRender();
     }
   }).catch(function(){ notif('Erreur installation'); });
@@ -15859,24 +16417,48 @@ window._userApps = null;
 
 function _chargerAppsUtilisateur(userId, callback){
   if(!userId){ callback(); return; }
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id', { headers:SB_HEADERS })
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(!data || data.code || !data.length){
       window._userApps = null;
+      window._userAppsAll = null;
       _initialiserAppsParDefaut(userId);
     } else {
-      var ids = data.map(function(d){ return d.app_id; });
-      window._userApps = ALL_APPS_CATALOGUE.filter(function(a){ return ids.includes(a.id); });
+      var allIds = data.map(function(d){ return d.app_id; });
+      var epinglesIds = data.filter(function(d){ return d.epingle; }).map(function(d){ return d.app_id; });
+
+      // Admin : garantir gestion-apps toujours présent
+      if(getUserRole() === 'admin' && !allIds.includes('gestion-apps')){
+        allIds.push('gestion-apps');
+        epinglesIds.push('gestion-apps');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'gestion-apps', epingle: false })
+        }).catch(function(){});
+      }
+
+      // _userApps = apps épinglées (dock)
+      window._userApps = ALL_APPS_CATALOGUE.filter(function(a){ return epinglesIds.includes(a.id); });
+      // _userAppsAll = toutes les apps installées (launchpad)
+      window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){ return allIds.includes(a.id); });
     }
     callback();
-  }).catch(function(){ window._userApps = null; callback(); });
+  }).catch(function(){ window._userApps = null; window._userAppsAll = null; callback(); });
 }
 
 function _initialiserAppsParDefaut(userId){
   var role = getUserRole();
   var ids = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
-  var rows = ids.map(function(id){ return { membre_id: userId, app_id: id }; });
+  // Apps épinglées par défaut : les 6 premières du profil
+  var epinglees = ids.slice(0, 6);
+  var rows = ids.map(function(id){
+    return { membre_id: userId, app_id: id, epingle: epinglees.includes(id) };
+  });
   fetch(SB_URL+'/rest/v1/membres_apps', {
     method: 'POST',
     headers: Object.assign({}, SB_HEADERS, {
@@ -16658,6 +17240,177 @@ function osCarnetSupprimer(id){
       _rafraichirListeCarnet();
     }
   }).catch(function(){ notif('Erreur suppression'); });
+}
+
+// ===== OOBE (PREMIÈRE CONNEXION) =====
+
+var _oobeTheme = 'light';
+var _oobeAppsSelectionnees = new Set();
+var _oobeStepCourant = 0;
+var _oobeNbSteps = 4;
+
+function oobeVerifier(userId, membre){
+  // Afficher l'OOBE si l'utilisateur n'a jamais complété la config
+  var done = localStorage.getItem('compo_oobe_done_'+userId);
+  if(done) return false;
+  // Aussi si pas de prénom en base
+  if(membre && membre.prenom && membre.prenom.trim()) return false;
+  return true;
+}
+
+function oobeOuvrir(userId, role){
+  var screen = document.getElementById('oobe-screen');
+  if(!screen) return;
+  screen.classList.add('visible');
+
+  // Pré-remplir avec ce qu'on sait
+  var prenom = localStorage.getItem('ipsum_user_prenom')||'';
+  var nom = localStorage.getItem('ipsum_user_nom')||'';
+  var p = document.getElementById('oobe-prenom');
+  var n = document.getElementById('oobe-nom');
+  if(p && prenom && prenom !== 'null') p.value = prenom;
+  if(n && nom && nom !== 'null') n.value = nom;
+
+  // Construire la grille d'apps
+  var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
+    return a.roles.includes(role) && a.id !== 'accueil';
+  });
+  var profil = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
+  // Pré-sélectionner les apps du profil (hors accueil)
+  profil.filter(function(id){ return id !== 'accueil'; }).forEach(function(id){
+    _oobeAppsSelectionnees.add(id);
+  });
+
+  var grid = document.getElementById('oobe-apps-grid');
+  if(grid){
+    grid.innerHTML = '';
+    appsDisponibles.forEach(function(app){
+      var card = document.createElement('div');
+      card.className = 'oobe-app-card'+(_oobeAppsSelectionnees.has(app.id)?' selected':'');
+      card.innerHTML = '<span class="oobe-app-icon">'+app.icon+'</span><span class="oobe-app-name">'+esc(app.label)+'</span>';
+      card.onclick = function(){
+        if(_oobeAppsSelectionnees.has(app.id)){
+          _oobeAppsSelectionnees.delete(app.id);
+          card.classList.remove('selected');
+        } else {
+          if(_oobeAppsSelectionnees.size >= 7){ notif('Max 7 apps (+ Accueil = 8)'); return; }
+          _oobeAppsSelectionnees.add(app.id);
+          card.classList.add('selected');
+        }
+      };
+      grid.appendChild(card);
+    });
+  }
+}
+
+function oobeNext(step){
+  // Validation étape 1
+  if(step === 1){
+    var prenom = (document.getElementById('oobe-prenom')||{}).value||'';
+    var nom = (document.getElementById('oobe-nom')||{}).value||'';
+    if(!prenom.trim()){ notif('Saisis ton prénom'); return; }
+  }
+
+  // Passer à l'étape suivante
+  var current = document.getElementById('oobe-step-'+step);
+  var next = document.getElementById('oobe-step-'+(step+1));
+  if(current) current.classList.remove('active');
+  if(next) next.classList.add('active');
+
+  // Mettre à jour les dots
+  var dot = document.getElementById('oobe-dot-'+step);
+  var dotNext = document.getElementById('oobe-dot-'+(step+1));
+  if(dot){ dot.classList.remove('active'); dot.classList.add('done'); }
+  if(dotNext) dotNext.classList.add('active');
+
+  _oobeStepCourant = step+1;
+}
+
+function oobeSelectTheme(theme){
+  _oobeTheme = theme;
+  var light = document.getElementById('oobe-theme-light');
+  var dark = document.getElementById('oobe-theme-dark');
+  if(light) light.classList.toggle('selected', theme==='light');
+  if(dark)  dark.classList.toggle('selected', theme==='dark');
+
+  // Preview en direct
+  var root = document.documentElement;
+  if(theme === 'dark'){ root.classList.add('theme-dark'); root.classList.remove('theme-light'); }
+  else { root.classList.remove('theme-dark'); root.classList.add('theme-light'); }
+}
+
+function oobeTerminer(){
+  var userId = getUserId(); if(!userId) return;
+  var prenom = ((document.getElementById('oobe-prenom')||{}).value||'').trim();
+  var nom    = ((document.getElementById('oobe-nom')||{}).value||'').trim();
+  var role   = getUserRole();
+
+  // Sauvegarder le thème
+  localStorage.setItem('compo_os_theme', _oobeTheme);
+  osToggleTheme(_oobeTheme === 'dark');
+
+  // Sauvegarder le profil si rempli
+  if(prenom){
+    localStorage.setItem('ipsum_user_prenom', prenom);
+    localStorage.setItem('ipsum_user_nom', nom);
+    // Sync en base
+    if(_session && _session.access_token){
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+userId, {
+        method:'PATCH',
+        headers: Object.assign({}, SB_HEADERS, {
+          'Authorization':'Bearer '+_session.access_token,
+          'Prefer':'return=minimal'
+        }),
+        body: JSON.stringify({ prenom: prenom, nom: nom })
+      }).catch(function(){});
+    }
+  }
+
+  // Sauvegarder les apps sélectionnées dans membres_apps
+  // Toujours ajouter accueil en premier
+  var appsFinales = ['accueil'].concat(Array.from(_oobeAppsSelectionnees));
+  // Épingler les 8 premières dans le dock
+  var epinglees = appsFinales.slice(0, 8);
+
+  // D'abord supprimer les apps existantes
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+userId, {
+    method:'DELETE',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+    })
+  }).then(function(){
+    var rows = appsFinales.map(function(id){
+      return { membre_id: userId, app_id: id, epingle: epinglees.includes(id) };
+    });
+    return fetch(SB_URL+'/rest/v1/membres_apps', {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {
+        'Authorization':'Bearer '+(_session&&_session.access_token||''),
+        'Prefer':'return=minimal'
+      }),
+      body: JSON.stringify(rows)
+    });
+  }).catch(function(){});
+
+  // Marquer OOBE comme terminé
+  localStorage.setItem('compo_oobe_done_'+userId, '1');
+
+  // Fermer l'OOBE et lancer Compo
+  var screen = document.getElementById('oobe-screen');
+  if(screen){
+    screen.style.transition = 'opacity 0.5s';
+    screen.style.opacity = '0';
+    setTimeout(function(){
+      screen.classList.remove('visible');
+      screen.style.opacity = '';
+      screen.style.transition = '';
+      // Recharger les apps et lancer
+      _chargerAppsUtilisateur(userId, function(){
+        lancerCompo();
+        setTimeout(afficherPatchNote, 1200);
+      });
+    }, 550);
+  }
 }
 
 // ===== INIT OS =====
