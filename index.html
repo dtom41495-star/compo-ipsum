@@ -195,6 +195,7 @@ body {
   overflow-x: hidden;
   position: relative;
 }
+.os-window-content .accueil-bonjour { position: sticky; top: 0; z-index: 10; }
 .os-window-content .page {
   display: block !important;
   max-width: none;
@@ -306,38 +307,66 @@ body {
 }
 
 /* ===== NOTIFICATIONS BUREAU ===== */
-.os-notif {
+#os-toast-stack {
   position: fixed;
   top: 36px; right: 16px;
   z-index: 9000;
-  background: rgba(30,30,45,0.92);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  padding: 0.8rem 1rem;
-  min-width: 280px;
-  max-width: 360px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  transform: translateX(120%);
-  transition: transform 0.3s cubic-bezier(0.34,1.2,0.64,1);
-  display: flex; gap: 0.8rem; align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
 }
-.os-notif.show { transform: translateX(0); }
+.os-toast {
+  background: rgba(20,20,35,0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-left: 3px solid rgba(255,255,255,0.3);
+  border-radius: 10px;
+  padding: 0.75rem 1rem 0.6rem;
+  min-width: 280px;
+  max-width: 340px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  transform: translateX(120%);
+  transition: transform 0.3s cubic-bezier(0.34,1.2,0.64,1), opacity 0.25s;
+  opacity: 0;
+  pointer-events: all;
+  position: relative;
+  overflow: hidden;
+}
+.os-toast.show { transform: translateX(0); opacity: 1; }
+.os-toast.hide { transform: translateX(120%); opacity: 0; }
+.os-toast.type-succes { border-left-color: #27500A; }
+.os-toast.type-erreur { border-left-color: #A32D2D; }
+.os-toast.type-alerte { border-left-color: #633806; }
+.os-toast.type-info   { border-left-color: #185FA5; }
+.os-toast-row { display:flex; align-items:center; gap:0.6rem; margin-bottom:6px; }
+.os-toast-icon { font-size:14px; flex-shrink:0; }
+.os-toast-msg { font-size:0.78rem; color:rgba(255,255,255,0.88); line-height:1.4; flex:1; }
+.os-toast-close { background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; font-size:0.9rem; padding:0; line-height:1; flex-shrink:0; }
+.os-toast-close:hover { color:rgba(255,255,255,0.7); }
+.os-toast-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px;
+  border-radius: 0 0 0 10px;
+  background: rgba(255,255,255,0.25);
+  transition: width linear;
+}
+.os-toast.type-succes .os-toast-bar { background: #27500A; }
+.os-toast.type-erreur .os-toast-bar { background: #A32D2D; }
+.os-toast.type-alerte .os-toast-bar { background: #633806; }
+.os-toast.type-info   .os-toast-bar { background: #185FA5; }
+
+/* Legacy - gardé pour compatibilité */
+.os-notif { display: none !important; }
 .os-notif-icon { font-size: 1.4rem; flex-shrink: 0; }
 .os-notif-body { flex: 1; }
 .os-notif-app {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--rouge);
-  margin-bottom: 2px;
+  font-size: 0.55rem; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--rouge); margin-bottom: 2px;
 }
-.os-notif-msg {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.85);
-  line-height: 1.4;
-}
+.os-notif-msg { font-size: 0.78rem; color: rgba(255,255,255,0.85); line-height: 1.4; }
 
 /* ===== LOGIN SCREEN OS ===== */
 #os-login {
@@ -2101,6 +2130,21 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
   /* Cacher les icônes bureau */
   #os-desktop-icons { display: none !important; }
 
+  /* Toasts plein largeur sur mobile */
+  #os-toast-stack {
+    left: 8px !important;
+    right: 8px !important;
+    top: 8px !important;
+  }
+  .os-toast {
+    min-width: unset !important;
+    max-width: none !important;
+    width: 100% !important;
+    transform: translateY(-120%) !important;
+  }
+  .os-toast.show { transform: translateY(0) !important; }
+  .os-toast.hide { transform: translateY(-120%) !important; }
+
   /* Status bar en haut à gauche sur mobile */
   #os-status-bar {
     top: 8px !important;
@@ -3304,6 +3348,8 @@ input:focus,select:focus,textarea:focus{
 </div>
 
 <!-- OS DESKTOP -->
+<div id="os-toast-stack"></div>
+
 <div id="os-desktop">
   <div id="os-bg"></div>
   
@@ -7253,23 +7299,29 @@ function dashRendreArticles(articles, STAT_DEF, STEPS){
     card.className = 'dash-article-card';
     card.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
 
-    // Barre de progression
-    var progressHtml = '<div class="dash-progress">';
-    var estPublie = doc.statut === 'publie';
+    // Barre de progression option B — barre + labels
+    var STEPS_LABELS_D = {'brouillon':'Brouillon','en-relecture':'Relecture','corrige':'Corrigé','valide':'Validé','publie':'Publié'};
+    var progressHtml = '<div style="margin:0.4rem 0 0;">';
+    progressHtml += '<div style="display:flex;gap:2px;">';
     STEPS.forEach(function(s, i){
-      var cls;
-      if(estPublie){
-        cls = 'publie'; // toutes vertes
-      } else if(i < stepIdx){
-        cls = 'done';
-      } else if(i === stepIdx){
-        cls = 'current'; // clignote
-      } else {
-        cls = '';
-      }
-      progressHtml += '<div class="dash-step '+cls+'" title="'+((STAT_DEF[s]||{}).l||s)+'"></div>';
+      var estPublie = doc.statut === 'publie';
+      var isPast    = i < stepIdx;
+      var isCurrent = i === stepIdx;
+      var bg = estPublie ? '#27500A' : isCurrent ? sd.c : isPast ? '#C0DD97' : '#E5E7EB';
+      progressHtml += '<div style="height:4px;flex:1;border-radius:2px;background:'+bg+';"></div>';
     });
     progressHtml += '</div>';
+    progressHtml += '<div style="display:flex;gap:2px;margin-top:3px;">';
+    STEPS.forEach(function(s, i){
+      var estPublie = doc.statut === 'publie';
+      var isCurrent = i === stepIdx;
+      var isPast    = i < stepIdx;
+      var c = estPublie ? (isCurrent ? '#27500A' : '#888') : isCurrent ? sd.c : isPast ? '#888' : '#ccc';
+      var fw = isCurrent ? '600' : '400';
+      var txt = (estPublie && isCurrent) ? '✓ Publié' : STEPS_LABELS_D[s];
+      progressHtml += '<div style="flex:1;font-size:8px;font-family:monospace;color:'+c+';font-weight:'+fw+';text-align:center;overflow:hidden;white-space:nowrap;">'+txt+'</div>';
+    });
+    progressHtml += '</div></div>';
 
     // Date
     var dateStr = '';
@@ -9385,10 +9437,9 @@ function chargerAlertTickets(){
   .then(function(r){ return r.json(); })
   .then(function(tickets){
     var badge = document.getElementById('nav-tickets-badge');
-    var dockBadge = document.getElementById('dock-badge-tickets');
     var n = (tickets && !tickets.code) ? tickets.length : 0;
     if(badge){ if(n){ badge.textContent=n; badge.style.display='inline-flex'; } else badge.style.display='none'; }
-    if(dockBadge){ if(n){ dockBadge.textContent=n; dockBadge.style.display='inline'; } else dockBadge.style.display='none'; }
+    osMajBadge('tickets', n);
   }).catch(function(){});
 }
 
@@ -9925,8 +9976,9 @@ function osBuildDock(){
       osOpenWindow(appId);
     }; })(app.id, icon);
     
-    // Badge sur certaines icônes
-    if(app.id === 'tickets' || app.id === 'accueil'){
+    // Badge sur les icônes qui ont des notifications
+    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin'];
+    if(BADGE_APPS.indexOf(app.id) !== -1){
       var dockBadge = document.createElement('span');
       dockBadge.className = 'desktop-icon-badge';
       dockBadge.id = 'dock-badge-'+app.id;
@@ -9984,6 +10036,21 @@ function osOpenWindow(pageId){
   } else {
     _osOpenWindowExecuter(pageId);
   }
+}
+
+// Met à jour un badge sur le dock ET dans le launchpad si ouvert
+function osMajBadge(appId, count){
+  var dockBadge = document.getElementById('dock-badge-'+appId);
+  var lpBadge   = document.getElementById('lp-badge-'+appId);
+  [dockBadge, lpBadge].forEach(function(el){
+    if(!el) return;
+    if(count){
+      el.textContent = count;
+      el.style.display = 'inline';
+    } else {
+      el.style.display = 'none';
+    }
+  });
 }
 
 function osAfficherInterdit(){
@@ -10281,6 +10348,8 @@ function osLoadPageContent(pageId, winEl){
   // Déclencher les chargements spécifiques à la page
   setTimeout(function(){
     if(pageId === 'accueil'){ 
+      // Afficher le bonjour immédiatement depuis le cache
+      afficherBonjour();
       construireAccueil(); 
       chargerAccueilArticles(); 
       chargerRSS();
@@ -10938,9 +11007,11 @@ function osToggleNotifCenter(){
   nc.classList.toggle('open');
   if(nc.classList.contains('open')){
     osRenderNotifCenter();
-    // Masquer la notif toast
-    var toast = document.getElementById('os-notif');
-    if(toast) toast.classList.remove('show');
+    // Masquer badge quand on ouvre
+    var badge = document.getElementById('nc-badge');
+    if(badge) badge.style.display = 'none';
+    var bell = document.getElementById('nc-bell-emoji');
+    if(bell) bell.style.animation = 'none';
   }
 }
 
@@ -10951,7 +11022,7 @@ function osAddNotif(msg, type, action, silent){
   var now = new Date();
   var h = String(now.getHours()).padStart(2,'0');
   var m = String(now.getMinutes()).padStart(2,'0');
-  _ncItems.unshift({ msg:msg, type:type||'info', time:h+':'+m, action:action||null });
+  _ncItems.unshift({ msg:msg, type:type||'info', time:h+':'+m, ts:Date.now(), action:action||null });
   if(_ncItems.length > 30) _ncItems.pop();
   // Badge
   var badge = document.getElementById('nc-badge');
@@ -10986,6 +11057,14 @@ function osShowFloatingNotif(msg, action){
   window._notifTimer = setTimeout(function(){ el.classList.remove('show'); }, 5000);
 }
 
+function _tempsRelatif(ts){
+  var diff = Math.floor((Date.now() - ts) / 1000);
+  if(diff < 60) return 'à l\'instant';
+  if(diff < 3600) return 'il y a '+Math.floor(diff/60)+' min';
+  if(diff < 86400) return 'il y a '+Math.floor(diff/3600)+'h';
+  return 'il y a '+Math.floor(diff/86400)+' j';
+}
+
 function osRenderNotifCenter(){
   var content = document.getElementById('nc-content');
   if(!content) return;
@@ -10994,34 +11073,56 @@ function osRenderNotifCenter(){
     return;
   }
   content.innerHTML = '';
-  
-  // Grouper par type
+
   var types = { ticket:'🚨 Assistance', correction:'🔍 Correction', publication:'✅ Publication', sujet:'📌 Sujets à rédiger', suppression:'🗑️ Demandes de suppression', info:'ℹ️ Info' };
   var grouped = {};
-  _ncItems.forEach(function(item){
+  _ncItems.forEach(function(item, idx){
     var t = item.type || 'info';
     if(!grouped[t]) grouped[t] = [];
-    grouped[t].push(item);
+    grouped[t].push({ item:item, idx:idx });
   });
-  
+
   Object.keys(grouped).forEach(function(type){
     var label = document.createElement('div');
     label.className = 'nc-section-label';
     label.textContent = types[type] || type;
     content.appendChild(label);
-    
-    grouped[type].forEach(function(item){
+
+    grouped[type].forEach(function(entry){
+      var item = entry.item;
+      var idx  = entry.idx;
       var el = document.createElement('div');
       el.className = 'nc-item';
-      el.innerHTML = 
+      el.style.cssText += ';display:flex;align-items:flex-start;gap:0.5rem;';
+
+      var body = document.createElement('div');
+      body.style.cssText = 'flex:1;min-width:0;';
+      body.innerHTML =
         '<div class="nc-item-header">'+
         '<span class="nc-item-app">Compo</span>'+
-        '<span class="nc-item-time">'+item.time+'</span>'+
+        '<span class="nc-item-time">'+(item.ts ? _tempsRelatif(item.ts) : item.time)+'</span>'+
         '</div>'+
         '<div class="nc-item-msg">'+esc(item.msg)+'</div>';
-      if(item.action){
-        el.onclick = item.action;
-      }
+      if(item.action) el.onclick = item.action;
+
+      var dismiss = document.createElement('button');
+      dismiss.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;font-size:0.9rem;padding:0;flex-shrink:0;line-height:1;margin-top:2px;';
+      dismiss.textContent = '×';
+      dismiss.onclick = (function(i){ return function(e){
+        e.stopPropagation();
+        _ncItems.splice(i, 1);
+        var badge = document.getElementById('nc-badge');
+        if(badge){
+          if(_ncItems.length){ badge.textContent=_ncItems.length; }
+          else badge.style.display='none';
+        }
+        osRenderNotifCenter();
+      }; })(idx);
+      dismiss.onmouseover = function(){ this.style.color='rgba(255,255,255,0.7)'; };
+      dismiss.onmouseout  = function(){ this.style.color='rgba(255,255,255,0.25)'; };
+
+      el.appendChild(body);
+      el.appendChild(dismiss);
       content.appendChild(el);
     });
   });
@@ -11038,8 +11139,81 @@ function osClearNotifs(){
 
 // Surcharger notif pour alimenter le centre
 var _notifOriginal = null;
-function notif(msg){
-  osAddNotif(msg, 'info', null);
+function notif(msg, typeForce){
+  osAddNotif(msg, typeForce || _detectNotifType(msg), null);
+  osShowToast(msg, typeForce || _detectNotifType(msg));
+}
+
+function _detectNotifType(msg){
+  var m = (msg||'').toLowerCase();
+  if(/erreur|error|impossible|refus|échoué|fail/.test(m)) return 'erreur';
+  if(/attention|alerte|quota|limite|⚠️/.test(m)) return 'alerte';
+  if(/sauvegardé|publié|envoyé|créé|ajouté|activé|installé|supprimé|✓|✅/.test(m)) return 'succes';
+  return 'info';
+}
+
+function osShowToast(msg, type){
+  var stack = document.getElementById('os-toast-stack');
+  if(!stack) return;
+
+  type = type || 'info';
+  var ICONS = { succes:'✓', erreur:'✕', alerte:'⚡', info:'ℹ' };
+  var DUREE = 3500;
+
+  var toast = document.createElement('div');
+  toast.className = 'os-toast type-'+type;
+
+  var row = document.createElement('div');
+  row.className = 'os-toast-row';
+
+  var icon = document.createElement('span');
+  icon.className = 'os-toast-icon';
+  icon.textContent = ICONS[type] || 'ℹ';
+
+  var msgEl = document.createElement('span');
+  msgEl.className = 'os-toast-msg';
+  msgEl.textContent = msg;
+
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'os-toast-close';
+  closeBtn.textContent = '×';
+  closeBtn.onclick = function(){ _dismissToast(toast); };
+
+  row.appendChild(icon);
+  row.appendChild(msgEl);
+  row.appendChild(closeBtn);
+  toast.appendChild(row);
+
+  // Barre de progression
+  var bar = document.createElement('div');
+  bar.className = 'os-toast-bar';
+  bar.style.width = '100%';
+  toast.appendChild(bar);
+
+  stack.appendChild(toast);
+
+  // Apparition
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      toast.classList.add('show');
+      // Lancer la barre
+      bar.style.transition = 'width '+DUREE+'ms linear';
+      bar.style.width = '0%';
+    });
+  });
+
+  // Disparition auto
+  var timer = setTimeout(function(){ _dismissToast(toast); }, DUREE);
+  toast._timer = timer;
+}
+
+function _dismissToast(toast){
+  if(toast._timer) clearTimeout(toast._timer);
+  toast.classList.remove('show');
+  toast.classList.add('hide');
+  setTimeout(function(){
+    if(toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 300);
 }
 
 // Charger les notifs au démarrage
@@ -11966,8 +12140,7 @@ function osMajBadgeAccueil(){
   .then(function(r){ return r.json(); })
   .then(function(arts){
     total = (arts && !arts.code) ? arts.length : 0;
-    var b = document.getElementById('dock-badge-accueil');
-    if(b){ if(total){ b.textContent=total; b.style.display='inline'; } else b.style.display='none'; }
+    osMajBadge('accueil', total);
   }).catch(function(){});
 }
 
@@ -13456,6 +13629,43 @@ function osMesArticlesCharger(list){
     badgesRow.appendChild(srcBadge);
     badgesRow.appendChild(stBadge);
     left.appendChild(badgesRow);
+
+    // Capsules de progression — option B avec labels
+    var STEPS_ORDER = ['brouillon','en-relecture','corrige','valide','publie'];
+    var STEPS_LABELS = {'brouillon':'Brouillon','en-relecture':'Relecture','corrige':'Corrigé','valide':'Validé','publie':'Publié'};
+    var stIdx = STEPS_ORDER.indexOf(st);
+    var capsules = document.createElement('div');
+    capsules.style.cssText = 'margin-bottom:0.5rem;';
+
+    var barRow = document.createElement('div');
+    barRow.style.cssText = 'display:flex;gap:2px;';
+    STEPS_ORDER.forEach(function(s, i){
+      var cap = document.createElement('div');
+      var estPublie = st === 'publie';
+      var isPast    = i < stIdx;
+      var isCurrent = i === stIdx;
+      cap.style.cssText = 'height:4px;flex:1;border-radius:2px;background:'
+        + (estPublie ? '#27500A' : isCurrent ? stConf.c : isPast ? '#C0DD97' : '#E5E7EB') + ';';
+      barRow.appendChild(cap);
+    });
+
+    var labelRow = document.createElement('div');
+    labelRow.style.cssText = 'display:flex;gap:2px;margin-top:3px;';
+    STEPS_ORDER.forEach(function(s, i){
+      var lbl = document.createElement('div');
+      var estPublie = st === 'publie';
+      var isCurrent = i === stIdx;
+      var isPast    = i < stIdx;
+      lbl.style.cssText = 'flex:1;font-size:8px;font-family:monospace;text-align:center;overflow:hidden;white-space:nowrap;'
+        + 'color:' + (estPublie ? (i === stIdx ? '#27500A' : '#888') : isCurrent ? stConf.c : isPast ? '#888' : '#ccc') + ';'
+        + 'font-weight:' + (isCurrent ? '600' : '400') + ';';
+      lbl.textContent = (estPublie && i === stIdx) ? '✓ Publié' : STEPS_LABELS[s];
+      labelRow.appendChild(lbl);
+    });
+
+    capsules.appendChild(barRow);
+    capsules.appendChild(labelRow);
+    left.appendChild(capsules);
 
     var titre = document.createElement('div');
     titre.style.cssText = 'font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;';
@@ -15378,16 +15588,8 @@ function osTableauRestorer(id){
 // Badge dock : nombre d'annonces non vues
 function _tableauMajBadge(count){
   var badge = document.getElementById('desktop-icon-badge-tableau') || document.querySelector('[data-badge-for="tableau"]');
-  var dockBadge = document.getElementById('dock-badge-tableau');
-  [badge, dockBadge].forEach(function(el){
-    if(!el) return;
-    if(count > 0){
-      el.textContent = count;
-      el.style.display = 'inline';
-    } else {
-      el.style.display = 'none';
-    }
-  });
+  if(badge){ if(count>0){ badge.textContent=count; badge.style.display='inline'; } else badge.style.display='none'; }
+  osMajBadge('tableau', count);
 }
 
 // Vérifier les annonces non vues au démarrage et mettre à jour le badge
@@ -15738,11 +15940,26 @@ function osLaunchpadRendre(lp){
     label.style.cssText = 'font-size:0.65rem;color:rgba(255,255,255,0.85);text-align:center;line-height:1.3;font-family:DM Sans,sans-serif;max-width:80px;';
     label.textContent = app.label;
 
-    // Badge épinglé
+    // Badge épinglé (point orange)
     if(epingle){
-      var badge = document.createElement('div');
-      badge.style.cssText = 'position:absolute;top:-4px;right:4px;width:10px;height:10px;border-radius:50%;background:#ea5b1c;border:1.5px solid rgba(0,0,0,0.3);';
-      icon.appendChild(badge);
+      var badgePin = document.createElement('div');
+      badgePin.style.cssText = 'position:absolute;top:-4px;right:4px;width:10px;height:10px;border-radius:50%;background:#ea5b1c;border:1.5px solid rgba(0,0,0,0.3);';
+      icon.appendChild(badgePin);
+    }
+
+    // Badge de notification (copie depuis dock si existant)
+    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin'];
+    if(BADGE_APPS.indexOf(app.id) !== -1){
+      var lpBadge = document.createElement('span');
+      lpBadge.id = 'lp-badge-'+app.id;
+      lpBadge.style.cssText = 'position:absolute;top:-4px;left:4px;background:#FF5F57;color:white;border-radius:10px;font-size:0.55rem;font-weight:700;font-family:monospace;padding:1px 5px;min-width:16px;text-align:center;border:2px solid rgba(0,0,0,0.3);display:none;';
+      icon.appendChild(lpBadge);
+      // Copier la valeur du badge dock si elle existe
+      var dockBadge = document.getElementById('dock-badge-'+app.id);
+      if(dockBadge && dockBadge.style.display !== 'none'){
+        lpBadge.textContent = dockBadge.textContent;
+        lpBadge.style.display = 'inline';
+      }
     }
 
     icon.appendChild(img);
@@ -16954,7 +17171,9 @@ function osCarnetRender(){
 
 function osCarnetBuildUI(wc){
   var isAdmin = getUserRole() === 'admin';
-  var canEdit = true; // tous les rôles peuvent créer/éditer
+  var uid = getUserId();
+  // canEdit global = admin seulement pour créer (tout le monde peut créer, mais modif/suppr = créateur ou admin)
+  var canEdit = true; // création ouverte à tous
 
   var html = '<div style="display:flex;flex-direction:column;height:100%;">';
 
@@ -16976,11 +17195,11 @@ function osCarnetBuildUI(wc){
 
   // Liste contacts
   html += '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">';
-  osCarnetRendreListe(html, wc, isAdmin, canEdit);
+  osCarnetRendreListe(html, wc, isAdmin, canEdit, uid);
   return;
 }
 
-function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit){
+function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
   // Filtrer
   var contacts = _carnetContacts.filter(function(c){
     var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
@@ -17006,6 +17225,7 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit){
       var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
       var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
       var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
+      var peutModifier = isAdmin || (uid && c.cree_par === uid);
 
       html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
 
@@ -17022,10 +17242,16 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit){
       html += '</div></div>';
 
       // Droite
-      html += '<div style="text-align:right;flex-shrink:0;">';
+      html += '<div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">';
       if(dateStr) html += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
       if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;">✉️ Email</a>';
       if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;">📞 '+esc(c.telephone)+'</a>';
+      if(peutModifier){
+        html += '<div style="display:flex;gap:4px;margin-top:4px;">';
+        html += '<button onclick="event.stopPropagation();osCarnetEditerDepuisFiche(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">✏️</button>';
+        html += '<button onclick="event.stopPropagation();osCarnetSupprimer(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid #ffaaaa;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
+        html += '</div>';
+      }
       html += '</div>';
 
       html += '</div>';
@@ -17123,6 +17349,8 @@ function osCarnetOuvrirFiche(id){
   var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
   var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
   var isAdmin = getUserRole() === 'admin';
+  var uid = getUserId();
+  var peutModifier = isAdmin || (uid && c.cree_par === uid);
 
   var card = document.createElement('div');
   card.style.cssText = 'background:white;border-radius:14px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
@@ -17137,8 +17365,8 @@ function osCarnetOuvrirFiche(id){
   if(c.poste||c.organisation) html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
   html += '</div>';
   html += '<div style="display:flex;gap:0.4rem;align-items:center;">';
-  html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">✏️ Modifier</button>';
-  if(isAdmin) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">🗑️</button>';
+  if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">✏️ Modifier</button>';
+  if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">🗑️</button>';
   html += '<button onclick="document.body.removeChild(document.getElementById(\'carnet-fiche-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;line-height:1;">×</button>';
   html += '</div></div>';
 
