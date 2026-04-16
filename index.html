@@ -3639,6 +3639,22 @@ input:focus,select:focus,textarea:focus{
     <button class="toggle-btn" id="tb-breve" onclick="setType('breve')">Brève</button>
   </div>
 
+  <!-- CP source principal -->
+  <div class="section-label">Communiqué source de cet article</div>
+  <div id="r-cp-source-zone" style="margin-bottom:0.8rem;">
+    <div id="r-cp-source-affichage" style="display:none;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 1rem;display:flex;align-items:center;gap:0.8rem;margin-bottom:0.5rem;">
+      <span style="font-size:1rem;">📰</span>
+      <div style="flex:1;min-width:0;">
+        <div id="r-cp-source-titre" style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+        <div id="r-cp-source-org" style="font-family:monospace;font-size:0.62rem;color:var(--gris);"></div>
+      </div>
+      <button onclick="rArticleDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;padding:2px 6px;">✕</button>
+    </div>
+    <div class="import-zone" id="r-cp-source-btn" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;margin-bottom:0;">
+      <p style="margin:0;font-size:0.82rem;">📰 Lier un CP source à cet article</p>
+    </div>
+  </div>
+
   <!-- Communiqués liés -->
   <div class="section-label">Communiqués sources liés à cet article</div>
   <div id="cp-lies-list"></div>
@@ -3841,6 +3857,10 @@ input:focus,select:focus,textarea:focus{
           <button class="status-opt" onclick="setStatEdit('publie')">Publié</button>
         </div>
       </div>
+    </div>
+    <div class="section-label">Communiqué source</div>
+    <div id="e-cp-source-zone" style="margin-bottom:0.8rem;">
+      <div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;">📰 Lier un CP source</p></div>
     </div>
     <div class="section-label">Historique</div><div id="e-hist"></div>
     <div class="btn-row">
@@ -4449,75 +4469,26 @@ input:focus,select:focus,textarea:focus{
     <div style="padding:1.4rem;">
       <div id="sujet-modal-meta" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
       <div id="sujet-modal-note" style="display:none;background:var(--gris-clair);padding:0.8rem 1rem;font-size:0.85rem;color:var(--encre);line-height:1.6;margin-bottom:1.2rem;border-left:3px solid var(--rouge);"></div>
-    </div>
-    <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
-      <button class="btn" onclick="reserverSujetModal()">Reserver et rediger</button>
-      <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE ASSIGNATION CORRECTION -->
-<div id="modal-assign">
-  <div class="assign-card">
-    <div class="assign-header">
-      <div class="assign-titre">Envoyer en correction</div>
-      <div class="assign-sub" id="assign-article-titre">—</div>
-    </div>
-    <div class="assign-body">
-      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Assigne cet article à un correcteur :</div>
-      <div id="assign-membres-list">Chargement...</div>
-      <div class="assign-btn-row">
-        <button class="btn" onclick="assignValider()">Envoyer en correction</button>
-        <button class="btn sec" onclick="assignFermer()">Annuler</button>
+      <div id="sujet-modal-cp-zone" style="margin-bottom:0.8rem;display:none;">
+        <div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Communiqué source</div>
+        <div id="sujet-modal-cp-bloc" style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 8px 8px 0;padding:0.7rem 1rem;display:flex;align-items:center;gap:0.7rem;cursor:pointer;" onclick="sujetModalLireCp()">
+          <span style="font-size:1rem;flex-shrink:0;">📰</span>
+          <div style="flex:1;min-width:0;">
+            <div id="sujet-modal-cp-titre" style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+            <div id="sujet-modal-cp-org" style="font-family:monospace;font-size:0.62rem;color:var(--gris);"></div>
+          </div>
+          <span style="font-family:monospace;font-size:0.6rem;color:var(--rouge);flex-shrink:0;">Lire →</span>
+        </div>
+        <button onclick="sujetModalDetacherCp()" style="font-family:monospace;font-size:0.58rem;color:var(--gris);background:none;border:none;cursor:pointer;margin-top:4px;">✕ Retirer</button>
+      </div>
+      <div id="sujet-modal-cp-btn-zone">
+        <div class="import-zone" onclick="sujetModalLierCp()" style="padding:0.6rem;cursor:pointer;margin-bottom:0;">
+          <p style="margin:0;font-size:0.78rem;">📰 Lier un CP source à ce sujet</p>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- MODALE ACTION COMMUNIQUE -->
-<div id="modal-action-cp">
-  <div class="modal-action-card">
-    <div class="modal-action-header">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.5);margin-bottom:0.3rem;">Communiqué de presse reçu</div>
-      <div class="modal-action-titre" id="modal-cp-action-titre">—</div>
-      <div class="modal-action-meta" id="modal-cp-action-meta">—</div>
-    </div>
-    <div class="modal-action-body">
-      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Que veux-tu faire avec ce communiqué ?</div>
-      <button class="modal-action-btn" onclick="modalCPChoisir('lire')">
-        <div class="modal-action-icon">📋</div>
-        <div><div class="modal-action-label">Lire le communiqué</div><div class="modal-action-desc">Consulter les infos et le PDF joint</div></div>
-      </button>
-      <button class="modal-action-btn" onclick="modalCPChoisir('rediger')">
-        <div class="modal-action-icon">✍️</div>
-        <div><div class="modal-action-label">Rédiger un article</div><div class="modal-action-desc">Partir de ce communiqué pour écrire un article</div></div>
-      </button>
-      <button class="modal-action-btn" onclick="modalCPFermer()" style="margin-top:0.4rem;border-color:transparent;">
-        <div class="modal-action-icon">✕</div>
-        <div><div class="modal-action-label" style="color:var(--gris);">Annuler</div></div>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- nav supprimée -->
-
-
-
-<!-- MODALE SUJET BRIEFING -->
-<div id="modal-sujet" style="position:fixed;inset:0;z-index:9000;background:rgba(26,26,46,0.6);display:none;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:white;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-    <div style="background:var(--encre);padding:1.2rem 1.4rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
-      <div id="sujet-modal-titre" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1rem;color:white;line-height:1.4;">Titre du sujet</div>
-      <button onclick="fermerModalSujet()" style="border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:1.4rem;cursor:pointer;line-height:1;flex-shrink:0;">&times;</button>
-    </div>
-    <div style="padding:1.4rem;">
-      <div id="sujet-modal-meta" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
-      <div id="sujet-modal-note" style="display:none;background:var(--gris-clair);padding:0.8rem 1rem;font-size:0.85rem;color:var(--encre);line-height:1.6;margin-bottom:1.2rem;border-left:3px solid var(--rouge);"></div>
-    </div>
     <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
-      <button class="btn" onclick="reserverSujetModal()">Reserver et rediger</button>
+      <button class="btn" onclick="reserverSujetModal()">Réserver et rédiger</button>
       <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
     </div>
   </div>
@@ -4923,6 +4894,7 @@ function buildDoc(){
     image:null,image_legende:document.getElementById('r-img-leg').value.trim()||null, // image gérée par uploadImageStorage
     date_publication:document.getElementById('r-datepub').value||null,
     communiques:cpLies.map(cp=>({...cp})),
+    cp_id: currentDoc && currentDoc.cp_id ? currentDoc.cp_id : null,
     cree_le:new Date().toISOString(),modifie_le:new Date().toISOString(),
     historique:[{action:'creation',auteur:document.getElementById('r-auteur').value.trim()||'?',date:new Date().toISOString(),note:'Création - '+document.getElementById('r-redaction').value}]
   };
@@ -5155,6 +5127,11 @@ function renderLecture(){
     window._corrCPs=doc.communiques;
   }
   document.getElementById('art-preview').innerHTML=h;
+  // Afficher le CP source principal si lié
+  if(doc.cp_id){
+    var preview = document.getElementById('art-preview');
+    if(preview) rLectureAfficherCpSource(doc, preview);
+  }
 }
 
 // ===== ÉDITION =====
@@ -5181,6 +5158,8 @@ function renderEdition(doc){
     b.classList.toggle('active', onclick.indexOf(doc.statut) >= 0);
   });
   renderHist('e-hist', doc.historique||[]);
+  // Afficher le CP source si lié
+  if(doc.cp_id) rEditionAfficherCpSource(doc);
 }
 function setStatEdit(v){currentStatEdit=v;document.querySelectorAll('#e-statrow .status-opt').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+v+"'")));}
 function exporterEdition(){
@@ -6662,7 +6641,8 @@ var db = {
       image: doc.image || null,
       image_legende: doc.image_legende || '',
       date_publication: doc.date_publication || null,
-      note_interne: doc.note_interne || ''
+      note_interne: doc.note_interne || '',
+      cp_id: doc.cp_id || null
     };
     return fetch(SB_URL + '/rest/v1/articles', {
       method: 'POST',
@@ -7691,10 +7671,15 @@ function loginValider(){
     }
     _session = data;
     localStorage.setItem('ipsum_session', JSON.stringify(data));
-    // Mettre à jour les headers Supabase avec le token utilisateur
-    SB_HEADERS['Authorization'] = 'Bearer ' + data.access_token;
-    // Charger le profil depuis la table membres
-    chargerProfilMembre(data.user.id);
+    // Vider les données de l'éventuel compte précédent
+    localStorage.removeItem('ipsum_user_prenom');
+    localStorage.removeItem('ipsum_user_nom');
+    localStorage.removeItem('ipsum_user_role');
+    localStorage.removeItem('ipsum_user_email');
+    window._userApps = null;
+    window._userAppsAll = null;
+    // Recharger la page — la session sera restaurée depuis le localStorage
+    location.reload();
   })
   .catch(function(){
     errEl.textContent = 'Erreur de connexion. Vérifie ta connexion internet.';
@@ -7705,6 +7690,12 @@ function loginValider(){
 }
 
 function chargerProfilMembre(userId){
+  // Vider immédiatement les données de l'ancien compte pour éviter tout affichage résiduel
+  localStorage.removeItem('ipsum_user_prenom');
+  localStorage.removeItem('ipsum_user_nom');
+  localStorage.removeItem('ipsum_user_role');
+  localStorage.removeItem('ipsum_user_email');
+
   fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?id=eq.' + userId + '&select=*', {
     headers: SB_HEADERS
   })
@@ -7756,7 +7747,7 @@ function chargerProfilMembre(userId){
           if(loginEl) loginEl.style.display = 'none';
           oobeOuvrir(userId, membre.role || getUserRole());
         } else {
-          _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
+          _chargerAppsUtilisateur(userId, function(){ lancerCompo(); }, membre.role);
         }
       });
 
@@ -7767,16 +7758,23 @@ function chargerProfilMembre(userId){
       var srEl = document.getElementById('start-menu-role');
       if(srEl) srEl.textContent = membre.role;
     } else {
-      // Utiliser email comme fallback
-      var email = _session.user.email;
-      var prenom = email.split('@')[0];
+      // Nouveau compte sans ligne dans membres — déclencher OOBE
+      var email = _session && _session.user ? _session.user.email : '';
+      var prenom = email ? email.split('@')[0] : '';
       localStorage.setItem('ipsum_user_prenom', prenom);
       localStorage.setItem('ipsum_user_nom', '');
       localStorage.setItem('ipsum_user_role', 'redacteur');
       var ls2 = document.getElementById('login-screen');
       if(ls2) ls2.classList.remove('visible');
       construireNav();
-      _chargerAppsUtilisateur(userId, function(){ lancerCompo(); });
+      // Toujours déclencher l'OOBE pour les nouveaux comptes
+      if(!localStorage.getItem('compo_oobe_done_'+userId)){
+        var loginEl2 = document.getElementById('os-login');
+        if(loginEl2) loginEl2.style.display = 'none';
+        oobeOuvrir(userId, 'redacteur');
+      } else {
+        _chargerAppsUtilisateur(userId, function(){ lancerCompo(); }, 'redacteur');
+      }
     }
   })
   .catch(function(){
@@ -7803,12 +7801,19 @@ function loginMotDePasseOublie(){
 
 function seDeconnecter(){
   localStorage.removeItem('ipsum_session');
+  localStorage.removeItem('ipsum_user_prenom');
+  localStorage.removeItem('ipsum_user_nom');
+  localStorage.removeItem('ipsum_user_role');
+  localStorage.removeItem('ipsum_user_email');
   _session = null;
-  // Recharger la page
+  window._userApps = null;
+  window._userAppsAll = null;
   window.location.reload();
 }
 
 function lancerCompo(){
+  // S'assurer que l'OS est lancé
+  if(!_osReady) osLancer();
   // Lancer le splash
   setTimeout(function(){
     var s = document.getElementById('splash');
@@ -8317,6 +8322,9 @@ function chargerDansRedaction(doc){
     setUrg(doc.urgence||'normal');
     updateStats();
     currentDoc = doc;
+    // Afficher le CP source si lié
+    if(doc.cp_id) rArticleAfficherCpSourceExistant(doc.cp_id);
+    else { var aff2 = document.getElementById('r-cp-source-affichage'); if(aff2) aff2.style.display='none'; }
     // Afficher le lien de partage si l'article a déjà un ID en base
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
@@ -8909,6 +8917,13 @@ var _sujetCourant = null;
 
 function ouvrirModalSujet(sujet){
   _sujetCourant = sujet;
+  // Réinitialiser le CP
+  window._sujetModalCp = null;
+  var cpZone = document.getElementById('sujet-modal-cp-zone');
+  var cpBtnZone = document.getElementById('sujet-modal-cp-btn-zone');
+  if(cpZone) cpZone.style.display = 'none';
+  if(cpBtnZone) cpBtnZone.style.display = 'block';
+
   var PRIO = {urgente:'#721C24', normale:'#856404', faible:'#155724'};
   var PRIO_BG = {urgente:'#F8D7DA', normale:'#FFF3CD', faible:'#D4EDDA'};
   var TYPE_LABEL = {article:'Article', breve:'Breve', reportage:'Reportage', interview:'Interview'};
@@ -8924,7 +8939,7 @@ function ouvrirModalSujet(sujet){
     var prio = sujet.priorite || 'normale';
     var badges = [
       {txt: TYPE_LABEL[sujet.type] || sujet.type || 'Article', bg:'#D6EAF8', c:'#1A5276'},
-      {txt: prio,   bg: PRIO_BG[prio], c: PRIO[prio]},
+      {txt: prio, bg: PRIO_BG[prio], c: PRIO[prio]},
     ];
     if(sujet.responsable) badges.push({txt: 'Pour : '+sujet.responsable, bg:'var(--gris-clair)', c:'var(--gris)'});
     badges.forEach(function(b){
@@ -8941,8 +8956,58 @@ function ouvrirModalSujet(sujet){
     else { noteEl.style.display='none'; }
   }
 
+  // Afficher CP lié si déjà en base (colonne cp_id sur briefing si elle existe)
+  if(sujet.cp_id) sujetModalChargerCp(sujet.cp_id);
+
   var modal = document.getElementById('modal-sujet');
   if(modal) modal.style.display = 'flex';
+}
+
+function sujetModalChargerCp(cpId){
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=id,titre,source,organisation,date_cp', {
+    headers: SB_HEADERS
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0]; if(!cp) return;
+    sujetModalSetCp(cp);
+  }).catch(function(){});
+}
+
+function sujetModalSetCp(cp){
+  window._sujetModalCp = cp;
+  var zone    = document.getElementById('sujet-modal-cp-zone');
+  var btnZone = document.getElementById('sujet-modal-cp-btn-zone');
+  var titreEl = document.getElementById('sujet-modal-cp-titre');
+  var orgEl   = document.getElementById('sujet-modal-cp-org');
+  if(zone)    zone.style.display = 'block';
+  if(btnZone) btnZone.style.display = 'none';
+  if(titreEl) titreEl.textContent = cp.titre || cp.id;
+  if(orgEl){
+    var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+    orgEl.textContent = (cp.source||cp.organisation||'') + (dateStr ? ' · '+dateStr : '');
+  }
+}
+
+function sujetModalLierCp(){
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,source,organisation,date_cp&limit=30', {
+    headers: SB_HEADERS
+  }).then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps||cps.code||!cps.length){ notif('Aucun CP publié disponible'); return; }
+    rArticleAfficherPickerCpSource(cps, function(cp){ sujetModalSetCp(cp); });
+  });
+}
+
+function sujetModalDetacherCp(){
+  window._sujetModalCp = null;
+  var zone    = document.getElementById('sujet-modal-cp-zone');
+  var btnZone = document.getElementById('sujet-modal-cp-btn-zone');
+  if(zone)    zone.style.display = 'none';
+  if(btnZone) btnZone.style.display = 'block';
+}
+
+function sujetModalLireCp(){
+  if(window._sujetModalCp) cpsOuvrirDetail(window._sujetModalCp);
 }
 
 function fermerModalSujet(){
@@ -8981,6 +9046,7 @@ function reserverSujetModal(){
     tags: [],
     sources: [],
     urgence: sujet.priorite === 'urgente' ? 'urgent' : 'normal',
+    cp_id: (window._sujetModalCp && window._sujetModalCp.id) || null,
     cree_le: new Date().toISOString(),
     modifie_le: new Date().toISOString(),
     _sujet_id: sujet.id,
@@ -9901,6 +9967,53 @@ function osBuildDock(){
 }
 
 function osOpenWindow(pageId){
+  // Vérifier le rôle en base — si interdit, bloquer
+  var uid = getUserId();
+  if(uid){
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=role', {headers:SB_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(data && data[0] && data[0].role === 'interdit'){
+        // Mettre à jour le localStorage et déclencher l'écran interdit
+        localStorage.setItem('ipsum_user_role', 'interdit');
+        osAfficherInterdit();
+        return;
+      }
+      _osOpenWindowExecuter(pageId);
+    }).catch(function(){ _osOpenWindowExecuter(pageId); });
+  } else {
+    _osOpenWindowExecuter(pageId);
+  }
+}
+
+function osAfficherInterdit(){
+  // Fermer toutes les fenêtres ouvertes
+  Object.keys(_windows).forEach(function(pid){ osCloseWindow(pid); });
+
+  // Griser le dock
+  var icons = document.querySelectorAll('.dock-icon');
+  icons.forEach(function(icon){
+    icon.style.pointerEvents = 'none';
+    icon.style.opacity = '0.3';
+  });
+
+  // Afficher le sens interdit sur le bureau
+  var existing = document.getElementById('os-interdit-overlay');
+  if(existing) return;
+
+  var overlay = document.createElement('div');
+  overlay.id = 'os-interdit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:rgba(13,13,26,0.85);backdrop-filter:blur(8px);';
+  overlay.innerHTML =
+    '<div style="font-size:5rem;">🚫</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès suspendu</div>'
+    +'<div style="font-family:monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:340px;line-height:1.7;">Ton accès à Compo a été suspendu. Contacte l\'administrateur.</div>'
+    +'<button onclick="seDeconnecter()" style="margin-top:0.5rem;font-family:monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>';
+
+  document.body.appendChild(overlay);
+}
+
+function _osOpenWindowExecuter(pageId){
   // Si fenêtre existe déjà, la mettre au premier plan
   if(_windows[pageId]){
     var win = _windows[pageId];
@@ -12266,7 +12379,7 @@ function osToggleTheme(isDark){
 }
 
 function osAppliquerThemeAuDemarrage(){
-  var theme = localStorage.getItem('compo_os_theme') || 'dark';
+  var theme = localStorage.getItem('compo_os_theme') || 'light';
   osToggleTheme(theme === 'dark');
 }
 
@@ -14525,24 +14638,74 @@ function osOuvrirBenevoles(){
   else { osOpenWindow('benevoles'); }
 }
 
+function osDemandeApprouver(demandeId, membreId, appsDemandees){
+  var headers = Object.assign({}, SB_HEADERS, {
+    'Authorization':'Bearer '+(_session&&_session.access_token||''),
+    'Prefer':'return=minimal'
+  });
+
+  var epinglees = (appsDemandees||[]).slice(0, 8);
+  var rows = (appsDemandees||[]).map(function(id){
+    return { membre_id: membreId, app_id: id, epingle: epinglees.includes(id) };
+  });
+
+  // Insérer les apps
+  fetch(SB_URL+'/rest/v1/membres_apps', {
+    method:'POST',
+    headers: Object.assign({}, headers, {'Prefer':'return=minimal,resolution=ignore-duplicates'}),
+    body: JSON.stringify(rows)
+  })
+  .then(function(){
+    // Marquer la demande comme approuvée
+    return fetch(SB_URL+'/rest/v1/membres_demandes?id=eq.'+encodeURIComponent(demandeId), {
+      method:'PATCH',
+      headers: headers,
+      body: JSON.stringify({ statut: 'approuve' })
+    });
+  })
+  .then(function(r){
+    if(r.ok){
+      notif('Compte activé !');
+      osBenevolesDashRender();
+    }
+  }).catch(function(){ notif('Erreur activation'); });
+}
+
+function osDemandeRefuser(demandeId){
+  if(!confirm('Refuser cette demande ?')) return;
+  fetch(SB_URL+'/rest/v1/membres_demandes?id=eq.'+encodeURIComponent(demandeId), {
+    method:'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=minimal'
+    }),
+    body: JSON.stringify({ statut: 'refuse' })
+  }).then(function(r){
+    if(r.ok){ notif('Demande refusée.'); osBenevolesDashRender(); }
+  }).catch(function(){ notif('Erreur'); });
+}
+
 function osBenevolesDashRender(){
   var wc = document.getElementById('wincontent-benevoles');
   if(!wc) return;
 
   wc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement...</div>';
 
-  // Période : 30 derniers jours
+  // Charger demandes en attente + membres + articles en parallèle
   var depuis = new Date();
   depuis.setDate(depuis.getDate() - 30);
   var depuisISO = depuis.toISOString();
 
-  // Charger membres + articles en parallèle
   Promise.all([
+    fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {
+      headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
+    }).then(function(r){ return r.json(); }),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,derniere_activite&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){ return r.json(); }),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur_id,auteur,statut,rubrique,publie_le,created_at,updated_at&order=updated_at.desc', {headers:SB_HEADERS}).then(function(r){ return r.json(); })
   ]).then(function(results){
-    var membres = (results[0] && !results[0].code) ? results[0] : [];
-    var articles = (results[1] && !results[1].code) ? results[1] : [];
+    var demandes = (results[0] && !results[0].code) ? results[0] : [];
+    var membres  = (results[1] && !results[1].code) ? results[1] : [];
+    var articles = (results[2] && !results[2].code) ? results[2] : [];
 
     if(!membres.length){
       wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gris);font-size:0.85rem;">Aucun bénévole actif trouvé.</div>';
@@ -14602,6 +14765,35 @@ function osBenevolesDashRender(){
 
     // Render
     var html = '<div style="padding:0;height:100%;display:flex;flex-direction:column;">';
+
+    // Bloc demandes en attente (si il y en a)
+    if(demandes.length){
+      // Récupérer les prénoms des membres concernés
+      var membreMap = {};
+      membres.forEach(function(m){ membreMap[m.id] = m; });
+
+      html += '<div style="flex-shrink:0;border-bottom:1px solid var(--gris-bord);background:#FFF3CD;padding:0.8rem 1.4rem;">';
+      html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
+      html += '<span style="font-size:1rem;">🔔</span>';
+      html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;color:#633806;">'+demandes.length+' demande(s) en attente</div>';
+      html += '</div>';
+      demandes.forEach(function(d){
+        var m = membreMap[d.membre_id];
+        var nom = m ? (m.prenom+' '+(m.nom||'')).trim() : d.membre_id.slice(0,8)+'…';
+        var apps = (d.apps_demandees||[]).filter(function(a){ return a !== 'accueil'; });
+        var dateStr = new Date(d.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+        html += '<div style="display:flex;align-items:center;gap:0.8rem;background:white;border:0.5px solid #F9A825;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.4rem;flex-wrap:wrap;">';
+        html += '<div style="flex:1;min-width:0;">';
+        html += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);">'+esc(nom)+'</div>';
+        html += '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · Apps souhaitées : '+esc(apps.join(', '))+'</div>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
+        html += '<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\','+JSON.stringify(d.apps_demandees)+')" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>';
+        html += '<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    }
 
     // Header stats
     html += '<div style="padding:1.2rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
@@ -15612,7 +15804,7 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
     item.textContent = label;
     item.onmouseover = function(){ item.style.background='rgba(255,255,255,0.1)'; };
     item.onmouseout  = function(){ item.style.background=''; };
-    item.onclick = function(e){ e.stopPropagation(); fn(); document.body.removeChild(menu); };
+    item.onclick = function(e){ e.stopPropagation(); fn(); if(menu.parentNode) menu.parentNode.removeChild(menu); };
     return item;
   }
 
@@ -15641,7 +15833,10 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
   document.body.appendChild(menu);
   // Fermer au clic extérieur
   setTimeout(function(){
-    document.addEventListener('click', function rm(){ document.body.removeChild(menu); document.removeEventListener('click', rm); }, { once:true });
+    document.addEventListener('click', function rm(){
+      if(menu.parentNode) menu.parentNode.removeChild(menu);
+      document.removeEventListener('click', rm);
+    }, { once:true });
   }, 50);
 }
 
@@ -16415,7 +16610,7 @@ var PROFILS_PREDEFINIS = {
 
 window._userApps = null;
 
-function _chargerAppsUtilisateur(userId, callback){
+function _chargerAppsUtilisateur(userId, callback, roleOverride){
   if(!userId){ callback(); return; }
   fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
@@ -16423,8 +16618,16 @@ function _chargerAppsUtilisateur(userId, callback){
     if(!data || data.code || !data.length){
       window._userApps = null;
       window._userAppsAll = null;
-      _initialiserAppsParDefaut(userId);
+      // Si l'OOBE est déjà faite mais aucune app configurée → écran d'attente
+      var oobeDone = localStorage.getItem('compo_oobe_done_'+userId);
+      if(oobeDone){
+        osAfficherSessionNonConfiguree();
+        return;
+      }
+      _initialiserAppsParDefaut(userId, roleOverride || getUserRole());
     } else {
+      // Apps trouvées — si OOBE pas encore faite, ne pas la sauter
+      // Elle permettra au bénévole de saisir prénom/nom même si apps préconfigurées
       var allIds = data.map(function(d){ return d.app_id; });
       var epinglesIds = data.filter(function(d){ return d.epingle; }).map(function(d){ return d.app_id; });
 
@@ -16451,8 +16654,53 @@ function _chargerAppsUtilisateur(userId, callback){
   }).catch(function(){ window._userApps = null; window._userAppsAll = null; callback(); });
 }
 
-function _initialiserAppsParDefaut(userId){
-  var role = getUserRole();
+function osAfficherSessionNonConfiguree(){
+  var loginEl = document.getElementById('os-login');
+  if(loginEl) loginEl.style.display = 'none';
+  var desktop = document.getElementById('os-desktop');
+  if(desktop) desktop.style.display = 'none';
+
+  var existing = document.getElementById('session-non-configuree');
+  if(existing) return;
+
+  var uid = getUserId();
+  var screen = document.createElement('div');
+  screen.id = 'session-non-configuree';
+  screen.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;';
+
+  screen.innerHTML =
+    '<div style="font-size:2.5rem;margin-bottom:0.5rem;">⏳</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès en attente</div>'
+    +'<div id="snc-msg" style="font-family:monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:380px;line-height:1.7;">Vérification en cours...</div>'
+    +'<div style="margin-top:1.5rem;display:flex;gap:0.8rem;">'
+    +'<button onclick="seDeconnecter()" style="font-family:monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>'
+    +'<button onclick="location.reload()" style="font-family:monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;">↻ Réessayer</button>'
+    +'</div>';
+
+  document.body.appendChild(screen);
+
+  // Charger le statut de la demande
+  if(uid){
+    fetch(SB_URL+'/rest/v1/membres_demandes?membre_id=eq.'+uid+'&select=statut&order=created_at.desc&limit=1', {
+      headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
+    }).then(function(r){ return r.json(); })
+    .then(function(data){
+      var demande = data && data[0];
+      var msgEl = document.getElementById('snc-msg');
+      if(!msgEl) return;
+      if(demande && demande.statut === 'en_attente'){
+        msgEl.textContent = 'Ta demande d\u2019acc\u00e8s a bien \u00e9t\u00e9 envoy\u00e9e. L\u2019administrateur va l\u2019examiner et activer ton compte.';
+      } else if(demande && demande.statut === 'refuse'){
+        msgEl.textContent = 'Ta demande a \u00e9t\u00e9 refus\u00e9e. Contacte l\u2019administrateur.';
+      } else {
+        msgEl.textContent = 'Ton compte n\u2019a pas encore \u00e9t\u00e9 configur\u00e9. Contacte l\u2019administrateur.';
+      }
+    }).catch(function(){});
+  }
+}
+
+function _initialiserAppsParDefaut(userId, role){
+  role = role || getUserRole() || 'redacteur';
   var ids = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
   // Apps épinglées par défaut : les 6 premières du profil
   var epinglees = ids.slice(0, 6);
@@ -16501,7 +16749,10 @@ function osGestionAppsRender(){
     html += '<div style="flex:1;overflow-y:auto;">';
 
     membres.forEach(function(m){
-      var initiales = ((m.prenom||'?')[0]+(m.nom||'?')[0]).toUpperCase();
+      var nomAffiche = (m.prenom||'').trim() || (m.nom||'').trim()
+        ? (esc(m.prenom||'')+' '+esc(m.nom||'')).trim()
+        : '<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
+      var initiales = (m.prenom||m.email||'?')[0].toUpperCase() + (m.nom ? m.nom[0].toUpperCase() : (m.email||'?')[1]||'?').toUpperCase();
       var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
       var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var membreApps = appsParMembre[m.id] || new Set();
@@ -16517,7 +16768,7 @@ function osGestionAppsRender(){
       html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.9rem 1.4rem;cursor:pointer;user-select:none;" onclick="osGestionAppsToggle(\''+m.id+'\')">';
       html += '<div style="width:34px;height:34px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+esc(initiales)+'</div>';
       html += '<div style="flex:1;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</div>';
+      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+nomAffiche+'</div>';
       html += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+esc(m.role||'')+' · '+membreApps.size+' app(s) activée(s)</div>';
       html += '</div>';
       html += '<span id="gapp-chevron-'+m.id+'" style="color:var(--gris);font-size:0.8rem;transition:transform 0.2s;">▶</span>';
@@ -17242,6 +17493,150 @@ function osCarnetSupprimer(id){
   }).catch(function(){ notif('Erreur suppression'); });
 }
 
+// ===== LIAISON CP SOURCE ↔ ARTICLE =====
+
+function rArticleLierCpSource(){
+  // Ouvrir le picker de CPs publiés
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,source,date_cp,organisation&limit=30', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(cps){
+    if(!cps || cps.code || !cps.length){ notif('Aucun CP publié disponible'); return; }
+    rArticleAfficherPickerCpSource(cps);
+  });
+}
+
+function rArticleAfficherPickerCpSource(cps, onSelect){
+  var existing = document.getElementById('cp-source-picker-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cp-source-picker-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.parentNode.removeChild(overlay); };
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:12px;padding:1.5rem;max-width:480px;width:100%;max-height:70vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.3);';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);margin-bottom:1rem;';
+  title.textContent = 'Choisir le CP source';
+  card.appendChild(title);
+
+  cps.forEach(function(cp){
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:0.7rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:8px;margin-bottom:0.5rem;cursor:pointer;transition:background 0.1s;';
+    item.onmouseover = function(){ item.style.background='var(--gris-clair)'; };
+    item.onmouseout  = function(){ item.style.background=''; };
+    var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+    item.innerHTML = '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(cp.titre||cp.id)+'</div>'
+      +'<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'
+      +(cp.source||cp.organisation||'')+(dateStr?' · '+dateStr:'')+'</div>';
+    item.onclick = function(){
+      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if(onSelect) onSelect(cp);
+      else rArticleSetCpSource(cp);
+    };
+    card.appendChild(item);
+  });
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function rArticleSetCpSource(cp){
+  // Stocker dans currentDoc
+  if(!currentDoc) currentDoc = {};
+  currentDoc.cp_id = cp.id;
+
+  // Mettre à jour l'affichage
+  var aff = document.getElementById('r-cp-source-affichage');
+  var btn = document.getElementById('r-cp-source-btn');
+  var titreEl = document.getElementById('r-cp-source-titre');
+  var orgEl   = document.getElementById('r-cp-source-org');
+
+  if(aff){ aff.style.display = 'flex'; }
+  if(btn){ btn.style.display = 'none'; }
+  if(titreEl) titreEl.textContent = cp.titre || cp.id;
+  if(orgEl)   orgEl.textContent   = cp.source || cp.organisation || '';
+}
+
+function rArticleDetacherCpSource(){
+  if(currentDoc) currentDoc.cp_id = null;
+  var aff = document.getElementById('r-cp-source-affichage');
+  var btn = document.getElementById('r-cp-source-btn');
+  if(aff){ aff.style.display = 'none'; }
+  if(btn){ btn.style.display = 'block'; }
+}
+
+function rArticleAfficherCpSourceExistant(cpId){
+  if(!cpId) return;
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=id,titre,source,organisation,date_cp', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0];
+    if(cp) rArticleSetCpSource(cp);
+  }).catch(function(){});
+}
+
+// ===== LIAISON CP SOURCE — LECTURE =====
+
+function rLectureAfficherCpSource(doc, container){
+  if(!doc || !doc.cp_id) return;
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(doc.cp_id)+'&select=id,titre,source,organisation,date_cp,statut', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0]; if(!cp) return;
+    var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+    var bloc = document.createElement('div');
+    bloc.style.cssText = 'background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.8rem 0;display:flex;align-items:center;gap:0.8rem;cursor:pointer;';
+    bloc.innerHTML = '<span style="font-size:1rem;flex-shrink:0;">📰</span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">CP source</div>'
+      +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(cp.titre||cp.id)+'</div>'
+      +(cp.source||cp.organisation ? '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);">'+esc(cp.source||cp.organisation||'')+(dateStr?' · '+dateStr:'')+'</div>' : '')
+      +'</div>'
+      +'<span style="font-family:monospace;font-size:0.6rem;color:var(--rouge);flex-shrink:0;">Lire →</span>';
+    bloc.onclick = function(){ cpsOuvrirDetail(cp); };
+    if(container) container.appendChild(bloc);
+  }).catch(function(){});
+}
+
+// ===== LIAISON CP SOURCE — ÉDITION =====
+
+function rEditionAfficherCpSource(doc){
+  if(!doc || !doc.cp_id) return;
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(doc.cp_id)+'&select=id,titre,source,organisation,date_cp', {
+    headers: SB_HEADERS
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0]; if(!cp) return;
+    var zone = document.getElementById('e-cp-source-zone');
+    if(!zone) return;
+    zone.innerHTML = '<div style="display:flex;align-items:center;gap:0.8rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 1rem;">'
+      +'<span style="font-size:1rem;">📰</span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">CP source</div>'
+      +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(cp.titre||cp.id)+'</div>'
+      +(cp.source||cp.organisation ? '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);">'+esc(cp.source||cp.organisation||'')+'</div>' : '')
+      +'</div>'
+      +'<button onclick="rEditionDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;padding:2px 6px;" title="Retirer">✕</button>'
+      +'</div>';
+  }).catch(function(){});
+}
+
+function rEditionDetacherCpSource(){
+  if(currentDoc) currentDoc.cp_id = null;
+  var zone = document.getElementById('e-cp-source-zone');
+  if(zone) zone.innerHTML = '<div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;">📰 Lier un CP source</p></div>';
+}
+
 // ===== OOBE (PREMIÈRE CONNEXION) =====
 
 var _oobeTheme = 'light';
@@ -17250,11 +17645,10 @@ var _oobeStepCourant = 0;
 var _oobeNbSteps = 4;
 
 function oobeVerifier(userId, membre){
-  // Afficher l'OOBE si l'utilisateur n'a jamais complété la config
   var done = localStorage.getItem('compo_oobe_done_'+userId);
   if(done) return false;
-  // Aussi si pas de prénom en base
-  if(membre && membre.prenom && membre.prenom.trim()) return false;
+  // Déclencher si pas de membre, ou prénom vide/null
+  if(membre && membre.prenom && membre.prenom.trim().length > 0) return false;
   return true;
 }
 
@@ -17262,6 +17656,26 @@ function oobeOuvrir(userId, role){
   var screen = document.getElementById('oobe-screen');
   if(!screen) return;
   screen.classList.add('visible');
+
+  // Vérifier si les apps sont déjà configurées par l'admin
+  window._oobeAppsPreconfigurees = (window._userAppsAll && window._userAppsAll.length > 0);
+
+  // Adapter le nombre de dots selon qu'on a l'étape apps ou pas
+  var nbSteps = window._oobeAppsPreconfigurees ? 3 : 4;
+  var progress = document.getElementById('oobe-progress');
+  if(progress){
+    progress.innerHTML = '';
+    for(var i=0;i<nbSteps;i++){
+      var dot = document.createElement('div');
+      dot.className = 'oobe-dot' + (i===0?' active':'');
+      dot.id = 'oobe-dot-'+i;
+      progress.appendChild(dot);
+    }
+  }
+
+  // Masquer l'étape apps si préconfigurée
+  var step3 = document.getElementById('oobe-step-3');
+  if(step3) step3.style.display = window._oobeAppsPreconfigurees ? 'none' : '';
 
   // Pré-remplir avec ce qu'on sait
   var prenom = localStorage.getItem('ipsum_user_prenom')||'';
@@ -17271,59 +17685,65 @@ function oobeOuvrir(userId, role){
   if(p && prenom && prenom !== 'null') p.value = prenom;
   if(n && nom && nom !== 'null') n.value = nom;
 
-  // Construire la grille d'apps
-  var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
-    return a.roles.includes(role) && a.id !== 'accueil';
-  });
-  var profil = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
-  // Pré-sélectionner les apps du profil (hors accueil)
-  profil.filter(function(id){ return id !== 'accueil'; }).forEach(function(id){
-    _oobeAppsSelectionnees.add(id);
-  });
-
-  var grid = document.getElementById('oobe-apps-grid');
-  if(grid){
-    grid.innerHTML = '';
-    appsDisponibles.forEach(function(app){
-      var card = document.createElement('div');
-      card.className = 'oobe-app-card'+(_oobeAppsSelectionnees.has(app.id)?' selected':'');
-      card.innerHTML = '<span class="oobe-app-icon">'+app.icon+'</span><span class="oobe-app-name">'+esc(app.label)+'</span>';
-      card.onclick = function(){
-        if(_oobeAppsSelectionnees.has(app.id)){
-          _oobeAppsSelectionnees.delete(app.id);
-          card.classList.remove('selected');
-        } else {
-          if(_oobeAppsSelectionnees.size >= 7){ notif('Max 7 apps (+ Accueil = 8)'); return; }
-          _oobeAppsSelectionnees.add(app.id);
-          card.classList.add('selected');
-        }
-      };
-      grid.appendChild(card);
+  // Construire la grille d'apps seulement si pas préconfigurées
+  if(!window._oobeAppsPreconfigurees){
+    var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
+      return a.roles.includes(role) && a.id !== 'accueil';
     });
+    var profil = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
+    profil.filter(function(id){ return id !== 'accueil'; }).forEach(function(id){
+      _oobeAppsSelectionnees.add(id);
+    });
+
+    var grid = document.getElementById('oobe-apps-grid');
+    if(grid){
+      grid.innerHTML = '';
+      appsDisponibles.forEach(function(app){
+        var card = document.createElement('div');
+        card.className = 'oobe-app-card'+(_oobeAppsSelectionnees.has(app.id)?' selected':'');
+        card.innerHTML = '<span class="oobe-app-icon">'+app.icon+'</span><span class="oobe-app-name">'+esc(app.label)+'</span>';
+        card.onclick = function(){
+          if(_oobeAppsSelectionnees.has(app.id)){
+            _oobeAppsSelectionnees.delete(app.id);
+            card.classList.remove('selected');
+          } else {
+            if(_oobeAppsSelectionnees.size >= 7){ notif('Max 7 apps (+ Accueil = 8)'); return; }
+            _oobeAppsSelectionnees.add(app.id);
+            card.classList.add('selected');
+          }
+        };
+        grid.appendChild(card);
+      });
+    }
   }
 }
 
 function oobeNext(step){
-  // Validation étape 1
   if(step === 1){
     var prenom = (document.getElementById('oobe-prenom')||{}).value||'';
-    var nom = (document.getElementById('oobe-nom')||{}).value||'';
     if(!prenom.trim()){ notif('Saisis ton prénom'); return; }
   }
 
-  // Passer à l'étape suivante
+  // Si apps préconfigurées, sauter l'étape 2 (thème=étape 2, apps=étape 3)
+  // et terminer directement après le thème
+  var nextStep = step + 1;
+  if(window._oobeAppsPreconfigurees && step === 2){
+    // Pas d'étape apps — terminer directement
+    oobeTerminer();
+    return;
+  }
+
   var current = document.getElementById('oobe-step-'+step);
-  var next = document.getElementById('oobe-step-'+(step+1));
+  var next = document.getElementById('oobe-step-'+nextStep);
   if(current) current.classList.remove('active');
   if(next) next.classList.add('active');
 
-  // Mettre à jour les dots
   var dot = document.getElementById('oobe-dot-'+step);
-  var dotNext = document.getElementById('oobe-dot-'+(step+1));
+  var dotNext = document.getElementById('oobe-dot-'+nextStep);
   if(dot){ dot.classList.remove('active'); dot.classList.add('done'); }
   if(dotNext) dotNext.classList.add('active');
 
-  _oobeStepCourant = step+1;
+  _oobeStepCourant = nextStep;
 }
 
 function oobeSelectTheme(theme){
@@ -17349,67 +17769,69 @@ function oobeTerminer(){
   localStorage.setItem('compo_os_theme', _oobeTheme);
   osToggleTheme(_oobeTheme === 'dark');
 
-  // Sauvegarder le profil si rempli
+  // Sauvegarder le profil — upsert pour créer la ligne si elle n'existe pas
   if(prenom){
     localStorage.setItem('ipsum_user_prenom', prenom);
     localStorage.setItem('ipsum_user_nom', nom);
-    // Sync en base
-    if(_session && _session.access_token){
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+userId, {
-        method:'PATCH',
-        headers: Object.assign({}, SB_HEADERS, {
-          'Authorization':'Bearer '+_session.access_token,
-          'Prefer':'return=minimal'
-        }),
-        body: JSON.stringify({ prenom: prenom, nom: nom })
-      }).catch(function(){});
-    }
+  }
+  if(_session && _session.access_token){
+    var email = _session.user ? _session.user.email : '';
+    fetch(SB_URL+'/rest/v1/membres', {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {
+        'Authorization':'Bearer '+_session.access_token,
+        'Prefer':'return=minimal,resolution=merge-duplicates'
+      }),
+      body: JSON.stringify({
+        id: userId,
+        prenom: prenom || email.split('@')[0],
+        nom: nom || '',
+        email: email,
+        role: role || 'redacteur'
+      })
+    }).catch(function(){});
   }
 
-  // Sauvegarder les apps sélectionnées dans membres_apps
-  // Toujours ajouter accueil en premier
-  var appsFinales = ['accueil'].concat(Array.from(_oobeAppsSelectionnees));
-  // Épingler les 8 premières dans le dock
-  var epinglees = appsFinales.slice(0, 8);
+  // Marquer OOBE comme terminé
+  localStorage.setItem('compo_oobe_done_'+userId, '1');
 
-  // D'abord supprimer les apps existantes
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+userId, {
-    method:'DELETE',
-    headers: Object.assign({}, SB_HEADERS, {
-      'Authorization':'Bearer '+(_session&&_session.access_token||'')
-    })
-  }).then(function(){
-    var rows = appsFinales.map(function(id){
-      return { membre_id: userId, app_id: id, epingle: epinglees.includes(id) };
-    });
-    return fetch(SB_URL+'/rest/v1/membres_apps', {
+  var screen = document.getElementById('oobe-screen');
+  var fermerOobe = function(){
+    if(screen){
+      screen.style.transition = 'opacity 0.5s';
+      screen.style.opacity = '0';
+      setTimeout(function(){
+        screen.classList.remove('visible');
+        screen.style.opacity = '';
+        screen.style.transition = '';
+      }, 550);
+    }
+  };
+
+  if(window._oobeAppsPreconfigurees){
+    // Apps déjà configurées par l'admin — lancer directement Compo
+    fermerOobe();
+    setTimeout(function(){
+      lancerCompo();
+      setTimeout(afficherPatchNote, 1200);
+    }, 600);
+  } else {
+    // Soumettre une demande d'accès
+    var appsFinales = ['accueil'].concat(Array.from(_oobeAppsSelectionnees));
+    fetch(SB_URL+'/rest/v1/membres_demandes', {
       method:'POST',
       headers: Object.assign({}, SB_HEADERS, {
         'Authorization':'Bearer '+(_session&&_session.access_token||''),
         'Prefer':'return=minimal'
       }),
-      body: JSON.stringify(rows)
-    });
-  }).catch(function(){});
-
-  // Marquer OOBE comme terminé
-  localStorage.setItem('compo_oobe_done_'+userId, '1');
-
-  // Fermer l'OOBE et lancer Compo
-  var screen = document.getElementById('oobe-screen');
-  if(screen){
-    screen.style.transition = 'opacity 0.5s';
-    screen.style.opacity = '0';
-    setTimeout(function(){
-      screen.classList.remove('visible');
-      screen.style.opacity = '';
-      screen.style.transition = '';
-      // Recharger les apps et lancer
-      _chargerAppsUtilisateur(userId, function(){
-        lancerCompo();
-        setTimeout(afficherPatchNote, 1200);
-      });
-    }, 550);
+      body: JSON.stringify({
+        membre_id: userId,
+        apps_demandees: appsFinales,
+        statut: 'en_attente'
+      })
+    }).catch(function(){});
+    fermerOobe();
+    setTimeout(function(){ osAfficherSessionNonConfiguree(); }, 600);
   }
 }
 
@@ -17438,20 +17860,14 @@ function oobeTerminer(){
       var sess = JSON.parse(stored);
       if(sess && sess.access_token && sess.expires_at > Date.now()){
         _session = sess;
+        SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
         var role = localStorage.getItem('ipsum_user_role') || 'redacteur';
         if(role === 'interdit'){ localStorage.removeItem('ipsum_session'); }
         else {
           var loginEl = document.getElementById('os-login');
           if(loginEl) loginEl.style.display = 'none';
+          // Tout passe par chargerProfilMembre — il gère OOBE + apps + lancerCompo
           chargerProfilMembre(sess.user.id);
-          setTimeout(function(){
-            _chargerAppsUtilisateur(sess.user.id, function(){
-              osLancer();
-              afficherBonjour();
-              appliquerRole();
-              setTimeout(tableauVerifierNonVus, 1500);
-            });
-          }, 700);
           return;
         }
       }
