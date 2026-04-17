@@ -7928,18 +7928,12 @@ function assignValider(){
 
   notif('Envoi en correction...');
   db.sauvegarderArticle(_assignDoc).then(function(){
-    var lien = genererLien(_assignDoc.id);
-    var shareDiv = document.getElementById('r-share-link');
-    var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv) shareDiv.style.display = 'block';
-    if(shareUrl) shareUrl.textContent = lien;
-    // Sauvegarder aussi en local
+    // Retirer le brouillon local si présent
     var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
     var idx = drafts.findIndex(function(d){ return d.id === _assignDoc.id; });
-    if(idx >= 0) drafts[idx] = _assignDoc; else drafts.push(_assignDoc);
-    localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
+    if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
     assignFermer();
-    notif('Article envoye en correction a ' + _assignCorrecteur + ' !');
+    notif('Article enregistré et envoyé en correction à ' + _assignCorrecteur + ' ✓', 'succes');
     benvMajActivite();
 
     // Email au correcteur
@@ -10657,9 +10651,8 @@ function osBuildDesktopIcons(){
   container.appendChild(sujetsIcon);
   
   // Toutes les apps disponibles
-  var OFFLINE_APPS = ['lire-cp', 'edition', 'lecture'];
+  var OFFLINE_APPS = ['edition', 'lecture'];
   var allApps = [
-    { id:'lire-cp', icon:'📄', label:'Lire un CP', color:'#2C3E50', offline:true },
     { id:'edition', icon:'✏️', label:'Edition', color:'#6C3483', offline:true, legacy:true },
     { id:'comparaison', icon:'⚖️', label:'Comparer', color:'#1A5276', legacy:true },
     { id:'lecture', icon:'👁️', label:'Lecture', color:'#117A65', offline:true, legacy:true },
@@ -15972,7 +15965,7 @@ function osLaunchpadRendre(lp){
   }
 
   grid.innerHTML = '';
-  appsAff.forEach(function(app){
+  appsAff.filter(function(a){ return !a.legacy; }).forEach(function(app){
     var epingle = epingles.includes(app.id);
     var icon = document.createElement('div');
     icon.className = 'launchpad-icon';
@@ -16165,28 +16158,50 @@ function osStoreRender(){
     storeApps.forEach(function(app){
       var installe = installees.includes(app.id);
       html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;">';
-
-      // Icône + nom
       html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
       html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+app.icon+'</div>';
       html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(app.label)+'</div>';
       if(installe) html += '<div style="font-family:monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
       html += '</div></div>';
-
-      // Description
       html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.55;flex:1;">'+esc(app.desc||'')+'</div>';
-
-      // Bouton
       if(installe){
         html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
       } else {
         html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--rouge);border-radius:6px;background:var(--rouge);color:white;cursor:pointer;width:100%;">+ Installer</button>';
       }
-
       html += '</div>';
     });
 
-    html += '</div></div></div>';
+    html += '</div>';
+
+    // Section outils v1 (legacy)
+    var role = getUserRole();
+    var legacyApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.legacy && a.roles.includes(role); });
+    if(legacyApps.length){
+      html += '<div style="margin-top:1.2rem;">';
+      html += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.7rem;display:flex;align-items:center;gap:0.5rem;">';
+      html += '<span>Outils v1</span><span style="flex:1;height:1px;background:var(--gris-bord);"></span><span>Ancienne version — fichiers JSON</span></div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
+      legacyApps.forEach(function(app){
+        var installe = installees.includes(app.id);
+        html += '<div style="background:#FAFAFA;border:0.5px dashed var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;opacity:0.85;">';
+        html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
+        html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;opacity:0.7;">'+app.icon+'</div>';
+        html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--gris);">'+esc(app.label)+'</div>';
+        if(installe) html += '<div style="font-family:monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
+        html += '</div></div>';
+        html += '<div style="font-size:0.75rem;color:var(--gris);line-height:1.5;flex:1;">'+esc(app.desc||'Outil de la v1 fonctionnant avec des fichiers JSON locaux.')+'</div>';
+        if(installe){
+          html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
+        } else {
+          html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">+ Installer</button>';
+        }
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div></div>';
     wc.innerHTML = html;
   }).catch(function(){
     wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
@@ -16840,7 +16855,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'mes-articles',   icon:'📰', label:'Mes Articles',   color:'#856404', roles:['redacteur','admin'] },
   { id:'brouillons',     icon:'🔍', label:'Correction',     color:'#1A5276', roles:['correcteur'] },
   { id:'correction',     icon:'✏️', label:'Corriger',       color:'#E8461E', roles:['correcteur'] },
-  { id:'comparaison',    icon:'⚖️', label:'Comparer',       color:'#856404', roles:['correcteur','admin'], legacy:true },
   { id:'app-correction', icon:'🔍', label:'Corrections',    color:'#1A5276', roles:['admin'] },
   { id:'statut',         icon:'📊', label:'Statut',         color:'#155724', roles:['admin'] },
   { id:'briefing',       icon:'📋', label:'Briefing',       color:'#1A5276', roles:['admin'] },
@@ -16862,6 +16876,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'comparaison',    icon:'⚖️', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'👁️', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
   { id:'edition',        icon:'✏️', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
+  { id:'lire-cp',        icon:'📄', label:'Lire un CP (v1)',color:'#2C3E50', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'un communiqué de presse en fichier JSON local.' },
   // Apps Store
   { id:'minuteur',       icon:'⏱️', label:'Minuteur',       color:'#1A5276', roles:['redacteur','correcteur','admin'], store:true, desc:'Chrono et minuteur pour tes interviews et réunions. 100% local.' },
   { id:'compteur',       icon:'📏', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
@@ -16913,10 +16928,10 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride){
         }).catch(function(){});
       }
 
-      // _userApps = apps épinglées (dock)
-      window._userApps = ALL_APPS_CATALOGUE.filter(function(a){ return epinglesIds.includes(a.id); });
-      // _userAppsAll = toutes les apps installées (launchpad)
-      window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){ return allIds.includes(a.id); });
+      // _userApps = apps épinglées (dock) — sans legacy
+      window._userApps = ALL_APPS_CATALOGUE.filter(function(a){ return !a.legacy && epinglesIds.includes(a.id); });
+      // _userAppsAll = toutes les apps installées (launchpad) — sans legacy
+      window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){ return !a.legacy && allIds.includes(a.id); });
     }
     callback();
   }).catch(function(){ window._userApps = null; window._userAppsAll = null; callback(); });
