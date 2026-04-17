@@ -15038,8 +15038,9 @@ function osBenevolesDashRender(){
         html += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);">'+esc(nom)+'</div>';
         html += '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · Apps souhaitées : '+esc(apps.join(', '))+'</div>';
         html += '</div>';
+        var appsJson = encodeURIComponent(JSON.stringify(d.apps_demandees||[]));
         html += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
-        html += '<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\','+JSON.stringify(d.apps_demandees)+')" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>';
+        html += '<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>';
         html += '<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button>';
         html += '</div></div>';
       });
