@@ -3745,7 +3745,6 @@ input:focus,select:focus,textarea:focus{
     <button class="btn sec" onclick="sauvegarderCloud()">☁️ Sauvegarder cloud</button>
     <button class="btn sec" onclick="exporterArticle()">🔗 Creer un lien</button>
     <button class="btn sec" onclick="exporterArticleJSON()">📄 Exporter en JSON</button>
-    <button class="btn sec" onclick="sauvegarderBrouillon()">💾 Sauvegarder le brouillon</button>
     <button class="btn sec" onclick="genererVisuelsDepuisRedaction()">🎨 Générer les visuels</button>
     <button class="btn sec" onclick="ouvrirFS('r')">Relecture plein écran</button>
     <button class="btn sec" onclick="resetRedaction()">Tout effacer</button>
@@ -3755,23 +3754,12 @@ input:focus,select:focus,textarea:focus{
 <!-- BROUILLONS -->
 <div class="page" id="page-brouillons">
   <div class="panel-title">Mes Articles</div>
-  <div class="panel-subtitle">Articles sur cet appareil et dans le cloud</div>
+  <div class="panel-subtitle">Tous tes articles depuis le cloud</div>
 
-  <div style="display:flex;border-bottom:2px solid var(--gris-bord);margin-bottom:1.2rem;gap:0;">
-    <button class="brf-onglet active" onclick="brouillonsOnglet('tout',this)">📋 Tout</button>
-    <button class="brf-onglet" onclick="brouillonsOnglet('local',this)">📱 Local</button>
-    <button class="brf-onglet" onclick="brouillonsOnglet('cloud',this)">☁️ Cloud</button>
-    <button class="brf-onglet" onclick="brouillonsOnglet('correction',this)">🔍 Correction</button>
-  </div>
-
-  <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;" id="actions-local">
-    <button class="btn sec" onclick="chargerBrouillons()">Actualiser</button>
-    <button class="btn sec" onclick="toutExporter()">Tout exporter</button>
-    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">Importer</button>
+  <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <button class="btn sec" onclick="chargerBrouillonsTout()">Actualiser</button>
+    <button class="btn sec" onclick="document.getElementById('import-brouillons').click()">📂 Importer un JSON</button>
     <input type="file" id="import-brouillons" accept="*/*" style="display:none" onchange="importerBrouillons(event)" multiple>
-    <button class="btn sec" onclick="exporterCache()">Sauvegarder cache</button>
-    <button class="btn sec" onclick="document.getElementById('import-cache').click()">Restaurer cache</button>
-    <input type="file" id="import-cache" accept="*/*" style="display:none" onchange="importerCache(event)">
   </div>
 
   <div id="brouillons-list"><p style="color:var(--gris);font-size:0.88rem;">Aucun brouillon pour linstant.</p></div>
@@ -4934,13 +4922,13 @@ function exporterArticle(){
       var shareUrl=document.getElementById('r-share-url');
       if(shareDiv) shareDiv.style.display='block';
       if(shareUrl) shareUrl.textContent=lien;
-      currentDoc = doc; // Mémoriser l'ID pour les prochaines sauvegardes
-      notif('Article sauvegarde !');
+      currentDoc = doc;
+      notif('Article sauvegardé !', 'succes');
+      // Supprimer du localStorage si présent
       var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
       var idx=drafts.findIndex(function(d){return d.id===doc.id;});
-      if(idx>=0) drafts[idx]=doc; else drafts.push(doc);
-      localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
-    }).catch(function(){ exporterFichier(doc,doc.id); notif('Hors ligne - export JSON'); });
+      if(idx>=0){ drafts.splice(idx,1); localStorage.setItem('ipsum_drafts',JSON.stringify(drafts)); }
+    }).catch(function(){ exporterFichier(doc,doc.id); notif('⚠️ Hors ligne - export JSON local'); });
   }
 
   // Si une image a été choisie, l'uploader d'abord
@@ -4980,12 +4968,23 @@ function sauvegarderBrouillon(){
   const corps=document.getElementById('r-corps').value.trim();
   if(!corps&&!titre){notif('Rien à sauvegarder');return;}
   const doc=buildDoc();
-  const drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-  const idx=drafts.findIndex(d=>d.id===doc.id);
-  if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
-  localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
-  logAction('brouillon',titre,'local');
-  notif('Brouillon sauvegardé : '+titre);
+  notif('Sauvegarde en cours...');
+  db.sauvegarderArticle(doc).then(function(){
+    // Supprimer du localStorage si présent
+    var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var idx=drafts.findIndex(function(d){return d.id===doc.id;});
+    if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
+    logAction('brouillon',titre,'cloud');
+    notif('Brouillon sauvegardé dans le cloud : '+titre,'succes');
+  }).catch(function(){
+    // Fallback local si la base est inaccessible
+    var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var idx=drafts.findIndex(function(d){return d.id===doc.id;});
+    if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
+    localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
+    logAction('brouillon',titre,'local');
+    notif('⚠️ Sauvegardé en local (hors ligne) : '+titre);
+  });
 }
 
 function chargerBrouillons(){
@@ -7998,10 +7997,10 @@ function assignValider(){
   if(!_assignCorrecteur){ notif('Choisis un correcteur'); return; }
 
   var docId = _assignDoc.id;
+  _assignDoc.correcteur = _assignCorrecteur;
+  _assignDoc.correcteur_id = _assignCorrecteurId || null;
+  _assignDoc.statut = 'en-relecture';
   var _assignDoc2 = Object.assign({}, _assignDoc);
-  _assignDoc2.correcteur = _assignCorrecteur;
-  _assignDoc2.correcteur_id = _assignCorrecteurId || null;
-  _assignDoc2.statut = 'en-relecture';
 
   notif('Envoi en correction...');
 
@@ -8010,19 +8009,20 @@ function assignValider(){
     'Prefer': 'return=minimal'
   });
 
-  // PATCH direct sur les champs critiques pour éviter les problèmes de RLS upsert
-  fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(docId), {
-    method: 'PATCH',
-    headers: authH,
-    body: JSON.stringify({
-      statut: 'en-relecture',
-      correcteur: _assignCorrecteur,
-      correcteur_id: _assignCorrecteurId || null
-    })
-  }).then(function(r){
-    if(!r.ok){ notif('Erreur mise à jour statut'); return; }
-
-    // Retirer le brouillon local si présent
+  // 1. Sauvegarder l'article complet en base (crée si n'existe pas)
+  db.sauvegarderArticle(_assignDoc).then(function(){
+    // 2. PATCH supplémentaire pour forcer le statut et le correcteur
+    return fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(docId), {
+      method: 'PATCH',
+      headers: authH,
+      body: JSON.stringify({
+        statut: 'en-relecture',
+        correcteur: _assignCorrecteur,
+        correcteur_id: _assignCorrecteurId || null
+      })
+    });
+  }).then(function(){
+    // Retirer le brouillon local
     var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
     var idx = drafts.findIndex(function(d){ return d.id === docId; });
     if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
@@ -8051,7 +8051,7 @@ function assignValider(){
       }).catch(function(){});
     }
   }).catch(function(){
-    notif('Erreur réseau — envoi en correction échoué');
+    notif('Erreur envoi en correction');
   });
 }
 
@@ -10575,17 +10575,6 @@ function osSavePrompt(pageId){
     setTimeout(function(){ osCloseWindowForce(pageId); }, 800);
   };
 
-  // Bouton brouillon local
-  var btnLocal = document.createElement('button');
-  btnLocal.className = 'btn sec';
-  btnLocal.style.cssText = 'width:100%;padding:0.8rem;font-size:0.88rem;';
-  btnLocal.textContent = '📱 Sauvegarder en brouillon local';
-  btnLocal.onclick = function(){
-    document.body.removeChild(overlay);
-    sauvegarderBrouillon();
-    setTimeout(function(){ osCloseWindowForce(pageId); }, 400);
-  };
-
   // Bouton fermer sans sauvegarder
   var btnDiscard = document.createElement('button');
   btnDiscard.style.cssText = 'width:100%;padding:0.6rem;font-size:0.8rem;background:transparent;'+
@@ -10607,7 +10596,6 @@ function osSavePrompt(pageId){
   btnCancel.onclick = function(){ document.body.removeChild(overlay); };
 
   btnRow.appendChild(btnCloud);
-  btnRow.appendChild(btnLocal);
   btnRow.appendChild(btnDiscard);
   btnRow.appendChild(btnCancel);
 
@@ -11365,6 +11353,8 @@ function osChargerNotifsDemarrage(){
   setTimeout(tchapInitBadge, 2000);
   // Badge Projets tâches assignées
   setTimeout(osProjetsInitBadge, 2500);
+  // Migration brouillons locaux vers la base
+  setTimeout(osMigrerBrouillonsLocaux, 3000);
   var allNotifs = [];
   var pending = 0;
   
@@ -12350,116 +12340,83 @@ function chargerBrouillonsTout(){
   var list = document.getElementById('brouillons-list');
   if(!list) return;
   list.innerHTML = loadingHtml('Chargement...');
-  
-  // Charger local
-  var local = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-  var auteur = getUserNomComplet();
-  local = local.filter(function(d){ return !d.auteur || d.auteur === auteur; });
-  
-  // Charger cloud
+
   var userId = getUserId();
   var nom = getUserNomComplet();
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  // Charger depuis la base uniquement
   var q = userId
-    ? SB_URL+'/rest/v1/articles?auteur_id=eq.'+userId+'&order=updated_at.desc&select=*'
+    ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(userId)+',auteur.eq.'+encodeURIComponent(nom)+')&order=updated_at.desc&select=*'
     : SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&order=updated_at.desc&select=*';
-  
-  fetch(q, {headers:SB_HEADERS})
+
+  fetch(q, {headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(cloud){
     cloud = (cloud && !cloud.code) ? cloud : [];
-    var cloudIds = cloud.map(function(a){ return a.id; });
-    // Retirer du local ceux qui sont dans le cloud
-    var localOnly = local.filter(function(d){ return cloudIds.indexOf(d.id) === -1; });
-    
     list.innerHTML = '';
-    
+
+    if(!cloud.length){
+      list.innerHTML = '<div class="dash-empty">Aucun article en base.<br>Commence par rédiger !</div>';
+      return;
+    }
+
     var STATUT_COLOR = {
       brouillon: {c:'#856404',bg:'#FFF3CD'},
       'en-relecture': {c:'#1A5276',bg:'#D6EAF8'},
       corrige: {c:'#0C5460',bg:'#D1ECF1'},
       valide: {c:'#155724',bg:'#D4EDDA'},
-      publie: {c:'#155724',bg:'#D4EDDA'}
+      publie: {c:'#1A1A2E',bg:'#E8E8F0'}
     };
-    
-    function makeCard(doc, source){
+
+    cloud.forEach(function(doc){
       var card = document.createElement('div');
-      card.style.cssText = 'background:white;border:1.5px solid var(--gris-bord);padding:0.9rem 1.1rem;margin-bottom:0.6rem;display:flex;align-items:flex-start;gap:0.8rem;';
-      
-      var left = document.createElement('div');
-      left.style.cssText = 'flex:1;min-width:0;';
-      
+      card.style.cssText = 'background:white;border:1.5px solid var(--gris-bord);padding:0.9rem 1.1rem;margin-bottom:0.6rem;display:flex;align-items:flex-start;gap:0.8rem;border-radius:8px;';
       var st = doc.statut || 'brouillon';
       var stConf = STATUT_COLOR[st] || {c:'#856404',bg:'#FFF3CD'};
-      
+      var age = doc.updated_at ? new Date(doc.updated_at).toLocaleDateString('fr-FR') : '';
+
+      var left = document.createElement('div');
+      left.style.cssText = 'flex:1;min-width:0;';
       left.innerHTML =
-        '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;">'+esc(doc.titre||'Sans titre')+'</div>'+
+        '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(doc.titre||'Sans titre')+'</div>'+
         '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-bottom:0.3rem;">'+
-          '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+(source==='local'?'#E8F4F8':'#EAF3DE')+';color:'+(source==='local'?'#1A5276':'#155724')+';border-radius:3px;">'+(source==='local'?'📱 Local':'☁️ Cloud')+'</span>'+
           '<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+stConf.bg+';color:'+stConf.c+';border-radius:3px;">'+st+'</span>'+
         '</div>'+
-        '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);">'+(doc.auteur||'')+(doc.updated_at||doc.modifie_le ? ' · '+(new Date(doc.updated_at||doc.modifie_le).toLocaleDateString('fr-FR')) : '')+'</div>';
-      
+        '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);">'+(doc.auteur||'')+(age?' · '+age:'')+'</div>';
+
       var right = document.createElement('div');
       right.style.cssText = 'display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0;';
-      
+
       var btnLire = document.createElement('button');
       btnLire.className = 'btn sec';
       btnLire.textContent = 'Lire';
       btnLire.style.fontSize = '0.65rem';
       btnLire.onclick = (function(d){ return function(){ mesArticlesOuvrir(d.id,'lecture'); }; })(doc);
-      
-      var btnModif = document.createElement('button');
-      btnModif.className = 'btn sec';
-      var estBloque = (getUserRole()==='redacteur') && ['en-relecture','corrige','valide','publie'].indexOf(st) >= 0;
-      btnModif.textContent = estBloque ? (st==='publie'?'Publié ✓':'En cours…') : 'Modifier';
-      btnModif.disabled = estBloque;
-      if(estBloque) btnModif.style.opacity = '0.4';
-      btnModif.style.fontSize = '0.65rem';
-      if(!estBloque) btnModif.onclick = (function(d){ return function(){ chargerDansRedaction(d); }; })(doc);
-      
+
+      var btnReprendre = document.createElement('button');
+      btnReprendre.className = 'btn';
+      btnReprendre.textContent = 'Reprendre';
+      btnReprendre.style.fontSize = '0.65rem';
+      btnReprendre.onclick = (function(d){ return function(){
+        db.getArticle(d.id).then(function(full){
+          if(!full) return;
+          currentDoc = full;
+          osOpenWindow('redaction');
+          setTimeout(function(){ chargerDansRedaction(full); }, 200);
+        });
+      }; })(doc);
+
       right.appendChild(btnLire);
-      right.appendChild(btnModif);
+      right.appendChild(btnReprendre);
       card.appendChild(left);
       card.appendChild(right);
-      return card;
-    }
-    
-    if(!localOnly.length && !cloud.length){
-      list.innerHTML = '<p style="font-family:monospace;font-size:0.78rem;color:var(--gris);text-align:center;padding:2rem;">Aucun article pour le moment.</p>';
-      return;
-    }
-    
-    // Afficher cloud d'abord, puis local
-    if(cloud.length){
-      var secCloud = document.createElement('div');
-      secCloud.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;margin-top:0.5rem;';
-      secCloud.textContent = '☁️ Cloud ('+cloud.length+')';
-      list.appendChild(secCloud);
-      cloud.forEach(function(d){ list.appendChild(makeCard(d,'cloud')); });
-    }
-    if(localOnly.length){
-      var secLocal = document.createElement('div');
-      secLocal.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;margin-top:1rem;';
-      secLocal.textContent = '📱 Local uniquement ('+localOnly.length+')';
-      list.appendChild(secLocal);
-      localOnly.forEach(function(d){ list.appendChild(makeCard(d,'local')); });
-    }
+      list.appendChild(card);
+    });
   }).catch(function(){
-    // En cas d'erreur cloud, afficher juste le local
-    list.innerHTML = '';
-    if(local.length){
-      local.forEach(function(d){
-        list.appendChild(makeCard(d,'local'));
-      });
-    } else {
-      list.innerHTML = '<p style="text-align:center;color:var(--gris);padding:2rem;font-size:0.85rem;">Aucun article local.</p>';
-    }
+    list.innerHTML = '<div class="dash-empty" style="color:var(--rouge);">Erreur chargement</div>';
   });
 }
-
-
-// ===== PARAMÈTRES OS =====
-var _paramsSection = 'profil';
 
 function osOuvrirParams(){
   if(_windows['params']){ osFocusWindow('params'); }
@@ -19845,6 +19802,43 @@ function osProjetsMesTaches(body){
     body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--rouge);font-size:0.78rem;">Erreur chargement</div>';
   });
 }
+
+function osMigrerBrouillonsLocaux(){
+  var drafts = JSON.parse(localStorage.getItem('ipsum_drafts') || '[]');
+  if(!drafts.length) return;
+
+  var auteur = getUserNomComplet();
+  var miens = drafts.filter(function(d){ return !d.auteur || d.auteur === auteur; });
+  if(!miens.length) return;
+
+  console.log('[Migration] ' + miens.length + ' brouillon(s) local/locaux à migrer...');
+
+  var promesses = miens.map(function(doc){
+    return db.sauvegarderArticle(doc).then(function(){
+      return doc.id; // succès
+    }).catch(function(){
+      return null; // échec
+    });
+  });
+
+  Promise.all(promesses).then(function(resultats){
+    var succes = resultats.filter(function(r){ return r !== null; });
+    var echecs = resultats.filter(function(r){ return r === null; }).length;
+
+    if(succes.length){
+      // Supprimer du localStorage ceux qui ont été migrés
+      var restants = drafts.filter(function(d){ return !succes.includes(d.id); });
+      localStorage.setItem('ipsum_drafts', JSON.stringify(restants));
+      console.log('[Migration] ' + succes.length + ' brouillon(s) migré(s) vers la base');
+      if(echecs === 0){
+        notif('✅ ' + succes.length + ' brouillon(s) local/locaux migrés vers le cloud', 'succes');
+      } else {
+        notif('⚠️ ' + succes.length + ' migré(s), ' + echecs + ' en échec (conservé(s) en local)');
+      }
+    }
+  });
+}
+
 
 function osProjetsInitBadge(){
   var uid = getUserId();
