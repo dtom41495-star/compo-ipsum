@@ -4425,8 +4425,7 @@ input:focus,select:focus,textarea:focus{
 
 <!-- MODAL CP LECTEUR -->
 <!-- DRAWER COMMUNIQUE -->
-<div id="drawer-overlay" onclick="closeDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;"></div>
-<div id="drawer-cp" style="display:none;position:fixed;top:0;right:0;height:100%;width:min(520px,95vw);background:var(--blanc);z-index:301;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,0.15);flex-direction:column;">
+<div id="drawer-cp" style="display:none;position:fixed;top:var(--status-bar-height,28px);right:0;height:calc(100% - var(--status-bar-height,28px) - 50px);width:min(460px,45vw);background:var(--blanc);z-index:200;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;border-left:1px solid var(--gris-bord);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:2px solid var(--encre);position:sticky;top:0;background:var(--blanc);z-index:1;">
     <div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.2rem;">Communique de presse</div>
@@ -4863,6 +4862,7 @@ function detacherCP(id){cpLies=cpLies.filter(c=>c.id!==id);renderCpLies();}
 function renderCpLies(){
   const list=document.getElementById('cp-lies-list');
   const meta=document.getElementById('cp-meta-display');
+  if(!list||!meta) return;
   if(!cpLies.length){list.innerHTML='';meta.innerHTML='';return;}
   list.innerHTML=cpLies.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - <em>'+esc(cp.organisation)+'</em></span><div class="cp-actions"><button class="btn-lire" onclick="lireCP(\''+cp.id+'\')">Lire</button><button class="btn-retirer" onclick="detacherCP(\''+cp.id+'\')">Retirer</button></div></div>').join('');
   // Auto-remplissage si un seul CP
@@ -4888,11 +4888,9 @@ function openDrawer(titre, bodyHtml){
   document.getElementById('drawer-cp-title').textContent = titre;
   document.getElementById('drawer-cp-body').innerHTML = bodyHtml;
   document.getElementById('drawer-cp').style.display = 'flex';
-  document.getElementById('drawer-overlay').style.display = 'block';
 }
 function closeDrawer(){
   document.getElementById('drawer-cp').style.display = 'none';
-  document.getElementById('drawer-overlay').style.display = 'none';
 }
 
 // ===== RÉDACTION =====
@@ -6649,6 +6647,7 @@ var db = {
       statut: doc.statut || 'brouillon',
       urgence: doc.urgence || 'normal',
       auteur: doc.auteur || '',
+      auteur_id: doc.auteur_id || null,
       correcteur: doc.correcteur || null,
       correcteur_id: doc.correcteur_id || null,
       redaction: doc.redaction || '',
@@ -7039,11 +7038,12 @@ var mesArticlesFiltreCourant = 'tous';
 
 function chargerMesArticles(){
   var nom = getUserNomComplet();
+  var uid = getUserId();
   var list = document.getElementById('mes-articles-list');
   var sub = document.getElementById('mes-articles-sub');
   if(!list) return;
 
-  if(!nom){
+  if(!nom && !uid){
     list.innerHTML = '<div style="font-family:monospace;font-size:0.82rem;color:var(--gris);padding:1rem 0;">Enregistre ton nom dans le profil pour voir tes articles.</div>';
     if(sub) sub.textContent = 'Profil non configuré';
     return;
@@ -7052,10 +7052,16 @@ function chargerMesArticles(){
   if(sub) sub.textContent = 'Chargement...';
   list.innerHTML = '<div style="font-family:monospace;font-size:0.78rem;color:var(--gris);padding:1rem 0;">Recherche en cours...</div>';
 
-  var prenom = getUserPrenom() || '';
-  var query = SB_URL + '/rest/v1/articles?or=(auteur.eq.' + encodeURIComponent(nom) + ',auteur.ilike.*' + encodeURIComponent(prenom) + '*)&select=*&order=updated_at.desc';
+  var authH = Object.assign({}, SB_HEADERS, {
+    'Authorization': 'Bearer ' + (_session && _session.access_token || '')
+  });
 
-  fetch(query, { headers: SB_HEADERS })
+  // Priorité à auteur_id (fiable), fallback sur nom exact uniquement
+  var query = uid
+    ? SB_URL + '/rest/v1/articles?or=(auteur_id.eq.' + encodeURIComponent(uid) + ',auteur.eq.' + encodeURIComponent(nom) + ')&select=*&order=updated_at.desc'
+    : SB_URL + '/rest/v1/articles?auteur=eq.' + encodeURIComponent(nom) + '&select=*&order=updated_at.desc';
+
+  fetch(query, { headers: authH })
   .then(function(r){ return r.json(); })
   .then(function(articles){
     if(!articles || !articles.length){
@@ -7096,27 +7102,42 @@ function chargerMesArticles(){
 
       var actions = document.createElement('div');
       actions.className = 'ma-card-actions';
+      var role = getUserRole();
+      var estMonArticle = (uid && doc.auteur_id === uid) || (!uid && doc.auteur === nom);
 
       var btnLire = document.createElement('button');
       btnLire.className = 'btn sec';
       btnLire.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
       btnLire.textContent = 'Lire';
       btnLire.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'lecture'); }; })(doc.id);
+      actions.appendChild(btnLire);
 
-      var btnEdit = document.createElement('button');
-      btnEdit.className = 'btn sec';
-      btnEdit.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
-      btnEdit.textContent = 'Modifier';
-      btnEdit.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'edition'); }; })(doc.id);
+      // Modifier — uniquement si c'est mon article et pas encore publié
+      if(estMonArticle && doc.statut !== 'publie'){
+        var btnEdit = document.createElement('button');
+        btnEdit.className = 'btn sec';
+        btnEdit.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
+        btnEdit.textContent = 'Modifier';
+        btnEdit.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'edition'); }; })(doc.id);
+        actions.appendChild(btnEdit);
+      }
+
+      // Corriger — si correcteur/admin ET article en relecture/corrigé
+      if((role==='correcteur'||role==='admin') && (doc.statut==='en-relecture'||doc.statut==='corrige')){
+        var btnCorr = document.createElement('button');
+        btnCorr.className = 'btn';
+        btnCorr.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
+        btnCorr.textContent = '🔍 Corriger';
+        btnCorr.onclick = (function(id){ return function(){ mesArticlesOuvrir(id,'edition'); }; })(doc.id);
+        actions.appendChild(btnCorr);
+      }
 
       var btnLien = document.createElement('button');
       btnLien.className = 'btn sec';
       btnLien.style.cssText = 'font-size:0.65rem;padding:0.35rem 0.8rem;';
-      btnLien.textContent = 'Copier lien';
+      btnLien.textContent = '🔗';
+      btnLien.title = 'Copier le lien';
       btnLien.onclick = (function(l){ return function(){ navigator.clipboard.writeText(l).then(function(){ notif('Lien copié !'); }); }; })(lien);
-
-      actions.appendChild(btnLire);
-      actions.appendChild(btnEdit);
       actions.appendChild(btnLien);
       card.appendChild(info);
       card.appendChild(actions);
@@ -7212,14 +7233,17 @@ function chargerAccueilArticles(){
   var STEPS = ['brouillon','en-relecture','corrige','valide','publie'];
 
   // Filtrer par auteur_id (fiable) avec fallback sur auteur (nom)
+  var authH2 = Object.assign({}, SB_HEADERS, {
+    'Authorization': 'Bearer ' + (_session && _session.access_token || '')
+  });
   var url;
   if(uid){
-    url = SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,urgence,rubrique,updated_at,correcteur&order=updated_at.desc&limit=20';
+    url = SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',auteur.eq.'+encodeURIComponent(nom)+')&select=id,titre,statut,urgence,rubrique,updated_at,correcteur&order=updated_at.desc&limit=50';
   } else {
-    url = SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=id,titre,statut,urgence,rubrique,updated_at,correcteur&order=updated_at.desc&limit=20';
+    url = SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=id,titre,statut,urgence,rubrique,updated_at,correcteur&order=updated_at.desc&limit=50';
   }
 
-  fetch(url, {headers:SB_HEADERS})
+  fetch(url, {headers:authH2})
   .then(function(r){ return r.json(); })
   .then(function(articles){
     if(!articles || !articles.length){
@@ -7973,19 +7997,39 @@ function assignValider(){
   if(!_assignDoc){ assignFermer(); return; }
   if(!_assignCorrecteur){ notif('Choisis un correcteur'); return; }
 
-  _assignDoc.correcteur = _assignCorrecteur;
-  _assignDoc.correcteur_id = _assignCorrecteurId || null;
-  _assignDoc.statut = 'en-relecture';
-  var _assignDoc2 = Object.assign({}, _assignDoc); // Copie avant assignFermer
+  var docId = _assignDoc.id;
+  var _assignDoc2 = Object.assign({}, _assignDoc);
+  _assignDoc2.correcteur = _assignCorrecteur;
+  _assignDoc2.correcteur_id = _assignCorrecteurId || null;
+  _assignDoc2.statut = 'en-relecture';
 
   notif('Envoi en correction...');
-  db.sauvegarderArticle(_assignDoc).then(function(){
+
+  var authH = Object.assign({}, SB_HEADERS, {
+    'Authorization': 'Bearer ' + (_session && _session.access_token || ''),
+    'Prefer': 'return=minimal'
+  });
+
+  // PATCH direct sur les champs critiques pour éviter les problèmes de RLS upsert
+  fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(docId), {
+    method: 'PATCH',
+    headers: authH,
+    body: JSON.stringify({
+      statut: 'en-relecture',
+      correcteur: _assignCorrecteur,
+      correcteur_id: _assignCorrecteurId || null
+    })
+  }).then(function(r){
+    if(!r.ok){ notif('Erreur mise à jour statut'); return; }
+
     // Retirer le brouillon local si présent
     var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-    var idx = drafts.findIndex(function(d){ return d.id === _assignDoc.id; });
+    var idx = drafts.findIndex(function(d){ return d.id === docId; });
     if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
+
     assignFermer();
-    notif('Article enregistré et envoyé en correction à ' + _assignCorrecteur + ' ✓', 'succes');
+    notif('Envoyé en correction à ' + _assignCorrecteur + ' ✓', 'succes');
+    setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
 
     // Email au correcteur
@@ -7995,22 +8039,19 @@ function assignValider(){
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
         if(membre && membre.email){
-          var html = '<h2>Un article t attend en correction 🔍</h2>'+
-            '<p>Bonjour '+membre.prenom+',</p>'+
-            '<p><strong>'+(_assignDoc2.auteur||'Un redacteur')+'</strong> t a assigne l article suivant a corriger :</p>'+
-            '<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+(_assignDoc2.titre||'Sans titre')+'</p>'+
-            '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
-            'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article. '+
-            'Cette adresse email ne recoit pas de messages.</p>';
-          envoyerEmailResend(membre.email, '[Compo] Article a corriger : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
-            .catch(function(){ console.warn('Email correcteur non envoye'); });
+          var html = '<h2>Un article t\'attend en correction 🔍</h2>'
+            +'<p>Bonjour '+esc(membre.prenom)+',</p>'
+            +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
+            +'<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+esc(_assignDoc2.titre||'Sans titre')+'</p>'
+            +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'
+            +'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article.</p>';
+          envoyerEmailResend(membre.email, '[Compo] Article à corriger : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
+            .catch(function(){ console.warn('Email correcteur non envoyé'); });
         }
       }).catch(function(){});
     }
   }).catch(function(){
-    notif('Erreur - export JSON local');
-    exporterFichier(_assignDoc, _assignDoc.id);
-    assignFermer();
+    notif('Erreur réseau — envoi en correction échoué');
   });
 }
 
@@ -8211,10 +8252,10 @@ function construireAccueil(){
     outils.appendChild(outil('📖','Manuel','Comment utiliser Compo','guide'));
 
   } else { // admin
-    actions.appendChild(action('✍️','Rediger','Nouvel article ou breve','redaction','action-primary'));
+    actions.appendChild(action('✍️','Rédiger','Nouvel article ou brève','redaction','action-primary'));
     actions.appendChild(action('📝','Brouillons','Reprendre un article','brouillons','action-orange'));
-    actions.appendChild(action('🔍','Corriger','Relire un article','correction','action-blue'));
-    actions.appendChild(action('📨','Newsletter','Assembler l edition','newsletter','action-green'));
+    actions.appendChild(action('🔍','Corrections','Articles en attente','app-correction','action-blue'));
+    actions.appendChild(action('📨','Newsletter','Assembler l\'édition','newsletter','action-green'));
     var btnAnnonce = document.createElement('button');
     btnAnnonce.className = 'action-card';
     btnAnnonce.style.cssText = 'background:linear-gradient(135deg,#1A1A2E,#2C3E70);color:white;';
@@ -8765,16 +8806,21 @@ function chargerAlertCorrection(){
   var alertEl = document.getElementById('accueil-correction-alert');
   if(!alertEl) return;
 
-  var query = userId
-    ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&select=id,titre,statut&order=updated_at.desc'
-    : SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&select=id,titre,statut&order=updated_at.desc';
+  var query = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=id,titre,statut,correcteur,correcteur_id&order=updated_at.desc';
 
   fetch(query, {headers: SB_HEADERS})
   .then(function(r){ return r.json(); })
   .then(function(articles){
-    if(!articles || !articles.length){
+    if(!articles || articles.code) articles = [];
+    // Filtrer côté client
+    if(role !== 'admin'){
+      articles = articles.filter(function(a){
+        return (userId && a.correcteur_id === userId) ||
+               (nom && a.correcteur && a.correcteur.trim().toLowerCase() === nom.trim().toLowerCase());
+      });
+    }
+    if(!articles.length){
       alertEl.style.display = 'none';
-      // Retirer badge de la nav
       var badge = document.getElementById('nav-correction-badge');
       if(badge) badge.style.display = 'none';
       return;
@@ -9139,21 +9185,16 @@ function reserverSujetModal(){
 var ADMIN_EMAIL = 'contact@ipsummedia.fr';
 
 function envoyerEmailResend(to, subject, html, type){
-  // Logger en base
   fetch(SB_URL+'/rest/v1/emails_log', {
     method:'POST',
     headers: Object.assign({}, SB_HEADERS, {
       'Authorization':'Bearer '+(_session&&_session.access_token||''),
       'Prefer':'return=minimal'
     }),
-    body: JSON.stringify({
-      destinataire: to,
-      sujet: subject,
-      type: type || 'autre'
-    })
+    body: JSON.stringify({ destinataire: to, sujet: subject, type: type || 'autre' })
   }).catch(function(){});
 
-  return fetch('https://ctmekufqaxdelgfyjwly.supabase.co/functions/v1/envoyer-email', {
+  return fetch(SB_URL+'/functions/v1/envoyer-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to: to, subject: subject, html: html })
@@ -9162,6 +9203,7 @@ function envoyerEmailResend(to, subject, html, type){
     return r.json();
   }).catch(function(e){ console.error('envoyerEmailResend:', e); });
 }
+
 
 function ticketCreer(){
   var titre = document.getElementById('ticket-titre').value.trim();
@@ -10037,7 +10079,7 @@ function osBuildDock(){
     icon.appendChild(dot);
     icon.appendChild(label);
 
-    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap'];
+    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
     if(BADGE_APPS.indexOf(app.id) !== -1){
       var dockBadge = document.createElement('span');
       dockBadge.className = 'desktop-icon-badge';
@@ -11321,6 +11363,8 @@ function osChargerNotifsDemarrage(){
   setTimeout(cpsChargerBadge, 1500);
   // Badge Tchap non lus
   setTimeout(tchapInitBadge, 2000);
+  // Badge Projets tâches assignées
+  setTimeout(osProjetsInitBadge, 2500);
   var allNotifs = [];
   var pending = 0;
   
@@ -12905,23 +12949,35 @@ function osAppCorrectionRender(){
   app.appendChild(list);
   wc.appendChild(app);
   
-  // Charger les articles assignés
+  // Charger les articles assignés — cherche par correcteur_id ET par nom
   var nom = getUserNomComplet();
   var userId = getUserId();
-  var q = userId
-    ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&order=updated_at.desc&select=*'
-    : SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&order=updated_at.desc&select=*';
+  // On cherche tous les articles en relecture/corrigé/validé et on filtre côté client
+  // pour éviter les problèmes si correcteur_id n'est pas en base
+  var q = SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige,valide)&order=updated_at.desc&select=*';
   
   fetch(q, {headers:SB_HEADERS})
   .then(function(r){ return r.json(); })
   .then(function(arts){
     list = document.getElementById('app-correction-list');
     if(!list) return;
-    if(!arts || arts.code || !arts.length){
+    if(!arts || arts.code){
+      list.innerHTML = '<div class="correction-empty">Erreur chargement</div>';
+      return;
+    }
+    // Filtrer : articles assignés à moi (par id ou par nom)
+    var role = getUserRole();
+    var filtered = arts.filter(function(a){
+      if(role === 'admin') return true; // admin voit tout
+      return (userId && a.correcteur_id === userId) ||
+             (nom && a.correcteur && a.correcteur.trim().toLowerCase() === nom.trim().toLowerCase());
+    });
+    if(!filtered.length){
       list.innerHTML = '<div class="correction-empty">👌 Aucun article en attente.<br>Tu es à jour !</div>';
       return;
     }
     list.innerHTML = '';
+    arts = filtered;
     
     var STATUT = {
       'en-relecture': {label:'En relecture', c:'#1A5276', bg:'#D6EAF8'},
@@ -16347,7 +16403,7 @@ function osLaunchpadRendre(lp){
     }
 
     // Badge de notification (copie depuis dock si existant)
-    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap'];
+    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
     if(BADGE_APPS.indexOf(app.id) !== -1){
       var lpBadge = document.createElement('span');
       lpBadge.id = 'lp-badge-'+app.id;
@@ -19405,10 +19461,12 @@ function osProjetsOuvrirProjet(projet){
       +'<div style="display:flex;gap:0.4rem;flex-shrink:0;">'
       +(peutGerer?'<button id="proj-add-task-btn" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Tâche</button>':'')
       +(peutGerer?'<button id="proj-edit-btn" style="font-family:monospace;font-size:0.65rem;padding:4px 8px;border:0.5px solid var(--gris-bord);background:white;border-radius:5px;cursor:pointer;">✏️</button>':'')
+      +((isAdmin||projet.cree_par===uid)?'<button id="proj-del-btn" style="font-family:monospace;font-size:0.65rem;padding:4px 8px;border:0.5px solid #A32D2D;background:white;color:#A32D2D;border-radius:5px;cursor:pointer;">🗑️</button>':'')
       +'</div></div>'
       +'<div style="display:flex;gap:0.4rem;margin-top:0.6rem;">'
       +'<button id="proj-vue-kanban" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);background:var(--rouge);color:white;border-radius:4px;cursor:pointer;">Kanban</button>'
       +'<button id="proj-vue-liste" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);background:white;color:var(--gris);border-radius:4px;cursor:pointer;">Liste</button>'
+      +'<button id="proj-vue-mes" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);background:white;color:var(--gris);border-radius:4px;cursor:pointer;">Mes tâches</button>'
       +'</div>';
     right.appendChild(hdr);
 
@@ -19422,18 +19480,31 @@ function osProjetsOuvrirProjet(projet){
       if(btnTask) btnTask.onclick = function(){ osProjetsFormulaireTache(null, projet.id, membres, projet); };
       var btnEdit = document.getElementById('proj-edit-btn');
       if(btnEdit) btnEdit.onclick = function(){ osProjetsFormulaireProjet(projet); };
+      var btnDel = document.getElementById('proj-del-btn');
+      if(btnDel) btnDel.onclick = function(){
+        if(!confirm('Supprimer le projet "'+projet.titre+'" et toutes ses tâches ?')) return;
+        var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+        fetch(SB_URL+'/rest/v1/projets?id=eq.'+projet.id,{method:'DELETE',headers:authH2})
+        .then(function(r){
+          if(r.ok){
+            notif('Projet supprimé');
+            _projetActif = null;
+            osProjetsChargerListe();
+            var right2 = document.getElementById('projets-right');
+            if(right2) right2.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.8rem;color:var(--gris);"><div style="font-size:2.5rem;">📋</div><div style="font-family:monospace;font-size:0.72rem;">Sélectionne ou crée un projet</div></div>';
+          }
+        });
+      };
       var btnK = document.getElementById('proj-vue-kanban');
       var btnL = document.getElementById('proj-vue-liste');
-      if(btnK) btnK.onclick = function(){
-        btnK.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);background:var(--rouge);color:white;border-radius:4px;cursor:pointer;';
-        btnL.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);background:white;color:var(--gris);border-radius:4px;cursor:pointer;';
-        osProjetsKanban(taches, membres, projet, peutGerer, body);
-      };
-      if(btnL) btnL.onclick = function(){
-        btnL.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);background:var(--rouge);color:white;border-radius:4px;cursor:pointer;';
-        btnK.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);background:white;color:var(--gris);border-radius:4px;cursor:pointer;';
-        osProjetsListeTaches(taches, membres, projet, peutGerer, body);
-      };
+      var btnM = document.getElementById('proj-vue-mes');
+      function setVueStyle(actif){
+        [btnK,btnL,btnM].forEach(function(b){ if(b){ b.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);background:white;color:var(--gris);border-radius:4px;cursor:pointer;'; } });
+        if(actif) actif.style.cssText='font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);background:var(--rouge);color:white;border-radius:4px;cursor:pointer;';
+      }
+      if(btnK) btnK.onclick = function(){ setVueStyle(btnK); osProjetsKanban(taches,membres,projet,peutGerer,body); };
+      if(btnL) btnL.onclick = function(){ setVueStyle(btnL); osProjetsListeTaches(taches,membres,projet,peutGerer,body); };
+      if(btnM) btnM.onclick = function(){ setVueStyle(btnM); osProjetsMesTaches(body); };
     },50);
 
     osProjetsKanban(taches, membres, projet, peutGerer, body);
@@ -19685,12 +19756,107 @@ function osProjetsFormulaireTache(tache, projetId, membres, projet){
           document.body.removeChild(overlay);
           var p = projet||_projetActif;
           if(p) osProjetsOuvrirProjet(p);
+          // Email aux assignés (nouveaux uniquement si édition)
+          var anciens = (tache&&isEdit) ? (tache.assignes||[]) : [];
+          var nouveauxAssignes = assignes.filter(function(id){ return !anciens.includes(id); });
+          if(nouveauxAssignes.length){
+            osProjetsNotifierAssignes(nouveauxAssignes, payload.titre, (projet||_projetActif||{}).titre||'', membres);
+          }
         } else notif('Erreur');
       });
     };
   },50);
 }
 
+function osProjetsNotifierAssignes(assignesIds, titreTache, titreProjet, membres){
+  assignesIds.forEach(function(aid){
+    var m = membres.find(function(x){return x.id===aid;});
+    if(!m||!m.email) return;
+    var html = '<div style="font-family:sans-serif;max-width:540px;margin:0 auto;">'
+      +'<div style="background:#2C3E50;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">📋 Nouvelle tâche assignée</h1></div>'
+      +'<div style="padding:1.2rem 1.5rem;">'
+      +'<p>Bonjour '+esc(m.prenom||'')+',</p>'
+      +'<p>Tu as été assigné(e) à la tâche <strong>'+esc(titreTache)+'</strong> dans le projet <strong>'+esc(titreProjet)+'</strong>.</p>'
+      +'<p style="text-align:center;margin-top:1.2rem;"><a href="https://compo.ipsummedia.fr" style="background:#2C3E50;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-weight:600;">Voir mes tâches sur Compo</a></p>'
+      +'</div></div>';
+    envoyerEmailResend(m.email,'[Compo] Tâche assignée : '+titreTache,html,'projet');
+  });
+}
+
+function osProjetsMesTaches(body){
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  body.style.cssText = 'flex:1;overflow-y:auto;padding:0.8rem 1rem;';
+  body.innerHTML = '<div style="text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div>';
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+uid+'}&order=updated_at.desc&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/projets?select=id,titre',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var taches  = (!results[0]||results[0].code)?[]:results[0];
+    var projets = (!results[1]||results[1].code)?[]:results[1];
+    var membres = (!results[2]||results[2].code)?[]:results[2];
+    body.innerHTML = '';
+
+    if(!taches.length){
+      body.innerHTML = '<div style="text-align:center;padding:2rem;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucune tâche assignée</div>';
+      return;
+    }
+
+    // Grouper par statut — exclure "fait"
+    ['a_faire','en_cours','fait'].forEach(function(statut){
+      var groupe = taches.filter(function(t){return t.statut===statut;});
+      if(!groupe.length) return;
+      var st = PROJETS_STATUTS[statut];
+      var section = document.createElement('div');
+      section.style.cssText = 'margin-bottom:1rem;';
+      section.innerHTML = '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:'+st.c+';margin-bottom:0.5rem;">'+st.icon+' '+st.l+' ('+groupe.length+')</div>';
+      groupe.forEach(function(t){
+        var proj = projets.find(function(p){return p.id===t.projet_id;});
+        var prio = PROJETS_PRIOS[t.priorite]||PROJETS_PRIOS.normale;
+        var dl = t.date_limite ? new Date(t.date_limite) : null;
+        var dlStr = dl ? dl.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+        var enRetard = dl && dl < new Date() && t.statut!=='fait';
+        var card = document.createElement('div');
+        card.style.cssText = 'background:white;border-radius:8px;padding:0.7rem 0.8rem;margin-bottom:0.4rem;box-shadow:0 1px 4px rgba(0,0,0,0.07);cursor:pointer;border:1px solid var(--gris-bord);transition:box-shadow 0.15s;';
+        card.onmouseover = function(){this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)';};
+        card.onmouseout  = function(){this.style.boxShadow='0 1px 4px rgba(0,0,0,0.07)';};
+        card.innerHTML =
+          '<div style="display:flex;align-items:flex-start;gap:0.4rem;margin-bottom:3px;">'
+          +'<span style="font-family:monospace;font-size:0.56rem;padding:1px 5px;background:'+prio.bg+';color:'+prio.c+';border-radius:3px;flex-shrink:0;margin-top:2px;">'+prio.l+'</span>'
+          +'<div style="font-weight:600;font-size:0.82rem;color:var(--encre);line-height:1.3;">'+esc(t.titre||'')+'</div>'
+          +'</div>'
+          +(proj?'<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-bottom:3px;">📋 '+esc(proj.titre)+'</div>':'')
+          +'<div style="display:flex;gap:0.4rem;">'
+          +(dlStr?'<span style="font-family:monospace;font-size:0.58rem;color:'+(enRetard?'#A32D2D':'var(--gris)')+';">'+(enRetard?'⚠️ ':'')+dlStr+'</span>':'')
+          +'</div>';
+        card.onclick = function(){
+          if(proj){
+            _projetActif = proj;
+            osProjetsOuvrirProjet(proj);
+          }
+        };
+        section.appendChild(card);
+      });
+      body.appendChild(section);
+    });
+  }).catch(function(){
+    body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--rouge);font-size:0.78rem;">Erreur chargement</div>';
+  });
+}
+
+function osProjetsInitBadge(){
+  var uid = getUserId();
+  if(!uid) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=neq.fait&select=id',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var n = (!data||data.code)?0:data.length;
+    osMajBadge('projets', n);
+  }).catch(function(){});
+}
 </script>
 <div id="modal-assign">
   <div class="assign-card">
