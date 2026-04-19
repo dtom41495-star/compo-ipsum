@@ -10810,7 +10810,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Rédactions',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', sujets:'📌 Sujets à rédiger', accueil:'Accueil', redaction:'Rédaction', brouillons:'Brouillons', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -15844,11 +15844,14 @@ function osBenevolesDashRender(){
     equipeDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:flex;';
     tabContents['equipe']=equipeDiv;
     function statCard(n,label,color){return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.4rem;color:'+(color||'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div></div>';}
-    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;">';
+    var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
+    var nouveauxCeMois = membres.filter(function(m){ return m.created_at && new Date(m.created_at) >= debutMoisBenv; }).length;
+    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
     sh+=statCard(actifCount,'Actifs ce mois','#0F6E56');
     sh+=statCard(artDuMois.length,'Articles touchés','var(--encre)');
     sh+=statCard(artCorrection.length,'En correction','#1A5276');
     sh+=statCard(artPublies.length,'Publiés total','var(--rouge)');
+    sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
     sh+='<div style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
@@ -16081,16 +16084,23 @@ function osRedactionsRender(){
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var debutMoisISO = debutMois.toISOString();
+
   Promise.all([
     fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,created_at&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.confirme&select=membre_id,evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&created_at=gte.'+encodeURIComponent(debutMoisISO)+'&select=id,created_at',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
-    _redactionsData   = (!results[0]||results[0].code)?[]:results[0];
+    _redactionsData        = (!results[0]||results[0].code)?[]:results[0];
     _membresRedactionsData = (!results[1]||results[1].code)?[]:results[1];
-    _membresData      = (!results[2]||results[2].code)?[]:results[2];
-    _articlesRedacData= (!results[3]||results[3].code)?[]:results[3];
+    _membresData           = (!results[2]||results[2].code)?[]:results[2];
+    _articlesRedacData     = (!results[3]||results[3].code)?[]:results[3];
+    window._agendaInscriptions = (!results[4]||results[4].code)?[]:results[4];
+    window._nouveauxMembres    = (!results[5]||results[5].code)?[]:results[5];
 
     // Déterminer le rôle média de l'utilisateur
     var monLien = _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
@@ -16130,6 +16140,17 @@ function osRedactionsRenderMembre(wc, uid, redacId){
   var artsRedacPublies = artsRedac.filter(function(a){ return a.statut === 'publie'; });
   var artsRedacMois = artsRedac.filter(function(a){ return new Date(a.updated_at) >= depuis30; });
 
+  // Participations agenda ce mois
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){
+    return i.membre_id === uid && new Date(i.created_at) >= debutMois;
+  });
+
+  // Nouveaux bénévoles ce mois dans la rédac
+  var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){
+    return idsRedac.indexOf(m.id) !== -1;
+  });
+
   var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'};
   var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
@@ -16153,12 +16174,13 @@ function osRedactionsRenderMembre(wc, uid, redacId){
   h += '<button onclick="osGenererCarteAdherent('+JSON.stringify(membre)+',null)" style="font-family:monospace;font-size:0.62rem;padding:6px 12px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;flex-shrink:0;">🪪 Carte</button>';
   h += '</div>';
 
-  // Mes stats
-  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;">';
-  function statCard(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.6rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">'+l+'</div></div>'; }
+  // Mes stats — 4 cartes avec participations agenda
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
+  function statCard(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">'+l+'</div></div>'; }
   h += statCard(mesArticles.length,'Articles total');
   h += statCard(mesPublies.length,'Publiés','#27AE60');
   h += statCard(mesDuMois.length,'Ce mois','#EA5B1C');
+  h += statCard(mesParticipations.length,'Activités','#1A5276');
   h += '</div>';
 
   // Stats rédac
@@ -16169,10 +16191,11 @@ function osRedactionsRenderMembre(wc, uid, redacId){
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);">Rédaction '+esc(redac.nom)+'</span>';
     h += '<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:auto;">'+membresRedac.length+' membre(s)</span>';
     h += '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:0.5px solid var(--gris-bord);">';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:0.5px solid var(--gris-bord);">';
+    h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:var(--encre);">'+membresRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Membres</div></div>';
     h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:var(--encre);">'+artsRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Articles</div></div>';
     h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:#27AE60;">'+artsRedacPublies.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Publiés</div></div>';
-    h += '<div style="padding:0.9rem;text-align:center;"><div style="font-size:1.3rem;font-weight:800;color:#EA5B1C;">'+artsRedacMois.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Ce mois</div></div>';
+    h += '<div style="padding:0.9rem;text-align:center;"><div style="font-size:1.3rem;font-weight:800;color:'+(nouveauxRedac.length>0?'#1A5276':'var(--gris)')+'">'+nouveauxRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Nouveaux</div></div>';
     h += '</div>';
     // Membres de la rédac
     h += '<div style="padding:0.8rem 1.2rem;display:flex;flex-wrap:wrap;gap:0.5rem;">';
@@ -16238,12 +16261,25 @@ function osRedactionsRenderRedacChef(wc, uid, redacId){
   var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
   var artsEnCours = artsRedac.filter(function(a){ return a.statut!=='publie'; });
 
-  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
+  // Nouveaux bénévoles ce mois dans cette rédac
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
+
+  // Participations agenda ce mois (tous membres de la rédac)
+  var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){
+    return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at) >= debutMois;
+  });
+
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
   function sCard(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
   h += sCard(membresRedac.length, 'Membres');
   h += sCard(artsPublies.length, 'Publiés', '#27AE60');
   h += sCard(artsMois.length, 'Ce mois', '#EA5B1C');
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
   h += sCard(artsEnCours.length, 'En cours', '#1A5276');
+  h += sCard(participationsRedac.length, 'Participations', '#7D3C98');
+  h += sCard(nouveauxRedac.length, 'Nouveaux', nouveauxRedac.length>0?'#E67E22':'var(--gris)');
   h += '</div>';
 
   // Tableau des membres
@@ -16302,9 +16338,11 @@ function osRedactionsRenderAdmin(wc, uid){
       var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
       var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
       var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+      var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
       var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
       var artsPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
       var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+      var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
 
       h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
       // Couleur header
@@ -16316,12 +16354,12 @@ function osRedactionsRenderAdmin(wc, uid){
       h += '<button onclick="osRedactionEditerModal(\''+redac.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">✏️</button>';
       h += '<button onclick="osRedactionSupprimerConfirm(\''+redac.id+'\',\''+esc(redac.nom)+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">🗑️</button>';
       h += '</div></div>';
-      // Stats
-      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);border-bottom:0.5px solid var(--gris-bord);">';
-      [['👥',membresLiens.length,'membres'],['✅',artsPublies.length,'publiés'],['📝',artsMois.length,'ce mois']].forEach(function(s){
-        h += '<div style="padding:0.7rem;text-align:center;border-right:0.5px solid var(--gris-bord);">';
+      // Stats — 4 colonnes avec nouveaux
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:0.5px solid var(--gris-bord);">';
+      [['👥',membresLiens.length,'membres'],['✅',artsPublies.length,'publiés'],['📝',artsMois.length,'ce mois'],['🆕',nouveauxRedac.length,'nouveaux']].forEach(function(s,i){
+        h += '<div style="padding:0.7rem;text-align:center;'+(i<3?'border-right:0.5px solid var(--gris-bord);':'')+'">';
         h += '<div style="font-size:0.7rem;">'+s[0]+'</div>';
-        h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:var(--encre);">'+s[1]+'</div>';
+        h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:'+(i===3&&s[1]>0?'#E67E22':'var(--encre)')+';">'+s[1]+'</div>';
         h += '<div style="font-family:monospace;font-size:0.52rem;color:var(--gris);">'+s[2]+'</div>';
         h += '</div>';
       });
@@ -18494,7 +18532,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'tutos',          icon:'📖', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'stats-dashboard',icon:'📊', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'👥', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
-  { id:'redactions',     icon:'🗞️', label:'Rédactions',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
+  { id:'redactions',     icon:'🗞️', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'gestion-apps',   icon:'⚙️', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'🧹', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'📜', label:'Journal',        color:'#2C3E50', roles:['admin'] },
