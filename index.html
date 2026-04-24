@@ -151,9 +151,9 @@ body {
 .os-titlebar:active { cursor: grabbing; }
 
 /* Traffic lights */
-.os-traffic { display:flex; gap:6px; align-items:center; }
+.os-traffic { display:flex; gap:8px; align-items:center; }
 .os-btn-win {
-  width: 12px; height: 12px; border-radius: 50%;
+  width: 14px; height: 14px; border-radius: 50%;
   border: none; cursor: pointer;
   transition: filter 0.15s;
   position: relative;
@@ -168,14 +168,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 900;
-  color: rgba(0,0,0,0);
+  color: rgba(0,0,0,0.45);
   line-height: 1;
   font-family: monospace;
   transition: color 0.1s;
 }
-.os-btn-win:hover .win-icon { color: rgba(0,0,0,0.6); }
+.os-btn-win:hover .win-icon { color: rgba(0,0,0,0.7); }
 
 /* Title */
 .os-titlebar-title {
@@ -3507,6 +3507,7 @@ input:focus,select:focus,textarea:focus{
       <span id="nc-bell-emoji">🔔</span>
       <span class="nc-badge" id="nc-badge" style="position:absolute;top:-6px;right:-6px;writing-mode:horizontal-tb;"></span>
     </div>
+    <div class="status-pill" id="os-focus-btn" onclick="osToggleFocusMode()" style="cursor:pointer;pointer-events:all;opacity:0.6;" title="Activer le mode focus">🔔</div>
     <div class="status-pill rouge" id="os-fs-btn" onclick="osToggleFullscreen()" style="cursor:pointer;pointer-events:all;" title="Plein écran">⛶ Plein écran</div>
   </div>
 
@@ -3717,6 +3718,7 @@ input:focus,select:focus,textarea:focus{
   
   <div style="display:flex;gap:0.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
     <button class="btn" onclick="cpsAdminNouveauForm()" style="font-size:0.8rem;">+ Nouveau CP</button>
+    <button class="btn sec" onclick="cpsEnvoyerNotifsManuelles()" id="btn-envoyer-cps" style="font-size:0.8rem;">📨 Notifier les abonnés</button>
     <button class="btn sec" onclick="cpsAdminCharger()" style="font-size:0.8rem;">🔄 Actualiser</button>
   </div>
 
@@ -3756,7 +3758,7 @@ input:focus,select:focus,textarea:focus{
     </div>
     <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">
       <button class="btn" onclick="cpsAdminSauvegarder('brouillon')" style="font-size:0.8rem;">💾 Sauvegarder brouillon</button>
-      <button class="btn" onclick="cpsAdminSauvegarder('publie')" style="font-size:0.8rem;background:linear-gradient(135deg,#155724,#1E7E34);">📤 Publier et envoyer</button>
+      <button class="btn" onclick="cpsAdminSauvegarder('publie')" style="font-size:0.8rem;background:linear-gradient(135deg,#155724,#1E7E34);">📤 Publier</button>
       <button class="btn sec" onclick="document.getElementById('cps-form').style.display='none';window._cpsPdfFile=null;" style="font-size:0.8rem;">Annuler</button>
     </div>
   </div>
@@ -3793,7 +3795,7 @@ input:focus,select:focus,textarea:focus{
   </div>
 
   <div class="form-grid">
-    <div class="form-group"><label>Ton prénom et nom <span class="req">*</span></label><input type="text" id="r-auteur" placeholder="Prénom Nom"></div>
+    <div class="form-group"><label>Ton prénom et nom <span class="req">*</span></label><input type="text" id="r-auteur" placeholder="Prénom Nom"><select id="r-auteur-select" style="display:none;width:100%;padding:0.5rem 0.7rem;border:1px solid var(--gris-bord);border-radius:6px;font-family:inherit;font-size:0.88rem;background:white;"></select></div>
     <div class="form-group"><label>Ta rédaction <span class="req">*</span></label>
       <select id="r-redaction">
         <option value="Rédaction Tarn" selected>Rédaction Tarn</option>
@@ -5086,21 +5088,22 @@ function sauvegarderBrouillon(){
   if(!corps&&!titre){notif('Rien à sauvegarder');return;}
   const doc=buildDoc();
   notif('Sauvegarde en cours...');
+  osSaveIndicateur('modifie');
   db.sauvegarderArticle(doc).then(function(){
-    // Supprimer du localStorage si présent
     var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
     var idx=drafts.findIndex(function(d){return d.id===doc.id;});
     if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
     logAction('brouillon',titre,'cloud');
     notif('Brouillon sauvegardé dans le cloud : '+titre,'succes');
+    osSaveIndicateur('sauvegarde');
   }).catch(function(){
-    // Fallback local si la base est inaccessible
     var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
     var idx=drafts.findIndex(function(d){return d.id===doc.id;});
     if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
     localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
     logAction('brouillon',titre,'local');
     notif('⚠️ Sauvegardé en local (hors ligne) : '+titre);
+    osSaveIndicateur('sauvegarde');
   });
 }
 
@@ -6238,59 +6241,96 @@ function preremplirAuteur(){
   var role = getUserRole();
   var uid = getUserId();
   var elAuteur = document.getElementById('r-auteur');
+  var elSelect = document.getElementById('r-auteur-select');
   var elRedaction = document.getElementById('r-redaction');
 
-  // Pré-remplir le nom si vide
-  if(elAuteur && !elAuteur.value) elAuteur.value = n;
+  if(!elAuteur || !uid || !_session) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
 
-  // Bloquer nom pour les non-admins
-  if(role !== 'admin'){
-    if(elAuteur){
+  // Récupérer le lien rédaction — utiliser _redacActiveId si déjà choisi
+  var maRedacIdDirect = window._redacActiveId || null;
+  if(maRedacIdDirect){
+    // Rédaction déjà choisie — pas besoin de fetch
+    var monRoleRedacDirect = null;
+    var lienDirect = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id===uid && mr.redaction_id===maRedacIdDirect; });
+    if(lienDirect) monRoleRedacDirect = lienDirect.role_redac;
+    var isChefOuAdminDirect = role==='admin' || monRoleRedacDirect==='redac_chef';
+    _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacIdDirect, monRoleRedacDirect, isChefOuAdminDirect, authH);
+    return;
+  }
+
+  // Récupérer le lien rédaction du membre
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(liens){
+    var monLien = (liens && !liens.code && liens.length) ? liens[0] : null;
+    var monRoleRedac = monLien ? monLien.role_redac : null;
+    var maRedacId = monLien ? monLien.redaction_id : null;
+    if(maRedacId) window._redacActiveId = maRedacId;
+    var isChefOuAdmin = role === 'admin' || monRoleRedac === 'redac_chef';
+    _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH);
+  }).catch(function(){});
+}
+
+function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH){
+
+    // --- Champ auteur ---
+    if(isChefOuAdmin && elSelect){
+      // Basculer vers le select
+      elAuteur.style.display = 'none';
+      elSelect.style.display = '';
+      elSelect.innerHTML = '';
+      var urlMembres = role === 'admin'
+        ? SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom&order=prenom.asc'
+        : SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+maRedacId+'&select=membre_id,membres:membres(id,prenom,nom)';
+      fetch(urlMembres, {headers:authH}).then(function(r){return r.json();}).then(function(data){
+        if(!data||data.code) return;
+        var liste = role === 'admin' ? data : data.map(function(d){ return d.membres; }).filter(Boolean);
+        liste.forEach(function(m){
+          var opt = document.createElement('option');
+          opt.value = (m.prenom||'')+' '+(m.nom||'');
+          opt.dataset.membreId = m.id;
+          opt.textContent = (m.prenom||'')+' '+(m.nom||'');
+          if(m.id === uid) opt.selected = true;
+          elSelect.appendChild(opt);
+        });
+        elAuteur.value = elSelect.value;
+        elSelect.addEventListener('change', function(){ elAuteur.value = this.value; });
+      }).catch(function(){});
+    } else {
+      // Rédacteur normal : input grisé
+      if(!elAuteur.value) elAuteur.value = n;
       elAuteur.readOnly = true;
       elAuteur.style.background = 'var(--gris-clair)';
       elAuteur.style.color = 'var(--gris)';
       elAuteur.style.cursor = 'not-allowed';
     }
-  }
 
-  if(!elRedaction || !uid || !_session) return;
-
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
-
-  // Charger toutes les rédactions + lien du membre
-  Promise.all([
-    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id',{headers:authH}).then(function(r){return r.json();})
-  ]).then(function(res){
-    var redactions = (!res[0]||res[0].code) ? [] : res[0];
-    var liens = (!res[1]||res[1].code) ? [] : res[1];
-    var maRedacId = liens.length ? liens[0].redaction_id : null;
-
-    // Reconstruire les options
-    elRedaction.innerHTML = '';
-    redactions.forEach(function(r){
-      var opt = document.createElement('option');
-      opt.value = 'Rédaction '+r.nom;
-      opt.textContent = 'Rédaction '+r.nom;
-      opt.dataset.redacId = r.id;
-      elRedaction.appendChild(opt);
-    });
-
-    // Sélectionner la rédaction du membre
-    if(maRedacId){
-      var maRedac = redactions.find(function(r){ return r.id === maRedacId; });
-      if(maRedac) elRedaction.value = 'Rédaction '+maRedac.nom;
-    }
-
-    // Bloquer pour les non-admins
-    if(role !== 'admin'){
-      elRedaction.style.pointerEvents = 'none';
-      elRedaction.style.background = 'var(--gris-clair)';
-      elRedaction.style.color = 'var(--gris)';
-      elRedaction.style.cursor = 'not-allowed';
-      elRedaction.style.opacity = '0.8';
-    }
-  }).catch(function(){});
+    // --- Champ rédaction ---
+    if(!elRedaction) return;
+    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(redactions){
+      if(!redactions||redactions.code) return;
+      elRedaction.innerHTML = '';
+      redactions.forEach(function(r){
+        var opt = document.createElement('option');
+        opt.value = 'Rédaction '+r.nom;
+        opt.textContent = 'Rédaction '+r.nom;
+        elRedaction.appendChild(opt);
+      });
+      if(maRedacId){
+        var maRedac = redactions.find(function(r){ return r.id === maRedacId; });
+        if(maRedac) elRedaction.value = 'Rédaction '+maRedac.nom;
+      }
+      if(!isChefOuAdmin){
+        elRedaction.style.pointerEvents = 'none';
+        elRedaction.style.background = 'var(--gris-clair)';
+        elRedaction.style.color = 'var(--gris)';
+        elRedaction.style.cursor = 'not-allowed';
+        elRedaction.style.opacity = '0.8';
+      }
+    }).catch(function(){});
 }
 function preremplirCorrecteur(){
   var n=getUserNomComplet(); if(!n) return;
@@ -9406,6 +9446,7 @@ var ADMIN_EMAIL = 'contact@ipsummedia.fr';
 var _presenceInterval = null;
 var _presenceData = {}; // { membre_id: last_seen }
 var PRESENCE_SEUIL_MS = 2 * 60 * 1000; // 2 minutes
+var _paramsSection = 'profil';
 
 function osPresenceInit(){
   var uid = getUserId();
@@ -9782,6 +9823,11 @@ function osLoginAnimationStart(){
   obs.observe(document.body,{attributes:true,subtree:true,attributeFilter:['style']});
 }
 document.addEventListener('DOMContentLoaded',function(){ setTimeout(osLoginAnimationStart,200); });
+// Sauvegarder les heures si l'utilisateur ferme la page
+window.addEventListener('beforeunload', function(){
+  osChronoStop('redaction');
+  osChronoStop('correction');
+});
 
 function envoyerEmailResend(to, subject, html, type){
   fetch(SB_URL+'/rest/v1/emails_log', {
@@ -10582,9 +10628,8 @@ function osLancer(){
   osAfficherRedactionLabel();
   setTimeout(osRequestFullscreen, 500);
   setTimeout(osShowFsTooltip, 2000);
-  // Ouvrir accueil au démarrage
+
   setTimeout(function(){
-    osOpenWindow('accueil');
     osChargerNotifsDemarrage();
     osInitSujets();
     osVerifierPremiereLancement();
@@ -10599,6 +10644,40 @@ function osLancer(){
     chargerAlertTicketsAccueil();
     chargerAlertTickets();
     ssInit();
+
+    // Vérifier si le membre est dans plusieurs rédactions
+    var uid = getUserId();
+    var role = getUserRole();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(liens){
+      if(!liens||liens.code||liens.length<=1){
+        // Une seule rédac ou aucune — stocker et continuer
+        if(liens&&liens.length===1) window._redacActiveId = liens[0].redaction_id;
+        osOpenWindow('redactions');
+        return;
+      }
+      // Plusieurs rédacs — afficher le sélecteur dans Ma rédac'
+      window._redacActiveId = null;
+      osOpenWindow('redactions');
+      // Bloquer la fermeture tant qu'aucune rédac n'est choisie
+      setTimeout(function(){
+        var wins = document.querySelectorAll('.os-window');
+        wins.forEach(function(w){
+          if(w.dataset.page === 'redactions'){
+            var btnClose = w.querySelector('.os-btn-close');
+            if(btnClose){
+              btnClose.style.pointerEvents = 'none';
+              btnClose.style.opacity = '0.3';
+              btnClose.title = 'Choisissez une rédaction pour continuer';
+            }
+          }
+        });
+      }, 200);
+    }).catch(function(){
+      osOpenWindow('redactions');
+    });
   }, 300);
 }
 
@@ -10618,9 +10697,13 @@ function osAfficherRedactionLabel(){
     // Formater le nom : "tarn" → "Tarn", "haute-garonne" → "Haute-Garonne"
     var redacLabel = redac.split('-').map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join('-');
     nom.textContent = redacLabel;
+    // Supprimer les anciens labels de fonction avant d'en ajouter un nouveau
+    var oldFonction = label.querySelector('.desktop-fonction-label');
+    if(oldFonction) oldFonction.remove();
     // Afficher la fonction si présente
     if(m.fonction){
       var fonctionLabel = document.createElement('div');
+      fonctionLabel.className = 'desktop-fonction-label';
       fonctionLabel.style.cssText = 'font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.3);text-shadow:0 1px 3px rgba(0,0,0,0.5);margin-top:2px;';
       fonctionLabel.textContent = fonctionShort(m.fonction);
       label.appendChild(fonctionLabel);
@@ -10629,92 +10712,75 @@ function osAfficherRedactionLabel(){
   }).catch(function(){});
 }
 
+// ===== REFRESH MAP — fonctions de rechargement par app =====
+var _appRefreshMap = {
+  'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
+  'redactions':     function(){ osRedactionsRender(); },
+  'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(wc) osMesArticlesRender(); },
+  'cps':            function(){ cpsCharger(); },
+  'cps-admin':      function(){ cpsAdminCharger(); },
+  'projets':        function(){ osProjetsChargerListe(); },
+  'tchap':          function(){ tchapRender(); },
+  'agenda':         function(){ osAgendaRender&&osAgendaRender(); },
+  'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
+  'sujets':         function(){ osOuvrirSujets&&osOuvrirSujets(); },
+  'notes':          function(){ osNotesRender&&osNotesRender(); },
+  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc && typeof osStatsDashRender==='function') osStatsDashRender(); }
+};
+
+var _dockContextMenu = null;
+
 function osBuildDock(){
   var dock = document.getElementById('os-dock-inner');
   if(!dock) return;
-  var startBtn = document.getElementById('os-start-btn');
-  var sep = dock.querySelector('.dock-sep');
   dock.innerHTML = '';
-  if(startBtn) dock.appendChild(startBtn);
-  if(sep) dock.appendChild(sep);
-  else {
-    var newSep = document.createElement('div');
-    newSep.className = 'dock-sep';
-    newSep.style.cssText = 'height:36px;margin:0 4px;align-self:center;';
-    dock.appendChild(newSep);
-  }
+
+  // Bouton start
+  var startBtn = document.createElement('div');
+  startBtn.id = 'os-start-btn';
+  startBtn.className = 'dock-icon';
+  startBtn.innerHTML = '<div class="dock-icon-img" style="background:var(--rouge);font-size:1.1rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);">📰</div><div class="dock-icon-label">Menu</div>';
+  startBtn.onclick = function(e){ e.stopPropagation(); osToggleStartMenu(); };
+  dock.appendChild(startBtn);
+
+  // Séparateur
+  dock.appendChild(_creerSepDock());
+
   var role = getUserRole();
   var apps = window._userApps || DOCK_APPS[role] || DOCK_APPS.redacteur;
-
-  // Tchap toujours en premier, non supprimable
   var TCHAP_APP = { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56' };
   apps = apps.filter(function(a){ return a.id !== 'tchap'; });
   apps = [TCHAP_APP].concat(apps);
+  var pinnedIds = apps.map(function(a){ return a.id; });
 
-  apps.forEach(function(app, i){
-    var icon = document.createElement('div');
-    icon.className = 'dock-icon';
-    icon.dataset.page = app.id;
-
-    var img = document.createElement('div');
-    img.className = 'dock-icon-img';
-    img.style.background = app.color;
-    img.textContent = app.icon;
-    img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-
-    var dot = document.createElement('div');
-    dot.className = 'dock-dot';
-    dot.id = 'dock-dot-'+app.id;
-
-    var label = document.createElement('div');
-    label.className = 'dock-icon-label';
-    label.textContent = app.label;
-
-    icon.appendChild(img);
-    icon.appendChild(dot);
-    icon.appendChild(label);
-
-    var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
-    if(BADGE_APPS.indexOf(app.id) !== -1){
-      var dockBadge = document.createElement('span');
-      dockBadge.className = 'desktop-icon-badge';
-      dockBadge.id = 'dock-badge-'+app.id;
-      dockBadge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#FF5F57;color:white;border-radius:10px;font-size:0.55rem;font-weight:700;font-family:monospace;padding:1px 5px;min-width:16px;text-align:center;border:2px solid rgba(0,0,0,0.3);display:none;';
-      img.style.position = 'relative';
-      img.appendChild(dockBadge);
-    }
-
-    // Tchap : popup au clic sur l'icône dock
-    if(app.id === 'tchap'){
-      icon.onclick = function(e){
-        e.stopPropagation();
-        icon.classList.add('bouncing');
-        setTimeout(function(){ icon.classList.remove('bouncing'); }, 500);
-        tchapTogglePopup(icon);
-      };
-    } else {
-      icon.onclick = (function(appId, iconEl){ return function(){
-        iconEl.classList.add('bouncing');
-        setTimeout(function(){ iconEl.classList.remove('bouncing'); }, 500);
-        osOpenWindow(appId);
-      }; })(app.id, icon);
-    }
-
-    dock.appendChild(icon);
+  // Apps épinglées
+  apps.forEach(function(app){
+    dock.appendChild(_creerIconeDock(app, true));
   });
 
-  // Séparateur + Launchpad
-  var sepLaunch = document.createElement('div');
-  sepLaunch.className = 'dock-sep';
-  dock.appendChild(sepLaunch);
+  // Séparateur dynamique + apps ouvertes non épinglées
+  var openNonPinned = Object.keys(_windows).filter(function(pid){
+    return pinnedIds.indexOf(pid) === -1;
+  });
 
+  if(openNonPinned.length){
+    dock.appendChild(_creerSepDock('open-sep'));
+    openNonPinned.forEach(function(pid){
+      var appInfo = ALL_APPS_CATALOGUE ? ALL_APPS_CATALOGUE.find(function(a){ return a.id===pid; }) : null;
+      var app = appInfo || { id:pid, icon:'🔲', label:pid, color:'#444' };
+      dock.appendChild(_creerIconeDock(app, false));
+    });
+  }
+
+  // Séparateur + Launchpad
+  dock.appendChild(_creerSepDock());
   var launchIcon = document.createElement('div');
   launchIcon.className = 'dock-icon';
   launchIcon.title = 'Toutes les apps';
   var launchImg = document.createElement('div');
   launchImg.className = 'dock-icon-img';
   launchImg.style.cssText = 'background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);';
-  launchImg.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="1" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/></svg>';
+  launchImg.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="1" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/></svg>';
   var launchLabel = document.createElement('div');
   launchLabel.className = 'dock-icon-label';
   launchLabel.textContent = 'Apps';
@@ -10724,6 +10790,207 @@ function osBuildDock(){
   dock.appendChild(launchIcon);
 }
 
+function _creerSepDock(id){
+  var s = document.createElement('div');
+  s.className = 'dock-sep';
+  if(id) s.id = id;
+  return s;
+}
+
+function _creerIconeDock(app, isPinned){
+  var icon = document.createElement('div');
+  icon.className = 'dock-icon';
+  icon.dataset.page = app.id;
+  icon.dataset.pinned = isPinned ? '1' : '0';
+
+  var img = document.createElement('div');
+  img.className = 'dock-icon-img';
+  img.style.background = app.color;
+  img.textContent = app.icon;
+  img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+  // Bordure subtile pour les apps non épinglées
+  if(!isPinned) img.style.outline = '2px solid rgba(255,255,255,0.3)';
+
+  var dot = document.createElement('div');
+  dot.className = 'dock-dot' + (_windows[app.id] ? ' visible' : '');
+  dot.id = 'dock-dot-'+app.id;
+
+  var label = document.createElement('div');
+  label.className = 'dock-icon-label';
+  label.textContent = app.label;
+
+  icon.appendChild(img);
+  icon.appendChild(dot);
+  icon.appendChild(label);
+
+  // Badge notifications
+  var BADGE_APPS = ['tickets','accueil','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
+  if(BADGE_APPS.indexOf(app.id) !== -1){
+    var badge = document.createElement('span');
+    badge.className = 'desktop-icon-badge';
+    badge.id = 'dock-badge-'+app.id;
+    badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#FF5F57;color:white;border-radius:10px;font-size:0.55rem;font-weight:700;font-family:monospace;padding:1px 5px;min-width:16px;text-align:center;border:2px solid rgba(0,0,0,0.3);display:none;';
+    img.style.position = 'relative';
+    img.appendChild(badge);
+  }
+
+  // Clic gauche
+  if(app.id === 'tchap'){
+    icon.onclick = function(e){ e.stopPropagation(); icon.classList.add('bouncing'); setTimeout(function(){icon.classList.remove('bouncing');},500); tchapTogglePopup(icon); };
+  } else {
+    icon.onclick = function(e){
+      e.stopPropagation();
+      icon.classList.add('bouncing');
+      setTimeout(function(){ icon.classList.remove('bouncing'); }, 500);
+      osOpenWindow(app.id);
+    };
+  }
+
+  // Clic droit — menu contextuel
+  icon.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    _afficherMenuDock(e, app, isPinned);
+  });
+
+  return icon;
+}
+
+function _afficherMenuDock(e, app, isPinned){
+  // Fermer menu existant
+  if(_dockContextMenu) _dockContextMenu.remove();
+
+  var menu = document.createElement('div');
+  menu.id = 'dock-context-menu';
+  _dockContextMenu = menu;
+  menu.style.cssText = 'position:fixed;z-index:999999;background:rgba(30,30,30,0.95);backdrop-filter:blur(20px);border-radius:10px;padding:5px;min-width:180px;box-shadow:0 8px 30px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.1);';
+
+  var isOpen = !!_windows[app.id];
+
+  var items = [];
+  items.push({ label: app.label, style:'font-weight:700;opacity:0.7;font-size:0.75rem;cursor:default;', action:null });
+  items.push({ sep:true });
+  if(isOpen){
+    items.push({ label:'🔼 Mettre au premier plan', action:function(){ osFocusWindow(app.id); } });
+    items.push({ label:'✕ Fermer', action:function(){ osCloseWindow(app.id); } });
+    items.push({ sep:true });
+  }
+  if(isPinned){
+    items.push({ label:'📌 Désépingler du dock', action:function(){ osDepinglerApp(app.id); } });
+  } else {
+    items.push({ label:'📌 Épingler dans le dock', action:function(){ osPinglerApp(app.id); } });
+  }
+
+  items.forEach(function(item){
+    if(item.sep){
+      var sep = document.createElement('div');
+      sep.style.cssText = 'height:0.5px;background:rgba(255,255,255,0.1);margin:3px 5px;';
+      menu.appendChild(sep);
+      return;
+    }
+    var el = document.createElement('div');
+    el.style.cssText = 'font-family:monospace;font-size:0.68rem;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;'+(item.style||'');
+    el.textContent = item.label;
+    if(item.action){
+      el.onmouseover = function(){ this.style.background='rgba(255,255,255,0.12)'; };
+      el.onmouseout  = function(){ this.style.background='transparent'; };
+      el.onclick = function(e){ e.stopPropagation(); menu.remove(); _dockContextMenu=null; item.action(); };
+    }
+    menu.appendChild(el);
+  });
+
+  // Positionner au-dessus du dock
+  var x = Math.min(e.clientX, window.innerWidth - 200);
+  var y = e.clientY - 10;
+  menu.style.left = x+'px';
+  menu.style.top  = y+'px';
+  menu.style.transform = 'translateY(-100%)';
+
+  document.body.appendChild(menu);
+  setTimeout(function(){
+    document.addEventListener('click', function dismiss(){ menu.remove(); _dockContextMenu=null; document.removeEventListener('click',dismiss); });
+  }, 10);
+}
+
+function osPinglerApp(appId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'resolution=merge-duplicates,return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres_apps',{method:'POST',headers:authH,body:JSON.stringify({membre_id:getUserId(),app_id:appId,epingle:true})})
+  .then(function(r){ if(r.ok){ notif('App épinglée ✓','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
+}
+
+function osDepinglerApp(appId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+getUserId()+'&app_id=eq.'+appId,{method:'PATCH',headers:Object.assign({},authH,{'Prefer':'return=minimal'}),body:JSON.stringify({epingle:false})})
+  .then(function(r){ if(r.ok){ notif('App désépinglée','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
+}
+
+// ===== ÉTAT DE SAUVEGARDE =====
+function osSaveIndicateur(etat){
+  var el = document.getElementById('win-save-indicator');
+  if(!el) return;
+  if(etat === 'modifie'){
+    el.textContent = '🟡 Modification en cours';
+    el.style.background = 'rgba(255,189,46,0.15)';
+    el.style.color = '#856404';
+    el.style.borderColor = 'rgba(255,189,46,0.3)';
+  } else if(etat === 'sauvegarde'){
+    el.textContent = '🟢 Sauvegardé';
+    el.style.background = 'rgba(39,174,96,0.15)';
+    el.style.color = '#27AE60';
+    el.style.borderColor = 'rgba(39,174,96,0.3)';
+  } else if(etat === 'erreur'){
+    el.textContent = '🔴 Erreur de sauvegarde';
+    el.style.background = 'rgba(163,45,45,0.15)';
+    el.style.color = '#A32D2D';
+    el.style.borderColor = 'rgba(163,45,45,0.3)';
+  }
+}
+
+// Appeler osSaveIndicateur('modifie') dès qu'un champ de l'éditeur change
+var _autoSaveTimer = null;
+var _autoSaveLastHash = '';
+
+function _autoSaveHash(){
+  var t = (document.getElementById('r-titre')||{}).value||'';
+  var c = (document.getElementById('r-corps')||{}).value||'';
+  return t.length+':'+c.length+':'+t.substring(0,20)+c.substring(0,20);
+}
+
+document.addEventListener('input', function(e){
+  var redacFields = ['r-titre','r-corps','r-chapeau','r-angle','r-auteur'];
+  if(redacFields.indexOf(e.target.id) === -1) return;
+  osSaveIndicateur('modifie');
+  // Déclencher l'autosave 30s après la dernière frappe
+  if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(function(){
+    var hash = _autoSaveHash();
+    if(hash === _autoSaveLastHash) return; // rien de changé
+    var titre = (document.getElementById('r-titre')||{}).value||'';
+    var corps = (document.getElementById('r-corps')||{}).value||'';
+    if(!titre.trim() && !corps.trim()) return; // rien à sauvegarder
+    _autoSaveLastHash = hash;
+    // Sauvegarde silencieuse — pas de toast, juste l'indicateur
+    var doc = buildDoc();
+    db.sauvegarderArticle(doc).then(function(){
+      osSaveIndicateur('sauvegarde');
+    }).catch(function(){
+      // Fallback local silencieux
+      try{
+        var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+        var idx=drafts.findIndex(function(d){return d.id===doc.id;});
+        if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
+        localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
+        osSaveIndicateur('sauvegarde');
+      }catch(err){}
+    });
+  }, 30000); // 30 secondes après la dernière frappe
+});
+
+function osDockMajFenetresOuvertes(){
+  // Appelée à chaque ouverture/fermeture pour mettre à jour le dock
+  osBuildDock();
+}
+
 function osOpenWindow(pageId){
   // Vérifier le rôle depuis localStorage — rapide, sans fetch
   var roleLocal = localStorage.getItem('ipsum_user_role');
@@ -10731,7 +10998,12 @@ function osOpenWindow(pageId){
     osAfficherInterdit();
     return;
   }
+  // Démarrer le chrono pour les fenêtres chronométrées
+  if(pageId === 'redaction') osChronoStart('redaction');
+  if(pageId === 'app-correction' || pageId === 'correction') osChronoStart('correction');
   _osOpenWindowExecuter(pageId);
+  // Mettre à jour le dock pour montrer la fenêtre ouverte
+  setTimeout(osDockMajFenetresOuvertes, 50);
 }
 
 // Vérification RLS en arrière-plan toutes les 5 minutes
@@ -10852,10 +11124,21 @@ function _osOpenWindowExecuter(pageId){
   
   var titleEl = document.createElement('div');
   titleEl.className = 'os-titlebar-title';
+  titleEl.id = 'win-title-'+pageId;
   titleEl.textContent = title;
+
+  // Indicateur de sauvegarde pour la fenêtre rédaction
+  var saveIndicator = null;
+  if(pageId === 'redaction'){
+    saveIndicator = document.createElement('div');
+    saveIndicator.id = 'win-save-indicator';
+    saveIndicator.style.cssText = 'font-family:monospace;font-size:0.58rem;padding:2px 7px;border-radius:8px;background:rgba(39,174,96,0.15);color:#27AE60;border:0.5px solid rgba(39,174,96,0.3);white-space:nowrap;flex-shrink:0;';
+    saveIndicator.textContent = '🟢 Sauvegardé';
+  }
   
   tb.appendChild(traffic);
   tb.appendChild(titleEl);
+  if(saveIndicator) tb.appendChild(saveIndicator);
   
   // Contenu
   var content = document.createElement('div');
@@ -11132,7 +11415,35 @@ function osFocusWindow(pageId){
   win.el.style.zIndex = _zCounter;
 }
 
+// ===== CHRONOMÈTRE HEURES BÉNÉVOLAT =====
+var _chronoSessions = {}; // { type: timestamp_debut }
+
+function osChronoStart(type){
+  // Ne pas démarrer si déjà en cours
+  if(_chronoSessions[type]) return;
+  _chronoSessions[type] = Date.now();
+}
+
+function osChronoStop(type){
+  var debut = _chronoSessions[type];
+  if(!debut) return;
+  delete _chronoSessions[type];
+  var duree = Math.round((Date.now() - debut) / 60000);
+  // Minimum 1 minute, maximum 4h pour éviter les aberrations
+  if(duree < 1 || duree > 240) return;
+  var uid = getUserId();
+  if(!uid || !_session) return;
+  fetch(SB_URL+'/rest/v1/heures_benevolat',{
+    method:'POST',
+    headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||''),'Prefer':'return=minimal'}),
+    body:JSON.stringify({ membre_id:uid, type:type, duree_minutes:duree })
+  }).catch(function(){});
+}
+
 function osCloseWindow(pageId){
+  // Arrêter le chrono si c'est une fenêtre chronométrée
+  if(pageId === 'redaction') osChronoStop('redaction');
+  if(pageId === 'app-correction' || pageId === 'correction') osChronoStop('correction');
   // Vérifier si l'article en cours a des modifications non sauvegardées
   if(pageId === 'redaction' && osRedactionADesModifs()){
     osSavePrompt(pageId);
@@ -11242,8 +11553,28 @@ function osCloseWindowForce(pageId){
     if(el.parentNode) el.parentNode.removeChild(el);
   }, 200);
   delete _windows[pageId];
-  var dot = document.getElementById('dock-dot-'+pageId);
-  if(dot) dot.classList.remove('visible');
+  // Mettre à jour le dock
+  setTimeout(osDockMajFenetresOuvertes, 50);
+}
+
+function osFocusWindow(pageId){
+  _zCounter++;
+  var win = _windows[pageId];
+  if(!win) return;
+  Object.values(_windows).forEach(function(w){ w.el.classList.remove('active'); });
+  win.el.classList.add('active');
+  win.el.style.zIndex = _zCounter;
+  // Refresh des données si la fonction existe
+  var refreshFn = _appRefreshMap[pageId];
+  if(refreshFn){
+    var now = Date.now();
+    var lastRefresh = win._lastRefresh || 0;
+    // Rafraîchir seulement si > 60 secondes depuis le dernier refresh
+    if(now - lastRefresh > 60000){
+      win._lastRefresh = now;
+      setTimeout(refreshFn, 100);
+    }
+  }
 }
 
 function osMinimizeWindow(pageId){
@@ -11944,13 +12275,61 @@ function _detectNotifType(msg){
   return 'info';
 }
 
+// ===== MODE FOCUS / NE PAS DÉRANGER =====
+var _focusMode = false;
+
+function osToggleFocusMode(){
+  _focusMode = !_focusMode;
+  var btn = document.getElementById('os-focus-btn');
+  if(btn){
+    btn.textContent = _focusMode ? '🎯' : '🔔';
+    btn.title = _focusMode ? 'Mode focus actif — cliquer pour désactiver' : 'Activer le mode focus';
+    btn.style.opacity = _focusMode ? '1' : '0.6';
+    btn.style.background = _focusMode ? 'rgba(234,91,28,0.3)' : 'transparent';
+  }
+  notif(_focusMode ? '🎯 Mode focus activé — notifications silencieuses' : '🔔 Mode focus désactivé', 'info');
+}
+
+// ===== GROUPEMENT DES TOASTS =====
+var _toastGroups = {}; // { type+msg: { toast, count, timer } }
+
 function osShowToast(msg, type){
+  // Mode focus — silencieux sauf erreurs
+  if(_focusMode && type !== 'erreur') return;
+
   var stack = document.getElementById('os-toast-stack');
   if(!stack) return;
 
   type = type || 'info';
   var ICONS = { succes:'✓', erreur:'✕', alerte:'⚡', info:'ℹ' };
   var DUREE = 3500;
+
+  // Clé de groupe — même type + message similaire (premiers 30 chars)
+  var groupKey = type + ':' + (msg||'').substring(0,30);
+  var existing = _toastGroups[groupKey];
+
+  if(existing && existing.toast && existing.toast.parentNode){
+    // Fusionner — incrémenter le compteur
+    existing.count++;
+    var countEl = existing.toast.querySelector('.os-toast-count');
+    if(!countEl){
+      countEl = document.createElement('span');
+      countEl.className = 'os-toast-count';
+      countEl.style.cssText = 'background:rgba(255,255,255,0.25);border-radius:10px;padding:1px 6px;font-size:0.6rem;font-weight:700;margin-left:4px;';
+      existing.toast.querySelector('.os-toast-msg').appendChild(countEl);
+    }
+    countEl.textContent = 'x'+existing.count;
+    // Réinitialiser le timer
+    if(existing.timer) clearTimeout(existing.timer);
+    var bar = existing.toast.querySelector('.os-toast-bar');
+    if(bar){ bar.style.transition='none'; bar.style.width='100%'; setTimeout(function(){ bar.style.transition='width '+DUREE+'ms linear'; bar.style.width='0%'; },50); }
+    existing.timer = setTimeout(function(){
+      _dismissToast(existing.toast);
+      delete _toastGroups[groupKey];
+    }, DUREE);
+    existing.toast._timer = existing.timer;
+    return;
+  }
 
   var toast = document.createElement('div');
   toast.className = 'os-toast type-'+type;
@@ -11969,14 +12348,13 @@ function osShowToast(msg, type){
   var closeBtn = document.createElement('button');
   closeBtn.className = 'os-toast-close';
   closeBtn.textContent = '×';
-  closeBtn.onclick = function(){ _dismissToast(toast); };
+  closeBtn.onclick = function(){ _dismissToast(toast); delete _toastGroups[groupKey]; };
 
   row.appendChild(icon);
   row.appendChild(msgEl);
   row.appendChild(closeBtn);
   toast.appendChild(row);
 
-  // Barre de progression
   var bar = document.createElement('div');
   bar.className = 'os-toast-bar';
   bar.style.width = '100%';
@@ -11984,19 +12362,18 @@ function osShowToast(msg, type){
 
   stack.appendChild(toast);
 
-  // Apparition
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
       toast.classList.add('show');
-      // Lancer la barre
       bar.style.transition = 'width '+DUREE+'ms linear';
       bar.style.width = '0%';
     });
   });
 
-  // Disparition auto
-  var timer = setTimeout(function(){ _dismissToast(toast); }, DUREE);
+  var timer = setTimeout(function(){ _dismissToast(toast); delete _toastGroups[groupKey]; }, DUREE);
   toast._timer = timer;
+
+  _toastGroups[groupKey] = { toast:toast, count:1, timer:timer };
 }
 
 function _dismissToast(toast){
@@ -12262,6 +12639,27 @@ function osSujetsRender(sujets, container){
     }
     footer.appendChild(meta);
     footer.appendChild(btn);
+    // Bouton supprimer — admin ou rédac chef sur ses propres sujets
+    var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId(); });
+    var isChefRedac = monLienRedac && monLienRedac.role_redac === 'redac_chef';
+    var peutSupprimerSujet = getUserRole() === 'admin' || (isChefRedac && s.created_by === getUserId());
+    if(peutSupprimerSujet){
+      var btnSuppr = document.createElement('button');
+      btnSuppr.style.cssText = 'font-size:0.65rem;padding:0.3rem 0.6rem;background:none;border:0.5px solid #A32D2D;border-radius:4px;color:#A32D2D;cursor:pointer;font-family:monospace;';
+      btnSuppr.textContent = '🗑️';
+      btnSuppr.title = 'Supprimer ce sujet';
+      btnSuppr.onclick = (function(sujet, cardEl){ return function(e){
+        e.stopPropagation();
+        if(!confirm('Supprimer le sujet "'+sujet.titre+'" ?')) return;
+        var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+        fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id),{method:'DELETE',headers:authH})
+        .then(function(r){
+          if(r.ok){ notif('Sujet supprimé','succes'); cardEl.remove(); }
+          else notif('Erreur suppression');
+        }).catch(function(){ notif('Erreur réseau'); });
+      }; })(s, card);
+      footer.appendChild(btnSuppr);
+    }
     card.appendChild(footer);
     container.appendChild(card);
   });
@@ -15132,10 +15530,16 @@ function cpsMakeCard(cp, isAdmin){
     ? '<span style="background:#E6F1FB;color:#0C447C;font-family:monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;">📎 PDF</span>'
     : '';
 
-  var adminBtns = isAdmin ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
+  var uid = getUserId();
+  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === uid; });
+  var isChef = monLien && monLien.role_redac === 'redac_chef';
+  var peutSupprimer = isAdmin || (isChef && cp.created_by === uid);
+  var peutEditer = isAdmin || isChef;
+
+  var adminBtns = peutEditer ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
     '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;">✏️ Modifier</button>' +
     (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;">📤 Publier</button>' : '') +
-    '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;">🗑️</button>' +
+    (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;">🗑️</button>' : '') +
     '</div>') : '';
 
   card.innerHTML =
@@ -15431,7 +15835,7 @@ function cpsAdminSauvegarder(statut){
     _cpEditId = null;
     _cpsPdfFile = null;
     cpsAdminCharger();
-    if(statut === 'publie' && cp && cp.id) cpsEnvoyerAuxAbonnes(cp);
+    if(statut === 'publie' && cp && cp.id) { /* envoi manuel uniquement */ }
   })
   .catch(function(e){ console.error(e); notif('Erreur sauvegarde'); });
 }
@@ -15452,7 +15856,7 @@ function cpsAdminPublier(id){
       }),
       body: JSON.stringify({ statut:'publie', updated_at: new Date().toISOString() })
     }).then(function(r){
-      if(r.ok){ notif('CP publié !'); cpsAdminCharger(); cpsEnvoyerAuxAbonnes(cp); }
+      if(r.ok){ notif('CP publié !'); cpsAdminCharger(); }
     });
   }).catch(function(){ notif('Erreur publication'); });
 }
@@ -15500,20 +15904,18 @@ function cpsAfficherAbonnement(){
     var contacts = (!res[2]||res[2].code) ? [] : res[2];
     var CATS = {'Élu·e':{'bg':'#FAEEDA','c':'#633806'},'Institutionnel':{'bg':'#E6F1FB','c':'#0C447C'},'Association':{'bg':'#EEEDFE','c':'#3C3489'},'Entreprise':{'bg':'#F1EFE8','c':'#444441'},'Média':{'bg':'#E1F5EE','c':'#085041'},'Expert·e':{'bg':'#FBEAF0','c':'#72243E'},'Autre':{'bg':'#F1EFE8','c':'#5F5E5A'}};
     var html = '';
-    // Abonnement global
     html += '<div style="margin-bottom:1rem;">';
-    html += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Abonnement global</div>';
-    html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;border-radius:8px;'+(abonneGlobal?'background:#D4EDDA;border:1.5px solid #155724;':'background:#F8F9FA;border:1.5px solid var(--gris-bord);')+'">';
+    html += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Notifications CPs</div>';
+    html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;border-radius:8px;'+(abonneGlobal?'background:#D4EDDA;border:1.5px solid #155724;':'background:#FFF3CD;border:1.5px solid #856404;')+'">';
     html += '<span style="font-size:1.1rem;">'+(abonneGlobal?'🔔':'🔕')+'</span>';
-    html += '<div style="flex:1;"><div style="font-weight:700;font-size:0.82rem;color:var(--encre);">'+(abonneGlobal?'Tous les CPs':'Recevoir tous les CPs ?')+'</div>';
-    html += '<div style="font-size:0.72rem;color:var(--gris);">'+(abonneGlobal?'Tu reçois un email pour chaque nouveau CP publié.':'Active pour recevoir tous les CPs quelle que soit la source.')+'</div></div>';
-    html += '<button class="btn'+(abonneGlobal?' sec':'')+'" onclick="cpsToggleAbonnementGlobal('+abonneGlobal+')" style="font-size:0.72rem;padding:0.35rem 0.8rem;">'+(abonneGlobal?'Se désabonner':"S'abonner")+'</button>';
+    html += '<div style="flex:1;"><div style="font-weight:700;font-size:0.82rem;color:var(--encre);">'+(abonneGlobal?'Notifications activées':'Notifications désactivées')+'</div>';
+    html += '<div style="font-size:0.72rem;color:var(--gris);">'+(abonneGlobal?'Tu reçois les récapitulatifs CPs par email.':'Tu ne reçois plus les récapitulatifs CPs.')+'</div></div>';
+    html += '<button class="btn'+(abonneGlobal?' sec':'')+'" onclick="cpsToggleAbonnementGlobal('+abonneGlobal+')" style="font-size:0.72rem;padding:0.35rem 0.8rem;">'+(abonneGlobal?'Se désabonner':'Se réabonner')+'</button>';
     html += '</div></div>';
-    // Abonnements par source
     if(contacts.length){
       html += '<div>';
       html += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Par source <span style="opacity:0.6;">('+abonneSources.length+'/'+contacts.length+')</span></div>';
-      html += '<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.7rem;">Coche les sources qui t\'interessent. Tu recevras un email uniquement pour leurs CPs.</div>';
+      html += '<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.7rem;">Coche les sources qui t\'intéressent pour recevoir leurs CPs séparément.</div>';
       var parCat = {};
       contacts.forEach(function(c){ var cat=c.categorie||'Autre'; if(!parCat[cat])parCat[cat]=[]; parCat[cat].push(c); });
       Object.keys(parCat).sort().forEach(function(cat){
@@ -15523,7 +15925,6 @@ function cpsAfficherAbonnement(){
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.3rem;">';
         parCat[cat].forEach(function(c){
           var checked = abonneSources.includes(c.id);
-          var orgSpan = c.organisation ? ' <span style="color:var(--gris);font-size:0.68rem;">— '+esc(c.organisation)+'</span>' : '';
           html += '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.5rem 0.7rem;border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;background:'+(checked?'var(--gris-clair)':'white')+';transition:background 0.1s;">';
           html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="cpsToggleAbonnementSource(\''+c.id+'\',this.checked)" style="accent-color:var(--rouge);width:13px;height:13px;flex-shrink:0;margin-top:2px;">';
           html += '<div style="min-width:0;">';
@@ -15538,6 +15939,7 @@ function cpsAfficherAbonnement(){
     zone.innerHTML = html;
   }).catch(function(){ zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;">Erreur chargement.</div>'; });
 }
+
 
 function cpsBasculeAbonnementSource(contactId, estAbonne){
   var uid = getUserId(); if(!uid) return;
@@ -15625,6 +16027,87 @@ function cpsAdminCharger(){
     cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
   }).catch(function(){
     liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
+  });
+}
+
+function cpsEnvoyerNotifsManuelles(){
+  var btn = document.getElementById('btn-envoyer-cps');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  // Récupérer les CPs publiés non encore notifiés
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&notifie=eq.false&select=*',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(cps){
+    if(!cps||cps.code||!cps.length){
+      notif('Aucun nouveau CP à notifier');
+      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      return;
+    }
+
+    // Récupérer tous les abonnés
+    fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(abos){
+      if(!abos||abos.code||!abos.length){
+        notif('Aucun abonné');
+        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        return;
+      }
+      var ids = abos.map(function(a){return a.membre_id;});
+      // Filtrer directement en base sur les IDs abonnés avec email valide
+      var idsFilter = '('+ids.join(',')+')'; 
+      fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom&actif=eq.true&id=in.'+idsFilter+'&email=not.is.null',{headers:SB_HEADERS})
+      .then(function(r){return r.json();})
+      .then(function(destinataires){
+        destinataires = destinataires.filter(function(m){ return m.email && m.email.includes('@'); });
+        if(!destinataires.length){
+          notif('Aucun destinataire trouvé');
+          if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+          return;
+        }
+
+        // Construire le récap HTML des CPs
+        var cpHtml = cps.map(function(cp){
+          var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+          return '<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
+            +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(cp.titre||'')+'</h3>'
+            +(cp.source?'<div style="color:#666;font-size:0.85rem;">📍 '+esc(cp.source)+'</div>':'')
+            +(dateStr?'<div style="color:#666;font-size:0.85rem;">📅 '+dateStr+'</div>':'')
+            +(cp.corps?'<p style="margin:0.5rem 0 0;font-size:0.9rem;white-space:pre-wrap;">'+esc(cp.corps).substring(0,300)+(cp.corps.length>300?'...':'')+'</p>':'')
+            +'</div>';
+        }).join('');
+
+        var cpIds = cps.map(function(cp){return cp.id;});
+
+        // Envoyer en parallèle et compter les succès
+        var envois = destinataires.map(function(m){
+          var html = '<h2 style="color:#E8461E;">📰 Récapitulatif des communiqués de presse</h2>'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>'+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
+            +cpHtml
+            +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'
+            +'<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo. Pour te désabonner, rends-toi dans l\'appli CPs → onglet Abonnements.</p>';
+          return envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
+            .then(function(r){ return r ? 1 : 0; })
+            .catch(function(){ return 0; });
+        });
+
+        Promise.all(envois).then(function(resultats){
+          var nb = resultats.reduce(function(a,b){return a+b;}, 0);
+          // Marquer les CPs comme notifiés
+          fetch(SB_URL+'/rest/v1/communiques?id=in.('+cpIds.join(',')+')',{
+            method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
+            body:JSON.stringify({notifie:true})
+          }).catch(function(){});
+          notif(nb+' email(s) envoyé(s) pour '+cps.length+' CP(s) ✓','succes');
+          if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        });
+      });
+    });
+  }).catch(function(){
+    notif('Erreur envoi');
+    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
   });
 }
 
@@ -15894,7 +16377,7 @@ function osBenevolesDashRender(){
     ['brouillon','en-relecture','corrige','valide','publie'].forEach(function(s){var n=articles.filter(function(a){return a.statut===s;}).length;var sd=statDef[s];eh+='<div style="background:'+sd.bg+';color:'+sd.c+';font-family:monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\''+s+'\')">'+sd.l+' <strong>'+n+'</strong></div>';});
     eh+='<div style="background:var(--gris-clair);color:var(--gris);font-family:monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\'tous\')">Tous <strong>'+articles.length+'</strong></div>';
     eh+='</div>';
-    eh+='<button onclick="osBenvEnvoyerRecap()" style="font-family:Poppins,sans-serif;font-size:0.7rem;font-weight:600;padding:0.4rem 0.9rem;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">📨 Envoyer récap</button>';
+    eh+='<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.7rem;font-weight:600;padding:0.4rem 0.9rem;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">📨 Notifier les abonnés</button>';
     eh+='</div>';
     if(artBloques.length) eh+='<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.4rem;font-size:0.78rem;color:#A32D2D;">⚠️ '+artBloques.length+' article(s) bloqué(s) en correction depuis +5 jours</div>';
     if(artValides.length) eh+='<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;">✅ '+artValides.length+' article(s) validé(s) en attente de publication</div>';
@@ -15952,104 +16435,86 @@ function osBenevolesDashRender(){
 
 
 function osBenvEnvoyerRecap(){
-  if(!confirm('Envoyer le récap des sujets et CPs à tous les abonnés ?')) return;
-  notif('Préparation du récap...');
+  // Rediriger vers l'envoi manuel des sujets uniquement
+  osEnvoyerNotifsSujets();
+}
 
-  var authHeaders = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var depuis = new Date(); depuis.setDate(depuis.getDate()-14);
+function osEnvoyerNotifsSujets(){
+  var btn = document.getElementById('btn-envoyer-sujets');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
+  notif('Préparation...');
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   Promise.all([
-    // Membres abonnés notif_sujets
-    fetch(SB_URL+'/rest/v1/membres?notif_sujets=eq.true&actif=eq.true&select=id,prenom,nom,email', {headers:authHeaders}).then(function(r){return r.json();}),
-    // Sujets récents
-    fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&order=created_at.desc&limit=10&select=*', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    // CPs récents
-    fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&limit=10&select=id,titre,organisation,date_cp,contact_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    // Abonnements sources par membre
-    fetch(SB_URL+'/rest/v1/abonnements_sources?select=membre_id,contact_id', {headers:authHeaders}).then(function(r){return r.json();}),
-    // Abonnements CP globaux
-    fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id', {headers:authHeaders}).then(function(r){return r.json();})
-  ]).then(function(results){
-    var membres   = (!results[0]||results[0].code) ? [] : results[0];
-    var sujets    = (!results[1]||results[1].code) ? [] : results[1];
-    var cps       = (!results[2]||results[2].code) ? [] : results[2];
-    var abSources = (!results[3]||results[3].code) ? [] : results[3];
-    var abGlobal  = (!results[4]||results[4].code) ? [] : results[4];
+    // Membres abonnés notif_sujets avec email valide
+    fetch(SB_URL+'/rest/v1/membres?notif_sujets=eq.true&actif=eq.true&select=id,prenom,nom,email&email=not.is.null',{headers:authH}).then(function(r){return r.json();}),
+    // Sujets publiés non encore notifiés
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&notifie=eq.false&order=created_at.desc&select=*',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var membres = (!res[0]||res[0].code) ? [] : res[0].filter(function(m){ return m.email && m.email.includes('@'); });
+    var sujets  = (!res[1]||res[1].code) ? [] : res[1];
 
-    if(!membres.length){ notif('Aucun abonné aux récaps'); return; }
+    if(!sujets.length){
+      notif('Aucun nouveau sujet à notifier');
+      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      return;
+    }
+    if(!membres.length){
+      notif('Aucun abonné aux sujets');
+      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      return;
+    }
 
-    var envoyes = 0;
-    membres.forEach(function(m){
-      if(!m.email) return;
+    var PRIO_BG = {urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
+    var PRIO_C  = {urgente:'#721C24',normale:'#856404',faible:'#155724'};
 
-      // CPs filtrés selon abonnements
-      var abGlobalMembre = abGlobal.some(function(a){ return a.membre_id === m.id; });
-      var sourcesMembre  = abSources.filter(function(a){ return a.membre_id === m.id; }).map(function(a){ return a.contact_id; });
-      var cpsAbonnes;
-      if(abGlobalMembre){
-        cpsAbonnes = cps; // tous les CPs
-      } else if(sourcesMembre.length){
-        cpsAbonnes = cps.filter(function(cp){ return sourcesMembre.includes(cp.contact_id); });
-      } else {
-        cpsAbonnes = []; // pas d'abonnement CP
-      }
+    var sujetsHtml = sujets.map(function(s){
+      var prio = s.priorite||'normale';
+      return '<div style="border:1px solid #eee;border-radius:6px;padding:0.8rem 1rem;margin-bottom:0.6rem;">'
+        +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">'
+        +'<span style="font-weight:700;font-size:0.9rem;color:#1A1A2E;">'+esc(s.titre||'')+'</span>'
+        +'<span style="font-size:0.65rem;padding:2px 6px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;">'+prio+'</span>'
+        +'</div>'
+        +(s.description?'<div style="font-size:0.82rem;color:#666;margin-bottom:0.4rem;">'+esc(s.description)+'</div>':'')
+        +(s.rubrique?'<div style="font-size:0.72rem;color:#999;">Rubrique : '+esc(s.rubrique)+'</div>':'')
+        +'</div>';
+    }).join('');
 
-      // Template email
-      var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">';
-      html += '<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1.1rem;margin:0;">📋 Récap Ipsum Média</h1><p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">Bonjour '+esc(m.prenom||'')+' — voici les nouveaux sujets et communiqués</p></div>';
-
-      // Sujets briefing
-      if(sujets.length){
-        var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
-        var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
-        html += '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">';
-        html += '<h2 style="font-size:0.95rem;color:#1A1A2E;margin:0 0 0.8rem;">📌 Sujets à rédiger</h2>';
-        sujets.forEach(function(s){
-          var prio = s.priorite||'normale';
-          html += '<div style="border:1px solid #eee;border-radius:6px;padding:0.8rem 1rem;margin-bottom:0.6rem;">';
-          html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">';
-          html += '<span style="font-weight:700;font-size:0.9rem;color:#1A1A2E;">'+esc(s.titre||'')+'</span>';
-          html += '<span style="font-size:0.65rem;padding:2px 6px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;white-space:nowrap;">'+prio+'</span>';
-          html += '</div>';
-          if(s.description) html += '<div style="font-size:0.82rem;color:#666;margin-bottom:0.4rem;">'+esc(s.description)+'</div>';
-          if(s.rubrique) html += '<div style="font-size:0.72rem;color:#999;">Rubrique : '+esc(s.rubrique)+'</div>';
-          html += '</div>';
-        });
-        html += '<p style="text-align:center;margin-top:0.8rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.82rem;font-weight:600;">Réserver un sujet sur Compo</a></p>';
-        html += '</div>';
-      }
-
-      // CPs
-      if(cpsAbonnes.length){
-        html += '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">';
-        html += '<h2 style="font-size:0.95rem;color:#1A1A2E;margin:0 0 0.8rem;">📰 Communiqués de presse</h2>';
-        cpsAbonnes.forEach(function(cp){
-          var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) : '';
-          html += '<div style="border-left:3px solid #1A5276;padding:0.6rem 0.9rem;margin-bottom:0.6rem;background:#F0F6FD;">';
-          html += '<div style="font-weight:700;font-size:0.88rem;color:#1A1A2E;">'+esc(cp.titre||cp.organisation||'')+'</div>';
-          if(cp.organisation) html += '<div style="font-size:0.75rem;color:#666;">'+esc(cp.organisation)+(dateStr?' · '+dateStr:'')+'</div>';
-          html += '</div>';
-        });
-        html += '<p style="text-align:center;margin-top:0.8rem;"><a href="https://compo.ipsummedia.fr" style="background:#1A5276;color:white;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.82rem;font-weight:600;">Consulter les CPs sur Compo</a></p>';
-        html += '</div>';
-      } else if(!abGlobalMembre && !sourcesMembre.length){
-        // Pas abonné aux CPs — invitation
-        html += '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;background:#F9F9F9;">';
-        html += '<p style="font-size:0.82rem;color:#666;margin:0;">💡 Tu peux t\'abonner aux communiqués de presse de ton choix (toutes les sources ou seulement certaines) directement depuis l\'appli <strong>CPs</strong> sur Compo.</p>';
-        html += '<p style="text-align:center;margin-top:0.8rem;"><a href="https://compo.ipsummedia.fr" style="border:1px solid #1A5276;color:#1A5276;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.82rem;">S\'abonner aux CPs</a></p>';
-        html += '</div>';
-      }
-
-      html += '<div style="padding:0.8rem 1.5rem;background:#F5F5F5;text-align:center;"><p style="font-size:0.7rem;color:#999;margin:0;">Ipsum Média · <a href="https://compo.ipsummedia.fr" style="color:#999;">compo.ipsummedia.fr</a> · Pour ne plus recevoir ces récaps, décoche l\'option dans l\'appli Sujets.</p></div>';
-      html += '</div>';
-
-      envoyerEmailResend(m.email, '[Ipsum] Nouveaux sujets et communiqués', html, 'recap')
-        .catch(function(){ console.warn('Email récap non envoyé à '+m.email); });
-      envoyes++;
+    var envois = membres.map(function(m){
+      var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
+        +'<h1 style="color:white;font-size:1.1rem;margin:0;">📌 Nouveaux sujets à rédiger</h1>'
+        +'<p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">Bonjour '+esc(m.prenom||'')+' — '+sujets.length+' nouveau(x) sujet(s) disponible(s)</p>'
+        +'</div>'
+        +'<div style="padding:1.2rem 1.5rem;">'+sujetsHtml+'</div>'
+        +'<div style="padding:1rem 1.5rem;text-align:center;">'
+        +'<a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.82rem;font-weight:600;">Réserver un sujet sur Compo</a>'
+        +'</div>'
+        +'<div style="padding:0.8rem 1.5rem;background:#F5F5F5;text-align:center;">'
+        +'<p style="font-size:0.7rem;color:#999;margin:0;">Ipsum Média · Pour ne plus recevoir ces notifications, décoche l\'option dans l\'appli Sujets sur Compo.</p>'
+        +'</div></div>';
+      return envoyerEmailResend(m.email,'[Compo] '+sujets.length+' nouveau(x) sujet(s) à rédiger',html,'sujets')
+        .then(function(r){ return r ? 1 : 0; })
+        .catch(function(){ return 0; });
     });
 
-    notif('Récap envoyé à '+envoyes+' abonné(s) ✓', 'succes');
-  }).catch(function(){ notif('Erreur envoi récap'); });
+    Promise.all(envois).then(function(resultats){
+      var nb = resultats.reduce(function(a,b){return a+b;},0);
+      // Marquer les sujets comme notifiés
+      var ids = sujets.map(function(s){return s.id;});
+      fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
+        method:'PATCH',
+        headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
+        body:JSON.stringify({notifie:true})
+      }).catch(function(){});
+      notif(nb+' email(s) envoyé(s) pour '+sujets.length+' sujet(s) ✓','succes');
+      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+    });
+  }).catch(function(){
+    notif('Erreur envoi');
+    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+  });
 }
 
 function osBenvEditoFiltre(statut){
@@ -16075,6 +16540,8 @@ var _membresRedactionsData = [];
 var _membresData = [];
 var _articlesRedacData = [];
 
+var _redacOnglet = 'profil'; // 'profil' | 'sujets' | 'redac'
+
 function osRedactionsRender(){
   var wc = document.getElementById('wincontent-redactions');
   if(!wc) return;
@@ -16083,7 +16550,6 @@ function osRedactionsRender(){
   wc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement...</div>';
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var debutMoisISO = debutMois.toISOString();
 
@@ -16091,305 +16557,693 @@ function osRedactionsRender(){
     fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,created_at&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=500',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.confirme&select=membre_id,evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&created_at=gte.'+encodeURIComponent(debutMoisISO)+'&select=id,created_at',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&created_at=gte.'+encodeURIComponent(debutMoisISO)+'&select=id,created_at',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&order=created_at.desc&select=*',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     _redactionsData        = (!results[0]||results[0].code)?[]:results[0];
     _membresRedactionsData = (!results[1]||results[1].code)?[]:results[1];
     _membresData           = (!results[2]||results[2].code)?[]:results[2];
     _articlesRedacData     = (!results[3]||results[3].code)?[]:results[3];
-    window._agendaInscriptions = (!results[4]||results[4].code)?[]:results[4];
-    window._nouveauxMembres    = (!results[5]||results[5].code)?[]:results[5];
+    window._mesArticlesPerso   = (!results[4]||results[4].code)?[]:results[4];
+    window._agendaInscriptions = (!results[5]||results[5].code)?[]:results[5];
+    window._nouveauxMembres    = (!results[6]||results[6].code)?[]:results[6];
+    window._sujetsData         = (!results[7]||results[7].code)?[]:results[7];
 
-    // Déterminer le rôle média de l'utilisateur
-    var monLien = _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
+    var mesLiens = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
+    var monLien = window._redacActiveId
+      ? mesLiens.find(function(mr){ return mr.redaction_id === window._redacActiveId; }) || mesLiens[0]
+      : mesLiens[0];
     var monRoleMedia = monLien ? monLien.role_redac : null;
     var maRedacId = monLien ? monLien.redaction_id : null;
 
-    if(role === 'admin'){
-      osRedactionsRenderAdmin(wc, uid);
-    } else if(monRoleMedia === 'redac_chef'){
-      osRedactionsRenderRedacChef(wc, uid, maRedacId);
-    } else {
-      osRedactionsRenderMembre(wc, uid, maRedacId);
+    // Plusieurs rédactions — afficher un sélecteur si pas encore choisi
+    if(mesLiens.length > 1 && !window._redacActiveId){
+      osRedactionsRenderSelecteur(wc, uid, mesLiens);
+      return;
     }
+
+    osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
   }).catch(function(e){
     wc.innerHTML = '<div style="padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--rouge);">Erreur de chargement.</div>';
   });
 }
 
-// ---- VUE MEMBRE ----
-function osRedactionsRenderMembre(wc, uid, redacId){
-  var membre = _membresData.find(function(m){ return m.id === uid; });
-  if(!membre){ wc.innerHTML='<div style="padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Profil introuvable.</div>'; return; }
-
-  var redac = _redactionsData.find(function(r){ return r.id === redacId; });
-  var lien  = _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
-  var roleRedac = lien ? lien.role_redac : 'redacteur';
-
-  var mesArticles   = _articlesRedacData.filter(function(a){ return a.auteur_id === uid; });
-  var mesPublies    = mesArticles.filter(function(a){ return a.statut === 'publie'; });
-  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  var mesDuMois     = mesArticles.filter(function(a){ return new Date(a.updated_at) >= depuis30; });
-
-  // Stats rédac
-  var membresRedac  = redacId ? _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redacId; }) : [];
-  var idsRedac      = membresRedac.map(function(mr){ return mr.membre_id; });
-  var artsRedac     = redacId ? _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; }) : [];
-  var artsRedacPublies = artsRedac.filter(function(a){ return a.statut === 'publie'; });
-  var artsRedacMois = artsRedac.filter(function(a){ return new Date(a.updated_at) >= depuis30; });
-
-  // Participations agenda ce mois
-  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
-  var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){
-    return i.membre_id === uid && new Date(i.created_at) >= debutMois;
+// ---- SÉLECTEUR MULTI-RÉDACTIONS ----
+function osRedactionsRenderSelecteur(wc, uid, liens){
+  var h = '<div style="padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;">';
+  h += '<div style="text-align:center;">';
+  h += '<div style="font-size:2rem;margin-bottom:0.8rem;">🗞️</div>';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:var(--encre);margin-bottom:0.4rem;">Dans quelle rédaction veux-tu travailler ?</div>';
+  h += '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Tu es membre de plusieurs rédactions.</div>';
+  h += '</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:0.7rem;width:100%;max-width:340px;">';
+  liens.forEach(function(lien){
+    var redac = _redactionsData.find(function(r){ return r.id === lien.redaction_id; });
+    if(!redac) return;
+    var couleur = redac.couleur || '#EA5B1C';
+    var membresCount = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; }).length;
+    h += '<button onclick="osRedactionsChoisirRedac(\''+lien.redaction_id+'\')" style="display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;background:white;border:1.5px solid var(--gris-bord);border-radius:12px;cursor:pointer;text-align:left;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\''+couleur+'\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'">';
+    h += '<div style="width:40px;height:40px;border-radius:10px;background:'+couleur+';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">🗞️</div>';
+    h += '<div style="flex:1;min-width:0;">';
+    h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">'+esc(redac.nom)+'</div>';
+    h += '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+(redac.departement||'')+' · '+membresCount+' membre(s) · '+(lien.role_redac==='redac_chef'?'<span style="color:#27500A;background:#C0DD97;padding:1px 6px;border-radius:3px;">Rédac chef</span>':lien.role_redac)+'</div>';
+    h += '</div>';
+    h += '<div style="font-size:1.2rem;color:var(--gris);">→</div>';
+    h += '</button>';
   });
-
-  // Nouveaux bénévoles ce mois dans la rédac
-  var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){
-    return idsRedac.indexOf(m.id) !== -1;
-  });
-
-  var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'};
-  var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
-  var couleurRedac = redac ? (redac.couleur||'#EA5B1C') : '#EA5B1C';
-
-  var h = '<div style="height:100%;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
-
-  // Profil
-  h += '<div style="background:var(--encre);border-radius:14px;padding:1.5rem;display:flex;align-items:center;gap:1.2rem;position:relative;overflow:hidden;">';
-  h += '<div style="position:absolute;right:-20px;bottom:-20px;font-size:6rem;opacity:0.05;user-select:none;">🗞️</div>';
-  h += '<div style="position:relative;flex-shrink:0;"><div style="width:60px;height:60px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:'+rc[1]+';">'+initiales+'</div>';
-  h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid var(--encre);"></span></div>';
-  h += '<div style="flex:1;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.2rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
-  if(fonctionShort(membre.fonction)) h += '<div style="font-family:monospace;font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+fonctionShort(membre.fonction)+'</div>';
-  h += '<div style="display:flex;gap:0.5rem;margin-top:8px;flex-wrap:wrap;">';
-  h += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+'">'+(membre.role||'')+'</span>';
-  if(roleRedac === 'redac_chef') h += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 8px;border-radius:10px;background:#C0DD97;color:#27500A">Rédac en chef</span>';
-  if(redac) h += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 8px;border-radius:10px;background:'+couleurRedac+'22;color:'+couleurRedac+';border:1px solid '+couleurRedac+'44;">'+esc(redac.nom)+(redac.departement?' · '+esc(redac.departement):'')+'</span>';
   h += '</div></div>';
-  h += '<button onclick="osGenererCarteAdherent('+JSON.stringify(membre)+',null)" style="font-family:monospace;font-size:0.62rem;padding:6px 12px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;flex-shrink:0;">🪪 Carte</button>';
-  h += '</div>';
-
-  // Mes stats — 4 cartes avec participations agenda
-  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
-  function statCard(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">'+l+'</div></div>'; }
-  h += statCard(mesArticles.length,'Articles total');
-  h += statCard(mesPublies.length,'Publiés','#27AE60');
-  h += statCard(mesDuMois.length,'Ce mois','#EA5B1C');
-  h += statCard(mesParticipations.length,'Activités','#1A5276');
-  h += '</div>';
-
-  // Stats rédac
-  if(redac){
-    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;overflow:hidden;">';
-    h += '<div style="padding:0.9rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;gap:0.6rem;">';
-    h += '<div style="width:10px;height:10px;border-radius:50%;background:'+couleurRedac+';flex-shrink:0;"></div>';
-    h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);">Rédaction '+esc(redac.nom)+'</span>';
-    h += '<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:auto;">'+membresRedac.length+' membre(s)</span>';
-    h += '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:0.5px solid var(--gris-bord);">';
-    h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:var(--encre);">'+membresRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Membres</div></div>';
-    h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:var(--encre);">'+artsRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Articles</div></div>';
-    h += '<div style="padding:0.9rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-size:1.3rem;font-weight:800;color:#27AE60;">'+artsRedacPublies.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Publiés</div></div>';
-    h += '<div style="padding:0.9rem;text-align:center;"><div style="font-size:1.3rem;font-weight:800;color:'+(nouveauxRedac.length>0?'#1A5276':'var(--gris)')+'">'+nouveauxRedac.length+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);text-transform:uppercase;">Nouveaux</div></div>';
-    h += '</div>';
-    // Membres de la rédac
-    h += '<div style="padding:0.8rem 1.2rem;display:flex;flex-wrap:wrap;gap:0.5rem;">';
-    membresRedac.forEach(function(mr){
-      var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
-      if(!mb) return;
-      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-      var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
-      h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;" title="'+esc(mb.prenom+' '+mb.nom)+'">';
-      h += '<div style="position:relative;"><div style="width:22px;height:22px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
-      h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1px solid var(--gris-clair);"></span></div>';
-      h += '<span style="font-size:0.72rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
-      if(mr.role_redac==='redac_chef') h += '<span style="font-family:monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
-      h += '</div>';
-    });
-    h += '</div>';
-    h += '</div>';
-  }
-
-  // Mes derniers articles
-  if(mesArticles.length){
-    var statDef = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},publie:{l:'Publié',bg:'#1A1A2E',c:'white'}};
-    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;overflow:hidden;">';
-    h += '<div style="padding:0.9rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);">Mes derniers articles</div>';
-    mesArticles.slice(0,6).forEach(function(a){
-      var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
-      h += '<div style="display:flex;align-items:center;gap:0.7rem;padding:0.55rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);">';
-      h += '<div style="flex:1;font-size:0.8rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;">'+esc(a.titre||'Sans titre')+'</div>';
-      h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 7px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;flex-shrink:0;">'+sd.l+'</span>';
-      h += '</div>';
-    });
-    h += '</div>';
-  }
-
-  h += '</div>';
   wc.innerHTML = h;
 }
 
-// ---- VUE RÉDAC CHEF ----
-function osRedactionsRenderRedacChef(wc, uid, redacId){
-  var redac = _redactionsData.find(function(r){ return r.id === redacId; });
-  if(!redac){ osRedactionsRenderMembre(wc, uid, redacId); return; }
+function osRedactionsChoisirRedac(redacId){
+  window._redacActiveId = redacId;
+  // Réactiver le bouton fermer
+  var wins = document.querySelectorAll('.os-window');
+  wins.forEach(function(w){
+    if(w.dataset.page === 'redactions'){
+      var btnClose = w.querySelector('.os-btn-close');
+      if(btnClose){
+        btnClose.style.pointerEvents = '';
+        btnClose.style.opacity = '';
+        btnClose.title = '';
+      }
+    }
+  });
+  osRedactionsRender();
+}
 
+// ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----
+function osRedactionsChangerOnglet(onglet){
+  _redacOnglet = onglet;
+  var wc = document.getElementById('wincontent-redactions');
+  var monLien = _membresRedactionsData.find(function(mr){ return mr.membre_id === getUserId(); });
+  var maRedacId = monLien ? monLien.redaction_id : null;
+  var monRoleMedia = monLien ? monLien.role_redac : null;
+  osRedactionsRenderAvecOnglets(wc, getUserId(), maRedacId, monRoleMedia);
+}
+
+function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
+  var rc = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[membre.role]||'#D3D1C7,#444441').split(',');
+  var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
+  var h = '';
+
+  // Header profil
+  h += '<div style="background:var(--encre);border-radius:14px;padding:1rem 1.2rem;">';
+  h += '<div style="display:flex;align-items:center;gap:0.9rem;">';
+  h += '<div style="position:relative;flex-shrink:0;">';
+  h += '<div style="width:46px;height:46px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:'+rc[1]+';">'+initiales+'</div>';
+  h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid var(--encre);"></span>';
+  h += '</div>';
+  h += '<div style="flex:1;min-width:0;">';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
+  if(fonctionShort(membre.fonction)) h += '<div style="font-family:monospace;font-size:0.58rem;color:rgba(255,255,255,0.5);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
+  h += '</div>';
+  h += '<button id="redac-carte-btn" style="font-family:monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;flex-shrink:0;">🪪 Carte</button>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:0.4rem;margin-top:8px;flex-wrap:wrap;">';
+  h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+'">'+(membre.role||'')+'</span>';
+  if(roleRedac === 'redac_chef') h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:#C0DD97;color:#27500A;">Rédac en chef</span>';
+  if(redac) h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:'+couleurRedac+'33;color:'+couleurRedac+';border:1px solid '+couleurRedac+'55;">'+esc(redac.nom)+'</span>';
+  h += '</div>';
+  h += '</div>';
+
+  // Stats — chargées en async via IDs
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;" id="redac-stats-grid">';
+  function sc(n,l,c){ return '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">'+l+'</div></div>'; }
+  h += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div id="stat-arts" style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:var(--encre)">—</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">Articles</div></div>';
+  h += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div id="stat-pub" style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:#27AE60">—</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">Publiés</div></div>';
+  h += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div id="stat-mois" style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:#EA5B1C">—</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:3px;">Ce mois</div></div>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:0.7rem;">';
+  h += sc(mesParticipations.length,'Activités','#1A5276');
+  h += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;display:flex;align-items:center;gap:0.8rem;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:#7D3C98;" id="membre-heures-total">—</div><div style="font-size:0.55rem;font-family:monospace;text-transform:uppercase;color:var(--gris);">⏱️ Bénévolat<br><span id="membre-heures-detail" style="font-weight:400;color:#aaa;text-transform:none;letter-spacing:0;"></span></div></div>';
+  h += '</div>';
+
+  // Sujets à rédiger (aperçu dans l'onglet profil — chargés en async)
+  h += '<div>';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+  h += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);">Sujets à rédiger</span>';
+  h += '<button onclick="osOuvrirSujets()" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
+  h += '</div>';
+  h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>';
+  h += '</div>';
+
+  // Mes derniers articles
+  h += '<div>';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+  h += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);">Mes derniers articles</span>';
+  h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
+  h += '</div>';
+  h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>';
+  h += '</div>';
+
+  return h;
+}
+
+function osRedactionsMembre_OngletSujets(uid, roleRedac){
+  return '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>';
+}
+
+function osRedacChargerSujets(zone, roleRedac){
+  if(!zone) return;
+  osSujetsCharger(function(sujets){
+    if(!sujets || !sujets.length){
+      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
+      return;
+    }
+    var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
+    var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
+    var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
+    var h = '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
+    sujets.forEach(function(s){
+      var prio = s.priorite||'normale';
+      h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1.1rem;">';
+      h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.3rem;">';
+      h += '<div style="flex:1;font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>';
+      h += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
+      h += '</div>';
+      if(s.description) h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">'+esc(s.description)+'</div>';
+      if(s.rubrique) h += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+      h += '<button data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)" style="font-family:monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">Réserver</button>';
+      if(isChefOuAdmin){
+        h += '<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
+      }
+      h += '</div></div>';
+    });
+    h += '</div>';
+    zone.innerHTML = h;
+    // Stocker pour la suppression
+    window._sujetsData = sujets;
+  });
+}
+
+function osRedacChargerMesArticles(zone){
+  if(!zone) return;
+  var uid = getUserId();
+  var nom = getUserNomComplet();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+  // Fetch par auteur_id OU par nom (fallback pour admin)
+  var url = SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,updated_at&order=updated_at.desc';
+  fetch(url, {headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(arts){
+    if((!arts||arts.code||!arts.length)){
+      var prenom = getUserPrenom();
+      if(prenom){
+        return fetch(SB_URL+'/rest/v1/articles?auteur=ilike.'+encodeURIComponent(prenom+'*')+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();});
+      }
+    }
+    return arts;
+  })
+  .then(function(arts){
+    if(!arts||arts.code){ zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--rouge);">Erreur.</div>'; return; }
+    // Remplir les stats
+    var total = arts.length;
+    var publies = arts.filter(function(a){return a.statut==='publie';}).length;
+    var mois = arts.filter(function(a){return new Date(a.updated_at)>=depuis30;}).length;
+    var elT = document.getElementById('stat-arts');
+    var elP = document.getElementById('stat-pub');
+    var elM = document.getElementById('stat-mois');
+    if(elT) elT.textContent = total;
+    if(elP) elP.textContent = publies;
+    if(elM) elM.textContent = mois;
+    // Afficher les 8 derniers
+    if(!arts.length){
+      zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun article pour le moment.</div>';
+      return;
+    }
+    var statDef={
+      brouillon:    {l:'Brouillon',   bg:'#FFF3CD',c:'#856404', dot:'#856404'},
+      'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276', dot:'#1A5276'},
+      corrige:      {l:'Corrigé',     bg:'#D1ECF1',c:'#0C5460', dot:'#0C5460'},
+      valide:       {l:'Validé',      bg:'#D4EDDA',c:'#155724', dot:'#155724'},
+      publie:       {l:'Publié',      bg:'#1A1A2E', c:'white',   dot:'#1A1A2E'}
+    };
+    zone.innerHTML='';
+    arts.slice(0,8).forEach(function(a,i){
+      var sd=statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333',dot:'#888'};
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;cursor:pointer;'+(i<Math.min(arts.length,8)-1?'border-bottom:0.5px solid var(--gris-bord);':'');
+      row.title = 'Ouvrir "'+esc(a.titre||'Sans titre')+'"';
+      row.addEventListener('mouseenter', function(){ this.style.opacity='0.7'; });
+      row.addEventListener('mouseleave', function(){ this.style.opacity='1'; });
+      row.addEventListener('click', function(){
+        osOpenWindow('redaction');
+        setTimeout(function(){ chargerArticle(a.id); }, 300);
+      });
+      row.innerHTML=
+        '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
+        +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
+        +'<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;background:'+sd.bg+';color:'+sd.c+';border-radius:10px;flex-shrink:0;">'+sd.l+'</span>';
+      zone.appendChild(row);
+    });
+  }).catch(function(){
+    zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--rouge);">Erreur de chargement.</div>';
+  });
+}
+
+
+function osRedacChargerSujetsProfil(zone){
+  if(!zone) return;
+  var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
+  var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
+  osSujetsCharger(function(sujets){
+    if(!sujets||!sujets.length){
+      zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun sujet proposé.</div>';
+      return;
+    }
+    window._sujetsData = sujets;
+    var h='';
+    sujets.slice(0,4).forEach(function(s,i){
+      var prio=s.priorite||'normale';
+      h+='<div onclick="osRedacOuvrirSujet(this)" data-sujet-id="'+s.id+'" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;'+(i<Math.min(sujets.length,4)-1?'border-bottom:0.5px solid var(--gris-bord);':'')+';cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
+      h+='<div style="width:8px;height:8px;border-radius:50%;background:'+PRIO_C[prio]+';flex-shrink:0;"></div>';
+      h+='<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.titre||'')+'</div>';
+      h+='<span style="font-family:monospace;font-size:0.55rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:10px;flex-shrink:0;">'+prio+'</span>';
+      h+='</div>';
+    });
+    zone.innerHTML=h;
+  });
+}
+
+function osRedacOuvrirSujet(el){
+  var sujetId = el.dataset.sujetId;
+  var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
+  if(!sujet){ osOuvrirSujets(); return; }
+  _sujetCourant = sujet;
+  var titreEl = document.getElementById('sujet-modal-titre');
+  var metaEl  = document.getElementById('sujet-modal-meta');
+  var noteEl  = document.getElementById('sujet-modal-note');
+  if(titreEl) titreEl.textContent = sujet.titre||'Sans titre';
+  if(metaEl){ metaEl.innerHTML=''; var sp=document.createElement('span'); sp.style.cssText='font-family:monospace;font-size:0.62rem;padding:3px 8px;background:#FFF3CD;color:#856404;border:1px solid #856404;'; sp.textContent=sujet.priorite||'normale'; metaEl.appendChild(sp); }
+  if(noteEl&&sujet.note){ noteEl.textContent=sujet.note; noteEl.style.display='block'; } else if(noteEl){ noteEl.style.display='none'; }
+  var modal = document.getElementById('modal-sujet');
+  if(modal) modal.style.display='flex';
+}
+
+function osRedacReserverSujet(btn){
+  var sujetId = btn.dataset.sujetId;
+  var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
+  if(!sujet) return;
+  _sujetCourant = sujet;
+  var titreEl = document.getElementById('sujet-modal-titre');
+  var metaEl  = document.getElementById('sujet-modal-meta');
+  var noteEl  = document.getElementById('sujet-modal-note');
+  if(titreEl) titreEl.textContent = sujet.titre||'Sans titre';
+  if(metaEl){ metaEl.innerHTML=''; var sp=document.createElement('span'); sp.style.cssText='font-family:monospace;font-size:0.62rem;padding:3px 8px;background:#FFF3CD;color:#856404;border:1px solid #856404;'; sp.textContent=sujet.priorite||'normale'; metaEl.appendChild(sp); }
+  if(noteEl&&sujet.note){ noteEl.textContent=sujet.note; noteEl.style.display='block'; } else if(noteEl){ noteEl.style.display='none'; }
+  var modal = document.getElementById('modal-sujet');
+  if(modal) modal.style.display='flex';
+}
+
+function osSujetSupprimerDepuisRedac(sujetId){
+  if(!confirm('Supprimer ce sujet ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{method:'DELETE',headers:authH})
+  .then(function(r){
+    if(r.ok){
+      notif('Sujet supprimé','succes');
+      window._sujetsData = (window._sujetsData||[]).filter(function(s){return s.id!==sujetId;});
+      osRedactionsChangerOnglet(_redacOnglet);
+    } else notif('Erreur suppression');
+  }).catch(function(){notif('Erreur réseau');});
+}
+
+function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
+  if(!redacId){ return '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:monospace;font-size:0.78rem;">Aucune r\u00e9daction assign\u00e9e.</div>'; }
+  var redac = _redactionsData.find(function(r){ return r.id === redacId; });
+  if(!redac) return '';
   var couleurRedac = redac.couleur||'#EA5B1C';
   var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redacId; });
   var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
   var membresRedac = _membresData.filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'};
-
-  var h = '<div style="height:100%;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
-
-  // Header rédac
-  h += '<div style="background:'+couleurRedac+';border-radius:14px;padding:1.3rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.4rem;color:white;flex:1;">'+esc(redac.nom)+'</div>';
-  if(redac.departement) h += '<span style="font-family:monospace;font-size:0.65rem;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.15);padding:3px 10px;border-radius:20px;">'+esc(redac.departement)+'</span>';
-  h += '<span style="font-family:monospace;font-size:0.65rem;color:rgba(255,255,255,0.7);">'+membresRedac.length+' membre(s)</span>';
-  h += '</div>';
-
-  // Stats globales rédac
   var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
   var artsPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
   var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-  var artsEnCours = artsRedac.filter(function(a){ return a.statut!=='publie'; });
-
-  // Nouveaux bénévoles ce mois dans cette rédac
-  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
+  var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'};
 
-  // Participations agenda ce mois (tous membres de la rédac)
-  var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){
-    return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at) >= debutMois;
-  });
-
-  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
-  function sCard(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
-  h += sCard(membresRedac.length, 'Membres');
-  h += sCard(artsPublies.length, 'Publiés', '#27AE60');
-  h += sCard(artsMois.length, 'Ce mois', '#EA5B1C');
+  var h = '';
+  // Header rédac
+  h += '<div style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
+  h += '<div style="flex:1;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:white;">'+esc(redac.nom)+'</div>';
+  if(redac.departement) h += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.6);">'+esc(redac.departement)+'</div>';
   h += '</div>';
-  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
-  h += sCard(artsEnCours.length, 'En cours', '#1A5276');
-  h += sCard(participationsRedac.length, 'Participations', '#7D3C98');
-  h += sCard(nouveauxRedac.length, 'Nouveaux', nouveauxRedac.length>0?'#E67E22':'var(--gris)');
+  h += '<span style="font-family:monospace;font-size:0.62rem;color:rgba(255,255,255,0.7);">'+membresRedac.length+' membres</span>';
   h += '</div>';
 
-  // Tableau des membres
-  h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;overflow:hidden;">';
-  h += '<div style="padding:0.9rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
-  h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;">Membres de la rédaction</span>';
-  h += '<button onclick="osRedacChefAjouterMembre(\''+redacId+'\')" style="font-family:monospace;font-size:0.62rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Ajouter</button>';
-  h += '</div>';
-  h += '<table style="width:100%;border-collapse:collapse;">';
-  h += '<thead><tr style="background:var(--gris-clair);">';
-  ['Membre','Rôle rédac','Articles','Publiés','Ce mois',''].forEach(function(col){
-    h += '<th style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);padding:0.5rem 0.9rem;text-align:left;font-weight:500;">'+col+'</th>';
-  });
-  h += '</tr></thead><tbody>';
-  membresRedac.forEach(function(m){
-    var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
-    var roleRedac = lien ? lien.role_redac : 'redacteur';
-    var rcMb = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
-    var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-    var arts = _articlesRedacData.filter(function(a){ return a.auteur_id===m.id; });
-    var pub  = arts.filter(function(a){ return a.statut==='publie'; });
-    var mois = arts.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-    h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
-    h += '<td style="padding:0.6rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:28px;height:28px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><div><div style="font-size:0.8rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</div><div style="font-size:0.62rem;color:var(--gris);">'+esc(m.email||'')+'</div></div></div></td>';
-    h += '<td style="padding:0.6rem 0.9rem;"><select onchange="osRedacChefChangerRole(\''+m.id+'\',\''+redacId+'\',this.value)" style="font-family:monospace;font-size:0.6rem;padding:2px 6px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
-      +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(roleRedac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
-      +'</select></td>';
-    h += '<td style="padding:0.6rem 0.9rem;font-size:0.8rem;color:var(--gris);">'+arts.length+'</td>';
-    h += '<td style="padding:0.6rem 0.9rem;font-size:0.8rem;color:#27AE60;">'+pub.length+'</td>';
-    h += '<td style="padding:0.6rem 0.9rem;font-size:0.8rem;color:#EA5B1C;">'+mois.length+'</td>';
-    h += '<td style="padding:0.5rem 0.6rem;"><button onclick="osRedacChefRetirerMembre(\''+m.id+'\',\''+redacId+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
-    h += '</tr>';
-  });
-  h += '</tbody></table></div>';
-  h += '</div>';
-  wc.innerHTML = h;
-}
-
-// ---- VUE ADMIN ----
-function osRedactionsRenderAdmin(wc, uid){
-  var h = '<div style="height:100%;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
-
-  // Header + bouton créer
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:var(--encre);">Gestion des rédactions</div>';
-  h += '<button onclick="osRedactionCreerModal()" style="font-family:monospace;font-size:0.65rem;padding:6px 14px;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;">+ Créer une rédaction</button>';
-  h += '</div>';
-
-  // Grille des rédactions
-  if(!_redactionsData.length){
-    h += '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:monospace;font-size:0.78rem;">Aucune rédaction — crée la première !</div>';
+  // Stats rédac
+  var isChef = roleRedac === 'redac_chef';
+  if(isChef){
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    function sc2(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
+    h += sc2(membresRedac.length,'Membres');
+    h += sc2(artsPublies.length,'Publiés','#27AE60');
+    h += sc2(artsMois.length,'Ce mois','#EA5B1C');
+    h += '</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += sc2(artsRedac.filter(function(a){return a.statut!=='publie';}).length,'En cours','#1A5276');
+    h += sc2(participationsRedac.length,'Participations','#7D3C98');
+    h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)');
+    h += '</div>';
+    // Tableau membres
+    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;overflow:hidden;">';
+    h += '<div style="padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
+    h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;">Membres</span>';
+    h += '<button onclick="osRedacChefAjouterMembre(\"'+redacId+'\")" style="font-family:monospace;font-size:0.6rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Ajouter</button>';
+    h += '</div>';
+    h += '<table style="width:100%;border-collapse:collapse;">';
+    h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.9rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th></th></tr></thead><tbody>';
+    membresRedac.forEach(function(m){
+      var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
+      var rr = lien ? lien.role_redac : 'redacteur';
+      var rcMb = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+      var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
+      var arts = _articlesRedacData.filter(function(a){ return a.auteur_id===m.id; });
+      h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
+      h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+        +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
+      h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
+      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" style="font-family:monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
   } else {
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">';
-    _redactionsData.forEach(function(redac){
-      var couleur = redac.couleur||'#EA5B1C';
-      var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
-      var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
-      var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-      var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
-      var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
-      var artsPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
-      var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-      var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
+    // Vue membre simple : stats rédac + collègues
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
+    function sc3(n,l,c,last){return '<div style="padding:0.8rem;text-align:center;'+(last?'':'border-right:0.5px solid var(--gris-bord);')+'"><div style="font-size:1.2rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.52rem;color:var(--gris);text-transform:uppercase;">'+l+'</div></div>';}
+    h += sc3(membresRedac.length,'Membres');
+    h += sc3(artsPublies.length,'Publiés','#27AE60');
+    h += sc3(artsMois.length,'Ce mois','#EA5B1C');
+    h += sc3(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',true);
+    h += '</div>';
+  }
 
-      h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
-      // Couleur header
-      h += '<div style="background:'+couleur+';padding:1rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">';
-      h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">'+esc(redac.nom)+'</div>';
-      if(redac.departement) h += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.65);margin-top:2px;">'+esc(redac.departement)+'</div>';
+  // Membres de la rédaction — style flat
+  h += '<div>';
+  h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+  var countShown = 0;
+  membresRedac.forEach(function(mb){
+    if(countShown >= 5){ return; }
+    var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
+    var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
+    var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
+    h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;" title="'+esc(mb.prenom+' '+mb.nom)+'">';
+    h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
+    h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
+    h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc((mb.nom||'')[0]||'')+'.'+((mb.nom||'').length>1?'':'')+'</span>';
+    if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
+    h += '</div>';
+    countShown++;
+  });
+  var reste = membresRedac.length - countShown;
+  if(reste > 0) h += '<div style="display:flex;align-items:center;justify-content:center;background:var(--gris-clair);border-radius:20px;padding:3px 12px;font-family:monospace;font-size:0.7rem;color:var(--gris);">+'+reste+'</div>';
+  if(!membresRedac.length) h += '<span style="font-family:monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
+  h += '</div></div>';
+
+  // Articles récents — style flat
+  var artsRecents = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
+  if(artsRecents.length){
+    h += '<div>';
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Articles récents</div>';
+    artsRecents.forEach(function(a,i){
+      var auteur = _membresData.find(function(m){return m.id===a.auteur_id;});
+      h += '<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.4rem 0;'+(i<artsRecents.length-1?'border-bottom:0.5px solid var(--gris-bord);':'')+'">';
+      h += '<div style="width:8px;height:8px;border-radius:50%;background:#1A1A2E;flex-shrink:0;margin-top:3px;"></div>';
+      h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+(auteur?' <span style="color:var(--gris);font-size:0.72rem;">— '+esc(auteur.prenom||'')+'</span>':'')+'</div>';
+      h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;background:#1A1A2E;color:white;border-radius:10px;flex-shrink:0;">Publié</span>';
       h += '</div>';
-      h += '<div style="display:flex;gap:0.4rem;">';
-      h += '<button onclick="osRedactionEditerModal(\''+redac.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">✏️</button>';
-      h += '<button onclick="osRedactionSupprimerConfirm(\''+redac.id+'\',\''+esc(redac.nom)+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">🗑️</button>';
-      h += '</div></div>';
-      // Stats — 4 colonnes avec nouveaux
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:0.5px solid var(--gris-bord);">';
-      [['👥',membresLiens.length,'membres'],['✅',artsPublies.length,'publiés'],['📝',artsMois.length,'ce mois'],['🆕',nouveauxRedac.length,'nouveaux']].forEach(function(s,i){
-        h += '<div style="padding:0.7rem;text-align:center;'+(i<3?'border-right:0.5px solid var(--gris-bord);':'')+'">';
-        h += '<div style="font-size:0.7rem;">'+s[0]+'</div>';
-        h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:'+(i===3&&s[1]>0?'#E67E22':'var(--encre)')+';">'+s[1]+'</div>';
-        h += '<div style="font-family:monospace;font-size:0.52rem;color:var(--gris);">'+s[2]+'</div>';
-        h += '</div>';
-      });
-      h += '</div>';
-      // Membres
-      h += '<div style="padding:0.8rem 1rem;">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-      h += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);letter-spacing:0.08em;">Membres</span>';
-      h += '<button onclick="osAdminAjouterMembreRedac(\''+redac.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 8px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;">+ Ajouter</button>';
-      h += '</div>';
-      h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
-      membresLiens.forEach(function(mr){
-        var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
-        if(!mb) return;
-        var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-        var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'}[mb.role]||'#D3D1C7,#444441').split(',');
-        h += '<div style="display:flex;align-items:center;gap:4px;background:var(--gris-clair);border-radius:20px;padding:2px 8px 2px 3px;" title="'+esc(mb.prenom+' '+mb.nom)+' — '+mr.role_redac+'">';
-        h += '<div style="width:20px;height:20px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
-        h += '<span style="font-size:0.68rem;color:var(--encre);">'+esc(mb.prenom||'')+'</span>';
-        if(mr.role_redac==='redac_chef') h += '<span style="font-family:monospace;font-size:0.48rem;color:#27500A;background:#C0DD97;padding:1px 4px;border-radius:2px;">chef</span>';
-        h += '<button onclick="osAdminRetirerMembreRedac(\''+mb.id+'\',\''+redac.id+'\')" style="background:none;border:none;color:var(--gris);cursor:pointer;padding:0;font-size:0.65rem;line-height:1;">×</button>';
-        h += '</div>';
-      });
-      if(!membresLiens.length) h += '<span style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Aucun membre</span>';
-      h += '</div></div></div>';
     });
     h += '</div>';
   }
+
+  return h;
+}
+
+function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
+  var membre = _membresData.find(function(m){ return m.id === uid; });
+  if(!membre){ wc.innerHTML='<div style="padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Profil introuvable.</div>'; return; }
+  var redac = redacId ? _redactionsData.find(function(r){ return r.id === redacId; }) : null;
+  var couleurRedac = redac ? (redac.couleur||'#EA5B1C') : '#EA5B1C';
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var mesArticles = (window._mesArticlesPerso && window._mesArticlesPerso.length)
+    ? window._mesArticlesPerso
+    : _articlesRedacData.filter(function(a){ return a.auteur_id===uid; });
+  console.log('[redac] uid:', uid, '| perso:', (window._mesArticlesPerso||[]).length, '| redac total:', _articlesRedacData.length, '| sujets:', (window._sujetsData||[]).length);
+  var mesPublies = mesArticles.filter(function(a){ return a.statut==='publie'; });
+  var mesDuMois = mesArticles.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+  var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){ return i.membre_id===uid && new Date(i.created_at)>=debutMois; });
+
+  // Sidebar onglets + contenu
+  var h = '<div style="display:flex;height:100%;overflow:hidden;">';
+
+  // Sidebar icônes
+  h += '<div style="width:54px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;">';
+  var onglets = [
+    {id:'profil', icon:'👤', label:'Mon profil'},
+    {id:'sujets', icon:'📌', label:'Sujets'},
+    {id:'redac',  icon:'🗞️', label:'Ma rédaction'}
+  ];
+  if(getUserRole() === 'admin'){
+    onglets.push({id:'admin', icon:'⚙️', label:'Gestion rédactions'});
+  }
+  onglets.forEach(function(o){
+    var actif = _redacOnglet === o.id;
+    h += '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" title="'+o.label+'" style="width:38px;height:38px;border-radius:9px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;">'+o.icon+'</button>';
+  });
+  h += '<div style="flex:1;"></div>';
+  // Bouton changer de rédaction si multi-redac
+  var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
+  if(mesLiensSidebar.length > 1){
+    h += '<button onclick="window._redacActiveId=null;osRedactionsRender();" title="Changer de rédaction" style="width:38px;height:38px;border-radius:9px;border:none;background:transparent;color:var(--gris);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">🔄</button>';
+  }
+  h += '</div>';
+
+  // Zone contenu — fond sombre comme dans la maquette
+  h += '<div style="flex:1;overflow-y:auto;padding:0.9rem 1rem;display:flex;flex-direction:column;gap:0.9rem;">';
+  // Bandeau beta
+  h += '<div style="background:#FFF3CD;border:1px solid #FFEAA7;border-radius:8px;padding:0.6rem 0.9rem;display:flex;align-items:center;gap:0.6rem;">';
+  h += '<span style="font-size:0.9rem;flex-shrink:0;">🚧</span>';
+  h += '<div style="font-family:monospace;font-size:0.62rem;color:#856404;"><strong>Bêta</strong> — Cette app est en cours de développement, certaines fonctionnalités peuvent manquer ou mal fonctionner.</div>';
+  h += '</div>';
+
+  if(_redacOnglet === 'profil'){
+    h += osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac);
+  } else if(_redacOnglet === 'sujets'){
+    h += osRedactionsMembre_OngletSujets(uid, roleRedac);
+  } else if(_redacOnglet === 'redac'){
+    h += osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre);
+  } else if(_redacOnglet === 'admin'){
+    h += '<div id="redac-admin-zone" style="min-height:200px;"></div>';
+  }
+
+  h += '</div></div>';
+  wc.innerHTML = h;
+
+  if(_redacOnglet === 'profil'){
+    osChargerHeuresMembre(uid);
+    var btnCarte = document.getElementById('redac-carte-btn');
+    if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, null); });
+    // Articles — fetch direct
+    var zoneArts = document.getElementById('redac-mes-articles-liste');
+    if(zoneArts) osRedacChargerMesArticles(zoneArts);
+    // Sujets — fetch direct dans la zone profil
+    var zoneSujetsP = document.getElementById('redac-sujets-profil');
+    if(zoneSujetsP) osRedacChargerSujetsProfil(zoneSujetsP);
+  }
+  if(_redacOnglet === 'sujets'){
+    var zoneSujets = document.getElementById('redac-sujets-zone');
+    if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac);
+  }
+  if(_redacOnglet === 'admin'){
+    var zone = document.getElementById('redac-admin-zone');
+    if(zone) osRedactionsRenderAdmin(zone, uid);
+  }
+}
+
+// ---- FONCTIONS LEGACY (redirigent vers la nouvelle) ----
+function osRedactionsRenderMembre(wc, uid, redacId){
+  var monLien = _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
+  osRedactionsRenderAvecOnglets(wc, uid, redacId, monLien ? monLien.role_redac : null);
+}
+
+// ---- VUE ADMIN ----
+var _adminRedacSelectId = null; // rédac sélectionnée dans la vue admin
+
+function osRedactionsRenderAdmin(wc, uid){
+  var h = '<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
+
+  // Stats globales bénévoles (depuis _membresData et _articlesRedacData)
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+  var totalMembres = _membresData.length;
+  var nouveauxCeMois = (window._nouveauxMembres||[]).length;
+  var artsMois = _articlesRedacData.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+  var artsPublies = _articlesRedacData.filter(function(a){ return a.statut==='publie'; });
+
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
+  function gCard(n,l,c){ return '<div style="background:var(--encre);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'white')+';">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-top:3px;">'+l+'</div></div>'; }
+  h += gCard(totalMembres,'Bénévoles total');
+  h += gCard(nouveauxCeMois,'Nouveaux ce mois','#E67E22');
+  h += gCard(artsMois.length,'Articles ce mois','#EA5B1C');
+  h += gCard(artsPublies.length,'Publiés total','#27AE60');
+  h += '</div>';
+
+  // Séparateur + header rédactions
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--gris-bord);padding-top:1rem;">';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Rédactions</div>';
+  h += '<button onclick="osRedactionCreerModal()" style="font-family:monospace;font-size:0.62rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Créer</button>';
+  h += '</div>';
+
+  if(!_redactionsData.length){
+    h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:monospace;font-size:0.78rem;">Aucune rédaction — crée la première !</div>';
+    h += '</div>';
+    wc.innerHTML = h;
+    return;
+  }
+
+  // Tabs de sélection rédaction
+  if(!_adminRedacSelectId) _adminRedacSelectId = _redactionsData[0].id;
+  h += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
+  _redactionsData.forEach(function(r){
+    var sel = r.id === _adminRedacSelectId;
+    var coul = r.couleur||'#EA5B1C';
+    h += '<button onclick="osAdminSelectRedac(\''+r.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:5px 14px;border-radius:20px;cursor:pointer;border:1.5px solid '+(sel?coul:'var(--gris-bord)')+';background:'+(sel?coul:'white')+';color:'+(sel?'white':'var(--gris)')+';font-weight:'+(sel?'700':'400')+';">'+esc(r.nom)+'</button>';
+  });
+  h += '</div>';
+
+  // Vue détaillée de la rédaction sélectionnée
+  var redac = _redactionsData.find(function(r){ return r.id === _adminRedacSelectId; });
+  if(redac){
+    var couleur = redac.couleur||'#EA5B1C';
+    var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
+    var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
+    var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
+    var artsRedacPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
+    var artsRedacMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+    var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
+    var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
+
+    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
+    // Header rédac
+    h += '<div style="background:'+couleur+';padding:1rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">';
+    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">'+esc(redac.nom)+'</div>';
+    if(redac.departement) h += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.65);margin-top:2px;">'+esc(redac.departement)+'</div>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:0.4rem;">';
+    h += '<button onclick="osRedactionEditerModal(\''+redac.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">✏️</button>';
+    h += '<button onclick="osRedactionSupprimerConfirm(\''+redac.id+'\',\''+esc(redac.nom)+'\')" style="font-family:monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">🗑️</button>';
+    h += '</div></div>';
+    // Stats rédac
+    h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);border-bottom:0.5px solid var(--gris-bord);">';
+    [['👥',membresLiens.length,'membres'],['✅',artsRedacPublies.length,'publiés'],['📝',artsRedacMois.length,'ce mois'],['🎪',participationsRedac.length,'activités'],['🆕',nouveauxRedac.length,'nouveaux']].forEach(function(s,i){
+      h += '<div style="padding:0.7rem;text-align:center;'+(i<4?'border-right:0.5px solid var(--gris-bord);':'')+'">';
+      h += '<div style="font-size:0.7rem;">'+s[0]+'</div>';
+      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:'+(i===4&&s[1]>0?'#E67E22':'var(--encre)')+';">'+s[1]+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.52rem;color:var(--gris);">'+s[2]+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    // Tableau membres
+    h += '<div style="padding:0.8rem 1rem 0.3rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+    h += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);letter-spacing:0.08em;">Membres</span>';
+    h += '<button onclick="osAdminAjouterMembreRedac(\''+redac.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 8px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;">+ Ajouter</button>';
+    h += '</div>';
+    h += '<table style="width:100%;border-collapse:collapse;">';
+    h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.7rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Publiés</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Heures</th><th></th></tr></thead><tbody>';
+    membresLiens.forEach(function(mr){
+      var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
+      if(!mb) return;
+      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
+      var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[mb.role]||'#D3D1C7,#444441').split(',');
+      var arts = _articlesRedacData.filter(function(a){ return a.auteur_id===mb.id; });
+      var pub  = arts.filter(function(a){ return a.statut==='publie'; });
+      var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
+      h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
+      h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
+      h += '<td style="padding:0.5rem 0.4rem;"><select onchange="osRedacChefChangerRole(\''+mb.id+'\',\''+redac.id+'\',this.value)" style="font-family:monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+        +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
+        +'</select></td>';
+      h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
+      h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:#27AE60;">'+pub.length+'</td>';
+      h += '<td style="padding:0.5rem;text-align:center;">'+heuresEl+'</td>';
+      h += '<td style="padding:0.4rem;"><button onclick="osAdminRetirerMembreRedac(\''+mb.id+'\',\''+redac.id+'\')" style="font-family:monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '</tr>';
+    });
+    if(!membresLiens.length) h += '<tr><td colspan="6" style="padding:1rem;text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun membre</td></tr>';
+    h += '</tbody></table></div></div>';
+  }
+
   h += '</div>';
   wc.innerHTML = h;
+
+  // Charger les heures de bénévolat pour les membres affichés
+  osChargerHeuresMembres(_adminRedacSelectId);
+}
+
+function osAdminSelectRedac(redacId){
+  _adminRedacSelectId = redacId;
+  osRedactionsRender();
+}
+
+function osChargerHeuresMembre(uid){
+  if(!_session||!uid) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+encodeURIComponent(uid)+'&select=type,duree_minutes',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data||data.code) return;
+    var totaux = {redaction:0, correction:0, agenda:0};
+    data.forEach(function(h){ totaux[h.type] = (totaux[h.type]||0) + h.duree_minutes; });
+    var total = totaux.redaction + totaux.correction + totaux.agenda;
+    function fmt(m){ var h=Math.floor(m/60),mn=m%60; return h+'h'+(mn>0?mn:''); }
+    var elTotal = document.getElementById('membre-heures-total');
+    var elDetail = document.getElementById('membre-heures-detail');
+    if(elTotal) elTotal.textContent = fmt(total);
+    if(elDetail){
+      var parts = [];
+      if(totaux.redaction) parts.push(fmt(totaux.redaction)+' rédac');
+      if(totaux.correction) parts.push(fmt(totaux.correction)+' correc');
+      if(totaux.agenda) parts.push(fmt(totaux.agenda)+' agenda');
+      elDetail.textContent = parts.length ? '('+parts.join(' · ')+')' : '';
+    }
+  }).catch(function(){});
+}
+
+function osChargerHeuresMembres(redacId){
+  if(!_session||!redacId) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  var idsRedac = _membresRedactionsData.filter(function(mr){ return mr.redaction_id===redacId; }).map(function(mr){ return mr.membre_id; });
+  if(!idsRedac.length) return;
+  fetch(SB_URL+'/rest/v1/heures_benevolat?select=membre_id,duree_minutes',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data||data.code) return;
+    // Grouper par membre
+    var totaux = {};
+    data.forEach(function(h){ totaux[h.membre_id] = (totaux[h.membre_id]||0) + h.duree_minutes; });
+    idsRedac.forEach(function(mid){
+      var el = document.getElementById('heures-'+mid);
+      if(!el) return;
+      var mins = totaux[mid]||0;
+      var h = Math.floor(mins/60);
+      var m = mins%60;
+      el.textContent = h+'h'+(m>0?m+'m':'');
+      el.style.color = mins>0?'#1A5276':'var(--gris)';
+    });
+  }).catch(function(){});
 }
 
 // ---- ACTIONS ADMIN ----
@@ -17962,10 +18816,11 @@ function osNotesRender(){
 }
 
 function osNotesBuildUI(wc){
+  var isMobile = window.innerWidth < 700;
   var html = '<div style="display:flex;height:100%;overflow:hidden;">';
 
   // Colonne gauche — liste des notes
-  html += '<div id="notes-sidebar" style="width:200px;flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);">';
+  html += '<div id="notes-sidebar" style="'+(isMobile && _noteSelectionnee ? 'display:none;' : '')+'width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);">';
   html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
   html += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+_notesData.length+' note(s)</span>';
   html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:monospace;cursor:pointer;">+ Nouvelle</button>';
@@ -17989,10 +18844,16 @@ function osNotesBuildUI(wc){
   html += '</div></div>'; // liste + sidebar
 
   // Zone d'édition
-  html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
+  html += '<div style="'+(isMobile && !_noteSelectionnee ? 'display:none;' : '')+'flex:1;display:flex;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
 
   if(_noteSelectionnee){
     var note = _notesData.find(function(n){ return n.id === _noteSelectionnee; });
+    // Bouton retour mobile
+    if(isMobile){
+      html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);background:var(--gris-clair);flex-shrink:0;">'
+        +'<button onclick="osNotesRetourListe()" style="background:none;border:none;font-size:0.8rem;cursor:pointer;color:var(--encre);font-family:monospace;padding:2px 0;">← Mes notes</button>'
+        +'</div>';
+    }
     if(note) html += osNotesEditorHTML(note);
   } else {
     html += '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gris);font-size:0.85rem;flex-direction:column;gap:0.5rem;">';
@@ -18032,6 +18893,12 @@ function osNotesEditorHTML(note){
   html += '<textarea id="note-contenu" oninput="osNotesDebounce(\''+note.id+'\')" placeholder="Écris ta note ici..." style="flex:1;width:100%;padding:1rem;border:none;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;color:var(--encre);background:'+col.bg+';outline:none;resize:none;box-sizing:border-box;overflow-y:auto;">'+esc(note.contenu||'')+'</textarea>';
 
   return html;
+}
+
+function osNotesRetourListe(){
+  _noteSelectionnee = null;
+  var wc = document.getElementById('wincontent-notes');
+  if(wc) osNotesBuildUI(wc);
 }
 
 function osNotesSelectionner(id){
@@ -18527,7 +19394,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'cps',            icon:'📰', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'cps-admin',      icon:'📰', label:'CPs Admin',      color:'#4A235A', roles:['admin','redac_chef'] },
   { id:'visuels',        icon:'🖼️', label:'Visuels',        color:'#1A5276', roles:['redacteur','admin'] },
-  { id:'visuels-pro',    icon:'🎨', label:'Visuels Pro',    color:'#155724', roles:['redacteur'] },
+  { id:'visuels-pro',    icon:'🎨', label:'Visuels Pro',    color:'#155724', roles:['redacteur','redac_chef','admin'] },
   { id:'newsletter',     icon:'📨', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
   { id:'tutos',          icon:'📖', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'stats-dashboard',icon:'📊', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
@@ -18543,7 +19410,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'correction',     icon:'✏️', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Correction.' },
   // Apps Store
   { id:'compteur',       icon:'📏', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
-  { id:'titres',         icon:'🎲', label:'Titres IA',      color:'#4A235A', roles:['redacteur','correcteur','admin'], store:true, desc:'Colle un résumé, Claude te propose 5 titres percutants.' },
   { id:'compo-store',    icon:'🏪', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'📅', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
   { id:'projets',        icon:'📋', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','admin'], store:true, desc:'Suivi de projets et tâches — assignation, kanban, deadlines.' },
@@ -18554,7 +19420,7 @@ var PROFILS_PREDEFINIS = {
   redacteur: ['accueil','redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions'],
   correcteur: ['accueil','brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions'],
   redac_chef: ['accueil','redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda'],
-  admin:      ['accueil','redaction','mes-articles','app-correction','statut','briefing','carnet','notes','compo-store','cps-admin','visuels','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets'],
+  admin:      ['accueil','redaction','mes-articles','app-correction','statut','briefing','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets'],
 };
 
 window._userApps = null;
@@ -20335,12 +21201,39 @@ function osAgendaSeDesinscrire(inscrId, evId){
 
 function osAgendaValiderInscr(inscrId, evId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'confirme'})})
-  .then(function(r){
-    if(r.ok){
-      notif('Inscription confirmée ✓','succes');
-      if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
-    }
+  // D'abord récupérer l'inscription pour avoir le membre_id
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data.length ? data[0] : null;
+    // Confirmer l'inscription
+    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'confirme'})})
+    .then(function(r){
+      if(r.ok){
+        notif('Inscription confirmée ✓','succes');
+        // Calculer et enregistrer les heures de bénévolat
+        if(insc){
+          var ev = _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); });
+          if(ev && ev.date_debut && ev.date_fin){
+            var duree = Math.round((new Date(ev.date_fin) - new Date(ev.date_debut)) / 60000);
+            if(duree > 0){
+              fetch(SB_URL+'/rest/v1/heures_benevolat',{
+                method:'POST',
+                headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||''),'Prefer':'return=minimal'}),
+                body:JSON.stringify({
+                  membre_id: insc.membre_id,
+                  type: 'agenda',
+                  duree_minutes: duree,
+                  reference_id: inscrId
+                })
+              }).catch(function(){});
+            }
+          }
+        }
+        if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
+      }
+    });
   });
 }
 
@@ -20708,10 +21601,12 @@ function osProjetsRendreListe(){
     var dl = p.date_limite ? new Date(p.date_limite) : null;
     var dlStr = dl ? dl.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
     var enRetard = dl && dl < new Date() && p.statut!=='termine';
+    var redac = p.redaction_id ? _redactionsData.find(function(r){return r.id===p.redaction_id;}) : null;
     item.innerHTML =
       '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(p.titre||'')+'</div>'
-      +'<div style="display:flex;align-items:center;gap:0.4rem;">'
+      +'<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">'
       +'<span style="font-family:monospace;font-size:0.56rem;padding:1px 5px;border-radius:3px;background:'+st.bg+';color:'+st.c+';">'+(p.statut||'en_cours').replace(/_/g,' ')+'</span>'
+      +(redac?'<span style="font-family:monospace;font-size:0.55rem;padding:1px 6px;border-radius:3px;background:'+(redac.couleur||'#EA5B1C')+'22;color:'+(redac.couleur||'#EA5B1C')+';border:1px solid '+(redac.couleur||'#EA5B1C')+'44;">'+esc(redac.nom)+'</span>':'')
       +(dlStr?'<span style="font-family:monospace;font-size:0.56rem;color:'+(enRetard?'#A32D2D':'var(--gris)')+';">'+(enRetard?'⚠️ ':'')+dlStr+'</span>':'')
       +'</div>';
     item.onclick = function(){ osProjetsOuvrirProjet(p); };
@@ -20747,6 +21642,8 @@ function osProjetsOuvrirProjet(projet){
     var pst = PROJ_ST[projet.statut]||PROJ_ST.en_cours;
     var dl = projet.date_limite ? new Date(projet.date_limite).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) : null;
 
+    var redacProjet = projet.redaction_id ? _redactionsData.find(function(r){return r.id===projet.redaction_id;}) : null;
+
     var hdr = document.createElement('div');
     hdr.style.cssText = 'padding:0.8rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
     hdr.innerHTML =
@@ -20754,8 +21651,9 @@ function osProjetsOuvrirProjet(projet){
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">'+esc(projet.titre||'')+'</div>'
       +(projet.description?'<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(projet.description)+'</div>':'')
-      +'<div style="display:flex;gap:0.4rem;align-items:center;margin-top:5px;">'
+      +'<div style="display:flex;gap:0.4rem;align-items:center;margin-top:5px;flex-wrap:wrap;">'
       +'<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:'+pst.bg+';color:'+pst.c+';border-radius:3px;">'+pst.l+'</span>'
+      +(redacProjet?'<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:'+(redacProjet.couleur||'#EA5B1C')+'22;color:'+(redacProjet.couleur||'#EA5B1C')+';border:1px solid '+(redacProjet.couleur||'#EA5B1C')+'44;border-radius:3px;">🗞️ '+esc(redacProjet.nom)+'</span>':'')
       +(dl?'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);">📅 '+dl+'</span>':'')
       +'</div></div>'
       +'<div style="display:flex;gap:0.4rem;flex-shrink:0;">'
@@ -20948,6 +21846,15 @@ function osProjetsFormulaireProjet(projet){
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
   var modal = document.createElement('div');
   modal.style.cssText = 'background:white;border-radius:14px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);';
+  // Construire les options rédactions
+  var redacOptions = '<option value="">— Aucune rédaction (projet global) —</option>';
+  _redactionsData.forEach(function(r){
+    var sel = projet && projet.redaction_id === r.id ? ' selected' : '';
+    // Pour un non-admin, pré-sélectionner la rédaction active
+    if(!projet && !sel && window._redacActiveId === r.id) sel = ' selected';
+    redacOptions += '<option value="'+r.id+'"'+sel+'>'+esc(r.nom)+'</option>';
+  });
+
   modal.innerHTML =
     '<div style="background:var(--encre);padding:1.1rem 1.4rem;border-radius:14px 14px 0 0;display:flex;align-items:center;">'
     +'<div style="flex:1;font-family:Poppins,sans-serif;font-weight:700;color:white;">'+(isEdit?'Modifier le projet':'Nouveau projet')+'</div>'
@@ -20958,6 +21865,8 @@ function osProjetsFormulaireProjet(projet){
     +'<input id="proj-form-titre" type="text" value="'+esc(projet?projet.titre||'':'')+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.85rem;box-sizing:border-box;outline:none;"></div>'
     +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Description</label>'
     +'<textarea id="proj-form-desc" rows="3" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;resize:none;outline:none;">'+esc(projet?projet.description||'':'')+'</textarea></div>'
+    +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction</label>'
+    +'<select id="proj-form-redac" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:monospace;font-size:0.72rem;box-sizing:border-box;">'+redacOptions+'</select></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
     +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Statut</label>'
     +'<select id="proj-form-statut" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:monospace;font-size:0.72rem;box-sizing:border-box;">'
@@ -20979,9 +21888,10 @@ function osProjetsFormulaireProjet(projet){
       var desc  = (document.getElementById('proj-form-desc')||{}).value||'';
       var statut= (document.getElementById('proj-form-statut')||{}).value||'en_cours';
       var dl    = (document.getElementById('proj-form-dl')||{}).value||null;
+      var redacId = (document.getElementById('proj-form-redac')||{}).value||null;
       if(!titre.trim()){ notif('Ajoute un titre'); return; }
       var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
-      var payload = {titre:titre.trim(),description:desc.trim()||null,statut:statut,date_limite:dl||null};
+      var payload = {titre:titre.trim(),description:desc.trim()||null,statut:statut,date_limite:dl||null,redaction_id:redacId||null};
       if(!isEdit) payload.cree_par = getUserId();
       var url = isEdit ? SB_URL+'/rest/v1/projets?id=eq.'+projet.id : SB_URL+'/rest/v1/projets';
       fetch(url,{method:isEdit?'PATCH':'POST',headers:authH,body:JSON.stringify(payload)})
@@ -21338,11 +22248,15 @@ function tchapRender(){
   var wc = document.getElementById('wincontent-tchap');
   if(!wc) return;
   wc.innerHTML = '';
+  var isMobile = window.innerWidth < 700;
   wc.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
   var left = document.createElement('div');
   left.id = 'tchap-left';
-  left.style.cssText = 'width:230px;flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);';
+  // Sur mobile : plein écran ou caché selon état
+  left.style.cssText = isMobile
+    ? 'width:100%;flex-shrink:0;display:flex;flex-direction:column;background:var(--gris-clair);'
+    : 'width:230px;flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);';
 
   var leftHeader = document.createElement('div');
   leftHeader.style.cssText = 'padding:0.7rem 1rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;align-items:center;gap:0.5rem;';
@@ -21358,7 +22272,9 @@ function tchapRender(){
 
   var right = document.createElement('div');
   right.id = 'tchap-right';
-  right.style.cssText = 'flex:1;display:flex;flex-direction:column;';
+  right.style.cssText = isMobile
+    ? 'display:none;flex:1;flex-direction:column;'
+    : 'flex:1;display:flex;flex-direction:column;';
   right.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.8rem;"><div style="font-size:2.5rem;">💬</div><div style="font-family:monospace;font-size:0.72rem;color:var(--gris);text-align:center;">Sélectionne une conversation<br>ou commence-en une nouvelle</div><button onclick="tchapNouvelleConv()" style="font-family:monospace;font-size:0.7rem;padding:0.4rem 1rem;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;margin-top:0.5rem;">✏️ Nouvelle conversation</button></div>';
 
   wc.appendChild(left);
@@ -21792,14 +22708,32 @@ function tchapRendreMembres(q){
   });
 }
 
+function tchapRetourListe(){
+  _tchapConvActive = null;
+  var left = document.getElementById('tchap-left');
+  var right = document.getElementById('tchap-right');
+  if(left){ left.style.display = 'flex'; left.style.width = '100%'; }
+  if(right){ right.style.display = 'none'; }
+}
+
 function tchapOuvrirConv(membre){
   _tchapConvActive = membre.id;
   tchapChargerConversations();
 
   var right = document.getElementById('tchap-right');
+  var left = document.getElementById('tchap-left');
   if(!right) return;
+
+  // Mobile : cacher la liste, montrer le panneau droit
+  var isMobile = window.innerWidth < 700;
+  if(isMobile && left){
+    left.style.display = 'none';
+    right.style.display = 'flex';
+    right.style.width = '100%';
+  }
+
   right.innerHTML = '';
-  right.style.cssText = 'flex:1;display:flex;flex-direction:column;';
+  right.style.cssText = (isMobile ? 'width:100%;' : 'flex:1;')+'display:flex;flex-direction:column;';
 
   var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
   var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
@@ -21811,7 +22745,8 @@ function tchapOuvrirConv(membre){
   var header = document.createElement('div');
   header.style.cssText = 'padding:0.7rem 1.2rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.7rem;flex-shrink:0;background:white;';
   header.innerHTML =
-    '<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+initiales+'</div>'
+    (isMobile ? '<button onclick="tchapRetourListe()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:0;color:var(--encre);flex-shrink:0;">←</button>' : '')
+    +'<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+initiales+'</div>'
     +'<div style="flex:1;"><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>'
     +'<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+esc(sousTitre)+'</div></div>';
   right.appendChild(header);
