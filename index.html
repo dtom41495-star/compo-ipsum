@@ -4033,6 +4033,10 @@ input:focus,select:focus,textarea:focus{
       <label>Note generale pour l'equipe</label>
       <textarea id="brf-note" style="min-height:70px;" placeholder="Consignes generales, contexte de la semaine..."></textarea>
     </div>
+    <div class="form-group full">
+      <label>Rédaction</label>
+      <select id="brf-redaction" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);font-family:monospace;font-size:0.8rem;"></select>
+    </div>
   </div>
 
   <div class="section-label">Sujets de la semaine</div>
@@ -4041,19 +4045,15 @@ input:focus,select:focus,textarea:focus{
   <button class="btn sec" onclick="brfAjouterSujet()" style="margin-bottom:1.5rem;">+ Ajouter un sujet</button>
 
   <div class="btn-row">
-    <button class="btn" onclick="brfExporterJSON()">Exporter le briefing</button>
-    <button class="btn sec" onclick="brfExporterPDF()">Exporter en PDF</button>
+    <button class="btn" onclick="brfSauvegarderEtPublier()" style="background:linear-gradient(135deg,#155724,#1E7E34);">✅ Publier les sujets</button>
+    <button class="btn sec" onclick="brfExporterPDFVrai()">📄 Exporter en PDF</button>
     <button class="btn sec" onclick="brfReset()">Tout effacer</button>
   </div>
 
   <hr style="border:none;border-top:1px solid var(--gris-bord);margin:2rem 0;">
-  <div class="section-label">Importer un briefing recu</div>
-  <div class="import-zone" onclick="document.getElementById('brf-import').click()" style="padding:0.9rem;">
-    <div class="iz-icon">↑</div>
-    <p>Ouvre un fichier briefing pour consulter les sujets</p>
-    <input type="file" id="brf-import" accept="*/*" style="display:none" onchange="brfImporter(event)">
-  </div>
-  <div id="brf-import-content" style="display:none;margin-top:1rem;"></div>
+  <div class="section-label">Sujets en base <span id="brf-db-badge" style="font-family:monospace;font-size:0.65rem;padding:1px 6px;background:var(--rouge);color:white;border-radius:8px;display:none;"></span></div>
+  <button class="btn sec" onclick="brfChargerDB()" style="margin-bottom:0.8rem;font-size:0.8rem;">🔄 Afficher les sujets publiés</button>
+  <div id="brf-db-list" style="display:none;"></div>
 </div>
 
 
@@ -4859,6 +4859,7 @@ function go(id){
   if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAnnonces(); chargerAccueilBriefing(); chargerAlertCorrection(); chargerAlertPublication(); }
   if(id==='redaction') setTimeout(preremplirAuteur,50);
   if(id==='correction') setTimeout(preremplirCorrecteur,50);
+  if(id==='briefing') setTimeout(brfInitRedactionSelect,50);
   closeDD();
 }
 function goHome(){go('accueil');}
@@ -5004,23 +5005,38 @@ function closeDrawer(){
 function buildDoc(){
   var docId = (currentDoc && currentDoc.id) ? currentDoc.id : genId();
   var docStatut = (currentDoc && currentDoc.statut) ? currentDoc.statut : 'brouillon';
+
+  // Lire l'auteur depuis le select s'il est visible, sinon depuis l'input
+  var elSelect = document.getElementById('r-auteur-select');
+  var elAuteur = document.getElementById('r-auteur');
+  var auteurNom, auteurId;
+  if(elSelect && elSelect.style.display !== 'none' && elSelect.selectedIndex >= 0){
+    var optSel = elSelect.options[elSelect.selectedIndex];
+    auteurNom = optSel.value;
+    auteurId  = optSel.dataset.membreId || getUserId();
+  } else {
+    auteurNom = elAuteur ? elAuteur.value.trim() : '';
+    auteurId  = getUserId();
+  }
+
   return {
     id:docId,type:currentType,statut:docStatut,urgence:currentUrg,
     redaction:document.getElementById('r-redaction').value,
-    auteur:document.getElementById('r-auteur').value.trim(),
-    auteur_id:getUserId(),
+    redaction_id: window._redacActiveId || (currentDoc && currentDoc.redaction_id) || null,
+    auteur:auteurNom,
+    auteur_id:auteurId,
     titre:document.getElementById('r-titre').value.trim(),
     chapeau:currentType==='article'?document.getElementById('r-chapeau').value.trim():'',
     angle:currentType==='article'?document.getElementById('r-angle').value.trim():'',
     rubrique:document.getElementById('r-rubrique').value,
     corps:document.getElementById('r-corps').value.trim(),
     tags:[...tags],sources:getSrc(),
-    image:null,image_legende:document.getElementById('r-img-leg').value.trim()||null, // image gérée par uploadImageStorage
+    image:null,image_legende:document.getElementById('r-img-leg').value.trim()||null,
     date_publication:document.getElementById('r-datepub').value||null,
     communiques:cpLies.map(cp=>({...cp})),
     cp_id: currentDoc && currentDoc.cp_id ? currentDoc.cp_id : null,
     cree_le:new Date().toISOString(),modifie_le:new Date().toISOString(),
-    historique:[{action:'creation',auteur:document.getElementById('r-auteur').value.trim()||'?',date:new Date().toISOString(),note:'Création - '+document.getElementById('r-redaction').value}]
+    historique:[{action:'creation',auteur:auteurNom||'?',date:new Date().toISOString(),note:'Création - '+document.getElementById('r-redaction').value}]
   };
 }
 
@@ -6069,7 +6085,7 @@ function brfImporter(event){
         var promises = doc.sujets.map(function(s){
           return fetch(SB_URL+'/rest/v1/briefing', {
             method: 'POST',
-            headers: Object.assign({}, SB_HEADERS, {'Prefer':'resolution=merge-duplicates,return=minimal'}),
+            headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'resolution=merge-duplicates,return=minimal'}),
             body: JSON.stringify({
               id: 'BRF-'+genId().slice(4),
               titre: s.sujet || 'Sans titre',
@@ -6077,6 +6093,7 @@ function brfImporter(event){
               priorite: s.urgence === 'urgent' ? 'urgente' : (s.urgence === 'moyen' ? 'normale' : 'faible'),
               responsable: s.redacteur || auteur,
               statut: 'ouvert',
+              redaction_id: window._redacActiveId || null,
               note: (edition ? '['+edition+'] ' : '') + (date ? '['+date+'] ' : '') + (s.angle || '') + (noteGlobale ? ' | '+noteGlobale : '')
             })
           });
@@ -8860,37 +8877,126 @@ function publierArticle(id){
 
 // ===== BRIEFING SUPABASE =====
 
-function brfSauvegarderDB(){
+function brfSauvegarderEtPublier(){
   var sujets = brfLireSujets();
   if(!sujets.length){ notif('Ajoute au moins un sujet'); return; }
   var edition = document.getElementById('brf-edition').value.trim();
-  var date = document.getElementById('brf-date').value.trim();
-  var note = document.getElementById('brf-note').value.trim();
-  var auteur = getUserNomComplet();
-  notif('Sauvegarde en cours...');
+  var date    = document.getElementById('brf-date').value.trim();
+  var note    = document.getElementById('brf-note').value.trim();
+  var redacSel= document.getElementById('brf-redaction');
+  var redacId = redacSel ? redacSel.value : (window._redacActiveId || null);
+  var auteur  = getUserNomComplet();
+  var authH   = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
 
-  // Sauvegarder chaque sujet
+  notif('Publication en cours...');
+
   var promises = sujets.map(function(s){
-    var id = 'BRF-' + (s.sujet||'').slice(0,6).replace(/\s/g,'').toUpperCase() + '-' + Date.now();
-    return fetch(SB_URL+'/rest/v1/briefing', {
-      method: 'POST',
-      headers: Object.assign({}, SB_HEADERS, {'Prefer':'resolution=merge-duplicates,return=minimal'}),
-      body: JSON.stringify({
-        id: 'BRF-'+genId().slice(4),
-        titre: s.sujet || 'Sans titre',
-        type: s.type || 'article',
-        priorite: s.priorite || 'normale',
-        responsable: s.responsable || auteur,
-        statut: 'ouvert',
-        note: (edition ? '['+edition+'] ' : '') + (date ? '['+date+'] ' : '') + (s.angle || '') + (note ? ' | Note: '+note : '')
+    return fetch(SB_URL+'/rest/v1/briefing',{
+      method:'POST',
+      headers:authH,
+      body:JSON.stringify({
+        id:'BRF-'+genId().slice(4),
+        titre:s.sujet||'Sans titre',
+        type:s.type||'article',
+        priorite:s.priorite||'normale',
+        responsable:s.responsable||auteur,
+        statut:'ouvert',
+        redaction_id:redacId||null,
+        note:(edition?'['+edition+'] ':'')+(date?'['+date+'] ':'')+(s.angle||'')+(note?' | '+note:''),
+        created_by:getUserId()
       })
     });
   });
 
   Promise.all(promises).then(function(){
-    notif('Briefing sauvegarde en base (' + sujets.length + ' sujets) !');
-  }).catch(function(){ notif('Erreur sauvegarde briefing'); });
+    notif(sujets.length+' sujet(s) publié(s) ✓','succes');
+    brfReset();
+    // Actualiser le badge
+    var badge = document.getElementById('brf-db-badge');
+    if(badge){ badge.textContent = sujets.length; badge.style.display='inline'; }
+  }).catch(function(){ notif('Erreur publication','erreur'); });
 }
+
+function brfInitRedactionSelect(){
+  var sel = document.getElementById('brf-redaction');
+  if(!sel) return;
+  // Utiliser les données déjà en mémoire si dispo
+  var redactions = window._redactionsData || [];
+  sel.innerHTML = '';
+  if(!redactions.length){
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data||data.code) return;
+      _remplirSelectRedac(sel, data);
+    });
+  } else {
+    _remplirSelectRedac(sel, redactions);
+  }
+}
+
+function _remplirSelectRedac(sel, redactions){
+  sel.innerHTML = '<option value="">— Toutes les rédactions —</option>';
+  redactions.forEach(function(r){
+    var opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.nom;
+    if(r.id === window._redacActiveId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function brfExporterPDFVrai(){
+  var sujets = brfLireSujets();
+  if(!sujets.length){ notif('Ajoute au moins un sujet'); return; }
+  var edition = (document.getElementById('brf-edition')||{}).value||'';
+  var date    = (document.getElementById('brf-date')||{}).value||'';
+  var note    = (document.getElementById('brf-note')||{}).value||'';
+
+  // Générer un PDF HTML simple via print
+  var PRIO_COLORS={urgente:'#A32D2D',normale:'#856404',faible:'#155724'};
+  var html = '<html><head><style>'
+    +'body{font-family:sans-serif;max-width:700px;margin:2rem auto;color:#1A1A2E;}'
+    +'h1{font-size:1.4rem;margin:0 0 0.3rem;}'
+    +'.meta{font-size:0.85rem;color:#666;margin-bottom:1.5rem;}'
+    +'.sujet{border:1px solid #ddd;padding:1rem;margin-bottom:0.8rem;border-radius:4px;}'
+    +'.sujet-titre{font-weight:700;font-size:1rem;margin-bottom:0.3rem;}'
+    +'.badge{font-size:0.65rem;padding:2px 7px;border-radius:3px;font-family:monospace;}'
+    +'.note{font-size:0.82rem;color:#666;margin-top:0.3rem;font-style:italic;}'
+    +'@media print{body{margin:0;}}'
+    +'</style></head><body>';
+  html += '<h1>📋 Briefing Ipsum Média</h1>';
+  html += '<div class="meta">';
+  if(edition) html += '<strong>Édition :</strong> '+edition+' &nbsp;';
+  if(date) html += '<strong>Date :</strong> '+date+' &nbsp;';
+  html += '<strong>Sujets :</strong> '+sujets.length;
+  html += '</div>';
+  if(note) html += '<div style="background:#FFF3CD;padding:0.7rem 1rem;margin-bottom:1rem;border-left:3px solid #856404;font-size:0.85rem;"><strong>Note :</strong> '+note+'</div>';
+  sujets.forEach(function(s,i){
+    var col = PRIO_COLORS[s.priorite||'normale'];
+    html += '<div class="sujet">';
+    html += '<div class="sujet-titre">'+(i+1)+'. '+esc(s.sujet||'Sans titre')
+      +' <span class="badge" style="background:'+col+'22;color:'+col+';border:1px solid '+col+';">'+( s.priorite||'normale')+'</span>';
+    if(s.type) html += ' <span class="badge" style="background:#eee;color:#444;">'+s.type+'</span>';
+    html += '</div>';
+    if(s.angle) html += '<div style="font-size:0.85rem;margin-top:0.3rem;"><strong>Angle :</strong> '+esc(s.angle)+'</div>';
+    if(s.responsable) html += '<div style="font-size:0.82rem;color:#666;margin-top:0.2rem;">👤 '+esc(s.responsable)+'</div>';
+    html += '</div>';
+  });
+  html += '<div style="margin-top:2rem;font-size:0.75rem;color:#999;text-align:center;">Ipsum Média — Généré le '+new Date().toLocaleDateString('fr-FR')+'</div>';
+  html += '</body></html>';
+
+  var w = window.open('','_blank','width=800,height=600');
+  if(w){ w.document.write(html); w.document.close(); setTimeout(function(){ w.print(); },500); }
+  else notif('Autorise les popups pour exporter en PDF');
+}
+
+function brfSauvegarderDB(){
+  brfSauvegarderEtPublier(); // alias
+}
+
+
 
 function brfChargerDB(){
   var list = document.getElementById('brf-db-list');
@@ -8898,9 +9004,10 @@ function brfChargerDB(){
   list.innerHTML = loadingHtml('Chargement du briefing...');
   list.style.display = 'block';
 
-  fetch(SB_URL+'/rest/v1/briefing?statut=neq.archive&order=created_at.desc&select=*', {
-    headers: SB_HEADERS
-  })
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var urlDB = SB_URL+'/rest/v1/briefing?statut=neq.archive&order=created_at.desc&select=*';
+  if(window._redacActiveId) urlDB += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(urlDB, { headers: authH })
   .then(function(r){ return r.json(); })
   .then(function(sujets){
     if(!sujets || !sujets.length){
@@ -9844,9 +9951,12 @@ function envoyerEmailResend(to, subject, html, type){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to: to, subject: subject, html: html })
   }).then(function(r){
-    if(!r.ok){ return r.json().then(function(e){ console.error('Email error:', e); }); }
-    return r.json();
-  }).catch(function(e){ console.error('envoyerEmailResend:', e); });
+    if(!r.ok){ r.json().then(function(e){ console.error('Email error ('+to+'):', e); }).catch(function(){}); }
+    return r; // toujours retourner r pour que les appelants puissent tester r.ok
+  }).catch(function(e){
+    console.error('envoyerEmailResend réseau:', e);
+    return { ok: false }; // objet factice pour que le check .ok fonctionne
+  });
 }
 
 
@@ -10684,23 +10794,46 @@ function osLancer(){
 function osAfficherRedactionLabel(){
   var uid = getUserId();
   if(!uid) return;
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=redaction,fonction', {
-    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')})
-  }).then(function(r){ return r.json(); })
+  var label = document.getElementById('os-redaction-label');
+  var nom   = document.getElementById('os-redaction-nom');
+  if(!label || !nom) return;
+
+  // Utiliser la rédaction active si déjà choisie
+  if(window._redacActiveId && _redactionsData && _redactionsData.length){
+    var redacActive = _redactionsData.find(function(r){ return r.id === window._redacActiveId; });
+    if(redacActive){
+      nom.textContent = redacActive.nom;
+      _osAfficherFonctionLabel(label, uid);
+      return;
+    }
+  }
+
+  // Fallback — chercher depuis membres_redactions
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+uid+'&select=redaction_id', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(liens){
+    if(!liens||liens.code||!liens.length) return;
+    var redacId = window._redacActiveId || liens[0].redaction_id;
+    return fetch(SB_URL+'/rest/v1/redactions?id=eq.'+redacId+'&select=nom', {headers:authH})
+      .then(function(r){ return r.json(); });
+  })
+  .then(function(data){
+    if(!data||!data.length) return;
+    nom.textContent = data[0].nom;
+    _osAfficherFonctionLabel(label, uid);
+  }).catch(function(){});
+}
+
+function _osAfficherFonctionLabel(label, uid){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=fonction', {headers:authH})
+  .then(function(r){ return r.json(); })
   .then(function(data){
     var m = data && data[0];
     if(!m) return;
-    var label = document.getElementById('os-redaction-label');
-    var nom   = document.getElementById('os-redaction-nom');
-    if(!label || !nom) return;
-    var redac = m.redaction || 'tarn';
-    // Formater le nom : "tarn" → "Tarn", "haute-garonne" → "Haute-Garonne"
-    var redacLabel = redac.split('-').map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join('-');
-    nom.textContent = redacLabel;
-    // Supprimer les anciens labels de fonction avant d'en ajouter un nouveau
     var oldFonction = label.querySelector('.desktop-fonction-label');
     if(oldFonction) oldFonction.remove();
-    // Afficher la fonction si présente
     if(m.fonction){
       var fonctionLabel = document.createElement('div');
       fonctionLabel.className = 'desktop-fonction-label';
@@ -10708,7 +10841,6 @@ function osAfficherRedactionLabel(){
       fonctionLabel.textContent = fonctionShort(m.fonction);
       label.appendChild(fonctionLabel);
     }
-    label.style.display = 'block';
   }).catch(function(){});
 }
 
@@ -12539,8 +12671,9 @@ function osDismissTooltip(){
 var _sujetsData = [];
 
 function osSujetsCharger(callback){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/briefing?statut=eq.ouvert&order=created_at.desc&select=*', {
-    headers: SB_HEADERS
+    headers: authH
   })
   .then(function(r){ return r.json(); })
   .then(function(sujets){
@@ -15478,11 +15611,11 @@ function cpsCharger(){
   // Vérifier abonnement
   cpsAfficherAbonnement();
 
-  // La RLS filtre automatiquement par rédaction — pas besoin de filtre côté client
+  // Filtrer par rédaction active
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*', {
-    headers: authH
-  })
+  var urlCps = SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*';
+  if(window._redacActiveId) urlCps += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(urlCps, { headers: authH })
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
@@ -15790,9 +15923,22 @@ function cpsAdminSauvegarder(statut){
   var isNew = !_cpEditId;
   var cpId = isNew ? ('CP-'+genId().slice(4)) : _cpEditId;
 
-  notif('Sauvegarde en cours…');
+  // Écran de chargement
+  var form = document.getElementById('cps-form');
+  var overlay = document.createElement('div');
+  overlay.id = 'cps-upload-overlay';
+  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,0.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;border-radius:inherit;';
+  overlay.innerHTML =
+    '<div style="width:40px;height:40px;border:3px solid var(--gris-bord);border-top-color:var(--rouge);border-radius:50%;animation:spin 0.8s linear infinite;"></div>'
+    +'<div id="cps-upload-msg" style="font-family:monospace;font-size:0.75rem;color:var(--gris);">'
+    +(_cpsPdfFile ? '📎 Upload du PDF en cours…' : '💾 Sauvegarde en cours…')
+    +'</div>';
+  if(form){ form.style.position = 'relative'; form.appendChild(overlay); }
 
   _cpsUploadPdf(_cpsPdfFile, cpId).then(function(pdfUrl){
+    var msgEl = document.getElementById('cps-upload-msg');
+    if(msgEl) msgEl.textContent = '💾 Enregistrement…';
+
     var payload = {
       titre: titre.trim(),
       source: source.trim() || null,
@@ -15806,7 +15952,6 @@ function cpsAdminSauvegarder(statut){
     if(isNew){
       payload.id = cpId;
       payload.created_by = getUserId();
-      // Rattacher à la rédaction de l'auteur
       var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId(); });
       if(monLienRedac) payload.redaction_id = monLienRedac.redaction_id;
     }
@@ -15827,17 +15972,21 @@ function cpsAdminSauvegarder(statut){
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
+    if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
     if(data && data.code){ notif('Erreur : '+(data.message||data.code)); return; }
     var cp = Array.isArray(data) ? data[0] : data;
-    notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé !');
-    var form = document.getElementById('cps-form');
+    notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé !', 'succes');
     if(form) form.style.display = 'none';
     _cpEditId = null;
     _cpsPdfFile = null;
     cpsAdminCharger();
     if(statut === 'publie' && cp && cp.id) { /* envoi manuel uniquement */ }
   })
-  .catch(function(e){ console.error(e); notif('Erreur sauvegarde'); });
+  .catch(function(e){
+    if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    console.error(e);
+    notif('Erreur sauvegarde', 'erreur');
+  });
 }
 
 // ---- ADMIN : Publier depuis la liste ----
@@ -16011,8 +16160,10 @@ function cpsAdminCharger(){
   if(!liste) return;
   liste.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--gris);padding:1rem;">Chargement...</div>';
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  // La RLS filtre automatiquement selon le rôle — admin voit tout, rédac chef voit sa rédac
-  fetch(SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*', { headers: authH })
+  // Filtrer par rédaction active si non-admin ou si rédaction choisie
+  var urlAdmin = SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*';
+  if(window._redacActiveId) urlAdmin += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(urlAdmin, { headers: authH })
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
@@ -16080,29 +16231,38 @@ function cpsEnvoyerNotifsManuelles(){
 
         var cpIds = cps.map(function(cp){return cp.id;});
 
-        // Envoyer en parallèle et compter les succès
-        var envois = destinataires.map(function(m){
+        // Envoyer séquentiellement pour éviter le rate limiting Resend
+        var nb = 0;
+        var echecs = [];
+        function envoyerProchain(idx){
+          if(idx >= destinataires.length){
+            // Tous envoyés — marquer les CPs comme notifiés
+            fetch(SB_URL+'/rest/v1/communiques?id=in.('+cpIds.join(',')+')',{
+              method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
+              body:JSON.stringify({notifie:true})
+            }).catch(function(){});
+            var msg = nb+' email(s) envoyé(s) pour '+cps.length+' CP(s) ✓';
+            if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
+            notif(msg, nb>0?'succes':'alerte');
+            if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+            return;
+          }
+          var m = destinataires[idx];
           var html = '<h2 style="color:#E8461E;">📰 Récapitulatif des communiqués de presse</h2>'
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>'+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
             +cpHtml
             +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'
             +'<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo. Pour te désabonner, rends-toi dans l\'appli CPs → onglet Abonnements.</p>';
-          return envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
-            .then(function(r){ return r ? 1 : 0; })
-            .catch(function(){ return 0; });
-        });
-
-        Promise.all(envois).then(function(resultats){
-          var nb = resultats.reduce(function(a,b){return a+b;}, 0);
-          // Marquer les CPs comme notifiés
-          fetch(SB_URL+'/rest/v1/communiques?id=in.('+cpIds.join(',')+')',{
-            method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
-            body:JSON.stringify({notifie:true})
-          }).catch(function(){});
-          notif(nb+' email(s) envoyé(s) pour '+cps.length+' CP(s) ✓','succes');
-          if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
-        });
+          envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
+          .then(function(r){
+            if(r && r.ok !== false) nb++;
+            else { echecs.push(m.email); console.warn('Échec envoi CP à '+m.email, r); }
+          })
+          .catch(function(e){ echecs.push(m.email); console.warn('Erreur envoi CP à '+m.email, e); })
+          .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+        }
+        envoyerProchain(0);
       });
     });
   }).catch(function(){
@@ -16481,7 +16641,22 @@ function osEnvoyerNotifsSujets(){
         +'</div>';
     }).join('');
 
-    var envois = membres.map(function(m){
+    var ids = sujets.map(function(s){return s.id;});
+    var nbSujets = 0;
+    var echecsSujets = [];
+    function envoyerSujetProchain(idx){
+      if(idx >= membres.length){
+        fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
+          method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
+          body:JSON.stringify({notifie:true})
+        }).catch(function(){});
+        var msg = nbSujets+' email(s) envoyé(s) pour '+sujets.length+' sujet(s) ✓';
+        if(echecsSujets.length) msg += ' ('+echecsSujets.length+' échec(s))';
+        notif(msg, nbSujets>0?'succes':'alerte');
+        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        return;
+      }
+      var m = membres[idx];
       var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
         +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
         +'<h1 style="color:white;font-size:1.1rem;margin:0;">📌 Nouveaux sujets à rédiger</h1>'
@@ -16494,23 +16669,12 @@ function osEnvoyerNotifsSujets(){
         +'<div style="padding:0.8rem 1.5rem;background:#F5F5F5;text-align:center;">'
         +'<p style="font-size:0.7rem;color:#999;margin:0;">Ipsum Média · Pour ne plus recevoir ces notifications, décoche l\'option dans l\'appli Sujets sur Compo.</p>'
         +'</div></div>';
-      return envoyerEmailResend(m.email,'[Compo] '+sujets.length+' nouveau(x) sujet(s) à rédiger',html,'sujets')
-        .then(function(r){ return r ? 1 : 0; })
-        .catch(function(){ return 0; });
-    });
-
-    Promise.all(envois).then(function(resultats){
-      var nb = resultats.reduce(function(a,b){return a+b;},0);
-      // Marquer les sujets comme notifiés
-      var ids = sujets.map(function(s){return s.id;});
-      fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
-        method:'PATCH',
-        headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
-        body:JSON.stringify({notifie:true})
-      }).catch(function(){});
-      notif(nb+' email(s) envoyé(s) pour '+sujets.length+' sujet(s) ✓','succes');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
-    });
+      envoyerEmailResend(m.email,'[Compo] '+sujets.length+' nouveau(x) sujet(s) à rédiger',html,'sujets')
+      .then(function(r){ if(r && r.ok !== false) nbSujets++; else { echecsSujets.push(m.email); console.warn('Échec envoi sujet à '+m.email); } })
+      .catch(function(e){ echecsSujets.push(m.email); console.warn('Erreur envoi sujet à '+m.email, e); })
+      .finally(function(){ setTimeout(function(){ envoyerSujetProchain(idx+1); }, 200); });
+    }
+    envoyerSujetProchain(0);
   }).catch(function(){
     notif('Erreur envoi');
     if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
@@ -16557,8 +16721,8 @@ function osRedactionsRender(){
     fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,created_at&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=500',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    (function(){ var u=SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=1000'; return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
+    (function(){ var u=SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc'; if(window._redacActiveId) u+='&redaction_id=eq.'+encodeURIComponent(window._redacActiveId); return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.confirme&select=membre_id,evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&created_at=gte.'+encodeURIComponent(debutMoisISO)+'&select=id,created_at',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&order=created_at.desc&select=*',{headers:authH}).then(function(r){return r.json();})
@@ -16566,11 +16730,24 @@ function osRedactionsRender(){
     _redactionsData        = (!results[0]||results[0].code)?[]:results[0];
     _membresRedactionsData = (!results[1]||results[1].code)?[]:results[1];
     _membresData           = (!results[2]||results[2].code)?[]:results[2];
-    _articlesRedacData     = (!results[3]||results[3].code)?[]:results[3];
+    var tousArticles       = (!results[3]||results[3].code)?[]:results[3];
     window._mesArticlesPerso   = (!results[4]||results[4].code)?[]:results[4];
     window._agendaInscriptions = (!results[5]||results[5].code)?[]:results[5];
     window._nouveauxMembres    = (!results[6]||results[6].code)?[]:results[6];
     window._sujetsData         = (!results[7]||results[7].code)?[]:results[7];
+
+    // Garder tous les articles pour la vue admin (stats toutes rédactions)
+    window._tousArticles = tousArticles;
+
+    // Filtrer les articles par rédaction active — uniquement par redaction_id
+    var redacIdPourFiltrage = window._redacActiveId;
+    if(redacIdPourFiltrage){
+      _articlesRedacData = tousArticles.filter(function(a){
+        return a.redaction_id === redacIdPourFiltrage;
+      });
+    } else {
+      _articlesRedacData = tousArticles;
+    }
 
     var mesLiens = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
     var monLien = window._redacActiveId
@@ -16632,6 +16809,8 @@ function osRedactionsChoisirRedac(redacId){
       }
     }
   });
+  // Mettre à jour le label sur le bureau
+  osAfficherRedactionLabel();
   osRedactionsRender();
 }
 
@@ -16639,10 +16818,19 @@ function osRedactionsChoisirRedac(redacId){
 function osRedactionsChangerOnglet(onglet){
   _redacOnglet = onglet;
   var wc = document.getElementById('wincontent-redactions');
-  var monLien = _membresRedactionsData.find(function(mr){ return mr.membre_id === getUserId(); });
-  var maRedacId = monLien ? monLien.redaction_id : null;
+  var uid = getUserId();
+
+  // Trouver le lien de la rédaction ACTIVE
+  var monLien = _membresRedactionsData.find(function(mr){
+    return mr.membre_id === uid && mr.redaction_id === window._redacActiveId;
+  }) || _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
+
+  var maRedacId = window._redacActiveId || (monLien ? monLien.redaction_id : null);
   var monRoleMedia = monLien ? monLien.role_redac : null;
-  osRedactionsRenderAvecOnglets(wc, getUserId(), maRedacId, monRoleMedia);
+
+  // Toujours utiliser les données en cache — pas de refetch
+  // Les zones sujets et rédac font leur propre fetch avec _redacActiveId
+  osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
 }
 
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
@@ -16682,6 +16870,39 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;display:flex;align-items:center;gap:0.8rem;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:#7D3C98;" id="membre-heures-total">—</div><div style="font-size:0.55rem;font-family:monospace;text-transform:uppercase;color:var(--gris);">⏱️ Bénévolat<br><span id="membre-heures-detail" style="font-weight:400;color:#aaa;text-transform:none;letter-spacing:0;"></span></div></div>';
   h += '</div>';
 
+  // Actions rapides
+  var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
+  if(actionsRedac.length){
+    h += '<div>';
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Actions rapides</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.5rem;">';
+    actionsRedac.forEach(function(a){
+      h += '<button onclick="osOpenWindow(\''+a.page+'\')" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;cursor:pointer;text-align:left;transition:border-color 0.1s,background 0.1s;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'white\'">';
+      h += '<span style="font-size:1.1rem;">'+a.icon+'</span>';
+      h += '<div><div style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+a.titre+'</div><div style="font-family:monospace;font-size:0.55rem;color:var(--gris);">'+a.desc+'</div></div>';
+      h += '</button>';
+    });
+    // Bouton annonce pour admin
+    if(getUserRole() === 'admin'){
+      h += '<button onclick="osRedacToggleAnnonceForm()" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:var(--encre);border:none;border-radius:8px;cursor:pointer;text-align:left;">';
+      h += '<span style="font-size:1.1rem;">📣</span>';
+      h += '<div><div style="font-size:0.78rem;font-weight:600;color:white;">Annonce</div><div style="font-family:monospace;font-size:0.55rem;color:rgba(255,255,255,0.5);">Message équipe</div></div>';
+      h += '</button>';
+    }
+    h += '</div></div>';
+    // Formulaire annonce admin caché
+    if(getUserRole() === 'admin'){
+      h += '<div id="redac-annonce-form" style="display:none;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1rem;">';
+      h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Nouvelle annonce</div>';
+      h += '<select id="redac-annonce-type" style="font-family:monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:6px;margin-bottom:0.5rem;width:100%;"><option value="info">Info</option><option value="alerte">Alerte</option><option value="succes">Bonne nouvelle</option></select>';
+      h += '<textarea id="redac-annonce-msg" rows="2" placeholder="Message pour l\'équipe..." style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:vertical;box-sizing:border-box;margin-bottom:0.5rem;"></textarea>';
+      h += '<div style="display:flex;gap:0.5rem;">';
+      h += '<button onclick="osRedacPublierAnnonce()" class="btn" style="font-size:0.72rem;padding:0.4rem 0.9rem;">Publier</button>';
+      h += '<button onclick="document.getElementById(\'redac-annonce-form\').style.display=\'none\'" class="btn sec" style="font-size:0.72rem;padding:0.4rem 0.9rem;">Annuler</button>';
+      h += '</div></div>';
+    }
+  }
+
   // Sujets à rédiger (aperçu dans l'onglet profil — chargés en async)
   h += '<div>';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
@@ -16709,8 +16930,13 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
 
 function osRedacChargerSujets(zone, roleRedac){
   if(!zone) return;
-  osSujetsCharger(function(sujets){
-    if(!sujets || !sujets.length){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.ouvert&order=created_at.desc&select=*';
+  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
+    sujets = (!sujets||sujets.code) ? [] : sujets;
+    window._sujetsData = sujets;
+    if(!sujets.length){
       zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       return;
     }
@@ -16736,43 +16962,207 @@ function osRedacChargerSujets(zone, roleRedac){
     });
     h += '</div>';
     zone.innerHTML = h;
-    // Stocker pour la suppression
-    window._sujetsData = sujets;
+  }).catch(function(){
+    zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:monospace;font-size:0.72rem;">Erreur</div>';
   });
+}
+
+function _osRedacActionsRapides(role, roleRedac){
+  var actions = {
+    redacteur: [
+      {icon:'✍️', titre:'Rédiger', desc:'Nouvel article', page:'redaction'},
+      {icon:'📝', titre:'Brouillons', desc:'Mes articles', page:'mes-articles'},
+      {icon:'🎨', titre:'Visuels', desc:'Instagram', page:'visuels'},
+    ],
+    correcteur: [
+      {icon:'🔍', titre:'Correction', desc:'Articles en attente', page:'app-correction'},
+      {icon:'📨', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter'},
+    ],
+    admin: [
+      {icon:'✍️', titre:'Rédiger', desc:'Nouvel article', page:'redaction'},
+      {icon:'🔍', titre:'Corrections', desc:'En attente', page:'app-correction'},
+      {icon:'📨', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter'},
+      {icon:'👥', titre:'Bénévoles', desc:'Gérer l\'équipe', page:'benevoles'},
+    ]
+  };
+  return actions[role] || actions.redacteur;
+}
+
+function osRedacToggleAnnonceForm(){
+  var f = document.getElementById('redac-annonce-form');
+  if(f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function osRedacPublierAnnonce(){
+  var msg = (document.getElementById('redac-annonce-msg')||{}).value||'';
+  var type = (document.getElementById('redac-annonce-type')||{}).value||'info';
+  if(!msg.trim()){ notif('Saisis un message'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/annonces',{method:'POST',headers:authH,body:JSON.stringify({message:msg.trim(),type:type,auteur:getUserNomComplet(),actif:true})})
+  .then(function(r){
+    if(r.ok){
+      notif('Annonce publiée ✓','succes');
+      document.getElementById('redac-annonce-form').style.display='none';
+      // Recharger les annonces dans Ma rédac'
+      var zone = document.getElementById('redac-annonces-zone');
+      if(zone) osRedacChargerAnnonces(zone);
+    }
+  }).catch(function(){ notif('Erreur'); });
+}
+
+function osRedacChargerAlertes(zone){
+  if(!zone) return;
+  var role = getUserRole();
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var html = '';
+  var promesses = [];
+
+  // Alerte correction
+  if(role === 'admin' || role === 'correcteur'){
+    promesses.push(
+      fetch(SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=id,titre,statut,correcteur_id&order=updated_at.desc',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(arts){
+        if(!arts||arts.code) return '';
+        if(role !== 'admin') arts = arts.filter(function(a){ return a.correcteur_id === uid; });
+        if(!arts.length) return '';
+        return '<div onclick="osOpenWindow(\'app-correction\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">🔍</span>'
+          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#1A5276;">'+arts.length+' article'+(arts.length>1?'s':'')+' en attente de correction</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#1A5276;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#1A5276;">→</span></div>';
+      })
+    );
+  }
+
+  // Alerte publication
+  if(role === 'admin'){
+    promesses.push(
+      fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&select=id,titre&order=updated_at.desc',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(arts){
+        if(!arts||arts.code||!arts.length) return '';
+        return '<div onclick="osOpenWindow(\'statut\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">✅</span>'
+          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#155724;">'+arts.length+' article'+(arts.length>1?'s':'')+' prêt'+(arts.length>1?'s':'')+' à publier</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#155724;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#155724;">→</span></div>';
+      })
+    );
+  }
+
+  // Alerte tickets
+  promesses.push(
+    fetch(SB_URL+'/rest/v1/tickets?statut=neq.ferme&select=id,titre,reponse&order=created_at.desc',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(tickets){
+      if(!tickets||tickets.code||!tickets.length) return '';
+      // Pour les non-admins, seulement ses propres tickets avec réponse
+      if(role !== 'admin') tickets = tickets.filter(function(t){ return t.reponse; });
+      if(!tickets.length) return '';
+      return '<div onclick="osOpenWindow(\'tchap\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#FFF3CD;border:1px solid #FDEBD0;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+        +'<span style="font-size:1rem;">🎫</span>'
+        +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#856404;">'+(role==='admin'?tickets.length+' ticket'+(tickets.length>1?'s':'')+' en attente':'Réponse disponible sur ton ticket')+'</div>'
+        +'<div style="font-family:monospace;font-size:0.58rem;color:#856404;opacity:0.7;">Voir dans Tchap → Assistance</div></div>'
+        +'<span style="font-family:monospace;font-size:0.6rem;color:#856404;">→</span></div>';
+    })
+  );
+
+  Promise.all(promesses).then(function(blocs){
+    var content = blocs.filter(Boolean).join('');
+    if(!content){ zone.innerHTML = ''; return; }
+    zone.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.4rem;">'+content+'</div>';
+  }).catch(function(){});
+}
+
+function osRedacChargerAnnonces(zone){
+  if(!zone) return;
+  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&order=created_at.desc&select=*',{headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(annonces){
+    if(!annonces||annonces.code||!annonces.length){ zone.innerHTML=''; return; }
+    var ICONS={info:'ℹ️',alerte:'⚠️',succes:'🎉'};
+    var STYLES={
+      info:'background:#EBF5FB;border:1px solid #AED6F1;color:#1A5276;',
+      alerte:'background:#FDEDEC;border:1px solid #F5B7B1;color:#A32D2D;',
+      succes:'background:#E9F7EF;border:1px solid #A9DFBF;color:#155724;'
+    };
+    var h = '<div style="display:flex;flex-direction:column;gap:0.4rem;">';
+    annonces.forEach(function(a){
+      var st = STYLES[a.type]||STYLES.info;
+      var dateStr=''; try{dateStr=new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}catch(e){}
+      h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.6rem 0.9rem;border-radius:8px;'+st+'">';
+      h += '<span style="font-size:1rem;flex-shrink:0;">'+(ICONS[a.type]||'ℹ️')+'</span>';
+      h += '<div style="flex:1;"><div style="font-size:0.82rem;font-weight:500;">'+esc(a.message||'')+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.55rem;opacity:0.7;margin-top:2px;">'+(a.auteur||'Admin')+(dateStr?' · '+dateStr:'')+'</div></div>';
+      if(getUserRole()==='admin'){
+        h += '<button onclick="osRedacSupprimerAnnonce(\''+a.id+'\',this.parentNode)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:0.5;flex-shrink:0;">×</button>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+    zone.innerHTML = h;
+  }).catch(function(){});
+}
+
+function osRedacSupprimerAnnonce(id, el){
+  if(!confirm('Supprimer cette annonce ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/annonces?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
+  .then(function(r){ if(r.ok){ el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(function(){el.remove();},300); } });
 }
 
 function osRedacChargerMesArticles(zone){
   if(!zone) return;
   var uid = getUserId();
-  var nom = getUserNomComplet();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  // Fetch par auteur_id OU par nom (fallback pour admin)
+
+  // Chercher les membres de la rédaction active pour filtrer les articles
+  var idsMembres = null;
+  if(window._redacActiveId && _membresRedactionsData && _membresRedactionsData.length){
+    idsMembres = _membresRedactionsData
+      .filter(function(mr){ return mr.redaction_id === window._redacActiveId; })
+      .map(function(mr){ return mr.membre_id; });
+  }
+
+  // Fetch articles filtrés par rédaction active
   var url = SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,updated_at&order=updated_at.desc';
+  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(url, {headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    if((!arts||arts.code||!arts.length)){
+    // Fallback par nom si auteur_id vide
+    if((!arts||arts.code||!arts.length) && !window._redacActiveId){
       var prenom = getUserPrenom();
       if(prenom){
-        return fetch(SB_URL+'/rest/v1/articles?auteur=ilike.'+encodeURIComponent(prenom+'*')+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();});
+        var urlFallback = SB_URL+'/rest/v1/articles?auteur=ilike.'+encodeURIComponent(prenom+'*')+'&select=id,titre,statut,updated_at&order=updated_at.desc';
+        if(window._redacActiveId) urlFallback += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+        return fetch(urlFallback,{headers:authH}).then(function(r){return r.json();});
       }
     }
     return arts;
   })
   .then(function(arts){
     if(!arts||arts.code){ zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--rouge);">Erreur.</div>'; return; }
+
+    // Si on est dans plusieurs rédactions, filtrer uniquement les articles de la rédaction active
+    // en vérifiant si l'auteur est bien membre de cette rédaction
+    // (les articles n'ont pas de redaction_id direct, on se base sur le fait que l'auteur est dans la rédac)
+    // Pour l'admin dans plusieurs rédacs, tous ses articles sont affichés (c'est ses articles perso)
+
     // Remplir les stats
     var total = arts.length;
     var publies = arts.filter(function(a){return a.statut==='publie';}).length;
     var mois = arts.filter(function(a){return new Date(a.updated_at)>=depuis30;}).length;
-    var elT = document.getElementById('stat-arts');
-    var elP = document.getElementById('stat-pub');
-    var elM = document.getElementById('stat-mois');
-    if(elT) elT.textContent = total;
-    if(elP) elP.textContent = publies;
-    if(elM) elM.textContent = mois;
-    // Afficher les 8 derniers
+    var elT=document.getElementById('stat-arts');
+    var elP=document.getElementById('stat-pub');
+    var elM=document.getElementById('stat-mois');
+    if(elT) elT.textContent=total;
+    if(elP) elP.textContent=publies;
+    if(elM) elM.textContent=mois;
+
     if(!arts.length){
       zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun article pour le moment.</div>';
       return;
@@ -16789,13 +17179,9 @@ function osRedacChargerMesArticles(zone){
       var sd=statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333',dot:'#888'};
       var row=document.createElement('div');
       row.style.cssText='display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;cursor:pointer;'+(i<Math.min(arts.length,8)-1?'border-bottom:0.5px solid var(--gris-bord);':'');
-      row.title = 'Ouvrir "'+esc(a.titre||'Sans titre')+'"';
-      row.addEventListener('mouseenter', function(){ this.style.opacity='0.7'; });
-      row.addEventListener('mouseleave', function(){ this.style.opacity='1'; });
-      row.addEventListener('click', function(){
-        osOpenWindow('redaction');
-        setTimeout(function(){ chargerArticle(a.id); }, 300);
-      });
+      row.addEventListener('mouseenter',function(){this.style.opacity='0.7';});
+      row.addEventListener('mouseleave',function(){this.style.opacity='1';});
+      row.addEventListener('click',function(){ osOpenWindow('redaction'); setTimeout(function(){ chargerArticle(a.id); },300); });
       row.innerHTML=
         '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
         +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
@@ -16812,11 +17198,14 @@ function osRedacChargerSujetsProfil(zone){
   if(!zone) return;
   var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
   var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
-  osSujetsCharger(function(sujets){
-    if(!sujets||!sujets.length){
-      zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun sujet proposé.</div>';
-      return;
-    }
+  // Fetch direct avec filtre rédaction active
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.ouvert&order=created_at.desc&select=*';
+  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(url,{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(sujets){
+    sujets = (!sujets||sujets.code) ? [] : sujets;
     window._sujetsData = sujets;
     var h='';
     sujets.slice(0,4).forEach(function(s,i){
@@ -16884,7 +17273,9 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   var membresRedac = _membresData.filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
+  var artsRedac = (window._tousArticles||_articlesRedacData).filter(function(a){
+    return a.redaction_id === redacId;
+  });
   var artsPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
   var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
   var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
@@ -16927,7 +17318,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       var rr = lien ? lien.role_redac : 'redacteur';
       var rcMb = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-      var arts = _articlesRedacData.filter(function(a){ return a.auteur_id===m.id; });
+      var arts = (window._tousArticles||_articlesRedacData).filter(function(a){ return a.auteur_id===m.id && a.redaction_id===redacId; });
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
@@ -16948,7 +17339,8 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += '</div>';
   }
 
-  // Membres de la rédaction — style flat
+  // Membres de la rédaction — style flat (seulement pour les non-chefs)
+  if(!isChef){
   h += '<div>';
   h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
@@ -16970,6 +17362,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   if(reste > 0) h += '<div style="display:flex;align-items:center;justify-content:center;background:var(--gris-clair);border-radius:20px;padding:3px 12px;font-family:monospace;font-size:0.7rem;color:var(--gris);">+'+reste+'</div>';
   if(!membresRedac.length) h += '<span style="font-family:monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
   h += '</div></div>';
+  } // fin if(!isChef)
 
   // Articles récents — style flat
   var artsRecents = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
@@ -17038,6 +17431,12 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   h += '<div style="font-family:monospace;font-size:0.62rem;color:#856404;"><strong>Bêta</strong> — Cette app est en cours de développement, certaines fonctionnalités peuvent manquer ou mal fonctionner.</div>';
   h += '</div>';
 
+  // Zone alertes — chargées en async après render
+  h += '<div id="redac-alertes-zone"></div>';
+
+  // Zone annonces — chargées en async
+  h += '<div id="redac-annonces-zone"></div>';
+
   if(_redacOnglet === 'profil'){
     h += osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac);
   } else if(_redacOnglet === 'sujets'){
@@ -17061,6 +17460,11 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     // Sujets — fetch direct dans la zone profil
     var zoneSujetsP = document.getElementById('redac-sujets-profil');
     if(zoneSujetsP) osRedacChargerSujetsProfil(zoneSujetsP);
+    // Alertes et annonces
+    var zoneAlertes = document.getElementById('redac-alertes-zone');
+    if(zoneAlertes) osRedacChargerAlertes(zoneAlertes);
+    var zoneAnnonces = document.getElementById('redac-annonces-zone');
+    if(zoneAnnonces) osRedacChargerAnnonces(zoneAnnonces);
   }
   if(_redacOnglet === 'sujets'){
     var zoneSujets = document.getElementById('redac-sujets-zone');
@@ -17084,13 +17488,14 @@ var _adminRedacSelectId = null; // rédac sélectionnée dans la vue admin
 function osRedactionsRenderAdmin(wc, uid){
   var h = '<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
 
-  // Stats globales bénévoles (depuis _membresData et _articlesRedacData)
+  // Stats globales — utiliser tous les articles (pas filtrés par rédaction active)
+  var tousArts = window._tousArticles || _articlesRedacData;
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
   var totalMembres = _membresData.length;
   var nouveauxCeMois = (window._nouveauxMembres||[]).length;
-  var artsMois = _articlesRedacData.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-  var artsPublies = _articlesRedacData.filter(function(a){ return a.statut==='publie'; });
+  var artsMois = tousArts.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+  var artsPublies = tousArts.filter(function(a){ return a.statut==='publie'; });
 
   h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
   function gCard(n,l,c){ return '<div style="background:var(--encre);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'white')+';">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-top:3px;">'+l+'</div></div>'; }
@@ -17129,7 +17534,7 @@ function osRedactionsRenderAdmin(wc, uid){
     var couleur = redac.couleur||'#EA5B1C';
     var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
     var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
-    var artsRedac = _articlesRedacData.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
+    var artsRedac = tousArts.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
     var artsRedacPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
     var artsRedacMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
     var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
@@ -17168,7 +17573,7 @@ function osRedactionsRenderAdmin(wc, uid){
       if(!mb) return;
       var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
       var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[mb.role]||'#D3D1C7,#444441').split(',');
-      var arts = _articlesRedacData.filter(function(a){ return a.auteur_id===mb.id; });
+      var arts = (window._tousArticles||_articlesRedacData).filter(function(a){ return a.auteur_id===mb.id && (!a.redaction_id || a.redaction_id===redac.id); });
       var pub  = arts.filter(function(a){ return a.statut==='publie'; });
       var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
@@ -19417,10 +19822,10 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['accueil','redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions'],
-  correcteur: ['accueil','brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions'],
-  redac_chef: ['accueil','redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda'],
-  admin:      ['accueil','redaction','mes-articles','app-correction','statut','briefing','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets'],
+  redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions'],
+  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions'],
+  redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda'],
+  admin:      ['redaction','mes-articles','app-correction','statut','briefing','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets'],
 };
 
 window._userApps = null;
@@ -22710,6 +23115,7 @@ function tchapRendreMembres(q){
 
 function tchapRetourListe(){
   _tchapConvActive = null;
+  if(window._assistancePolling){ clearInterval(window._assistancePolling); window._assistancePolling = null; }
   var left = document.getElementById('tchap-left');
   var right = document.getElementById('tchap-right');
   if(left){ left.style.display = 'flex'; left.style.width = '100%'; }
@@ -23328,95 +23734,136 @@ function tchapOuvrirAssistance(){
 function tchapOuvrirTicket(ticket){
   var right = document.getElementById('tchap-right');
   if(!right) return;
+
+  // Arrêter tout polling précédent
+  if(window._assistancePolling) clearInterval(window._assistancePolling);
+  window._assistancePolling = null;
+
   right.innerHTML = '';
   right.style.cssText = 'flex:1;display:flex;flex-direction:column;';
   var role = getUserRole();
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var STATUT = {ouvert:{l:'Ouvert',bg:'#FFF3CD',c:'#856404'},en_cours:{l:'En cours',bg:'#D6EAF8',c:'#1A5276'},ferme:{l:'Fermé',bg:'#D4EDDA',c:'#155724'}};
-  var st = STATUT[ticket.statut]||STATUT.ouvert;
 
   var header = document.createElement('div');
+  header.id = 'tchap-ticket-header';
   header.style.cssText = 'padding:0.7rem 1.2rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.6rem;flex-shrink:0;background:white;';
-  header.innerHTML = '<button onclick="tchapOuvrirAssistance()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);padding:0 4px;">←</button>'
-    +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ticket.titre||'')+'</div>'
-    +'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+st.bg+';color:'+st.c+';border-radius:3px;">'+st.l+'</span>'
-    +(ticket.priorite==='urgent'?'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:#FCEBEB;color:#A32D2D;border-radius:3px;margin-left:4px;">Urgent</span>':'')
-    +'</div>';
-
-  if((role==='admin'||role==='correcteur') && ticket.statut!=='ferme'){
-    var fermerBtn = document.createElement('button');
-    fermerBtn.style.cssText = 'font-family:monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #155724;border-radius:4px;background:#EAF3DE;color:#155724;cursor:pointer;flex-shrink:0;';
-    fermerBtn.textContent = '✓ Fermer';
-    fermerBtn.onclick = function(){
-      var rep = (document.getElementById('tchap-ticket-reponse')||{}).value||'';
-      ticketFermer(ticket, rep);
-    };
-    header.appendChild(fermerBtn);
-  }
   right.appendChild(header);
 
   var zone = document.createElement('div');
+  zone.id = 'tchap-ticket-zone';
   zone.style.cssText = 'flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.7rem;';
-
-  // Message initial (de l'auteur du ticket — toujours à droite si c'est moi, gauche sinon)
-  var uid = getUserId();
-  var estAuteur = ticket.auteur_id === uid;
-  var initMsg = document.createElement('div');
-  initMsg.style.cssText = 'display:flex;justify-content:'+(estAuteur?'flex-end':'flex-start')+';';
-  var b1 = document.createElement('div');
-  b1.style.cssText = 'max-width:80%;padding:0.6rem 0.9rem;border-radius:'+(estAuteur?'16px 16px 3px 16px':'16px 16px 16px 3px')+';background:'+(estAuteur?'var(--rouge)':'white')+';color:'+(estAuteur?'white':'var(--encre)')+';font-size:0.85rem;line-height:1.4;'+(estAuteur?'':'border:1px solid var(--gris-bord);');
-  b1.innerHTML = (!estAuteur?'<div style="font-family:monospace;font-size:0.58rem;color:var(--rouge);margin-bottom:4px;">'+esc(ticket.auteur||'Auteur')+'</div>':'')
-    +esc(ticket.description||'').replace(/\n/g,'<br>')
-    +'<div style="font-size:0.58rem;opacity:0.6;margin-top:4px;text-align:'+(estAuteur?'right':'left')+';">'+new Date(ticket.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>';
-  initMsg.appendChild(b1);
-  zone.appendChild(initMsg);
-
-  // Réponses — [Nom] = autre personne (côté gauche si je suis l'auteur, droite sinon)
-  if(ticket.reponse){
-    var repBlocs = ticket.reponse.split(/\n\n(?=\[)/);
-    repBlocs.forEach(function(rep){
-      if(!rep.trim()) return;
-      var auteurMatch = rep.match(/^\[([^\]]+)\]/);
-      var auteurNom = auteurMatch ? auteurMatch[1] : '';
-      var texte = auteurNom ? rep.replace(/^\[[^\]]+\]\s*/, '') : rep;
-      // Si le nom correspond à l'utilisateur courant → droite, sinon gauche
-      var monNom = getUserNomComplet();
-      var estMoi = auteurNom && (auteurNom.trim().toLowerCase() === monNom.trim().toLowerCase());
-      // Sans tag → message de l'auteur original avant le système de tags
-      if(!auteurNom) estMoi = estAuteur;
-      var wrapper = document.createElement('div');
-      wrapper.style.cssText = 'display:flex;justify-content:'+(estMoi?'flex-end':'flex-start')+';';
-      var b = document.createElement('div');
-      b.style.cssText = 'max-width:80%;padding:0.6rem 0.9rem;border-radius:'+(estMoi?'16px 16px 3px 16px':'16px 16px 16px 3px')+';'
-        +'background:'+(estMoi?'var(--rouge)':'white')+';color:'+(estMoi?'white':'var(--encre)')+';font-size:0.85rem;line-height:1.4;'
-        +(!estMoi?'border:1px solid var(--gris-bord);':'');
-      b.innerHTML = (!estMoi&&auteurNom?'<div style="font-family:monospace;font-size:0.58rem;color:#0F6E56;margin-bottom:4px;">'+esc(auteurNom)+'</div>':'')
-        +esc(texte.trim()).replace(/\n/g,'<br>');
-      wrapper.appendChild(b);
-      zone.appendChild(wrapper);
-    });
-  }
-
   right.appendChild(zone);
 
-  if(ticket.statut !== 'ferme'){
-    var inputZone = document.createElement('div');
-    inputZone.style.cssText = 'padding:0.7rem 1rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.5rem;align-items:flex-end;flex-shrink:0;background:white;';
-    inputZone.innerHTML = '<textarea id="tchap-ticket-reponse" placeholder="'
-      +(role==='admin'||role==='correcteur'?'Répondre…':'Ajouter un message…')
-      +'" rows="1" style="flex:1;padding:0.5rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:18px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none;outline:none;line-height:1.4;max-height:100px;overflow-y:auto;box-sizing:border-box;"></textarea>'
-      +'<button id="tchap-ticket-send" style="background:var(--rouge);color:white;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">↑</button>';
-    right.appendChild(inputZone);
-    setTimeout(function(){
-      var btn = document.getElementById('tchap-ticket-send');
-      if(btn) btn.onclick = function(){
+  var inputZone = document.createElement('div');
+  inputZone.id = 'tchap-ticket-input';
+  inputZone.style.cssText = 'padding:0.7rem 1rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.5rem;align-items:flex-end;flex-shrink:0;background:white;';
+  right.appendChild(inputZone);
+
+  function _renderTicket(t){
+    var st = STATUT[t.statut]||STATUT.ouvert;
+    var estAuteur = t.auteur_id === uid;
+
+    // Header
+    header.innerHTML = '<button onclick="if(window._assistancePolling)clearInterval(window._assistancePolling);tchapOuvrirAssistance();" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);padding:0 4px;">←</button>'
+      +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(t.titre||'')+'</div>'
+      +'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+st.bg+';color:'+st.c+';border-radius:3px;">'+st.l+'</span>'
+      +(t.priorite==='urgent'?'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:#FCEBEB;color:#A32D2D;border-radius:3px;margin-left:4px;">Urgent</span>':'')
+      +'</div>';
+    if((role==='admin'||role==='correcteur') && t.statut!=='ferme'){
+      var fermerBtn = document.createElement('button');
+      fermerBtn.style.cssText = 'font-family:monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #155724;border-radius:4px;background:#EAF3DE;color:#155724;cursor:pointer;flex-shrink:0;';
+      fermerBtn.textContent = '✓ Fermer';
+      fermerBtn.onclick = function(){
         var rep = (document.getElementById('tchap-ticket-reponse')||{}).value||'';
-        if(!rep.trim()) return;
-        if(role==='admin'||role==='correcteur') ticketRepondre(ticket, rep.trim());
-        else ticketRepondreRedacteur(ticket, rep.trim());
+        ticketFermer(t, rep);
       };
-    }, 100);
+      header.appendChild(fermerBtn);
+    }
+
+    // Zone messages
+    var wasAtBottom = zone.scrollTop >= zone.scrollHeight - zone.clientHeight - 30;
+    zone.innerHTML = '';
+    // Message initial
+    var initMsg = document.createElement('div');
+    initMsg.style.cssText = 'display:flex;justify-content:'+(estAuteur?'flex-end':'flex-start')+';';
+    var b1 = document.createElement('div');
+    b1.style.cssText = 'max-width:80%;padding:0.6rem 0.9rem;border-radius:'+(estAuteur?'16px 16px 3px 16px':'16px 16px 16px 3px')+';background:'+(estAuteur?'var(--rouge)':'white')+';color:'+(estAuteur?'white':'var(--encre)')+';font-size:0.85rem;line-height:1.4;'+(estAuteur?'':'border:1px solid var(--gris-bord);');
+    b1.innerHTML = (!estAuteur?'<div style="font-family:monospace;font-size:0.58rem;color:var(--rouge);margin-bottom:4px;">'+esc(t.auteur||'Auteur')+'</div>':'')
+      +esc(t.description||'').replace(/\n/g,'<br>')
+      +'<div style="font-size:0.58rem;opacity:0.6;margin-top:4px;text-align:'+(estAuteur?'right':'left')+';">'+new Date(t.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>';
+    initMsg.appendChild(b1);
+    zone.appendChild(initMsg);
+
+    // Réponses
+    if(t.reponse){
+      t.reponse.split(/\n\n(?=\[)/).forEach(function(rep){
+        if(!rep.trim()) return;
+        var auteurMatch = rep.match(/^\[([^\]]+)\]/);
+        var auteurNom = auteurMatch ? auteurMatch[1] : '';
+        var texte = auteurNom ? rep.replace(/^\[[^\]]+\]\s*/, '') : rep;
+        var monNom = getUserNomComplet();
+        var estMoi = auteurNom ? (auteurNom.trim().toLowerCase() === monNom.trim().toLowerCase()) : estAuteur;
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;justify-content:'+(estMoi?'flex-end':'flex-start')+';';
+        var b = document.createElement('div');
+        b.style.cssText = 'max-width:80%;padding:0.6rem 0.9rem;border-radius:'+(estMoi?'16px 16px 3px 16px':'16px 16px 16px 3px')+';'
+          +'background:'+(estMoi?'var(--rouge)':'white')+';color:'+(estMoi?'white':'var(--encre)')+';font-size:0.85rem;line-height:1.4;'
+          +(!estMoi?'border:1px solid var(--gris-bord);':'');
+        b.innerHTML = (!estMoi&&auteurNom?'<div style="font-family:monospace;font-size:0.58rem;color:#0F6E56;margin-bottom:4px;">'+esc(auteurNom)+'</div>':'')
+          +esc(texte.trim()).replace(/\n/g,'<br>');
+        wrapper.appendChild(b);
+        zone.appendChild(wrapper);
+      });
+    }
+
+    if(wasAtBottom || zone.children.length <= 2) zone.scrollTop = zone.scrollHeight;
+
+    // Zone input
+    if(t.statut !== 'ferme'){
+      inputZone.style.display = '';
+      inputZone.innerHTML = '<textarea id="tchap-ticket-reponse" placeholder="'
+        +(role==='admin'||role==='correcteur'?'Répondre…':'Ajouter un message…')
+        +'" rows="1" style="flex:1;padding:0.5rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:18px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none;outline:none;line-height:1.4;max-height:100px;overflow-y:auto;box-sizing:border-box;"></textarea>'
+        +'<button id="tchap-ticket-send" style="background:var(--rouge);color:white;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">↑</button>';
+      setTimeout(function(){
+        var btn = document.getElementById('tchap-ticket-send');
+        if(btn) btn.onclick = function(){
+          var rep = (document.getElementById('tchap-ticket-reponse')||{}).value||'';
+          if(!rep.trim()) return;
+          if(role==='admin'||role==='correcteur') ticketRepondre(ticket, rep.trim());
+          else ticketRepondreRedacteur(ticket, rep.trim());
+        };
+      }, 100);
+    } else {
+      inputZone.style.display = 'none';
+    }
   }
-  zone.scrollTop = zone.scrollHeight;
+
+  // Chargement initial
+  function _fetchTicket(){
+    fetch(SB_URL+'/rest/v1/tickets?id=eq.'+ticket.id+'&select=*', {headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data[0]) _renderTicket(data[0]);
+    }).catch(function(){});
+  }
+
+  _fetchTicket();
+
+  // Polling toutes les 10s si le ticket n'est pas fermé
+  if(ticket.statut !== 'ferme'){
+    window._assistancePolling = setInterval(function(){
+      // Arrêter si la zone n'est plus visible
+      if(!document.getElementById('tchap-ticket-zone')){
+        clearInterval(window._assistancePolling);
+        window._assistancePolling = null;
+        return;
+      }
+      _fetchTicket();
+    }, 10000);
+  }
 }
 
 function tchapNouveauTicket(){
