@@ -4059,6 +4059,9 @@ input:focus,select:focus,textarea:focus{
 
 
 <!-- BRIEFING -->
+<!-- BOUTIQUE -->
+<div class="page" id="page-boutique"></div>
+
 <!-- VISUELS INSTAGRAM -->
 <div class="page" id="page-visuels">
   <div class="panel-title">Visuels Instagram</div>
@@ -10753,6 +10756,8 @@ function osLancer(){
     chargerAlertTicketsAccueil();
     chargerAlertTickets();
     ssInit();
+    // Créditer automatiquement les heures des événements passés
+    setTimeout(osAgendaCreditHeuresAuto, 5000);
 
     // Vérifier si le membre est dans plusieurs rédactions
     var uid = getUserId();
@@ -10837,7 +10842,300 @@ function _osAfficherFonctionLabel(label, uid){
   }).catch(function(){});
 }
 
-// ===== REFRESH MAP — fonctions de rechargement par app =====
+// ===== BOUTIQUE =====
+function osBoutiqueRender(){
+  var wc = document.getElementById('wincontent-boutique');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
+  wc.innerHTML = '<div style="padding:2rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement…</div>';
+
+  var uid = getUserId();
+  var role = getUserRole();
+  var isAdmin = role === 'admin';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/boutique_articles?actif=eq.true&order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&select=cout_heures,statut',{headers:authH}).then(function(r){return r.json();}),
+    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.en_attente&select=*,membres(prenom,nom)&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
+  ]).then(function(results){
+    var articles = (!results[0]||results[0].code) ? [] : results[0];
+    var heures   = (!results[1]||results[1].code) ? [] : results[1];
+    var commandes= (!results[2]||results[2].code) ? [] : results[2];
+    var pending  = (!results[3]||results[3].code) ? [] : results[3];
+
+    var totalMin = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
+    var depensesH = commandes.filter(function(c){return c.statut!=='refuse';}).reduce(function(s,c){return s+(c.cout_heures||0);},0);
+    var soldeH = Math.max(0, Math.floor(totalMin/60) - depensesH);
+    var totalH = Math.floor(totalMin/60);
+
+    var h = '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">';
+
+    // Header
+    h += '<div style="flex-shrink:0;background:linear-gradient(135deg,#7D3C98,#5B2C6F);padding:1.2rem 1.5rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">🎁 Boutique Ipsum Média</div>';
+    h += '<div style="font-family:monospace;font-size:0.65rem;color:rgba(255,255,255,0.6);margin-top:2px;">Échangez vos heures de bénévolat</div></div>';
+    h += '<div style="text-align:right;">';
+    h += '<div style="font-family:Poppins,sans-serif;font-size:1.6rem;font-weight:800;color:white;">'+soldeH+'h</div>';
+    h += '<div style="font-family:monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">disponibles / '+totalH+'h total</div>';
+    h += '</div></div>';
+
+    // Barre de progression solde
+    var pct = totalH > 0 ? Math.min(100, Math.round(soldeH/totalH*100)) : 0;
+    h += '<div style="margin-top:0.8rem;background:rgba(255,255,255,0.2);border-radius:10px;height:6px;">';
+    h += '<div style="background:white;border-radius:10px;height:6px;width:'+pct+'%;transition:width 0.5s;"></div></div>';
+    h += '</div>';
+
+    // Alertes admin
+    if(isAdmin && pending.length){
+      h += '<div style="flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #FFEAA7;padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;" onclick="osBoutiqueVoirCommandes()">';
+      h += '<span>⏳</span><div style="flex:1;font-family:monospace;font-size:0.65rem;color:#856404;"><strong>'+pending.length+' commande(s) en attente</strong> de validation</div>';
+      h += '<span style="font-family:monospace;font-size:0.6rem;color:#856404;">Gérer →</span></div>';
+    }
+
+    // Onglets
+    h += '<div style="display:flex;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;">';
+    h += '<button onclick="osBoutiqueOnglet(\'catalogue\')" id="boutique-tab-cat" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;">🛍️ Catalogue</button>';
+    h += '<button onclick="osBoutiqueOnglet(\'commandes\')" id="boutique-tab-cmd" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">📦 Mes commandes</button>';
+    if(isAdmin) h += '<button onclick="osBoutiqueOnglet(\'admin\')" id="boutique-tab-adm" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">⚙️ Gestion</button>';
+    h += '</div>';
+
+    // Panel catalogue
+    h += '<div id="boutique-panel-cat" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">';
+    if(!articles.length){
+      h += '<div style="text-align:center;padding:3rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune récompense disponible pour le moment</div>';
+    } else {
+      var cats = {};
+      articles.forEach(function(a){ var c=a.categorie||'Autre'; if(!cats[c]) cats[c]=[]; cats[c].push(a); });
+      Object.keys(cats).forEach(function(cat){
+        h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+esc(cat)+'</div>';
+        h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.7rem;margin-bottom:1rem;">';
+        cats[cat].forEach(function(art){
+          var peutAcheter = soldeH >= art.cout_heures;
+          var stockOk = art.stock === null || art.stock > 0;
+          var dejaCommande = commandes.some(function(c){return c.article_id===art.id && c.statut!=='refuse';});
+          h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:0.5rem;opacity:'+(stockOk?'1':'0.5')+'">';
+          h += '<div style="font-size:1.5rem;text-align:center;">'+( art.nom.match(/^[\u{1F300}-\u{1F9FF}]/u)?art.nom.charAt(0):'🎁')+'</div>';
+          h += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);text-align:center;">'+esc(art.nom.replace(/^[\u{1F300}-\u{1F9FF}]\s*/u,''))+'</div>';
+          if(art.description) h += '<div style="font-size:0.75rem;color:var(--gris);text-align:center;line-height:1.3;">'+esc(art.description)+'</div>';
+          h += '<div style="text-align:center;">';
+          h += '<span style="font-family:Poppins,sans-serif;font-size:1.1rem;font-weight:800;color:#7D3C98;">'+art.cout_heures+'h</span>';
+          if(art.stock !== null) h += '<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:0.4rem;">'+art.stock+' dispo</span>';
+          h += '</div>';
+          if(dejaCommande){
+            h += '<div style="text-align:center;font-family:monospace;font-size:0.65rem;color:#155724;background:#D4EDDA;padding:4px 8px;border-radius:6px;">✓ Déjà commandé</div>';
+          } else if(!stockOk){
+            h += '<div style="text-align:center;font-family:monospace;font-size:0.65rem;color:var(--gris);background:var(--gris-clair);padding:4px 8px;border-radius:6px;">Épuisé</div>';
+          } else {
+            h += '<button onclick="osBoutiqueCommander(\''+art.id+'\',\''+esc(art.nom)+'\','+art.cout_heures+')" style="width:100%;padding:0.5rem;background:'+(peutAcheter?'#7D3C98':'var(--gris-clair)')+';color:'+(peutAcheter?'white':'var(--gris)')+';border:none;border-radius:8px;font-family:monospace;font-size:0.7rem;font-weight:600;cursor:'+(peutAcheter?'pointer':'not-allowed')+'">'+(peutAcheter?'Échanger →':'Solde insuffisant')+'</button>';
+          }
+          h += '</div>';
+        });
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+
+    // Panel mes commandes
+    h += '<div id="boutique-panel-cmd" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:none;">';
+    var mesCommandes = commandes.sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
+    if(!mesCommandes.length){
+      h += '<div style="text-align:center;padding:3rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune commande pour le moment</div>';
+    } else {
+      var stCmd = {en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},valide:{l:'Validé ✓',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Refusé',bg:'#FCEBEB',c:'#A32D2D'}};
+      mesCommandes.forEach(function(cmd){
+        var artCmd = articles.find(function(a){return a.id===cmd.article_id;});
+        var sc = stCmd[cmd.statut]||{l:cmd.statut,bg:'#eee',c:'#333'};
+        var dateCmd = cmd.created_at ? new Date(cmd.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+        h += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+        h += '<div style="font-size:1.2rem;">'+(artCmd?artCmd.nom.charAt(0):'🎁')+'</div>';
+        h += '<div style="flex:1;">';
+        h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(artCmd?artCmd.nom:'Article supprimé')+'</div>';
+        h += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+cmd.cout_heures+'h · '+dateCmd+'</div>';
+        if(cmd.message) h += '<div style="font-size:0.72rem;color:var(--gris);margin-top:2px;font-style:italic;">'+esc(cmd.message)+'</div>';
+        h += '</div>';
+        h += '<span style="font-family:monospace;font-size:0.62rem;padding:3px 8px;background:'+sc.bg+';color:'+sc.c+';border-radius:4px;white-space:nowrap;">'+sc.l+'</span>';
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+
+    // Panel admin
+    if(isAdmin){
+      h += '<div id="boutique-panel-adm" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:none;">';
+      h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.8rem;">Commandes en attente</div>';
+      if(!pending.length){
+        h += '<div style="text-align:center;padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune commande en attente</div>';
+      } else {
+        pending.forEach(function(cmd){
+          var artCmd = articles.find(function(a){return a.id===cmd.article_id;});
+          var memNom = cmd.membres ? esc((cmd.membres.prenom||'')+' '+(cmd.membres.nom||'')) : cmd.membre_id;
+          var dateCmd = cmd.created_at ? new Date(cmd.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+          h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.6rem;">';
+          h += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">';
+          h += '<div style="font-size:1rem;">'+(artCmd?artCmd.nom.charAt(0):'🎁')+'</div>';
+          h += '<div style="flex:1;"><div style="font-weight:600;font-size:0.85rem;">'+esc(artCmd?artCmd.nom:'Inconnu')+'</div>';
+          h += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+memNom+' · '+cmd.cout_heures+'h · '+dateCmd+'</div></div>';
+          h += '</div>';
+          h += '<div style="display:flex;gap:0.5rem;">';
+          h += '<button onclick="osBoutiqueValider(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:6px;font-family:monospace;font-size:0.68rem;cursor:pointer;font-weight:600;">✓ Valider</button>';
+          h += '<button onclick="osBoutiqueRefuser(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:white;border:0.5px solid #F5B7B1;color:#A32D2D;border-radius:6px;font-family:monospace;font-size:0.68rem;cursor:pointer;">✕ Refuser</button>';
+          h += '</div></div>';
+        });
+      }
+      // Bouton ajouter article
+      h += '<div style="margin-top:1.2rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">';
+      h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Articles du catalogue</div>';
+      articles.forEach(function(art){
+        h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+        h += '<div style="flex:1;font-size:0.82rem;">'+esc(art.nom)+'</div>';
+        h += '<span style="font-family:monospace;font-size:0.65rem;color:#7D3C98;font-weight:600;">'+art.cout_heures+'h</span>';
+        h += '<button onclick="osBoutiqueToggleActif(\''+art.id+'\','+art.actif+')" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">'+(art.actif?'Désactiver':'Activer')+'</button>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+    }
+
+    h += '</div>';
+    wc.innerHTML = h;
+
+    // Stocker pour les fonctions
+    window._boutiqueArticles = articles;
+    window._boutiqueSolde = soldeH;
+  }).catch(function(e){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-family:monospace;">Erreur de chargement</div>';
+  });
+}
+
+function osBoutiqueOnglet(onglet){
+  ['cat','cmd','adm'].forEach(function(o){
+    var panel = document.getElementById('boutique-panel-'+o);
+    var tab   = document.getElementById('boutique-tab-'+o);
+    if(panel) panel.style.display = o===onglet.replace('catalogue','cat').replace('commandes','cmd').replace('admin','adm') ? 'block' : 'none';
+    if(tab){
+      var isActif = (onglet==='catalogue'&&o==='cat')||(onglet==='commandes'&&o==='cmd')||(onglet==='admin'&&o==='adm');
+      tab.style.borderBottomColor = isActif ? 'var(--rouge)' : 'transparent';
+      tab.style.color = isActif ? 'var(--encre)' : 'var(--gris)';
+      tab.style.fontWeight = isActif ? '600' : '400';
+    }
+  });
+}
+
+function osBoutiqueCommander(articleId, nom, cout){
+  if(window._boutiqueSolde < cout){ notif('Solde insuffisant — il vous faut '+cout+'h, vous avez '+window._boutiqueSolde+'h'); return; }
+  if(!confirm('Échanger '+cout+'h contre "'+nom+'" ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/boutique_commandes',{
+    method:'POST', headers:authH,
+    body:JSON.stringify({membre_id:getUserId(),article_id:articleId,cout_heures:cout,statut:'en_attente'})
+  }).then(function(r){
+    if(r.ok){
+      notif('Commande envoyée ✓ — en attente de validation','succes');
+      osBoutiqueRender();
+      // Email à l'admin
+      var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=email,prenom',{headers:authHGet})
+      .then(function(r){return r.json();})
+      .then(function(admins){
+        var monNom = getUserNomComplet();
+        (admins||[]).forEach(function(admin){
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#7D3C98;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">🎁 Nouvelle commande boutique</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(admin.prenom||'')+'</p>'
+            +'<p><strong>'+esc(monNom)+'</strong> souhaite échanger <strong>'+cout+'h</strong> contre <strong>'+esc(nom)+'</strong>.</p>'
+            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#7D3C98;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
+            +'</div></div>';
+          envoyerEmailResend(admin.email,'[Compo] Boutique : '+esc(nom),html,'boutique').catch(function(){});
+        });
+      }).catch(function(){});
+    } else { notif('Erreur commande','erreur'); }
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function osBoutiqueValider(cmdId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Récupérer la commande pour notifier
+  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,cout_heures,article_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var cmd = data&&data[0];
+    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'valide'})})
+    .then(function(r){
+      if(!r.ok) return;
+      notif('Commande validée ✓','succes');
+      osBoutiqueRender();
+      if(cmd){
+        var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres&&membres[0];
+          if(!m||!m.email) return;
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#155724;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Commande validée</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> a été validée ! ('+cmd.cout_heures+'h déduits)</p>'
+            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#7D3C98;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+            +'</div></div>';
+          envoyerEmailResend(m.email,'[Compo] Boutique : commande validée',html,'boutique').catch(function(){});
+        }).catch(function(){});
+      }
+    });
+  });
+}
+
+function osBoutiqueRefuser(cmdId){
+  var raison = prompt('Raison du refus (optionnel) :') || '';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,article_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var cmd = data&&data[0];
+    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse',message:raison||null})})
+    .then(function(r){
+      if(!r.ok) return;
+      notif('Commande refusée');
+      osBoutiqueRender();
+      if(cmd){
+        var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres&&membres[0];
+          if(!m||!m.email) return;
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Commande non retenue</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
+            +'</div></div>';
+          envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
+        }).catch(function(){});
+      }
+    });
+  });
+}
+
+function osBoutiqueToggleActif(articleId, actif){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+articleId,{method:'PATCH',headers:authH,body:JSON.stringify({actif:!actif})})
+  .then(function(r){ if(r.ok){ notif('Article mis à jour','succes'); osBoutiqueRender(); } });
+}
+
+function osBoutiqueVoirCommandes(){
+  osBoutiqueOnglet('admin');
+}
+
+
 var _appRefreshMap = {
   'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
   'redactions':     function(){ osRedactionsRender(); },
@@ -10850,6 +11148,7 @@ var _appRefreshMap = {
   'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
   'sujets':         function(){ osOuvrirSujets&&osOuvrirSujets(); },
   'notes':          function(){ osNotesRender&&osNotesRender(); },
+  'boutique':       function(){ osBoutiqueRender(); },
   'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc && typeof osStatsDashRender==='function') osStatsDashRender(); }
 };
 
@@ -11527,6 +11826,7 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'briefing') brfChargerDB();
     if(pageId === 'cps') cpsCharger();
     if(pageId === 'cps-admin') cpsAdminCharger();
+    if(pageId === 'boutique') osBoutiqueRender();
   }, 100);
 }
 
@@ -16912,6 +17212,16 @@ function osRedactionsChoisirRedac(redacId){
 
 // ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----
 function osRedactionsChangerOnglet(onglet){
+  // Si on clique sur sujets, marquer tous les sujets comme vus
+  if(onglet === 'sujets' && window._sujetsData){
+    try{
+      var allIds = _sujetsData.map(function(s){return s.id;});
+      var seen = [];
+      try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
+      var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
+      localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
+    }catch(e){}
+  }
   _redacOnglet = onglet;
   var wc = document.getElementById('wincontent-redactions');
   var uid = getUserId();
@@ -17114,7 +17424,38 @@ function osRedacChargerAlertes(zone){
   var html = '';
   var promesses = [];
 
-  // Alerte correction
+  // Alerte pour le rédacteur — ses articles en relecture ou corrigés
+  if(role === 'redacteur' || role === 'admin'){
+    promesses.push(
+      fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide)&select=id,titre,statut&order=updated_at.desc',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(arts){
+        if(!arts||arts.code||!arts.length) return '';
+        var enRelecture = arts.filter(function(a){return a.statut==='en-relecture';});
+        var corriges = arts.filter(function(a){return a.statut==='corrige';});
+        var valides = arts.filter(function(a){return a.statut==='valide';});
+        var blocs = '';
+        if(enRelecture.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">🔍</span>'
+          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#1A5276;">'+enRelecture.length+' article'+(enRelecture.length>1?'s':'')+' en cours de correction</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#1A5276;opacity:0.7;">'+enRelecture.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#1A5276;">→</span></div>';
+        if(corriges.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D1ECF1;border:1px solid #BEE5EB;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">✏️</span>'
+          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#0C5460;">'+corriges.length+' article'+(corriges.length>1?'s':'')+' corrigé'+(corriges.length>1?'s':'')+' — à revoir</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#0C5460;opacity:0.7;">'+corriges.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#0C5460;">→</span></div>';
+        if(valides.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">🎉</span>'
+          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#155724;">'+valides.length+' article'+(valides.length>1?'s':'')+' validé'+(valides.length>1?'s':'')+' — prêt à publier</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#155724;opacity:0.7;">'+valides.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#155724;">→</span></div>';
+        return blocs;
+      })
+    );
+  }
+
+  // Alerte correction (admin/correcteur — articles de toute la rédac)
   if(role === 'admin' || role === 'correcteur'){
     promesses.push(
       fetch(SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=id,titre,statut,correcteur_id&order=updated_at.desc',{headers:authH})
@@ -17148,6 +17489,21 @@ function osRedacChargerAlertes(zone){
     );
   }
 
+  // Alerte inscriptions agenda en attente (admin)
+  if(role === 'admin'){
+    promesses.push(
+      fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.en_attente&select=id,evenement_id',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(inscrits){
+        if(!inscrits||inscrits.code||!inscrits.length) return '';
+        return '<div onclick="osOpenWindow(\'agenda\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#EDE7F6;border:1px solid #CE93D8;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+          +'<span style="font-size:1rem;">🗓️</span>'
+          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#4A235A;">'+inscrits.length+' inscription(s) agenda en attente de validation</div>'
+          +'<div style="font-family:monospace;font-size:0.58rem;color:#4A235A;opacity:0.7;">Ouvrir l\'agenda pour valider</div></div>'
+          +'<span style="font-family:monospace;font-size:0.6rem;color:#4A235A;">→</span></div>';
+      })
+    );
+  }
   // Alerte tickets
   promesses.push(
     fetch(SB_URL+'/rest/v1/tickets?statut=neq.ferme&select=id,titre,reponse&order=created_at.desc',{headers:authH})
@@ -17270,6 +17626,170 @@ function osRedacChefEdito(zone, redacId){
 function osRedacEditoFiltre(statut){
   var rows = document.querySelectorAll('#redac-edito-table tbody tr');
   rows.forEach(function(r){ r.style.display = (statut==='tous'||r.dataset.statut===statut) ? '' : 'none'; });
+}
+
+function osRedacOuvrirFicheMembre(membreId, redacId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var existing = document.getElementById('redac-fiche-membre-overlay');
+  if(existing) document.body.removeChild(existing);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'redac-fiche-membre-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
+  card.innerHTML = '<div style="padding:2rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement…</div>';
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
+  document.body.appendChild(overlay);
+
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+membreId+(redacId?'&redaction_id=eq.'+redacId:'')+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+membreId+'&select=id,evenement_id,statut,statut_presence,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+membreId+'&select=duree_minutes,type,description,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var membre = results[0]&&results[0][0] ? results[0][0] : null;
+    if(!membre){ card.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);">Membre introuvable</div>'; return; }
+    var arts = (!results[1]||results[1].code) ? [] : results[1];
+    var inscriptions = (!results[2]||results[2].code) ? [] : results[2];
+    var heures = (!results[3]||results[3].code) ? [] : results[3];
+
+    var ini = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
+    var totalH = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
+    var hStr = Math.floor(totalH/60)+'h'+(totalH%60?totalH%60+'m':'');
+    var publis = arts.filter(function(a){return a.statut==='publie';}).length;
+    var duMois = arts.filter(function(a){return new Date(a.updated_at)>=depuis30;}).length;
+    var statDef = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},publie:{l:'Publié',bg:'#1A1A2E',c:'white'}};
+
+    // Récupérer les événements pour l'historique
+    var evIds = inscriptions.map(function(i){return i.evenement_id;}).filter(Boolean);
+
+    var renderFiche = function(evenements){
+      var h = '';
+
+      // Header
+      h += '<div style="background:var(--encre);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
+      h += '<div style="position:relative;flex-shrink:0;">';
+      h += '<div style="width:50px;height:50px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:'+rc[1]+';">'+ini+'</div>';
+      h += '<span style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(membreId)?'#27AE60':'#888')+';border:2px solid var(--encre);"></span>';
+      h += '</div>';
+      h += '<div style="flex:1;">';
+      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
+      h += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+esc(membre.email||'')+'</div>';
+      if(membre.fonction) h += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">'+esc(membre.fonction)+'</div>';
+      h += '</div>';
+      h += '<button onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;">×</button>';
+      h += '</div>';
+
+      // Badges + stats
+      h += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
+      h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.8rem;">';
+      h += '<span style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+esc(membre.role||'')+'</span>';
+      if(membre.fonction) h += '<span style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:var(--gris-clair);color:var(--gris);">'+esc(membre.fonction)+'</span>';
+      h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;">';
+      [
+        [arts.length,'Articles','var(--encre)'],
+        [publis,'Publiés','#27AE60'],
+        [duMois,'Ce mois','#EA5B1C'],
+        [hStr,'Bénévolat','#7D3C98']
+      ].forEach(function(s){
+        h += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.6rem;text-align:center;">'
+          +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:'+s[2]+';">'+s[0]+'</div>'
+          +'<div style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);margin-top:1px;">'+s[1]+'</div>'
+          +'</div>';
+      });
+      h += '</div></div>';
+
+      // Onglets Articles / Événements
+      h += '<div style="display:flex;border-bottom:1px solid var(--gris-bord);background:white;">';
+      h += '<button onclick="osRedacFicheOnglet(\'articles\')" id="fiche-tab-arts" style="flex:1;padding:0.6rem;border:none;background:transparent;font-family:monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;">📝 Articles ('+arts.length+')</button>';
+      h += '<button onclick="osRedacFicheOnglet(\'evenements\')" id="fiche-tab-evs" style="flex:1;padding:0.6rem;border:none;background:transparent;font-family:monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">🗓️ Événements ('+inscriptions.length+')</button>';
+      h += '</div>';
+
+      // Panel articles
+      h += '<div id="fiche-panel-arts" style="padding:1rem 1.5rem;">';
+      if(!arts.length){
+        h += '<div style="text-align:center;padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun article</div>';
+      } else {
+        arts.slice(0,10).forEach(function(a){
+          var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
+          var dateA = new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osOpenWindow(\'redaction\');setTimeout(function(){chargerArticle(\''+a.id+'\');},300);" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
+          h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>';
+          h += '<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;flex-shrink:0;">'+sd.l+'</span>';
+          h += '<span style="font-family:monospace;font-size:0.55rem;color:var(--gris);flex-shrink:0;">'+dateA+'</span>';
+          h += '</div>';
+        });
+      }
+      h += '</div>';
+
+      // Panel événements
+      h += '<div id="fiche-panel-evs" style="padding:1rem 1.5rem;display:none;">';
+      if(!inscriptions.length){
+        h += '<div style="text-align:center;padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune participation</div>';
+      } else {
+        var stInscr = {confirme:{l:'Confirmé',bg:'#D4EDDA',c:'#155724'},en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},refuse:{l:'Refusé',bg:'#FCEBEB',c:'#A32D2D'}};
+        inscriptions.forEach(function(insc){
+          var ev = evenements.find(function(e){return e.id===insc.evenement_id;});
+          if(!ev) return;
+          var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+          var sc = stInscr[insc.statut]||{l:insc.statut,bg:'#eee',c:'#333'};
+          var debut = new Date(ev.date_debut);
+          var passe = debut < new Date();
+          h += '<div style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0;border-bottom:0.5px solid var(--gris-bord);opacity:'+(passe?'0.7':'1')+'">';
+          h += '<div style="flex-shrink:0;width:36px;text-align:center;">';
+          h += '<div style="background:'+(passe?'var(--gris)':'var(--rouge)')+';color:white;border-radius:4px 4px 0 0;font-family:monospace;font-size:0.5rem;text-transform:uppercase;padding:1px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>';
+          h += '<div style="background:var(--gris-clair);border-radius:0 0 4px 4px;font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);border:1px solid var(--gris-bord);border-top:none;">'+debut.getDate()+'</div>';
+          h += '</div>';
+          h += '<div style="flex:1;min-width:0;">';
+          h += '<div style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.icon+' '+esc(ev.titre||'')+'</div>';
+          h += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
+          h += '</div>';
+          h += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;flex-shrink:0;">'+sc.l+'</span>';
+          h += '</div>';
+        });
+      }
+      h += '</div>';
+
+      card.innerHTML = h;
+    };
+
+    // Charger les événements si inscriptions
+    if(evIds.length){
+      fetch(SB_URL+'/rest/v1/agenda_evenements?id=in.('+evIds.join(',')+')'+'&select=id,titre,type,date_debut,date_fin,lieu',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(evs){ renderFiche(!evs||evs.code?[]:evs); })
+      .catch(function(){ renderFiche([]); });
+    } else {
+      renderFiche([]);
+    }
+  }).catch(function(){
+    card.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-family:monospace;">Erreur de chargement</div>';
+  });
+}
+
+function osRedacFicheOnglet(onglet){
+  var panelArts = document.getElementById('fiche-panel-arts');
+  var panelEvs  = document.getElementById('fiche-panel-evs');
+  var tabArts   = document.getElementById('fiche-tab-arts');
+  var tabEvs    = document.getElementById('fiche-tab-evs');
+  if(!panelArts||!panelEvs) return;
+  if(onglet === 'evenements'){
+    panelArts.style.display = 'none'; panelEvs.style.display = 'block';
+    if(tabArts){ tabArts.style.borderBottomColor='transparent'; tabArts.style.color='var(--gris)'; tabArts.style.fontWeight='400'; }
+    if(tabEvs) { tabEvs.style.borderBottomColor='var(--rouge)'; tabEvs.style.color='var(--encre)'; tabEvs.style.fontWeight='600'; }
+  } else {
+    panelArts.style.display = 'block'; panelEvs.style.display = 'none';
+    if(tabArts){ tabArts.style.borderBottomColor='var(--rouge)'; tabArts.style.color='var(--encre)'; tabArts.style.fontWeight='600'; }
+    if(tabEvs) { tabEvs.style.borderBottomColor='transparent'; tabEvs.style.color='var(--gris)'; tabEvs.style.fontWeight='400'; }
+  }
 }
 
 function osRedacSupprimerAnnonce(id, el){
@@ -17508,7 +18028,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       var arts = (window._tousArticles||_articlesRedacData).filter(function(a){
         return tousIdsM.indexOf(a.auteur_id) !== -1 && a.redaction_id === redacId;
       });
-      h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
+      h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
@@ -17544,7 +18064,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
     var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
     var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
-    h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;" title="'+esc(mb.prenom+' '+mb.nom)+'">';
+    h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+mb.id+'\',\''+redacId+'\')" title="'+esc(mb.prenom+' '+mb.nom)+'" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">';
     h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
     h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
     h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc((mb.nom||'')[0]||'')+'.'+((mb.nom||'').length>1?'':'')+'</span>';
@@ -17607,7 +18127,21 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   }
   onglets.forEach(function(o){
     var actif = _redacOnglet === o.id;
-    h += '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" title="'+o.label+'" style="width:38px;height:38px;border-radius:9px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;">'+o.icon+'</button>';
+    // Badge point rouge sur l'onglet Sujets si nouveaux sujets
+    var badge = '';
+    if(o.id === 'sujets'){
+      var sujetsData = window._sujetsData || [];
+      var seen = [];
+      try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
+      var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
+      if(nouveaux.length){
+        badge = '<span style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#FF5F57;border:1.5px solid var(--gris-clair);"></span>';
+      }
+    }
+    h += '<div style="position:relative;">'
+      +'<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" title="'+o.label+'" style="width:38px;height:38px;border-radius:9px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;">'+o.icon+'</button>'
+      +badge
+      +'</div>';
   });
   h += '<div style="flex:1;"></div>';
   // Bouton changer de rédaction si multi-redac
@@ -17827,6 +18361,11 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
         return a.auteur_id === mb.id && a.redaction_id === redac.id;
       });
       var pub  = arts.filter(function(a){ return a.statut==='publie'; });
+      var ligne = document.createElement('tr');
+      ligne.style.cssText = 'border-bottom:1px solid var(--gris-bord);cursor:pointer;';
+      ligne.onmouseover = function(){ this.style.background='var(--gris-clair)'; };
+      ligne.onmouseout  = function(){ this.style.background=''; };
+      ligne.onclick = function(){ osRedacOuvrirFicheMembre(mb.id, redac.id); };
       var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
       h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
@@ -20053,6 +20592,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'visuels-pro',    icon:'🎨', label:'Visuels Pro',    color:'#155724', roles:['redacteur','redac_chef','admin'] },
   { id:'newsletter',     icon:'📨', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
   { id:'tutos',          icon:'📖', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
+  { id:'boutique',       icon:'🎁', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
   { id:'stats-dashboard',icon:'📊', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'👥', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
   { id:'redactions',     icon:'🗞️', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
@@ -20073,10 +20613,10 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions'],
-  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions'],
-  redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda'],
-  admin:      ['redaction','mes-articles','app-correction','statut','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets'],
+  redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions','boutique'],
+  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions','boutique'],
+  redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda','boutique'],
+  admin:      ['redaction','mes-articles','app-correction','statut','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique'],
 };
 
 window._userApps = null;
@@ -21454,8 +21994,13 @@ var _agendaEvenements = [];
 
 var AGENDA_TYPES = {
   reunion:          { l:'Réunion',           icon:'🗓️', bg:'#D6EAF8', c:'#1A5276' },
+  reportage:        { l:'Reportage',         icon:'📷', bg:'#FDEBD0', c:'#784212' },
+  interview:        { l:'Interview',         icon:'🎤', bg:'#F9EBEA', c:'#78281F' },
+  formation:        { l:'Formation',         icon:'🎓', bg:'#E8DAEF', c:'#512E5F' },
   sortie:           { l:'Sortie',            icon:'🚶', bg:'#D4EDDA', c:'#155724' },
   invitation_presse:{ l:'Invitation presse', icon:'📰', bg:'#FFF3CD', c:'#856404' },
+  bureau:           { l:'Bureau',            icon:'⚙️', bg:'#E8E8F0', c:'#1A1A2E' },
+  newsletter:       { l:'Newsletter',        icon:'📨', bg:'#D1ECF1', c:'#0C5460' },
   autre:            { l:'Autre',             icon:'📌', bg:'#F1EFE8', c:'#444' }
 };
 
@@ -21466,20 +22011,38 @@ var FONCTIONS_LBL = {redac_chef:'Rédac en chef',tresorier:'Trésorier',responsa
 function osAgendaRender(){
   var wc = document.getElementById('wincontent-agenda');
   if(!wc) return;
-  var isAdmin = getUserRole() === 'admin';
+  var role = getUserRole();
+  var isAdmin = role === 'admin';
+  var monLien = (_membresRedactionsData||[]).find(function(mr){ return mr.membre_id===getUserId() && mr.redaction_id===window._redacActiveId; });
+  var isChefOuAdmin = isAdmin || (monLien && monLien.role_redac==='redac_chef');
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
 
-  // Header
+  // Header principal
   var hdr = document.createElement('div');
-  hdr.style.cssText = 'display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
-  hdr.innerHTML =
-    '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda</div>'
-    +'<div style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
-    +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:monospace;font-size:0.62rem;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
-    +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:monospace;font-size:0.62rem;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Calendrier</button>'
-    +'</div>'
-    +(isAdmin?'<button onclick="osAgendaNouvelEvenement()" style="font-family:monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>':'');
+  hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
 
+  // Ligne 1 : titre + vues + bouton
+  var ligne1 = '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;">';
+  ligne1 += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda Ipsum Média</div>';
+  ligne1 += '<div style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
+    +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
+    +'<button onclick="osAgendaSetVue(\'semaine\')" id="agenda-btn-semaine" style="font-family:monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Semaine</button>'
+    +'<button onclick="osAgendaSetVue(\'jour\')" id="agenda-btn-jour" style="font-family:monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Jour</button>'
+    +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Mois</button>'
+    +'</div>';
+  if(isChefOuAdmin) ligne1 += '<button onclick="osAgendaNouvelEvenement()" style="font-family:monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
+  ligne1 += '</div>';
+
+  // Ligne 2 : filtres par type
+  var ligne2 = '<div style="display:flex;gap:0.4rem;padding:0.4rem 1.2rem 0.6rem;overflow-x:auto;flex-wrap:nowrap;" id="agenda-filtres">';
+  ligne2 += '<button onclick="osAgendaFiltre(\'tous\')" data-filtre="tous" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:10px;cursor:pointer;background:var(--rouge);color:white;white-space:nowrap;">Tous</button>';
+  Object.keys(AGENDA_TYPES).forEach(function(k){
+    var t = AGENDA_TYPES[k];
+    ligne2 += '<button onclick="osAgendaFiltre(\''+k+'\')" data-filtre="'+k+'" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:10px;cursor:pointer;background:white;color:var(--gris);white-space:nowrap;">'+t.icon+' '+t.l+'</button>';
+  });
+  ligne2 += '</div>';
+
+  hdr.innerHTML = ligne1 + ligne2;
   wc.innerHTML = '';
   wc.appendChild(hdr);
 
@@ -21491,11 +22054,38 @@ function osAgendaRender(){
   osAgendaCharger();
 }
 
+var _agendaFiltreActif = 'tous';
+
+function osAgendaFiltre(type){
+  _agendaFiltreActif = type;
+  // Mettre à jour les boutons
+  document.querySelectorAll('#agenda-filtres button').forEach(function(btn){
+    var isActif = btn.dataset.filtre === type;
+    btn.style.background = isActif ? 'var(--rouge)' : 'white';
+    btn.style.color = isActif ? 'white' : 'var(--gris)';
+    btn.style.borderColor = isActif ? 'var(--rouge)' : 'var(--gris-bord)';
+  });
+  osAgendaRendreVue();
+}
+
 function osAgendaSetVue(vue){
   _agendaVue = vue;
-  document.getElementById('agenda-btn-liste').style.cssText = 'font-family:monospace;font-size:0.62rem;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:'+(vue==='liste'?'white':'transparent')+';color:'+(vue==='liste'?'var(--encre)':'var(--gris)')+';';
-  document.getElementById('agenda-btn-cal').style.cssText = 'font-family:monospace;font-size:0.62rem;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:'+(vue==='calendrier'?'white':'transparent')+';color:'+(vue==='calendrier'?'var(--encre)':'var(--gris)')+';';
+  // Reset tous les boutons
+  ['agenda-btn-liste','agenda-btn-cal','agenda-btn-semaine','agenda-btn-jour'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if(!btn) return;
+    var actif = id === 'agenda-btn-'+vue || (vue==='calendrier'&&id==='agenda-btn-cal') || (vue==='liste'&&id==='agenda-btn-liste') || (vue==='semaine'&&id==='agenda-btn-semaine') || (vue==='jour'&&id==='agenda-btn-jour');
+    btn.style.background = actif ? 'white' : 'transparent';
+    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
+  });
   osAgendaRendreVue();
+}
+
+function osAgendaRendreVue(){
+  if(_agendaVue === 'calendrier') osAgendaRendreCalendrier();
+  else if(_agendaVue === 'semaine') osAgendaRendreSemaine();
+  else if(_agendaVue === 'jour') osAgendaRendreJour();
+  else osAgendaRendreListe();
 }
 
 function osAgendaCharger(){
@@ -21513,11 +22103,6 @@ function osAgendaCharger(){
   });
 }
 
-function osAgendaRendreVue(){
-  if(_agendaVue === 'calendrier') osAgendaRendreCalendrier();
-  else osAgendaRendreListe();
-}
-
 function osAgendaRendreListe(){
   var body = document.getElementById('agenda-body');
   if(!body) return;
@@ -21527,18 +22112,23 @@ function osAgendaRendreListe(){
   var isAdmin = getUserRole() === 'admin';
   var maintenant = new Date();
 
-  var aVenir = _agendaEvenements.filter(function(e){ return new Date(e.date_debut) >= maintenant && e.statut !== 'annule'; });
-  var passes = _agendaEvenements.filter(function(e){ return new Date(e.date_debut) < maintenant || e.statut === 'annule'; });
+  var evsFiltres = _agendaFiltreActif === 'tous'
+    ? _agendaEvenements
+    : _agendaEvenements.filter(function(e){ return e.type === _agendaFiltreActif; });
 
-  if(!_agendaEvenements.length){
-    body.innerHTML = '<div style="text-align:center;padding:3rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun événement à venir</div>';
+  var aVenir = evsFiltres.filter(function(e){ return new Date(e.date_debut) >= maintenant && e.statut !== 'annule'; });
+  var passes  = evsFiltres.filter(function(e){ return new Date(e.date_debut) < maintenant || e.statut === 'annule'; });
+
+  if(!evsFiltres.length){
+    body.innerHTML = '<div style="text-align:center;padding:3rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun événement'+(
+      _agendaFiltreActif !== 'tous' ? ' dans cette catégorie' : ' à venir')+'</div>';
     return;
   }
 
   function renderSection(titre, evts){
     if(!evts.length) return;
     var section = document.createElement('div');
-    section.innerHTML = '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+titre+'</div>';
+    section.innerHTML = '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+titre+' ('+evts.length+')</div>';
     evts.forEach(function(ev){
       var card = agendaCardHTML(ev, uid, isAdmin);
       section.appendChild(card);
@@ -21553,32 +22143,57 @@ function osAgendaRendreListe(){
 function agendaCardHTML(ev, uid, isAdmin){
   var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
   var debut = new Date(ev.date_debut);
-  var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   var isAnnule = ev.statut === 'annule';
+  var isInscrit = (window._agendaInscriptions||[]).some(function(i){ return i.evenement_id===ev.id && i.membre_id===uid; });
+
+  // Badge rédaction
+  var redacBadge = '';
+  if(ev.redaction_id && _redactionsData){
+    var r = _redactionsData.find(function(r){return r.id===ev.redaction_id;});
+    if(r) redacBadge = '<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+(r.couleur||'#EA5B1C')+'22;color:'+(r.couleur||'#EA5B1C')+';border:1px solid '+(r.couleur||'#EA5B1C')+'44;border-radius:3px;">'+esc(r.nom)+'</span>';
+  }
 
   var card = document.createElement('div');
-  card.style.cssText = 'display:flex;gap:0.8rem;padding:0.9rem 1rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;transition:background 0.1s;'+(isAnnule?'opacity:0.55;':'');
+  card.style.cssText = 'display:flex;gap:0.8rem;padding:0.9rem 1rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;transition:background 0.1s;background:white;'+(isAnnule?'opacity:0.55;':'')+(isInscrit?'border-left:3px solid var(--rouge);':'');
   card.onmouseover = function(){this.style.background='var(--gris-clair)';};
-  card.onmouseout  = function(){this.style.background='';};
+  card.onmouseout  = function(){this.style.background='white';};
 
+  // Badge date
   var dateBadge = document.createElement('div');
   dateBadge.style.cssText = 'flex-shrink:0;width:46px;text-align:center;';
-  dateBadge.innerHTML = '<div style="background:var(--rouge);color:white;border-radius:6px 6px 0 0;font-family:monospace;font-size:0.58rem;text-transform:uppercase;padding:2px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>'
+  dateBadge.innerHTML =
+    '<div style="background:var(--rouge);color:white;border-radius:6px 6px 0 0;font-family:monospace;font-size:0.58rem;text-transform:uppercase;padding:2px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>'
     +'<div style="background:var(--gris-clair);border-radius:0 0 6px 6px;font-family:Poppins,sans-serif;font-weight:700;font-size:1.2rem;color:var(--encre);padding:2px 0;border:1px solid var(--gris-bord);border-top:none;">'+debut.getDate()+'</div>';
 
   var content = document.createElement('div');
   content.style.cssText = 'flex:1;min-width:0;';
-  content.innerHTML =
-    '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem;">'
-    +'<span style="font-size:0.75rem;">'+t.icon+'</span>'
-    +'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:'+t.bg+';color:'+t.c+';border-radius:3px;">'+t.l+'</span>'
-    +(isAnnule?'<span style="font-family:monospace;font-size:0.58rem;padding:1px 6px;background:#FCEBEB;color:#A32D2D;border-radius:3px;">Annulé</span>':'')
-    +'</div>'
-    +'<div style="font-weight:700;font-size:0.88rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.titre||'')+'</div>'
-    +'<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+heureStr+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>'
-    +(ev.places_max?'<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">🪑 '+ev.places_max+' places max'+(ev.validation_admin?' · Validation requise':'')+'</div>':'');
 
+  // Ligne badges
+  var badges = '<div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.25rem;">'
+    +'<span style="font-size:0.75rem;">'+t.icon+'</span>'
+    +'<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+t.bg+';color:'+t.c+';border-radius:3px;">'+t.l+'</span>'
+    +(isAnnule?'<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:#FCEBEB;color:#A32D2D;border-radius:3px;">Annulé</span>':'')
+    +(isInscrit?'<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:#D4EDDA;color:#155724;border-radius:3px;">✓ Inscrit</span>':'')
+    +redacBadge
+    +'</div>';
+
+  // Titre
+  var titre = '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.2rem;">'+esc(ev.titre||'')+'</div>';
+
+  // Méta
+  var meta = '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">';
+  meta += '<span>🕐 '+heureStr+'</span>';
+  if(ev.lieu) meta += '<span>📍 '+esc(ev.lieu)+'</span>';
+  if(ev.organisateur) meta += '<span>👤 '+esc(ev.organisateur)+'</span>';
+  if(ev.places_max){
+    var nbInscrits = ev._nb_inscrits || 0;
+    var complet = nbInscrits >= ev.places_max;
+    meta += '<span style="color:'+(complet?'#A32D2D':'var(--gris)')+';">🪑 '+nbInscrits+'/'+ev.places_max+(complet?' · Complet':'')+'</span>';
+  }
+  meta += '</div>';
+
+  content.innerHTML = badges + titre + meta;
   card.appendChild(dateBadge);
   card.appendChild(content);
   card.onclick = function(){ osAgendaOuvrirDetail(ev); };
@@ -21590,66 +22205,79 @@ function osAgendaRendreCalendrier(){
   if(!body) return;
   body.innerHTML = '';
   body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
-  var uid = getUserId();
 
   // Nav mois
   var nav = document.createElement('div');
   nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.6rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
   var moisNom = new Date(_agendaAnnee,_agendaMois,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
   nav.innerHTML =
-    '<button onclick="osAgendaMoisPrev()" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--gris);">‹</button>'
+    '<button onclick="osAgendaMoisPrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">‹</button>'
     +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.9rem;color:var(--encre);text-transform:capitalize;">'+moisNom+'</div>'
-    +'<button onclick="osAgendaMoisNext()" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--gris);">›</button>';
+    +'<button onclick="osAgendaMoisNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">›</button>';
   body.appendChild(nav);
+
+  // En-têtes jours
+  var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var hdrJours = document.createElement('div');
+  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
+  JOURS.forEach(function(j, idx){
+    var el = document.createElement('div');
+    el.style.cssText = 'text-align:center;font-family:monospace;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
+    el.textContent = j;
+    hdrJours.appendChild(el);
+  });
+  body.appendChild(hdrJours);
 
   // Grille
   var grid = document.createElement('div');
-  grid.style.cssText = 'flex:1;overflow-y:auto;padding:0.6rem 0.8rem;';
-
-  var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-  var header = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
-  JOURS.forEach(function(j){ header += '<div style="text-align:center;font-family:monospace;font-size:0.58rem;color:var(--gris);padding:4px 0;">'+j+'</div>'; });
-  header += '</div>';
-  grid.innerHTML = header;
+  grid.style.cssText = 'flex:1;overflow-y:auto;padding:0 0.6rem 0.6rem;';
 
   var cellGrid = document.createElement('div');
-  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;';
+  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gris-bord);';
 
   var premier = new Date(_agendaAnnee, _agendaMois, 1);
-  var jourSemaine = (premier.getDay() + 6) % 7; // lundi = 0
+  var jourSemaine = (premier.getDay() + 6) % 7;
   var nbJours = new Date(_agendaAnnee, _agendaMois+1, 0).getDate();
   var today = new Date();
+
+  var evsFiltres = _agendaFiltreActif === 'tous'
+    ? _agendaEvenements
+    : _agendaEvenements.filter(function(e){ return e.type === _agendaFiltreActif; });
 
   // Cellules vides
   for(var i=0; i<jourSemaine; i++){
     var empty = document.createElement('div');
-    empty.style.cssText = 'min-height:56px;border-radius:6px;';
+    empty.style.cssText = 'min-height:72px;background:var(--gris-clair);';
     cellGrid.appendChild(empty);
   }
 
   for(var d=1; d<=nbJours; d++){
-    var dateJ = new Date(_agendaAnnee, _agendaMois, d);
     var isToday = today.getDate()===d && today.getMonth()===_agendaMois && today.getFullYear()===_agendaAnnee;
-    var evsDuJour = _agendaEvenements.filter(function(e){
+    var isWeekend = ((d + jourSemaine - 1) % 7) >= 5;
+    var evsDuJour = evsFiltres.filter(function(e){
       var ed = new Date(e.date_debut);
       return ed.getDate()===d && ed.getMonth()===_agendaMois && ed.getFullYear()===_agendaAnnee && e.statut!=='annule';
     });
 
     var cell = document.createElement('div');
-    cell.style.cssText = 'min-height:56px;border-radius:6px;padding:3px;border:1px solid '+(isToday?'var(--rouge)':'var(--gris-bord)')+';background:'+(isToday?'#FFF5F3':'white')+';cursor:'+(evsDuJour.length?'pointer':'default')+';';
-    cell.innerHTML = '<div style="font-family:monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'var(--rouge)':'var(--gris)')+';margin-bottom:2px;">'+d+'</div>';
+    cell.style.cssText = 'min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
 
-    evsDuJour.slice(0,2).forEach(function(ev){
+    var numEl = document.createElement('div');
+    numEl.style.cssText = 'font-family:monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
+    numEl.textContent = d;
+    cell.appendChild(numEl);
+
+    evsDuJour.slice(0,3).forEach(function(ev){
       var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
       var dot = document.createElement('div');
-      dot.style.cssText = 'font-size:0.55rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;background:'+t.bg+';color:'+t.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-      dot.textContent = ev.titre;
+      dot.style.cssText = 'font-size:0.52rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;background:'+t.bg+';color:'+t.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;';
+      dot.textContent = t.icon+' '+ev.titre;
       cell.appendChild(dot);
     });
-    if(evsDuJour.length > 2){
+    if(evsDuJour.length > 3){
       var more = document.createElement('div');
-      more.style.cssText = 'font-size:0.52rem;color:var(--gris);font-family:monospace;';
-      more.textContent = '+'+(evsDuJour.length-2)+' autres';
+      more.style.cssText = 'font-size:0.5rem;color:var(--rouge);font-family:monospace;font-weight:600;';
+      more.textContent = '+'+( evsDuJour.length-3)+' autres';
       cell.appendChild(more);
     }
 
@@ -21664,6 +22292,234 @@ function osAgendaRendreCalendrier(){
 
 function osAgendaMoisPrev(){ _agendaMois--; if(_agendaMois<0){_agendaMois=11;_agendaAnnee--;} osAgendaRendreCalendrier(); }
 function osAgendaMoisNext(){ _agendaMois++; if(_agendaMois>11){_agendaMois=0;_agendaAnnee++;} osAgendaRendreCalendrier(); }
+
+// ===== VUE SEMAINE =====
+var _agendaSemaineDebut = null; // lundi de la semaine affichée
+
+function _agendaLundiSemaine(date){
+  var d = new Date(date);
+  var jour = d.getDay();
+  var diff = (jour === 0 ? -6 : 1 - jour);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function osAgendaRendreSemaine(){
+  var body = document.getElementById('agenda-body');
+  if(!body) return;
+  body.innerHTML = '';
+  body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
+
+  if(!_agendaSemaineDebut) _agendaSemaineDebut = _agendaLundiSemaine(new Date());
+
+  var lundi = new Date(_agendaSemaineDebut);
+  var dimanche = new Date(lundi); dimanche.setDate(lundi.getDate()+6);
+  var JOURS_COURTS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var today = new Date(); today.setHours(0,0,0,0);
+
+  // Nav
+  var nav = document.createElement('div');
+  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
+  var labelSem = lundi.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' – '+dimanche.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  nav.innerHTML =
+    '<button onclick="osAgendaSemainePrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">‹</button>'
+    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.88rem;color:var(--encre);">'+labelSem+'</div>'
+    +'<button onclick="osAgendaSemaineNow()" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;cursor:pointer;background:white;color:var(--rouge);">Aujourd\'hui</button>'
+    +'<button onclick="osAgendaSemaineNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">›</button>';
+  body.appendChild(nav);
+
+  // Grille
+  var grille = document.createElement('div');
+  grille.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;';
+
+  // En-tête jours
+  var hdrRow = '<div style="display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;position:sticky;top:0;z-index:2;">';
+  hdrRow += '<div></div>';
+  for(var di=0; di<7; di++){
+    var dateJour = new Date(lundi); dateJour.setDate(lundi.getDate()+di);
+    var isToday = dateJour.getTime() === today.getTime();
+    hdrRow += '<div style="text-align:center;padding:5px 0;border-left:1px solid var(--gris-bord);">'
+      +'<div style="font-family:monospace;font-size:0.58rem;color:'+(isToday?'var(--rouge)':'var(--gris)')+';">'+JOURS_COURTS[di]+'</div>'
+      +'<div style="font-family:Poppins,sans-serif;font-size:1rem;font-weight:'+(isToday?'800':'400')+';color:'+(isToday?'white':'var(--encre)') +';width:28px;height:28px;border-radius:50%;background:'+(isToday?'var(--rouge)':'transparent')+';display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" onclick="osAgendaAllerJour('+dateJour.getFullYear()+','+dateJour.getMonth()+','+dateJour.getDate()+')">'+dateJour.getDate()+'</div>'
+      +'</div>';
+  }
+  hdrRow += '</div>';
+
+  var content = document.createElement('div');
+  content.style.cssText = 'flex:1;overflow-y:auto;';
+  content.innerHTML = hdrRow;
+
+  var timeline = document.createElement('div');
+  timeline.style.cssText = 'display:grid;grid-template-columns:48px repeat(7,1fr);position:relative;';
+
+  var HEURES = [];
+  for(var h=7; h<=22; h++) HEURES.push(h);
+  var HAUTEUR_HEURE = 52;
+
+  // Colonne heures + lignes
+  var colHeures = document.createElement('div');
+  HEURES.forEach(function(h){
+    var el = document.createElement('div');
+    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid var(--gris-bord);padding-right:4px;text-align:right;';
+    el.innerHTML = '<span style="font-family:monospace;font-size:0.55rem;color:var(--gris);position:relative;top:-7px;">'+h+'h</span>';
+    colHeures.appendChild(el);
+  });
+  timeline.appendChild(colHeures);
+
+  // Colonnes jours
+  for(var di=0; di<7; di++){
+    var dateJour = new Date(lundi); dateJour.setDate(lundi.getDate()+di);
+    var isWeekend = di >= 5;
+    var colJour = document.createElement('div');
+    colJour.style.cssText = 'border-left:1px solid var(--gris-bord);position:relative;background:'+(isWeekend?'#FAFAFA':'white')+';';
+
+    // Lignes heures
+    HEURES.forEach(function(){
+      var ligne = document.createElement('div');
+      ligne.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid rgba(0,0,0,0.04);';
+      colJour.appendChild(ligne);
+    });
+
+    // Événements du jour
+    var evsDuJour = _agendaEvenements.filter(function(e){
+      var ed = new Date(e.date_debut);
+      return ed.getDate()===dateJour.getDate() && ed.getMonth()===dateJour.getMonth() && ed.getFullYear()===dateJour.getFullYear() && e.statut!=='annule';
+    });
+
+    evsDuJour.forEach(function(ev){
+      var debut = new Date(ev.date_debut);
+      var fin = ev.date_fin ? new Date(ev.date_fin) : new Date(debut.getTime()+3600000);
+      var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+
+      var topH = (debut.getHours() - 7) + debut.getMinutes()/60;
+      var durH = (fin - debut) / 3600000;
+      if(topH < 0) topH = 0;
+      if(durH < 0.25) durH = 0.25;
+
+      var evEl = document.createElement('div');
+      evEl.style.cssText = 'position:absolute;left:2px;right:2px;top:'+(topH*HAUTEUR_HEURE)+'px;height:'+(durH*HAUTEUR_HEURE-2)+'px;background:'+t.bg+';color:'+t.c+';border-radius:4px;padding:2px 4px;font-size:0.58rem;overflow:hidden;cursor:pointer;border-left:3px solid '+t.c+';z-index:1;';
+      evEl.innerHTML = '<div style="font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.icon+' '+esc(ev.titre)+'</div>';
+      if(durH >= 0.75) evEl.innerHTML += '<div style="opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
+      evEl.onclick = function(){ osAgendaOuvrirDetail(ev); };
+      colJour.appendChild(evEl);
+    });
+
+    timeline.appendChild(colJour);
+  }
+
+  content.appendChild(timeline);
+  grille.appendChild(content);
+  body.appendChild(grille);
+}
+
+function osAgendaSemainePrev(){ _agendaSemaineDebut.setDate(_agendaSemaineDebut.getDate()-7); osAgendaRendreSemaine(); }
+function osAgendaSemaineNext(){ _agendaSemaineDebut.setDate(_agendaSemaineDebut.getDate()+7); osAgendaRendreSemaine(); }
+function osAgendaSemaineNow(){ _agendaSemaineDebut = _agendaLundiSemaine(new Date()); osAgendaRendreSemaine(); }
+function osAgendaAllerJour(y,m,d){ _agendaJourActuel = new Date(y,m,d); osAgendaSetVue('jour'); }
+
+// ===== VUE JOUR =====
+var _agendaJourActuel = null;
+
+function osAgendaRendreJour(){
+  var body = document.getElementById('agenda-body');
+  if(!body) return;
+  body.innerHTML = '';
+  body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
+
+  if(!_agendaJourActuel) _agendaJourActuel = new Date();
+  var jour = new Date(_agendaJourActuel);
+  jour.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  var isToday = jour.getTime() === today.getTime();
+
+  // Nav
+  var nav = document.createElement('div');
+  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
+  var labelJour = jour.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  nav.innerHTML =
+    '<button onclick="osAgendaJourPrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">‹</button>'
+    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.88rem;color:'+(isToday?'var(--rouge)':'var(--encre)')+';">'+labelJour+'</div>'
+    +'<button onclick="osAgendaJourNow()" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;cursor:pointer;background:white;color:var(--rouge);">Auj.</button>'
+    +'<button onclick="osAgendaJourNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">›</button>';
+  body.appendChild(nav);
+
+  var evsDuJour = _agendaEvenements.filter(function(e){
+    var ed = new Date(e.date_debut);
+    return ed.getDate()===jour.getDate() && ed.getMonth()===jour.getMonth() && ed.getFullYear()===jour.getFullYear() && e.statut!=='annule';
+  });
+
+  var content = document.createElement('div');
+  content.style.cssText = 'flex:1;overflow-y:auto;';
+
+  if(!evsDuJour.length){
+    content.innerHTML = '<div style="text-align:center;padding:4rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucun événement ce jour</div>';
+    body.appendChild(content);
+    return;
+  }
+
+  var HAUTEUR_HEURE = 60;
+  var HEURES = [];
+  for(var h=7; h<=22; h++) HEURES.push(h);
+
+  var timeline = document.createElement('div');
+  timeline.style.cssText = 'display:grid;grid-template-columns:60px 1fr;padding:0 1rem;';
+
+  var colH = document.createElement('div');
+  HEURES.forEach(function(h){
+    var el = document.createElement('div');
+    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid var(--gris-bord);text-align:right;padding-right:8px;';
+    el.innerHTML = '<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);position:relative;top:-8px;">'+h+'h00</span>';
+    colH.appendChild(el);
+  });
+  timeline.appendChild(colH);
+
+  var colEvs = document.createElement('div');
+  colEvs.style.cssText = 'position:relative;border-left:1px solid var(--gris-bord);';
+  HEURES.forEach(function(){
+    var el = document.createElement('div');
+    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid rgba(0,0,0,0.05);';
+    colEvs.appendChild(el);
+  });
+
+  evsDuJour.forEach(function(ev){
+    var debut = new Date(ev.date_debut);
+    var fin = ev.date_fin ? new Date(ev.date_fin) : new Date(debut.getTime()+3600000);
+    var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+    var isInscrit = (window._agendaInscriptions||[]).some(function(i){ return i.evenement_id===ev.id && i.membre_id===getUserId(); });
+
+    var topH = (debut.getHours()-7) + debut.getMinutes()/60;
+    var durH = Math.max(0.5, (fin-debut)/3600000);
+    if(topH < 0) topH = 0;
+
+    var evEl = document.createElement('div');
+    evEl.style.cssText = 'position:absolute;left:8px;right:8px;top:'+(topH*HAUTEUR_HEURE)+'px;height:'+(durH*HAUTEUR_HEURE-4)+'px;background:'+t.bg+';border-left:4px solid '+t.c+';border-radius:0 8px 8px 0;padding:6px 10px;cursor:pointer;overflow:hidden;';
+    evEl.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;">'
+      +'<span style="font-size:0.8rem;">'+t.icon+'</span>'
+      +'<span style="font-family:monospace;font-size:0.58rem;color:'+t.c+';padding:1px 5px;background:'+t.c+'22;border-radius:3px;">'+t.l+'</span>'
+      +(isInscrit?'<span style="font-family:monospace;font-size:0.55rem;background:#D4EDDA;color:#155724;padding:1px 5px;border-radius:3px;">✓ Inscrit</span>':'')
+      +'</div>'
+      +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);">'+esc(ev.titre)+'</div>'
+      +'<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:3px;">'
+      +debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' – '+fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+      +(ev.lieu?' &nbsp;📍 '+esc(ev.lieu):'')
+      +(ev.organisateur?' &nbsp;👤 '+esc(ev.organisateur):'')
+      +'</div>';
+    evEl.onclick = function(){ osAgendaOuvrirDetail(ev); };
+    colEvs.appendChild(evEl);
+  });
+
+  timeline.appendChild(colEvs);
+  content.appendChild(timeline);
+  body.appendChild(content);
+}
+
+function osAgendaJourPrev(){ _agendaJourActuel.setDate(_agendaJourActuel.getDate()-1); osAgendaRendreJour(); }
+function osAgendaJourNext(){ _agendaJourActuel.setDate(_agendaJourActuel.getDate()+1); osAgendaRendreJour(); }
+function osAgendaJourNow(){ _agendaJourActuel = new Date(); osAgendaRendreJour(); }
+
+
 
 function osAgendaJourDetail(evs){
   var overlay = document.createElement('div');
@@ -21709,13 +22565,18 @@ function osAgendaOuvrirDetail(ev){
   html += '<button onclick="document.body.removeChild(document.getElementById(\'agenda-detail-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;flex-shrink:0;">×</button>';
   html += '</div></div>';
 
-  html += '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
+  // Organisateur + rédaction
+  html += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
   html += '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
   html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🗓️</span><span style="font-size:0.85rem;color:var(--encre);">'+dateStr+'</span></div>';
   html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🕐</span><span style="font-family:monospace;font-size:0.82rem;color:var(--gris);">'+heureStr+finStr+'</span></div>';
   if(ev.lieu) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">📍</span><span style="font-size:0.82rem;color:var(--gris);">'+esc(ev.lieu)+'</span></div>';
   if(ev.lien_visio) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🔗</span><a href="'+esc(ev.lien_visio)+'" target="_blank" style="font-size:0.82rem;color:var(--bleu);">Rejoindre en visio</a></div>';
-  if(ev.places_max) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🪑</span><span style="font-family:monospace;font-size:0.78rem;color:var(--gris);">'+ev.places_max+' places max'+(ev.validation_admin?' · Validation admin requise':'')+'</span></div>';
+  if(ev.organisateur) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">👤</span><span style="font-size:0.82rem;color:var(--gris);">'+esc(ev.organisateur)+'</span></div>';
+  if(ev.redaction_id){
+    var rEv = (_redactionsData||[]).find(function(r){return r.id===ev.redaction_id;});
+    if(rEv) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🗞️</span><span style="font-family:monospace;font-size:0.72rem;padding:2px 8px;background:'+(rEv.couleur||'#EA5B1C')+'22;color:'+(rEv.couleur||'#EA5B1C')+';border-radius:4px;">'+esc(rEv.nom)+'</span></div>';
+  }
   html += '</div></div>';
 
   if(ev.description){
@@ -21756,14 +22617,51 @@ function osAgendaOuvrirDetail(ev){
 
     var monInscription = inscriptions.find(function(i){return i.membre_id===uid;});
     var nbConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';}).length;
+    var nbEnAttente = inscriptions.filter(function(i){return i.statut==='en_attente';}).length;
     var complet = ev.places_max && nbConfirmes >= ev.places_max;
 
-    var iz = '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Inscriptions'+(ev.places_max?' ('+nbConfirmes+'/'+ev.places_max+')':'')+'</div>';
+    var iz = '';
+
+    // Compteurs participants
+    iz += '<div style="display:flex;gap:0.8rem;margin-bottom:0.8rem;flex-wrap:wrap;">';
+    iz += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
+      +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:var(--encre);">'+nbConfirmes+'</div>'
+      +'<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);">Inscrits</div>'
+      +'</div>';
+    if(ev.places_max){
+      var restantes = Math.max(0, ev.places_max - nbConfirmes);
+      iz += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
+        +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:'+(complet?'#A32D2D':'#155724')+';">'+restantes+'</div>'
+        +'<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);">Places restantes</div>'
+        +'</div>';
+    }
+    if(nbEnAttente){
+      iz += '<div style="background:#FFF3CD;border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
+        +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:#856404;">'+nbEnAttente+'</div>'
+        +'<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:#856404;">En attente</div>'
+        +'</div>';
+    }
+    iz += '</div>';
+
+    // Avatars des inscrits
+    if(nbConfirmes > 0){
+      var inscrConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';});
+      iz += '<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.8rem;flex-wrap:wrap;">';
+      inscrConfirmes.slice(0,8).forEach(function(insc){
+        var m = membres.find(function(x){return x.id===insc.membre_id;});
+        if(!m) return;
+        var ini = ((m.prenom||'?')[0]+(m.nom||'?')[0]).toUpperCase();
+        var col = ({redacteur:'#F5C4B3',correcteur:'#B5D4F4',admin:'#C0DD97'}[m.role]||'#D3D1C7');
+        iz += '<div title="'+esc((m.prenom||'')+' '+(m.nom||''))+'" style="width:30px;height:30px;border-radius:50%;background:'+col+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:0.65rem;font-weight:700;border:2px solid white;margin-left:-6px;first-child:margin-left:0;">'+ini+'</div>';
+      });
+      if(inscrConfirmes.length > 8) iz += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:6px;">+'+( inscrConfirmes.length-8)+' autres</div>';
+      iz += '</div>';
+    }
 
     // Bouton inscription/désinscription
-    if(ev.statut !== 'annule' && !isAdmin){
+    if(ev.statut !== 'annule'){
       if(!monInscription){
-        iz += '<button id="agenda-inscr-btn" style="width:100%;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'+(complet?'Complet':'✓ S\'inscrire')+'</button>';
+        iz += '<button id="agenda-inscr-btn" style="width:100%;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'+(complet?'Complet ·  '+nbConfirmes+'/'+ev.places_max+' inscrits':'✓ S\'inscrire')+'</button>';
       } else {
         var stCoul = {en_attente:'#856404',confirme:'#155724',refuse:'#A32D2D'};
         var stLabel = {en_attente:'En attente de validation',confirme:'Inscrit ✓',refuse:'Refusé'};
@@ -21772,46 +22670,39 @@ function osAgendaOuvrirDetail(ev){
       }
     }
 
-    // Liste inscrits (admin voit tout, autres voient juste le nombre)
-    if(inscriptions.length){
+    // Liste complète (admin)
+    if(isAdmin && inscriptions.length){
       iz += '<div style="margin-top:0.8rem;">';
-      if(isAdmin){
-        var ST_CONF = {
-          en_attente: {c:'#856404',bg:'#FFF3CD',l:'En attente'},
-          confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
-          refuse:     {c:'#A32D2D',bg:'#FCEBEB',l:'Refusé'}
-        };
-        // Header
-        iz += '<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);display:grid;grid-template-columns:1fr auto auto auto;gap:0.4rem;padding:0.3rem 0;border-bottom:1px solid var(--gris-bord);margin-bottom:0.3rem;">'
-          +'<span>Membre</span><span>Statut</span><span style="grid-column:span 2;">Actions</span></div>';
-        inscriptions.forEach(function(insc){
-          var m = membres.find(function(x){return x.id===insc.membre_id;});
-          var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')).trim() : 'Membre inconnu';
-          var role = m ? (m.role||'') : '';
-          var sc = ST_CONF[insc.statut]||{c:'#333',bg:'#eee',l:insc.statut};
-          var dateInscr = insc.created_at ? new Date(insc.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-          iz += '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.4rem;align-items:center;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-            +'<div>'
-            +'<div style="font-size:0.82rem;color:var(--encre);font-weight:500;">'+nom+'</div>'
-            +'<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);">'+role+(dateInscr?' · '+dateInscr:'')+'</div>'
-            +'</div>'
-            +'<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;white-space:nowrap;">'+sc.l+'</span>'
-            +(insc.statut==='en_attente'
-              ?'<button onclick="osAgendaValiderInscr(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;background:#D4EDDA;color:#155724;border-radius:3px;cursor:pointer;">✓ Confirmer</button>'
-              +'<button onclick="osAgendaRefuserInscr(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #A32D2D;background:white;color:#A32D2D;border-radius:3px;cursor:pointer;">✕ Refuser</button>'
-              :insc.statut==='confirme'
-              ?'<span></span><button onclick="osAgendaRefuserInscr(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #A32D2D;background:white;color:#A32D2D;border-radius:3px;cursor:pointer;">✕ Refuser</button>'
-              :'<button onclick="osAgendaValiderInscr(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;background:#D4EDDA;color:#155724;border-radius:3px;cursor:pointer;">✓ Confirmer</button><span></span>')
-            +'</div>';
-        });
-      } else {
-        iz += '<div style="font-family:monospace;font-size:0.7rem;color:var(--gris);">'+nbConfirmes+' personne(s) inscrite(s)</div>';
-      }
+      iz += '<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Liste des participants</div>';
+      var ST_CONF = {
+        en_attente: {c:'#856404',bg:'#FFF3CD',l:'En attente'},
+        confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
+        refuse:     {c:'#A32D2D',bg:'#FCEBEB',l:'Refusé'}
+      };
+      inscriptions.forEach(function(insc){
+        var m = membres.find(function(x){return x.id===insc.membre_id;});
+        var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')).trim() : 'Inconnu';
+        var sc = ST_CONF[insc.statut]||{c:'#333',bg:'#eee',l:insc.statut};
+        var dateInscr = insc.created_at ? new Date(insc.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+        iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+          +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
+          +'<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
+          +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
+          +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
+          +'</div>';
+      });
       iz += '</div>';
-    } else {
-      iz += '<div style="font-family:monospace;font-size:0.7rem;color:var(--gris);margin-top:0.5rem;">Aucune inscription pour l\'instant</div>';
-    }
 
+      // Bouton notifier par email
+      iz += '<div style="margin-top:0.8rem;padding:0.7rem;background:var(--gris-clair);border-radius:8px;">';
+      iz += '<label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;">'
+        +'<input type="checkbox" id="ag-notif-email" style="accent-color:var(--rouge);width:15px;height:15px;" checked>'
+        +'<div><div style="font-family:monospace;font-size:0.65rem;font-weight:600;">📧 Notifier les inscrits par email</div>'
+        +'<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);">Envoie un rappel avec les infos de l\'événement</div></div>'
+        +'</label>';
+      iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\')" style="margin-top:0.5rem;font-family:monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;width:100%;">📨 Envoyer le rappel</button>';
+      iz += '</div>';
+    }
     zone.innerHTML = iz;
 
     var btnI = document.getElementById('agenda-inscr-btn');
@@ -21824,13 +22715,163 @@ function osAgendaOuvrirDetail(ev){
 function osAgendaSInscrire(evId){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  var statutInitial = (ev && ev.validation_admin) ? 'en_attente' : 'confirme';
+
   fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
-    method:'POST',headers:authH,
-    body:JSON.stringify({evenement_id:evId,membre_id:uid,statut:'en_attente'})
+    method:'POST', headers:authH,
+    body:JSON.stringify({evenement_id:evId, membre_id:uid, statut:statutInitial})
   }).then(function(r){
-    if(r.ok){ notif('Inscription envoyée ✓','succes'); var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev) osAgendaOuvrirDetail(ev); }
-    else notif('Erreur inscription');
+    if(!r.ok){ notif('Erreur inscription'); return; }
+    if(statutInitial === 'confirme'){
+      notif('Inscription confirmée ✓','succes');
+    } else {
+      notif('Demande d\'inscription envoyée ✓ — en attente de validation','succes');
+      // Notifier l'admin par email
+      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=email,prenom',{headers:authHGet})
+      .then(function(r){return r.json();})
+      .then(function(admins){
+        var monNom = getUserNomComplet();
+        var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+        var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
+        (admins||[]).forEach(function(admin){
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#1A1A2E;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">🗓️ Nouvelle demande d\'inscription</h2>'
+            +'</div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(admin.prenom||'')+',</p>'
+            +'<p><strong>'+esc(monNom)+'</strong> demande à s\'inscrire à l\'événement <strong>'+evTitre+'</strong>'+(debut?' ('+debut+')':'')+'.</p>'
+            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
+            +'</div></div>';
+          envoyerEmailResend(admin.email, '[Compo] Nouvelle inscription : '+evTitre, html, 'agenda').catch(function(){});
+        });
+      }).catch(function(){});
+    }
+    if(ev) osAgendaOuvrirDetail(ev);
   }).catch(function(){ notif('Erreur réseau'); });
+}
+
+function osAgendaAdminDesinscrire(inscrId, evId){
+  if(!confirm('Désinscrire ce membre ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data[0];
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'DELETE',headers:authH})
+    .then(function(r){
+      if(!r.ok){ notif('Erreur','erreur'); return; }
+      notif('Membre désinscrit ✓','succes');
+      // Supprimer les heures créditées
+      fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH}).catch(function(){});
+      if(insc){
+        var ev = _agendaEvenements.find(function(e){ return e.id===(evId||insc.evenement_id); });
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres&&membres[0];
+          if(!m||!m.email) return;
+          var evTitre = ev?esc(ev.titre||''):'Événement';
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#856404;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">ℹ️ Désinscription</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
+            +'</div></div>';
+          envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
+        }).catch(function(){});
+      }
+      var evReload = _agendaEvenements.find(function(e){return e.id===evId;});
+      if(evReload){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(evReload); }
+    });
+  });
+}
+
+function osAgendaValiderInscr(inscrId, evId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data.length ? data[0] : null;
+    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'confirme'})})
+    .then(function(r){
+      if(!r.ok) return;
+      notif('Inscription confirmée ✓','succes');
+      var ev = _agendaEvenements.find(function(e){ return e.id === (evId||( insc&&insc.evenement_id)); });
+      // Les heures seront créditées automatiquement après la fin de l'événement
+
+      // Email à l'inscrit
+      if(insc){
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres && membres[0];
+          if(!m || !m.email) return;
+          var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+          var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
+          var heureStr = ev ? new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#155724;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Inscription confirmée</h2>'
+            +'</div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
+            +(debut?'<p>📅 '+debut+(heureStr?' à '+heureStr:'')+'</p>':'')
+            +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
+            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+            +'</div></div>';
+          envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
+        }).catch(function(){});
+      }
+
+      if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
+    });
+  });
+}
+
+function osAgendaRefuserInscr(inscrId, evId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data.length ? data[0] : null;
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
+    .then(function(r){
+      if(!r.ok) return;
+      notif('Inscription refusée');
+
+      // Email à l'inscrit
+      if(insc){
+        var ev = _agendaEvenements.find(function(e){ return e.id === (evId||(insc&&insc.evenement_id)); });
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres && membres[0];
+          if(!m || !m.email) return;
+          var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Inscription non retenue</h2>'
+            +'</div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
+            +'<p style="color:#666;font-size:0.82rem;">Si tu as des questions, contacte un administrateur sur Compo.</p>'
+            +'</div></div>';
+          envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
+        }).catch(function(){});
+      }
+
+      if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
+    });
+  });
 }
 
 function osAgendaSeDesinscrire(inscrId, evId){
@@ -21840,10 +22881,12 @@ function osAgendaSeDesinscrire(inscrId, evId){
   .then(function(r){
     if(r.ok){
       notif('Désinscription effectuée');
+      // Supprimer les heures créditées pour cette inscription
+      fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH})
+      .catch(function(){});
       // Fermer l'overlay actuel
       var existing = document.getElementById('agenda-detail-overlay');
       if(existing) document.body.removeChild(existing);
-      // Recharger l'événement depuis la base avant de rouvrir
       var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
       fetch(SB_URL+'/rest/v1/agenda_evenements?id=eq.'+evId+'&select=*',{headers:authH2})
       .then(function(r){return r.json();})
@@ -21855,9 +22898,119 @@ function osAgendaSeDesinscrire(inscrId, evId){
   }).catch(function(){});
 }
 
+function osAgendaCreditHeuresAuto(){
+  // Créditer les heures pour les événements terminés où l'inscription est confirmée
+  // et où les heures n'ont pas encore été créditées (pas d'entrée heures_benevolat avec reference_id = inscription.id)
+  var maintenant = new Date().toISOString();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var uid = getUserId();
+
+  // Événements passés avec date_fin renseignée
+  fetch(SB_URL+'/rest/v1/agenda_evenements?date_fin=lt.'+encodeURIComponent(maintenant)+'&statut=neq.annule&select=id,titre,date_debut,date_fin',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(evs){
+    if(!evs||evs.code||!evs.length) return;
+
+    // Inscriptions confirmées du membre pour ces événements
+    var evIds = evs.map(function(e){return e.id;});
+    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&evenement_id=in.('+evIds.join(',')+')'+'&select=id,evenement_id',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(inscriptions){
+      if(!inscriptions||inscriptions.code||!inscriptions.length) return;
+
+      // Vérifier quelles heures ont déjà été créditées
+      var inscrIds = inscriptions.map(function(i){return i.id;});
+      return fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=in.('+inscrIds.join(',')+')'+'&select=reference_id',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(dejaCreditees){
+        var dejaCrediteeIds = (dejaCreditees&&!dejaCreditees.code) ? dejaCreditees.map(function(h){return h.reference_id;}) : [];
+
+        // Créditer les manquantes
+        var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+        inscriptions.forEach(function(insc){
+          if(dejaCrediteeIds.indexOf(insc.id) !== -1) return; // déjà crédité
+          var ev = evs.find(function(e){return e.id===insc.evenement_id;});
+          if(!ev||!ev.date_debut||!ev.date_fin) return;
+          var duree = Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000);
+          if(duree <= 0) return;
+          fetch(SB_URL+'/rest/v1/heures_benevolat',{
+            method:'POST',
+            headers:authHPost,
+            body:JSON.stringify({
+              membre_id:uid,
+              type:'agenda',
+              duree_minutes:duree,
+              reference_id:insc.id,
+              description:'Participation : '+esc(ev.titre||'')
+            })
+          }).catch(function(){});
+        });
+      });
+    });
+  }).catch(function(){});
+}
+
+function osAgendaValiderInscription(inscrId){
+  var ev = _agendaEvenements.find(function(e){
+    return (window._agendaInscriptionsDetail||[]).some(function(i){return i.id===inscrId && i.evenement_id===e.id;});
+  });
+  osAgendaValiderInscr(inscrId, ev?ev.id:null);
+}
+
+function osAgendaEnvoyerNotif(evId, titre){
+  var envoyerMail = (document.getElementById('ag-notif-email')||{}).checked !== false;
+  if(!envoyerMail){ notif('Notification désactivée'); return; }
+
+  var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  if(!ev){ notif('Événement introuvable'); return; }
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=eq.confirme&select=membre_id',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(inscriptions){
+    if(!inscriptions||!inscriptions.length){ notif('Aucun inscrit à notifier'); return; }
+    var ids = inscriptions.map(function(i){return i.membre_id;});
+    return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom,nom&email=not.is.null',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(membres){
+      if(!membres||!membres.length){ notif('Aucun email disponible'); return; }
+      var debut = new Date(ev.date_debut);
+      var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+      var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+      var nb = 0;
+      function envoyerProchain(idx){
+        if(idx >= membres.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); return; }
+        var m = membres[idx];
+        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+          +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
+          +'<h1 style="color:white;font-size:1rem;margin:0;">'+t.icon+' Rappel : '+esc(titre)+'</h1>'
+          +'</div>'
+          +'<div style="padding:1.2rem 1.5rem;">'
+          +'<p style="font-size:0.9rem;">Bonjour '+esc(m.prenom||'')+',</p>'
+          +'<p>Rappel pour l\'événement <strong>'+esc(titre)+'</strong> :</p>'
+          +'<ul style="font-size:0.85rem;">'
+          +'<li>📅 '+dateStr+'</li>'
+          +'<li>🕐 '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</li>'
+          +(ev.lieu?'<li>📍 '+esc(ev.lieu)+'</li>':'')
+          +(ev.lien_visio?'<li>🔗 <a href="'+esc(ev.lien_visio)+'">Lien visio</a></li>':'')
+          +'</ul>'
+          +(ev.description?'<p style="font-size:0.82rem;color:#666;">'+esc(ev.description)+'</p>':'')
+          +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+          +'</div></div>';
+        envoyerEmailResend(m.email, '[Compo] Rappel : '+titre, html, 'agenda')
+        .then(function(r){ if(r&&r.ok!==false) nb++; })
+        .catch(function(){})
+        .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+      }
+      envoyerProchain(0);
+    });
+  }).catch(function(){ notif('Erreur envoi','erreur'); });
+}
+
+
 function osAgendaValiderInscr(inscrId, evId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  // D'abord récupérer l'inscription pour avoir le membre_id
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
   .then(function(r){return r.json();})
@@ -21935,6 +23088,44 @@ function osAgendaAnnuler(evId){
       osAgendaCharger();
     }
   });
+}
+
+function osAgendaEnvoyerEmailAnnulation(evId){
+  var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Récupérer tous les inscrits
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=neq.refuse&select=membre_id',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(inscriptions){
+    if(!inscriptions||!inscriptions.length) return;
+    var ids = inscriptions.map(function(i){return i.membre_id;});
+    return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom&email=not.is.null',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(membres){
+      if(!membres||!membres.length) return;
+      var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+      var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+      var nb = 0;
+      function envoyerProchain(idx){
+        if(idx >= membres.length){ if(nb) notif(nb+' membre(s) notifié(s) de l\'annulation','succes'); return; }
+        var m = membres[idx];
+        var html = '<div style="font-family:sans-serif;max-width:500px;">'
+          +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
+          +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Événement annulé</h2>'
+          +'</div>'
+          +'<div style="padding:1rem 1.5rem;">'
+          +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+          +'<p>L\'événement <strong>'+evTitre+'</strong>'+(debut?' du '+debut:'')+'a été <strong style="color:#A32D2D;">annulé</strong>.</p>'
+          +'<p style="color:#666;font-size:0.82rem;">Pour plus d\'informations, contacte l\'équipe sur Compo.</p>'
+          +'</div></div>';
+        envoyerEmailResend(m.email, '[Compo] Annulation : '+evTitre, html, 'agenda')
+        .then(function(r){ if(r&&r.ok!==false) nb++; })
+        .catch(function(){})
+        .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+      }
+      envoyerProchain(0);
+    });
+  }).catch(function(){});
 }
 
 function osAgendaSupprimer(evId){
@@ -22031,9 +23222,23 @@ function osAgendaOuvrirFormulaire(ev){
     +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Titre *</label>'
     +'<input id="ag-titre" type="text" value="'+esc(ev?ev.titre||'':'')+'" placeholder="Titre de l\'événement" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.85rem;box-sizing:border-box;outline:none;"></div>'
 
-    // Type
+    // Type + Organisateur
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
     +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Type</label>'
     +'<select id="ag-type" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:monospace;font-size:0.75rem;box-sizing:border-box;">'+typeOpts+'</select></div>'
+    +'<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Organisateur</label>'
+    +'<input id="ag-organisateur" type="text" value="'+esc(ev?ev.organisateur||getUserNomComplet():getUserNomComplet())+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
+    +'</div>'
+
+    // Rédaction
+    +(function(){
+      var opts = '<option value="">— Toutes les rédactions —</option>';
+      (_redactionsData||[]).forEach(function(r){
+        opts += '<option value="'+r.id+'"'+(ev&&ev.redaction_id===r.id?' selected':r.id===window._redacActiveId?' selected':'')+'>'+esc(r.nom)+'</option>';
+      });
+      return '<div><label style="font-family:monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction concernée</label>'
+        +'<select id="ag-redaction" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:monospace;font-size:0.75rem;box-sizing:border-box;">'+opts+'</select></div>';
+    })()
 
     // Dates
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
@@ -22091,6 +23296,8 @@ function osAgendaSauvegarder(evId){
   var desc  = (document.getElementById('ag-desc')||{}).value||'';
   var places = (document.getElementById('ag-places')||{}).value||'';
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
+  var organisateur = (document.getElementById('ag-organisateur')||{}).value||getUserNomComplet();
+  var redactionId = (document.getElementById('ag-redaction')||{}).value||null;
 
   if(!titre.trim()){ notif('Ajoute un titre'); return; }
   if(!debut){ notif('Indique une date de début'); return; }
@@ -22107,6 +23314,8 @@ function osAgendaSauvegarder(evId){
     date_fin: fin ? new Date(fin).toISOString() : null,
     lieu:lieu.trim()||null, lien_visio:visio.trim()||null,
     description:desc.trim()||null,
+    organisateur:organisateur.trim()||null,
+    redaction_id:redactionId||null,
     cible_roles:roles, cible_fonctions:fonctions,
     places_max:places?parseInt(places):null,
     validation_admin:validation,
