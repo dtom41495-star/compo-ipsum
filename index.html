@@ -3782,7 +3782,38 @@ input:focus,select:focus,textarea:focus{
         <input type="date" id="cps-date">
       </div>
       <div class="form-group full">
-        <label>Contact lié (carnet de sources)</label>
+        <label>Type</label>
+        <select id="cps-type" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;" onchange="cpsToggleInvitationFields(this.value)">
+          <option value="communique">Communiqué de presse</option>
+          <option value="invitation_presse">Invitation presse</option>
+        </select>
+      </div>
+
+      <!-- Champs spécifiques invitation presse -->
+      <div id="cps-invitation-fields" style="display:none;grid-column:1/-1;display:none;">
+        <div class="form-grid" style="margin:0;">
+          <div class="form-group">
+            <label>📅 Date de l'événement</label>
+            <input type="datetime-local" id="cps-date-evenement">
+          </div>
+          <div class="form-group">
+            <label>📍 Lieu</label>
+            <input type="text" id="cps-lieu-evenement" placeholder="Adresse, salle...">
+          </div>
+          <div class="form-group">
+            <label>🪑 Nombre de places</label>
+            <input type="number" id="cps-places-max" placeholder="Laisser vide = illimité" min="1">
+          </div>
+          <div class="form-group">
+            <label>⏰ RSVP avant le</label>
+            <input type="date" id="cps-date-reponse">
+          </div>
+          <div class="form-group full" style="display:flex;align-items:center;gap:0.6rem;">
+            <input type="checkbox" id="cps-reponse-requise" style="width:16px;height:16px;accent-color:var(--rouge);">
+            <label style="margin:0;font-size:0.85rem;">RSVP requis</label>
+          </div>
+        </div>
+      </div>
         <select id="cps-contact-id" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;">
           <option value="">— Aucun contact lié —</option>
         </select>
@@ -15956,6 +15987,100 @@ function cpsChargerBadge(){
   }).catch(function(){});
 }
 
+function cpsToggleInvitationFields(type){
+  var fields = document.getElementById('cps-invitation-fields');
+  if(fields) fields.style.display = type === 'invitation_presse' ? 'block' : 'none';
+}
+
+function cpsInvitationSeDeclarer(cpId){
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites',{
+    method:'POST',headers:authH,
+    body:JSON.stringify({communique_id:cpId,membre_id:uid,statut:'disponible'})
+  }).then(function(r){
+    if(r.ok){
+      notif('Disponibilité enregistrée ✓','succes');
+      // Notifier rédac chef / admin
+      var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+      fetch(SB_URL+'/rest/v1/membres?role=in.(admin)&actif=eq.true&select=email,prenom',{headers:authHGet})
+      .then(function(r){return r.json();})
+      .then(function(admins){
+        var monNom = getUserNomComplet();
+        var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;})||{titre:cpId};
+        ;(admins||[]).forEach(function(admin){
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#784212;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">📰 Disponibilité invitation presse</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(admin.prenom||'')+'</p>'
+            +'<p><strong>'+esc(monNom)+'</strong> se déclare disponible pour l\'invitation : <strong>'+esc(cp.titre||cpId)+'</strong></p>'
+            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Gérer sur Compo</a>'
+            +'</div></div>';
+          envoyerEmailResend(admin.email,'[Compo] Disponibilité : '+esc(cp.titre||cpId),html,'invitation').catch(function(){});
+        });
+      }).catch(function(){});
+      cpsCharger();
+    } else { notif('Erreur ou déjà déclaré','erreur'); }
+  });
+}
+
+function cpsInvitationSelectionner(dispId, cpId, membreId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Sélectionner ce membre, refuser les autres
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites?communique_id=eq.'+cpId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
+  .then(function(){
+    return fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+dispId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'selectionne'})});
+  }).then(function(r){
+    if(!r.ok) return;
+    notif('Membre sélectionné ✓','succes');
+    // Email au sélectionné
+    var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;})||{};
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=email,prenom',{headers:authHGet})
+    .then(function(r){return r.json();})
+    .then(function(membres){
+      var m = membres&&membres[0];
+      if(!m||!m.email) return;
+      var dateEv = cp.date_evenement ? new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      var html = '<div style="font-family:sans-serif;max-width:500px;">'
+        +'<div style="background:#155724;padding:1rem 1.5rem;">'
+        +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Tu es sélectionné(e) !</h2></div>'
+        +'<div style="padding:1rem 1.5rem;">'
+        +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+        +'<p>Tu as été sélectionné(e) pour couvrir <strong>'+esc(cp.titre||'')+'</strong>.</p>'
+        +(dateEv?'<p>📅 '+dateEv+'</p>':'')
+        +(cp.lieu_evenement?'<p>📍 '+esc(cp.lieu_evenement)+'</p>':'')
+        +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+        +'</div></div>';
+      envoyerEmailResend(m.email,'[Compo] Tu couvres : '+esc(cp.titre||''),html,'invitation').catch(function(){});
+    }).catch(function(){});
+    cpsAdminCharger();
+  });
+}
+
+function cpsInvitationCreerSujet(cpId){
+  var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;});
+  if(!cp) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/briefing',{
+    method:'POST',headers:authH,
+    body:JSON.stringify({
+      id:'BRF-'+genId().slice(4),
+      titre:cp.titre||'Invitation presse',
+      type:'reportage',
+      priorite:'urgente',
+      statut:'ouvert',
+      redaction_id:window._redacActiveId||null,
+      cp_id:cpId,
+      note:(cp.lieu_evenement?'📍 '+cp.lieu_evenement+' ':'')+( cp.date_evenement?'📅 '+new Date(cp.date_evenement).toLocaleDateString('fr-FR'):'')
+    })
+  }).then(function(r){
+    if(r.ok) notif('Sujet créé depuis l\'invitation ✓','succes');
+    else notif('Erreur création sujet','erreur');
+  });
+}
+
 function cpsCharger(){
   var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
   if(!liste) return;
@@ -16028,14 +16153,45 @@ function cpsMakeCard(cp, isAdmin){
     (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;">🗑️</button>' : '') +
     '</div>') : '';
 
+  // Badge type invitation
+  var typeBadge = cp.type === 'invitation_presse'
+    ? '<span style="background:#FDEBD0;color:#784212;font-family:monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;">🎤 Invitation</span>'
+    : '';
+
+  // Infos événement pour invitation
+  var evInfos = '';
+  if(cp.type === 'invitation_presse'){
+    if(cp.date_evenement){
+      var evDate = new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      evInfos += '<div style="font-family:monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;">📅 '+evDate+'</div>';
+    }
+    if(cp.lieu_evenement) evInfos += '<div style="font-family:monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;">📍 '+esc(cp.lieu_evenement)+'</div>';
+    if(cp.reponse_requise && cp.date_reponse){
+      var dateRep = new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      var urgent = new Date(cp.date_reponse) < new Date(Date.now()+3*86400000);
+      evInfos += '<div style="font-family:monospace;font-size:0.62rem;color:'+(urgent?'#A32D2D':'#856404')+';font-weight:'+(urgent?'700':'400')+';">⏰ RSVP avant le '+dateRep+(urgent?' — URGENT':'')+'</div>';
+    }
+  }
+
+  // Bouton "Je suis disponible" pour invitation
+  var uid = getUserId();
+  var dispBtn = '';
+  if(cp.type === 'invitation_presse' && cp.statut === 'publie'){
+    dispBtn = '<div style="margin-top:0.5rem;" onclick="event.stopPropagation()">'
+      +'<button onclick="cpsInvitationSeDeclarer(\''+cp.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:3px 10px;background:#FDEBD0;border:0.5px solid #784212;color:#784212;border-radius:5px;cursor:pointer;">✋ Je suis disponible</button>'
+      +'</div>';
+  }
+
   card.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
       '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
-      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+statutBadge+pdfBadge+'</div>' +
+      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
     '</div>' +
     (cp.source ? '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;">📍 '+esc(cp.source)+'</div>' : '') +
     (dateStr ? '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;">📅 '+dateStr+'</div>' : '') +
+    evInfos +
     (cp.corps ? '<div style="font-size:0.8rem;color:var(--gris);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+esc(cp.corps)+'</div>' : '') +
+    dispBtn +
     adminBtns;
 
   return card;
@@ -16126,6 +16282,78 @@ function osCpFenetreRender(winId){
   }
 
   wc.appendChild(body);
+
+  // Section invitation presse
+  if(cp.type === 'invitation_presse'){
+    var invZone = document.createElement('div');
+    invZone.style.cssText = 'flex-shrink:0;background:#FEF9F0;border-top:1px solid #FDEBD0;padding:0.8rem 1.2rem;';
+
+    var isAdmin = getUserRole() === 'admin';
+    var uid2 = getUserId();
+    var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+    // Infos événement
+    var evH = '<div style="display:flex;flex-wrap:wrap;gap:0.8rem;margin-bottom:0.7rem;">';
+    if(cp.date_evenement) evH += '<div style="font-family:monospace;font-size:0.7rem;color:#784212;">📅 '+new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+'</div>';
+    if(cp.lieu_evenement) evH += '<div style="font-family:monospace;font-size:0.7rem;color:#784212;">📍 '+esc(cp.lieu_evenement)+'</div>';
+    if(cp.reponse_requise && cp.date_reponse) evH += '<div style="font-family:monospace;font-size:0.7rem;color:#A32D2D;font-weight:600;">⏰ RSVP avant le '+new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
+    evH += '</div>';
+
+    evH += '<div id="inv-dispos-'+cp.id+'" style="font-family:monospace;font-size:0.7rem;color:var(--gris);">Chargement…</div>';
+
+    invZone.innerHTML = evH;
+
+    // Boutons selon rôle
+    var btnZone = document.createElement('div');
+    btnZone.style.cssText = 'margin-top:0.6rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
+    if(!isAdmin){
+      var btnDisp = document.createElement('button');
+      btnDisp.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#784212;color:white;border:none;border-radius:6px;cursor:pointer;';
+      btnDisp.textContent = '✋ Je suis disponible';
+      btnDisp.onclick = function(){ cpsInvitationSeDeclarer(cp.id); };
+      btnZone.appendChild(btnDisp);
+    }
+    if(isAdmin){
+      var btnSujet = document.createElement('button');
+      btnSujet.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;';
+      btnSujet.textContent = '📋 Créer un sujet';
+      btnSujet.onclick = function(){ cpsInvitationCreerSujet(cp.id); };
+      btnZone.appendChild(btnSujet);
+    }
+    invZone.appendChild(btnZone);
+    wc.appendChild(invZone);
+
+    // Charger les disponibilités
+    fetch(SB_URL+'/rest/v1/invitations_disponibilites?communique_id=eq.'+encodeURIComponent(cp.id)+'&select=*',{headers:authH2})
+    .then(function(r){return r.json();})
+    .then(function(dispos){
+      dispos = (!dispos||dispos.code) ? [] : dispos;
+      var zone = document.getElementById('inv-dispos-'+cp.id);
+      if(!zone) return;
+      if(!dispos.length){ zone.textContent = 'Aucune disponibilité enregistrée.'; return; }
+
+      var dispIds = dispos.map(function(d){return d.membre_id;});
+      fetch(SB_URL+'/rest/v1/membres?id=in.('+dispIds.join(',')+')'+'&select=id,prenom,nom,role',{headers:authH2})
+      .then(function(r){return r.json();})
+      .then(function(membres){
+        var stD = {disponible:{l:'Disponible',bg:'#FFF3CD',c:'#856404'},selectionne:{l:'Sélectionné ✓',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Non retenu',bg:'#FCEBEB',c:'#A32D2D'}};
+        var html = '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Disponibilités ('+dispos.length+')</div>';
+        dispos.forEach(function(d){
+          var m = (membres||[]).find(function(x){return x.id===d.membre_id;});
+          var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')) : 'Membre';
+          var sc = stD[d.statut]||{l:d.statut,bg:'#eee',c:'#333'};
+          html += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:0.5px solid rgba(0,0,0,0.05);">';
+          html += '<div style="flex:1;font-size:0.8rem;color:var(--encre);">'+nom+'</div>';
+          html += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>';
+          if(isAdmin && d.statut === 'disponible'){
+            html += '<button onclick="cpsInvitationSelectionner(\''+d.id+'\',\''+cp.id+'\',\''+d.membre_id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:4px;cursor:pointer;">✓ Sélectionner</button>';
+          }
+          html += '</div>';
+        });
+        zone.innerHTML = html;
+      });
+    }).catch(function(){ });
+  }
 
   // Charger le contact lié
   if(cp.contact_id){
@@ -16270,6 +16498,12 @@ function cpsAdminSauvegarder(statut){
   var date = (document.getElementById('cps-date')||{}).value||'';
   var corps = (document.getElementById('cps-corps')||{}).value||'';
   var contactId = (document.getElementById('cps-contact-id')||{}).value||'';
+  var type = (document.getElementById('cps-type')||{}).value||'communique';
+  var dateEv = (document.getElementById('cps-date-evenement')||{}).value||'';
+  var lieuEv = (document.getElementById('cps-lieu-evenement')||{}).value||'';
+  var placesMax = (document.getElementById('cps-places-max')||{}).value||'';
+  var dateRep = (document.getElementById('cps-date-reponse')||{}).value||'';
+  var repReq = !!(document.getElementById('cps-reponse-requise')||{}).checked;
 
   if(!titre.trim()){ notif('Le titre est obligatoire'); return; }
 
@@ -16299,6 +16533,12 @@ function cpsAdminSauvegarder(statut){
       corps: corps.trim() || null,
       statut: statut,
       contact_id: contactId || null,
+      type: type || 'communique',
+      date_evenement: dateEv ? new Date(dateEv).toISOString() : null,
+      lieu_evenement: lieuEv.trim() || null,
+      places_max: placesMax ? parseInt(placesMax) : null,
+      date_reponse: dateRep || null,
+      reponse_requise: repReq,
       updated_at: new Date().toISOString()
     };
     if(pdfUrl) payload.fichier_pdf = pdfUrl;
