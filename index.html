@@ -3790,7 +3790,7 @@ input:focus,select:focus,textarea:focus{
       </div>
 
       <!-- Champs spécifiques invitation presse -->
-      <div id="cps-invitation-fields" style="display:none;grid-column:1/-1;display:none;">
+      <div id="cps-invitation-fields" style="display:none;grid-column:1/-1;">
         <div class="form-grid" style="margin:0;">
           <div class="form-group">
             <label>📅 Date de l'événement</label>
@@ -3814,6 +3814,8 @@ input:focus,select:focus,textarea:focus{
           </div>
         </div>
       </div>
+      <div class="form-group full">
+        <label>Contact lié (carnet de sources)</label>
         <select id="cps-contact-id" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;">
           <option value="">— Aucun contact lié —</option>
         </select>
@@ -17596,6 +17598,15 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>';
   h += '</div>';
 
+  // Mes activités agenda
+  h += '<div>';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+  h += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);">Mes activités</span>';
+  h += '<button onclick="osOpenWindow(\'agenda\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir l\'agenda →</button>';
+  h += '</div>';
+  h += '<div id="redac-mes-activites"><div style="padding:0.8rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div></div>';
+  h += '</div>';
+
   return h;
 }
 
@@ -17991,7 +18002,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
         arts.slice(0,10).forEach(function(a){
           var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
           var dateA = new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osOpenWindow(\'redaction\');setTimeout(function(){chargerArticle(\''+a.id+'\');},300);" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
+          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osOpenWindow(\'redaction\');setTimeout(function(){ if(typeof osMesArticlesOuvrirArticle===\'function\') osMesArticlesOuvrirArticle(\''+a.id+'\'); },400);" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
           h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>';
           h += '<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;flex-shrink:0;">'+sd.l+'</span>';
           h += '<span style="font-family:monospace;font-size:0.55rem;color:var(--gris);flex-shrink:0;">'+dateA+'</span>';
@@ -18153,7 +18164,7 @@ function osRedacChargerMesArticles(zone){
       row.style.cssText='display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;cursor:pointer;'+(i<Math.min(arts.length,8)-1?'border-bottom:0.5px solid var(--gris-bord);':'');
       row.addEventListener('mouseenter',function(){this.style.opacity='0.7';});
       row.addEventListener('mouseleave',function(){this.style.opacity='1';});
-      row.addEventListener('click',function(){ osOpenWindow('redaction'); setTimeout(function(){ chargerArticle(a.id); },300); });
+      row.addEventListener('click',function(){ osOpenWindow('redaction'); setTimeout(function(){ if(typeof osMesArticlesOuvrirArticle==='function') osMesArticlesOuvrirArticle(a.id); },400); });
       row.innerHTML=
         '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
         +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
@@ -18165,6 +18176,65 @@ function osRedacChargerMesArticles(zone){
   });
 }
 
+
+function osRedacChargerMesActivites(zone){
+  if(!zone) return;
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&select=id,evenement_id,statut,created_at&order=created_at.desc&limit=20',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(inscriptions){
+    if(!inscriptions||inscriptions.code||!inscriptions.length){
+      zone.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);padding:0.5rem 0;">Aucune activité</div>';
+      return;
+    }
+    var evIds = inscriptions.map(function(i){return i.evenement_id;}).filter(Boolean);
+    fetch(SB_URL+'/rest/v1/agenda_evenements?id=in.('+evIds.join(',')+')'+'&select=id,titre,type,date_debut,lieu',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(evs){
+      evs = (!evs||evs.code) ? [] : evs;
+      var stI = {confirme:{l:'Confirmé',bg:'#D4EDDA',c:'#155724'},en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},refuse:{l:'Refusé',bg:'#FCEBEB',c:'#A32D2D'}};
+      var aVenir = [], passes = [];
+      inscriptions.forEach(function(insc){
+        var ev = evs.find(function(e){return e.id===insc.evenement_id;});
+        if(!ev) return;
+        if(new Date(ev.date_debut) >= new Date()) aVenir.push({insc:insc,ev:ev});
+        else passes.push({insc:insc,ev:ev});
+      });
+
+      var h = '';
+      var renderItems = function(items, label){
+        if(!items.length) return;
+        h += '<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.3rem;margin-top:0.5rem;">'+label+'</div>';
+        items.slice(0,5).forEach(function(item){
+          var ev = item.ev; var insc = item.insc;
+          var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+          var debut = new Date(ev.date_debut);
+          var passe = debut < new Date();
+          var sc = stI[insc.statut]||{l:insc.statut,bg:'#eee',c:'#333'};
+          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0;border-bottom:0.5px solid var(--gris-bord);opacity:'+(passe&&insc.statut==='confirme'?'0.65':'1')+';cursor:pointer;" onclick="osOpenWindow(\'agenda\')">';
+          h += '<div style="flex-shrink:0;text-align:center;width:32px;">';
+          h += '<div style="background:'+(passe?'var(--gris)':'var(--rouge)')+';color:white;border-radius:3px 3px 0 0;font-family:monospace;font-size:0.45rem;text-transform:uppercase;padding:1px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>';
+          h += '<div style="background:var(--gris-clair);border-radius:0 0 3px 3px;font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);border:1px solid var(--gris-bord);border-top:none;">'+debut.getDate()+'</div>';
+          h += '</div>';
+          h += '<div style="flex:1;min-width:0;">';
+          h += '<div style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.icon+' '+esc(ev.titre||'')+'</div>';
+          h += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
+          h += '</div>';
+          h += '<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;flex-shrink:0;">'+sc.l+'</span>';
+          h += '</div>';
+        });
+      };
+      renderItems(aVenir, 'À venir ('+aVenir.length+')');
+      renderItems(passes, 'Passés');
+      if(!h) h = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);padding:0.5rem 0;">Aucune activité</div>';
+      zone.innerHTML = h;
+    });
+  }).catch(function(){
+    zone.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Erreur de chargement</div>';
+  });
+}
 
 function osRedacChargerSujetsProfil(zone){
   if(!zone) return;
@@ -18458,6 +18528,9 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     // Sujets — fetch direct dans la zone profil
     var zoneSujetsP = document.getElementById('redac-sujets-profil');
     if(zoneSujetsP) osRedacChargerSujetsProfil(zoneSujetsP);
+    // Activités agenda
+    var zoneActivites = document.getElementById('redac-mes-activites');
+    if(zoneActivites) osRedacChargerMesActivites(zoneActivites);
     // Alertes et annonces
     var zoneAlertes = document.getElementById('redac-alertes-zone');
     if(zoneAlertes) osRedacChargerAlertes(zoneAlertes);
@@ -22963,7 +23036,23 @@ function osAgendaOuvrirDetail(ev){
       });
       iz += '</div>';
 
-      // Bouton notifier par email
+      // Bouton ajouter un participant manuellement
+      iz += '<div style="margin-top:0.8rem;">';
+      iz += '<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Ajouter un participant</div>';
+      iz += '<div style="display:flex;gap:0.4rem;">';
+      iz += '<select id="ag-ajout-membre-select" style="flex:1;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.72rem;">';
+      iz += '<option value="">— Choisir une rédaction —</option>';
+      (_redactionsData||[]).forEach(function(r){
+        iz += '<option value="redac_'+r.id+'">📰 '+esc(r.nom)+'</option>';
+      });
+      // Option membres directs de la rédaction active
+      (_membresData||[]).filter(function(m){ return m.role !== 'interdit'; }).forEach(function(m){
+        var dejaInscrit = inscriptions.some(function(i){ return i.membre_id === m.id; });
+        if(!dejaInscrit) iz += '<option value="membre_'+m.id+'">'+esc((m.prenom||'')+' '+(m.nom||''))+'</option>';
+      });
+      iz += '</select>';
+      iz += '<button onclick="osAgendaAjouterParticipant(\''+ev.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;background:#1A5276;color:white;border:none;border-radius:6px;cursor:pointer;">+ Ajouter</button>';
+      iz += '</div></div>';
       iz += '<div style="margin-top:0.8rem;padding:0.7rem;background:var(--gris-clair);border-radius:8px;">';
       iz += '<label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;">'
         +'<input type="checkbox" id="ag-notif-email" style="accent-color:var(--rouge);width:15px;height:15px;" checked>'
@@ -23023,42 +23112,48 @@ function osAgendaSInscrire(evId){
   }).catch(function(){ notif('Erreur réseau'); });
 }
 
-function osAgendaAdminDesinscrire(inscrId, evId){
-  if(!confirm('Désinscrire ce membre ?')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+function osAgendaAjouterParticipant(evId){
+  var sel = document.getElementById('ag-ajout-membre-select');
+  if(!sel || !sel.value) { notif('Sélectionne un membre'); return; }
+  var val = sel.value;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var insc = data && data[0];
-    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'DELETE',headers:authH})
-    .then(function(r){
-      if(!r.ok){ notif('Erreur','erreur'); return; }
-      notif('Membre désinscrit ✓','succes');
-      // Supprimer les heures créditées
-      fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH}).catch(function(){});
-      if(insc){
-        var ev = _agendaEvenements.find(function(e){ return e.id===(evId||insc.evenement_id); });
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          var m = membres&&membres[0];
-          if(!m||!m.email) return;
-          var evTitre = ev?esc(ev.titre||''):'Événement';
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#856404;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">ℹ️ Désinscription</h2></div>'
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
-            +'</div></div>';
-          envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
-        }).catch(function(){});
-      }
-      var evReload = _agendaEvenements.find(function(e){return e.id===evId;});
-      if(evReload){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(evReload); }
+
+  if(val.startsWith('membre_')){
+    var membreId = val.replace('membre_','');
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
+      method:'POST', headers:authH,
+      body:JSON.stringify({evenement_id:evId, membre_id:membreId, statut:'confirme'})
+    }).then(function(r){
+      if(!r.ok){ notif('Erreur ou déjà inscrit','erreur'); return; }
+      notif('Participant ajouté ✓','succes');
+      var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+      if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); }
     });
-  });
+  } else if(val.startsWith('redac_')){
+    // Charger les membres de cette rédaction
+    var redacId = val.replace('redac_','');
+    fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+redacId+'&select=membre_id',{headers:authHGet})
+    .then(function(r){return r.json();})
+    .then(function(liens){
+      if(!liens||liens.code||!liens.length){ notif('Aucun membre dans cette rédaction'); return; }
+      // Mettre à jour le select avec les membres de la rédac
+      var ids = liens.map(function(l){return l.membre_id;});
+      fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&role=neq.interdit&select=id,prenom,nom',{headers:authHGet})
+      .then(function(r){return r.json();})
+      .then(function(membres){
+        if(!membres||membres.code) return;
+        sel.innerHTML = '<option value="">— Choisir un membre —</option>';
+        membres.forEach(function(m){
+          var opt = document.createElement('option');
+          opt.value = 'membre_'+m.id;
+          opt.textContent = (m.prenom||'')+' '+(m.nom||'');
+          sel.appendChild(opt);
+        });
+        notif('Sélectionne maintenant le membre à ajouter');
+      });
+    });
+  }
 }
 
 function osAgendaValiderInscr(inscrId, evId){
@@ -23144,6 +23239,43 @@ function osAgendaRefuserInscr(inscrId, evId){
   });
 }
 
+function osAgendaAdminDesinscrire(inscrId, evId){
+  if(!confirm('Désinscrire ce membre ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data[0];
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'DELETE',headers:authH})
+    .then(function(r){
+      if(!r.ok){ notif('Erreur','erreur'); return; }
+      notif('Membre désinscrit ✓','succes');
+      fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH}).catch(function(){});
+      if(insc){
+        var ev = _agendaEvenements.find(function(e){ return e.id===(evId||insc.evenement_id); });
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          var m = membres&&membres[0];
+          if(!m||!m.email) return;
+          var evTitre = ev?esc(ev.titre||''):'Événement';
+          var html = '<div style="font-family:sans-serif;max-width:500px;">'
+            +'<div style="background:#856404;padding:1rem 1.5rem;">'
+            +'<h2 style="color:white;font-size:1rem;margin:0;">ℹ️ Désinscription</h2></div>'
+            +'<div style="padding:1rem 1.5rem;">'
+            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+            +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
+            +'</div></div>';
+          envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
+        }).catch(function(){});
+      }
+      var evReload = _agendaEvenements.find(function(e){return e.id===evId;});
+      if(evReload){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(evReload); }
+    });
+  });
+}
+
 function osAgendaSeDesinscrire(inscrId, evId){
   if(!confirm('Se désinscrire de cet événement ?')) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -23175,8 +23307,10 @@ function osAgendaCreditHeuresAuto(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = getUserId();
 
-  // Événements passés avec date_fin renseignée
-  fetch(SB_URL+'/rest/v1/agenda_evenements?date_fin=lt.'+encodeURIComponent(maintenant)+'&statut=neq.annule&select=id,titre,date_debut,date_fin',{headers:authH})
+  // Événements passés — chercher ceux avec date_fin renseignée ET ceux avec seulement date_debut passée
+  var urlEvs = SB_URL+'/rest/v1/agenda_evenements?statut=neq.annule&select=id,titre,date_debut,date_fin';
+  urlEvs += '&or=(date_fin.lt.'+encodeURIComponent(maintenant)+',and(date_fin.is.null,date_debut.lt.'+encodeURIComponent(maintenant)+'))';
+  fetch(urlEvs,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(evs){
     if(!evs||evs.code||!evs.length) return;
@@ -23200,8 +23334,13 @@ function osAgendaCreditHeuresAuto(){
         inscriptions.forEach(function(insc){
           if(dejaCrediteeIds.indexOf(insc.id) !== -1) return; // déjà crédité
           var ev = evs.find(function(e){return e.id===insc.evenement_id;});
-          if(!ev||!ev.date_debut||!ev.date_fin) return;
-          var duree = Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000);
+          if(!ev||!ev.date_debut) return;
+          var duree;
+          if(ev.date_fin){
+            duree = Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000);
+          } else {
+            duree = 60; // 1h par défaut si pas de date_fin
+          }
           if(duree <= 0) return;
           fetch(SB_URL+'/rest/v1/heures_benevolat',{
             method:'POST',
