@@ -6328,7 +6328,8 @@ function preremplirAuteur(){
     var monLien = (liens && !liens.code && liens.length) ? liens[0] : null;
     var monRoleRedac = monLien ? monLien.role_redac : null;
     var maRedacId = monLien ? monLien.redaction_id : null;
-    if(maRedacId) window._redacActiveId = maRedacId;
+    // Ne pas écraser _redacActiveId s'il a déjà été choisi par l'utilisateur
+    if(maRedacId && !window._redacActiveId) window._redacActiveId = maRedacId;
     var isChefOuAdmin = role === 'admin' || monRoleRedac === 'redac_chef';
     _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH);
   }).catch(function(){});
@@ -10000,6 +10001,20 @@ document.addEventListener('DOMContentLoaded',function(){ setTimeout(osLoginAnima
 window.addEventListener('beforeunload', function(){
   osChronoStop('redaction');
   osChronoStop('correction');
+});
+
+// Mettre en pause le chrono quand l'onglet est caché
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){
+    // Sauvegarder les timestamps en cours sans envoyer en base
+    if(_chronoSessions['redaction']) _chronoPause = _chronoSessions;
+    osChronoStop('redaction');
+    osChronoStop('correction');
+  } else {
+    // Reprendre uniquement si la fenêtre rédaction est ouverte
+    if(_windows && _windows['redaction']) osChronoStart('redaction');
+    if(_windows && (_windows['app-correction'] || _windows['correction'])) osChronoStart('correction');
+  }
 });
 
 function envoyerEmailResend(to, subject, html, type){
@@ -16027,10 +16042,22 @@ function cpsInvitationSeDeclarer(cpId){
   });
 }
 
+function cpsInvitationSeRetirer(dispId, cpId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+dispId,{method:'DELETE',headers:authH})
+  .then(function(r){
+    if(r.ok){
+      notif('Disponibilité retirée','succes');
+      // Recharger la fiche
+      var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;});
+      if(cp){ var ex=document.getElementById('cp-fenetre-overlay'); if(ex) document.body.removeChild(ex); osCpFenetreRender(cp); }
+      else cpsCharger();
+    } else { notif('Erreur','erreur'); }
+  });
+}
+
 function cpsInvitationSelectionner(dispId, cpId, membreId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  // Sélectionner ce membre, refuser les autres
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?communique_id=eq.'+cpId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
   .then(function(){
     return fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+dispId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'selectionne'})});
@@ -16095,15 +16122,64 @@ function cpsCharger(){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var urlCps = SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*';
   if(window._redacActiveId) urlCps += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
-  fetch(urlCps, { headers: authH })
-  .then(function(r){ return r.json(); })
-  .then(function(cps){
+
+  // Fetch séparé pour les invitations presse (toutes rédactions)
+  var urlInvits = SB_URL+'/rest/v1/communiques?statut=eq.publie&type=eq.invitation_presse&order=date_evenement.asc&select=*';
+
+  Promise.all([
+    fetch(urlCps, {headers:authH}).then(function(r){return r.json();}),
+    fetch(urlInvits, {headers:authH}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var cps = (!results[0]||results[0].code) ? [] : results[0];
+    var invits = (!results[1]||results[1].code) ? [] : results[1];
+    // Fusionner sans doublons
+    invits.forEach(function(inv){
+      if(!cps.some(function(c){return c.id===inv.id;})) cps.push(inv);
+    });
+    cps.sort(function(a,b){ return new Date(b.created_at)-new Date(a.created_at); });
     if(!cps || cps.code || !cps.length){
       liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué publié pour le moment.</div>';
       return;
     }
+
+    // Barre de filtres
+    var invitations = cps.filter(function(c){ return c.type === 'invitation_presse'; });
+    var communiques = cps.filter(function(c){ return c.type !== 'invitation_presse'; });
+    var filtreActif = window._cpsFiltreActif || 'tous';
+
+    var barre = document.createElement('div');
+    barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;padding-bottom:0.8rem;border-bottom:1px solid var(--gris-bord);flex-wrap:wrap;';
+    [
+      {id:'tous', label:'📋 Tous ('+cps.length+')'},
+      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
+      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
+    ].forEach(function(f){
+      var btn = document.createElement('button');
+      btn.style.cssText = 'font-family:monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
+      btn.textContent = f.label;
+      btn.onclick = function(){
+        window._cpsFiltreActif = f.id;
+        cpsCharger();
+      };
+      barre.appendChild(btn);
+    });
+
     liste.innerHTML = '';
-    cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+    liste.appendChild(barre);
+
+    var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
+      : filtreActif === 'communique' ? communiques
+      : cps;
+
+    if(!cpsFiltres.length){
+      var vide = document.createElement('div');
+      vide.style.cssText = 'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;';
+      vide.textContent = 'Aucun élément dans cette catégorie.';
+      liste.appendChild(vide);
+      return;
+    }
+
+    cpsFiltres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
   }).catch(function(){
     liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
   });
@@ -16305,31 +16381,44 @@ function osCpFenetreRender(winId){
 
     invZone.innerHTML = evH;
 
-    // Boutons selon rôle
-    var btnZone = document.createElement('div');
-    btnZone.style.cssText = 'margin-top:0.6rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
-    if(!isAdmin){
-      var btnDisp = document.createElement('button');
-      btnDisp.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#784212;color:white;border:none;border-radius:6px;cursor:pointer;';
-      btnDisp.textContent = '✋ Je suis disponible';
-      btnDisp.onclick = function(){ cpsInvitationSeDeclarer(cp.id); };
-      btnZone.appendChild(btnDisp);
-    }
-    if(isAdmin){
-      var btnSujet = document.createElement('button');
-      btnSujet.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;';
-      btnSujet.textContent = '📋 Créer un sujet';
-      btnSujet.onclick = function(){ cpsInvitationCreerSujet(cp.id); };
-      btnZone.appendChild(btnSujet);
-    }
-    invZone.appendChild(btnZone);
-    wc.appendChild(invZone);
-
-    // Charger les disponibilités
+    // Charger d'abord les disponibilités pour savoir si déjà déclaré
     fetch(SB_URL+'/rest/v1/invitations_disponibilites?communique_id=eq.'+encodeURIComponent(cp.id)+'&select=*',{headers:authH2})
     .then(function(r){return r.json();})
     .then(function(dispos){
       dispos = (!dispos||dispos.code) ? [] : dispos;
+      var uid2 = getUserId();
+      var maDisp = dispos.find(function(d){ return d.membre_id === uid2; });
+
+      // Boutons selon rôle
+      var btnZone = document.createElement('div');
+      btnZone.style.cssText = 'margin-top:0.6rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
+
+      if(!isAdmin){
+        var btnDisp = document.createElement('button');
+        if(maDisp && maDisp.statut !== 'refuse'){
+          btnDisp.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:white;color:#A32D2D;border:0.5px solid #A32D2D;border-radius:6px;cursor:pointer;';
+          btnDisp.textContent = '✕ Je ne suis plus disponible';
+          btnDisp.onclick = function(){ cpsInvitationSeRetirer(maDisp.id, cp.id); };
+        } else {
+          btnDisp.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#784212;color:white;border:none;border-radius:6px;cursor:pointer;';
+          btnDisp.textContent = '✋ Je suis disponible';
+          btnDisp.onclick = function(){ cpsInvitationSeDeclarer(cp.id); };
+        }
+        btnZone.appendChild(btnDisp);
+      }
+
+      if(isAdmin){
+        var btnSujet = document.createElement('button');
+        btnSujet.style.cssText = 'font-family:monospace;font-size:0.7rem;padding:5px 12px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;';
+        btnSujet.textContent = '📋 Créer un sujet';
+        btnSujet.onclick = function(){ cpsInvitationCreerSujet(cp.id); };
+        btnZone.appendChild(btnSujet);
+      }
+
+      invZone.appendChild(btnZone);
+      wc.appendChild(invZone);
+
+      // Afficher les disponibilités
       var zone = document.getElementById('inv-dispos-'+cp.id);
       if(!zone) return;
       if(!dispos.length){ zone.textContent = 'Aucune disponibilité enregistrée.'; return; }
@@ -16765,12 +16854,43 @@ function cpsAdminCharger(){
       liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué. Crée le premier !</div>';
       return;
     }
+
+    var invitations = cps.filter(function(c){ return c.type === 'invitation_presse'; });
+    var communiques = cps.filter(function(c){ return c.type !== 'invitation_presse'; });
+    var filtreActif = window._cpsAdminFiltreActif || 'tous';
+
     liste.innerHTML = '';
-    var label = document.createElement('div');
-    label.style.cssText = 'font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
-    label.textContent = cps.length+' communiqué(s)';
-    liste.appendChild(label);
-    cps.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
+
+    // Barre filtres
+    var barre = document.createElement('div');
+    barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;';
+    [
+      {id:'tous', label:'📋 Tous ('+cps.length+')'},
+      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
+      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
+    ].forEach(function(f){
+      var btn = document.createElement('button');
+      btn.style.cssText = 'font-family:monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
+      btn.textContent = f.label;
+      btn.onclick = function(){ window._cpsAdminFiltreActif = f.id; cpsAdminCharger(); };
+      barre.appendChild(btn);
+    });
+    liste.appendChild(barre);
+
+    var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
+      : filtreActif === 'communique' ? communiques
+      : cps;
+
+    if(!cpsFiltres.length){
+      var vide = document.createElement('div');
+      vide.style.cssText = 'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;';
+      vide.textContent = 'Aucun élément dans cette catégorie.';
+      liste.appendChild(vide);
+      return;
+    }
+
+    window._cpAdminListe = cps;
+    cpsFiltres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
   }).catch(function(){
     liste.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement</div>';
   });
@@ -17785,6 +17905,25 @@ function osRedacChargerAlertes(zone){
       })
     );
   }
+  // Alerte invitations presse disponibles
+  promesses.push(
+    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&select=id,titre,date_evenement,date_reponse,reponse_requise&order=date_evenement.asc',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(invits){
+      if(!invits||invits.code||!invits.length) return '';
+      // Filtrer celles dont l'événement est dans le futur
+      var aVenir = invits.filter(function(inv){
+        return !inv.date_evenement || new Date(inv.date_evenement) > new Date();
+      });
+      if(!aVenir.length) return '';
+      return '<div onclick="osOpenWindow(\'cps\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#FDEBD0;border:1px solid #F0B27A;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+        +'<span style="font-size:1rem;">🎤</span>'
+        +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#784212;">'+aVenir.length+' invitation'+(aVenir.length>1?'s':'')+' presse disponible'+(aVenir.length>1?'s':'')+'</div>'
+        +'<div style="font-family:monospace;font-size:0.58rem;color:#784212;opacity:0.8;">'+aVenir.slice(0,2).map(function(i){return esc(i.titre||'');}).join(', ')+'</div></div>'
+        +'<span style="font-family:monospace;font-size:0.6rem;color:#784212;">→</span></div>';
+    })
+  );
+
   // Alerte tickets
   promesses.push(
     fetch(SB_URL+'/rest/v1/tickets?statut=neq.ferme&select=id,titre,reponse&order=created_at.desc',{headers:authH})
@@ -18002,7 +18141,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
         arts.slice(0,10).forEach(function(a){
           var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
           var dateA = new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osOpenWindow(\'redaction\');setTimeout(function(){ if(typeof osMesArticlesOuvrirArticle===\'function\') osMesArticlesOuvrirArticle(\''+a.id+'\'); },400);" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
+          h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osOpenWindow(\'mes-articles\');setTimeout(function(){ if(typeof mesArticlesOuvrir===\'function\') mesArticlesOuvrir(\''+a.id+'\',\'lecture\'); },400);" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
           h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>';
           h += '<span style="font-family:monospace;font-size:0.55rem;padding:1px 5px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;flex-shrink:0;">'+sd.l+'</span>';
           h += '<span style="font-family:monospace;font-size:0.55rem;color:var(--gris);flex-shrink:0;">'+dateA+'</span>';
@@ -18164,7 +18303,7 @@ function osRedacChargerMesArticles(zone){
       row.style.cssText='display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;cursor:pointer;'+(i<Math.min(arts.length,8)-1?'border-bottom:0.5px solid var(--gris-bord);':'');
       row.addEventListener('mouseenter',function(){this.style.opacity='0.7';});
       row.addEventListener('mouseleave',function(){this.style.opacity='1';});
-      row.addEventListener('click',function(){ osOpenWindow('redaction'); setTimeout(function(){ if(typeof osMesArticlesOuvrirArticle==='function') osMesArticlesOuvrirArticle(a.id); },400); });
+      row.addEventListener('click',function(){ osOpenWindow('mes-articles'); setTimeout(function(){ if(typeof mesArticlesOuvrir==='function') mesArticlesOuvrir(a.id,'lecture'); },400); });
       row.innerHTML=
         '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
         +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
