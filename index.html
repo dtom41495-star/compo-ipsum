@@ -44,7 +44,10 @@ body {
 /* ===== DESKTOP ===== */
 #os-desktop {
   position: fixed;
-  inset: 0;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: none;
   flex-direction: column;
 }
@@ -80,31 +83,22 @@ body {
 /* Info overlay */
 #os-status-bar {
   position: fixed;
-  top: 12px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
   z-index: 999;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  padding: 0 14px;
+  background: linear-gradient(90deg, #E8461E, #C0392B);
   pointer-events: none;
 }
+#os-status-bar > * { pointer-events: all; }
 .status-pill {
-  background: rgba(13,13,26,0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px;
-  padding: 4px 10px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.6rem;
-  color: rgba(255,255,255,0.6);
-  letter-spacing: 0.05em;
-}
-.status-pill.rouge {
-  background: rgba(232,70,30,0.2);
-  border-color: rgba(232,70,30,0.3);
-  color: rgba(255,180,160,0.9);
-  pointer-events: all;
-  cursor: pointer;
+  color: rgba(255,255,255,0.75);
 }
 
 /* ===== WORKSPACE ===== */
@@ -3501,10 +3495,15 @@ input:focus,select:focus,textarea:focus{
   
   <!-- STATUS BAR -->
   <div id="os-status-bar">
-    <div class="status-pill" id="status-time"></div>
-    <div class="status-pill" id="status-user"></div>
-    <div class="status-pill" id="os-focus-btn" onclick="osToggleFocusMode()" style="cursor:pointer;pointer-events:all;opacity:0.6;" title="Activer le mode focus">🔔</div>
-    <div class="status-pill rouge" id="os-fs-btn" onclick="osToggleFullscreen()" style="cursor:pointer;pointer-events:all;" title="Plein écran">⛶ Plein écran</div>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;font-weight:700;color:white;letter-spacing:.1em;">COMPO OS</span>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+      <span id="status-user" style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.9);"></span>
+      <span style="width:1px;height:10px;background:rgba(255,255,255,0.3);display:inline-block;"></span>
+      <span id="status-time" style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.75);"></span>
+      <span style="width:1px;height:10px;background:rgba(255,255,255,0.3);display:inline-block;"></span>
+      <div id="os-focus-btn" onclick="osToggleFocusMode()" style="cursor:pointer;pointer-events:all;opacity:0.7;font-size:0.7rem;" title="Mode focus">🔔</div>
+      <div id="os-fs-btn" onclick="osToggleFullscreen()" style="cursor:pointer;pointer-events:all;font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.15);border:none;padding:2px 8px;border-radius:4px;" title="Plein écran">⛶ Plein écran</div>
+    </div>
   </div>
 
   <!-- TOOLTIP PLEIN ÉCRAN -->
@@ -4145,6 +4144,9 @@ input:focus,select:focus,textarea:focus{
 <!-- BRIEFING -->
 <!-- BOUTIQUE -->
 <div class="page" id="page-boutique"></div>
+
+<!-- TRESORERIE -->
+<div class="page" id="page-tresorerie"></div>
 
 <!-- VISUELS INSTAGRAM -->
 <div class="page" id="page-visuels">
@@ -10973,7 +10975,675 @@ function _osAfficherFonctionLabel(label, uid){
   }).catch(function(){});
 }
 
-// ===== BOUTIQUE =====
+// ===== TRÉSORERIE =====
+var TRESORERIE_TYPES = ['Cotisations','Dons','Ventes','Autres revenus','Frais bancaires','Solution WEB, hébergement','Note de frais','Communication, pub','Fournitures, Poste, Abonnement','Matériel','Essences et transports','Assurances','Taxes','Salaire','Charges sociales','Autre'];
+var TRESORERIE_MOYENS = ['CB','Chèque','Virement','Prélèvement','HelloAsso','Prélèvement Paypal','Retrait','Espèces'];
+
+function osTresorerieRender(){
+  var wc = document.getElementById('wincontent-tresorerie');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
+  wc.innerHTML = '<div style="padding:2rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Chargement…</div>';
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions?order=date.asc&select=*',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(txs){
+    txs = (!txs||txs.code) ? [] : txs;
+
+    // Recalculer les soldes cumulés
+    var solde = 0;
+    txs.forEach(function(t){
+      solde += (parseFloat(t.credit)||0) - (parseFloat(t.debit)||0);
+      t._solde = Math.round(solde*100)/100;
+    });
+    var soldeCourant = Math.round(solde*100)/100;
+
+    // Stats
+    var totalRecettes = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+    var totalDepenses = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+    var moisEnCours = new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    var debutMois = new Date(); debutMois.setDate(1);
+    var txsMois = txs.filter(function(t){return new Date(t.date)>=debutMois;});
+    var recettesMois = txsMois.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+    var depensesMois = txsMois.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+
+    var h = '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">';
+
+    // Header
+    h += '<div style="flex-shrink:0;background:linear-gradient(135deg,#0F6E56,#085041);padding:1.2rem 1.5rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">💶 Trésorerie</div>';
+    h += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.5);margin-top:2px;">Ipsum Média · Suivi des mouvements</div></div>';
+    h += '<div style="text-align:right;">';
+    var soldeColor = soldeCourant >= 0 ? 'white' : '#FF8A80';
+    h += '<div style="font-family:Poppins,sans-serif;font-size:1.8rem;font-weight:800;color:'+soldeColor+';">'+(soldeCourant>=0?'+':'')+soldeCourant.toFixed(2)+' €</div>';
+    h += '<div style="font-family:monospace;font-size:0.58rem;color:rgba(255,255,255,0.5);">Solde actuel</div>';
+    h += '</div></div>';
+
+    // Mini stats
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.8rem;">';
+    var stats = [
+      {l:'Recettes totales',v:'+'+totalRecettes.toFixed(2)+' €',c:'rgba(100,255,180,0.9)'},
+      {l:'Dépenses totales',v:'-'+totalDepenses.toFixed(2)+' €',c:'rgba(255,150,150,0.9)'},
+      {l:'Recettes ('+moisEnCours+')',v:'+'+recettesMois.toFixed(2)+' €',c:'rgba(255,255,255,0.8)'},
+      {l:'Dépenses ('+moisEnCours+')',v:'-'+depensesMois.toFixed(2)+' €',c:'rgba(255,255,255,0.8)'},
+    ];
+    stats.forEach(function(s){
+      h += '<div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;">';
+      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:'+s.c+';">'+s.v+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.52rem;color:rgba(255,255,255,0.4);margin-top:1px;">'+s.l+'</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+
+    // Onglets
+    h += '<div style="display:flex;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;">';
+    h += '<button onclick="osTresorerieOnglet(\'transactions\')" id="tres-tab-tx" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;">📋 Transactions</button>';
+    h += '<button onclick="osTresorerieOnglet(\'new\')" id="tres-tab-new" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">+ Nouvelle</button>';
+    h += '<button onclick="osTresorerieOnglet(\'analyse\')" id="tres-tab-ana" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">📊 Analyse</button>';
+    h += '<button onclick="osTresorerieOnglet(\'budget\')" id="tres-tab-bud" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">📐 Budget</button>';
+    h += '<button onclick="osTresorerieBilan()" id="tres-tab-pdf" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:monospace;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">🖨 Bilan PDF</button>';
+    h += '</div>';
+
+    // Panel transactions
+    h += '<div id="tres-panel-tx" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">';
+    if(!txs.length){
+      h += '<div style="text-align:center;padding:3rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune transaction. Commence par en ajouter une !</div>';
+    } else {
+      // En-tête du tableau
+      h += '<div style="display:grid;grid-template-columns:80px 1fr 100px 80px 80px 70px 50px;gap:0;flex-shrink:0;background:#F5F5F7;border-bottom:1px solid var(--gris-bord);padding:0 0.5rem;">';
+      ['Date','Description','Type','Débit','Crédit','Solde',''].forEach(function(col){
+        h += '<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.3rem;letter-spacing:.08em;">'+col+'</div>';
+      });
+      h += '</div>';
+      // Lignes (ordre chronologique inversé pour avoir le plus récent en haut)
+      var txsDesc = txs.slice().reverse();
+      txsDesc.forEach(function(t){
+        var dateStr = t.date ? new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '';
+        var isDebit = t.debit && parseFloat(t.debit)>0;
+        var isCredit = t.credit && parseFloat(t.credit)>0;
+        var rowBg = t.pointe ? 'rgba(0,200,100,0.04)' : 'white';
+        h += '<div style="display:grid;grid-template-columns:80px 1fr 100px 80px 80px 70px 50px;gap:0;border-bottom:0.5px solid var(--gris-bord);background:'+rowBg+';padding:0 0.5rem;" onmouseover="this.style.background=\'#F9F9FB\'" onmouseout="this.style.background=\''+rowBg+'\'">';
+        h += '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);padding:0.5rem 0.3rem;align-self:center;">'+dateStr+'</div>';
+        h += '<div style="padding:0.5rem 0.3rem;align-self:center;">';
+        h += '<div style="font-size:0.78rem;color:var(--encre);font-weight:'+(t.pointe?'400':'500')+';">'+esc(t.description||'')+'</div>';
+        if(t.moyen_paiement) h += '<div style="font-family:monospace;font-size:0.55rem;color:var(--gris);">'+esc(t.moyen_paiement)+'</div>';
+        if(t.remarques) h += '<div style="font-size:0.65rem;color:var(--gris);font-style:italic;">'+esc(t.remarques)+'</div>';
+        h += '</div>';
+        h += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);padding:0.5rem 0.3rem;align-self:center;">'+esc(t.type||'')+'</div>';
+        h += '<div style="font-family:monospace;font-size:0.72rem;color:#A32D2D;font-weight:600;padding:0.5rem 0.3rem;align-self:center;text-align:right;">'+(isDebit?parseFloat(t.debit).toFixed(2)+' €':'')+'</div>';
+        h += '<div style="font-family:monospace;font-size:0.72rem;color:#155724;font-weight:600;padding:0.5rem 0.3rem;align-self:center;text-align:right;">'+(isCredit?parseFloat(t.credit).toFixed(2)+' €':'')+'</div>';
+        var sc = t._solde >= 0 ? '#155724' : '#A32D2D';
+        h += '<div style="font-family:monospace;font-size:0.65rem;color:'+sc+';font-weight:600;padding:0.5rem 0.3rem;align-self:center;text-align:right;">'+t._solde.toFixed(2)+'</div>';
+        h += '<div style="padding:0.5rem 0.3rem;align-self:center;display:flex;gap:3px;">';
+        h += '<button onclick="osTresoreriePointer(\''+t.id+'\','+t.pointe+')" style="font-size:0.65rem;background:transparent;border:none;cursor:pointer;opacity:'+(t.pointe?'1':'0.3')+'" title="'+(t.pointe?'Pointé':'Pointer')+'">'+(t.pointe?'✅':'○')+'</button>';
+        h += '<button onclick="osTresorerieSupprimer(\''+t.id+'\')" style="font-size:0.65rem;background:transparent;border:none;cursor:pointer;color:#A32D2D;opacity:0.4;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>';
+        h += '</div>';
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+
+    // Panel nouvelle transaction
+    h += '<div id="tres-panel-new" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;">';
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:1rem;">Nouvelle transaction</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Date *</label><input type="date" id="tres-date" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Type *</label><select id="tres-type" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;">';
+    TRESORERIE_TYPES.forEach(function(t){ h += '<option>'+t+'</option>'; });
+    h += '</select></div>';
+    h += '<div style="grid-column:1/-1"><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Description *</label><input type="text" id="tres-desc" placeholder="Ex: Adhésion Tom Duez" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Débit (€)</label><input type="number" id="tres-debit" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Crédit (€)</label><input type="number" id="tres-credit" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Moyen de paiement</label><select id="tres-moyen" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"><option value="">—</option>';
+    TRESORERIE_MOYENS.forEach(function(m){ h += '<option>'+m+'</option>'; });
+    h += '</select></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.62rem;color:var(--gris);">Remarques</label><input type="text" id="tres-remarques" placeholder="Optionnel" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.78rem;margin-top:3px;"></div>';
+    h += '</div>';
+    h += '<div style="margin-top:1.2rem;display:flex;gap:0.6rem;">';
+    h += '<button onclick="osTresorerieAjouter()" style="padding:0.5rem 1.5rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-family:monospace;font-size:0.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>';
+    h += '<button onclick="osTresorerieOnglet(\'transactions\')" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-family:monospace;font-size:0.72rem;cursor:pointer;color:var(--gris);">Annuler</button>';
+    h += '</div></div>';
+
+    // Panel budget prévisionnel (contenu chargé en async à l'ouverture)
+    h += '<div id="tres-panel-bud" style="flex:1;overflow-y:auto;display:none;"><div id="tres-bud-inner" style="padding:1.2rem 1.5rem;"><div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement…</div></div></div>';
+
+    // Panel analyse
+    h += '<div id="tres-panel-ana" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;">';    // Par type
+    var parType = {};
+    txs.forEach(function(t){
+      if(!t.type) return;
+      if(!parType[t.type]) parType[t.type] = {debit:0,credit:0};
+      parType[t.type].debit += parseFloat(t.debit)||0;
+      parType[t.type].credit += parseFloat(t.credit)||0;
+    });
+    // Par mois
+    var parMois = {};
+    txs.forEach(function(t){
+      if(!t.date) return;
+      var d = new Date(t.date+'T00:00:00');
+      var m = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(!parMois[m]) parMois[m] = {debit:0,credit:0,label:d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+      parMois[m].debit += parseFloat(t.debit)||0;
+      parMois[m].credit += parseFloat(t.credit)||0;
+    });
+
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Par mois</div>';
+    h += '<div style="margin-bottom:1.5rem;">';
+    Object.keys(parMois).sort().forEach(function(m){
+      var mv = parMois[m];
+      var net = mv.credit - mv.debit;
+      var netStr = (net>=0?'+':'')+net.toFixed(2)+' €';
+      var netC = net>=0?'#155724':'#A32D2D';
+      h += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+      h += '<div style="width:110px;font-family:monospace;font-size:0.65rem;color:var(--encre);">'+esc(mv.label)+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.62rem;color:#155724;width:70px;text-align:right;">+'+mv.credit.toFixed(2)+' €</div>';
+      h += '<div style="font-family:monospace;font-size:0.62rem;color:#A32D2D;width:70px;text-align:right;">-'+mv.debit.toFixed(2)+' €</div>';
+      h += '<div style="font-family:monospace;font-size:0.65rem;font-weight:700;color:'+netC+';width:80px;text-align:right;">'+netStr+'</div>';
+      // Mini barre
+      var maxVal = Math.max(mv.credit, mv.debit, 1);
+      h += '<div style="flex:1;display:flex;flex-direction:column;gap:2px;">';
+      h += '<div style="height:4px;background:#D4EDDA;border-radius:2px;"><div style="height:4px;background:#155724;border-radius:2px;width:'+Math.round(mv.credit/maxVal*100)+'%"></div></div>';
+      h += '<div style="height:4px;background:#FCEBEB;border-radius:2px;"><div style="height:4px;background:#A32D2D;border-radius:2px;width:'+Math.round(mv.debit/maxVal*100)+'%"></div></div>';
+      h += '</div></div>';
+    });
+    h += '</div>';
+
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Par catégorie</div>';
+    h += '<div>';
+    Object.keys(parType).sort().forEach(function(type){
+      var tv = parType[type];
+      if(!tv.debit && !tv.credit) return;
+      h += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.35rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+      h += '<div style="flex:1;font-size:0.78rem;color:var(--encre);">'+esc(type)+'</div>';
+      if(tv.credit) h += '<div style="font-family:monospace;font-size:0.62rem;color:#155724;">+'+tv.credit.toFixed(2)+' €</div>';
+      if(tv.debit) h += '<div style="font-family:monospace;font-size:0.62rem;color:#A32D2D;">-'+tv.debit.toFixed(2)+' €</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+
+    // Panel budget
+    h += '<div id="tres-panel-bud" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;" data-txs="'+encodeURIComponent(JSON.stringify(txs))+'"></div>';
+
+    h += '</div>';
+    wc.innerHTML = h;
+    window._tresorerieData = txs;
+  }).catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-family:monospace;">Erreur de chargement</div>';
+  });
+}
+
+function osTresorerieOnglet(onglet){
+  var panels = {transactions:'tx', new:'new', analyse:'ana', budget:'bud'};
+  var key = panels[onglet] || onglet;
+  ['tx','new','ana','bud'].forEach(function(o){
+    var panel = document.getElementById('tres-panel-'+o);
+    var isActif = key === o;
+    if(panel) panel.style.display = isActif ? (o==='tx'?'flex':'block') : 'none';
+    var tabEl = document.getElementById('tres-tab-'+(o==='tx'?'tx':o==='new'?'new':o==='ana'?'ana':'bud'));
+    if(tabEl){
+      tabEl.style.borderBottomColor = isActif ? 'var(--rouge)' : 'transparent';
+      tabEl.style.color = isActif ? 'var(--encre)' : 'var(--gris)';
+      tabEl.style.fontWeight = isActif ? '600' : '400';
+    }
+  });
+  if(onglet === 'budget'){
+    osTresorerieBudgetRender();
+  }
+}
+
+function osTresorerieBudgetRender(){
+  var inner = document.getElementById('tres-bud-inner');
+  if(!inner) return;
+  inner.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement…</div>';
+
+  var annee = new Date().getFullYear();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/tresorerie_budget?annee=eq.'+annee+'&order=categorie.asc,ordre.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/tresorerie_transactions?order=date.asc&select=debit,credit,type',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var postes = (!res[0]||res[0].code)?[]:res[0];
+    var txs    = (!res[1]||res[1].code)?[]:res[1];
+
+    // Totaux réels par catégorie
+    var totalReelDepenses  = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+    var totalReelRecettes  = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+
+    var depenses = postes.filter(function(p){return p.categorie==='depense';});
+    var recettes = postes.filter(function(p){return p.categorie==='recette';});
+    var totalBudgetDep = depenses.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+    var totalBudgetRec = recettes.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+    var soldePrev = totalBudgetRec - totalBudgetDep;
+    var soldeReel = totalReelRecettes - totalReelDepenses;
+
+    var h = '';
+
+    // En-tête bilan prévisionnel vs réel
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.8rem;margin-bottom:1.4rem;">';
+    var cards = [
+      {l:'Budget dépenses',v:'-'+totalBudgetDep.toFixed(2)+' €',c:'#A32D2D',sub:'Réel : -'+totalReelDepenses.toFixed(2)+' €'},
+      {l:'Budget recettes',v:'+'+totalBudgetRec.toFixed(2)+' €',c:'#155724',sub:'Réel : +'+totalReelRecettes.toFixed(2)+' €'},
+      {l:'Solde prévisionnel',v:(soldePrev>=0?'+':'')+soldePrev.toFixed(2)+' €',c:soldePrev>=0?'#0F6E56':'#A32D2D',sub:'Solde réel : '+(soldeReel>=0?'+':'')+soldeReel.toFixed(2)+' €'},
+    ];
+    cards.forEach(function(c){
+      h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;">';
+      h += '<div style="font-family:Poppins,sans-serif;font-size:1.1rem;font-weight:800;color:'+c.c+';">'+c.v+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+c.l+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);margin-top:4px;border-top:0.5px solid var(--gris-bord);padding-top:4px;">'+c.sub+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    function renderCategorie(titre, items, couleur, totalBudget, totalReel){
+      h += '<div style="margin-bottom:1.4rem;">';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+      h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.1em;color:'+couleur+';">'+titre+'</div>';
+      h += '<button onclick="osTresorerieBudgetAjouterPoste(\''+titre.toLowerCase().includes('dép')?'depense':'recette'+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 8px;background:transparent;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;color:var(--gris);">+ Ajouter</button>';
+      h += '</div>';
+
+      if(!items.length){
+        h += '<div style="font-family:monospace;font-size:0.7rem;color:var(--gris);padding:0.5rem 0;">Aucun poste — clique sur "+ Ajouter"</div>';
+      } else {
+        h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
+        // Header
+        h += '<div style="display:grid;grid-template-columns:1fr 90px 90px 80px 40px;background:#F5F5F7;padding:0.35rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);">';
+        ['Poste','Budget','Réel','Écart',''].forEach(function(col){
+          h += '<div style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;">'+col+'</div>';
+        });
+        h += '</div>';
+
+        items.forEach(function(p){
+          // Calcul réel par type correspondant
+          var reelPoste = txs.filter(function(t){
+            return titre.toLowerCase().includes('dép') ? (parseFloat(t.debit)||0)>0 : (parseFloat(t.credit)||0)>0;
+          }).reduce(function(s,t){
+            // Correspondance souple type → poste
+            var ttype = (t.type||'').toLowerCase();
+            var pnom = (p.poste||'').toLowerCase();
+            return s + (ttype.includes(pnom.split(' ')[0]) ? (parseFloat(titre.toLowerCase().includes('dép')?t.debit:t.credit)||0) : 0);
+          },0);
+          var budget = parseFloat(p.montant)||0;
+          var ecart = reelPoste - budget;
+          var ecartC = titre.toLowerCase().includes('dép')
+            ? (ecart > 0 ? '#A32D2D' : '#155724')
+            : (ecart >= 0 ? '#155724' : '#A32D2D');
+
+          h += '<div style="display:grid;grid-template-columns:1fr 90px 90px 80px 40px;padding:0.45rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);align-items:center;">';
+          h += '<div>';
+          h += '<div style="font-size:0.82rem;color:var(--encre);">'+esc(p.poste||'')+'</div>';
+          if(p.notes) h += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);font-style:italic;">'+esc(p.notes)+'</div>';
+          h += '</div>';
+          h += '<div style="font-family:monospace;font-size:0.72rem;font-weight:600;color:'+couleur+';">'+(titre.toLowerCase().includes('dép')?'-':'+')+budget.toFixed(2)+' €</div>';
+          h += '<div style="font-family:monospace;font-size:0.65rem;color:var(--gris);">'+(reelPoste>0?(titre.toLowerCase().includes('dép')?'-':'+')+reelPoste.toFixed(2)+' €':'—')+'</div>';
+          h += '<div style="font-family:monospace;font-size:0.65rem;font-weight:600;color:'+ecartC+'">'+(ecart>=0?'+':'')+ecart.toFixed(2)+' €</div>';
+          h += '<div style="display:flex;gap:2px;">';
+          h += '<button onclick="osTresorerieBudgetEditer(\''+p.id+'\')" style="font-size:0.65rem;background:transparent;border:none;cursor:pointer;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✏️</button>';
+          h += '<button onclick="osTresorerieBudgetSupprimer(\''+p.id+'\')" style="font-size:0.65rem;background:transparent;border:none;cursor:pointer;color:#A32D2D;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>';
+          h += '</div></div>';
+        });
+
+        // Ligne total
+        h += '<div style="display:grid;grid-template-columns:1fr 90px 90px 80px 40px;padding:0.4rem 0.8rem;background:#F5F5F7;border-top:1px solid var(--gris-bord);">';
+        h += '<div style="font-family:monospace;font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--gris);">Total</div>';
+        h += '<div style="font-family:monospace;font-size:0.72rem;font-weight:800;color:'+couleur+';">'+(titre.toLowerCase().includes('dép')?'-':'+')+totalBudget.toFixed(2)+' €</div>';
+        h += '<div style="font-family:monospace;font-size:0.65rem;font-weight:700;color:var(--gris);">'+(titre.toLowerCase().includes('dép')?'-':'+')+totalReel.toFixed(2)+' €</div>';
+        var ecartTotal = totalReel - totalBudget;
+        var ecartTotalC = titre.toLowerCase().includes('dép') ? (ecartTotal>0?'#A32D2D':'#155724') : (ecartTotal>=0?'#155724':'#A32D2D');
+        h += '<div style="font-family:monospace;font-size:0.65rem;font-weight:800;color:'+ecartTotalC+'">'+(ecartTotal>=0?'+':'')+ecartTotal.toFixed(2)+' €</div>';
+        h += '<div></div></div>';
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+
+    renderCategorie('Dépenses', depenses, '#A32D2D', totalBudgetDep, totalReelDepenses);
+    renderCategorie('Recettes', recettes, '#155724', totalBudgetRec, totalReelRecettes);
+
+    // Formulaire ajout poste (caché par défaut)
+    h += '<div id="tres-bud-form" style="display:none;background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:1rem 1.2rem;margin-top:0.5rem;">';
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.8rem;" id="tres-bud-form-titre">Nouveau poste</div>';
+    h += '<input type="hidden" id="tres-bud-id">';
+    h += '<input type="hidden" id="tres-bud-cat" value="depense">';
+    h += '<div style="display:grid;grid-template-columns:1fr 120px;gap:0.6rem;margin-bottom:0.6rem;">';
+    h += '<div><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Poste *</label><input type="text" id="tres-bud-poste" placeholder="Ex: Nom de domaine" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;margin-top:2px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Montant (€) *</label><input type="number" id="tres-bud-montant" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;margin-top:2px;"></div>';
+    h += '</div>';
+    h += '<div style="margin-bottom:0.8rem;"><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Notes</label><input type="text" id="tres-bud-notes" placeholder="Optionnel" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;margin-top:2px;"></div>';
+    h += '<div style="display:flex;gap:0.5rem;">';
+    h += '<button onclick="osTresorerieBudgetSauvegarder()" style="padding:0.4rem 1.2rem;background:#0F6E56;color:white;border:none;border-radius:6px;font-family:monospace;font-size:0.7rem;font-weight:600;cursor:pointer;">Enregistrer</button>';
+    h += '<button onclick="document.getElementById(\'tres-bud-form\').style.display=\'none\'" style="padding:0.4rem 0.8rem;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;font-family:monospace;font-size:0.7rem;cursor:pointer;color:var(--gris);">Annuler</button>';
+    h += '</div></div>';
+
+    inner.innerHTML = h;
+    window._tresorerieBudget = postes;
+    window._tresorerieTxs = txs;
+  }).catch(function(){
+    inner.innerHTML = '<div style="color:var(--rouge);font-family:monospace;font-size:0.72rem;">Erreur de chargement</div>';
+  });
+}
+
+function osTresorerieBudgetAjouterPoste(cat){
+  var form = document.getElementById('tres-bud-form');
+  if(!form) return;
+  document.getElementById('tres-bud-id').value = '';
+  document.getElementById('tres-bud-cat').value = cat;
+  document.getElementById('tres-bud-poste').value = '';
+  document.getElementById('tres-bud-montant').value = '';
+  document.getElementById('tres-bud-notes').value = '';
+  var titre = document.getElementById('tres-bud-form-titre');
+  if(titre) titre.textContent = 'Nouveau poste — '+(cat==='depense'?'Dépense':'Recette');
+  form.style.display = 'block';
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function osTresorerieBudgetEditer(id){
+  var poste = (window._tresorerieBudget||[]).find(function(p){return p.id===id;});
+  if(!poste) return;
+  var form = document.getElementById('tres-bud-form');
+  if(!form) return;
+  document.getElementById('tres-bud-id').value = id;
+  document.getElementById('tres-bud-cat').value = poste.categorie;
+  document.getElementById('tres-bud-poste').value = poste.poste||'';
+  document.getElementById('tres-bud-montant').value = poste.montant||'';
+  document.getElementById('tres-bud-notes').value = poste.notes||'';
+  var titre = document.getElementById('tres-bud-form-titre');
+  if(titre) titre.textContent = 'Modifier le poste';
+  form.style.display = 'block';
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function osTresorerieBudgetSauvegarder(){
+  var id      = (document.getElementById('tres-bud-id')||{}).value||null;
+  var cat     = (document.getElementById('tres-bud-cat')||{}).value||'depense';
+  var poste   = ((document.getElementById('tres-bud-poste')||{}).value||'').trim();
+  var montant = parseFloat((document.getElementById('tres-bud-montant')||{}).value)||0;
+  var notes   = ((document.getElementById('tres-bud-notes')||{}).value||'').trim()||null;
+  if(!poste){ notif('Le nom du poste est obligatoire'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var annee = new Date().getFullYear();
+  var payload = {poste:poste, categorie:cat, montant:montant, notes:notes, annee:annee};
+  var url = SB_URL+'/rest/v1/tresorerie_budget'+(id?'?id=eq.'+id:'');
+  var method = id ? 'PATCH' : 'POST';
+  fetch(url,{method:method,headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){
+    if(r.ok){ notif('Poste enregistré ✓','succes'); osTresorerieBudgetRender(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function osTresorerieBudgetSupprimer(id){
+  if(!confirm('Supprimer ce poste ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+id,{method:'DELETE',headers:authH})
+  .then(function(r){ if(r.ok){ notif('Poste supprimé'); osTresorerieBudgetRender(); } });
+}
+
+function osTresorerieAjouter(){
+  var date = (document.getElementById('tres-date')||{}).value;
+  var desc = (document.getElementById('tres-desc')||{}).value||'';
+  var type = (document.getElementById('tres-type')||{}).value||'';
+  var debit = parseFloat((document.getElementById('tres-debit')||{}).value)||null;
+  var credit = parseFloat((document.getElementById('tres-credit')||{}).value)||null;
+  var moyen = (document.getElementById('tres-moyen')||{}).value||null;
+  var remarques = (document.getElementById('tres-remarques')||{}).value||null;
+
+  if(!date||!desc||!type){ notif('Date, description et type sont obligatoires'); return; }
+  if(!debit && !credit){ notif('Renseigne un débit ou un crédit'); return; }
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{
+    method:'POST', headers:authH,
+    body:JSON.stringify({
+      date:date, description:desc.trim(), type:type,
+      debit:debit||null, credit:credit||null,
+      moyen_paiement:moyen||null, remarques:remarques||null,
+      created_by:getUserId()
+    })
+  }).then(function(r){
+    if(r.ok){ notif('Transaction enregistrée ✓','succes'); osTresorerieRender(); }
+    else notif('Erreur enregistrement','erreur');
+  });
+}
+
+function osTresoreriePointer(id, pointe){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({pointe:!pointe})})
+  .then(function(r){ if(r.ok) osTresorerieRender(); });
+}
+
+function osTresorerieSupprimer(id){
+  if(!confirm('Supprimer cette transaction ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'DELETE',headers:authH})
+  .then(function(r){ if(r.ok){ notif('Transaction supprimée'); osTresorerieRender(); } });
+}
+
+function osTresorerieBudgetRender(){
+  var zone = document.getElementById('tres-panel-bud');
+  if(!zone) return;
+  zone.innerHTML = '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);text-align:center;padding:2rem;">Chargement…</div>';
+
+  var annee = new Date().getFullYear();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var txs = window._tresorerieData || [];
+
+  fetch(SB_URL+'/rest/v1/tresorerie_budget?annee=eq.'+annee+'&order=categorie.asc,ordre.asc',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(postes){
+    postes = (!postes||postes.code) ? [] : postes;
+
+    // Calcul réel par type depuis les transactions
+    var realParType = {};
+    txs.forEach(function(t){
+      var d = t.date ? new Date(t.date+'T00:00:00') : null;
+      if(!d || d.getFullYear()!==annee) return;
+      var type = t.type||'Autre';
+      if(!realParType[type]) realParType[type] = {debit:0,credit:0};
+      realParType[type].debit += parseFloat(t.debit)||0;
+      realParType[type].credit += parseFloat(t.credit)||0;
+    });
+
+    var totalPrevu_dep = postes.filter(function(p){return p.categorie==='depense';}).reduce(function(s,p){return s+parseFloat(p.montant);},0);
+    var totalPrevu_rec = postes.filter(function(p){return p.categorie==='recette';}).reduce(function(s,p){return s+parseFloat(p.montant);},0);
+    var totalReel_dep = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+    var totalReel_rec = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+    var soldePrevu = totalPrevu_rec - totalPrevu_dep;
+    var soldeReel  = totalReel_rec - totalReel_dep;
+
+    var h = '';
+
+    // Résumé comparatif
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;margin-bottom:1.5rem;">';
+    var cards = [
+      {l:'Solde prévu',v:(soldePrevu>=0?'+':'')+soldePrevu.toFixed(2)+' €',c:soldePrevu>=0?'#0F6E56':'#A32D2D'},
+      {l:'Solde réel',v:(soldeReel>=0?'+':'')+soldeReel.toFixed(2)+' €',c:soldeReel>=0?'#0F6E56':'#A32D2D'},
+      {l:'Écart',v:((soldeReel-soldePrevu)>=0?'+':'')+(soldeReel-soldePrevu).toFixed(2)+' €',c:(soldeReel-soldePrevu)>=0?'#0F6E56':'#A32D2D'},
+    ];
+    cards.forEach(function(c){
+      h += '<div style="background:#F5F5F7;border-radius:10px;padding:0.9rem;text-align:center;">';
+      h += '<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:'+c.c+';">'+c.v+'</div>';
+      h += '<div style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:#888;margin-top:3px;">'+c.l+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // Bouton ajouter poste
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">';
+    h += '<div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);">Budget '+annee+'</div>';
+    h += '<button onclick="osTresorerieBudgetAjouterForm()" style="font-family:monospace;font-size:0.65rem;padding:4px 12px;background:#0F6E56;color:white;border:none;border-radius:6px;cursor:pointer;">+ Ajouter un poste</button>';
+    h += '</div>';
+
+    // Formulaire inline (masqué)
+    h += '<div id="tres-bud-form" style="display:none;background:#F9FEF9;border:1px solid #A9DFBF;border-radius:10px;padding:1rem;margin-bottom:1rem;">';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:0.6rem;margin-bottom:0.6rem;">';
+    h += '<div><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Poste</label><input type="text" id="bud-poste" placeholder="Ex: Cotisations membres" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:monospace;font-size:0.75rem;margin-top:2px;"></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Catégorie</label><select id="bud-categorie" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:monospace;font-size:0.75rem;margin-top:2px;"><option value="depense">Dépense</option><option value="recette">Recette</option></select></div>';
+    h += '<div><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Montant (€)</label><input type="number" id="bud-montant" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:monospace;font-size:0.75rem;margin-top:2px;"></div>';
+    h += '</div>';
+    h += '<div style="margin-bottom:0.6rem;"><label style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Notes</label><input type="text" id="bud-notes" placeholder="Ex: 3€/mois × 12 mois" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:monospace;font-size:0.75rem;margin-top:2px;"></div>';
+    h += '<div style="display:flex;gap:0.5rem;">';
+    h += '<button onclick="osTresorerieBudgetSauvegarder()" style="padding:4px 14px;background:#0F6E56;color:white;border:none;border-radius:5px;font-family:monospace;font-size:0.68rem;cursor:pointer;font-weight:600;">Enregistrer</button>';
+    h += '<button onclick="document.getElementById(\'tres-bud-form\').style.display=\'none\'" style="padding:4px 10px;background:transparent;border:1px solid var(--gris-bord);border-radius:5px;font-family:monospace;font-size:0.68rem;cursor:pointer;color:var(--gris);">Annuler</button>';
+    h += '</div></div>';
+
+    // Tableau dépenses
+    function renderSection(titre, cat, postes, couleurH, couleurBg){
+      var items = postes.filter(function(p){return p.categorie===cat;});
+      var totalPrevu = items.reduce(function(s,p){return s+parseFloat(p.montant);},0);
+      // Calcul réel de cette catégorie
+      var totalReel = Object.keys(realParType).reduce(function(s,type){
+        return s + (cat==='depense' ? realParType[type].debit : realParType[type].credit);
+      },0);
+
+      var r = '<div style="margin-bottom:1.5rem;">';
+      r += '<div style="background:'+couleurH+';padding:6px 12px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">';
+      r += '<span style="font-family:monospace;font-size:0.62rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:.08em;">'+titre+'</span>';
+      r += '<span style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.7);">Prévu: '+totalPrevu.toFixed(2)+' € · Réel: '+totalReel.toFixed(2)+' €</span>';
+      r += '</div>';
+      r += '<div style="background:white;border:1px solid var(--gris-bord);border-top:none;border-radius:0 0 8px 8px;">';
+
+      if(!items.length){
+        r += '<div style="padding:0.8rem;font-family:monospace;font-size:0.68rem;color:var(--gris);text-align:center;">Aucun poste — ajoutes-en un !</div>';
+      } else {
+        // Header
+        r += '<div style="display:grid;grid-template-columns:1fr 90px 90px 90px 50px;background:#F5F5F7;padding:4px 12px;border-bottom:1px solid var(--gris-bord);">';
+        ['Poste','Prévu','Réel','Écart',''].forEach(function(col){
+          r += '<div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);padding:3px 0;letter-spacing:.06em;">'+col+'</div>';
+        });
+        r += '</div>';
+
+        items.forEach(function(p){
+          // Chercher le réel correspondant par type le plus proche
+          var reel = 0;
+          Object.keys(realParType).forEach(function(type){
+            if(type.toLowerCase().indexOf(p.poste.toLowerCase().substring(0,6))!==-1 || p.poste.toLowerCase().indexOf(type.toLowerCase().substring(0,6))!==-1){
+              reel += cat==='depense' ? realParType[type].debit : realParType[type].credit;
+            }
+          });
+          var prevu = parseFloat(p.montant);
+          var ecart = cat==='depense' ? prevu - reel : reel - prevu;
+          var ecartC = ecart >= 0 ? '#155724' : '#A32D2D';
+          r += '<div style="display:grid;grid-template-columns:1fr 90px 90px 90px 50px;padding:6px 12px;border-bottom:0.5px solid var(--gris-bord);" onmouseover="this.style.background=\'#F9F9FB\'" onmouseout="this.style.background=\'white\'">';
+          r += '<div>';
+          r += '<div style="font-size:0.8rem;color:var(--encre);">'+esc(p.poste)+'</div>';
+          if(p.notes) r += '<div style="font-family:monospace;font-size:0.58rem;color:var(--gris);font-style:italic;">'+esc(p.notes)+'</div>';
+          r += '</div>';
+          r += '<div style="font-family:monospace;font-size:0.7rem;color:var(--encre);font-weight:600;align-self:center;">'+prevu.toFixed(2)+' €</div>';
+          r += '<div style="font-family:monospace;font-size:0.7rem;color:var(--gris);align-self:center;">'+(reel?reel.toFixed(2)+' €':'—')+'</div>';
+          // Barre de progression
+          var pct = prevu > 0 ? Math.min(100,Math.round(reel/prevu*100)) : 0;
+          r += '<div style="align-self:center;">';
+          r += '<div style="font-family:monospace;font-size:0.65rem;font-weight:600;color:'+ecartC+'">'+(ecart>=0?'+':'')+ecart.toFixed(2)+' €</div>';
+          r += '<div style="background:var(--gris-clair);border-radius:3px;height:4px;margin-top:2px;"><div style="height:4px;border-radius:3px;background:'+(cat==='depense'?'#A32D2D':'#0F6E56')+';width:'+pct+'%;"></div></div>';
+          r += '</div>';
+          r += '<div style="align-self:center;"><button onclick="osTresorerieBudgetSupprimer(\''+p.id+'\')" style="font-size:0.65rem;background:transparent;border:none;cursor:pointer;color:#A32D2D;opacity:0.3;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3">✕</button></div>';
+          r += '</div>';
+        });
+      }
+      r += '</div></div>';
+      return r;
+    }
+
+    h += renderSection('Dépenses prévues','depense',postes,'#A32D2D','#FCEBEB');
+    h += renderSection('Recettes prévues','recette',postes,'#0F6E56','#D4EDDA');
+
+    // Solde final visuel
+    var ecartSolde = soldeReel - soldePrevu;
+    h += '<div style="background:'+(ecartSolde>=0?'#D4EDDA':'#FCEBEB')+';border-radius:8px;padding:0.8rem 1rem;display:flex;justify-content:space-between;align-items:center;">';
+    h += '<span style="font-family:monospace;font-size:0.7rem;font-weight:700;color:'+(ecartSolde>=0?'#155724':'#A32D2D')+';">Solde : prévu '+soldePrevu.toFixed(2)+' € · réel '+soldeReel.toFixed(2)+' €</span>';
+    h += '<span style="font-family:Poppins,sans-serif;font-size:1rem;font-weight:800;color:'+(ecartSolde>=0?'#0F6E56':'#A32D2D')+'">'+(ecartSolde>=0?'+':'')+ecartSolde.toFixed(2)+' €</span>';
+    h += '</div>';
+
+    zone.innerHTML = h;
+  }).catch(function(){
+    zone.innerHTML = '<div style="color:var(--rouge);font-family:monospace;font-size:0.72rem;text-align:center;padding:2rem;">Erreur de chargement</div>';
+  });
+}
+
+function osTresorerieBudgetAjouterForm(){
+  var f = document.getElementById('tres-bud-form');
+  if(f){ f.style.display = f.style.display==='none'?'block':'none'; }
+}
+
+function osTresorerieBudgetSauvegarder(){
+  var poste = (document.getElementById('bud-poste')||{}).value||'';
+  var cat   = (document.getElementById('bud-categorie')||{}).value||'depense';
+  var mnt   = parseFloat((document.getElementById('bud-montant')||{}).value)||0;
+  var notes = (document.getElementById('bud-notes')||{}).value||'';
+  if(!poste){ notif('Le nom du poste est obligatoire'); return; }
+  var annee = new Date().getFullYear();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_budget',{
+    method:'POST', headers:authH,
+    body:JSON.stringify({annee:annee,poste:poste.trim(),categorie:cat,montant:mnt,notes:notes.trim()||null})
+  }).then(function(r){
+    if(r.ok){ notif('Poste ajouté ✓','succes'); osTresorerieBudgetRender(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function osTresorerieBudgetSupprimer(id){
+  if(!confirm('Supprimer ce poste budgétaire ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+id,{method:'DELETE',headers:authH})
+  .then(function(r){ if(r.ok){ notif('Poste supprimé'); osTresorerieBudgetRender(); } });
+}
+
+
+function osTresorerieBilan(){
+  var txs = window._tresorerieData || [];
+  var totalDepenses = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var solde = totalRecettes - totalDepenses;
+
+  var parMois = {};
+  txs.forEach(function(t){
+    if(!t.date) return;
+    var d = new Date(t.date+'T00:00:00');
+    var m = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!parMois[m]) parMois[m] = {debit:0,credit:0,label:d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+    parMois[m].debit += parseFloat(t.debit)||0;
+    parMois[m].credit += parseFloat(t.credit)||0;
+  });
+
+  var win = window.open('','_blank','width=900,height=1000');
+  if(!win){ notif('Autorise les popups'); return; }
+
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Bilan trésorerie '+annee+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">'
+    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#F5F5F7;font-family:Poppins,sans-serif;padding:32px 24px;}.doc{max-width:800px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);}.header{background:linear-gradient(135deg,#0F6E56,#085041);padding:32px 40px;}.h1{font-size:1.4rem;font-weight:800;color:white;}.sub{font-family:"IBM Plex Mono",monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}.body{padding:32px 40px;}.section{margin-bottom:28px;}.st{font-family:"IBM Plex Mono",monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:.15em;color:#0F6E56;border-bottom:1.5px solid #0F6E56;padding-bottom:5px;margin-bottom:12px;}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}.stat{background:#F5F5F7;border-radius:10px;padding:14px;text-align:center;}.sv{font-size:1.5rem;font-weight:800;}.sl{font-family:"IBM Plex Mono",monospace;font-size:0.52rem;text-transform:uppercase;color:#888;margin-top:3px;}table{width:100%;border-collapse:collapse;}tr:nth-child(even){background:#F9F9F9;}td,th{padding:7px 10px;font-size:0.8rem;text-align:left;}th{font-family:"IBM Plex Mono",monospace;font-size:0.55rem;text-transform:uppercase;color:#888;border-bottom:1px solid #eee;}.footer{background:#F5F5F7;padding:20px 40px;display:flex;justify-content:space-between;border-top:1px solid #eee;font-family:"IBM Plex Mono",monospace;font-size:0.62rem;color:#888;}@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}}</style></head><body>'
+    +'<div class="np" style="max-width:800px;margin:0 auto 16px;text-align:right;">'
+    +'<button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:8px 18px;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;cursor:pointer;font-size:0.85rem;margin-right:8px;">🖨 Imprimer / PDF</button>'
+    +'<button onclick="window.close()" style="background:#eee;color:#333;border:none;padding:8px 18px;border-radius:8px;font-family:Poppins,sans-serif;cursor:pointer;font-size:0.85rem;">Fermer</button>'
+    +'</div>'
+    +'<div class="doc"><div class="header"><div class="h1">💶 Bilan de trésorerie '+annee+'</div><div class="sub">Ipsum Média · Généré le '+today+'</div></div>'
+    +'<div class="body">'
+    +'<div class="stats">'
+    +'<div class="stat"><div class="sv" style="color:#155724;">+'+totalRecettes.toFixed(2)+' €</div><div class="sl">Recettes totales</div></div>'
+    +'<div class="stat"><div class="sv" style="color:#A32D2D;">-'+totalDepenses.toFixed(2)+' €</div><div class="sl">Dépenses totales</div></div>'
+    +'<div class="stat"><div class="sv" style="color:'+(solde>=0?'#0F6E56':'#A32D2D')+'">'+(solde>=0?'+':'')+solde.toFixed(2)+' €</div><div class="sl">Solde</div></div>'
+    +'</div>'
+    +'<div class="section"><div class="st">Récapitulatif par mois</div><table><tr><th>Mois</th><th>Recettes</th><th>Dépenses</th><th>Solde du mois</th></tr>';
+  Object.keys(parMois).sort().forEach(function(m){
+    var mv = parMois[m];
+    var net = mv.credit - mv.debit;
+    html += '<tr><td>'+esc(mv.label)+'</td><td style="color:#155724;">+'+mv.credit.toFixed(2)+' €</td><td style="color:#A32D2D;">-'+mv.debit.toFixed(2)+' €</td><td style="font-weight:600;color:'+(net>=0?'#155724':'#A32D2D')+'">'+(net>=0?'+':'')+net.toFixed(2)+' €</td></tr>';
+  });
+  html += '</table></div>'
+    +'<div class="section"><div class="st">Toutes les transactions</div><table><tr><th>Date</th><th>Description</th><th>Type</th><th>Débit</th><th>Crédit</th><th>Solde</th><th>Pointé</th></tr>';
+  txs.forEach(function(t){
+    var dateStr = t.date ? new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR') : '';
+    html += '<tr><td style="font-family:monospace;font-size:0.75rem;">'+dateStr+'</td><td>'+esc(t.description||'')+'</td><td style="font-size:0.75rem;color:#555;">'+esc(t.type||'')+'</td><td style="color:#A32D2D;font-weight:600;">'+(t.debit?parseFloat(t.debit).toFixed(2)+' €':'')+'</td><td style="color:#155724;font-weight:600;">'+(t.credit?parseFloat(t.credit).toFixed(2)+' €':'')+'</td><td style="font-weight:600;">'+t._solde.toFixed(2)+' €</td><td>'+(t.pointe?'✅':'')+'</td></tr>';
+  });
+  html += '</table></div></div><div class="footer"><p>Ipsum Média · contact@ipsummedia.fr</p><p>Document généré le '+today+'</p></div></div></body></html>';
+
+  win.document.write(html);
+  win.document.close();
+}
+
+
 function osBoutiqueRender(){
   var wc = document.getElementById('wincontent-boutique');
   if(!wc) return;
@@ -11448,6 +12118,7 @@ var _appRefreshMap = {
   'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
   'notes':          function(){ osNotesRender&&osNotesRender(); },
   'boutique':       function(){ osBoutiqueRender(); },
+  'tresorerie':     function(){ osTresorerieRender(); },
   'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc && typeof osStatsDashRender==='function') osStatsDashRender(); }
 };
 
@@ -11721,8 +12392,9 @@ function osOpenWindow(pageId){
     osAfficherInterdit();
     return;
   }
-  // Démarrer le chrono pour les fenêtres chronométrées
-  if(pageId === 'redaction') osChronoStart('redaction');
+  // Apps externes
+  var appDef = (ALL_APPS_CATALOGUE||[]).find(function(a){return a.id===pageId;});
+  if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
   if(pageId === 'app-correction' || pageId === 'correction') osChronoStart('correction');
   _osOpenWindowExecuter(pageId);
   // Mettre à jour le dock pour montrer la fenêtre ouverte
@@ -12126,6 +12798,7 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'cps') cpsCharger();
     if(pageId === 'cps-admin') cpsAdminCharger();
     if(pageId === 'boutique') osBoutiqueRender();
+    if(pageId === 'tresorerie') osTresorerieRender();
   }, 100);
 }
 
@@ -12490,7 +13163,10 @@ function osStartStatusBar(){
   }
   tick();
   var userEl = document.getElementById('status-user');
-  if(userEl) userEl.textContent = getUserPrenom()+' · '+getUserRole();
+  if(userEl){
+    var roleLabel = {admin:'admin',redacteur:'rédacteur',correcteur:'correcteur',redac_chef:'rédac en chef'}[getUserRole()]||getUserRole();
+    userEl.innerHTML = getUserPrenom()+' <span style="background:rgba(255,255,255,0.2);padding:1px 6px;border-radius:3px;font-size:0.55rem;letter-spacing:.06em;text-transform:uppercase;">'+roleLabel+'</span>';
+  }
 }
 
 function osBuildDesktopIcons(){
@@ -12691,6 +13367,36 @@ function osBuildDesktopIcons(){
     
     container.appendChild(icon);
   });
+
+  // Raccourci Mail
+  var mailIcon = document.createElement('div');
+  mailIcon.className = 'desktop-icon';
+  mailIcon.onclick = function(){ window.open('https://mail.google.com/a/ipsummedia.fr','_blank'); };
+  var mailImg = document.createElement('div');
+  mailImg.className = 'desktop-icon-img';
+  mailImg.style.background = 'linear-gradient(135deg,#1A6BC4,#4285F4)';
+  mailImg.textContent = '✉️';
+  var mailLabel = document.createElement('div');
+  mailLabel.className = 'desktop-icon-label';
+  mailLabel.textContent = 'Mail';
+  mailIcon.appendChild(mailImg);
+  mailIcon.appendChild(mailLabel);
+  container.appendChild(mailIcon);
+
+  // Raccourci Communiqués de presse
+  var cpIcon = document.createElement('div');
+  cpIcon.className = 'desktop-icon';
+  cpIcon.onclick = function(){ osOpenWindow('cps'); };
+  var cpImg = document.createElement('div');
+  cpImg.className = 'desktop-icon-img';
+  cpImg.style.background = 'linear-gradient(135deg,#1A5276,#2E86C1)';
+  cpImg.textContent = '📋';
+  var cpLabel = document.createElement('div');
+  cpLabel.className = 'desktop-icon-label';
+  cpLabel.textContent = 'CPs';
+  cpIcon.appendChild(cpImg);
+  cpIcon.appendChild(cpLabel);
+  container.appendChild(cpIcon);
 }
 
 // Surcharger notif pour OS style
@@ -16342,6 +17048,20 @@ function cpsInvitationSeDeclarer(cpId){
   });
 }
 
+function cpsInvitationRetirerDisponibilite(dispId, cpId){
+  if(!confirm('Retirer cette disponibilité ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+dispId,{method:'DELETE',headers:authH})
+  .then(function(r){
+    if(r.ok){
+      notif('Disponibilité retirée','succes');
+      var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;});
+      if(cp){ var ex=document.getElementById('cp-fenetre-overlay'); if(ex) document.body.removeChild(ex); osCpFenetreRender(cp); }
+      else cpsAdminCharger();
+    } else { notif('Erreur','erreur'); }
+  });
+}
+
 function cpsInvitationSeRetirer(dispId, cpId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+dispId,{method:'DELETE',headers:authH})
@@ -16737,7 +17457,11 @@ function osCpFenetreRender(winId){
           html += '<div style="flex:1;font-size:0.8rem;color:var(--encre);">'+nom+'</div>';
           html += '<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>';
           if(isAdmin && d.statut === 'disponible'){
+            html += '<button onclick="cpsInvitationRetirerDisponibilite(\''+d.id+'\',\''+cp.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;background:white;border:0.5px solid #F5B7B1;color:#A32D2D;border-radius:4px;cursor:pointer;" title="Retirer">✕</button>';
             html += '<button onclick="cpsInvitationSelectionner(\''+d.id+'\',\''+cp.id+'\',\''+d.membre_id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:4px;cursor:pointer;">✓ Sélectionner</button>';
+          }
+          if(isAdmin && d.statut === 'selectionne'){
+            html += '<button onclick="cpsInvitationRetirerDisponibilite(\''+d.id+'\',\''+cp.id+'\')" style="font-family:monospace;font-size:0.58rem;padding:2px 7px;background:white;border:0.5px solid #F5B7B1;color:#A32D2D;border-radius:4px;cursor:pointer;" title="Retirer">✕ Retirer</button>';
           }
           html += '</div>';
         });
@@ -17955,7 +18679,10 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
   if(fonctionShort(membre.fonction)) h += '<div style="font-family:monospace;font-size:0.58rem;color:rgba(255,255,255,0.5);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
   h += '</div>';
-  h += '<button id="redac-carte-btn" style="font-family:monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;flex-shrink:0;">🪪 Carte</button>';
+  h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
+  h += '<button id="redac-carte-btn" style="font-family:monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;">🪪 Carte</button>';
+  h += '<button id="redac-bilan-btn" style="font-family:monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;">📋 Bilan</button>';
+  h += '</div>';
   h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;margin-top:8px;flex-wrap:wrap;">';
   h += '<span style="font-family:monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+'">'+(membre.role||'')+'</span>';
@@ -18970,6 +19697,8 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     osChargerHeuresMembre(uid);
     var btnCarte = document.getElementById('redac-carte-btn');
     if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, null); });
+    var btnBilan = document.getElementById('redac-bilan-btn');
+    if(btnBilan) btnBilan.addEventListener('click', function(){ osGenererBilanAnnuel(uid); });
     // Articles — fetch direct
     var zoneArts = document.getElementById('redac-mes-articles-liste');
     if(zoneArts) osRedacChargerMesArticles(zoneArts);
@@ -19515,6 +20244,7 @@ function osBenevolesOuvrirFiche(membreId){
   html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
   // Bouton carte d'adhérent — toujours visible (self ou admin)
   html += '<button id="benv-btn-carte" data-membre-id="'+esc(m.id)+'" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--encre);border-radius:6px;background:var(--encre);color:white;cursor:pointer;">🪪 Carte d\'adhérent</button>';
+  html += '<button id="benv-btn-bilan" data-membre-id="'+esc(m.id)+'" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #EA5B1C;border-radius:6px;background:#FFF5F2;color:#EA5B1C;cursor:pointer;">📋 Bilan annuel</button>';
   if(m.email){
     html += '<button id="benv-btn-relancer" data-membre-id="'+esc(m.id)+'" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">✉️ Relancer</button>';
     html += '<a href="mailto:'+esc(m.email)+'" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);text-decoration:none;">📧 Email direct</a>';
@@ -19601,6 +20331,8 @@ function osBenevolesOuvrirFiche(membreId){
   if(btnRelancer) btnRelancer.addEventListener('click', function(){ osBenevolesRelancer(this.dataset.membreId); });
   var btnCarte = card.querySelector('#benv-btn-carte');
   if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(m, s); });
+  var btnBilan = card.querySelector('#benv-btn-bilan');
+  if(btnBilan) btnBilan.addEventListener('click', function(){ osGenererBilanAnnuel(m.id); });
   var btnSuspendre = card.querySelector('#benv-btn-suspendre');
   if(btnSuspendre) btnSuspendre.addEventListener('click', function(){ osBenvSuspendre(this.dataset.membreId); });
   var btnReactiver = card.querySelector('#benv-btn-reactiver');
@@ -19609,6 +20341,115 @@ function osBenevolesOuvrirFiche(membreId){
   overlay.appendChild(card);
   overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
   document.body.appendChild(overlay);
+}
+
+function osGenererBilanAnnuel(membreId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var annee = new Date().getFullYear();
+  var debutAnnee = new Date(annee,0,1).toISOString();
+  var finAnnee   = new Date(annee,11,31,23,59,59).toISOString();
+  var uid = membreId || getUserId();
+  notif('Génération du bilan en cours…');
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+uid+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,description,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&select=evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&statut=eq.valide&select=cout_heures,article_id,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var membre   = (!res[0]||res[0].code)?null:res[0][0];
+    var articles = (!res[1]||res[1].code)?[]:res[1];
+    var heures   = (!res[2]||res[2].code)?[]:res[2];
+    var inscrits = (!res[3]||res[3].code)?[]:res[3];
+    var commandes= (!res[4]||res[4].code)?[]:res[4];
+    var artsBout = (!res[5]||res[5].code)?[]:res[5];
+    if(!membre){ notif('Membre introuvable','erreur'); return; }
+
+    // Fetch sujets maintenant qu'on a le nom du membre
+    var nomComplet = (membre.prenom||'')+' '+(membre.nom||'');
+    fetch(SB_URL+'/rest/v1/briefing?responsable=eq.'+encodeURIComponent(nomComplet)+'&select=id,titre,statut,type&order=created_at.desc',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(sujets){
+      sujets = (!sujets||sujets.code)?[]:sujets;
+    var prenom = membre.prenom||''; var nom = membre.nom||'';
+    var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice'};
+    var roleLabel = ROLE_LABELS[membre.role]||membre.role||'Membre';
+    var totalMin = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
+    var totalH = Math.floor(totalMin/60); var totalM = totalMin%60;
+    var hStr = totalH+'h'+(totalM?totalM+'m':'');
+    var publis = articles.filter(function(a){return a.statut==='publie';});
+    var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    var STATUT_LABELS = {publie:'Publié',valide:'Validé','en-relecture':'En relecture',corrige:'Corrigé',brouillon:'Brouillon'};
+    var STATUT_COLORS = {publie:'#155724',valide:'#0C5460','en-relecture':'#1A5276',corrige:'#856404',brouillon:'#6c757d'};
+    var win = window.open('','_blank','width=800,height=900');
+    if(!win){ notif('Autorise les popups pour générer le bilan'); return; }
+    var initiales = (prenom[0]||'?').toUpperCase()+(nom[0]||'?').toUpperCase();
+    var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
+      +'<title>Bilan '+annee+' \u2014 '+prenom+' '+nom+'</title>'
+      +'<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">'
+      +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#F5F5F7;font-family:Poppins,sans-serif;padding:32px 24px;color:#1A1A2E;}.doc{max-width:720px;margin:0 auto;background:white;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.08);overflow:hidden;}.header{background:#1A1A2E;padding:32px 40px;display:flex;align-items:center;gap:24px;}.avatar{width:64px;height:64px;border-radius:50%;background:#EA5B1C;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:white;flex-shrink:0;}.header-info h1{font-size:1.5rem;font-weight:800;color:white;}.header-info p{font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:rgba(255,255,255,0.5);margin-top:4px;text-transform:uppercase;letter-spacing:0.1em;}.body{padding:32px 40px;display:flex;flex-direction:column;gap:28px;}.st{font-family:"IBM Plex Mono",monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:#EA5B1C;margin-bottom:12px;border-bottom:1.5px solid #EA5B1C;padding-bottom:6px;}.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}.sv{background:#F5F5F7;border-radius:10px;padding:14px;text-align:center;}.svv{font-size:1.6rem;font-weight:800;color:#1A1A2E;}.svl{font-family:"IBM Plex Mono",monospace;font-size:0.52rem;text-transform:uppercase;color:#888;margin-top:3px;}table{width:100%;border-collapse:collapse;}tr:nth-child(even){background:#F9F9F9;}td{padding:7px 12px;font-size:0.82rem;}.badge{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:0.58rem;padding:2px 8px;border-radius:10px;font-weight:600;}.footer{background:#F5F5F7;padding:20px 40px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eee;}.footer p{font-family:"IBM Plex Mono",monospace;font-size:0.62rem;color:#888;}.seal{border:2px solid #EA5B1C;border-radius:50%;width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-size:0.5rem;text-align:center;color:#EA5B1C;font-family:"IBM Plex Mono",monospace;font-weight:700;text-transform:uppercase;line-height:1.2;}@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}}</style></head><body>'
+      +'<div class="np" style="max-width:720px;margin:0 auto 16px;display:flex;gap:10px;justify-content:flex-end;">'
+      +'<button onclick="window.print()" style="background:#EA5B1C;color:white;border:none;padding:8px 18px;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;cursor:pointer;font-size:0.85rem;">\uD83D\uDDB8 Imprimer / PDF</button>'
+      +'<button onclick="window.close()" style="background:#eee;color:#333;border:none;padding:8px 18px;border-radius:8px;font-family:Poppins,sans-serif;cursor:pointer;font-size:0.85rem;">Fermer</button>'
+      +'</div>'
+      +'<div class="doc">'
+      +'<div class="header"><div class="avatar">'+initiales+'</div>'
+      +'<div class="header-info"><h1>'+prenom+' '+nom+'</h1><p>'+roleLabel+' \u00b7 Bilan annuel '+annee+'</p></div>'
+      +'<div style="margin-left:auto;text-align:right;"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.62rem;color:rgba(255,255,255,0.4);">Ipsum M\u00e9dia</div>'
+      +'<div style="font-size:2rem;font-weight:800;color:#EA5B1C;">'+annee+'</div></div></div>'
+      +'<div class="body">'
+      +'<div style="background:#FFF5F2;border-left:4px solid #EA5B1C;border-radius:0 8px 8px 0;padding:14px 18px;">'
+      +'<p style="font-size:0.85rem;line-height:1.6;color:#444;">L\'association <strong>Ipsum M\u00e9dia</strong> certifie que <strong>'+prenom+' '+nom+'</strong> ('+roleLabel.toLowerCase()+') a contribu\u00e9 activement \u00e0 ses activit\u00e9s au cours de l\'ann\u00e9e <strong>'+annee+'</strong>.</p></div>'
+      +'<div><div class="st">R\u00e9sum\u00e9 de l\'ann\u00e9e</div><div class="sg">'
+      +'<div class="sv"><div class="svv">'+hStr+'</div><div class="svl">B\u00e9n\u00e9volat</div></div>'
+      +'<div class="sv"><div class="svv">'+publis.length+'</div><div class="svl">Articles publi\u00e9s</div></div>'
+      +'<div class="sv"><div class="svv">'+inscrits.length+'</div><div class="svl">Activit\u00e9s</div></div>'
+      +'<div class="sv"><div class="svv">'+sujets.length+'</div><div class="svl">Sujets trait\u00e9s</div></div>'
+      +'</div></div>';
+    if(articles.length){
+      html += '<div><div class="st">Articles ('+articles.length+')</div><table>';
+      articles.forEach(function(a){
+        var sl=STATUT_LABELS[a.statut]||a.statut; var sc=STATUT_COLORS[a.statut]||'#333';
+        var d=a.updated_at?new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';
+        html+='<tr><td>'+esc(a.titre||'Sans titre')+'</td>'
+          +'<td style="text-align:right;"><span class="badge" style="background:'+sc+'22;color:'+sc+';">'+sl+'</span></td>'
+          +'<td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:0.62rem;color:#888;white-space:nowrap;">'+d+'</td></tr>';
+      });
+      html += '</table></div>';
+    }
+    if(heures.length){
+      var parType={};
+      heures.forEach(function(h){ var t=h.type||'autre'; parType[t]=(parType[t]||0)+(h.duree_minutes||0); });
+      var TL={redaction:'R\u00e9daction',correction:'Correction',agenda:'Participation activit\u00e9s',invitation_presse:'Couverture presse',autre:'Autre'};
+      html+='<div><div class="st">Heures de b\u00e9n\u00e9volat ('+hStr+')</div><table>';
+      Object.keys(parType).forEach(function(t){
+        var min=parType[t]; var h2=Math.floor(min/60)+'h'+(min%60?(min%60)+'m':'');
+        html+='<tr><td>'+( TL[t]||t)+'</td><td style="text-align:right;font-weight:700;">'+h2+'</td></tr>';
+      });
+      html+='</table></div>';
+    }
+    if(inscrits.length){
+      html+='<div><div class="st">Activit\u00e9s ('+inscrits.length+')</div>'
+        +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem;color:#888;">'+inscrits.length+' participation(s) confirm\u00e9e(s) \u00e0 des \u00e9v\u00e9nements de la r\u00e9daction.</p></div>';
+    }
+    if(commandes.length){
+      var depH=commandes.reduce(function(s,c){return s+(c.cout_heures||0);},0);
+      html+='<div><div class="st">R\u00e9compenses obtenues ('+depH+'h \u00e9chang\u00e9es)</div><table>';
+      commandes.forEach(function(cmd){
+        var art=artsBout.find(function(a){return a.id===cmd.article_id;});
+        html+='<tr><td>'+(art?esc(art.nom):'R\u00e9compense')+'</td><td style="text-align:right;font-weight:700;color:#7D3C98;">'+cmd.cout_heures+'h</td></tr>';
+      });
+      html+='</table></div>';
+    }
+    html+='</div>'
+      +'<div class="footer"><div><p>Document g\u00e9n\u00e9r\u00e9 le '+today+'</p><p style="margin-top:4px;">contact@ipsummedia.fr</p></div>'
+      +'<div class="seal">Ipsum<br>M\u00e9dia<br>'+annee+'</div></div>'
+      +'</div></body></html>';
+    win.document.write(html);
+    win.document.close();
+    }).catch(function(){});
+  }).catch(function(){ notif('Erreur g\u00e9n\u00e9ration bilan','erreur'); });
 }
 
 function osGenererCarteAdherent(m, s){
@@ -21383,6 +22224,8 @@ var ALL_APPS_CATALOGUE = [
   { id:'visuels-pro',    icon:'🎨', label:'Visuels Pro',    color:'#155724', roles:['redacteur','redac_chef','admin'] },
   { id:'newsletter',     icon:'📨', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
   { id:'tutos',          icon:'📖', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
+  { id:'mail',           icon:'✉️', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
+  { id:'tresorerie',     icon:'💶', label:'Trésorerie',     color:'#0F6E56', roles:['admin'], fonctions:['tresorier'] },
   { id:'boutique',       icon:'🎁', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
   { id:'stats-dashboard',icon:'📊', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'👥', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
@@ -21404,10 +22247,10 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions','boutique'],
-  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions','boutique'],
-  redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda','boutique'],
-  admin:      ['redaction','mes-articles','app-correction','statut','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique'],
+  redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels','visuels-pro','tutos','tchap','projets','redactions','boutique','mail'],
+  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions','boutique','mail'],
+  redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','tutos','tchap','projets','redactions','agenda','boutique','mail'],
+  admin:      ['redaction','mes-articles','app-correction','statut','carnet','notes','compo-store','cps-admin','visuels','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
 
 window._userApps = null;
@@ -22884,10 +23727,36 @@ function osAgendaCharger(){
   if(!body) return;
   body.innerHTML = '<div style="padding:2rem;text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);">Chargement...</div>';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_evenements?statut=neq.supprime&order=date_debut.asc&select=*',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(evs){
-    _agendaEvenements = (!evs||evs.code)?[]:evs;
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/agenda_evenements?statut=neq.supprime&order=date_debut.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=not.is.null&select=id,titre,date_evenement,lieu_evenement,places_max,date_reponse,reponse_requise',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var evs    = (!res[0]||res[0].code)?[]:res[0];
+    var invits = (!res[1]||res[1].code)?[]:res[1];
+
+    // Convertir les invitations presse en événements agenda virtuels
+    invits.forEach(function(inv){
+      var dejaDans = evs.some(function(e){ return e.created_by_cp===inv.id; });
+      if(!dejaDans){
+        var fin = inv.date_evenement ? new Date(new Date(inv.date_evenement).getTime()+3600000).toISOString() : null;
+        evs.push({
+          id: 'cp-'+inv.id,
+          titre: inv.titre,
+          type: 'invitation_presse',
+          date_debut: inv.date_evenement,
+          date_fin: fin,
+          lieu: inv.lieu_evenement,
+          statut: 'publie',
+          places_max: inv.places_max,
+          _cpId: inv.id,
+          _virtuel: true
+        });
+      }
+    });
+
+    evs.sort(function(a,b){ return new Date(a.date_debut)-new Date(b.date_debut); });
+    _agendaEvenements = evs;
     osAgendaRendreVue();
   }).catch(function(){
     if(body) body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.82rem;">Erreur chargement</div>';
@@ -23326,6 +24195,15 @@ function osAgendaJourDetail(evs){
 }
 
 function osAgendaOuvrirDetail(ev){
+  // Événement virtuel = invitation presse → ouvrir dans l'appli CPs
+  if(ev._virtuel && ev._cpId){
+    osOpenWindow('cps');
+    setTimeout(function(){
+      window._cpsFiltreActif = 'invitation_presse';
+      cpsCharger();
+    }, 400);
+    return;
+  }
   var uid = getUserId();
   var isAdmin = getUserRole() === 'admin';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
