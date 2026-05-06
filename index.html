@@ -3519,6 +3519,16 @@ input:focus,select:focus,textarea:focus{
   <div id="os-workspace">
     <div id="os-desktop-icons"></div>
 
+    <!-- WIDGET MEMBRES EN LIGNE -->
+    <div id="os-online-widget" style="position:absolute;bottom:90px;right:130px;pointer-events:none;user-select:none;text-align:center;">
+      <div id="os-online-count" style="font-family:'IBM Plex Mono',monospace;font-size:1.8rem;font-weight:700;color:rgba(255,255,255,0.85);text-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:1;">—</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#4CAF50;box-shadow:0 0 6px #4CAF50;"></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.1em;">En ligne</div>
+      </div>
+      <div id="os-online-names" style="font-family:'IBM Plex Mono',monospace;font-size:0.52rem;color:rgba(255,255,255,0.3);margin-top:4px;max-width:100px;text-align:center;line-height:1.4;"></div>
+    </div>
+
     <!-- HORLOGE ANALOGIQUE STYLE APPLE -->
     <div id="os-clock-widget" style="position:absolute;bottom:90px;right:24px;pointer-events:none;user-select:none;text-align:center;">
       <svg id="os-clock-svg" width="90" height="90" viewBox="0 0 90 90" style="filter:drop-shadow(0 4px 20px rgba(0,0,0,0.4));">
@@ -9711,6 +9721,8 @@ function osPresenceCharger(){
     data.forEach(function(p){ _presenceData[p.membre_id] = p.last_seen; });
     // Mettre à jour les indicateurs déjà affichés
     osPresenceMajIndicateurs();
+    // Mettre à jour le widget bureau
+    osPresenceMajWidget();
   }).catch(function(){});
 }
 
@@ -11939,7 +11951,25 @@ function osBoutiqueVoirCommandes(){
   osBoutiqueOnglet('admin');
 }
 
-// ===== HORLOGE ANALOGIQUE =====
+// ===== WIDGET EN LIGNE (utilise _presenceData du système existant) =====
+function osPresenceMajWidget(){
+  var membres = Object.keys(_presenceData||{});
+  var enLigne = membres.filter(function(id){ return osEstEnLigne(id); });
+  var countEl = document.getElementById('os-online-count');
+  var namesEl = document.getElementById('os-online-names');
+  if(countEl) countEl.textContent = enLigne.length;
+  if(namesEl && window._membresData){
+    var uid = getUserId();
+    var autres = enLigne.filter(function(id){return id!==uid;});
+    var noms = autres.slice(0,3).map(function(id){
+      var m = (_membresData||[]).find(function(x){return x.id===id;});
+      return m ? (m.prenom||'') : '';
+    }).filter(Boolean);
+    namesEl.textContent = noms.join(', ')+(autres.length>3?' +'+(autres.length-3):'');
+  }
+}
+
+
 function osClockInit(){
   var JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
   var MOIS = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
@@ -17055,9 +17085,17 @@ function cpsInvitationRetirerDisponibilite(dispId, cpId){
   .then(function(r){
     if(r.ok){
       notif('Disponibilité retirée','succes');
-      var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;});
-      if(cp){ var ex=document.getElementById('cp-fenetre-overlay'); if(ex) document.body.removeChild(ex); osCpFenetreRender(cp); }
-      else cpsAdminCharger();
+      var ex = document.getElementById('cp-fenetre-overlay');
+      if(ex) document.body.removeChild(ex);
+      // Recharger le CP depuis la base pour rouvrir la fiche
+      var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+      fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*',{headers:authHGet})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var cp = data&&data[0];
+        if(cp) osCpFenetreRender(cp);
+        else cpsAdminCharger();
+      }).catch(function(){ cpsAdminCharger(); });
     } else { notif('Erreur','erreur'); }
   });
 }
@@ -17275,9 +17313,12 @@ function cpsMakeCard(cp, isAdmin){
   var uid = getUserId();
   var dispBtn = '';
   if(cp.type === 'invitation_presse' && cp.statut === 'publie'){
-    dispBtn = '<div style="margin-top:0.5rem;" onclick="event.stopPropagation()">'
-      +'<button onclick="cpsInvitationSeDeclarer(\''+cp.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:3px 10px;background:#FDEBD0;border:0.5px solid #784212;color:#784212;border-radius:5px;cursor:pointer;">✋ Je suis disponible</button>'
-      +'</div>';
+    var evPasse = cp.date_evenement && new Date(cp.date_evenement) < new Date();
+    if(!evPasse){
+      dispBtn = '<div style="margin-top:0.5rem;" onclick="event.stopPropagation()">'
+        +'<button onclick="cpsInvitationSeDeclarer(\''+cp.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:3px 10px;background:#FDEBD0;border:0.5px solid #784212;color:#784212;border-radius:5px;cursor:pointer;">✋ Je suis disponible</button>'
+        +'</div>';
+    }
   }
 
   card.innerHTML =
