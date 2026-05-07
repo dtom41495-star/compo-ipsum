@@ -11756,6 +11756,9 @@ function osTresorerieBudgetSupprimer(id){
 
 function osTresorerieBilan(){
   var txs = window._tresorerieData || [];
+  var annee = new Date().getFullYear();
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var totalRecettes = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
   var totalDepenses = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
   var solde = totalRecettes - totalDepenses;
 
