@@ -5360,13 +5360,23 @@ var _corrOnglet = 'relecture';
 var _corrArticleEnCours = null;
 
 function osAppCorrectionRender(){
-  // Si la page s'ouvre dans une fenêtre, injecter le HTML de page-correction
   var wc = document.getElementById('wincontent-app-correction');
   if(wc && !wc.querySelector('#corr-tabs')){
     var src = document.getElementById('page-correction');
     if(src) wc.innerHTML = src.innerHTML;
   }
-  osAppCorrectionCharger();
+  // Si pas de rédac active, la charger d'abord
+  if(!window._redacActiveId){
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+getUserId()+'&select=redaction_id&limit=1',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data[0]) window._redacActiveId = data[0].redaction_id;
+      osAppCorrectionCharger();
+    }).catch(function(){ osAppCorrectionCharger(); });
+  } else {
+    osAppCorrectionCharger();
+  }
 }
 
 function osAppCorrectionCharger(){
@@ -5409,16 +5419,23 @@ function osAppCorrectionCharger(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var statuts = {brouillons:'brouillon', relecture:'en-relecture', corriges:'corrige', valides:'valide'};
   var statut = statuts[_corrOnglet]||'en-relecture';
-  var url = SB_URL+'/rest/v1/articles?statut=eq.'+statut+'&order=updated_at.desc&select=id,titre,auteur,auteur_id,statut,urgence,rubrique,updated_at,commentaire_correction';
-  // Chef/admin : tous les articles de la rédac. Correcteur : seulement en-relecture
-  if(!isChef){
-    url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId||'');
-  }
+
+  // Colonnes de base — sans commentaire_correction qui peut ne pas exister
+  var selectCols = 'id,titre,auteur,auteur_id,statut,urgence,rubrique,updated_at';
+  var url = SB_URL+'/rest/v1/articles?statut=eq.'+statut+'&order=updated_at.desc&select='+selectCols;
+
+  // Pas de filtre redaction_id — trop restrictif si non renseigné sur les articles
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    arts = (!arts||arts.code)?[]:arts;
+    // Si erreur Supabase (colonne manquante etc), arts.code est défini
+    if(!arts || arts.code){
+      console.error('Correction query error:', arts);
+      zone.innerHTML = '<div style="text-align:center;padding:2rem;color:#A32D2D;font-size:0.8rem;">Erreur : '+(arts&&arts.message||'requête échouée')+'</div>';
+      return;
+    }
+    arts = Array.isArray(arts) ? arts : [];
     if(sub) sub.textContent = arts.length+' article'+(arts.length>1?'s':'')+' · '+onglets.find(function(o){return o.id===_corrOnglet;}).desc;
 
     if(!arts.length){
@@ -5446,7 +5463,7 @@ function osAppCorrectionCharger(){
       h += '<div style="flex:1;min-width:200px;">';
       h += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+(URG[a.urgence]||'')+' '+esc(a.titre||'Sans titre')+'</div>';
       h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:3px;">Par '+esc(a.auteur||'')+(a.rubrique?' · '+esc(a.rubrique):'')+(d?' · '+d:'')+'</div>';
-      if(a.commentaire_correction && a.statut==='en-relecture'){
+      if(a.commentaire_correction && (a.statut==='en-relecture'||a.statut==='brouillon')){
         h += '<div style="font-size:0.68rem;background:#FFF3CD;border-left:3px solid #856404;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:5px;color:#856404;">💬 '+esc(a.commentaire_correction)+'</div>';
       }
       h += '</div>';
@@ -5484,13 +5501,16 @@ function osAppCorrectionAvancer(id, nouveauStatut){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
     method:'PATCH', headers:authH,
-    body:JSON.stringify({statut:nouveauStatut, commentaire_correction:null})
+    body:JSON.stringify({statut:nouveauStatut})
   }).then(function(r){
     if(r.ok){
       var labels = {'en-relecture':'Envoyé en correction ✓','corrige':'Marqué corrigé ✓','valide':'Validé ✓','publie':'Publié 🚀'};
       notif(labels[nouveauStatut]||'Mis à jour','succes');
       osAppCorrectionCharger();
-    } else notif('Erreur','erreur');
+    } else {
+      r.text().then(function(t){ console.error('PATCH erreur:',t); });
+      notif('Erreur — vérifie les droits RLS','erreur');
+    }
   });
 }
 
@@ -7775,8 +7795,8 @@ function mesArticlesOuvrir(id, action){
     } else if(action === 'edition'){
       chargerDansRedaction(docCompo);
     } else if(action === 'correction'){
-      go('correction');
-      setTimeout(function(){ renderCorrection(docCompo); }, 500);
+      // Ouvrir dans la rédaction — le workflow adaptera la barre d'actions selon le rôle
+      chargerDansRedaction(docCompo);
     } else if(action === 'diff'){
       go('lecture');
       setTimeout(function(){ renderDiffLecture(docCompo); }, 100);
@@ -9089,19 +9109,23 @@ function rWorkflowMajInterface(doc){
 function rWorkflowAvancer(nouveauStatut){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {statut:nouveauStatut};
+  // Ajouter commentaire_correction seulement si on passe à brouillon (renvoi)
+  // Pour les autres transitions, on ne touche pas au commentaire
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+currentDoc.id,{
     method:'PATCH', headers:authH,
-    body:JSON.stringify({statut:nouveauStatut, commentaire_correction:null})
+    body:JSON.stringify(payload)
   }).then(function(r){
     if(r.ok){
       currentDoc.statut = nouveauStatut;
-      currentDoc.commentaire_correction = null;
-      var labels = {corrige:'Marqué comme corrigé ✓',valide:'Article validé ✓',publie:'Article publié 🚀'};
+      var labels = {corrige:'Marqué comme corrigé ✓',valide:'Article validé ✓',publie:'Article publié 🚀','en-relecture':'Envoyé en correction ✓'};
       notif(labels[nouveauStatut]||'Statut mis à jour','succes');
       rWorkflowMajInterface(currentDoc);
-      // Notifier le rédacteur si publié
       if(nouveauStatut==='publie') rWorkflowNotifierRedacteur(currentDoc, 'publié');
-    } else notif('Erreur','erreur');
+    } else {
+      r.text().then(function(t){ console.error('PATCH erreur:',t); });
+      notif('Erreur — vérifie les droits RLS','erreur');
+    }
   });
 }
 
@@ -9110,13 +9134,13 @@ function rWorkflowRenvoyer(){
   if(!commentaire||!commentaire.trim()) return;
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {statut:'brouillon'};
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+currentDoc.id,{
     method:'PATCH', headers:authH,
-    body:JSON.stringify({statut:'brouillon', commentaire_correction:commentaire.trim()})
+    body:JSON.stringify(payload)
   }).then(function(r){
     if(r.ok){
       currentDoc.statut='brouillon';
-      currentDoc.commentaire_correction=commentaire.trim();
       notif('Article renvoyé au rédacteur','succes');
       rWorkflowMajInterface(currentDoc);
     } else notif('Erreur','erreur');
@@ -15237,13 +15261,20 @@ function osFichiersMajBadge(){
 
 
 function sauvegarderCloud(){
-  var auteur = document.getElementById('r-auteur').value.trim();
-  var titre = document.getElementById('r-titre').value.trim();
-  if(!auteur||!titre){ notif('Remplis au moins le titre et ton nom'); return; }
-  
+  var titre = (document.getElementById('r-titre')||{}).value||'';
+  if(!titre.trim()){ notif('Remplis au moins le titre'); return; }
+
   var doc = buildDoc();
-  doc.statut = 'brouillon';
-  
+
+  // Préserver le statut existant — ne pas repasser en brouillon si le correcteur/chef sauvegarde
+  var role = getUserRole();
+  var isAuteur = !currentDoc || !currentDoc.auteur_id || currentDoc.auteur_id === getUserId();
+  if(isAuteur){
+    // Rédacteur — on peut forcer brouillon seulement si l'article est brouillon
+    if(!doc.statut || doc.statut === 'brouillon') doc.statut = 'brouillon';
+  }
+  // Correcteur/chef — on garde le statut actuel, pas de downgrade
+
   // Mode offline
   if(!osVerifierConnexion()){
     osSauvegarderOfflineQueue(doc);
@@ -26037,45 +26068,23 @@ var PROJETS_PRIOS = {
   urgente:  { l:'Urgente', bg:'#FCEBEB', c:'#A32D2D' }
 };
 
+var PROJETS_EXTERNAL_URL = 'https://ipsum-media.github.io/ipsum-projets/';
+
+var PROJETS_EXTERNAL_URL = 'https://iprojets.ipsummedia.fr/';
+
 function osProjetsRender(){
-  var wc = document.getElementById('wincontent-projets');
-  if(!wc) return;
-  var isAdmin = getUserRole()==='admin';
-  var uid = getUserId();
-  wc.innerHTML = '';
-  wc.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
-  var left = document.createElement('div');
-  left.id = 'projets-left';
-  left.style.cssText = 'width:240px;flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);';
+  var bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;gap:0.5rem;';
+  bar.innerHTML = '<div style="flex:1;font-size:0.72rem;color:var(--gris);">📋 Ipsum Projets</div>'
+    +'<a href="'+PROJETS_EXTERNAL_URL+'" target="_blank" style="font-size:0.65rem;padding:3px 10px;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);text-decoration:none;">⛶ Plein écran</a>';
+  wc.appendChild(bar);
 
-  var leftHdr = document.createElement('div');
-  leftHdr.style.cssText = 'padding:0.7rem 1rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.5rem;flex-shrink:0;';
-  leftHdr.innerHTML = '<div style="flex:1;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);">📋 Projets</div>'
-    +(isAdmin?'<button id="projets-new-btn" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 9px;font-family:monospace;font-size:0.62rem;cursor:pointer;">+ Nouveau</button>':'');
-  left.appendChild(leftHdr);
-
-  var projList = document.createElement('div');
-  projList.id = 'projets-list';
-  projList.style.cssText = 'flex:1;overflow-y:auto;';
-  projList.innerHTML = osLoadingHtml();
-  left.appendChild(projList);
-
-  var right = document.createElement('div');
-  right.id = 'projets-right';
-  right.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
-  right.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.8rem;color:var(--gris);"><div style="font-size:2.5rem;">📋</div><div style="font-family:monospace;font-size:0.72rem;">Sélectionne ou crée un projet</div></div>';
-
-  wc.appendChild(left);
-  wc.appendChild(right);
-
-  if(isAdmin){
-    setTimeout(function(){
-      var btn = document.getElementById('projets-new-btn');
-      if(btn) btn.onclick = function(){ osProjetsFormulaireProjet(null); };
-    },50);
-  }
-  osProjetsChargerListe();
+  var iframe = document.createElement('iframe');
+  iframe.src = PROJETS_EXTERNAL_URL;
+  iframe.style.cssText = 'flex:1;width:100%;border:none;';
+  iframe.allow = 'clipboard-write';
+  wc.appendChild(iframe);
 }
 
 function osProjetsChargerListe(){
