@@ -9,7 +9,287 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
-/* ===== IPSUM OS - macOS STYLE ===== */
+/* ===== MATERIAL DESIGN 3 — IPSUM MÉDIA REFRESH ===== */
+
+/* Import Roboto Flex pour les titres + DM Sans pour le corps */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600;8..144,700&display=swap');
+
+:root {
+  /* Tokens MD3 mappés sur l'identité Ipsum */
+  --md-primary:           #E8461E;
+  --md-on-primary:        #FFFFFF;
+  --md-primary-container: #FDEEE9;
+  --md-on-primary-container: #5C1A07;
+  --md-surface:           #FDFAF9;
+  --md-surface-variant:   #F2EDEA;
+  --md-on-surface:        #1A1A2E;
+  --md-on-surface-variant:#6B6560;
+  --md-outline:           #C8C0BB;
+  --md-outline-variant:   #E5E0DC;
+  --md-error:             #BA1A1A;
+  --md-error-container:   #FFDAD6;
+  --md-shadow:            rgba(0,0,0,0.08);
+
+  /* Élévations MD3 */
+  --md-elev-1: 0 1px 2px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+  --md-elev-2: 0 2px 6px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
+  --md-elev-3: 0 4px 12px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.08);
+  --md-elev-4: 0 8px 24px rgba(0,0,0,.14), 0 3px 8px rgba(0,0,0,.10);
+
+  /* Shape — coins arrondis MD3 */
+  --md-shape-xs:   4px;
+  --md-shape-sm:   8px;
+  --md-shape-md:   12px;
+  --md-shape-lg:   16px;
+  --md-shape-xl:   28px;
+  --md-shape-full: 50px;
+}
+
+/* ── Typographie ── */
+.os-window-content,
+.page,
+.modal,
+.mo-b,
+.mo-body {
+  font-family: 'DM Sans', 'Roboto Flex', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--md-on-surface);
+}
+
+/* ── Fenêtres ── */
+.os-window {
+  border-radius: var(--md-shape-lg) !important;
+  box-shadow: var(--md-elev-4), 0 24px 64px rgba(0,0,0,.22) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  background: rgba(253,250,249,0.97) !important;
+  backdrop-filter: blur(40px) saturate(160%) !important;
+}
+.os-window.active {
+  box-shadow: var(--md-elev-4), 0 32px 80px rgba(0,0,0,.28), 0 0 0 1.5px rgba(232,70,30,0.25) !important;
+}
+.os-titlebar {
+  background: rgba(242,237,234,0.95) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  border-radius: var(--md-shape-lg) var(--md-shape-lg) 0 0 !important;
+}
+.os-titlebar-title {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  color: var(--md-on-surface-variant) !important;
+}
+
+/* ── Boutons — Material filled / outlined / text ── */
+.btn,
+button.btn,
+[class*="btn-"]:not(.os-btn-win):not(.dock-icon):not(.vue-btn):not(.filter-chip) {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.01em !important;
+  border-radius: var(--md-shape-full) !important;
+  transition: box-shadow 0.2s, background 0.15s, transform 0.1s !important;
+  cursor: pointer !important;
+}
+
+/* Filled button (rouge) */
+.btn,
+.btn-submit,
+.btn-primary,
+[style*="background:var(--rouge)"],
+[style*="background: var(--rouge)"] {
+  box-shadow: var(--md-elev-1) !important;
+}
+.btn:hover,
+.btn-submit:hover {
+  box-shadow: var(--md-elev-2) !important;
+  filter: brightness(1.05) !important;
+}
+.btn:active,
+.btn-submit:active {
+  box-shadow: none !important;
+  transform: scale(0.98) !important;
+}
+
+/* ── Inputs ── */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.85rem !important;
+  border-radius: var(--md-shape-sm) !important;
+  border: 1.5px solid var(--md-outline) !important;
+  background: var(--md-surface) !important;
+  color: var(--md-on-surface) !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+  outline: none !important;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--md-primary) !important;
+  box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
+}
+
+/* Textarea rédaction — style plus généreux */
+#r-corps,
+#r-chapeau,
+#r-angle {
+  border-radius: var(--md-shape-md) !important;
+  padding: 0.8rem 1rem !important;
+  line-height: 1.65 !important;
+  background: white !important;
+  border-color: var(--md-outline-variant) !important;
+}
+#r-corps:focus,
+#r-chapeau:focus {
+  border-color: var(--md-primary) !important;
+  box-shadow: 0 0 0 3px rgba(232,70,30,0.10) !important;
+}
+
+/* ── Cards / panneaux ── */
+.os-window-content .card,
+.os-window-content [class*="-card"],
+.os-window-content [style*="border-radius:10px"],
+.os-window-content [style*="border-radius: 10px"] {
+  border-radius: var(--md-shape-md) !important;
+  box-shadow: var(--md-elev-1) !important;
+  border: 1px solid var(--md-outline-variant) !important;
+}
+
+/* ── Modales ── */
+.modal,
+.mo {
+  border-radius: var(--md-shape-xl) !important;
+  box-shadow: var(--md-elev-4) !important;
+  overflow: hidden !important;
+}
+.modal-hdr,
+.mo-hdr,
+.mo-h {
+  background: var(--md-on-surface) !important;
+  padding: 1.1rem 1.4rem !important;
+}
+.overlay,
+.ov {
+  backdrop-filter: blur(8px) saturate(140%) !important;
+}
+
+/* ── Badges / chips ── */
+.bdg,
+[class*="badge"],
+[style*="border-radius:3px"],
+[style*="border-radius: 3px"] {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  border-radius: var(--md-shape-xs) !important;
+}
+
+/* ── Scrollbars MD3 ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--md-outline);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--md-on-surface-variant); }
+
+/* ── Status bar ── */
+#os-status-bar {
+  background: linear-gradient(90deg, #D93D18, #B83210) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25) !important;
+}
+
+/* ── Toast ── */
+.os-toast {
+  border-radius: var(--md-shape-md) !important;
+  box-shadow: var(--md-elev-3) !important;
+}
+
+/* ── Séparateurs ── */
+hr, [class*="-sep"]:not(.dock-sep) {
+  border: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  margin: 0.8rem 0 !important;
+}
+
+/* ── Ripple effect sur les boutons cliquables ── */
+.btn, .dock-icon-img, .os-btn-win {
+  position: relative !important;
+  overflow: hidden !important;
+}
+.md-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transform: scale(0);
+  animation: md-ripple-anim 0.5s linear;
+  pointer-events: none;
+}
+@keyframes md-ripple-anim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Sidebar Ma rédac ── */
+.redac-sidebar {
+  background: var(--md-surface-variant) !important;
+  border-right: 1px solid var(--md-outline-variant) !important;
+}
+
+/* ── Onglets ── */
+.com-tab, .corr-tab, .vue-btn, .filter-chip {
+  border-radius: var(--md-shape-full) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+
+/* ── Dock refresh ── */
+#os-dock-inner {
+  background: rgba(20,18,24,0.65) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+.dock-icon-img {
+  border-radius: 13px !important;
+  box-shadow: var(--md-elev-2) !important;
+}
+
+/* ── Login ── */
+.os-login-right {
+  background: #FDF6F3 !important;
+}
+.os-login-field input {
+  border-radius: var(--md-shape-md) !important;
+  border: 1.5px solid var(--md-outline) !important;
+  background: white !important;
+  padding: 0.7rem 1rem !important;
+  font-size: 0.9rem !important;
+  transition: border-color .15s, box-shadow .15s !important;
+}
+.os-login-field input:focus {
+  border-color: var(--md-primary) !important;
+  box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
+}
+
+/* ── État de focus visible (accessibilité) ── */
+:focus-visible {
+  outline: 2px solid var(--md-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* ===== FIN MATERIAL REFRESH ===== */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -5264,11 +5544,65 @@ function exporterArticle(){
   }
 }
 
+function osPopulerSelectRedaction(){
+  var uid = getUserId();
+  var role = getUserRole();
+
+  // Admin voit toutes les rédactions, les autres seulement les leurs
+  var redacsAutorisees;
+  if(role === 'admin'){
+    redacsAutorisees = redactions;
+  } else {
+    var mesIds = membreRedacs.filter(function(mr){ return mr.membre_id === uid; }).map(function(mr){ return mr.redaction_id; });
+    redacsAutorisees = redactions.filter(function(r){ return mesIds.indexOf(r.id) !== -1; });
+  }
+
+  if(!redacsAutorisees.length) return; // Garder les options statiques en fallback
+
+  // Repeupler le select
+  var currentVal = el.value;
+  el.innerHTML = '';
+  redacsAutorisees.forEach(function(r){
+    var opt = document.createElement('option');
+    opt.value = r.nom;
+    opt.textContent = r.nom;
+    opt.dataset.redacId = r.id;
+    el.appendChild(opt);
+  });
+
+  // Sélectionner la rédaction active
+  var redacActive = window._redacActiveId ? redactions.find(function(r){ return r.id === window._redacActiveId; }) : null;
+  if(redacActive){
+    for(var i=0; i<el.options.length; i++){
+      if(el.options[i].value === redacActive.nom){ el.selectedIndex=i; break; }
+    }
+  } else if(currentVal){
+    el.value = currentVal;
+  }
+}
+
+
 function resetRedaction(){
   currentDoc = null; // Nouvel article -> nouvel ID
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
-  document.getElementById('r-redaction').value='Rédaction Tarn';
+  // Pré-remplir la rédaction depuis la rédaction active du membre
+  var redacEl = document.getElementById('r-redaction');
+  if(redacEl){
+    var redacNomActif = 'Rédaction Tarn'; // fallback
+    if(window._redacActiveId && window._redactionsData){
+      var redacActive = _redactionsData.find(function(r){ return r.id === window._redacActiveId; });
+      if(redacActive) redacNomActif = redacActive.nom;
+    }
+    // Chercher l'option correspondante ou sélectionner la plus proche
+    var found = false;
+    for(var i=0; i<redacEl.options.length; i++){
+      if(redacEl.options[i].value === redacNomActif || redacEl.options[i].text === redacNomActif){
+        redacEl.selectedIndex = i; found = true; break;
+      }
+    }
+    if(!found) redacEl.value = redacNomActif;
+  }
   tags=[];renderTags();imgB64=null; imgFile=null;cpLies=[];
   removeImg();renderCpLies();
   // Réinitialiser le CP source
@@ -9072,6 +9406,7 @@ function chargerDansRedaction(doc){
   }
   go('redaction');
   setTimeout(function(){
+    osPopulerSelectRedaction(); // Peupler le select avec les rédactions du membre
     setType(doc.type||'article');
     document.getElementById('r-auteur').value = doc.auteur||'';
     var titreEl = document.getElementById('r-titre');
@@ -9700,6 +10035,7 @@ function brfPartirRedaction(titre, sujetId){
   go('redaction');
   setTimeout(function(){
     resetRedaction();
+    osPopulerSelectRedaction();
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = titre; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
     preremplirAuteur();
@@ -13007,6 +13343,40 @@ setInterval(function(){
   }).catch(function(){});
 }, 5 * 60 * 1000);
 
+// ── Vérification périodique des nouveaux CPs ──
+var _cpLastVu = localStorage.getItem('compo_cp_last_vu') || new Date(0).toISOString();
+
+function osCheckNouveauxCPs(){
+  if(!_session || !getUserId()) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&created_at=gt.'+encodeURIComponent(_cpLastVu)+'&order=created_at.desc&select=id,titre,organisation&limit=5',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data||data.code||!data.length) return;
+    var nb = data.length;
+    var titre = data[0].titre || data[0].organisation || 'Nouveau communiqué';
+    var msg = nb > 1
+      ? nb + ' nouveaux communiqués de presse disponibles'
+      : '📰 ' + titre;
+    notifPersistante(
+      msg,
+      'info',
+      'Voir les CPs',
+      function(){ osOpenWindow('cps'); },
+      '📨'
+    );
+    // Mettre à jour le badge sur l'icône CPs
+    osMajBadge('cps', nb);
+    // Mémoriser la date
+    _cpLastVu = new Date().toISOString();
+    localStorage.setItem('compo_cp_last_vu', _cpLastVu);
+  }).catch(function(){});
+}
+
+// Vérifier au démarrage (après 5s) puis toutes les 5 minutes
+setTimeout(osCheckNouveauxCPs, 5000);
+setInterval(osCheckNouveauxCPs, 5 * 60 * 1000);
+
 // Met à jour un badge sur le dock ET dans le launchpad si ouvert
 function osMajBadge(appId, count){
   var dockBadge = document.getElementById('dock-badge-'+appId);
@@ -15194,99 +15564,157 @@ function osToggleFocusMode(){
   notif(_focusMode ? '🎯 Mode focus activé — notifications silencieuses' : '🔔 Mode focus désactivé', 'info');
 }
 
-// ===== GROUPEMENT DES TOASTS =====
+// ── Material ripple effect ──
+document.addEventListener('click', function(e){
+  var target = e.target.closest('.btn,.os-btn-win,.dock-icon-img');
+  if(!target) return;
+  var r = document.createElement('span');
+  r.className = 'md-ripple';
+  var rect = target.getBoundingClientRect();
+  var size = Math.max(rect.width, rect.height);
+  r.style.cssText = 'width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px;';
+  target.appendChild(r);
+  setTimeout(function(){ r.remove(); }, 600);
+});
+
+// ── Fin Material ──
+
 var _toastGroups = {}; // { type+msg: { toast, count, timer } }
 
-function osShowToast(msg, type){
-  // Mode focus — silencieux sauf erreurs
+function osShowToast(msg, type, opts){
+  // opts = { persistent: bool, action: {label, fn}, icon: emoji }
+  opts = opts || {};
   if(_focusMode && type !== 'erreur') return;
 
   var stack = document.getElementById('os-toast-stack');
   if(!stack) return;
 
   type = type || 'info';
-  var ICONS = { succes:'✓', erreur:'✕', alerte:'⚡', info:'ℹ' };
-  var DUREE = 3500;
+  var ICONS = { succes:'✅', erreur:'❌', alerte:'⚡', info:'ℹ️' };
+  var COLORS = { succes:'#27500A', erreur:'#A32D2D', alerte:'#633806', info:'#185FA5' };
+  var DUREE  = opts.persistent ? 0 : 4000;
 
-  // Clé de groupe — même type + message similaire (premiers 30 chars)
-  var groupKey = type + ':' + (msg||'').substring(0,30);
-  var existing = _toastGroups[groupKey];
-
-  if(existing && existing.toast && existing.toast.parentNode){
-    // Fusionner — incrémenter le compteur
-    existing.count++;
-    var countEl = existing.toast.querySelector('.os-toast-count');
-    if(!countEl){
-      countEl = document.createElement('span');
-      countEl.className = 'os-toast-count';
-      countEl.style.cssText = 'background:rgba(255,255,255,0.25);border-radius:10px;padding:1px 6px;font-size:0.6rem;font-weight:700;margin-left:4px;';
-      existing.toast.querySelector('.os-toast-msg').appendChild(countEl);
+  // Groupement — sauf si persistent
+  if(!opts.persistent){
+    var groupKey = type + ':' + (msg||'').substring(0,30);
+    var existing = _toastGroups[groupKey];
+    if(existing && existing.toast && existing.toast.parentNode){
+      existing.count++;
+      var countEl = existing.toast.querySelector('.os-toast-count');
+      if(!countEl){
+        countEl = document.createElement('span');
+        countEl.className = 'os-toast-count';
+        countEl.style.cssText = 'background:rgba(255,255,255,.22);border-radius:20px;padding:1px 7px;font-size:.58rem;font-weight:700;margin-left:5px;';
+        existing.toast.querySelector('.os-toast-msg').appendChild(countEl);
+      }
+      countEl.textContent = '×'+existing.count;
+      clearTimeout(existing.timer);
+      var barEl = existing.toast.querySelector('.os-toast-bar');
+      if(barEl){ barEl.style.transition='none'; barEl.style.width='100%'; setTimeout(function(){ barEl.style.transition='width '+DUREE+'ms linear'; barEl.style.width='0%'; },50); }
+      existing.timer = setTimeout(function(){ _dismissToast(existing.toast); delete _toastGroups[groupKey]; }, DUREE);
+      return;
     }
-    countEl.textContent = 'x'+existing.count;
-    // Réinitialiser le timer
-    if(existing.timer) clearTimeout(existing.timer);
-    var bar = existing.toast.querySelector('.os-toast-bar');
-    if(bar){ bar.style.transition='none'; bar.style.width='100%'; setTimeout(function(){ bar.style.transition='width '+DUREE+'ms linear'; bar.style.width='0%'; },50); }
-    existing.timer = setTimeout(function(){
-      _dismissToast(existing.toast);
-      delete _toastGroups[groupKey];
-    }, DUREE);
-    existing.toast._timer = existing.timer;
-    return;
   }
 
+  // Créer le toast
   var toast = document.createElement('div');
   toast.className = 'os-toast type-'+type;
+  toast.style.cssText = 'background:rgba(15,15,25,0.96);backdrop-filter:blur(24px) saturate(150%);border:1px solid rgba(255,255,255,.10);border-left:3px solid '+COLORS[type]+';border-radius:14px;padding:0;min-width:300px;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.2);overflow:hidden;transform:translateX(120%) scale(0.95);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.3,0.64,1),opacity 0.28s ease;pointer-events:all;';
 
-  var row = document.createElement('div');
-  row.className = 'os-toast-row';
+  var body = document.createElement('div');
+  body.style.cssText = 'display:flex;align-items:flex-start;gap:.7rem;padding:.75rem 1rem;';
 
-  var icon = document.createElement('span');
-  icon.className = 'os-toast-icon';
-  icon.textContent = ICONS[type] || 'ℹ';
+  // Icône
+  var iconEl = document.createElement('div');
+  iconEl.style.cssText = 'font-size:1.1rem;flex-shrink:0;line-height:1.3;';
+  iconEl.textContent = opts.icon || ICONS[type];
 
-  var msgEl = document.createElement('span');
+  // Texte
+  var textWrap = document.createElement('div');
+  textWrap.style.cssText = 'flex:1;min-width:0;';
+  var msgEl = document.createElement('div');
   msgEl.className = 'os-toast-msg';
+  msgEl.style.cssText = 'font-size:.80rem;color:rgba(255,255,255,.92);line-height:1.45;word-break:break-word;';
   msgEl.textContent = msg;
+  textWrap.appendChild(msgEl);
 
+  // Bouton action (optionnel)
+  if(opts.action){
+    var actBtn = document.createElement('button');
+    actBtn.style.cssText = 'background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.9);border-radius:20px;padding:3px 10px;font-size:.68rem;font-weight:600;cursor:pointer;margin-top:5px;font-family:inherit;transition:background .15s;';
+    actBtn.textContent = opts.action.label;
+    actBtn.onmouseover = function(){ this.style.background='rgba(255,255,255,.22)'; };
+    actBtn.onmouseout  = function(){ this.style.background='rgba(255,255,255,.12)'; };
+    actBtn.onclick = function(){ opts.action.fn(); _dismissToast(toast); };
+    textWrap.appendChild(actBtn);
+  }
+
+  // Bouton fermer
   var closeBtn = document.createElement('button');
-  closeBtn.className = 'os-toast-close';
+  closeBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:1.1rem;line-height:1;padding:0;flex-shrink:0;transition:color .15s;';
   closeBtn.textContent = '×';
-  closeBtn.onclick = function(){ _dismissToast(toast); delete _toastGroups[groupKey]; };
+  closeBtn.onmouseover = function(){ this.style.color='rgba(255,255,255,.8)'; };
+  closeBtn.onmouseout  = function(){ this.style.color='rgba(255,255,255,.3)'; };
+  closeBtn.onclick = function(){
+    _dismissToast(toast);
+    if(!opts.persistent) delete _toastGroups[type+':'+(msg||'').substring(0,30)];
+  };
 
-  row.appendChild(icon);
-  row.appendChild(msgEl);
-  row.appendChild(closeBtn);
-  toast.appendChild(row);
+  body.appendChild(iconEl);
+  body.appendChild(textWrap);
+  body.appendChild(closeBtn);
+  toast.appendChild(body);
 
-  var bar = document.createElement('div');
-  bar.className = 'os-toast-bar';
-  bar.style.width = '100%';
-  toast.appendChild(bar);
+  // Barre de progression (seulement si pas persistent)
+  if(!opts.persistent){
+    var bar = document.createElement('div');
+    bar.className = 'os-toast-bar';
+    bar.style.cssText = 'height:2.5px;background:'+COLORS[type]+';width:100%;border-radius:0 0 0 14px;opacity:.7;transition:width '+DUREE+'ms linear;';
+    toast.appendChild(bar);
+    setTimeout(function(){ bar.style.width='0%'; }, 80);
+  } else {
+    // Indicateur "persistant"
+    var pin = document.createElement('div');
+    pin.style.cssText = 'height:2.5px;background:'+COLORS[type]+';width:100%;border-radius:0 0 0 14px;opacity:.9;';
+    toast.appendChild(pin);
+  }
 
   stack.appendChild(toast);
 
+  // Animation entrée
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
-      toast.classList.add('show');
-      bar.style.transition = 'width '+DUREE+'ms linear';
-      bar.style.width = '0%';
+      toast.style.transform = 'translateX(0) scale(1)';
+      toast.style.opacity   = '1';
     });
   });
 
-  var timer = setTimeout(function(){ _dismissToast(toast); delete _toastGroups[groupKey]; }, DUREE);
-  toast._timer = timer;
+  // Timer auto-dismiss (sauf persistent)
+  if(!opts.persistent){
+    var groupKey2 = type+':'+(msg||'').substring(0,30);
+    var timer = setTimeout(function(){ _dismissToast(toast); delete _toastGroups[groupKey2]; }, DUREE);
+    toast._timer = timer;
+    _toastGroups[groupKey2] = { toast:toast, count:1, timer:timer };
+  }
+}
 
-  _toastGroups[groupKey] = { toast:toast, count:1, timer:timer };
+function notifPersistante(msg, type, actionLabel, actionFn, icone){
+  // Notif qui ne se ferme pas automatiquement — pour les CPs et alertes importantes
+  osShowToast(msg, type||'info', {
+    persistent: true,
+    icon: icone||'📨',
+    action: actionLabel ? {label:actionLabel, fn:actionFn||function(){}} : null
+  });
 }
 
 function _dismissToast(toast){
+  if(!toast) return;
   if(toast._timer) clearTimeout(toast._timer);
-  toast.classList.remove('show');
-  toast.classList.add('hide');
+  toast.style.transform = 'translateX(120%) scale(0.95)';
+  toast.style.opacity   = '0';
   setTimeout(function(){
     if(toast.parentNode) toast.parentNode.removeChild(toast);
-  }, 300);
+  }, 380);
 }
 
 // Charger les notifs au démarrage
