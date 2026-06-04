@@ -3905,13 +3905,15 @@ input:focus,select:focus,textarea:focus{
     <div id="os-desktop-icons"></div>
 
     <!-- WIDGET MEMBRES EN LIGNE -->
-    <div id="os-online-widget" style="position:absolute;bottom:90px;right:130px;pointer-events:none;user-select:none;text-align:center;background:rgba(255,255,255,0.15);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.3);border-radius:14px;padding:10px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.4);">
-      <div id="os-online-count" style="font-family:Arial,sans-serif;font-size:1.8rem;font-weight:700;color:rgba(255,255,255,0.85);text-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:1;">—</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;">
-        <div style="width:6px;height:6px;border-radius:50%;background:#4CAF50;box-shadow:0 0 6px #4CAF50;"></div>
-        <div style="font-family:Arial,sans-serif;font-size:0.55rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.1em;">En ligne</div>
+    <div id="os-online-widget" style="position:absolute;bottom:90px;right:130px;pointer-events:none;user-select:none;text-align:center;">
+      <div style="background:rgba(0,0,0,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:10px 14px;box-shadow:0 4px 24px rgba(0,0,0,0.25);">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#4CAF50;box-shadow:0 0 8px rgba(76,175,80,0.8);flex-shrink:0;"></div>
+          <div style="font-family:Arial,sans-serif;font-size:0.52rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;">En ligne</div>
+        </div>
+        <div id="os-online-count" style="font-family:-apple-system,sans-serif;font-size:2rem;font-weight:700;color:white;text-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:1;text-align:center;">—</div>
+        <div id="os-online-names" style="font-family:Arial,sans-serif;font-size:0.5rem;color:rgba(255,255,255,0.35);margin-top:5px;max-width:90px;text-align:center;line-height:1.5;"></div>
       </div>
-      <div id="os-online-names" style="font-family:Arial,sans-serif;font-size:0.52rem;color:rgba(255,255,255,0.3);margin-top:4px;max-width:100px;text-align:center;line-height:1.4;"></div>
     </div>
 
     <!-- HORLOGE ANALOGIQUE STYLE APPLE -->
@@ -5495,7 +5497,8 @@ function buildDoc(){
     rubrique:document.getElementById('r-rubrique').value,
     corps:document.getElementById('r-corps').value.trim(),
     tags:[...tags],sources:getSrc(),
-    image:null,image_legende:document.getElementById('r-img-leg').value.trim()||null,
+    image: imgFile ? null : (currentDoc && currentDoc.image && !currentDoc.image.startsWith('data:') ? currentDoc.image : null),
+    image_legende:document.getElementById('r-img-leg').value.trim()||null,
     date_publication:document.getElementById('r-datepub').value||null,
     communiques:cpLies.map(cp=>({...cp})),
     cp_id: currentDoc && currentDoc.cp_id ? currentDoc.cp_id : null,
@@ -5545,8 +5548,13 @@ function exporterArticle(){
 }
 
 function osPopulerSelectRedaction(){
+  var el = document.getElementById('r-redaction');
+  if(!el) return;
+
   var uid = getUserId();
   var role = getUserRole();
+  var redactions = window._redactionsData || [];
+  var membreRedacs = window._membresRedactionsData || [];
 
   // Admin voit toutes les rédactions, les autres seulement les leurs
   var redacsAutorisees;
@@ -5557,9 +5565,8 @@ function osPopulerSelectRedaction(){
     redacsAutorisees = redactions.filter(function(r){ return mesIds.indexOf(r.id) !== -1; });
   }
 
-  if(!redacsAutorisees.length) return; // Garder les options statiques en fallback
+  if(!redacsAutorisees.length) return;
 
-  // Repeupler le select
   var currentVal = el.value;
   el.innerHTML = '';
   redacsAutorisees.forEach(function(r){
@@ -5734,6 +5741,79 @@ function osOuvrirRecrutement(annonceId){
 
 var _corrOnglet = 'relecture';
 var _corrArticleEnCours = null;
+
+// ===== DIFF TEXTE =====
+function osDiffTexte(avant, apres){
+  avant = avant || '';apres = apres || '';
+  if(avant === apres) return '<span style="color:var(--gris);font-style:italic;">Aucune modification</span>';
+  var ma=avant.split(/(\s+)/), mb=apres.split(/(\s+)/);
+  function lcs(a,b){
+    var m=a.length,n=b.length,dp=[];
+    for(var i=0;i<=m;i++){dp[i]=[];for(var j=0;j<=n;j++)dp[i][j]=0;}
+    for(var i=1;i<=m;i++)for(var j=1;j<=n;j++) dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+    var res=[],i=m,j=n;
+    while(i>0&&j>0){if(a[i-1]===b[j-1]){res.unshift({t:'=',v:a[i-1]});i--;j--;}else if(dp[i-1][j]>=dp[i][j-1]){res.unshift({t:'-',v:a[i-1]});i--;}else{res.unshift({t:'+',v:b[j-1]});j--;}}
+    while(i>0){res.unshift({t:'-',v:a[i-1]});i--;}while(j>0){res.unshift({t:'+',v:b[j-1]});j--;}
+    return res;
+  }
+  return lcs(ma,mb).map(function(op){
+    if(op.t==='=') return esc(op.v);
+    if(op.t==='-') return '<span style="background:#FECACA;color:#991B1B;text-decoration:line-through;border-radius:2px;padding:0 1px;">'+esc(op.v)+'</span>';
+    return '<span style="background:#D1FAE5;color:#065F46;border-radius:2px;padding:0 1px;">'+esc(op.v)+'</span>';
+  }).join('');
+}
+
+function osDiffSection(label, avant, apres){
+  if(!avant && !apres) return '';
+  var h='<div style="margin-bottom:1.2rem;">';
+  h+='<div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gris);font-weight:700;margin-bottom:0.5rem;">'+label+'</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">';
+  h+='<div style="background:#FFF5F5;border:1px solid #FECACA;border-radius:8px;padding:0.8rem;font-size:0.82rem;line-height:1.6;"><div style="font-size:0.58rem;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Original</div><div>'+esc(avant||'—')+'</div></div>';
+  h+='<div style="background:#F0FFF4;border:1px solid #A7F3D0;border-radius:8px;padding:0.8rem;font-size:0.82rem;line-height:1.6;"><div style="font-size:0.58rem;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Corrigé</div><div>'+esc(apres||'—')+'</div></div>';
+  h+='</div>';
+  if(avant&&apres&&avant!==apres){
+    h+='<div style="background:white;border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem;margin-top:0.5rem;font-size:0.82rem;line-height:1.6;">';
+    h+='<div style="font-size:0.58rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Diff détaillé</div>';
+    h+='<div>'+osDiffTexte(avant,apres)+'</div></div>';
+  }
+  return h+'</div>';
+}
+
+function osMontrerDiff(article){
+  var aOriginal=article.titre_original||article.chapeau_original||article.corps_original;
+  if(!aOriginal){notif('Aucune version originale enregistrée','alerte');return;}
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto;backdrop-filter:blur(6px);';
+  var mo=document.createElement('div');
+  mo.style.cssText='background:white;border-radius:16px;width:min(900px,96vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;';
+  mo.innerHTML='<div style="background:var(--encre);padding:1.1rem 1.4rem;display:flex;align-items:center;gap:.8rem;">'
+    +'<div style="font-size:1.2rem;">🔍</div>'
+    +'<div style="flex:1;"><div style="font-weight:700;color:white;font-size:.95rem;">Modifications du correcteur</div>'
+    +'<div style="font-size:.68rem;color:rgba(255,255,255,.5);margin-top:2px;">'+esc(article.titre||'')+(article.correcteur?' · '+esc(article.correcteur):'')+'</div></div>'
+    +'<button id="dfc" style="background:rgba(255,255,255,.12);border:none;color:white;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1.1rem;">×</button></div>'
+    +'<div style="padding:.7rem 1.4rem;background:#FAFAFA;border-bottom:1px solid var(--gris-bord);display:flex;gap:1rem;font-size:.72rem;flex-wrap:wrap;">'
+    +'<span style="background:#FECACA;color:#991B1B;padding:2px 8px;border-radius:4px;text-decoration:line-through;">Supprimé</span>'
+    +'<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:4px;">Ajouté</span>'
+    +'<span style="color:var(--gris);">Sans surligange = inchangé</span></div>'
+    +'<div id="diff-body" style="padding:1.4rem;max-height:65vh;overflow-y:auto;">'
+    +osDiffSection('Titre',article.titre_original,article.titre)
+    +osDiffSection('Chapeau',article.chapeau_original,article.chapeau)
+    +osDiffSection('Corps',article.corps_original,article.corps)
+    +(article.note_interne?'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:.9rem 1rem;margin-top:.5rem;"><div style="font-size:.62rem;font-weight:700;color:#4338CA;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">📝 Note du correcteur</div><div style="font-size:.82rem;color:#374151;">'+esc(article.note_interne)+'</div></div>':'')
+    +'</div>'
+    +'<div style="padding:1rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;justify-content:flex-end;background:#FAFAFA;">'
+    +'<button id="dfa" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">✓ Accepter les modifications</button>'
+    +'<button id="dfc2" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Fermer</button>'
+    +'</div>';
+  ov.appendChild(mo);ov.onclick=function(e){if(e.target===ov)ov.remove();};document.body.appendChild(ov);
+  document.getElementById('dfc').onclick=function(){ov.remove();};
+  document.getElementById('dfc2').onclick=function(){ov.remove();};
+  document.getElementById('dfa').onclick=function(){
+    var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/articles?id=eq.'+article.id,{method:'PATCH',headers:authH,body:JSON.stringify({titre_original:null,chapeau_original:null,corps_original:null})})
+    .then(function(r){if(r.ok){notif('Modifications acceptées ✓','succes');ov.remove();}});
+  };
+}
 
 function osAppCorrectionRender(){
   var wc = document.getElementById('wincontent-app-correction');
@@ -6995,7 +7075,21 @@ function afficherBonjour(){
   if(badge) badge.textContent = roleLabels[getUserRole()] || getUserRole();
 }
 function preremplirAuteur(){
-  var n = getUserNomComplet(); if(!n) return;
+  // Ne pas écraser si on édite l'article de quelqu'un d'autre
+  if(currentDoc && currentDoc.auteur_id && currentDoc.auteur_id !== getUserId()){
+    // Juste rendre le champ readonly — ne pas changer la valeur
+    var elAuteur = document.getElementById('r-auteur');
+    if(elAuteur){
+      elAuteur.readOnly = true;
+      elAuteur.style.background = 'var(--gris-clair)';
+      elAuteur.style.color = 'var(--gris)';
+      elAuteur.style.cursor = 'not-allowed';
+    }
+    // Cacher le select s'il est visible
+    var elSelect = document.getElementById('r-auteur-select');
+    if(elSelect) elSelect.style.display = 'none';
+    return;
+  }
   var role = getUserRole();
   var uid = getUserId();
   var elAuteur = document.getElementById('r-auteur');
@@ -7033,9 +7127,12 @@ function preremplirAuteur(){
 
 function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH){
 
+    // Auteur cible — si on édite l'article de quelqu'un d'autre, garder son auteur
+    var auteurCibleId  = (currentDoc && currentDoc.auteur_id) ? currentDoc.auteur_id : uid;
+    var auteurCibleNom = (currentDoc && currentDoc.auteur)    ? currentDoc.auteur    : n;
+
     // --- Champ auteur ---
     if(isChefOuAdmin && elSelect){
-      // Basculer vers le select
       elAuteur.style.display = 'none';
       elSelect.style.display = '';
       elSelect.innerHTML = '';
@@ -7050,15 +7147,21 @@ function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, m
           opt.value = (m.prenom||'')+' '+(m.nom||'');
           opt.dataset.membreId = m.id;
           opt.textContent = (m.prenom||'')+' '+(m.nom||'');
-          if(m.id === uid) opt.selected = true;
+          // Sélectionner l'auteur ORIGINAL, pas forcément l'utilisateur connecté
+          if(m.id === auteurCibleId) opt.selected = true;
           elSelect.appendChild(opt);
         });
-        elAuteur.value = elSelect.value;
+        // Synchroniser le champ caché avec la sélection
+        elAuteur.value = elSelect.value || auteurCibleNom;
         elSelect.addEventListener('change', function(){ elAuteur.value = this.value; });
       }).catch(function(){});
     } else {
-      // Rédacteur normal : input grisé
-      if(!elAuteur.value) elAuteur.value = n;
+      // Rédacteur normal : input grisé avec son propre nom
+      // Si c'est son article — son nom. Si c'est l'article de quelqu'un d'autre — ne pas toucher
+      if(auteurCibleId === uid){
+        if(!elAuteur.value) elAuteur.value = n;
+      }
+      // Si auteur différent, elAuteur.value a déjà été rempli par chargerDansRedaction — on ne touche pas
       elAuteur.readOnly = true;
       elAuteur.style.background = 'var(--gris-clair)';
       elAuteur.style.color = 'var(--gris)';
@@ -7674,6 +7777,9 @@ var db = {
       cp_id: doc.cp_id || null,
       updated_at: new Date().toISOString()
     };
+
+    // Ne pas écraser l'image avec null si on ne change pas l'image
+    if(payload.image === null) delete payload.image;
     var authHeaders = Object.assign({}, SB_HEADERS, {
       'Authorization': 'Bearer '+(_session&&_session.access_token||''),
       'Prefer': 'return=representation'
@@ -9044,14 +9150,18 @@ function assignValider(){
 
   // 1. Sauvegarder l'article complet en base (crée si n'existe pas)
   db.sauvegarderArticle(_assignDoc).then(function(){
-    // 2. PATCH supplémentaire pour forcer le statut et le correcteur
+    // 2. PATCH supplémentaire pour forcer le statut, le correcteur, et sauvegarder l'original
     return fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(docId), {
       method: 'PATCH',
       headers: authH,
       body: JSON.stringify({
         statut: 'en-relecture',
         correcteur: _assignCorrecteur,
-        correcteur_id: _assignCorrecteurId || null
+        correcteur_id: _assignCorrecteurId || null,
+        // Sauvegarder le texte original pour le diff
+        titre_original:   _assignDoc.titre   || null,
+        chapeau_original: _assignDoc.chapeau || null,
+        corps_original:   _assignDoc.corps   || null
       })
     });
   }).then(function(){
@@ -13345,31 +13455,42 @@ setInterval(function(){
 
 // ── Vérification périodique des nouveaux CPs ──
 var _cpLastVu = localStorage.getItem('compo_cp_last_vu') || new Date(0).toISOString();
+var _cpVusIds = (function(){ try{ return JSON.parse(localStorage.getItem('compo_cp_vus_ids')||'[]'); }catch(e){ return []; } })();
 
 function osCheckNouveauxCPs(){
   if(!_session || !getUserId()) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&created_at=gt.'+encodeURIComponent(_cpLastVu)+'&order=created_at.desc&select=id,titre,organisation&limit=5',{headers:authH})
+  // Récupérer les 20 derniers CPs publiés
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,organisation,created_at&limit=20',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     if(!data||data.code||!data.length) return;
-    var nb = data.length;
-    var titre = data[0].titre || data[0].organisation || 'Nouveau communiqué';
+    // Filtrer ceux qu'on n'a pas encore vus
+    var nouveaux = data.filter(function(cp){
+      return _cpVusIds.indexOf(cp.id) === -1;
+    });
+    if(!nouveaux.length) return;
+    var nb = nouveaux.length;
+    var titre = nouveaux[0].titre || nouveaux[0].organisation || 'Nouveau communiqué';
     var msg = nb > 1
       ? nb + ' nouveaux communiqués de presse disponibles'
       : '📰 ' + titre;
     notifPersistante(
-      msg,
-      'info',
+      msg, 'info',
       'Voir les CPs',
       function(){ osOpenWindow('cps'); },
       '📨'
     );
-    // Mettre à jour le badge sur l'icône CPs
     osMajBadge('cps', nb);
-    // Mémoriser la date
+    // Mémoriser tous les IDs vus
+    data.forEach(function(cp){
+      if(_cpVusIds.indexOf(cp.id) === -1) _cpVusIds.push(cp.id);
+    });
+    // Garder seulement les 100 derniers IDs
+    if(_cpVusIds.length > 100) _cpVusIds = _cpVusIds.slice(-100);
+    try{ localStorage.setItem('compo_cp_vus_ids', JSON.stringify(_cpVusIds)); }catch(e){}
     _cpLastVu = new Date().toISOString();
-    localStorage.setItem('compo_cp_last_vu', _cpLastVu);
+    try{ localStorage.setItem('compo_cp_last_vu', _cpLastVu); }catch(e){}
   }).catch(function(){});
 }
 
@@ -14310,6 +14431,22 @@ function osBuildDesktopIcons(){
   guidIcon.appendChild(guidImg);
   guidIcon.appendChild(guidLabel);
   container.appendChild(guidIcon);
+
+  // Icône Substack — lien vers le site Ipsum Média
+  var substackIcon = document.createElement('div');
+  substackIcon.className = 'desktop-icon';
+  substackIcon.onclick = function(){ window.open('https://ipsummedia.substack.com/', '_blank'); };
+  var substackImg = document.createElement('div');
+  substackImg.className = 'desktop-icon-img';
+  substackImg.style.background = 'linear-gradient(135deg,#FF6719,#E8461E)';
+  substackImg.style.fontSize = '1.5rem';
+  substackImg.textContent = '📰';
+  var substackLabel = document.createElement('div');
+  substackLabel.className = 'desktop-icon-label';
+  substackLabel.textContent = 'Ipsum Média';
+  substackIcon.appendChild(substackImg);
+  substackIcon.appendChild(substackLabel);
+  container.appendChild(substackIcon);
 
   toShow.forEach(function(app){
     var icon = document.createElement('div');
@@ -18218,7 +18355,15 @@ function osMesArticlesCharger(list){
     right.appendChild(btnLire);
     right.appendChild(btnModif);
 
-    // Bouton corriger si en correction et correcteur/admin
+    // Bouton diff — visible si article a des corrections et rédacteur est l'auteur
+    if((doc.titre_original || doc.chapeau_original || doc.corps_original) && doc.auteur_id === getUserId()){
+      var btnDiff = document.createElement('button');
+      btnDiff.className = 'btn';
+      btnDiff.style.cssText = 'font-size:0.65rem;padding:0.3rem 0.7rem;background:#4338CA;';
+      btnDiff.textContent = '🔍 Voir les corrections';
+      btnDiff.onclick = (function(d){ return function(){ osMontrerDiff(d); }; })(doc);
+      right.appendChild(btnDiff);
+    }
     if(['en-relecture','corrige'].indexOf(st) >= 0 && (getUserRole()==='correcteur'||getUserRole()==='admin')){
       var btnCorr = document.createElement('button');
       btnCorr.className = 'btn';
@@ -18897,75 +19042,241 @@ function cpsCharger(){
   var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
   if(!liste) return;
   liste.innerHTML = osLoadingHtml();
-
-  // Vérifier abonnement
   cpsAfficherAbonnement();
 
-  // Filtrer par rédaction active
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var urlCps = SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*';
-  if(window._redacActiveId) urlCps += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*', {headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(cps){
+    cps = (!cps||cps.code) ? [] : cps;
+    window._cpsData = cps;
+    cpsRendreListe(liste, cps);
+  }).catch(function(){ liste.innerHTML = osErreurHtml('cpsCharger'); });
+}
 
-  // Fetch séparé pour les invitations presse (toutes rédactions)
-  var urlInvits = SB_URL+'/rest/v1/communiques?statut=eq.publie&type=eq.invitation_presse&order=date_evenement.asc&select=*';
+function cpsRendreListe(liste, cps){
+  var filtreType   = window._cpsFiltreActif  || 'tous';
+  var filtreDate   = window._cpsFiltreDateActif || 'tous';
+  var filtreVue    = window._cpsVueActif || 'cartes';
+  var rechercheVal = (window._cpsRecherche || '').toLowerCase();
+  var vus = (function(){ try{ return JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]'); }catch(e){return[];} })();
 
-  Promise.all([
-    fetch(urlCps, {headers:authH}).then(function(r){return r.json();}),
-    fetch(urlInvits, {headers:authH}).then(function(r){return r.json();})
-  ]).then(function(results){
-    var cps = (!results[0]||results[0].code) ? [] : results[0];
-    var invits = (!results[1]||results[1].code) ? [] : results[1];
-    // Fusionner sans doublons
-    invits.forEach(function(inv){
-      if(!cps.some(function(c){return c.id===inv.id;})) cps.push(inv);
-    });
-    cps.sort(function(a,b){ return new Date(b.created_at)-new Date(a.created_at); });
-    if(!cps || cps.code || !cps.length){
-      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué publié pour le moment.</div>';
-      return;
+  // Comptes
+  var invitations = cps.filter(function(c){ return c.type==='invitation_presse'; });
+  var communiques = cps.filter(function(c){ return c.type!=='invitation_presse'; });
+  var nonLus = cps.filter(function(c){ return vus.indexOf(c.id)===-1; });
+
+  // Filtrer
+  var filtres = cps.filter(function(c){
+    if(filtreType==='communique' && c.type==='invitation_presse') return false;
+    if(filtreType==='invitation_presse' && c.type!=='invitation_presse') return false;
+    if(filtreType==='non_lus' && vus.indexOf(c.id)!==-1) return false;
+    if(rechercheVal){
+      var hay = ((c.titre||'')+(c.organisation||'')+(c.corps||'')+(c.objet||'')).toLowerCase();
+      if(hay.indexOf(rechercheVal)===-1) return false;
     }
-
-    // Barre de filtres
-    var invitations = cps.filter(function(c){ return c.type === 'invitation_presse'; });
-    var communiques = cps.filter(function(c){ return c.type !== 'invitation_presse'; });
-    var filtreActif = window._cpsFiltreActif || 'tous';
-
-    var barre = document.createElement('div');
-    barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;padding-bottom:0.8rem;border-bottom:1px solid var(--gris-bord);flex-wrap:wrap;';
-    [
-      {id:'tous', label:'📋 Tous ('+cps.length+')'},
-      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
-      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
-    ].forEach(function(f){
-      var btn = document.createElement('button');
-      btn.style.cssText = 'font-family:monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
-      btn.textContent = f.label;
-      btn.onclick = function(){
-        window._cpsFiltreActif = f.id;
-        cpsCharger();
-      };
-      barre.appendChild(btn);
-    });
-
-    liste.innerHTML = '';
-    liste.appendChild(barre);
-
-    var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
-      : filtreActif === 'communique' ? communiques
-      : cps;
-
-    if(!cpsFiltres.length){
-      var vide = document.createElement('div');
-      vide.style.cssText = 'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;';
-      vide.textContent = 'Aucun élément dans cette catégorie.';
-      liste.appendChild(vide);
-      return;
+    if(filtreDate !== 'tous'){
+      var d = new Date(c.created_at);
+      var now = new Date();
+      if(filtreDate==='semaine'){
+        var sem = new Date(now); sem.setDate(sem.getDate()-7);
+        if(d < sem) return false;
+      } else if(filtreDate==='mois'){
+        if(d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear()) return false;
+      }
     }
-
-    cpsFiltres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
-  }).catch(function(){
-    liste.innerHTML = osErreurHtml('cpsCharger');
+    return true;
   });
+
+  // Grouper par organisation (fil de veille)
+  var parOrga = {};
+  filtres.forEach(function(c){
+    var key = (c.organisation||c.source||'Autres').trim();
+    if(!parOrga[key]) parOrga[key]=[];
+    parOrga[key].push(c);
+  });
+
+  liste.innerHTML = '';
+
+  // ── Barre de recherche
+  var recherche = document.createElement('div');
+  recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
+  recherche.innerHTML = '<input id="cps-search" type="text" placeholder="🔍 Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="flex:1;padding:0.45rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;">'
+    +'<button onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);">⬇ CSV</button>';
+  liste.appendChild(recherche);
+  document.getElementById('cps-search').oninput = function(){
+    window._cpsRecherche = this.value;
+    cpsRendreListe(liste, window._cpsData||[]);
+  };
+
+  // ── Filtres type
+  var barreType = document.createElement('div');
+  barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
+  [
+    {id:'tous',            label:'Tous ('+cps.length+')'},
+    {id:'communique',      label:'📰 CPs ('+communiques.length+')'},
+    {id:'invitation_presse',label:'🎤 Invits ('+invitations.length+')'},
+    {id:'non_lus',         label:'🔴 Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
+  ].forEach(function(f){
+    var btn = document.createElement('button');
+    var isActif = filtreType===f.id;
+    btn.style.cssText = 'font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
+      +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
+      +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
+    btn.textContent = f.label;
+    btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+    barreType.appendChild(btn);
+  });
+  liste.appendChild(barreType);
+
+  // ── Filtres date + vue
+  var barreOpts = document.createElement('div');
+  barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
+  var leftDate = document.createElement('div');
+  leftDate.style.cssText = 'display:flex;gap:0.3rem;';
+  [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
+    var b = document.createElement('button');
+    var a = filtreDate===f.id;
+    b.style.cssText = 'font-size:0.6rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--encre)':'var(--gris-bord)')+';background:'+(a?'var(--encre)':'white')+';color:'+(a?'white':'var(--gris)')+';';
+    b.textContent = f.l;
+    b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+    leftDate.appendChild(b);
+  });
+  var rightVue = document.createElement('div');
+  rightVue.style.cssText = 'display:flex;gap:0.3rem;';
+  [{id:'cartes',l:'⊞'},{id:'liste',l:'☰'},{id:'veille',l:'🏢'},{id:'calendrier',l:'📅'}].forEach(function(f){
+    var b = document.createElement('button');
+    var a = filtreVue===f.id;
+    b.style.cssText = 'font-size:0.75rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';';
+    b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
+    b.textContent = f.l;
+    b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+    rightVue.appendChild(b);
+  });
+  barreOpts.appendChild(leftDate);
+  barreOpts.appendChild(rightVue);
+  liste.appendChild(barreOpts);
+
+  // ── RSVP urgents
+  var rsvpUrgents = filtres.filter(function(c){ return c.reponse_requise && c.date_reponse && new Date(c.date_reponse)>new Date(); });
+  if(rsvpUrgents.length){
+    var rsvpBanner = document.createElement('div');
+    rsvpBanner.style.cssText = 'background:#FFEEBA;border:1.5px solid #F39C12;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:center;gap:0.6rem;';
+    rsvpBanner.innerHTML = '<span style="font-size:1.1rem;">⚠️</span>'
+      +'<div><strong style="font-size:0.78rem;color:#856404;">'+rsvpUrgents.length+' invitation'+(rsvpUrgents.length>1?'s':'')+' nécessite'+(rsvpUrgents.length>1?'nt':'')+ ' une réponse</strong>'
+      +'<div style="font-size:0.68rem;color:#856404;">'+rsvpUrgents.map(function(c){return esc(c.titre||c.objet||'')+ ' → avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR');}).join(' · ')+'</div></div>';
+    liste.appendChild(rsvpBanner);
+  }
+
+  if(!filtres.length){
+    liste.appendChild(Object.assign(document.createElement('div'),{style:'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;',textContent:'Aucun résultat.'}));
+    return;
+  }
+
+  // ── Rendu selon vue
+  if(filtreVue==='calendrier'){
+    cpsvCalendrier(liste, filtres);
+  } else if(filtreVue==='veille'){
+    cpsvVeille(liste, parOrga);
+  } else if(filtreVue==='liste'){
+    cpsvListe(liste, filtres, vus);
+  } else {
+    // Cartes
+    filtres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+  }
+}
+
+function cpsvListe(liste, cps, vus){
+  var t = document.createElement('div');
+  cps.forEach(function(cp){
+    var nonLu = vus.indexOf(cp.id)===-1;
+    var d = cp.date_cp||cp.date_reception ? new Date(cp.date_cp||cp.date_reception).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;border-bottom:1px solid var(--gris-bord);'+(nonLu?'background:rgba(125,60,152,0.04);':'');
+    row.innerHTML = (nonLu?'<span style="width:7px;height:7px;border-radius:50%;background:#7D3C98;flex-shrink:0;display:inline-block;"></span>':'<span style="width:7px;height:7px;flex-shrink:0;display:inline-block;"></span>')
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:'+(nonLu?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
+      +'<div style="font-size:0.62rem;color:var(--gris);">'+esc(cp.organisation||cp.source||'')+(d?' · '+d:'')+'</div></div>'
+      +(cp.fichier_pdf||cp.fichier_b64?'<span title="PDF disponible" style="font-size:0.75rem;">📎</span>':'')
+      +(cp.reponse_requise?'<span title="Réponse requise" style="font-size:0.75rem;">⚠️</span>':'');
+    row.onclick = function(){ cpsOuvrirDetail(cp); };
+    t.appendChild(row);
+  });
+  liste.appendChild(t);
+}
+
+function cpsvVeille(liste, parOrga){
+  Object.keys(parOrga).sort().forEach(function(orga){
+    var cpsOrga = parOrga[orga];
+    var sec = document.createElement('div');
+    sec.style.cssText = 'margin-bottom:1rem;';
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;padding:0.4rem 0;border-bottom:2px solid var(--rouge);cursor:pointer;';
+    header.innerHTML = '<span style="font-size:0.88rem;font-weight:700;color:var(--encre);">🏢 '+esc(orga)+'</span>'
+      +'<span style="font-size:0.62rem;color:var(--gris);background:var(--gris-clair);padding:1px 7px;border-radius:10px;">'+cpsOrga.length+' CP'+(cpsOrga.length>1?'s':'')+'</span>';
+    var body = document.createElement('div');
+    var collapsed = false;
+    header.onclick = function(){
+      collapsed=!collapsed;
+      body.style.display = collapsed?'none':'block';
+    };
+    cpsOrga.forEach(function(cp){ body.appendChild(cpsMakeCard(cp,false)); });
+    sec.appendChild(header); sec.appendChild(body);
+    liste.appendChild(sec);
+  });
+}
+
+function cpsvCalendrier(liste, cps){
+  // Garder seulement les invitations avec une date d'événement
+  var events = cps.filter(function(c){ return c.date_evenement||c.date_cp; });
+  events.sort(function(a,b){ return new Date(a.date_evenement||a.date_cp)-new Date(b.date_evenement||b.date_cp); });
+  if(!events.length){
+    liste.appendChild(Object.assign(document.createElement('div'),{style:'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;',textContent:'Aucun événement avec date.'}));
+    return;
+  }
+  // Grouper par mois
+  var parMois = {};
+  events.forEach(function(c){
+    var d = new Date(c.date_evenement||c.date_cp);
+    var key = d.getFullYear()+'-'+(d.getMonth()+1);
+    if(!parMois[key]){parMois[key]={label:d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}),items:[]};}
+    parMois[key].items.push(c);
+  });
+  Object.keys(parMois).forEach(function(k){
+    var mo = parMois[k];
+    var sec = document.createElement('div');
+    sec.style.cssText = 'margin-bottom:1rem;';
+    sec.innerHTML = '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rouge);font-weight:700;margin-bottom:0.5rem;">📅 '+mo.label+'</div>';
+    mo.items.forEach(function(c){
+      var d = new Date(c.date_evenement||c.date_cp);
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:0.8rem;align-items:flex-start;padding:0.5rem 0;border-bottom:1px solid var(--gris-bord);cursor:pointer;';
+      row.innerHTML = '<div style="text-align:center;min-width:36px;background:var(--rouge);color:white;border-radius:6px;padding:3px 5px;">'
+        +'<div style="font-size:1rem;font-weight:700;line-height:1;">'+d.getDate()+'</div>'
+        +'<div style="font-size:0.5rem;text-transform:uppercase;">'+d.toLocaleDateString('fr-FR',{weekday:'short'})+'</div></div>'
+        +'<div style="flex:1;"><div style="font-size:0.82rem;font-weight:600;">'+esc(c.titre||c.objet||'')+'</div>'
+        +'<div style="font-size:0.65rem;color:var(--gris);">'+esc(c.organisation||c.source||'')+(c.lieu_evenement?' · '+esc(c.lieu_evenement):'')+'</div>'
+        +(c.reponse_requise?'<div style="font-size:0.62rem;color:#856404;background:#FFF3CD;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px;">⚠️ Réponse avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR')+'</div>':'')
+        +'</div>';
+      row.onclick = function(){ cpsOuvrirDetail(c); };
+      sec.appendChild(row);
+    });
+    liste.appendChild(sec);
+  });
+}
+
+function cpsExportCSV(){
+  var cps = window._cpsData||[];
+  if(!cps.length){ notif('Aucun CP à exporter'); return; }
+  var rows = [['Titre','Organisation','Date','Type','Corps']];
+  cps.forEach(function(c){
+    rows.push([c.titre||c.objet||'',c.organisation||c.source||'',c.date_cp||c.date_reception||'',c.type||'',(c.corps||'').replace(/[\n\r,]/g,' ')]);
+  });
+  var csv = rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='communiques_ipsum_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  notif('Export CSV téléchargé ✓','succes');
 }
 
 function cpsMakeCard(cp, isAdmin){
@@ -19046,6 +19357,13 @@ function cpsMakeCard(cp, isAdmin){
     }
   }
 
+  // Boutons éditoriaux — Transformer en sujet / Créer article
+  var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;" onclick="event.stopPropagation()">'
+    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;">📌 Transformer en sujet</button>'
+    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;">✍️ Créer un article</button>'
+    +(cp.fichier_pdf?'<button data-url="'+esc(cp.fichier_pdf)+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;">📎 Télécharger PDF</button>':'')
+    +'</div>';
+
   card.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
       '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
@@ -19056,9 +19374,55 @@ function cpsMakeCard(cp, isAdmin){
     evInfos +
     (cp.corps ? '<div style="font-size:0.8rem;color:var(--gris);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+esc(cp.corps)+'</div>' : '') +
     dispBtn +
+    editBtns +
     adminBtns;
 
   return card;
+}
+
+function cpsCréerSujet(cpId){
+  var cps = window._cpsData||[];
+  var cp = cps.find(function(c){return c.id===cpId;});
+  if(!cp){ notif('CP introuvable','erreur'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var sujetId = 'BRF-'+Date.now();
+  fetch(SB_URL+'/rest/v1/briefing',{
+    method:'POST', headers:authH,
+    body:JSON.stringify({
+      id:sujetId,
+      titre:cp.titre||cp.objet||'Sujet sans titre',
+      type:'article',
+      priorite:'normale',
+      statut:'ouvert',
+      note:(cp.corps||'').substring(0,300)||null,
+      cp_id:cp.id,
+      redaction_id:window._redacActiveId||null,
+      created_by:getUserId()
+    })
+  }).then(function(r){
+    if(r.ok){ notif('Sujet créé dans le briefing ✓','succes'); osOuvrirSujets(); }
+    else notif('Erreur création sujet','erreur');
+  });
+}
+
+function cpsCréerArticle(cpId){
+  var cps = window._cpsData||[];
+  var cp = cps.find(function(c){return c.id===cpId;});
+  if(!cp){ notif('CP introuvable','erreur'); return; }
+  // Ouvrir la rédaction avec le CP pré-rempli
+  osOpenWindow('redaction');
+  setTimeout(function(){
+    resetRedaction();
+    osPopulerSelectRedaction();
+    var titreEl = document.getElementById('r-titre');
+    if(titreEl){ titreEl.value = cp.titre||cp.objet||''; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
+    var corpsEl = document.getElementById('r-corps');
+    if(corpsEl) corpsEl.value = (cp.corps||'').substring(0,1500);
+    // Lier le CP
+    if(cp.id){ window.currentDoc = window.currentDoc||{}; window.currentDoc.cp_id = cp.id; }
+    preremplirAuteur();
+    notif('Rédaction pré-remplie depuis le CP ✓','succes');
+  }, 350);
 }
 
 // ---- DÉTAIL CP EN FENÊTRE OS ----
