@@ -5631,20 +5631,19 @@ function sauvegarderBrouillon(){
   notif('Sauvegarde en cours...');
   osSaveIndicateur('modifie');
   db.sauvegarderArticle(doc).then(function(){
-    var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-    var idx=drafts.findIndex(function(d){return d.id===doc.id;});
-    if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
+    // Nettoyer tout brouillon local résiduel avec le même ID
+    try{
+      var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+      var idx=drafts.findIndex(function(d){return d.id===doc.id;});
+      if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
+    }catch(e){}
     logAction('brouillon',titre,'cloud');
     notif('Brouillon sauvegardé dans le cloud : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
-    var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-    var idx=drafts.findIndex(function(d){return d.id===doc.id;});
-    if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
-    localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
-    logAction('brouillon',titre,'local');
-    notif('⚠️ Sauvegardé en local (hors ligne) : '+titre);
-    osSaveIndicateur('sauvegarde');
+    // Plus de sauvegarde locale — afficher juste l'erreur
+    notif('⚠️ Impossible de sauvegarder — vérifie ta connexion','erreur');
+    osSaveIndicateur('erreur');
   });
 }
 
@@ -7092,6 +7091,7 @@ function preremplirAuteur(){
   }
   var role = getUserRole();
   var uid = getUserId();
+  var n = getUserNomComplet();
   var elAuteur = document.getElementById('r-auteur');
   var elSelect = document.getElementById('r-auteur-select');
   var elRedaction = document.getElementById('r-redaction');
@@ -7799,7 +7799,8 @@ var db = {
         url = SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId);
         // Ne jamais écraser auteur/auteur_id si l'article appartient à quelqu'un d'autre
         var existingAuteurId = existing[0] && existing[0].auteur_id;
-        if(existingAuteurId && existingAuteurId !== (_session&&_session.user&&_session.user.id)){
+        var monId = getUserId();
+        if(existingAuteurId && existingAuteurId !== monId){
           delete payload.auteur;
           delete payload.auteur_id;
         }
@@ -9578,13 +9579,18 @@ function chargerDansRedaction(doc){
 function rWorkflowMajInterface(doc){
   if(!doc) return;
   var role     = getUserRole();
+  var uid      = getUserId();
   var roleRedac = (function(){
-    var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===getUserId() && l.redaction_id===window._redacActiveId; });
+    var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===window._redacActiveId; });
     return lien ? lien.role_redac : null;
   })();
   var isChef    = roleRedac==='redac_chef' || role==='admin';
-  var isCorr    = role==='correcteur' || role==='admin';
+  // Correcteur = explicitement désigné sur l'article OU rôle correcteur global
+  var isCorrecteurDesigne = doc.correcteur_id && doc.correcteur_id === uid;
+  var isCorr    = role==='correcteur' || isCorrecteurDesigne;
   var statut    = doc.statut||'brouillon';
+  var estAuteur = doc.auteur_id === uid;
+
   var STATUTS   = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},
                    'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},
                    corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},
@@ -9596,11 +9602,11 @@ function rWorkflowMajInterface(doc){
   var badge = document.getElementById('r-statut-badge');
   if(badge){ badge.style.display='inline-block'; badge.style.background=cfg.bg; badge.style.color=cfg.c; badge.textContent=cfg.l; }
 
-  // Commentaire correction
+  // Note du correcteur (si article renvoyé en brouillon)
   var cc = document.getElementById('r-commentaire-correction');
   var ct = document.getElementById('r-commentaire-txt');
-  if(cc && ct && doc.commentaire_correction && (statut==='brouillon'||statut==='en-relecture')){
-    cc.style.display='block'; ct.textContent=doc.commentaire_correction;
+  if(cc && ct && doc.note_interne && statut==='brouillon' && estAuteur){
+    cc.style.display='block'; ct.textContent=doc.note_interne;
   } else if(cc){ cc.style.display='none'; }
 
   // Actions selon rôle + statut
@@ -9611,16 +9617,17 @@ function rWorkflowMajInterface(doc){
   if(zCorr)  zCorr.style.display='none';
   if(zChef)  zChef.style.display='none';
 
-  if(isChef && (statut==='corrige'||statut==='valide'||statut==='en-relecture')){
+  if(isChef && !isCorrecteurDesigne && (statut==='corrige'||statut==='valide'||statut==='en-relecture')){
+    // Chef/admin qui valide — PAS le correcteur désigné
     if(zChef) zChef.style.display='flex';
-    // Masquer le bouton Valider si déjà validé
     var btnVal = zChef&&zChef.querySelector('button');
     if(btnVal && statut==='valide') btnVal.style.display='none';
-  } else if(isCorr && !isChef && (statut==='en-relecture'||statut==='corrige')){
+  } else if(isCorr && (statut==='en-relecture'||statut==='corrige')){
+    // Correcteur désigné
     if(zCorr) zCorr.style.display='flex';
   } else {
+    // Rédacteur (auteur ou autre)
     if(zRedac) zRedac.style.display='flex';
-    // Masquer "Envoyer en correction" si pas brouillon
     var btnEnv = zRedac&&zRedac.querySelector('button');
     if(btnEnv && statut!=='brouillon') btnEnv.style.display='none';
   }
@@ -9629,21 +9636,20 @@ function rWorkflowMajInterface(doc){
 function rWorkflowAvancer(nouveauStatut){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
 
-  // Sauvegarder le contenu d'abord, puis changer le statut
   var doc = buildDoc();
-  // Forcer le statut cible — ne pas laisser buildDoc le réinitialiser
   doc.statut = nouveauStatut;
 
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  // Toujours préserver l'auteur original — jamais écraser sur un avancement de workflow
+  if(currentDoc.auteur_id){
+    doc.auteur    = currentDoc.auteur;
+    doc.auteur_id = currentDoc.auteur_id;
+  }
 
-  // 1. Sauvegarder le contenu (PATCH complet)
   db.sauvegarderArticle(doc).then(function(){
     currentDoc = doc;
-    // 2. Marquer le statut (déjà dans le PATCH précédent, mais on s'assure)
     var labels = {corrige:'Marqué comme corrigé ✓',valide:'Article validé ✓',publie:'Article publié 🚀','en-relecture':'Envoyé en correction ✓'};
     notif(labels[nouveauStatut]||'Statut mis à jour','succes');
     rWorkflowMajInterface(currentDoc);
-    // Supprimer le flag de modification non sauvegardée
     _docModifie = false;
     if(nouveauStatut==='publie') rWorkflowNotifierRedacteur(currentDoc, 'publié');
     if(nouveauStatut==='valide') osNotifierComArticleValide(currentDoc);
@@ -12422,475 +12428,784 @@ function osTresorerieRender(){
   var wc = document.getElementById('wincontent-tresorerie');
   if(!wc) return;
   var role = getUserRole();
-  if(role !== 'admin' && !getUserHasFonction('tresorier')){ wc.innerHTML = '<div style="padding:3rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Accès réservé au trésorier.</div>'; return; }
-  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:#F7F8FA;';
+  if(role !== 'admin' && !getUserHasFonction('tresorier')){
+    wc.innerHTML = '<div style="padding:3rem;text-align:center;font-size:0.78rem;color:var(--gris);">Accès réservé au trésorier.</div>';
+    return;
+  }
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:#F7F8FA;min-height:0;';
   wc.innerHTML = osLoadingHtml();
-
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var now = new Date();
-  var debutMois = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-
-  fetch(SB_URL+'/rest/v1/tresorerie_transactions?order=date.desc&select=*',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(txs){
-    txs = (!txs||txs.code)?[]:txs;
-    window._tresorerieData = txs;
-
-    // Calculs globaux
-    var totalRec  = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
-    var totalDep  = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
-    var solde     = totalRec - totalDep;
-    var txsMois   = txs.filter(function(t){return t.date >= debutMois;});
-    var recMois   = txsMois.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
-    var depMois   = txsMois.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
-    var moisLabel = now.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-
-    // Recalcul solde cumulé
-    var running = 0;
-    var txsChrono = txs.slice().sort(function(a,b){return a.date<b.date?-1:1;});
-    txsChrono.forEach(function(t){ running += (parseFloat(t.credit)||0)-(parseFloat(t.debit)||0); t._solde = Math.round(running*100)/100; });
-
-    var h = '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">';
-
-    // ── Header solde ──────────────────────────────────────────────
-    h += '<div style="flex-shrink:0;background:linear-gradient(135deg,#0F6E56,#085041);padding:1rem 1.4rem;">';
-    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
-    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:white;">💶 Trésorerie Ipsum Média</div>';
-    h += '<div style="font-size:0.62rem;color:rgba(255,255,255,0.5);margin-top:2px;">Exercice '+now.getFullYear()+'</div></div>';
-    var sc = solde>=0?'white':'#FF8A80';
-    h += '<div style="text-align:right;"><div style="font-family:Poppins,sans-serif;font-size:2rem;font-weight:800;color:'+sc+';">'+(solde>=0?'+':'')+solde.toFixed(2)+' €</div>';
-    h += '<div style="font-size:0.58rem;color:rgba(255,255,255,0.5);">SOLDE ACTUEL</div></div></div>';
-    // Mini stats
-    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.8rem;">';
-    [{l:'Recettes totales',v:'+'+totalRec.toFixed(2)+' €',c:'rgba(100,255,180,0.9)'},{l:'Dépenses totales',v:'-'+totalDep.toFixed(2)+' €',c:'rgba(255,160,160,0.9)'},{l:'Recettes '+moisLabel,v:'+'+recMois.toFixed(2)+' €',c:'rgba(255,255,255,0.8)'},{l:'Dépenses '+moisLabel,v:'-'+depMois.toFixed(2)+' €',c:'rgba(255,255,255,0.8)'}].forEach(function(s){
-      h += '<div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:0.45rem 0.6rem;">';
-      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:'+s.c+';">'+s.v+'</div>';
-      h += '<div style="font-size:0.52rem;color:rgba(255,255,255,0.45);margin-top:1px;text-transform:uppercase;">'+s.l+'</div></div>';
-    });
-    h += '</div></div>';
-
-    // ── Onglets ───────────────────────────────────────────────────
-    h += '<div style="display:flex;border-bottom:2px solid #E5E7EB;flex-shrink:0;background:white;">';
-    [['transactions','📋 Mouvements'],['new','+ Ajouter'],['budget','📐 Budget'],['bilan','🖨 Bilan PDF']].forEach(function(t,i){
-      var actif = i===0;
-      h += '<button onclick="osTresorerieOnglet(\''+t[0]+'\')" id="tres-tab-'+t[0]+'" style="flex:1;padding:0.6rem 0.4rem;border:none;background:transparent;font-size:0.68rem;cursor:pointer;border-bottom:2.5px solid '+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'var(--encre)':'var(--gris)')+';font-weight:'+(actif?'700':'400')+';margin-bottom:-2px;">'+t[1]+'</button>';
-    });
-    h += '</div>';
-
-    // ── Panel mouvements ──────────────────────────────────────────
-    h += '<div id="tres-panel-transactions" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">';
-    if(!txs.length){
-      h += '<div style="text-align:center;padding:3rem;color:var(--gris);font-size:0.85rem;">Aucun mouvement. Clique sur "+ Ajouter" pour commencer.</div>';
-    } else {
-      // En-tête
-      h += '<div style="display:grid;grid-template-columns:72px 1fr 110px 80px 80px 72px 44px;gap:0;background:#F3F4F6;padding:0.3rem 0.8rem;flex-shrink:0;border-bottom:1px solid #E5E7EB;">';
-      ['Date','Description','Catégorie','Débit','Crédit','Solde',''].forEach(function(c){ h += '<div style="font-size:0.52rem;text-transform:uppercase;color:#9CA3AF;letter-spacing:.06em;">'+c+'</div>'; });
-      h += '</div>';
-      txs.forEach(function(t){
-        var d = t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'';
-        var isD = t.debit&&parseFloat(t.debit)>0;
-        var isC = t.credit&&parseFloat(t.credit)>0;
-        var sc2 = t._solde>=0?'#059669':'#DC2626';
-        h += '<div style="display:grid;grid-template-columns:72px 1fr 110px 80px 80px 72px 44px;padding:0.45rem 0.8rem;border-bottom:1px solid #F3F4F6;background:'+(t.pointe?'rgba(5,150,105,0.04)':'white')+';align-items:center;" onmouseover="this.style.background=\'#F9FAFB\'" onmouseout="this.style.background=\''+(t.pointe?'rgba(5,150,105,0.04)':'white')+'\'">';
-        h += '<div style="font-size:0.65rem;color:#6B7280;">'+d+'</div>';
-        h += '<div><div style="font-size:0.8rem;color:#111827;font-weight:500;">'+esc(t.description||'')+'</div>';
-        if(t.moyen_paiement) h += '<div style="font-size:0.58rem;color:#9CA3AF;">'+esc(t.moyen_paiement)+'</div>';
-        if(t.remarques) h += '<div style="font-size:0.62rem;color:#9CA3AF;font-style:italic;">'+esc(t.remarques)+'</div>';
-        h += '</div>';
-        h += '<div style="font-size:0.62rem;color:#6B7280;">'+esc(t.type||'')+'</div>';
-        h += '<div style="font-size:0.75rem;font-weight:600;color:#DC2626;">'+(isD?parseFloat(t.debit).toFixed(2)+' €':'')+'</div>';
-        h += '<div style="font-size:0.75rem;font-weight:600;color:#059669;">'+(isC?parseFloat(t.credit).toFixed(2)+' €':'')+'</div>';
-        h += '<div style="font-size:0.68rem;font-weight:700;color:'+sc2+';">'+t._solde.toFixed(2)+'</div>';
-        h += '<div style="display:flex;gap:2px;">';
-        h += '<button data-id="'+t.id+'" onclick="osTresorerieEditer(this.dataset.id)" title="Modifier" style="font-size:0.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;" onmouseover="this.style.color=\'#111\'" onmouseout="this.style.color=\'#6B7280\'">✏️</button>';
-        h += '<button data-id="'+t.id+'" onclick="osTresorerieSupprimer(this.dataset.id)" title="Supprimer" style="font-size:0.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;" onmouseover="this.style.color=\'#DC2626\'" onmouseout="this.style.color=\'#6B7280\'">🗑️</button>';
-        h += '</div></div>';
-      });
-    }
-    h += '</div>';
-
-    // ── Panel ajouter/modifier ────────────────────────────────────
-    h += '<div id="tres-panel-new" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;background:white;">';
-    h += '<div id="tres-form-title" style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:1rem;">Nouveau mouvement</div>';
-    h += '<input type="hidden" id="tres-edit-id">';
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">';
-    h += _tresFld('Date *','date','tres-date','date',new Date().toISOString().split('T')[0]);
-    h += _tresSel('Catégorie *','tres-type',TRES_TYPES);
-    h += '<div style="grid-column:1/-1">'+_tresFld('Description *','text','tres-desc','text','')+'</div>';
-    h += _tresFld('Débit (sortie d\'argent) €','number','tres-debit','number','');
-    h += _tresFld('Crédit (entrée d\'argent) €','number','tres-credit','number','');
-    h += _tresSel('Moyen de paiement','tres-moyen',[''].concat(TRES_MOYENS),'— Moyen —');
-    h += _tresFld('Remarques','text','tres-remarques','text','');
-    h += '</div>';
-    h += '<div style="display:flex;gap:0.6rem;margin-top:1rem;">';
-    h += '<button onclick="osTresorerieSauvegarder()" style="padding:0.5rem 1.4rem;background:#059669;color:white;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;" id="tres-save-btn">Enregistrer</button>';
-    h += '<button onclick="osTresorerieOnglet(\'transactions\')" style="padding:0.5rem 1rem;background:transparent;border:1px solid #D1D5DB;border-radius:8px;font-size:0.75rem;cursor:pointer;color:#6B7280;">Annuler</button>';
-    h += '</div></div>';
-
-    // ── Panel budget ──────────────────────────────────────────────
-    h += '<div id="tres-panel-budget" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;background:#F7F8FA;">';
-    h += '<div id="tres-budget-content">'+osLoadingHtml()+'</div>';
-    h += '</div>';
-
-    // ── Panel bilan ───────────────────────────────────────────────
-    h += '<div id="tres-panel-bilan" style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;display:none;background:white;">';
-    h += '<div style="text-align:center;padding:2rem;">';
-    h += '<div style="font-size:1.5rem;margin-bottom:0.8rem;">📄</div>';
-    h += '<div style="font-size:0.85rem;color:#374151;margin-bottom:0.4rem;font-weight:600;">Générer le bilan PDF</div>';
-    h += '<div style="font-size:0.72rem;color:#6B7280;margin-bottom:1.2rem;">Toutes les transactions + récapitulatif par mois + comparaison budget prévu vs réel</div>';
-    h += '<button onclick="osTresorerieBilan()" style="padding:0.6rem 1.8rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">🖨 Ouvrir le bilan</button>';
-    h += '</div></div>';
-
-    h += '</div>';
-    wc.innerHTML = h;
-    window._tresorerieData = txs;
-
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/tresorerie_transactions?order=date.desc&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/tresorerie_budget?order=categorie.asc,ordre.asc&select=*',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var txs    = (!res[0]||res[0].code)?[]:res[0];
+    var postes = (!res[1]||res[1].code)?[]:res[1];
+    window._tresorerieData   = txs;
+    window._tresorerieBudget = postes;
+    _tresBuildUI(wc, txs, postes);
   }).catch(function(){ wc.innerHTML = osErreurHtml('osTresorerieRender'); });
 }
 
-function _tresFld(label, type, id, inputType, val){
-  return '<div><label style="font-size:0.65rem;color:#6B7280;display:block;margin-bottom:3px;">'+label+'</label>'
-    +'<input type="'+inputType+'" id="'+id+'" value="'+esc(val)+'" placeholder="'+label+'" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:0.8rem;outline:none;" onfocus="this.style.borderColor=\'#059669\'" onblur="this.style.borderColor=\'#D1D5DB\'">'
-    +'</div>';
-}
-function _tresSel(label, id, opts, placeholder){
-  var h = '<div><label style="font-size:0.65rem;color:#6B7280;display:block;margin-bottom:3px;">'+label+'</label>'
-    +'<select id="'+id+'" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:0.8rem;">';
-  opts.forEach(function(o){ h += '<option value="'+esc(o)+'">'+esc(o||placeholder||'—')+'</option>'; });
-  h += '</select></div>';
-  return h;
-}
+// ── Constantes ──────────────────────────────────────────────────────
+var TRES_TYPES  = ['Cotisations','Subvention','Don','HelloAsso','Ventes','Autres recettes','Frais bancaires','Hébergement / Web','Communication','Fournitures','Matériel','Transport','Assurance','Note de frais','Salaire','Charges sociales','Autre dépense'];
+var TRES_MOYENS = ['CB','Chèque','Virement','Prélèvement','HelloAsso','Paypal','Espèces'];
+var TRES_RECETTES = ['Cotisations','Subvention','Don','HelloAsso','Ventes','Autres recettes'];
+var _tresOnglet = 'mouvements';
+var _tresFiltreAnnee = new Date().getFullYear();
+var _tresFiltreMois  = '';
+var _tresSearch      = '';
+var _tresFiltreType  = '';
 
-function osTresorerieOnglet(onglet){
-  ['transactions','new','budget','bilan'].forEach(function(o){
-    var p = document.getElementById('tres-panel-'+(o==='new'?'new':o==='transactions'?'transactions':o==='budget'?'budget':'bilan'));
-    var t = document.getElementById('tres-tab-'+o);
-    var actif = o===onglet;
-    if(p) p.style.display = actif?(o==='transactions'?'flex':'block'):'none';
-    if(t){ t.style.borderBottomColor=actif?'var(--rouge)':'transparent'; t.style.color=actif?'var(--encre)':'var(--gris)'; t.style.fontWeight=actif?'700':'400'; }
+function _tresBuildUI(wc, txs, postes){
+  var now   = new Date();
+  var annee = _tresFiltreAnnee;
+
+  // Filtrer par période
+  var txsFilt = txs.filter(function(t){
+    if(!t.date) return true;
+    var d = t.date.substring(0,4);
+    if(String(annee) !== d) return false;
+    if(_tresFiltreMois && t.date.substring(5,7) !== _tresFiltreMois) return false;
+    if(_tresSearch && !(t.description||'').toLowerCase().includes(_tresSearch.toLowerCase())
+       && !(t.type||'').toLowerCase().includes(_tresSearch.toLowerCase())) return false;
+    if(_tresFiltreType && t.type !== _tresFiltreType) return false;
+    return true;
   });
-  if(onglet==='budget') osTresorerieBudgetRender();
+
+  // Calculs globaux (toutes années pour solde réel)
+  var txsChrono = txs.slice().sort(function(a,b){return a.date<b.date?-1:1;});
+  var running = 0;
+  txsChrono.forEach(function(t){ running+=(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0); t._solde=Math.round(running*100)/100; });
+  var soldeActuel = running;
+  var txsAnF = txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec = txsAnF.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep = txsAnF.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var nonPointes = txsFilt.filter(function(t){return !t.pointe;}).length;
+
+  wc.innerHTML = '';
+
+  // ── HEADER ──
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'flex-shrink:0;background:linear-gradient(135deg,#0F6E56,#085041);padding:1rem 1.4rem;';
+  hdr.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">'
+    +'<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:white;">💶 Trésorerie Ipsum Média</div>'
+    +'<div style="font-size:0.62rem;color:rgba(255,255,255,.5);margin-top:2px;">Exercice '+annee+'</div></div>'
+    +'<div style="text-align:right;"><div style="font-family:Poppins,sans-serif;font-size:2rem;font-weight:800;color:'+(soldeActuel>=0?'white':'#FF8A80')+'">'+(soldeActuel>=0?'+':'')+soldeActuel.toFixed(2)+' €</div>'
+    +'<div style="font-size:0.55rem;color:rgba(255,255,255,.45);text-transform:uppercase;">Solde cumulé</div></div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-top:.8rem;">'
+    +[{l:'Recettes '+annee,v:'+'+totalRec.toFixed(2)+' €',c:'rgba(100,255,180,.9)'},
+      {l:'Dépenses '+annee,v:'-'+totalDep.toFixed(2)+' €',c:'rgba(255,160,160,.9)'},
+      {l:'Résultat '+annee,v:(totalRec-totalDep>=0?'+':'')+(totalRec-totalDep).toFixed(2)+' €',c:totalRec-totalDep>=0?'rgba(100,255,180,.9)':'rgba(255,160,160,.9)'},
+      {l:'Non pointés',v:nonPointes,c:'rgba(255,220,80,.9)'}
+    ].map(function(s){
+      return '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:.45rem .6rem;">'
+        +'<div style="font-weight:700;font-size:.85rem;color:'+s.c+';">'+s.v+'</div>'
+        +'<div style="font-size:.52rem;color:rgba(255,255,255,.45);text-transform:uppercase;margin-top:1px;">'+s.l+'</div></div>';
+    }).join('')+'</div>';
+  wc.appendChild(hdr);
+
+  // ── ONGLETS ──
+  var tabBar = document.createElement('div');
+  tabBar.style.cssText = 'display:flex;border-bottom:2px solid #E5E7EB;flex-shrink:0;background:white;overflow-x:auto;';
+  var TABS = [['mouvements','📋 Mouvements'],['ajouter','+ Ajouter'],['budget','📐 Budget'],['rapport','🏛 Rapport AG'],['cloture','📅 Clôture'],['notes_frais','💸 Notes de frais'],['rapprochement','🏦 Rapprochement'],['cotisations','👥 Cotisations'],['bilan','🖨 Bilan PDF']];
+  TABS.forEach(function(t){
+    var btn = document.createElement('button');
+    var a = _tresOnglet===t[0];
+    btn.style.cssText = 'flex-shrink:0;padding:.6rem .8rem;border:none;background:transparent;font-size:.68rem;cursor:pointer;border-bottom:2.5px solid '+(a?'var(--rouge)':'transparent')+';color:'+(a?'var(--encre)':'var(--gris)')+';font-weight:'+(a?'700':'400')+';margin-bottom:-2px;white-space:nowrap;';
+    btn.textContent = t[1];
+    btn.onclick = (function(id){ return function(){ _tresOnglet=id; _tresBuildUI(wc,window._tresorerieData,window._tresorerieBudget); }; })(t[0]);
+    tabBar.appendChild(btn);
+  });
+  wc.appendChild(tabBar);
+
+  // ── CONTENU ──
+  var body = document.createElement('div');
+  body.style.cssText = 'flex:1;overflow-y:auto;min-height:0;';
+  wc.appendChild(body);
+
+  if(_tresOnglet==='mouvements')      _tresRenderMouvements(body, txsFilt, txs, annee);
+  else if(_tresOnglet==='ajouter')    _tresRenderFormulaire(body, null);
+  else if(_tresOnglet==='budget')     _tresRenderBudget(body, postes, txs, annee);
+  else if(_tresOnglet==='rapport')    _tresRenderRapport(body, txs, postes, annee);
+  else if(_tresOnglet==='cloture')    _tresRenderCloture(body, txs, postes, annee);
+  else if(_tresOnglet==='notes_frais')_tresRenderNotesFrais(body, txs);
+  else if(_tresOnglet==='rapprochement') _tresRenderRapprochement(body, txs);
+  else if(_tresOnglet==='cotisations')_tresRenderCotisations(body);
+  else if(_tresOnglet==='bilan')          _tresRenderBilanPDF(txs, postes, annee);
+  else if(_tresOnglet==='notes_frais')    _tresRenderNotesFrais(body);
+  else if(_tresOnglet==='rapprochement')  _tresRenderRapprochement(body, txs, annee);
+  else if(_tresOnglet==='cloture')        _tresRenderCloture(body, txs, postes, annee);
+  else if(_tresOnglet==='cotisations')    _tresRenderCotisations(body);
 }
 
-function osTresorerieEditer(id){
-  var t = (window._tresorerieData||[]).find(function(x){return x.id===id;});
+// ── MOUVEMENTS ──────────────────────────────────────────────────────
+function _tresRenderMouvements(zone, txsFilt, txsTous, annee){
+  zone.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;';
+
+  // Filtres
+  var fb = document.createElement('div');
+  fb.style.cssText = 'padding:.6rem 1rem;background:white;border-bottom:1px solid #E5E7EB;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;flex-shrink:0;';
+
+  // Recherche
+  var si = document.createElement('input');
+  si.type='text'; si.placeholder='🔍 Rechercher...'; si.value=_tresSearch;
+  si.style.cssText='flex:1;min-width:120px;max-width:200px;padding:4px 10px;border:1px solid #D1D5DB;border-radius:20px;font-size:.72rem;';
+  si.oninput=function(){_tresSearch=this.value;_tresBuildUI(zone.parentNode.parentNode,window._tresorerieData,window._tresorerieBudget);};
+  fb.appendChild(si);
+
+  // Année
+  var selAn = document.createElement('select');
+  selAn.style.cssText='padding:4px 8px;border:1px solid #D1D5DB;border-radius:20px;font-size:.7rem;';
+  var anMin = txsTous.length ? parseInt(txsTous.slice().sort(function(a,b){return a.date<b.date?-1:1;})[0].date) : annee;
+  for(var y=annee; y>=anMin; y--){
+    var o=document.createElement('option'); o.value=y; o.textContent=y; if(y===annee)o.selected=true; selAn.appendChild(o);
+  }
+  selAn.onchange=function(){_tresFiltreAnnee=parseInt(this.value);_tresBuildUI(zone.parentNode.parentNode,window._tresorerieData,window._tresorerieBudget);};
+  fb.appendChild(selAn);
+
+  // Mois
+  var selMois = document.createElement('select');
+  selMois.style.cssText='padding:4px 8px;border:1px solid #D1D5DB;border-radius:20px;font-size:.7rem;';
+  var moisOpts=[['','Tous les mois'],['01','Janvier'],['02','Février'],['03','Mars'],['04','Avril'],['05','Mai'],['06','Juin'],['07','Juillet'],['08','Août'],['09','Septembre'],['10','Octobre'],['11','Novembre'],['12','Décembre']];
+  moisOpts.forEach(function(m){ var o=document.createElement('option'); o.value=m[0]; o.textContent=m[1]; if(m[0]===_tresFiltreMois)o.selected=true; selMois.appendChild(o); });
+  selMois.onchange=function(){_tresFiltreMois=this.value;_tresBuildUI(zone.parentNode.parentNode,window._tresorerieData,window._tresorerieBudget);};
+  fb.appendChild(selMois);
+
+  // Type
+  var selType = document.createElement('select');
+  selType.style.cssText='padding:4px 8px;border:1px solid #D1D5DB;border-radius:20px;font-size:.7rem;';
+  var o0=document.createElement('option'); o0.value=''; o0.textContent='Tous types'; selType.appendChild(o0);
+  TRES_TYPES.forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if(t===_tresFiltreType)o.selected=true; selType.appendChild(o); });
+  selType.onchange=function(){_tresFiltreType=this.value;_tresBuildUI(zone.parentNode.parentNode,window._tresorerieData,window._tresorerieBudget);};
+  fb.appendChild(selType);
+
+  // Export CSV
+  var btnCSV = document.createElement('button');
+  btnCSV.style.cssText='padding:4px 10px;border:1px solid #D1D5DB;border-radius:20px;font-size:.65rem;cursor:pointer;background:white;color:#6B7280;margin-left:auto;';
+  btnCSV.textContent='⬇ CSV';
+  btnCSV.onclick=function(){ _tresExportCSV(txsFilt); };
+  fb.appendChild(btnCSV);
+
+  // Import CSV
+  var btnImp = document.createElement('button');
+  btnImp.style.cssText='padding:4px 10px;border:1px solid #D1D5DB;border-radius:20px;font-size:.65rem;cursor:pointer;background:white;color:#6B7280;';
+  btnImp.textContent='⬆ Import CSV';
+  btnImp.onclick=function(){ _tresModalImportCSV(); };
+  fb.appendChild(btnImp);
+
+  zone.appendChild(fb);
+
+  if(!txsFilt.length){
+    var vide = document.createElement('div');
+    vide.style.cssText='text-align:center;padding:3rem;color:#9CA3AF;font-size:.85rem;';
+    vide.textContent='Aucun mouvement pour cette période.';
+    zone.appendChild(vide);
+    return;
+  }
+
+  // En-tête tableau
+  var thead = document.createElement('div');
+  thead.style.cssText='display:grid;grid-template-columns:78px 1fr 110px 85px 85px 78px 56px;gap:0;background:#F3F4F6;padding:.3rem .8rem;flex-shrink:0;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:1;';
+  ['Date','Description','Catégorie','Débit','Crédit','Solde',''].forEach(function(c){
+    var d=document.createElement('div'); d.style.cssText='font-size:.52rem;text-transform:uppercase;color:#9CA3AF;letter-spacing:.06em;'; d.textContent=c; thead.appendChild(d);
+  });
+  zone.appendChild(thead);
+
+  // Lignes
+  var tbody = document.createElement('div');
+  tbody.style.cssText='flex:1;';
+  // Trier par date desc et recalculer solde sur txsFilt
+  var txsS = txsFilt.slice().sort(function(a,b){return b.date<a.date?-1:1;});
+  txsS.forEach(function(t){
+    var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'';
+    var isD=(parseFloat(t.debit)||0)>0, isC=(parseFloat(t.credit)||0)>0;
+    var sc=t._solde>=0?'#059669':'#DC2626';
+    var row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:78px 1fr 110px 85px 85px 78px 56px;padding:.42rem .8rem;border-bottom:1px solid #F3F4F6;background:'+(t.pointe?'rgba(5,150,105,.04)':'white')+';align-items:center;cursor:pointer;';
+    row.onmouseover=function(){this.style.background='#F9FAFB';};
+    row.onmouseout=function(){this.style.background=t.pointe?'rgba(5,150,105,.04)':'white';};
+    row.innerHTML='<div style="font-size:.65rem;color:#6B7280;">'+d+'</div>'
+      +'<div><div style="font-size:.8rem;color:#111827;font-weight:500;">'+esc(t.description||'')+'</div>'
+      +(t.moyen_paiement?'<div style="font-size:.58rem;color:#9CA3AF;">'+esc(t.moyen_paiement)+'</div>':'')
+      +(t.remarques?'<div style="font-size:.6rem;color:#9CA3AF;font-style:italic;">'+esc(t.remarques)+'</div>':'')
+      +'</div>'
+      +'<div style="font-size:.62rem;color:#6B7280;">'+esc(t.type||'')+'</div>'
+      +'<div style="font-size:.75rem;font-weight:600;color:#DC2626;">'+(isD?parseFloat(t.debit).toFixed(2)+' €':'')+'</div>'
+      +'<div style="font-size:.75rem;font-weight:600;color:#059669;">'+(isC?parseFloat(t.credit).toFixed(2)+' €':'')+'</div>'
+      +'<div style="font-size:.68rem;font-weight:700;color:'+sc+';">'+(t._solde!==undefined?t._solde.toFixed(2):'—')+'</div>'
+      +'<div style="display:flex;gap:2px;">'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresPointer(this.dataset.id)" title="'+(t.pointe?'Dé-pointer':'Pointer')+'" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:'+(t.pointe?'#059669':'#9CA3AF')+';padding:2px;">'+(t.pointe?'✔':'○')+'</button>'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresEditer(this.dataset.id)" title="Modifier" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;">✏️</button>'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresSupprimer(this.dataset.id)" title="Supprimer" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;">🗑️</button>'
+      +'</div>';
+    tbody.appendChild(row);
+  });
+  zone.appendChild(tbody);
+}
+
+function _tresPointer(id){
+  var t=(window._tresorerieData||[]).find(function(x){return x.id===id;});
   if(!t) return;
-  osTresorerieOnglet('new');
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({pointe:!t.pointe})})
+  .then(function(r){ if(r.ok){ t.pointe=!t.pointe; osTresorerieRender(); } });
+}
+
+function _tresEditer(id){
+  var t=(window._tresorerieData||[]).find(function(x){return x.id===id;});
+  if(!t) return;
+  _tresOnglet='ajouter';
+  osTresorerieRender();
   setTimeout(function(){
-    document.getElementById('tres-edit-id').value = id;
-    document.getElementById('tres-date').value = t.date||'';
-    document.getElementById('tres-type').value = t.type||'';
-    document.getElementById('tres-desc').value = t.description||'';
-    document.getElementById('tres-debit').value = t.debit||'';
-    document.getElementById('tres-credit').value = t.credit||'';
-    document.getElementById('tres-moyen').value = t.moyen_paiement||'';
-    document.getElementById('tres-remarques').value = t.remarques||'';
-    var title = document.getElementById('tres-form-title');
-    if(title) title.textContent = 'Modifier le mouvement';
-    var btn = document.getElementById('tres-save-btn');
-    if(btn) btn.textContent = 'Mettre à jour';
+    var wc=document.getElementById('wincontent-tresorerie');
+    if(!wc) return;
+    var fields={
+      'tres-edit-id':id,'tres-date':t.date||'','tres-type':t.type||'',
+      'tres-desc':t.description||'','tres-debit':t.debit||'','tres-credit':t.credit||'',
+      'tres-moyen':t.moyen_paiement||'','tres-remarques':t.remarques||''
+    };
+    Object.keys(fields).forEach(function(k){ var el=document.getElementById(k); if(el)el.value=fields[k]; });
+    var title=document.getElementById('tres-form-title'); if(title)title.textContent='Modifier le mouvement';
+    var btn=document.getElementById('tres-save-btn'); if(btn)btn.textContent='Mettre à jour';
   },150);
 }
 
-function osTresorerieSauvegarder(){
-  var id      = (document.getElementById('tres-edit-id')||{}).value||null;
-  var date    = (document.getElementById('tres-date')||{}).value;
-  var desc    = ((document.getElementById('tres-desc')||{}).value||'').trim();
-  var type    = (document.getElementById('tres-type')||{}).value||'';
-  var debit   = parseFloat((document.getElementById('tres-debit')||{}).value)||null;
-  var credit  = parseFloat((document.getElementById('tres-credit')||{}).value)||null;
-  var moyen   = (document.getElementById('tres-moyen')||{}).value||null;
-  var rem     = ((document.getElementById('tres-remarques')||{}).value||'').trim()||null;
-  if(!date||!desc||!type){ notif('Date, description et catégorie obligatoires'); return; }
-  if(!debit&&!credit){ notif('Renseigne un débit ou un crédit'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var url    = SB_URL+'/rest/v1/tresorerie_transactions'+(id?'?id=eq.'+id:'');
-  fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({date:date,description:desc,type:type,debit:debit,credit:credit,moyen_paiement:moyen||null,remarques:rem,created_by:id?undefined:getUserId()})})
-  .then(function(r){ if(r.ok){ notif(id?'Mis à jour ✓':'Enregistré ✓','succes'); osTresorerieRender(); } else notif('Erreur','erreur'); });
-}
-
-function osTresorerieSupprimer(id){
+function _tresSupprimer(id){
   if(!confirm('Supprimer ce mouvement ?')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'DELETE',headers:authH})
-  .then(function(r){ if(r.ok){ notif('Supprimé'); osTresorerieRender(); } });
+  .then(function(r){ if(r.ok){ notif('Supprimé','succes'); osTresorerieRender(); } });
 }
 
-// ── Budget ──────────────────────────────────────────────────────────
-function osTresorerieBudgetRender(){
-  var zone = document.getElementById('tres-budget-content');
-  if(!zone) return;
-  zone.innerHTML = osLoadingHtml();
-  var annee = new Date().getFullYear();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/tresorerie_budget?annee=eq.'+annee+'&order=categorie.asc,ordre.asc&select=*',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(postes){
-    postes = (!postes||postes.code)?[]:postes;
-    var txs = window._tresorerieData||[];
-    window._tresorerieBudget = postes;
+// ── FORMULAIRE AJOUT/MODIF ───────────────────────────────────────────
+function _tresRenderFormulaire(zone, prefill){
+  zone.style.cssText='padding:1.2rem 1.5rem;background:white;max-width:640px;overflow-y:auto;min-height:0;';
+  var isEdit=prefill&&prefill.id;
+  var h='<div id="tres-form-title" style="font-size:.82rem;font-weight:700;color:#374151;margin-bottom:1rem;">'+(isEdit?'Modifier le mouvement':'Nouveau mouvement')+'</div>';
+  h+='<input type="hidden" id="tres-edit-id" value="'+(prefill&&prefill.id||'')+'">';
 
-    var depenses = postes.filter(function(p){return p.categorie==='depense';});
-    var recettes = postes.filter(function(p){return p.categorie==='recette';});
-    var budDep = depenses.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
-    var budRec = recettes.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+  // Type de mouvement rapide
+  h+='<div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">';
+  h+='<button onclick="_tresSetSens(\'credit\')" id="tres-btn-credit" style="flex:1;padding:.5rem;border:2px solid #059669;background:#F0FFF4;color:#059669;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">💚 Recette (entrée)</button>';
+  h+='<button onclick="_tresSetSens(\'debit\')" id="tres-btn-debit" style="flex:1;padding:.5rem;border:2px solid #E5E7EB;background:white;color:#6B7280;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">🔴 Dépense (sortie)</button>';
+  h+='</div>';
 
-    // Réel par poste : transactions liées via tx_ids (array JSON)
-    function reelDuPoste(p){
-      var ids = [];
-      try{ ids = JSON.parse(p.tx_ids||'[]'); }catch(e){}
-      return txs.filter(function(t){return ids.indexOf(t.id)!==-1;}).reduce(function(s,t){
-        return s + (p.categorie==='depense' ? (parseFloat(t.debit)||0) : (parseFloat(t.credit)||0));
-      },0);
-    }
-    var reelDep = depenses.reduce(function(s,p){return s+reelDuPoste(p);},0);
-    var reelRec = recettes.reduce(function(s,p){return s+reelDuPoste(p);},0);
+  function fld(label,id,type,val,placeholder){
+    return '<div><label style="font-size:.65rem;color:#6B7280;display:block;margin-bottom:3px;">'+label+'</label>'
+      +'<input type="'+type+'" id="'+id+'" value="'+esc(val||'')+'" placeholder="'+(placeholder||'')+'" style="width:100%;padding:.45rem .7rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:.82rem;box-sizing:border-box;"></div>';
+  }
+  function sel(label,id,opts,val){
+    var s='<div><label style="font-size:.65rem;color:#6B7280;display:block;margin-bottom:3px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:.45rem .7rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:.82rem;box-sizing:border-box;">';
+    opts.forEach(function(o){ s+='<option value="'+esc(o)+'"'+(o===(val||'')?'selected':'')+'>'+esc(o||'— Choisir —')+'</option>'; });
+    return s+'</select></div>';
+  }
 
-    var h = '';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">';
+  h+=fld('Date *','tres-date','date',prefill&&prefill.date||new Date().toISOString().split('T')[0]);
+  h+=sel('Catégorie *','tres-type',[''].concat(TRES_TYPES),prefill&&prefill.type);
+  h+='<div style="grid-column:1/-1">'+fld('Description *','tres-desc','text',prefill&&prefill.description,'Ex: Cotisation adhésion 2026')+'</div>';
+  h+='<div id="tres-debit-wrap">'+fld('Montant dépense (€)','tres-debit','number',prefill&&prefill.debit,'0.00')+'</div>';
+  h+='<div id="tres-credit-wrap">'+fld('Montant recette (€)','tres-credit','number',prefill&&prefill.credit,'0.00')+'</div>';
+  h+=sel('Moyen de paiement','tres-moyen',[''].concat(TRES_MOYENS),prefill&&prefill.moyen_paiement);
+  h+='<div style="grid-column:1/-1">'+fld('Remarques','tres-remarques','text',prefill&&prefill.remarques,'Notes, justificatif...')+'</div>';
+  h+='</div>';
+  h+='<div style="display:flex;gap:.5rem;margin-top:1.2rem;">';
+  h+='<button id="tres-save-btn" onclick="_tresSauvegarder()" style="padding:.55rem 1.4rem;background:#059669;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">'+(isEdit?'Mettre à jour':'Enregistrer')+'</button>';
+  h+='<button onclick="_tresOngletGo(\'mouvements\')" style="padding:.55rem 1rem;background:transparent;border:1px solid #D1D5DB;border-radius:8px;font-size:.78rem;cursor:pointer;color:#6B7280;">Annuler</button>';
+  h+='</div>';
+  zone.innerHTML=h;
 
-    // Résumé budget
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.8rem;margin-bottom:1.2rem;">';
-    [{l:'Budget dépenses',prev:budDep,reel:reelDep,inv:true},{l:'Budget recettes',prev:budRec,reel:reelRec,inv:false},{l:'Solde prévisionnel',prev:budRec-budDep,reel:reelRec-reelDep,inv:false}].forEach(function(c){
-      var ecart = c.reel - c.prev;
-      var ok = c.inv ? ecart<=0 : ecart>=0;
-      h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:0.8rem;">';
-      h += '<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">'+c.l+'</div>';
-      h += '<div style="display:flex;justify-content:space-between;align-items:baseline;">';
-      h += '<div><div style="font-size:0.65rem;color:#6B7280;">Prévu</div><div style="font-size:1rem;font-weight:700;color:#111827;">'+(c.prev>=0?'+':'')+c.prev.toFixed(2)+' €</div></div>';
-      h += '<div style="text-align:right;"><div style="font-size:0.65rem;color:#6B7280;">Réel</div><div style="font-size:1rem;font-weight:700;color:'+(ok?'#059669':'#DC2626')+';">'+(c.reel>=0?'+':'')+c.reel.toFixed(2)+' €</div></div>';
-      h += '</div>';
-      if(c.prev!==0){var pct=Math.min(100,Math.round(Math.abs(c.reel)/Math.abs(c.prev)*100));h+='<div style="margin-top:6px;background:#F3F4F6;border-radius:4px;height:4px;"><div style="height:4px;border-radius:4px;background:'+(ok?'#059669':'#DC2626')+';width:'+pct+'%;"></div></div>';}
-      h += '</div>';
+  // Détecter le sens via catégorie sélectionnée
+  document.getElementById('tres-type').addEventListener('change',function(){
+    var isRec = TRES_RECETTES.indexOf(this.value)!==-1;
+    _tresSetSens(isRec?'credit':'debit');
+  });
+}
+
+function _tresSetSens(sens){
+  var btnC=document.getElementById('tres-btn-credit');
+  var btnD=document.getElementById('tres-btn-debit');
+  if(sens==='credit'){
+    if(btnC){btnC.style.borderColor='#059669';btnC.style.background='#F0FFF4';btnC.style.color='#059669';}
+    if(btnD){btnD.style.borderColor='#E5E7EB';btnD.style.background='white';btnD.style.color='#6B7280';}
+    var d=document.getElementById('tres-debit'); if(d){d.value='';d.style.opacity='.5';}
+    var c=document.getElementById('tres-credit'); if(c){c.style.opacity='1';c.focus();}
+  } else {
+    if(btnD){btnD.style.borderColor='#DC2626';btnD.style.background='#FFF5F5';btnD.style.color='#DC2626';}
+    if(btnC){btnC.style.borderColor='#E5E7EB';btnC.style.background='white';btnC.style.color='#6B7280';}
+    var c2=document.getElementById('tres-credit'); if(c2){c2.value='';c2.style.opacity='.5';}
+    var d2=document.getElementById('tres-debit'); if(d2){d2.style.opacity='1';d2.focus();}
+  }
+}
+
+function _tresOngletGo(o){
+  _tresOnglet=o;
+  osTresorerieRender();
+}
+
+function _tresSauvegarder(){
+  var id     =(document.getElementById('tres-edit-id')||{}).value||null;
+  var date   =(document.getElementById('tres-date')||{}).value;
+  var desc   =((document.getElementById('tres-desc')||{}).value||'').trim();
+  var type   =(document.getElementById('tres-type')||{}).value||'';
+  var debit  =parseFloat((document.getElementById('tres-debit')||{}).value)||null;
+  var credit =parseFloat((document.getElementById('tres-credit')||{}).value)||null;
+  var moyen  =(document.getElementById('tres-moyen')||{}).value||null;
+  var rem    =((document.getElementById('tres-remarques')||{}).value||'').trim()||null;
+  if(!date||!desc||!type){notif('Date, description et catégorie obligatoires');return;}
+  if(!debit&&!credit){notif('Renseigne un montant');return;}
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var url=SB_URL+'/rest/v1/tresorerie_transactions'+(id?'?id=eq.'+id:'');
+  fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({date:date,description:desc,type:type,debit:debit,credit:credit,moyen_paiement:moyen,remarques:rem,created_by:id?undefined:getUserId()})})
+  .then(function(r){
+    if(r.ok){ notif(id?'Mis à jour ✓':'Enregistré ✓','succes'); _tresOnglet='mouvements'; osTresorerieRender(); }
+    else notif('Erreur enregistrement','erreur');
+  });
+}
+
+// ── IMPORT CSV ───────────────────────────────────────────────────────
+function _tresModalImportCSV(){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML='<div style="background:white;border-radius:14px;padding:1.4rem;width:min(580px,94vw);box-shadow:0 16px 48px rgba(0,0,0,.25);">'
+    +'<div style="font-weight:700;font-size:.9rem;margin-bottom:.5rem;">⬆ Import relevé bancaire (CSV)</div>'
+    +'<div style="font-size:.72rem;color:#6B7280;margin-bottom:.8rem;">Colle le contenu de ton relevé CSV ci-dessous. Colonnes attendues (séparées par ; ou ,) :<br><code style="font-size:.65rem;background:#F3F4F6;padding:2px 5px;border-radius:3px;">Date ; Description ; Débit ; Crédit</code></div>'
+    +'<textarea id="csv-import-area" rows="8" style="width:100%;padding:.6rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:.72rem;font-family:monospace;resize:vertical;box-sizing:border-box;" placeholder="18/06/2026;Virement HelloAsso;;120.00&#10;20/06/2026;Hébergement OVH;14.40;"></textarea>'
+    +'<div style="display:flex;gap:.5rem;margin-top:.8rem;">'
+    +'<button onclick="_tresParseCSV(document.getElementById(\'csv-import-area\').value)" style="flex:1;padding:.5rem;background:#059669;color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">Analyser et importer</button>'
+    +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:.5rem 1rem;border:1px solid #D1D5DB;background:white;border-radius:8px;font-size:.78rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'</div></div>';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);
+  setTimeout(function(){var el=document.getElementById('csv-import-area');if(el)el.focus();},50);
+}
+
+function _tresParseCSV(raw){
+  var lines=raw.trim().split('\n').filter(function(l){return l.trim();});
+  if(!lines.length){notif('Aucune ligne à importer');return;}
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var ok=0,ko=0,pending=0;
+  var rows=[];
+  lines.forEach(function(line){
+    var sep=line.indexOf(';')!==-1?';':',';
+    var parts=line.split(sep).map(function(s){return s.trim().replace(/^"|"$/g,'');});
+    if(parts.length<3) return;
+    // Parser date flexible
+    var dateRaw=parts[0];
+    var dateISO='';
+    if(/\d{4}-\d{2}-\d{2}/.test(dateRaw)) dateISO=dateRaw.substring(0,10);
+    else if(/\d{2}\/\d{2}\/\d{4}/.test(dateRaw)){var p=dateRaw.split('/');dateISO=p[2]+'-'+p[1]+'-'+p[0];}
+    else if(/\d{2}\/\d{2}\/\d{2}/.test(dateRaw)){var p=dateRaw.split('/');dateISO='20'+p[2]+'-'+p[1]+'-'+p[0];}
+    if(!dateISO) return;
+    var desc=parts[1]||'Import CSV';
+    var debit=parseFloat((parts[2]||'').replace(',','.'))||null;
+    var credit=parseFloat((parts[3]||'').replace(',','.'))||null;
+    if(!debit&&!credit) return;
+    rows.push({date:dateISO,description:desc,type:'Autre',debit:debit,credit:credit,created_by:getUserId()});
+  });
+  if(!rows.length){notif('Aucune ligne valide détectée','erreur');return;}
+  // Confirmation
+  var ov=document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
+  if(ov) ov.remove();
+  var ov2=document.createElement('div');
+  ov2.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  ov2.innerHTML='<div style="background:white;border-radius:14px;padding:1.4rem;width:min(480px,94vw);">'
+    +'<div style="font-weight:700;margin-bottom:.5rem;">'+rows.length+' mouvements détectés</div>'
+    +'<div style="max-height:220px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:1rem;">'
+    +rows.map(function(r){return '<div style="display:grid;grid-template-columns:80px 1fr 80px;padding:.4rem .7rem;border-bottom:1px solid #F3F4F6;font-size:.7rem;">'
+      +'<span style="color:#9CA3AF;">'+r.date+'</span><span>'+esc(r.description)+'</span>'
+      +'<span style="font-weight:600;color:'+(r.debit?'#DC2626':'#059669')+';">'+(r.debit?'-'+r.debit.toFixed(2):'+'+r.credit.toFixed(2))+' €</span></div>';}).join('')
+    +'</div>'
+    +'<div style="display:flex;gap:.5rem;">'
+    +'<button id="csv-confirm" style="flex:1;padding:.5rem;background:#059669;color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">✓ Importer</button>'
+    +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:.5rem 1rem;border:1px solid #D1D5DB;background:white;border-radius:8px;font-size:.78rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'</div></div>';
+  ov2.onclick=function(e){if(e.target===ov2)ov2.remove();};
+  document.body.appendChild(ov2);
+  document.getElementById('csv-confirm').onclick=function(){
+    ov2.remove();
+    var count=rows.length;
+    var done=0;
+    rows.forEach(function(r){
+      fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(r)})
+      .then(function(res){if(res.ok)ok++;else ko++;done++;if(done===count){notif(ok+' mouvements importés'+(ko?' ('+ko+' erreurs)':''),'succes');osTresorerieRender();}})
+      .catch(function(){ko++;done++;if(done===count){notif(ok+' importés, '+ko+' erreurs','erreur');osTresorerieRender();}});
     });
-    h += '</div>';
+  };
+}
 
-    // Boutons ajouter
-    h += '<div style="display:flex;gap:0.5rem;margin-bottom:1rem;">';
-    h += '<button onclick="osTresorerieBudgetForm(\'depense\')" style="font-size:0.72rem;padding:5px 12px;background:#DC2626;color:white;border:none;border-radius:6px;cursor:pointer;">+ Dépense prévue</button>';
-    h += '<button onclick="osTresorerieBudgetForm(\'recette\')" style="font-size:0.72rem;padding:5px 12px;background:#059669;color:white;border:none;border-radius:6px;cursor:pointer;">+ Recette prévue</button>';
-    h += '</div>';
+// ── EXPORT CSV ───────────────────────────────────────────────────────
+function _tresExportCSV(txs){
+  var rows=[['Date','Description','Catégorie','Moyen','Débit','Crédit','Solde','Pointé','Remarques']];
+  txs.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t){
+    rows.push([t.date||'',t.description||'',t.type||'',t.moyen_paiement||'',t.debit||'',t.credit||'',t._solde||'',t.pointe?'Oui':'Non',t.remarques||'']);
+  });
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(';');}).join('\n');
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download='tresorerie_ipsum_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  notif('Export CSV téléchargé ✓','succes');
+}
 
-    // Formulaire (caché)
-    h += '<div id="tres-bud-form" style="display:none;background:white;border:2px solid #E5E7EB;border-radius:10px;padding:1rem;margin-bottom:1rem;">';
-    h += '<div style="font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:0.7rem;" id="tres-bud-titre">Nouveau poste</div>';
-    h += '<input type="hidden" id="tres-bud-id"><input type="hidden" id="tres-bud-cat" value="depense">';
-    h += '<div style="display:grid;grid-template-columns:1fr 120px;gap:0.6rem;margin-bottom:0.6rem;">';
-    h += '<div><label style="font-size:0.65rem;color:#6B7280;">Intitulé du poste *</label><input type="text" id="tres-bud-poste" placeholder="Ex: Nom de domaine" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #D1D5DB;border-radius:6px;font-size:0.8rem;margin-top:2px;"></div>';
-    h += '<div><label style="font-size:0.65rem;color:#6B7280;">Montant prévu (€)</label><input type="number" id="tres-bud-montant" min="0" step="0.01" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #D1D5DB;border-radius:6px;font-size:0.8rem;margin-top:2px;"></div>';
-    h += '</div>';
-    h += '<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:#6B7280;">Notes explicatives</label><input type="text" id="tres-bud-notes" placeholder="Ex: 3€/mois × 12 mois" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #D1D5DB;border-radius:6px;font-size:0.8rem;margin-top:2px;"></div>';
-    h += '<div style="display:flex;gap:0.5rem;">';
-    h += '<button onclick="osTresorerieBudgetSauvegarder()" style="padding:0.4rem 1rem;background:#059669;color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>';
-    h += '<button onclick="document.getElementById(\'tres-bud-form\').style.display=\'none\'" style="padding:0.4rem 0.8rem;background:transparent;border:1px solid #D1D5DB;border-radius:6px;font-size:0.72rem;cursor:pointer;color:#6B7280;">Annuler</button>';
-    h += '</div></div>';
+// ── BUDGET PREVISIONNEL ──────────────────────────────────────────────
+function _tresRenderBudget(zone, postes, txs, annee){
+  zone.style.cssText='padding:1rem 1.2rem;background:#F7F8FA;overflow-y:auto;min-height:0;';
+  var postesAn=postes.filter(function(p){return !p.annee||p.annee===annee;});
+  var dep=postesAn.filter(function(p){return p.categorie==='depense';});
+  var rec=postesAn.filter(function(p){return p.categorie==='recette';});
 
-    // Sections dépenses/recettes
-    function renderSection(titre, items, couleur, isDepense){
-      if(!items.length) return;
-      h += '<div style="margin-bottom:1rem;">';
-      h += '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+couleur+';margin-bottom:0.5rem;">'+titre+'</div>';
-      items.forEach(function(p){
-        var reel = reelDuPoste(p);
-        var prev = parseFloat(p.montant)||0;
-        var ecart = reel - prev;
-        var ok = isDepense ? ecart<=0 : ecart>=0;
-        var pct = prev>0?Math.min(100,Math.round(reel/prev*100)):0;
-        var txIds = [];
-        try{ txIds = JSON.parse(p.tx_ids||'[]'); }catch(e){}
-        var txLiees = txs.filter(function(t){return txIds.indexOf(t.id)!==-1;});
+  function reelDuPoste(p){
+    var ids=[];try{ids=JSON.parse(p.tx_ids||'[]');}catch(e){}
+    return txs.filter(function(t){return ids.indexOf(t.id)!==-1;}).reduce(function(s,t){
+      return s+(p.categorie==='depense'?parseFloat(t.debit)||0:parseFloat(t.credit)||0);
+    },0);
+  }
 
-        h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.5rem;">';
-        // En-tête poste
-        h += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
-        h += '<div style="flex:1;">';
-        h += '<div style="font-size:0.85rem;font-weight:600;color:#111827;">'+esc(p.poste||'')+'</div>';
-        if(p.notes) h += '<div style="font-size:0.65rem;color:#9CA3AF;font-style:italic;margin-top:1px;">'+esc(p.notes)+'</div>';
-        h += '</div>';
-        h += '<div style="text-align:right;margin-left:1rem;">';
-        h += '<div style="font-size:0.72rem;color:#6B7280;">Prévu : <strong>'+prev.toFixed(2)+' €</strong></div>';
-        h += '<div style="font-size:0.72rem;color:'+(ok?'#059669':'#DC2626')+';">Réel : <strong>'+reel.toFixed(2)+' €</strong></div>';
-        if(prev>0) h += '<div style="font-size:0.68rem;color:'+(ok?'#059669':'#DC2626')+';font-weight:600;">Écart : '+(ecart>=0?'+':'')+ecart.toFixed(2)+' €</div>';
-        h += '</div></div>';
-        // Barre de progression
-        if(prev>0){ h += '<div style="margin:6px 0 8px;background:#F3F4F6;border-radius:4px;height:5px;"><div style="height:5px;border-radius:4px;background:'+(ok?'#059669':'#DC2626')+';width:'+pct+'%;transition:width 0.3s;"></div></div>'; }
-        // Transactions liées
-        if(txLiees.length){
-          h += '<div style="font-size:0.62rem;color:#6B7280;margin-bottom:4px;">Mouvements liés :</div>';
-          txLiees.forEach(function(t){
-            var d = t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-            var montant = isDepense ? parseFloat(t.debit)||0 : parseFloat(t.credit)||0;
-            h += '<div style="display:flex;align-items:center;gap:0.4rem;padding:3px 6px;background:#F9FAFB;border-radius:5px;margin-bottom:2px;">';
-            h += '<span style="font-size:0.62rem;color:#9CA3AF;">'+d+'</span>';
-            h += '<span style="flex:1;font-size:0.72rem;color:#374151;">'+esc(t.description||'')+'</span>';
-            h += '<span style="font-size:0.72rem;font-weight:600;color:'+(isDepense?'#DC2626':'#059669')+';">'+montant.toFixed(2)+' €</span>';
-            h += '<button data-pid="'+p.id+'" data-tid="'+t.id+'" onclick="osTresorerieBudgetDelierTx(this.dataset.pid,this.dataset.tid)" style="font-size:0.6rem;background:none;border:none;cursor:pointer;color:#9CA3AF;" title="Délier">✕</button>';
-            h += '</div>';
-          });
-        }
-        // Lier une transaction
-        var txsDispo = txs.filter(function(t){
-          if(txIds.indexOf(t.id)!==-1) return false;
-          return isDepense ? (parseFloat(t.debit)||0)>0 : (parseFloat(t.credit)||0)>0;
+  var budDep=dep.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+  var budRec=rec.reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+  var reelDep=dep.reduce(function(s,p){return s+reelDuPoste(p);},0);
+  var reelRec=rec.reduce(function(s,p){return s+reelDuPoste(p);},0);
+
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
+    +'<div style="font-weight:700;font-size:.9rem;">Budget prévisionnel '+annee+'</div>'
+    +'<div style="display:flex;gap:.4rem;">'
+    +'<button onclick="_tresBudgetForm(\'recette\')" style="padding:4px 12px;background:#059669;color:white;border:none;border-radius:20px;font-size:.68rem;cursor:pointer;">+ Recette</button>'
+    +'<button onclick="_tresBudgetForm(\'depense\')" style="padding:4px 12px;background:#DC2626;color:white;border:none;border-radius:20px;font-size:.68rem;cursor:pointer;">+ Dépense</button>'
+    +'</div></div>';
+
+  // Formulaire caché
+  h+='<div id="tres-bud-form" style="display:none;background:white;border:2px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1rem;">'
+    +'<div id="tres-bud-titre" style="font-size:.75rem;font-weight:700;color:#374151;margin-bottom:.7rem;">Nouveau poste</div>'
+    +'<input type="hidden" id="tres-bud-id"><input type="hidden" id="tres-bud-cat" value="depense">'
+    +'<div style="display:grid;grid-template-columns:1fr 130px;gap:.6rem;margin-bottom:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Intitulé *</label><input id="tres-bud-poste" type="text" placeholder="Ex: Hébergement serveur" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Montant prévu (€)</label><input id="tres-bud-montant" type="number" min="0" step="0.01" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div style="grid-column:1/-1"><label style="font-size:.62rem;color:#6B7280;">Notes / calcul</label><input id="tres-bud-notes" type="text" placeholder="Ex: 14€ × 12 mois" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:.4rem;">'
+    +'<button onclick="_tresBudgetSauvegarder()" style="padding:.4rem 1rem;background:#059669;color:white;border:none;border-radius:7px;font-size:.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>'
+    +'<button onclick="document.getElementById(\'tres-bud-form\').style.display=\'none\'" style="padding:.4rem .8rem;background:transparent;border:1px solid #D1D5DB;border-radius:7px;font-size:.72rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'</div></div>';
+
+  // Récap global
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1.2rem;">';
+  [{l:'Recettes prévues',prev:budRec,reel:reelRec,inv:false},{l:'Dépenses prévues',prev:budDep,reel:reelDep,inv:true},{l:'Solde prévisionnel',prev:budRec-budDep,reel:reelRec-reelDep,inv:false}].forEach(function(c){
+    var ecart=c.reel-c.prev; var ok=c.inv?ecart<=0:ecart>=0;
+    h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:.8rem;">'
+      +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">'+c.l+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;">'
+      +'<div><div style="font-size:.6rem;color:#9CA3AF;">Prévu</div><div style="font-size:.95rem;font-weight:700;color:#111827;">'+(c.prev>=0?'+':'')+c.prev.toFixed(2)+' €</div></div>'
+      +'<div style="text-align:right;"><div style="font-size:.6rem;color:#9CA3AF;">Réel</div><div style="font-size:.95rem;font-weight:700;color:'+(ok?'#059669':'#DC2626')+'">'+(c.reel>=0?'+':'')+c.reel.toFixed(2)+' €</div></div>'
+      +'</div>';
+    if(c.prev!==0){var pct=Math.min(100,Math.round(Math.abs(c.reel)/Math.abs(c.prev)*100));h+='<div style="margin-top:6px;background:#F3F4F6;border-radius:4px;height:5px;"><div style="height:5px;border-radius:4px;background:'+(ok?'#059669':'#DC2626')+';width:'+pct+'%;"></div></div>';}
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // Sections
+  function renderSection(titre, items, isDepense, couleur){
+    if(!items.length && !postesAn.length) return;
+    h+='<div style="margin-bottom:1.4rem;">';
+    h+='<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:'+couleur+';margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;">'+titre+'<span style="font-weight:400;color:#9CA3AF;">('+items.length+' postes)</span></div>';
+    if(!items.length){ h+='<div style="font-size:.78rem;color:#9CA3AF;text-align:center;padding:1rem;background:white;border-radius:8px;border:1px dashed #E5E7EB;">Aucun poste — clique "+ '+(isDepense?'Dépense':'Recette')+'" pour ajouter</div>'; }
+    items.forEach(function(p){
+      var reel=reelDuPoste(p); var prev=parseFloat(p.montant)||0;
+      var ecart=reel-prev; var ok=isDepense?ecart<=0:ecart>=0;
+      var pct=prev>0?Math.min(100,Math.round(Math.abs(reel)/prev*100)):0;
+      var txIds=[]; try{txIds=JSON.parse(p.tx_ids||'[]');}catch(e){}
+      var txLiees=txs.filter(function(t){return txIds.indexOf(t.id)!==-1;});
+      h+='<div style="background:white;border:1px solid #E5E7EB;border-left:3px solid '+couleur+';border-radius:0 10px 10px 0;padding:.9rem 1rem;margin-bottom:.5rem;">';
+      h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem;">';
+      h+='<div style="flex:1;"><div style="font-size:.85rem;font-weight:600;color:#111827;">'+esc(p.poste||'')+'</div>';
+      if(p.notes) h+='<div style="font-size:.62rem;color:#9CA3AF;font-style:italic;margin-top:1px;">'+esc(p.notes)+'</div>';
+      h+='</div>';
+      h+='<div style="text-align:right;flex-shrink:0;">';
+      h+='<div style="font-size:.68rem;color:#6B7280;">Prévu : <strong>'+prev.toFixed(2)+' €</strong></div>';
+      h+='<div style="font-size:.68rem;color:'+(ok?'#059669':'#DC2626')+';">Réel : <strong>'+reel.toFixed(2)+' €</strong></div>';
+      if(prev>0) h+='<div style="font-size:.65rem;font-weight:700;color:'+(ok?'#059669':'#DC2626')+';"> Écart : '+(ecart>=0?'+':'')+ecart.toFixed(2)+' €</div>';
+      h+='</div></div>';
+      if(prev>0) h+='<div style="margin:6px 0 8px;background:#F3F4F6;border-radius:4px;height:5px;"><div style="height:5px;border-radius:4px;background:'+(ok?'#059669':'#DC2626')+';width:'+pct+'%;"></div></div>';
+      // Transactions liées
+      if(txLiees.length){
+        h+='<div style="font-size:.6rem;color:#9CA3AF;margin-bottom:3px;">Mouvements liés :</div>';
+        txLiees.forEach(function(t){
+          var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+          var mt=isDepense?parseFloat(t.debit)||0:parseFloat(t.credit)||0;
+          h+='<div style="display:flex;align-items:center;gap:.4rem;padding:3px 6px;background:#F9FAFB;border-radius:5px;margin-bottom:2px;">'
+            +'<span style="font-size:.6rem;color:#9CA3AF;">'+d+'</span>'
+            +'<span style="flex:1;font-size:.7rem;color:#374151;">'+esc(t.description||'')+'</span>'
+            +'<span style="font-size:.7rem;font-weight:600;color:'+(isDepense?'#DC2626':'#059669')+';">'+mt.toFixed(2)+' €</span>'
+            +'<button data-pid="'+p.id+'" data-tid="'+t.id+'" onclick="osTresorerieBudgetDelierTx(this.dataset.pid,this.dataset.tid)" style="font-size:.6rem;background:none;border:none;cursor:pointer;color:#9CA3AF;" title="Délier">✕</button>'
+            +'</div>';
         });
-        if(txsDispo.length){
-          h += '<div style="margin-top:6px;display:flex;gap:0.4rem;align-items:center;">';
-          h += '<span style="font-size:0.62rem;color:#9CA3AF;">Lier un mouvement :</span>';
-          h += '<select data-pid="'+p.id+'" onchange="osTresorerieBudgetLierTx(this.dataset.pid,this.value);this.value=\'\'" style="flex:1;font-size:0.65rem;padding:3px 6px;border:1px solid #D1D5DB;border-radius:5px;color:#374151;">';
-          h += '<option value="">— Choisir —</option>';
-          txsDispo.forEach(function(t){
-            var d = t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-            var montant = isDepense?parseFloat(t.debit)||0:parseFloat(t.credit)||0;
-            h += '<option value="'+t.id+'">'+d+' · '+esc(t.description||'').substring(0,30)+' ('+montant.toFixed(2)+'€)</option>';
-          });
-          h += '</select></div>';
-        }
-        // Actions
-        h += '<div style="display:flex;gap:0.4rem;margin-top:8px;justify-content:flex-end;">';
-        h += '<button data-pid="'+p.id+'" onclick="osTresorerieBudgetEditer(this.dataset.pid)" style="font-size:0.65rem;padding:2px 8px;background:#F3F4F6;border:none;border-radius:4px;cursor:pointer;color:#6B7280;">✏️ Modifier</button>';
-        h += '<button data-pid="'+p.id+'" onclick="osTresorerieBudgetSupprimer(this.dataset.pid)" style="font-size:0.65rem;padding:2px 8px;background:#FEE2E2;border:none;border-radius:4px;cursor:pointer;color:#DC2626;">🗑️ Supprimer</button>';
-        h += '</div></div>';
-      });
-      h += '</div>';
-    }
+      }
+      // Lier une transaction
+      var txsDispo=txs.filter(function(t){ if(txIds.indexOf(t.id)!==-1)return false; return isDepense?(parseFloat(t.debit)||0)>0:(parseFloat(t.credit)||0)>0; });
+      if(txsDispo.length){
+        h+='<div style="margin-top:6px;display:flex;gap:.4rem;align-items:center;">'
+          +'<span style="font-size:.6rem;color:#9CA3AF;">Lier :</span>'
+          +'<select data-pid="'+p.id+'" onchange="osTresorerieBudgetLierTx(this.dataset.pid,this.value);this.value=\'\'" style="flex:1;font-size:.62rem;padding:2px 5px;border:1px solid #D1D5DB;border-radius:5px;"><option value="">— Choisir un mouvement —</option>';
+        txsDispo.forEach(function(t){
+          var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+          var mt=isDepense?parseFloat(t.debit)||0:parseFloat(t.credit)||0;
+          h+='<option value="'+t.id+'">'+d+' · '+esc(t.description||'').substring(0,28)+' ('+mt.toFixed(2)+'€)</option>';
+        });
+        h+='</select></div>';
+      }
+      h+='<div style="display:flex;gap:.4rem;margin-top:8px;justify-content:flex-end;">'
+        +'<button data-pid="'+p.id+'" onclick="_tresBudgetEditer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#F3F4F6;border:none;border-radius:4px;cursor:pointer;color:#6B7280;">✏️ Modifier</button>'
+        +'<button data-pid="'+p.id+'" onclick="_tresBudgetSupprimer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#FEE2E2;border:none;border-radius:4px;cursor:pointer;color:#DC2626;">🗑️ Supprimer</button>'
+        +'</div></div>';
+    });
+    h+='</div>';
+  }
 
-    renderSection('Dépenses prévues', depenses, '#DC2626', true);
-    renderSection('Recettes prévues', recettes, '#059669', false);
-    if(!postes.length) h += '<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:0.85rem;">Aucun poste budget. Clique sur "+ Dépense prévue" ou "+ Recette prévue" pour commencer.</div>';
-
-    zone.innerHTML = h;
-  }).catch(function(){ zone.innerHTML = osErreurHtml('osTresorerieBudgetRender'); });
+  renderSection('📈 Recettes prévues', rec, false, '#059669');
+  renderSection('📉 Dépenses prévues', dep, true,  '#DC2626');
+  zone.innerHTML=h;
 }
 
-function osTresorerieBudgetForm(cat){
-  var f = document.getElementById('tres-bud-form');
-  if(!f) return;
-  document.getElementById('tres-bud-id').value = '';
-  document.getElementById('tres-bud-cat').value = cat;
-  document.getElementById('tres-bud-poste').value = '';
-  document.getElementById('tres-bud-montant').value = '';
-  document.getElementById('tres-bud-notes').value = '';
-  var t = document.getElementById('tres-bud-titre');
-  if(t) t.textContent = 'Nouveau poste — '+(cat==='depense'?'Dépense prévue':'Recette prévue');
-  f.style.display = 'block';
-  f.scrollIntoView({behavior:'smooth'});
+function _tresBudgetForm(cat){
+  var f=document.getElementById('tres-bud-form'); if(!f)return;
+  document.getElementById('tres-bud-id').value='';
+  document.getElementById('tres-bud-cat').value=cat;
+  document.getElementById('tres-bud-poste').value='';
+  document.getElementById('tres-bud-montant').value='';
+  document.getElementById('tres-bud-notes').value='';
+  document.getElementById('tres-bud-titre').textContent='Nouveau poste '+(cat==='depense'?'dépense':'recette');
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth',block:'nearest'});
+  setTimeout(function(){var el=document.getElementById('tres-bud-poste');if(el)el.focus();},100);
 }
 
-function osTresorerieBudgetEditer(id){
-  var p = (window._tresorerieBudget||[]).find(function(x){return x.id===id;});
+function _tresBudgetEditer(id){
+  var p=(window._tresorerieBudget||[]).find(function(x){return x.id===id;});
   if(!p) return;
-  var f = document.getElementById('tres-bud-form');
-  if(!f) return;
-  document.getElementById('tres-bud-id').value = id;
-  document.getElementById('tres-bud-cat').value = p.categorie;
-  document.getElementById('tres-bud-poste').value = p.poste||'';
-  document.getElementById('tres-bud-montant').value = p.montant||'';
-  document.getElementById('tres-bud-notes').value = p.notes||'';
-  var t = document.getElementById('tres-bud-titre');
-  if(t) t.textContent = 'Modifier le poste';
-  f.style.display = 'block';
-  f.scrollIntoView({behavior:'smooth'});
+  var f=document.getElementById('tres-bud-form'); if(!f)return;
+  document.getElementById('tres-bud-id').value=id;
+  document.getElementById('tres-bud-cat').value=p.categorie;
+  document.getElementById('tres-bud-poste').value=p.poste||'';
+  document.getElementById('tres-bud-montant').value=p.montant||'';
+  document.getElementById('tres-bud-notes').value=p.notes||'';
+  document.getElementById('tres-bud-titre').textContent='Modifier le poste';
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function osTresorerieBudgetSauvegarder(){
-  var id     = (document.getElementById('tres-bud-id')||{}).value||null;
-  var cat    = (document.getElementById('tres-bud-cat')||{}).value||'depense';
-  var poste  = ((document.getElementById('tres-bud-poste')||{}).value||'').trim();
-  var mont   = parseFloat((document.getElementById('tres-bud-montant')||{}).value)||0;
-  var notes  = ((document.getElementById('tres-bud-notes')||{}).value||'').trim()||null;
-  if(!poste){ notif('L\'intitulé est obligatoire'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var url = SB_URL+'/rest/v1/tresorerie_budget'+(id?'?id=eq.'+id:'');
-  fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({poste:poste,categorie:cat,montant:mont,notes:notes,annee:new Date().getFullYear()})})
-  .then(function(r){ if(r.ok){ notif('Poste enregistré ✓','succes'); osTresorerieBudgetRender(); } else notif('Erreur','erreur'); });
+function _tresBudgetSauvegarder(){
+  var id    =(document.getElementById('tres-bud-id')||{}).value||null;
+  var cat   =(document.getElementById('tres-bud-cat')||{}).value||'depense';
+  var poste =((document.getElementById('tres-bud-poste')||{}).value||'').trim();
+  var mont  =parseFloat((document.getElementById('tres-bud-montant')||{}).value)||0;
+  var notes =((document.getElementById('tres-bud-notes')||{}).value||'').trim()||null;
+  if(!poste){notif('Intitulé obligatoire');return;}
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var url=SB_URL+'/rest/v1/tresorerie_budget'+(id?'?id=eq.'+id:'');
+  fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({poste:poste,categorie:cat,montant:mont,notes:notes,annee:_tresFiltreAnnee})})
+  .then(function(r){if(r.ok){notif('Enregistré ✓','succes');osTresorerieRender();}else notif('Erreur','erreur');});
 }
 
-function osTresorerieBudgetSupprimer(id){
-  if(!confirm('Supprimer ce poste ?')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+function _tresBudgetSupprimer(id){
+  if(!confirm('Supprimer ce poste ?'))return;
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+id,{method:'DELETE',headers:authH})
-  .then(function(r){ if(r.ok){ notif('Poste supprimé'); osTresorerieBudgetRender(); } });
+  .then(function(r){if(r.ok){notif('Poste supprimé','succes');osTresorerieRender();}});
 }
 
+// Garder les fonctions budget lier/délier pour compatibilité
 function osTresorerieBudgetLierTx(posteId, txId){
   if(!txId) return;
-  var p = (window._tresorerieBudget||[]).find(function(x){return x.id===posteId;});
+  var p=(window._tresorerieBudget||[]).find(function(x){return x.id===posteId;});
   if(!p) return;
-  var ids = [];
-  try{ ids = JSON.parse(p.tx_ids||'[]'); }catch(e){}
-  if(ids.indexOf(txId)===-1) ids.push(txId);
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var ids=[]; try{ids=JSON.parse(p.tx_ids||'[]');}catch(e){}
+  if(ids.indexOf(txId)!==-1) return;
+  ids.push(txId);
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+posteId,{method:'PATCH',headers:authH,body:JSON.stringify({tx_ids:JSON.stringify(ids)})})
-  .then(function(r){ if(r.ok){ notif('Mouvement lié ✓','succes'); osTresorerieBudgetRender(); } else notif('Erreur','erreur'); });
+  .then(function(r){if(r.ok){notif('Mouvement lié ✓','succes');osTresorerieRender();}});
 }
 
 function osTresorerieBudgetDelierTx(posteId, txId){
-  var p = (window._tresorerieBudget||[]).find(function(x){return x.id===posteId;});
+  var p=(window._tresorerieBudget||[]).find(function(x){return x.id===posteId;});
   if(!p) return;
-  var ids = [];
-  try{ ids = JSON.parse(p.tx_ids||'[]'); }catch(e){}
-  ids = ids.filter(function(i){return i!==txId;});
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var ids=[]; try{ids=JSON.parse(p.tx_ids||'[]');}catch(e){}
+  ids=ids.filter(function(i){return i!==txId;});
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+posteId,{method:'PATCH',headers:authH,body:JSON.stringify({tx_ids:JSON.stringify(ids)})})
-  .then(function(r){ if(r.ok){ notif('Mouvement délié'); osTresorerieBudgetRender(); } });
+  .then(function(r){if(r.ok){notif('Mouvement délié','succes');osTresorerieRender();}});
 }
 
-// ── Bilan PDF ────────────────────────────────────────────────────────
-function osTresorerieBilan(){
-  var txs   = window._tresorerieData||[];
-  var postes= window._tresorerieBudget||[];
-  var annee = new Date().getFullYear();
-  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-  var totalRec = txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
-  var totalDep = txs.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
-  var solde    = totalRec-totalDep;
+// ── RAPPORT AG ───────────────────────────────────────────────────────
+function _tresRenderRapport(zone, txs, postes, annee){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txsAn=txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec=txsAn.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep=txsAn.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var resultat=totalRec-totalDep;
 
-  var parMois={};
-  txs.forEach(function(t){
-    if(!t.date) return;
-    var d=new Date(t.date+'T00:00:00');
-    var m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    if(!parMois[m]) parMois[m]={debit:0,credit:0,label:d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
-    parMois[m].debit+=parseFloat(t.debit)||0;
-    parMois[m].credit+=parseFloat(t.credit)||0;
+  // Recettes par catégorie
+  var parCatRec={};
+  txsAn.filter(function(t){return parseFloat(t.credit)>0;}).forEach(function(t){
+    var cat=t.type||'Autres'; parCatRec[cat]=(parCatRec[cat]||0)+(parseFloat(t.credit)||0);
+  });
+  // Dépenses par catégorie
+  var parCatDep={};
+  txsAn.filter(function(t){return parseFloat(t.debit)>0;}).forEach(function(t){
+    var cat=t.type||'Autres'; parCatDep[cat]=(parCatDep[cat]||0)+(parseFloat(t.debit)||0);
   });
 
+  var h='<div style="max-width:800px;">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">'
+    +'<div><div style="font-size:1rem;font-weight:700;">🏛 Rapport financier AG '+annee+'</div>'
+    +'<div style="font-size:.68rem;color:#9CA3AF;">Ipsum Média · Généré le '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div></div>'
+    +'<button onclick="_tresRapportPDF()" style="padding:.5rem 1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">🖨 Exporter PDF</button>'
+    +'</div>';
+
+  // Soldes résumé
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.4rem;">';
+  [{l:'Total recettes',v:'+'+totalRec.toFixed(2)+' €',c:'#059669',bg:'#F0FFF4',bc:'#A7F3D0'},
+   {l:'Total dépenses',v:'-'+totalDep.toFixed(2)+' €',c:'#DC2626',bg:'#FFF5F5',bc:'#FECACA'},
+   {l:'Résultat net',v:(resultat>=0?'+':'')+resultat.toFixed(2)+' €',c:resultat>=0?'#059669':'#DC2626',bg:resultat>=0?'#F0FFF4':'#FFF5F5',bc:resultat>=0?'#A7F3D0':'#FECACA'}
+  ].forEach(function(s){
+    h+='<div style="background:'+s.bg+';border:1.5px solid '+s.bc+';border-radius:12px;padding:1rem;">'
+      +'<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">'+s.l+'</div>'
+      +'<div style="font-size:1.6rem;font-weight:800;color:'+s.c+';">'+s.v+'</div></div>';
+  });
+  h+='</div>';
+
+  // Compte de résultat
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.4rem;">';
+
+  // Recettes
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">'
+    +'<div style="background:#059669;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;">📈 Recettes</div>'
+    +'<div>';
+  Object.keys(parCatRec).sort(function(a,b){return parCatRec[b]-parCatRec[a];}).forEach(function(cat){
+    var pct=Math.round(parCatRec[cat]/totalRec*100);
+    h+='<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;border-bottom:1px solid #F3F4F6;">'
+      +'<div style="flex:1;font-size:.75rem;color:#374151;">'+esc(cat)+'</div>'
+      +'<div style="font-size:.72rem;font-weight:600;color:#059669;">+'+parCatRec[cat].toFixed(2)+' €</div>'
+      +'<div style="font-size:.6rem;color:#9CA3AF;min-width:28px;text-align:right;">'+pct+'%</div>'
+      +'</div>';
+  });
+  h+='<div style="padding:.5rem .8rem;background:#F0FFF4;font-size:.75rem;font-weight:700;color:#059669;">Total : +'+totalRec.toFixed(2)+' €</div>'
+    +'</div></div>';
+
+  // Dépenses
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">'
+    +'<div style="background:#DC2626;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;">📉 Dépenses</div>'
+    +'<div>';
+  Object.keys(parCatDep).sort(function(a,b){return parCatDep[b]-parCatDep[a];}).forEach(function(cat){
+    var pct=Math.round(parCatDep[cat]/totalDep*100);
+    h+='<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;border-bottom:1px solid #F3F4F6;">'
+      +'<div style="flex:1;font-size:.75rem;color:#374151;">'+esc(cat)+'</div>'
+      +'<div style="font-size:.72rem;font-weight:600;color:#DC2626;">-'+parCatDep[cat].toFixed(2)+' €</div>'
+      +'<div style="font-size:.6rem;color:#9CA3AF;min-width:28px;text-align:right;">'+pct+'%</div>'
+      +'</div>';
+  });
+  h+='<div style="padding:.5rem .8rem;background:#FFF5F5;font-size:.75rem;font-weight:700;color:#DC2626;">Total : -'+totalDep.toFixed(2)+' €</div>'
+    +'</div></div>';
+  h+='</div>';
+
+  // Evolution mensuelle
+  var parMois={};
+  txsAn.forEach(function(t){
+    if(!t.date)return;
+    var m=t.date.substring(0,7);
+    if(!parMois[m]){var d=new Date(t.date+'T00:00:00');parMois[m]={label:d.toLocaleDateString('fr-FR',{month:'short',year:'numeric'}),rec:0,dep:0};}
+    parMois[m].rec+=parseFloat(t.credit)||0;
+    parMois[m].dep+=parseFloat(t.debit)||0;
+  });
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-bottom:1rem;">'
+    +'<div style="padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;border-bottom:1px solid #E5E7EB;">📅 Évolution mensuelle</div>'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<tr style="background:#F9FAFB;"><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:left;font-weight:600;">Mois</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Recettes</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Dépenses</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Résultat</th></tr>';
+  Object.keys(parMois).sort().forEach(function(m){
+    var mv=parMois[m]; var net=mv.rec-mv.dep;
+    h+='<tr style="border-top:1px solid #F3F4F6;">'
+      +'<td style="padding:.4rem .8rem;font-size:.75rem;">'+esc(mv.label)+'</td>'
+      +'<td style="padding:.4rem .8rem;font-size:.72rem;font-weight:600;color:#059669;text-align:right;">+'+mv.rec.toFixed(2)+' €</td>'
+      +'<td style="padding:.4rem .8rem;font-size:.72rem;font-weight:600;color:#DC2626;text-align:right;">-'+mv.dep.toFixed(2)+' €</td>'
+      +'<td style="padding:.4rem .8rem;font-size:.72rem;font-weight:700;color:'+(net>=0?'#059669':'#DC2626')+';text-align:right;">'+(net>=0?'+':'')+net.toFixed(2)+' €</td>'
+      +'</tr>';
+  });
+  h+='<tr style="background:#F0F9F6;border-top:2px solid #059669;"><td style="padding:.5rem .8rem;font-size:.72rem;font-weight:700;">Total '+annee+'</td>'
+    +'<td style="padding:.5rem .8rem;font-size:.72rem;font-weight:700;color:#059669;text-align:right;">+'+totalRec.toFixed(2)+' €</td>'
+    +'<td style="padding:.5rem .8rem;font-size:.72rem;font-weight:700;color:#DC2626;text-align:right;">-'+totalDep.toFixed(2)+' €</td>'
+    +'<td style="padding:.5rem .8rem;font-size:.72rem;font-weight:700;color:'+(resultat>=0?'#059669':'#DC2626')+';text-align:right;">'+(resultat>=0?'+':'')+resultat.toFixed(2)+' €</td>'
+    +'</tr></table></div>';
+
+  h+='</div>';
+  zone.innerHTML=h;
+}
+
+// ── BILAN PDF ────────────────────────────────────────────────────────
+function _tresRapportPDF(){
+  var zone=document.querySelector('#wincontent-tresorerie [style*="max-width:800px"]');
+  if(!zone){notif('Affiche d\'abord le rapport');return;}
+  var win=window.open('','_blank','width=900,height=1000');
+  if(!win){notif('Autorise les popups pour imprimer');return;}
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport AG</title>'
+    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:24px;color:#111827;}@media print{body{padding:0;}}</style>'
+    +'</head><body>'
+    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer / PDF</button></div>'
+    +zone.outerHTML
+    +'</body></html>');
+  win.document.close();
+}
+
+function _tresRenderBilanPDF(txs, postes, annee){
+  osTresorerieBilan(txs, postes, annee);
+  setTimeout(function(){ _tresOnglet='rapport'; osTresorerieRender(); },100);
+}
+
+function osTresorerieBilan(txs, postes, annee){
+  txs    = txs    || window._tresorerieData   || [];
+  postes = postes || window._tresorerieBudget || [];
+  annee  = annee  || _tresFiltreAnnee || new Date().getFullYear();
+  var today=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var txsAn=txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec=txsAn.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep=txsAn.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var solde=totalRec-totalDep;
   var budDep=postes.filter(function(p){return p.categorie==='depense';}).reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
   var budRec=postes.filter(function(p){return p.categorie==='recette';}).reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
-
+  var parMois={};
+  txsAn.forEach(function(t){
+    if(!t.date)return;
+    var d=new Date(t.date+'T00:00:00');
+    var m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!parMois[m])parMois[m]={debit:0,credit:0,label:d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+    parMois[m].debit+=parseFloat(t.debit)||0; parMois[m].credit+=parseFloat(t.credit)||0;
+  });
   var win=window.open('','_blank','width=900,height=1000');
   if(!win){notif('Autorise les popups');return;}
-
-  var css='*{margin:0;padding:0;box-sizing:border-box;}body{background:#F9FAFB;font-family:Arial,sans-serif;padding:28px 20px;color:#111827;}.doc{max-width:800px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.07);}.hdr{background:linear-gradient(135deg,#0F6E56,#085041);padding:28px 36px;}.hdr h1{font-size:1.3rem;font-weight:800;color:white;}.hdr p{font-size:0.7rem;color:rgba(255,255,255,0.6);margin-top:3px;}.body{padding:28px 36px;}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}.stat{background:#F3F4F6;border-radius:8px;padding:12px;text-align:center;}.sv{font-size:1.3rem;font-weight:800;}.sl{font-size:0.58rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;}h2{font-size:0.65rem;text-transform:uppercase;letter-spacing:.12em;color:#059669;border-bottom:2px solid #059669;padding-bottom:4px;margin-bottom:10px;}table{width:100%;border-collapse:collapse;margin-bottom:20px;}tr:nth-child(even){background:#F9FAFB;}td,th{padding:6px 8px;font-size:0.75rem;}th{font-size:0.55rem;text-transform:uppercase;color:#9CA3AF;border-bottom:1px solid #E5E7EB;}.ftr{background:#F3F4F6;padding:16px 36px;display:flex;justify-content:space-between;border-top:1px solid #E5E7EB;font-size:0.65rem;color:#9CA3AF;}@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}}';
-
+  var css='*{margin:0;padding:0;box-sizing:border-box;}body{background:#F9FAFB;font-family:Arial,sans-serif;padding:28px 20px;color:#111827;}.doc{max-width:820px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);}.hdr{background:linear-gradient(135deg,#0F6E56,#085041);padding:28px 36px;}.hdr h1{font-size:1.3rem;font-weight:800;color:white;}.hdr p{font-size:.7rem;color:rgba(255,255,255,.6);margin-top:3px;}.body{padding:28px 36px;}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}.stat{background:#F3F4F6;border-radius:8px;padding:12px;text-align:center;}.sv{font-size:1.3rem;font-weight:800;}.sl{font-size:.58rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;}h2{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:#0F6E56;border-bottom:2px solid #0F6E56;padding-bottom:4px;margin:20px 0 10px;}table{width:100%;border-collapse:collapse;margin-bottom:20px;}tr:nth-child(even){background:#F9FAFB;}td,th{padding:6px 8px;font-size:.75rem;}th{font-size:.55rem;text-transform:uppercase;color:#9CA3AF;border-bottom:1px solid #E5E7EB;text-align:left;}.ftr{background:#F3F4F6;padding:16px 36px;display:flex;justify-content:space-between;border-top:1px solid #E5E7EB;font-size:.65rem;color:#9CA3AF;}@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}}';
   var html='<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Bilan '+annee+'</title><style>'+css+'</style></head><body>'
-    +'<div class="np" style="max-width:800px;margin:0 auto 12px;text-align:right;">'
-    +'<button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:0.8rem;cursor:pointer;margin-right:6px;">🖨 Imprimer / PDF</button>'
-    +'<button onclick="window.close()" style="background:#E5E7EB;color:#374151;border:none;padding:7px 16px;border-radius:6px;font-size:0.8rem;cursor:pointer;">Fermer</button>'
-    +'</div>'
-    +'<div class="doc"><div class="hdr"><h1>💶 Bilan de trésorerie '+annee+'</h1><p>Ipsum Média · Généré le '+today+'</p></div>'
-    +'<div class="body">'
+    +'<div class="np" style="max-width:820px;margin:0 auto 12px;text-align:right;">'
+    +'<button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;">🖨 Imprimer / PDF</button>'
+    +'<button onclick="window.close()" style="background:#E5E7EB;color:#374151;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;">Fermer</button></div>'
+    +'<div class="doc"><div class="hdr"><h1>💶 Bilan de trésorerie '+annee+'</h1><p>Ipsum Média · Généré le '+today+'</p></div><div class="body">'
     +'<div class="stats">'
-    +'<div class="stat"><div class="sv" style="color:#059669;">+'+totalRec.toFixed(2)+' €</div><div class="sl">Recettes totales</div></div>'
-    +'<div class="stat"><div class="sv" style="color:#DC2626;">-'+totalDep.toFixed(2)+' €</div><div class="sl">Dépenses totales</div></div>'
-    +'<div class="stat"><div class="sv" style="color:'+(solde>=0?'#059669':'#DC2626')+'">'+(solde>=0?'+':'')+solde.toFixed(2)+' €</div><div class="sl">Solde</div></div>'
-    +'</div>'
-    +'<h2>Récapitulatif par mois</h2>'
-    +'<table><tr><th>Mois</th><th>Recettes</th><th>Dépenses</th><th>Résultat du mois</th></tr>';
+    +'<div class="stat"><div class="sv" style="color:#059669;">+'+totalRec.toFixed(2)+' €</div><div class="sl">Recettes '+annee+'</div></div>'
+    +'<div class="stat"><div class="sv" style="color:#DC2626;">-'+totalDep.toFixed(2)+' €</div><div class="sl">Dépenses '+annee+'</div></div>'
+    +'<div class="stat"><div class="sv" style="color:'+(solde>=0?'#059669':'#DC2626')+'">'+(solde>=0?'+':'')+solde.toFixed(2)+' €</div><div class="sl">Résultat net</div></div>'
+    +'</div>';
+  html+='<h2>Récapitulatif mensuel</h2><table><tr><th>Mois</th><th>Recettes</th><th>Dépenses</th><th>Résultat</th></tr>';
   Object.keys(parMois).sort().forEach(function(m){
     var mv=parMois[m]; var net=mv.credit-mv.debit;
-    html+='<tr><td>'+esc(mv.label)+'</td><td style="color:#059669;">+'+mv.credit.toFixed(2)+' €</td><td style="color:#DC2626;">-'+mv.debit.toFixed(2)+' €</td><td style="font-weight:700;color:'+(net>=0?'#059669':'#DC2626')+'">'+(net>=0?'+':'')+net.toFixed(2)+' €</td></tr>';
+    html+='<tr><td>'+esc(mv.label)+'</td><td style="color:#059669;font-weight:600;">+'+mv.credit.toFixed(2)+' €</td><td style="color:#DC2626;font-weight:600;">-'+mv.debit.toFixed(2)+' €</td><td style="font-weight:700;color:'+(net>=0?'#059669':'#DC2626')+'">'+(net>=0?'+':'')+net.toFixed(2)+' €</td></tr>';
   });
   html+='</table>';
-
   if(postes.length){
-    html+='<h2>Budget prévisionnel vs réel</h2>'
-      +'<table><tr><th>Poste</th><th>Catégorie</th><th>Prévu</th><th>Réel (liés)</th><th>Écart</th></tr>';
+    html+='<h2>Budget prévisionnel vs réalisé</h2><table><tr><th>Poste</th><th>Catégorie</th><th>Prévu</th><th>Réalisé</th><th>Écart</th></tr>';
     postes.forEach(function(p){
       var ids=[];try{ids=JSON.parse(p.tx_ids||'[]');}catch(e){}
       var isD=p.categorie==='depense';
       var reel=txs.filter(function(t){return ids.indexOf(t.id)!==-1;}).reduce(function(s,t){return s+(isD?parseFloat(t.debit)||0:parseFloat(t.credit)||0);},0);
-      var prev=parseFloat(p.montant)||0; var ecart=reel-prev;
-      var ok=isD?ecart<=0:ecart>=0;
+      var prev=parseFloat(p.montant)||0; var ecart=reel-prev; var ok=isD?ecart<=0:ecart>=0;
       html+='<tr><td><strong>'+esc(p.poste||'')+'</strong>'+(p.notes?'<br><small style="color:#9CA3AF;">'+esc(p.notes)+'</small>':'')+'</td>'
         +'<td style="color:'+(isD?'#DC2626':'#059669')+'">'+(isD?'Dépense':'Recette')+'</td>'
         +'<td>'+prev.toFixed(2)+' €</td>'
@@ -12899,23 +13214,780 @@ function osTresorerieBilan(){
     });
     html+='</table>';
   }
-
-  html+='<h2>Toutes les transactions</h2>'
-    +'<table><tr><th>Date</th><th>Description</th><th>Catégorie</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr>';
-  var run=0;
-  txs.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t){
-    run+=(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);
+  html+='<h2>Toutes les transactions '+annee+'</h2><table><tr><th>Date</th><th>Description</th><th>Catégorie</th><th>Débit</th><th>Crédit</th><th>Pointé</th></tr>';
+  txsAn.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t){
     var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR'):'';
-    html+='<tr><td style="font-size:0.7rem;color:#6B7280;">'+d+'</td><td>'+esc(t.description||'')+'</td><td style="font-size:0.7rem;color:#6B7280;">'+esc(t.type||'')+'</td>'
+    html+='<tr><td style="font-size:.7rem;color:#6B7280;">'+d+'</td><td>'+esc(t.description||'')+'</td><td style="font-size:.7rem;color:#6B7280;">'+esc(t.type||'')+'</td>'
       +'<td style="color:#DC2626;font-weight:600;">'+(t.debit?parseFloat(t.debit).toFixed(2)+' €':'')+'</td>'
       +'<td style="color:#059669;font-weight:600;">'+(t.credit?parseFloat(t.credit).toFixed(2)+' €':'')+'</td>'
-      +'<td style="font-weight:700;color:'+(run>=0?'#059669':'#DC2626')+'">'+run.toFixed(2)+' €</td></tr>';
+      +'<td style="text-align:center;">'+(t.pointe?'✔':'')+'</td></tr>';
   });
   html+='</table></div><div class="ftr"><span>Ipsum Média · contact@ipsummedia.fr</span><span>'+today+'</span></div></div></body></html>';
+  win.document.write(html); win.document.close();
+}
 
-  win.document.write(html);
+// ── CLÔTURE D'EXERCICE ──────────────────────────────────────────────
+function _tresRenderCloture(zone, txs, postes, annee){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txsAn  = txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec = txsAn.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep = txsAn.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var resultat = totalRec - totalDep;
+  var nonPointes = txsAn.filter(function(t){return !t.pointe;}).length;
+  var budDep = postes.filter(function(p){return p.categorie==='depense';}).reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+  var budRec = postes.filter(function(p){return p.categorie==='recette';}).reduce(function(s,p){return s+(parseFloat(p.montant)||0);},0);
+
+  var h = '<div style="max-width:680px;">';
+  h += '<div style="font-size:1rem;font-weight:700;margin-bottom:.3rem;">📅 Clôture de l\'exercice '+annee+'</div>';
+  h += '<div style="font-size:.72rem;color:#6B7280;margin-bottom:1.4rem;">Vérification et archivage de l\'exercice avant passage au suivant.</div>';
+
+  // Checklist pré-clôture
+  var checks = [
+    {ok:nonPointes===0, l:'Tous les mouvements pointés', detail:nonPointes>0?nonPointes+' mouvement'+(nonPointes>1?'s':'')+' non pointé'+(nonPointes>1?'s':''):'✓ Aucun mouvement en attente'},
+    {ok:txsAn.length>0, l:'Des transactions existent pour '+annee, detail:txsAn.length+' mouvement'+(txsAn.length>1?'s':'')},
+    {ok:postes.length>0, l:'Budget prévisionnel saisi', detail:postes.length+' poste'+(postes.length>1?'s':'')},
+    {ok:true, l:'Rapport AG généré', detail:'Onglet "🏛 Rapport AG"'},
+  ];
+  h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:1.2rem;">';
+  h += '<div style="padding:.7rem 1rem;background:#F3F4F6;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;">Checklist avant clôture</div>';
+  checks.forEach(function(c){
+    h += '<div style="display:flex;align-items:center;gap:.8rem;padding:.65rem 1rem;border-bottom:1px solid #F3F4F6;">';
+    h += '<span style="font-size:1.1rem;">'+(c.ok?'✅':'⚠️')+'</span>';
+    h += '<div style="flex:1;"><div style="font-size:.82rem;font-weight:500;color:#111827;">'+c.l+'</div>';
+    h += '<div style="font-size:.65rem;color:#9CA3AF;">'+c.detail+'</div></div></div>';
+  });
+  h += '</div>';
+
+  // Résumé financier
+  h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:1.2rem;">';
+  h += '<div style="padding:.7rem 1rem;background:#F3F4F6;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;">Résumé de l\'exercice '+annee+'</div>';
+  [
+    {l:'Total recettes',v:'+'+totalRec.toFixed(2)+' €',c:'#059669'},
+    {l:'Total dépenses',v:'-'+totalDep.toFixed(2)+' €',c:'#DC2626'},
+    {l:'Résultat net',v:(resultat>=0?'+':'')+resultat.toFixed(2)+' €',c:resultat>=0?'#059669':'#DC2626'},
+    {l:'Budget recettes prévu',v:'+'+budRec.toFixed(2)+' €',c:'#6B7280'},
+    {l:'Budget dépenses prévu',v:'-'+budDep.toFixed(2)+' €',c:'#6B7280'},
+    {l:'Écart budget/réel',v:(resultat-(budRec-budDep)>=0?'+':'')+(resultat-(budRec-budDep)).toFixed(2)+' €',c:resultat-(budRec-budDep)>=0?'#059669':'#DC2626'},
+  ].forEach(function(r){
+    h += '<div style="display:flex;justify-content:space-between;padding:.5rem 1rem;border-bottom:1px solid #F3F4F6;font-size:.8rem;">';
+    h += '<span style="color:#374151;">'+r.l+'</span><span style="font-weight:700;color:'+r.c+';">'+r.v+'</span></div>';
+  });
+  h += '</div>';
+
+  // Report de solde
+  h += '<div style="background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h += '<div style="font-size:.78rem;font-weight:700;color:#4338CA;margin-bottom:.4rem;">📌 Report vers '+( annee+1)+'</div>';
+  h += '<div style="font-size:.72rem;color:#4338CA;">Le résultat net de <strong>'+(resultat>=0?'+':'')+resultat.toFixed(2)+' €</strong> sera le solde d\'ouverture de l\'exercice '+(annee+1)+'.</div>';
+  h += '<div style="font-size:.7rem;color:#6366F1;margin-top:.5rem;">Pense à l\'enregistrer comme première transaction de '+(annee+1)+' : "Solde reporté de '+annee+'" en '+(resultat>=0?'recette (crédit)':'dépense (débit)')+'.</div>';
+  h += '</div>';
+
+  // Actions
+  h += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;">';
+  h += '<button onclick="_tresExportCloturePDF('+annee+')" style="padding:.55rem 1.2rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">🖨 Procès-verbal de clôture PDF</button>';
+  h += '<button onclick="_tresCreerReportSolde('+annee+','+resultat.toFixed(2)+')" style="padding:.55rem 1.2rem;background:#4338CA;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">→ Créer le report '+(annee+1)+'</button>';
+  h += '</div></div>';
+  zone.innerHTML = h;
+}
+
+function _tresExportCloturePDF(annee){
+  var txs = window._tresorerieData||[];
+  var postes = window._tresorerieBudget||[];
+  var txsAn  = txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec = txsAn.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep = txsAn.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var resultat = totalRec-totalDep;
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var win = window.open('','_blank','width=860,height=1000');
+  if(!win){notif('Autorise les popups');return;}
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clôture '+annee+'</title>'
+    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:40px;color:#111827;max-width:700px;margin:0 auto;}'
+    +'h1{font-size:1.3rem;font-weight:800;margin-bottom:4px;}h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:#0F6E56;border-bottom:2px solid #0F6E56;padding-bottom:4px;margin:20px 0 10px;}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:16px;}td,th{padding:6px 8px;font-size:.8rem;border-bottom:1px solid #E5E7EB;}th{font-size:.6rem;text-transform:uppercase;color:#9CA3AF;}'
+    +'.sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;}.sig-box{border-top:1px solid #374151;padding-top:8px;font-size:.7rem;color:#6B7280;}'
+    +'@media print{body{padding:20px;}button{display:none;}}</style></head><body>'
+    +'<div style="text-align:right;margin-bottom:16px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer</button></div>'
+    +'<div style="text-align:center;margin-bottom:24px;">'
+    +'<div style="font-size:.7rem;color:#6B7280;text-transform:uppercase;letter-spacing:.1em;">Association Ipsum Média</div>'
+    +'<h1>Procès-verbal de clôture<br>Exercice '+annee+'</h1>'
+    +'<div style="font-size:.72rem;color:#6B7280;margin-top:4px;">Établi le '+today+'</div></div>'
+    +'<h2>Résultats de l\'exercice</h2>'
+    +'<table><tr><th>Poste</th><th style="text-align:right">Montant</th></tr>'
+    +'<tr><td>Total des recettes</td><td style="text-align:right;color:#059669;font-weight:700;">+'+totalRec.toFixed(2)+' €</td></tr>'
+    +'<tr><td>Total des dépenses</td><td style="text-align:right;color:#DC2626;font-weight:700;">-'+totalDep.toFixed(2)+' €</td></tr>'
+    +'<tr style="background:#F3F4F6;"><td><strong>Résultat net de l\'exercice</strong></td><td style="text-align:right;font-weight:800;color:'+(resultat>=0?'#059669':'#DC2626')+'">'+(resultat>=0?'+':'')+resultat.toFixed(2)+' €</td></tr>'
+    +'</table>'
+    +'<h2>Affectation du résultat</h2>'
+    +'<p style="font-size:.8rem;color:#374151;line-height:1.6;">L\'assemblée générale décide d\'affecter le résultat net de l\'exercice '+annee+' de <strong>'+(resultat>=0?'+':'')+resultat.toFixed(2)+' €</strong> au report à nouveau, porté en solde d\'ouverture de l\'exercice '+(annee+1)+'.</p>'
+    +'<h2>Quitus au trésorier</h2>'
+    +'<p style="font-size:.8rem;color:#374151;line-height:1.6;">L\'assemblée générale donne quitus au trésorier pour sa gestion de l\'exercice '+annee+'.</p>'
+    +'<div class="sig"><div class="sig-box">Le Président<br><br><br></div><div class="sig-box">Le Trésorier<br><br><br></div></div>'
+    +'</body></html>');
   win.document.close();
 }
+
+function _tresCreerReportSolde(annee, resultat){
+  if(!confirm('Créer une transaction "Report de solde '+annee+'" de '+(resultat>=0?'+':'')+parseFloat(resultat).toFixed(2)+' € en début de '+(annee+1)+' ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {
+    date: (annee+1)+'-01-01',
+    description: 'Report de solde exercice '+annee,
+    type: resultat>=0?'Autres recettes':'Autre dépense',
+    credit: resultat>=0?Math.abs(resultat):null,
+    debit:  resultat<0?Math.abs(resultat):null,
+    remarques: 'Clôture exercice '+annee,
+    created_by: getUserId()
+  };
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){
+    if(r.ok){
+      notif('Report de solde créé pour le 1er jan '+(annee+1)+' ✓','succes');
+      _tresFiltreAnnee = annee+1;
+      _tresOnglet = 'mouvements';
+      osTresorerieRender();
+    } else notif('Erreur création','erreur');
+  });
+}
+
+// ── NOTES DE FRAIS ───────────────────────────────────────────────────
+var _notesFraisData = [];
+
+function _tresRenderNotesFrais(zone, txs){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Utiliser les transactions type "Note de frais" existantes + table membres
+  var notesTx = txs.filter(function(t){return t.type==='Note de frais';});
+  var membres = window._membresData||[];
+
+  var h = '<div style="max-width:720px;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">';
+  h += '<div><div style="font-size:.95rem;font-weight:700;">💸 Notes de frais</div><div style="font-size:.7rem;color:#6B7280;margin-top:2px;">Remboursements membres — avances sur frais</div></div>';
+  h += '<button onclick="_tresNotesFraisForm()" style="padding:.45rem 1rem;background:var(--rouge);color:white;border:none;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;">+ Nouvelle note</button>';
+  h += '</div>';
+
+  // Formulaire caché
+  h += '<div id="nf-form" style="display:none;background:white;border:2px solid var(--rouge);border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h += '<div style="font-size:.78rem;font-weight:700;margin-bottom:.8rem;">Nouvelle note de frais</div>';
+  h += '<input type="hidden" id="nf-id">';
+  var memOpts = membres.filter(function(m){return m.actif;}).map(function(m){return '<option value="'+(m.prenom||'')+' '+(m.nom||'')+'">'+esc((m.prenom||'')+' '+(m.nom||''))+'</option>';}).join('');
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem;">';
+  h += '<div><label style="font-size:.62rem;color:#6B7280;">Membre *</label><select id="nf-membre" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;"><option value="">— Choisir —</option>'+memOpts+'</select></div>';
+  h += '<div><label style="font-size:.62rem;color:#6B7280;">Date *</label><input id="nf-date" type="date" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;"></div>';
+  h += '<div style="grid-column:1/-1"><label style="font-size:.62rem;color:#6B7280;">Description *</label><input id="nf-desc" type="text" placeholder="Ex: Déplacement AG Albi — 45km × 0.30€" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>';
+  h += '<div><label style="font-size:.62rem;color:#6B7280;">Montant (€) *</label><input id="nf-montant" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;"></div>';
+  h += '<div><label style="font-size:.62rem;color:#6B7280;">Statut</label><select id="nf-statut" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;"><option value="en_attente">⏳ En attente</option><option value="rembourse">✅ Remboursé</option></select></div>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:.4rem;">';
+  h += '<button onclick="_tresNotesFraisSauvegarder()" style="padding:.4rem 1rem;background:#059669;color:white;border:none;border-radius:7px;font-size:.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>';
+  h += '<button onclick="document.getElementById(\'nf-form\').style.display=\'none\'" style="padding:.4rem .8rem;background:transparent;border:1px solid #D1D5DB;border-radius:7px;font-size:.72rem;cursor:pointer;color:#6B7280;">Annuler</button>';
+  h += '</div></div>';
+
+  // Liste des notes (basée sur transactions type "Note de frais")
+  if(!notesTx.length){
+    h += '<div style="text-align:center;padding:2.5rem;background:white;border-radius:12px;border:1px dashed #D1D5DB;color:#9CA3AF;font-size:.82rem;">Aucune note de frais enregistrée.<br><span style="font-size:.72rem;">Clique "+ Nouvelle note" ou enregistre un mouvement de type "Note de frais" dans l\'onglet Mouvements.</span></div>';
+  } else {
+    var totalNF = notesTx.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+    var totalRem = notesTx.filter(function(t){return t.pointe;}).reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1rem;">';
+    [{l:'Total avancé',v:totalNF.toFixed(2)+' €',c:'#374151'},{l:'Remboursé',v:totalRem.toFixed(2)+' €',c:'#059669'},{l:'En attente',v:(totalNF-totalRem).toFixed(2)+' €',c:'#F59E0B'}].forEach(function(s){
+      h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:.7rem;text-align:center;">';
+      h += '<div style="font-size:1.1rem;font-weight:800;color:'+s.c+';">'+s.v+'</div>';
+      h += '<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;">'+s.l+'</div></div>';
+    });
+    h += '</div>';
+    h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">';
+    h += '<div style="display:grid;grid-template-columns:80px 1fr 110px 80px 60px;padding:.4rem .8rem;background:#F3F4F6;font-size:.55rem;text-transform:uppercase;color:#9CA3AF;letter-spacing:.06em;">'
+      +'<div>Date</div><div>Description</div><div>Membre</div><div>Montant</div><div>Statut</div></div>';
+    notesTx.forEach(function(t){
+      var d = t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'';
+      var rem = t.pointe;
+      h += '<div style="display:grid;grid-template-columns:80px 1fr 110px 80px 60px;padding:.5rem .8rem;border-top:1px solid #F3F4F6;align-items:center;">';
+      h += '<div style="font-size:.65rem;color:#6B7280;">'+d+'</div>';
+      h += '<div style="font-size:.78rem;">'+esc(t.description||'')+'</div>';
+      h += '<div style="font-size:.65rem;color:#6B7280;">'+esc(t.remarques||'')+'</div>';
+      h += '<div style="font-size:.75rem;font-weight:600;color:#DC2626;">'+parseFloat(t.debit||0).toFixed(2)+' €</div>';
+      h += '<div><button data-id="'+t.id+'" onclick="_tresNFToggleRembourse(this.dataset.id,'+!rem+')" style="font-size:.62rem;padding:2px 7px;border:none;border-radius:4px;cursor:pointer;background:'+(rem?'#D1FAE5':'#FEF3C7')+';color:'+(rem?'#065F46':'#92400E')+'">'+(rem?'✅':'⏳')+'</button></div>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+  zone.innerHTML = h;
+}
+
+function _tresNotesFraisForm(){
+  var f=document.getElementById('nf-form'); if(!f)return;
+  document.getElementById('nf-id').value='';
+  f.style.display='block';
+  setTimeout(function(){f.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+}
+
+function _tresNotesFraisSauvegarder(){
+  var membre  = (document.getElementById('nf-membre')||{}).value||'';
+  var date    = (document.getElementById('nf-date')||{}).value||'';
+  var desc    = ((document.getElementById('nf-desc')||{}).value||'').trim();
+  var montant = parseFloat((document.getElementById('nf-montant')||{}).value)||0;
+  var statut  = (document.getElementById('nf-statut')||{}).value||'en_attente';
+  if(!membre||!date||!desc||!montant){notif('Tous les champs obligatoires');return;}
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {
+    date:date, description:desc, type:'Note de frais',
+    debit:montant, moyen_paiement:'Remboursement',
+    remarques:membre, pointe:statut==='rembourse',
+    created_by:getUserId()
+  };
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){if(r.ok){notif('Note de frais enregistrée ✓','succes');osTresorerieRender();}else notif('Erreur','erreur');});
+}
+
+function _tresNFToggleRembourse(id, rembourse){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({pointe:rembourse})})
+  .then(function(r){if(r.ok){notif(rembourse?'Marqué remboursé ✓':'Remis en attente','succes');osTresorerieRender();}});
+}
+
+// ── RAPPROCHEMENT BANCAIRE ────────────────────────────────────────────
+function _tresRenderRapprochement(zone, txs){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txsChrono = txs.slice().sort(function(a,b){return a.date<b.date?-1:1;});
+  var soldCalcule = txsChrono.reduce(function(s,t){return s+(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);},0);
+  var nonPointes = txs.filter(function(t){return !t.pointe;}).length;
+  var txsPointes = txs.filter(function(t){return t.pointe;});
+  var soldPointe = txsPointes.reduce(function(s,t){return s+(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);},0);
+
+  var soldReel = parseFloat(localStorage.getItem('ipsum_tres_sold_reel')||'0');
+
+  var h = '<div style="max-width:680px;">';
+  h += '<div style="font-size:.95rem;font-weight:700;margin-bottom:.3rem;">🏦 Rapprochement bancaire</div>';
+  h += '<div style="font-size:.7rem;color:#6B7280;margin-bottom:1.2rem;">Compare le solde calculé dans Compo avec le solde réel de ton compte bancaire.</div>';
+
+  // Saisie solde réel
+  h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h += '<div style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:.6rem;">Solde bancaire réel</div>';
+  h += '<div style="display:flex;gap:.6rem;align-items:center;">';
+  h += '<input id="sold-reel-input" type="number" step="0.01" value="'+soldReel.toFixed(2)+'" placeholder="Ex: 1250.00" style="flex:1;padding:.5rem .8rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:1rem;font-weight:700;">';
+  h += '<span style="font-size:1rem;font-weight:700;color:#374151;">€</span>';
+  h += '<button onclick="_tresSauvegarderSoldReel()" style="padding:.5rem 1.2rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Enregistrer</button>';
+  h += '</div>';
+  h += '<div style="font-size:.62rem;color:#9CA3AF;margin-top:.4rem;">Copie le solde depuis ton relevé bancaire en ligne.</div>';
+  h += '</div>';
+
+  // Comparaison
+  var ecart = soldReel - soldCalcule;
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1.2rem;">';
+  [{l:'Solde calculé Compo',v:(soldCalcule>=0?'+':'')+soldCalcule.toFixed(2)+' €',c:'#374151',bg:'#F9FAFB'},
+   {l:'Solde bancaire réel',v:(soldReel>=0?'+':'')+soldReel.toFixed(2)+' €',c:'#374151',bg:'#F9FAFB'},
+   {l:'Écart',v:(ecart>=0?'+':'')+ecart.toFixed(2)+' €',c:Math.abs(ecart)<0.01?'#059669':'#DC2626',bg:Math.abs(ecart)<0.01?'#F0FFF4':'#FFF5F5'}
+  ].forEach(function(s){
+    h += '<div style="background:'+s.bg+';border:1px solid #E5E7EB;border-radius:10px;padding:.8rem;text-align:center;">';
+    h += '<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">'+s.l+'</div>';
+    h += '<div style="font-size:1.2rem;font-weight:800;color:'+s.c+';">'+s.v+'</div></div>';
+  });
+  h += '</div>';
+
+  if(Math.abs(ecart)<0.01){
+    h += '<div style="background:#F0FFF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:.8rem 1rem;margin-bottom:1.2rem;font-size:.8rem;color:#065F46;">✅ <strong>Rapprochement équilibré</strong> — Le solde Compo correspond au solde bancaire.</div>';
+  } else {
+    h += '<div style="background:#FFF5F5;border:1.5px solid #FECACA;border-radius:10px;padding:.8rem 1rem;margin-bottom:1.2rem;">';
+    h += '<div style="font-size:.8rem;font-weight:700;color:#991B1B;margin-bottom:.3rem;">⚠️ Écart de '+Math.abs(ecart).toFixed(2)+' €</div>';
+    h += '<div style="font-size:.72rem;color:#DC2626;">Vérifie les mouvements non pointés ou les transactions manquantes dans Compo.</div></div>';
+  }
+
+  // Non pointés
+  var npTxs = txs.filter(function(t){return !t.pointe;}).sort(function(a,b){return b.date<a.date?-1:1;});
+  h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">';
+  h += '<div style="padding:.6rem 1rem;background:#F3F4F6;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;">Mouvements non pointés ('+npTxs.length+')</div>';
+  if(!npTxs.length){
+    h += '<div style="padding:1.2rem;text-align:center;font-size:.8rem;color:#9CA3AF;">✓ Tous les mouvements sont pointés</div>';
+  } else {
+    npTxs.slice(0,20).forEach(function(t){
+      var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';
+      var isD=(parseFloat(t.debit)||0)>0;
+      h += '<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .8rem;border-top:1px solid #F3F4F6;">';
+      h += '<span style="font-size:.65rem;color:#9CA3AF;min-width:32px;">'+d+'</span>';
+      h += '<span style="flex:1;font-size:.78rem;color:#374151;">'+esc(t.description||'')+'</span>';
+      h += '<span style="font-size:.72rem;font-weight:600;color:'+(isD?'#DC2626':'#059669')+'">'+(isD?'-':'+')+(isD?parseFloat(t.debit):parseFloat(t.credit)).toFixed(2)+' €</span>';
+      h += '<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.65rem;padding:2px 8px;background:#F0FFF4;border:1px solid #A7F3D0;border-radius:4px;cursor:pointer;color:#065F46;">Pointer ✔</button>';
+      h += '</div>';
+    });
+    if(npTxs.length>20) h += '<div style="padding:.5rem .8rem;font-size:.68rem;color:#9CA3AF;">...et '+(npTxs.length-20)+' autres</div>';
+  }
+  h += '</div></div>';
+  zone.innerHTML = h;
+}
+
+function _tresSauvegarderSoldReel(){
+  var v = parseFloat((document.getElementById('sold-reel-input')||{}).value)||0;
+  try{localStorage.setItem('ipsum_tres_sold_reel', v);}catch(e){}
+  notif('Solde bancaire enregistré ✓','succes');
+  osTresorerieRender();
+}
+
+// ── COTISATIONS MEMBRES ───────────────────────────────────────────────
+function _tresRenderCotisations(zone){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var membres = (window._membresData||[]).filter(function(m){return m.actif;});
+  var txs = window._tresorerieData||[];
+  var annee = _tresFiltreAnnee;
+
+  // Repérer les transactions de cotisation de l'année
+  var cotTxs = txs.filter(function(t){
+    return t.type==='Cotisations' && t.date && t.date.substring(0,4)===String(annee);
+  });
+
+  var montantStd = parseFloat(localStorage.getItem('ipsum_cotis_montant')||'0');
+
+  var h = '<div style="max-width:720px;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;gap:1rem;">';
+  h += '<div><div style="font-size:.95rem;font-weight:700;">👥 Cotisations '+annee+'</div><div style="font-size:.7rem;color:#6B7280;margin-top:2px;">Suivi des cotisations membres</div></div>';
+  h += '<div style="display:flex;align-items:center;gap:.5rem;">';
+  h += '<span style="font-size:.7rem;color:#6B7280;">Montant standard :</span>';
+  h += '<input id="cotis-montant" type="number" value="'+montantStd+'" min="0" step="0.5" style="width:70px;padding:.3rem .5rem;border:1px solid #D1D5DB;border-radius:6px;font-size:.8rem;">';
+  h += '<span style="font-size:.78rem;color:#6B7280;">€</span>';
+  h += '<button onclick="_tresSauvegarderMontantCotis()" style="padding:.3rem .8rem;background:#374151;color:white;border:none;border-radius:6px;font-size:.65rem;cursor:pointer;">OK</button>';
+  h += '</div></div>';
+
+  // Stats
+  var nbPayes = cotTxs.length;
+  var totalCotis = cotTxs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1.2rem;">';
+  [{l:'Membres actifs',v:membres.length,c:'#374151'},{l:'Cotisations reçues',v:nbPayes,c:'#059669'},{l:'Total encaissé',v:totalCotis.toFixed(2)+' €',c:'#059669'}].forEach(function(s){
+    h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:.7rem;text-align:center;">';
+    h += '<div style="font-size:1.3rem;font-weight:800;color:'+s.c+';">'+s.v+'</div>';
+    h += '<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;">'+s.l+'</div></div>';
+  });
+  h += '</div>';
+
+  // Tableau membres
+  h += '<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">';
+  h += '<div style="display:grid;grid-template-columns:1fr 100px 90px 80px;padding:.4rem .8rem;background:#F3F4F6;font-size:.55rem;text-transform:uppercase;color:#9CA3AF;letter-spacing:.06em;">';
+  h += '<div>Membre</div><div>Rôle</div><div>Cotisation</div><div>Action</div></div>';
+
+  membres.forEach(function(m){
+    var nom = (m.prenom||'')+' '+(m.nom||'');
+    // Chercher si une cotisation a été enregistrée pour ce membre (dans remarques ou description)
+    var cotMembre = cotTxs.find(function(t){
+      return (t.description||'').toLowerCase().includes((m.prenom||'').toLowerCase())
+          || (t.remarques||'').toLowerCase().includes((m.prenom||'').toLowerCase());
+    });
+    var aPaye = !!cotMembre;
+    var montantPaye = cotMembre ? parseFloat(cotMembre.credit||0) : 0;
+
+    h += '<div style="display:grid;grid-template-columns:1fr 100px 90px 80px;padding:.55rem .8rem;border-top:1px solid #F3F4F6;align-items:center;background:'+(aPaye?'rgba(5,150,105,.04)':'white')+'">';
+    h += '<div><div style="font-size:.82rem;font-weight:500;">'+esc(nom)+'</div><div style="font-size:.62rem;color:#9CA3AF;">'+esc(m.email||'')+'</div></div>';
+    h += '<div style="font-size:.68rem;color:#6B7280;">'+esc(m.role||'')+'</div>';
+    h += '<div style="font-size:.75rem;font-weight:600;color:'+(aPaye?'#059669':'#9CA3AF')+'">'+(aPaye?montantPaye.toFixed(2)+' €':'—')+'</div>';
+    h += '<div>';
+    if(!aPaye){
+      h += '<button data-nom="'+esc(nom)+'" onclick="_tresEnregistrerCotis(this.dataset.nom)" style="font-size:.62rem;padding:2px 8px;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:4px;cursor:pointer;color:#4338CA;">+ Cotis.</button>';
+    } else {
+      h += '<span style="font-size:.75rem;">✅</span>';
+    }
+    h += '</div></div>';
+  });
+  h += '</div>';
+
+  // Bouton enregistrement en masse
+  h += '<div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">';
+  h += '<button onclick="_tresExportCotisPDF('+annee+')" style="padding:.45rem 1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;">🖨 Export liste cotisations PDF</button>';
+  h += '</div>';
+  h += '</div>';
+  zone.innerHTML = h;
+}
+
+function _tresSauvegarderMontantCotis(){
+  var v = parseFloat((document.getElementById('cotis-montant')||{}).value)||0;
+  try{localStorage.setItem('ipsum_cotis_montant',v);}catch(e){}
+  notif('Montant standard enregistré ✓','succes');
+}
+
+function _tresEnregistrerCotis(nom){
+  var montant = parseFloat(localStorage.getItem('ipsum_cotis_montant')||'0');
+  if(!montant){ notif('Définis d\'abord le montant standard de cotisation','alerte'); return; }
+  if(!confirm('Enregistrer une cotisation de '+montant+' € pour '+nom+' ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {
+    date: new Date().toISOString().split('T')[0],
+    description: 'Cotisation '+_tresFiltreAnnee+' — '+nom,
+    type: 'Cotisations',
+    credit: montant,
+    remarques: nom,
+    pointe: true,
+    created_by: getUserId()
+  };
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){if(r.ok){notif('Cotisation enregistrée ✓','succes');osTresorerieRender();}else notif('Erreur','erreur');});
+}
+
+function _tresExportCotisPDF(annee){
+  var membres = (window._membresData||[]).filter(function(m){return m.actif;});
+  var txs = window._tresorerieData||[];
+  var cotTxs = txs.filter(function(t){return t.type==='Cotisations' && t.date && t.date.substring(0,4)===String(annee);});
+  var montantStd = parseFloat(localStorage.getItem('ipsum_cotis_montant')||'0');
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var win = window.open('','_blank','width=860,height=1000');
+  if(!win){notif('Autorise les popups');return;}
+  var rows = membres.map(function(m){
+    var nom = (m.prenom||'')+' '+(m.nom||'');
+    var cotMembre = cotTxs.find(function(t){return (t.description||'').toLowerCase().includes((m.prenom||'').toLowerCase())||(t.remarques||'').toLowerCase().includes((m.prenom||'').toLowerCase());});
+    var aPaye = !!cotMembre;
+    return '<tr><td>'+esc(nom)+'</td><td>'+esc(m.email||'')+'</td><td>'+esc(m.role||'')+'</td>'
+      +'<td style="text-align:center;font-weight:700;color:'+(aPaye?'#059669':'#DC2626')+'">'+(aPaye?'✅ '+parseFloat(cotMembre.credit||0).toFixed(2)+' €':'❌ Non payé')+'</td></tr>';
+  }).join('');
+  var nbPayes = cotTxs.length;
+  var total = cotTxs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cotisations '+annee+'</title>'
+    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:36px;color:#111827;}'
+    +'h1{font-size:1.2rem;font-weight:800;margin-bottom:4px;}table{width:100%;border-collapse:collapse;margin-top:16px;}td,th{padding:7px 10px;font-size:.78rem;border-bottom:1px solid #E5E7EB;}th{background:#F3F4F6;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;}'
+    +'@media print{button{display:none;}}</style></head><body>'
+    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer</button></div>'
+    +'<div style="text-align:center;margin-bottom:20px;">'
+    +'<div style="font-size:.7rem;color:#6B7280;text-transform:uppercase;letter-spacing:.1em;">Association Ipsum Média</div>'
+    +'<h1>Liste des cotisations '+annee+'</h1>'
+    +'<div style="font-size:.72rem;color:#6B7280;margin-top:4px;">Montant standard : '+montantStd+' € · '+nbPayes+' payé(s) sur '+membres.length+' membres · Total : '+total.toFixed(2)+' €</div>'
+    +'<div style="font-size:.65rem;color:#9CA3AF;">Généré le '+today+'</div></div>'
+    +'<table><tr><th>Membre</th><th>Email</th><th>Rôle</th><th>Cotisation</th></tr>'+rows+'</table>'
+    +'</body></html>');
+  win.document.close();
+}
+
+// ── NOTES DE FRAIS ──────────────────────────────────────────────────
+function _tresRenderNotesFrais(zone){
+  zone.style.cssText = 'padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txs = (window._tresorerieData||[]).filter(function(t){ return t.type==='Note de frais'; });
+  var totalAttendu   = txs.filter(function(t){return !t.pointe;}).reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var totalRembourse = txs.filter(function(t){return t.pointe;}).reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var h = '<div style="max-width:720px;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
+    +'<div style="font-size:.95rem;font-weight:700;">💸 Notes de frais</div>'
+    +'<button onclick="_tresNotesFraisForm()" style="padding:4px 14px;background:var(--rouge);color:white;border:none;border-radius:20px;font-size:.7rem;cursor:pointer;font-weight:600;">+ Nouvelle note</button>'
+    +'</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.2rem;">'
+    +'<div style="background:#FFF5F5;border:1.5px solid #FECACA;border-radius:10px;padding:.9rem;">'
+    +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:3px;">En attente de remboursement</div>'
+    +'<div style="font-size:1.4rem;font-weight:800;color:#DC2626;">'+totalAttendu.toFixed(2)+' €</div></div>'
+    +'<div style="background:#F0FFF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:.9rem;">'
+    +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:3px;">Remboursés</div>'
+    +'<div style="font-size:1.4rem;font-weight:800;color:#059669;">'+totalRembourse.toFixed(2)+' €</div></div>'
+    +'</div>';
+  h += '<div id="nf-form" style="display:none;background:white;border:2px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1rem;">'
+    +'<div style="font-size:.78rem;font-weight:700;margin-bottom:.7rem;">Nouvelle note de frais</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Date *</label><input id="nf-date" type="date" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Montant (€) *</label><input id="nf-montant" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Membre *</label><select id="nf-membre" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;">'
+    +'<option value="">— Choisir —</option>'
+    +(window._membresData||[]).filter(function(m){return m.actif;}).map(function(m){return '<option value="'+esc((m.prenom||'')+' '+(m.nom||''))+'">'+esc((m.prenom||'')+' '+(m.nom||''))+'</option>';}).join('')
+    +'</select></div>'
+    +'<div style="grid-column:1/-1"><label style="font-size:.62rem;color:#6B7280;">Objet *</label><input id="nf-objet" type="text" placeholder="Ex: Achat fournitures, Transport AG..." style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div style="grid-column:1/-1"><label style="font-size:.62rem;color:#6B7280;">Justificatif</label><input id="nf-justif" type="text" placeholder="N° ticket, référence..." style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:.4rem;">'
+    +'<button onclick="_tresNotesFraisSauvegarder()" style="padding:.4rem 1rem;background:#059669;color:white;border:none;border-radius:7px;font-size:.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>'
+    +'<button onclick="document.getElementById(\'nf-form\').style.display=\'none\'" style="padding:.4rem .8rem;background:transparent;border:1px solid #D1D5DB;border-radius:7px;font-size:.72rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'</div></div>';
+  if(!txs.length){
+    h += '<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem;">Aucune note de frais enregistrée.</div>';
+  } else {
+    var parMembre = {};
+    txs.forEach(function(t){
+      var m=t.description||'Inconnu';
+      if(!parMembre[m])parMembre[m]={attente:0,rembourse:0,txs:[]};
+      if(t.pointe)parMembre[m].rembourse+=parseFloat(t.debit)||0;
+      else parMembre[m].attente+=parseFloat(t.debit)||0;
+      parMembre[m].txs.push(t);
+    });
+    Object.keys(parMembre).forEach(function(membre){
+      var data=parMembre[membre];
+      h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:.6rem;overflow:hidden;">';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">'
+        +'<div style="font-size:.82rem;font-weight:600;">'+esc(membre)+'</div>'
+        +'<div style="display:flex;gap:.8rem;">'
+        +(data.attente>0?'<span style="font-size:.7rem;color:#DC2626;font-weight:600;">À rembourser : '+data.attente.toFixed(2)+' €</span>':'')
+        +(data.rembourse>0?'<span style="font-size:.7rem;color:#059669;">Remboursé : '+data.rembourse.toFixed(2)+' €</span>':'')
+        +'</div></div>';
+      data.txs.forEach(function(t){
+        var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';
+        h+='<div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 1rem;border-bottom:1px solid #F3F4F6;">'
+          +'<span style="font-size:.65rem;color:#9CA3AF;min-width:80px;">'+d+'</span>'
+          +'<span style="flex:1;font-size:.75rem;">'+esc(t.remarques||t.description||'')+'</span>'
+          +'<span style="font-size:.75rem;font-weight:700;color:#DC2626;">'+parseFloat(t.debit).toFixed(2)+' €</span>'
+          +'<span style="font-size:.68rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(t.pointe?'#D1FAE5':'#FEE2E2')+';color:'+(t.pointe?'#065F46':'#991B1B')+'">'+(t.pointe?'Remboursé':'En attente')+'</span>'
+          +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.65rem;padding:2px 8px;border:1px solid #D1D5DB;border-radius:6px;cursor:pointer;background:white;color:#6B7280;">'+(t.pointe?'↩ Annuler':'✓ Rembourser')+'</button>'
+          +'</div>';
+      });
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+  zone.innerHTML=h;
+}
+function _tresNotesFraisForm(){ var f=document.getElementById('nf-form'); if(f){f.style.display='block';f.scrollIntoView({behavior:'smooth',block:'nearest'});} }
+function _tresNotesFraisSauvegarder(){
+  var date=(document.getElementById('nf-date')||{}).value;
+  var montant=parseFloat((document.getElementById('nf-montant')||{}).value)||0;
+  var membre=(document.getElementById('nf-membre')||{}).value;
+  var objet=((document.getElementById('nf-objet')||{}).value||'').trim();
+  var justif=((document.getElementById('nf-justif')||{}).value||'').trim();
+  if(!date||!montant||!membre||!objet){notif('Remplis tous les champs obligatoires');return;}
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify({
+    date:date,description:membre,type:'Note de frais',debit:montant,
+    remarques:objet+(justif?' — '+justif:''),created_by:getUserId(),pointe:false
+  })}).then(function(r){if(r.ok){notif('Note de frais enregistrée ✓','succes');_tresOnglet='notes_frais';osTresorerieRender();}else notif('Erreur','erreur');});
+}
+
+// ── RAPPROCHEMENT BANCAIRE ───────────────────────────────────────────
+function _tresRenderRapprochement(zone, txs, annee){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txsAn=txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var soldeCalc=txs.reduce(function(s,t){return s+(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);},0);
+  var nonPointes=txsAn.filter(function(t){return !t.pointe;});
+  var montantNonPointe=nonPointes.reduce(function(s,t){return s+(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);},0);
+  var soldeBancaire=parseFloat(localStorage.getItem('compo_solde_bancaire_'+annee)||'NaN');
+  var ecart=isNaN(soldeBancaire)?null:soldeBancaire-soldeCalc;
+  var h='<div style="max-width:720px;">';
+  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">🏦 Rapprochement bancaire '+annee+'</div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">'
+    +'<div style="font-size:.72rem;font-weight:600;margin-bottom:.4rem;">Solde réel du compte bancaire</div>'
+    +'<div style="font-size:.65rem;color:#9CA3AF;margin-bottom:.7rem;">Saisis le solde affiché sur ton relevé bancaire au '+new Date().toLocaleDateString('fr-FR')+'</div>'
+    +'<div style="display:flex;gap:.5rem;align-items:center;">'
+    +'<input id="solde-bancaire-input" type="number" step="0.01" value="'+(isNaN(soldeBancaire)?'':soldeBancaire)+'" placeholder="Ex: 1250.00" style="flex:1;max-width:200px;padding:.5rem .8rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:.9rem;">'
+    +'<button onclick="_tresSauvegarderSoldeBancaire()" style="padding:.5rem 1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">Enregistrer</button>'
+    +'</div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.2rem;">'
+    +'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:.9rem;">'
+    +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;">Solde calculé Compo</div>'
+    +'<div style="font-size:1.3rem;font-weight:800;color:#4338CA;margin-top:4px;">'+(soldeCalc>=0?'+':'')+soldeCalc.toFixed(2)+' €</div></div>'
+    +'<div style="background:'+(isNaN(soldeBancaire)?'#F3F4F6':'#F0FFF4')+';border:1px solid '+(isNaN(soldeBancaire)?'#E5E7EB':'#A7F3D0')+';border-radius:10px;padding:.9rem;">'
+    +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;">Solde bancaire réel</div>'
+    +'<div style="font-size:1.3rem;font-weight:800;color:'+(isNaN(soldeBancaire)?'#9CA3AF':'#059669')+';margin-top:4px;">'+(isNaN(soldeBancaire)?'Non renseigné':(soldeBancaire>=0?'+':'')+soldeBancaire.toFixed(2)+' €')+'</div></div>'
+    +'<div style="background:'+(ecart===null?'#F3F4F6':Math.abs(ecart)<0.01?'#F0FFF4':'#FFF5F5')+';border:1px solid '+(ecart===null?'#E5E7EB':Math.abs(ecart)<0.01?'#A7F3D0':'#FECACA')+';border-radius:10px;padding:.9rem;">'
+    +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;">Écart</div>'
+    +'<div style="font-size:1.3rem;font-weight:800;color:'+(ecart===null?'#9CA3AF':Math.abs(ecart)<0.01?'#059669':'#DC2626')+';margin-top:4px;">'
+    +(ecart===null?'—':Math.abs(ecart)<0.01?'✓ Équilibré':(ecart>=0?'+':'')+ecart.toFixed(2)+' €')+'</div></div></div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:1rem;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:.7rem 1rem;background:#FFFBEB;border-bottom:1px solid #FDE68A;">'
+    +'<div style="font-size:.75rem;font-weight:600;color:#92400E;">⚠ Non pointées ('+nonPointes.length+')</div>'
+    +'<div style="font-size:.72rem;font-weight:600;color:#92400E;">'+(montantNonPointe>=0?'+':'')+montantNonPointe.toFixed(2)+' €</div>'
+    +'</div>';
+  if(!nonPointes.length){
+    h+='<div style="padding:1rem;text-align:center;font-size:.78rem;color:#059669;">✓ Toutes les transactions sont pointées !</div>';
+  } else {
+    nonPointes.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t){
+      var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+      var isC=(parseFloat(t.credit)||0)>0;
+      h+='<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 1rem;border-bottom:1px solid #F3F4F6;">'
+        +'<span style="font-size:.65rem;color:#9CA3AF;min-width:60px;">'+d+'</span>'
+        +'<span style="flex:1;font-size:.75rem;">'+esc(t.description||'')+'</span>'
+        +'<span style="font-size:.62rem;color:#6B7280;">'+esc(t.type||'')+'</span>'
+        +'<span style="font-size:.75rem;font-weight:700;color:'+(isC?'#059669':'#DC2626')+'">'+(isC?'+'+parseFloat(t.credit).toFixed(2):'-'+parseFloat(t.debit).toFixed(2))+' €</span>'
+        +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.62rem;padding:2px 8px;border:1px solid #059669;border-radius:6px;cursor:pointer;background:white;color:#059669;white-space:nowrap;">✔ Pointer</button>'
+        +'</div>';
+    });
+    h+='<div style="padding:.6rem 1rem;background:#F9FAFB;text-align:right;">'
+      +'<button onclick="_tresPointerTout()" style="font-size:.68rem;padding:4px 12px;background:#059669;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✔ Tout pointer</button>'
+      +'</div>';
+  }
+  h+='</div></div>';
+  zone.innerHTML=h;
+}
+function _tresSauvegarderSoldeBancaire(){
+  var val=parseFloat((document.getElementById('solde-bancaire-input')||{}).value);
+  if(isNaN(val)){notif('Saisis un montant valide');return;}
+  try{localStorage.setItem('compo_solde_bancaire_'+_tresFiltreAnnee,val);}catch(e){}
+  notif('Solde bancaire enregistré ✓','succes');
+  _tresOnglet='rapprochement'; osTresorerieRender();
+}
+function _tresPointerTout(){
+  var txs=(window._tresorerieData||[]).filter(function(t){return !t.pointe&&t.date&&t.date.substring(0,4)===String(_tresFiltreAnnee);});
+  if(!txs.length)return;
+  if(!confirm('Pointer les '+txs.length+' transactions non pointées ?'))return;
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var done=0;
+  txs.forEach(function(t){
+    fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+t.id,{method:'PATCH',headers:authH,body:JSON.stringify({pointe:true})})
+    .then(function(r){if(r.ok){t.pointe=true;done++;if(done===txs.length){notif(done+' transactions pointées ✓','succes');osTresorerieRender();}}});
+  });
+}
+
+// ── CLÔTURE D'EXERCICE ───────────────────────────────────────────────
+function _tresRenderCloture(zone, txs, postes, annee){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var txsAn=txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
+  var totalRec=txsAn.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var totalDep=txsAn.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
+  var resultat=totalRec-totalDep;
+  var nonPointes=txsAn.filter(function(t){return !t.pointe;}).length;
+  var anneeProchaine=annee+1;
+  var soldePrecedent=txs.filter(function(t){return t.date&&t.date.substring(0,4)<String(annee);})
+    .reduce(function(s,t){return s+(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0);},0);
+  var soldeReporte=soldePrecedent+resultat;
+  var checks=[
+    {ok:nonPointes===0,l:'Toutes les transactions sont pointées',detail:nonPointes>0?nonPointes+' non pointée(s) — va dans Rapprochement':''},
+    {ok:totalRec>0,l:'Des recettes ont été enregistrées',detail:totalRec===0?'Aucune recette pour '+annee:''},
+    {ok:postes.length>0,l:'Un budget prévisionnel existe',detail:postes.length===0?'Va dans Budget pour créer des postes':''},
+  ];
+  var h='<div style="max-width:720px;">';
+  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:.3rem;">📅 Clôture de l\'exercice '+annee+'</div>';
+  h+='<div style="font-size:.72rem;color:#9CA3AF;margin-bottom:1.2rem;">Archiver l\'exercice '+annee+' et préparer l\'ouverture '+anneeProchaine+'</div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;">✅ Checklist avant clôture</div>';
+  checks.forEach(function(c){
+    h+='<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.4rem 0;border-bottom:1px solid #F3F4F6;">'
+      +'<span style="font-size:1rem;flex-shrink:0;">'+(c.ok?'✅':'⚠️')+'</span>'
+      +'<div><div style="font-size:.75rem;color:#374151;">'+c.l+'</div>'
+      +(c.detail?'<div style="font-size:.65rem;color:#DC2626;">'+c.detail+'</div>':'')
+      +'</div></div>';
+  });
+  h+='</div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;">📊 Résumé exercice '+annee+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;">';
+  [{l:'Report exercice précédent',v:(soldePrecedent>=0?'+':'')+soldePrecedent.toFixed(2)+' €',c:'#4338CA'},
+   {l:'Recettes '+annee,v:'+'+totalRec.toFixed(2)+' €',c:'#059669'},
+   {l:'Dépenses '+annee,v:'-'+totalDep.toFixed(2)+' €',c:'#DC2626'},
+   {l:'Résultat net',v:(resultat>=0?'+':'')+resultat.toFixed(2)+' €',c:resultat>=0?'#059669':'#DC2626'}
+  ].forEach(function(s){
+    h+='<div style="background:#F9FAFB;border-radius:8px;padding:.7rem;">'
+      +'<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;">'+s.l+'</div>'
+      +'<div style="font-size:1rem;font-weight:700;color:'+s.c+';margin-top:2px;">'+s.v+'</div></div>';
+  });
+  h+='</div>';
+  h+='<div style="margin-top:.8rem;padding:.7rem;background:#EEF2FF;border-radius:8px;">'
+    +'<div style="font-size:.65rem;text-transform:uppercase;color:#4338CA;font-weight:700;">Solde à reporter en '+anneeProchaine+'</div>'
+    +'<div style="font-size:1.5rem;font-weight:800;color:'+(soldeReporte>=0?'#059669':'#DC2626')+'">'+(soldeReporte>=0?'+':'')+soldeReporte.toFixed(2)+' €</div>'
+    +'</div></div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.4rem;">📐 Budget '+anneeProchaine+'</div>';
+  h+='<div style="font-size:.65rem;color:#9CA3AF;margin-bottom:.7rem;">Copier le budget '+annee+' comme base pour '+anneeProchaine+'</div>';
+  h+='<div style="display:flex;gap:.5rem;">'
+    +'<button onclick="_tresCopieBudget('+annee+','+anneeProchaine+')" style="padding:.5rem 1rem;background:#4338CA;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">📋 Copier budget '+annee+' → '+anneeProchaine+'</button>'
+    +'<button onclick="_tresOngletGo(\'budget\')" style="padding:.5rem 1rem;background:transparent;border:1px solid #D1D5DB;border-radius:8px;font-size:.75rem;cursor:pointer;color:#6B7280;">Créer manuellement</button>'
+    +'</div></div>';
+  h+='<div style="background:#FFF3CD;border:2px solid #F39C12;border-radius:12px;padding:1rem;">';
+  h+='<div style="font-size:.78rem;font-weight:700;color:#92400E;margin-bottom:.4rem;">⚠️ Clôturer l\'exercice '+annee+'</div>';
+  h+='<div style="font-size:.68rem;color:#92400E;margin-bottom:.8rem;">Crée une transaction de report ('+soldeReporte.toFixed(2)+' €) au 01/01/'+anneeProchaine+'. Aucune donnée supprimée.</div>';
+  h+='<button onclick="_tresCloturerExercice('+annee+','+soldeReporte+')" style="padding:.5rem 1.2rem;background:#F39C12;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">📅 Clôturer '+annee+' et reporter '+soldeReporte.toFixed(2)+' € en '+anneeProchaine+'</button>';
+  h+='</div></div>';
+  zone.innerHTML=h;
+}
+function _tresCopieBudget(anneeSource, anneeCible){
+  var postes=(window._tresorerieBudget||[]).filter(function(p){return !p.annee||p.annee===anneeSource;});
+  if(!postes.length){notif('Aucun poste dans le budget '+anneeSource);return;}
+  if(!confirm('Copier '+postes.length+' postes vers '+anneeCible+' ?'))return;
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var done=0;
+  postes.forEach(function(p){
+    fetch(SB_URL+'/rest/v1/tresorerie_budget',{method:'POST',headers:authH,body:JSON.stringify({poste:p.poste,categorie:p.categorie,montant:p.montant,notes:p.notes||null,annee:anneeCible,tx_ids:'[]'})})
+    .then(function(r){done++;if(done===postes.length){notif(done+' postes copiés vers '+anneeCible+' ✓','succes');_tresFiltreAnnee=anneeCible;_tresOnglet='budget';osTresorerieRender();}});
+  });
+}
+function _tresCloturerExercice(annee, solde){
+  if(!confirm('Clôturer '+annee+' et reporter '+solde.toFixed(2)+' € en '+(annee+1)+' ?'))return;
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload={date:(annee+1)+'-01-01',description:'Report exercice '+annee,type:'Autres recettes',remarques:'Clôture automatique',created_by:getUserId()};
+  if(solde>=0)payload.credit=solde;else payload.debit=Math.abs(solde);
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){if(r.ok){notif('Exercice '+annee+' clôturé ✓','succes');_tresFiltreAnnee=annee+1;_tresOnglet='mouvements';osTresorerieRender();}else notif('Erreur clôture','erreur');});
+}
+
+// ── COTISATIONS ──────────────────────────────────────────────────────
+function _tresRenderCotisations(zone){
+  zone.style.cssText='padding:1.2rem;overflow-y:auto;min-height:0;';
+  var annee=_tresFiltreAnnee;
+  var membres=(window._membresData||[]).filter(function(m){return m.actif;});
+  var txsCot=(window._tresorerieData||[]).filter(function(t){return t.type==='Cotisations'&&t.date&&t.date.substring(0,4)===String(annee);});
+  var totalCot=txsCot.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
+  var payeurs={};
+  txsCot.forEach(function(t){
+    var nom=(t.description||'').toLowerCase();
+    membres.forEach(function(m){
+      if(nom.includes((m.prenom||'').toLowerCase())||nom.includes((m.nom||'').toLowerCase())){
+        if(!payeurs[m.id])payeurs[m.id]={montant:0,date:t.date};
+        payeurs[m.id].montant+=parseFloat(t.credit)||0;
+      }
+    });
+  });
+  var nPaye=Object.keys(payeurs).length;
+  var pct=membres.length>0?Math.round(nPaye/membres.length*100):0;
+  var h='<div style="max-width:720px;">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
+    +'<div><div style="font-size:.95rem;font-weight:700;">👥 Cotisations '+annee+'</div>'
+    +'<div style="font-size:.65rem;color:#9CA3AF;margin-top:1px;">'+nPaye+'/'+membres.length+' membres — '+totalCot.toFixed(2)+' € perçus</div></div>'
+    +'<button onclick="_tresCotisationEnregistrer()" style="padding:4px 14px;background:var(--rouge);color:white;border:none;border-radius:20px;font-size:.7rem;cursor:pointer;font-weight:600;">+ Enregistrer paiement</button>'
+    +'</div>';
+  h+='<div style="background:#F3F4F6;border-radius:6px;height:8px;margin-bottom:1.2rem;overflow:hidden;">'
+    +'<div style="height:8px;border-radius:6px;background:'+(pct>=80?'#059669':pct>=50?'#F59E0B':'#DC2626')+';width:'+pct+'%;"></div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.2rem;">'
+    +'<div style="background:#F0FFF4;border:1px solid #A7F3D0;border-radius:10px;padding:.8rem;text-align:center;">'
+    +'<div style="font-size:1.4rem;font-weight:800;color:#059669;">'+nPaye+'</div>'
+    +'<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;">À jour</div></div>'
+    +'<div style="background:#FFF5F5;border:1px solid #FECACA;border-radius:10px;padding:.8rem;text-align:center;">'
+    +'<div style="font-size:1.4rem;font-weight:800;color:#DC2626;">'+(membres.length-nPaye)+'</div>'
+    +'<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;">En attente</div></div>'
+    +'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:.8rem;text-align:center;">'
+    +'<div style="font-size:1.4rem;font-weight:800;color:#4338CA;">'+totalCot.toFixed(2)+' €</div>'
+    +'<div style="font-size:.6rem;text-transform:uppercase;color:#9CA3AF;">Perçus</div></div>'
+    +'</div>';
+  h+='<div id="cot-form" style="display:none;background:white;border:2px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1rem;">'
+    +'<div style="font-size:.78rem;font-weight:700;margin-bottom:.7rem;">Enregistrer une cotisation</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Membre *</label><select id="cot-membre" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;">'
+    +'<option value="">— Choisir —</option>'
+    +membres.map(function(m){return '<option>'+esc((m.prenom||'')+' '+(m.nom||''))+'</option>';}).join('')
+    +'</select></div>'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Montant (€) *</label><input id="cot-montant" type="number" step="0.01" min="0" value="10" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div><label style="font-size:.62rem;color:#6B7280;">Date *</label><input id="cot-date" type="date" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+    +'<div style="grid-column:1/-1"><label style="font-size:.62rem;color:#6B7280;">Moyen de paiement</label><select id="cot-moyen" style="width:100%;padding:.4rem .6rem;border:1.5px solid #D1D5DB;border-radius:7px;font-size:.8rem;margin-top:2px;box-sizing:border-box;">'
+    +'<option value="">—</option>'+TRES_MOYENS.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:.4rem;">'
+    +'<button onclick="_tresCotisationSauvegarder()" style="padding:.4rem 1rem;background:#059669;color:white;border:none;border-radius:7px;font-size:.72rem;font-weight:600;cursor:pointer;">Enregistrer</button>'
+    +'<button onclick="document.getElementById(\'cot-form\').style.display=\'none\'" style="padding:.4rem .8rem;background:transparent;border:1px solid #D1D5DB;border-radius:7px;font-size:.72rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'</div></div>';
+  h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">'
+    +'<div style="display:grid;grid-template-columns:1fr 100px 90px 80px;padding:.5rem 1rem;background:#F3F4F6;border-bottom:1px solid #E5E7EB;">'
+    +['Membre','Statut','Montant','Date'].map(function(c){return '<div style="font-size:.55rem;text-transform:uppercase;color:#9CA3AF;">'+c+'</div>';}).join('')
+    +'</div>';
+  membres.slice().sort(function(a,b){
+    return (payeurs[b.id]?1:0)-(payeurs[a.id]?1:0)||(a.prenom||'').localeCompare(b.prenom||'');
+  }).forEach(function(m){
+    var p=payeurs[m.id];
+    var d=p&&p.date?new Date(p.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+    h+='<div style="display:grid;grid-template-columns:1fr 100px 90px 80px;padding:.5rem 1rem;border-bottom:1px solid #F3F4F6;align-items:center;">'
+      +'<div style="font-size:.8rem;font-weight:500;">'+esc((m.prenom||'')+' '+(m.nom||''))+'<div style="font-size:.6rem;color:#9CA3AF;">'+esc(m.role||'')+'</div></div>'
+      +'<div><span style="font-size:.62rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(p?'#D1FAE5':'#FEE2E2')+';color:'+(p?'#065F46':'#991B1B')+'">'+(p?'✓ Payé':'En attente')+'</span></div>'
+      +'<div style="font-size:.75rem;font-weight:600;color:'+(p?'#059669':'#9CA3AF')+'">'+(p?p.montant.toFixed(2)+' €':'—')+'</div>'
+      +'<div style="font-size:.65rem;color:#9CA3AF;">'+d+'</div>'
+      +'</div>';
+  });
+  h+='</div></div>';
+  zone.innerHTML=h;
+}
+function _tresCotisationEnregistrer(){ var f=document.getElementById('cot-form'); if(f){f.style.display='block';f.scrollIntoView({behavior:'smooth',block:'nearest'});} }
+function _tresCotisationSauvegarder(){
+  var membre=(document.getElementById('cot-membre')||{}).value;
+  var montant=parseFloat((document.getElementById('cot-montant')||{}).value)||0;
+  var date=(document.getElementById('cot-date')||{}).value;
+  var moyen=(document.getElementById('cot-moyen')||{}).value||null;
+  if(!membre||!montant||!date){notif('Remplis tous les champs obligatoires');return;}
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify({
+    date:date,description:'Cotisation '+_tresFiltreAnnee+' — '+membre,
+    type:'Cotisations',credit:montant,moyen_paiement:moyen,created_by:getUserId(),pointe:true
+  })}).then(function(r){if(r.ok){notif('Cotisation enregistrée ✓','succes');_tresOnglet='cotisations';osTresorerieRender();}else notif('Erreur','erreur');});
+}
+
+function osTresorerieOnglet(o){ _tresOnglet=o; osTresorerieRender(); }
+function osTresorerieEditer(id){ _tresEditer(id); }
+function osTresorerieSupprimer(id){ _tresSupprimer(id); }
+function osTresorerieSauvegarder(){ _tresSauvegarder(); }
+function osTresorerieBudgetRender(){ _tresOnglet='budget'; osTresorerieRender(); }
+function osTresorerieBudgetForm(cat){ _tresBudgetForm(cat); }
+function osTresorerieBudgetEditer(id){ _tresBudgetEditer(id); }
+function osTresorerieBudgetSauvegarder(){ _tresBudgetSauvegarder(); }
+function osTresorerieBudgetSupprimer(id){ _tresBudgetSupprimer(id); }
+
 
 function osPresenceMajWidget(){
   var membres = Object.keys(_presenceData||{});
