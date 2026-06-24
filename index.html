@@ -5590,6 +5590,7 @@ function osPopulerSelectRedaction(){
 
 
 function resetRedaction(){
+  osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
@@ -5624,24 +5625,29 @@ function resetRedaction(){
 
 // ===== BROUILLONS =====
 function sauvegarderBrouillon(){
-  const titre=document.getElementById('r-titre').value.trim()||'Sans titre';
+  const titre=document.getElementById('r-titre').value.trim();
   const corps=document.getElementById('r-corps').value.trim();
-  if(!corps&&!titre){notif('Rien à sauvegarder');return;}
+  // Bloquer si pas de titre — évite les "Sans titre" qui s'accumulent
+  if(!titre){
+    notif('Saisis un titre avant de sauvegarder','alerte');
+    var tf=document.getElementById('r-titre');
+    if(tf){tf.focus();tf.style.borderColor='var(--rouge)';setTimeout(function(){tf.style.borderColor='';},2500);}
+    return;
+  }
   const doc=buildDoc();
   notif('Sauvegarde en cours...');
   osSaveIndicateur('modifie');
   db.sauvegarderArticle(doc).then(function(){
-    // Nettoyer tout brouillon local résiduel avec le même ID
     try{
       var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
       var idx=drafts.findIndex(function(d){return d.id===doc.id;});
       if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
     }catch(e){}
+    currentDoc = doc; // synchroniser pour autosave et osRedactionADesModifs
     logAction('brouillon',titre,'cloud');
-    notif('Brouillon sauvegardé dans le cloud : '+titre,'succes');
+    notif('Brouillon sauvegardé : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
-    // Plus de sauvegarde locale — afficher juste l'erreur
     notif('⚠️ Impossible de sauvegarder — vérifie ta connexion','erreur');
     osSaveIndicateur('erreur');
   });
@@ -9173,6 +9179,7 @@ function assignValider(){
 
     assignFermer();
     notif('Envoyé en correction à ' + _assignCorrecteur + ' ✓', 'succes');
+    osClearAutosave();
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
 
@@ -9501,6 +9508,46 @@ function ouvrirAssignationDepuisDoc(doc){
 }
 
 
+// ── AUTOSAVE ──
+var _autosaveInterval = null;
+var _autosaveHash = '';
+
+function _autosaveHash_calc(){
+  var titre = (document.getElementById('r-titre')||{}).value||'';
+  var corps = (document.getElementById('r-corps')||{}).value||'';
+  var chapeau = (document.getElementById('r-chapeau')||{}).value||'';
+  return titre+'||'+chapeau+'||'+corps;
+}
+
+function osStartAutosave(){
+  osClearAutosave();
+  _autosaveHash = _autosaveHash_calc();
+  _autosaveInterval = setInterval(function(){
+    var titre = (document.getElementById('r-titre')||{}).value||'';
+    if(!titre.trim()) return; // jamais autosave sans titre
+    var hash = _autosaveHash_calc();
+    if(hash === _autosaveHash) return; // pas de changement
+    _autosaveHash = hash;
+    // Autosave silencieux
+    var doc = buildDoc();
+    if(!doc.id) return;
+    db.sauvegarderArticle(doc).then(function(){
+      currentDoc = doc;
+      osSaveIndicateur('sauvegarde');
+      // Indicateur discret
+      var ind = document.getElementById('r-save-indicator');
+      if(ind){ ind.textContent = '✓ Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
+    }).catch(function(){
+      var ind = document.getElementById('r-save-indicator');
+      if(ind){ ind.textContent = '⚠ Connexion perdue'; ind.style.color='var(--rouge)'; }
+    });
+  }, 45000); // toutes les 45 secondes
+}
+
+function osClearAutosave(){
+  if(_autosaveInterval){ clearInterval(_autosaveInterval); _autosaveInterval=null; }
+}
+
 function chargerDansRedaction(doc){
   if(doc && getUserRole() === 'redacteur'){
     if(doc.statut === 'publie'){
@@ -9517,12 +9564,13 @@ function chargerDansRedaction(doc){
   }
   go('redaction');
   setTimeout(function(){
-    osPopulerSelectRedaction(); // Peupler le select avec les rédactions du membre
+    osPopulerSelectRedaction();
     setType(doc.type||'article');
     document.getElementById('r-auteur').value = doc.auteur||'';
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = doc.titre||''; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
     document.getElementById('r-chapeau').value = doc.chapeau||'';
+    osStartAutosave();
     document.getElementById('r-angle').value = doc.angle||'';
     document.getElementById('r-corps').value = doc.corps||'';
     document.getElementById('r-redaction').value = doc.redaction||'Redaction Tarn';
