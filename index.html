@@ -58,15 +58,14 @@
 }
 
 /* ── Fenêtres ── */
+/* Backdrop-filter uniquement sur la fenêtre active pour réduire les décalages souris */
 .os-window {
-  border-radius: var(--md-shape-lg) !important;
-  box-shadow: var(--md-elev-4), 0 24px 64px rgba(0,0,0,.22) !important;
-  border: 1px solid rgba(255,255,255,0.18) !important;
-  background: rgba(253,250,249,0.97) !important;
-  backdrop-filter: blur(40px) saturate(160%) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .os-window.active {
-  box-shadow: var(--md-elev-4), 0 32px 80px rgba(0,0,0,.28), 0 0 0 1.5px rgba(232,70,30,0.25) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  backdrop-filter: blur(40px) saturate(160%);
 }
 .os-titlebar {
   background: rgba(242,237,234,0.95) !important;
@@ -134,6 +133,21 @@ input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--md-primary) !important;
+  box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
+}
+
+/* ── Login — surcharge Material pour garder les bordures visibles ── */
+.os-login-field input,
+.os-login-input,
+.login-group input {
+  border: 1.5px solid #C0B8B0 !important;
+  background: white !important;
+  color: #1A1A2E !important;
+}
+.os-login-field input:focus,
+.os-login-input:focus,
+.login-group input:focus {
+  border-color: var(--rouge, #E8461E) !important;
   box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
 }
 
@@ -454,6 +468,11 @@ body {
   min-height: 300px;
   overflow: hidden;
   transition: box-shadow 0.2s;
+  will-change: transform;
+  /* Isoler le stacking context pour éviter les décalages de clic */
+  isolation: isolate;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 .os-window.active { box-shadow: var(--window-shadow), 0 0 0 1px rgba(232,70,30,0.3); }
 .os-window.minimized { display: none; }
@@ -481,6 +500,18 @@ body {
   border: none; cursor: pointer;
   transition: filter 0.15s;
   position: relative;
+  /* Zone de clic étendue — évite les ratés de clic */
+  padding: 0;
+  outline: none;
+  /* Pseudo-element pour agrandir la zone tactile sans changer le visuel */
+  -webkit-tap-highlight-color: transparent;
+}
+/* Zone de clic invisible 24x24 autour du bouton */
+.os-btn-win::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
 }
 .os-btn-win:hover { filter: brightness(0.85); }
 .os-btn-close { background: #FF5F57; }
@@ -554,7 +585,7 @@ body {
 /* ===== DOCK ===== */
 #os-dock {
   position: fixed;
-  bottom: 0;
+  bottom: 2px; /* petite marge pour éviter le déclenchement de la barre des tâches Windows */
   left: 0;
   right: 0;
   z-index: 99000;
@@ -777,7 +808,7 @@ body {
 .os-login-right {
   position: relative;
   flex: 1;
-  background: #F5EDE8;
+  background: #FDFAF9;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -790,12 +821,12 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 20% 20%, rgba(234,91,28,0.07) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(41,128,185,0.05) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 15%, rgba(234,91,28,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 85%, rgba(234,91,28,0.04) 0%, transparent 50%);
   pointer-events: none;
 }
 .os-login-right > * { position: relative; z-index: 1; }
-/* Heure et date — conservés mais repositionnés */
+/* Heure et date */
 .os-login-time {
   font-family: Arial,sans-serif;
   font-size: 0.7rem;
@@ -804,10 +835,8 @@ body {
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
-.os-login-date {
-  display: none;
-}
-/* Carte de connexion — maintenant sur le panneau droit */
+.os-login-date { display: none; }
+/* Carte de connexion */
 .os-login-card {
   background: transparent;
   border: none;
@@ -827,55 +856,63 @@ body {
   width: 100%;
   background: white !important;
   -webkit-appearance: none;
-  border: 1px solid rgba(0,0,0,0.12);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border: 1.5px solid #E5E0DC !important;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
   color: #1A1A2E !important;
   font-size: 0.88rem;
   font-family: 'DM Sans', sans-serif;
   outline: none;
   text-align: left;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   caret-color: #EA5B1C;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .os-login-input:focus {
-  border-color: #EA5B1C;
-  box-shadow: 0 0 0 3px rgba(234,91,28,0.12);
+  border-color: #EA5B1C !important;
+  box-shadow: 0 0 0 3px rgba(234,91,28,0.12) !important;
 }
-.os-login-input::placeholder { color: #bbb; }
+.os-login-input::placeholder { color: #C4BBBB; }
 .os-login-input:-webkit-autofill,
 .os-login-input:-webkit-autofill:hover,
 .os-login-input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px white inset !important;
   -webkit-text-fill-color: #1A1A2E !important;
-  border-color: rgba(0,0,0,0.12);
+  border-color: #E5E0DC !important;
   caret-color: #EA5B1C;
 }
 .os-login-btn {
   width: 100%;
-  background: #EA5B1C;
+  background: linear-gradient(135deg, #E8461E, #C73A18);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 0.8rem;
+  border-radius: 10px;
+  padding: 0.85rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: all 0.2s;
   letter-spacing: 0.02em;
-  margin-top: 4px;
+  box-shadow: 0 4px 14px rgba(232,70,30,0.35);
 }
-.os-login-btn:hover { background: #d44f17; }
-.os-login-btn:active { transform: scale(0.98); }
+.os-login-btn:hover {
+  background: linear-gradient(135deg, #D93D18, #B83210);
+  box-shadow: 0 6px 20px rgba(232,70,30,0.45);
+  transform: translateY(-1px);
+}
+.os-login-btn:active { transform: scale(0.98); box-shadow: none; }
 .os-login-error {
   font-size: 0.75rem;
   color: #d44f17;
   text-align: center;
   display: none;
-  margin-top: 8px;
+  margin-top: 10px;
+  background: rgba(232,70,30,0.06);
+  border: 1px solid rgba(232,70,30,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 .os-login-error.visible { display: block; }
 /* Stats footer gauche */
@@ -3844,25 +3881,52 @@ input:focus,select:focus,textarea:focus{
   <!-- Panneau droit -->
   <div class="os-login-right">
     <div class="os-login-card">
-      <div style="margin-bottom:28px;text-align:left;width:100%;">
-        <div style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;color:#1A1A2E;margin-bottom:4px;">Connexion</div>
-        <div style="font-size:0.82rem;color:#888;font-family:'DM Sans',sans-serif;">Accède à ton espace rédaction</div>
+
+      <!-- Logo Compo OS -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:2rem;">
+        <div style="width:38px;height:38px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(232,70,30,0.3);">
+          <span style="font-size:1.1rem;">📰</span>
+        </div>
+        <div>
+          <div style="font-family:'Poppins',sans-serif;font-size:.82rem;font-weight:700;color:#1A1A2E;line-height:1.1;">Compo OS</div>
+          <div style="font-size:.6rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Ipsum Média · Tarn</div>
+        </div>
       </div>
-      <div style="width:100%;margin-bottom:4px;">
-        <div style="font-family:Arial,sans-serif;font-size:0.6rem;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Email</div>
-        <input class="os-login-input" type="email" id="os-login-email" placeholder="nom@ipsummedia.fr" autocomplete="email">
+
+      <!-- Titre -->
+      <div style="margin-bottom:1.8rem;">
+        <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#1A1A2E;margin-bottom:4px;line-height:1.2;">Connexion</div>
+        <div style="font-size:.82rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Accède à ton espace rédaction</div>
       </div>
-      <div style="width:100%;margin-bottom:4px;">
-        <div style="font-family:Arial,sans-serif;font-size:0.6rem;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Mot de passe</div>
+
+      <!-- Champs -->
+      <div style="width:100%;margin-bottom:.8rem;">
+        <div style="font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Email</div>
+        <input class="os-login-input" type="email" id="os-login-email" placeholder="prenom@ipsummedia.fr" autocomplete="email">
+      </div>
+      <div style="width:100%;margin-bottom:1.2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;">Mot de passe</div>
+        </div>
         <input class="os-login-input" type="password" id="os-login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') osLoginValider()">
       </div>
-      <button class="os-login-btn" id="os-login-btn" onclick="osLoginValider()">Se connecter →</button>
+
+      <!-- Bouton -->
+      <button class="os-login-btn" id="os-login-btn" onclick="osLoginValider()">
+        <span id="os-login-btn-text">Se connecter</span>
+        <span style="margin-left:6px;display:inline-block;transition:transform .2s;">→</span>
+      </button>
+
+      <!-- Erreur -->
       <div class="os-login-error" id="os-login-error"></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:24px;width:100%;">
-        <div style="flex:1;height:0.5px;background:rgba(0,0,0,0.1);"></div>
-        <span style="font-family:Arial,sans-serif;font-size:0.58rem;color:#ccc;text-transform:uppercase;letter-spacing:0.08em;">ipsum média · tarn</span>
-        <div style="flex:1;height:0.5px;background:rgba(0,0,0,0.1);"></div>
+
+      <!-- Footer -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:2rem;width:100%;">
+        <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
+        <span style="font-family:'DM Sans',sans-serif;font-size:.58rem;color:#D1D5DB;text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Tarn</span>
+        <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
       </div>
+
     </div>
   </div>
 
@@ -5096,125 +5160,6 @@ input:focus,select:focus,textarea:focus{
 </div>
 
 <!-- PATCH NOTE v1.2 -->
-<div id="modal-patchnote" style="position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:white;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,0.5);border-radius:16px;">
-    
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#0D0D1A,#1A1A2E);padding:1.6rem 2rem;border-radius:16px 16px 0 0;display:flex;align-items:flex-start;justify-content:space-between;">
-      <div>
-        <div style="font-family:Arial,sans-serif;font-size:0.6rem;color:var(--rouge);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:0.4rem;">Compo OS · Avril 2026</div>
-        <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.4rem;color:white;">Version 2.0</div>
-        <div style="font-family:monospace;font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">Launchpad · Carnet de sources · Abonnements CPs · Notes · Store</div>
-      </div>
-      <button onclick="fermerPatchNote()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:1.1rem;cursor:pointer;border-radius:8px;padding:4px 10px;line-height:1.4;">&times;</button>
-    </div>
-
-    <!-- Résumé rapide -->
-    <div style="padding:1.2rem 2rem;border-bottom:1px solid var(--gris-bord);">
-      <div style="font-family:Arial,sans-serif;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.7rem;">En bref</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔲 <span>Launchpad + dock personnalisable</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📇 <span>Carnet de sources (53 contacts)</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🔔 <span>Abonnements CPs par source</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📝 <span>App Notes temps réel</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🏪 <span>Compo Store</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">⚙️ <span>Gestion des apps par utilisateur</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">📢 <span>Tableau d'affichage (annonces)</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--encre);">🧹 <span>App Nettoyage + quota emails</span></div>
-      </div>
-    </div>
-
-    <!-- Détail des changements -->
-    <div style="padding:1.2rem 2rem;">
-      <div style="font-family:Arial,sans-serif;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.8rem;">Détail des changements</div>
-      <div id="pn-sections">
-
-        <div style="margin-bottom:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('dock')">
-            <span style="font-size:1rem;">🔲</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Launchpad & Dock</span>
-            <span id="pn-arrow-dock" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-dock" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Dock limité à 8 apps épinglées</div>
-            <div>• Icône 🔲 Launchpad toujours présente — accès à toutes les apps</div>
-            <div>• Clic droit dans le Launchpad pour épingler/désépingler au dock</div>
-            <div>• Appui long sur mobile pour le même effet</div>
-            <div>• Point orange = app épinglée dans le dock</div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('carnet')">
-            <span style="font-size:1rem;">📇</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Carnet de sources</span>
-            <span id="pn-arrow-carnet" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-carnet" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• 53 contacts importés (Excel presse + Notion)</div>
-            <div>• Catégories, fiabilité, notes internes, historique des échanges</div>
-            <div>• Liaison bidirectionnelle avec les CPs</div>
-            <div>• RLS activé — chaque membre ne voit que les contacts autorisés</div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('cps2')">
-            <span style="font-size:1rem;">📰</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Communiqués de presse</span>
-            <span id="pn-arrow-cps2" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-cps2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Modale de lecture avec PDF intégré</div>
-            <div>• Liaison CP ↔ contact du carnet</div>
-            <div>• Abonnements par source (plus seulement global)</div>
-            <div>• Bouton S'abonner à cette source depuis la modale CP</div>
-            <div>• Fix bug "Unexpected end of input"</div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('store2')">
-            <span style="font-size:1rem;">🏪</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Compo Store & nouvelles apps</span>
-            <span id="pn-arrow-store2" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-store2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• 🏪 Compo Store — installe/désinstalle des mini-apps</div>
-            <div>• 📝 Notes — bloc-notes personnel synchronisé en temps réel</div>
-            <div>• ⏱️ Minuteur — chrono et compte à rebours</div>
-            <div>• 📏 Compteur — mots, signes, temps de lecture</div>
-            <div>• 🎲 Générateur de titres — 5 titres IA en un clic</div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:1rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;cursor:pointer;" onclick="pnToggle('admin2')">
-            <span style="font-size:1rem;">⚙️</span>
-            <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);flex:1;">Outils admin</span>
-            <span id="pn-arrow-admin2" style="font-size:0.7rem;color:var(--gris);">▼</span>
-          </div>
-          <div id="pn-admin2" style="padding-left:1.5rem;font-size:0.78rem;color:var(--gris);line-height:2;display:none;">
-            <div>• Gestion des apps par utilisateur (pas par rôle)</div>
-            <div>• Profils prédéfinis : Rédacteur / Correcteur / Admin</div>
-            <div>• App Nettoyage — purge brouillons, base64, historique</div>
-            <div>• Quota emails Resend — compteur journalier et mensuel</div>
-            <div>• Dashboard bénévoles avec délai moyen de publication</div>
-            <div>• Tableau d'affichage avec épinglage et expiration auto</div>
-            <div>• Mode mobile optimisé (plein écran, dock scrollable)</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:1rem 2rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Compo OS v2.0 · Ipsum Média · Tarn</div>
-      <button onclick="fermerPatchNote()" class="btn" style="font-size:0.8rem;padding:0.45rem 1.2rem;">C'est parti 🚀</button>
-    </div>
-  </div>
-</div>
 
 <script>
 // ===== CONFIG SUPABASE =====
@@ -5316,8 +5261,7 @@ function go(id){
   if(id==='tickets') chargerTickets();
   if(id==='mes-articles') chargerMesArticles();
   if(id==='accueil'){ chargerRSS(); chargerAccueilArticles(); construireAccueil(); chargerAnnonces(); chargerAccueilBriefing(); chargerAlertCorrection(); chargerAlertPublication(); }
-  if(id==='redaction') setTimeout(preremplirAuteur,50);
-  if(id==='correction') setTimeout(preremplirCorrecteur,50);
+  // Ne pas appeler preremplirAuteur ici — chargerDansRedaction s'en charge
   closeDD();
 }
 function goHome(){go('accueil');}
@@ -5881,19 +5825,16 @@ function osAppCorrectionCharger(){
   var statuts = {brouillons:'brouillon', relecture:'en-relecture', corriges:'corrige', valides:'valide'};
   var statut = statuts[_corrOnglet]||'en-relecture';
 
-  // Colonnes de base — sans commentaire_correction qui peut ne pas exister
-  var selectCols = 'id,titre,auteur,auteur_id,statut,urgence,rubrique,updated_at';
-  var url = SB_URL+'/rest/v1/articles?statut=eq.'+statut+'&order=updated_at.desc&select='+selectCols;
-
-  // Pas de filtre redaction_id — trop restrictif si non renseigné sur les articles
+  // Colonnes nécessaires — updated_at peut être null sur vieux articles
+  var selectCols = 'id,titre,auteur,auteur_id,correcteur,correcteur_id,statut,urgence,rubrique,note_interne,updated_at,created_at';
+  var url = SB_URL+'/rest/v1/articles?statut=eq.'+encodeURIComponent(statut)+'&order=updated_at.desc.nullslast&select='+selectCols;
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    // Si erreur Supabase (colonne manquante etc), arts.code est défini
     if(!arts || arts.code){
-      console.error('Correction query error:', arts);
-      zone.innerHTML = '<div style="text-align:center;padding:2rem;color:#A32D2D;font-size:0.8rem;">Erreur : '+(arts&&arts.message||'requête échouée')+'</div>';
+      console.error('Correction query error:', arts, 'URL:', url);
+      zone.innerHTML = '<div style="text-align:center;padding:2rem;color:#A32D2D;font-size:0.8rem;">Erreur : '+(arts&&arts.message||'requête échouée')+'<br><small style="font-family:monospace;">'+esc(url)+'</small></div>';
       return;
     }
     arts = Array.isArray(arts) ? arts : [];
@@ -5924,8 +5865,8 @@ function osAppCorrectionCharger(){
       h += '<div style="flex:1;min-width:200px;">';
       h += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+(URG[a.urgence]||'')+' '+esc(a.titre||'Sans titre')+'</div>';
       h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:3px;">Par '+esc(a.auteur||'')+(a.rubrique?' · '+esc(a.rubrique):'')+(d?' · '+d:'')+'</div>';
-      if(a.commentaire_correction && (a.statut==='en-relecture'||a.statut==='brouillon')){
-        h += '<div style="font-size:0.68rem;background:#FFF3CD;border-left:3px solid #856404;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:5px;color:#856404;">💬 '+esc(a.commentaire_correction)+'</div>';
+      if(a.note_interne && (a.statut==='en-relecture'||a.statut==='brouillon')){
+        h += '<div style="font-size:0.68rem;background:#FFF3CD;border-left:3px solid #856404;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:5px;color:#856404;">💬 '+esc(a.note_interne)+'</div>';
       }
       h += '</div>';
 
@@ -7219,10 +7160,43 @@ window.addEventListener('DOMContentLoaded',function(){
     if(em) em.addEventListener('keydown',function(e){if(e.key==='Enter') mdp.focus();});
   }
   try {
-    if(initAuth()){
-      SB_HEADERS['Authorization'] = 'Bearer ' + _session.access_token;
+    var stored = localStorage.getItem('ipsum_session');
+    if(!stored){ showLogin(); return; }
+    var sess;
+    try { sess = JSON.parse(stored); } catch(e){ showLogin(); return; }
+    if(!sess || !sess.access_token){ showLogin(); return; }
+
+    // Normaliser expires_at — Supabase renvoie parfois en secondes, parfois en ms
+    var expiresAt = sess.expires_at || 0;
+    // Si expires_at < 1e10 c'est en secondes (Unix timestamp), sinon en ms
+    var expiresMs = expiresAt < 1e10 ? expiresAt * 1000 : expiresAt;
+    var now = Date.now();
+
+    if(expiresMs > now){
+      // Token encore valide — lancer directement
+      _session = sess;
+      SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
       lancerCompo();
       chargerDepuisURL();
+    } else if(sess.refresh_token){
+      // Token expiré mais refresh_token disponible — tenter un refresh silencieux
+      // Afficher le splash pendant le refresh (pas le login)
+      fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{
+        method:'POST',
+        headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:sess.refresh_token})
+      }).then(function(r){return r.json();})
+      .then(function(data){
+        if(!data.access_token){ showLogin(); return; }
+        sess.access_token = data.access_token;
+        if(data.refresh_token) sess.refresh_token = data.refresh_token;
+        sess.expires_at = Math.floor(Date.now()/1000) + (data.expires_in||3600);
+        _session = sess;
+        SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
+        localStorage.setItem('ipsum_session', JSON.stringify(sess));
+        lancerCompo();
+        chargerDepuisURL();
+      }).catch(function(){ showLogin(); });
     } else {
       showLogin();
     }
@@ -10785,272 +10759,9 @@ function osPresenceMajIndicateurs(){
 
 // ===== APP RÉDACTIONS =====
 
-function osRedactionsRender(){
-  var wc = document.getElementById('wincontent-redactions');
-  if(!wc) return;
-  var role = getUserRole();
-  var uid = getUserId();
-  wc.innerHTML = osLoadingHtml();
-
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-
-  Promise.all([
-    fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc', {headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=*', {headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction', {headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,auteur_id,statut', {headers:authH}).then(function(r){return r.json();})
-  ]).then(function(res){
-    var redactions = (!res[0]||res[0].code) ? [] : res[0];
-    var liens      = (!res[1]||res[1].code) ? [] : res[1];
-    var membres    = (!res[2]||res[2].code) ? [] : res[2];
-    var articles   = (!res[3]||res[3].code) ? [] : res[3];
-
-    var monLien = liens.find(function(l){ return l.membre_id === uid; });
-    var maRedacId = monLien ? monLien.redaction_id : null;
-    var monRoleRedac = monLien ? monLien.role_redac : null;
-
-    if(role === 'admin'){
-      osRedactionsVueAdmin(wc, redactions, liens, membres, articles, authH);
-    } else if(monRoleRedac === 'redac_chef'){
-      osRedactionsVueChef(wc, redactions, liens, membres, articles, maRedacId, authH);
-    } else {
-      osRedactionsVueMembre(wc, redactions, liens, membres, articles, maRedacId, uid);
-    }
-  }).catch(function(e){
-    wc.innerHTML = '<div style="padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--rouge);">Erreur : '+e.message+'</div>';
-  });
-}
-
-function osRedactionsVueMembre(wc, redactions, liens, membres, articles, maRedacId, uid){
-  var moi = membres.find(function(m){ return m.id === uid; });
-  var maRedac = redactions.find(function(r){ return r.id === maRedacId; });
-  var monLien = liens.find(function(l){ return l.membre_id === uid; });
-  var mesArts = articles.filter(function(a){ return a.auteur_id === uid; });
-  var mesPublies = mesArts.filter(function(a){ return a.statut === 'publie'; });
-  var membresRedac = maRedacId ? liens.filter(function(l){ return l.redaction_id === maRedacId; }) : [];
-  var idsRedac = membresRedac.map(function(l){ return l.membre_id; });
-  var artsRedac = maRedacId ? articles.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; }) : [];
-  var publiesRedac = artsRedac.filter(function(a){ return a.statut === 'publie'; });
-  var initiales = moi ? (moi.prenom||'?')[0].toUpperCase()+(moi.nom||'?')[0].toUpperCase() : '?';
-  var roleColors = {redacteur:'#F5C4B3,#712B13', correcteur:'#B5D4F4,#0C447C', admin:'#C0DD97,#27500A'};
-  var rc = (roleColors[moi&&moi.role]||'#D3D1C7,#444441').split(',');
-  var couleurRedac = maRedac ? (maRedac.couleur||'#EA5B1C') : '#EA5B1C';
-  var statData = {total:mesArts.length, publies:mesPublies.length};
-
-  var html = '<div style="height:100%;overflow-y:auto;padding:1.5rem;">';
-  // Profil
-  html += '<div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.2rem;background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.2rem 1.5rem;">';
-  html += '<div style="position:relative;"><div style="width:58px;height:58px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+(moi?moi.id:'')+'" style="position:absolute;bottom:1px;right:1px;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span></div>';
-  html += '<div style="flex:1;"><div style="font-family:Poppins,sans-serif;font-size:1.15rem;font-weight:800;color:var(--encre);">'+(moi?esc(moi.prenom+' '+moi.nom):'—')+'</div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:4px;">';
-  html += '<span style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+(moi?moi.role:'—')+'</span>';
-  if(monLien && monLien.role_redac !== 'redacteur') html += '<span style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:rgba(234,91,28,0.1);color:#EA5B1C;">'+monLien.role_redac+'</span>';
-  fonctionArray(moi&&moi.fonction).forEach(function(f){ html += '<span style="font-family:monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:var(--gris-clair);color:var(--gris);">'+(FONCTIONS_LABELS[f]||f)+'</span>'; });
-  html += '</div></div>';
-  html += '<button onclick="osGenererCarteAdherent('+JSON.stringify(moi||{})+','+JSON.stringify(statData)+')" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--encre);border-radius:6px;background:var(--encre);color:white;cursor:pointer;flex-shrink:0;">🪪 Ma carte</button>';
-  html += '</div>';
-  // Stats perso
-  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;margin-bottom:1.2rem;">';
-  function sc(n,l,c){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
-  html += sc(mesArts.length,'Articles');
-  html += sc(mesPublies.length,'Publiés','#EA5B1C');
-  html += sc(mesArts.filter(function(a){return a.statut==='en-relecture'||a.statut==='corrige';}).length,'En cours','#1A5276');
-  html += '</div>';
-  // Ma rédac
-  if(maRedac){
-    html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;margin-bottom:1.2rem;">';
-    html += '<div style="background:'+couleurRedac+';padding:0.9rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">';
-    html += '<span style="font-size:1.1rem;">🗞️</span><div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:white;">'+esc(maRedac.nom)+'</div>';
-    if(maRedac.departement) html += '<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.6);">'+esc(maRedac.departement)+'</div>';
-    html += '</div></div>';
-    html += '<div style="padding:0.9rem 1.2rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.5rem;">';
-    html += sc(membresRedac.length,'Membres');
-    html += sc(artsRedac.length,'Articles');
-    html += sc(publiesRedac.length,'Publiés','#EA5B1C');
-    html += '</div>';
-    html += '<div style="padding:0 1.2rem 1rem;"><div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Membres</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
-    membresRedac.forEach(function(l){
-      var mb = membres.find(function(m){ return m.id === l.membre_id; });
-      if(!mb) return;
-      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-      var rcm = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
-      html += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;">';
-      html += '<div style="position:relative;"><div style="width:22px;height:22px;border-radius:50%;background:'+rcm[0]+';display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:'+rcm[1]+';">'+ini+'</div>';
-      html += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1px solid white;"></span></div>';
-      html += '<span style="font-family:monospace;font-size:0.65rem;color:var(--encre);">'+esc(mb.prenom||'')+'</span>';
-      if(l.role_redac==='redac_chef') html += '<span style="font-family:monospace;font-size:0.5rem;color:'+couleurRedac+';font-weight:600;"> chef</span>';
-      html += '</div>';
-    });
-    html += '</div></div></div>';
-  } else {
-    html += '<div style="background:var(--gris-clair);border-radius:10px;padding:1.5rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Tu n\'es assigné à aucune rédaction.</div>';
-  }
-  html += '</div>';
-  wc.innerHTML = html;
-}
-
-function osRedactionsVueChef(wc, redactions, liens, membres, articles, maRedacId, authH){
-  var maRedac = redactions.find(function(r){ return r.id === maRedacId; });
-  if(!maRedac){ wc.innerHTML='<div style="padding:2rem;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune rédaction assignée.</div>'; return; }
-  var membresRedac = liens.filter(function(l){ return l.redaction_id === maRedacId; });
-  var idsRedac = membresRedac.map(function(l){ return l.membre_id; });
-  var artsRedac = articles.filter(function(a){ return idsRedac.indexOf(a.auteur_id) !== -1; });
-  var roleColors = {redacteur:'#F5C4B3,#712B13', correcteur:'#B5D4F4,#0C447C', admin:'#C0DD97,#27500A'};
-  var couleur = maRedac.couleur || '#EA5B1C';
-  var membresDispos = membres.filter(function(m){ return idsRedac.indexOf(m.id)===-1; });
-
-  var html = '<div style="height:100%;overflow-y:auto;padding:1.5rem;">';
-  html += '<div style="background:'+couleur+';border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1.2rem;display:flex;align-items:center;justify-content:space-between;">';
-  html += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.2rem;color:white;">'+esc(maRedac.nom)+'</div>';
-  html += '<div style="font-family:monospace;font-size:0.62rem;color:rgba(255,255,255,0.6);">'+(maRedac.departement?esc(maRedac.departement)+' · ':'')+'Rédacteur·rice en chef</div></div>';
-  html += '<span style="font-family:monospace;font-size:0.62rem;background:rgba(255,255,255,0.2);color:white;padding:3px 10px;border-radius:10px;">'+membresRedac.length+' membres</span></div>';
-
-  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;margin-bottom:1.2rem;">';
-  [{s:'brouillon',l:'Brouillons'},{s:'en-relecture',l:'En relecture'},{s:'corrige',l:'Corrigés'},{s:'publie',l:'Publiés'}].forEach(function(x){
-    var n = artsRedac.filter(function(a){ return a.statut===x.s; }).length;
-    html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(x.s==='publie'?couleur:'var(--encre)')+';">'+n+'</div><div style="font-family:monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);">'+x.l+'</div></div>';
-  });
-  html += '</div>';
-
-  html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);">';
-  html += '<span style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);">Membres</span>';
-  html += '<button onclick="osRedacChefAjouterMembre(\''+maRedacId+'\','+JSON.stringify(membresDispos)+',\''+couleur+'\')" style="font-family:monospace;font-size:0.62rem;padding:3px 10px;background:'+couleur+';color:white;border:none;border-radius:4px;cursor:pointer;">+ Ajouter</button></div>';
-  html += '<table style="width:100%;border-collapse:collapse;">';
-  membresRedac.forEach(function(l){
-    var mb = membres.find(function(m){ return m.id === l.membre_id; });
-    if(!mb) return;
-    var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-    var rcm = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
-    html += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
-    html += '<td style="padding:0.6rem 1rem;"><div style="display:flex;align-items:center;gap:0.6rem;">';
-    html += '<div style="position:relative;"><div style="width:28px;height:28px;border-radius:50%;background:'+rcm[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcm[1]+';">'+ini+'</div>';
-    html += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div>';
-    html += '<div><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom+' '+mb.nom)+'</div><div style="font-family:monospace;font-size:0.58rem;color:var(--gris);">'+esc(mb.email||'')+'</div></div></div></td>';
-    html += '<td style="padding:0.6rem 0.8rem;"><select onchange="osRedacChefChangerRole(\''+l.id+'\',this.value,this)" style="font-family:monospace;font-size:0.62rem;padding:2px 6px;border:0.5px solid var(--gris-bord);border-radius:4px;">';
-    ['redacteur','correcteur','redac_chef'].forEach(function(r){ html += '<option value="'+r+'"'+(l.role_redac===r?' selected':'')+'>'+(r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; });
-    html += '</select></td>';
-    html += '<td style="padding:0.6rem 0.8rem;text-align:right;"><button onclick="osRedacChefRetirerMembre(\''+l.id+'\',\''+maRedacId+'\')" style="font-family:monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Retirer</button></td>';
-    html += '</tr>';
-  });
-  html += '</table></div></div>';
-  wc.innerHTML = html;
-}
-
-function osRedactionsVueAdmin(wc, redactions, liens, membres, articles, authH){
-  var roleColors = {redacteur:'#F5C4B3,#712B13', correcteur:'#B5D4F4,#0C447C', admin:'#C0DD97,#27500A'};
-  var html = '<div style="height:100%;overflow-y:auto;padding:1.5rem;">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:var(--encre);">Gestion des rédactions</div>';
-  html += '<button onclick="osAdminCreerRedaction()" style="font-family:monospace;font-size:0.65rem;padding:0.4rem 1rem;background:#EA5B1C;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">+ Nouvelle rédaction</button></div>';
-
-  redactions.forEach(function(r){
-    var membresR = liens.filter(function(l){ return l.redaction_id === r.id; });
-    var idsR = membresR.map(function(l){ return l.membre_id; });
-    var artsR = articles.filter(function(a){ return idsR.indexOf(a.auteur_id) !== -1; });
-    var couleur = r.couleur || '#EA5B1C';
-    var dispos = membres.filter(function(m){ return idsR.indexOf(m.id)===-1; });
-
-    html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;margin-bottom:1rem;">';
-    html += '<div style="background:'+couleur+';padding:0.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">';
-    html += '<div style="display:flex;align-items:center;gap:0.8rem;"><span style="font-size:1.1rem;">🗞️</span><div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:white;">'+esc(r.nom)+'</div>';
-    if(r.departement) html += '<div style="font-family:monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">'+esc(r.departement)+'</div>';
-    html += '</div></div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;">';
-    html += '<span style="font-family:monospace;font-size:0.6rem;background:rgba(255,255,255,0.2);color:white;padding:2px 8px;border-radius:10px;">'+membresR.length+' membres · '+artsR.filter(function(a){return a.statut==='publie';}).length+' publiés</span>';
-    html += '<button onclick="osAdminAssignerMembre(\''+r.id+'\','+JSON.stringify(dispos)+',\''+couleur+'\')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;background:rgba(255,255,255,0.2);color:white;border:0.5px solid rgba(255,255,255,0.4);border-radius:4px;cursor:pointer;">+ Membre</button>';
-    html += '<button onclick="osAdminSupprimerRedaction(\''+r.id+'\',\''+esc(r.nom)+'\')" style="font-family:monospace;font-size:0.6rem;padding:2px 8px;background:rgba(0,0,0,0.2);color:white;border:none;border-radius:4px;cursor:pointer;">🗑</button></div></div>';
-
-    if(membresR.length){
-      html += '<div style="padding:0.8rem 1.2rem;display:flex;flex-wrap:wrap;gap:0.5rem;">';
-      membresR.forEach(function(l){
-        var mb = membres.find(function(m){ return m.id === l.membre_id; });
-        if(!mb) return;
-        var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-        var rcm = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
-        html += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;">';
-        html += '<div style="position:relative;"><div style="width:22px;height:22px;border-radius:50%;background:'+rcm[0]+';display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:'+rcm[1]+';">'+ini+'</div>';
-        html += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1px solid white;"></span></div>';
-        html += '<span style="font-family:monospace;font-size:0.65rem;color:var(--encre);">'+esc(mb.prenom||'')+'</span>';
-        if(l.role_redac==='redac_chef') html += '<span style="font-family:monospace;font-size:0.5rem;color:'+couleur+';font-weight:600;"> chef</span>';
-        html += '<button onclick="osAdminRetirerMembre(\''+l.id+'\',\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:0.7rem;padding:0 2px;">×</button></div>';
-      });
-      html += '</div>';
-    } else {
-      html += '<div style="padding:0.8rem 1.2rem;font-family:monospace;font-size:0.7rem;color:var(--gris);font-style:italic;">Aucun membre assigné</div>';
-    }
-    html += '</div>';
-  });
-
-  if(!redactions.length) html += '<div style="background:var(--gris-clair);border-radius:10px;padding:2rem;text-align:center;font-family:monospace;font-size:0.78rem;color:var(--gris);">Aucune rédaction. Cliquez sur "+ Nouvelle rédaction".</div>';
-  html += '</div>';
-  wc.innerHTML = html;
-}
-
-function osAdminCreerRedaction(){
-  var nom = prompt('Nom de la rédaction :');
-  if(!nom||!nom.trim()) return;
-  var dept = prompt('Département (ex: Tarn, Aveyron…) :') || '';
-  var couleur = prompt('Couleur hex (ex: #EA5B1C) :') || '#EA5B1C';
-  var slug = nom.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/redactions', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({nom:nom.trim(), departement:dept, slug:slug, couleur:couleur})
-  }).then(function(r){
-    if(r.ok){ notif('Rédaction créée ✓','succes'); osRedactionsRender(); }
-    else r.json().then(function(e){ notif('Erreur : '+(e.message||e.hint||r.status)); });
-  }).catch(function(){ notif('Erreur réseau'); });
-}
-
-function osAdminSupprimerRedaction(redacId, nom){
-  if(!confirm('Supprimer la rédaction "'+nom+'" ?')) return;
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId), {method:'DELETE', headers:authH})
-  .then(function(r){ if(r.ok){ notif('Supprimée','succes'); osRedactionsRender(); } else notif('Erreur'); });
-}
-
-function osAdminAssignerMembre(redacId, disponibles, couleur){
-  if(!disponibles.length){ notif('Tous les membres sont déjà dans cette rédaction'); return; }
-  var options = disponibles.map(function(m,i){ return i+'. '+m.prenom+' '+m.nom+' ('+m.role+')'; }).join('\n');
-  var idx = prompt('Choisir un membre :\n'+options);
-  if(idx===null) return;
-  var mb = disponibles[parseInt(idx)];
-  if(!mb){ notif('Membre introuvable'); return; }
-  var r = prompt('Rôle :\n0. redacteur\n1. correcteur\n2. redac_chef') || '0';
-  var role = ['redacteur','correcteur','redac_chef'][parseInt(r)] || 'redacteur';
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal,resolution=ignore-duplicates'});
-  fetch(SB_URL+'/rest/v1/membres_redactions', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({membre_id:mb.id, redaction_id:redacId, role_redac:role})
-  }).then(function(r2){
-    if(r2.ok){ notif(mb.prenom+' ajouté ✓','succes'); osRedactionsRender(); }
-    else r2.json().then(function(e){ notif('Erreur : '+(e.message||e.hint||r2.status)); });
-  });
-}
-
-function osAdminRetirerMembre(lienId, redacId){
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres_redactions?id=eq.'+encodeURIComponent(lienId), {method:'DELETE', headers:authH})
-  .then(function(r){ if(r.ok){ notif('Retiré','succes'); osRedactionsRender(); } else notif('Erreur'); });
-}
-
-function osRedacChefChangerRole(lienId, nouveauRole){
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres_redactions?id=eq.'+encodeURIComponent(lienId), {
-    method:'PATCH', headers:authH, body: JSON.stringify({role_redac:nouveauRole})
-  }).then(function(r){ if(r.ok) notif('Rôle mis à jour ✓','succes'); else notif('Erreur'); });
-}
-
-function osRedacChefRetirerMembre(lienId, redacId){
-  if(!confirm('Retirer ce membre ?')) return;
-  osAdminRetirerMembre(lienId, redacId);
-}
-
-function osRedacChefAjouterMembre(redacId, disponibles, couleur){
-  osAdminAssignerMembre(redacId, disponibles, couleur);
-}
+// Legacy osRedactionsRender et sous-fonctions supprimées — voir version ligne ~21958
+// osRedactionsVueMembre, osRedactionsVueChef, osRedactionsVueAdmin supprimées
+// osAdminCreerRedaction, osAdminSupprimerRedaction etc. déplacés dans la 2ème version
 
 function osLoginAnimationStart(){
   var c = document.getElementById('os-login-canvas');
@@ -11526,127 +11237,10 @@ function ticketToggleCorrecteur(val){
 }
 
 
-var COMPO_VERSION = '2.0';
-
-// Étapes fictives de la mise à jour (affichées pendant l'animation)
-var COMPO_UPDATE_STEPS = [
-  { label: 'Vérification des modules…',        dur: 600  },
-  { label: 'Mise à jour du carnet de sources…', dur: 700  },
-  { label: 'Installation du Launchpad…',        dur: 650  },
-  { label: 'Déploiement du Compo Store…',       dur: 550  },
-  { label: 'Synchronisation des apps…',         dur: 600  },
-  { label: 'Optimisation de la base…',          dur: 500  },
-  { label: 'Finalisation…',                     dur: 400  },
-];
-
-function afficherPatchNote(){
-  var vuVersion = localStorage.getItem('compo_patchnote_version');
-  if(vuVersion === COMPO_VERSION) return;
-  // Lancer l'animation de mise à jour puis afficher les notes
-  osUpdateAnimer(function(){
-    var modal = document.getElementById('modal-patchnote');
-    if(modal) modal.style.display = 'flex';
-  });
-}
-
-function fermerPatchNote(){
-  localStorage.setItem('compo_patchnote_version', COMPO_VERSION);
-  var modal = document.getElementById('modal-patchnote');
-  if(modal) modal.style.display = 'none';
-}
-
-function osUpdateAnimer(callback){
-  // Créer l'écran de mise à jour
-  var overlay = document.createElement('div');
-  overlay.id = 'compo-update-screen';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;';
-
-  // Logo Ipsum
-  var logo = document.createElement('div');
-  logo.style.cssText = 'margin-bottom:2.5rem;opacity:0;transition:opacity 0.8s;';
-  logo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 130 210 145" width="120" height="80" preserveAspectRatio="xMidYMid meet">'
-    + '<g fill="#ea5b1c"><g transform="translate(112.066506,176.159328)"><path d="M 17.265625 0 L 3.640625 0 C 3.023438 0 2.71875 -0.285156 2.71875 -0.859375 L 2.71875 -3.921875 C 2.71875 -4.492188 3.023438 -4.78125 3.640625 -4.78125 L 7.5625 -4.78125 L 7.5625 -30.328125 L 3.640625 -30.328125 C 3.023438 -30.328125 2.71875 -30.613281 2.71875 -31.1875 L 2.71875 -34.25 C 2.71875 -34.820312 3.023438 -35.109375 3.640625 -35.109375 L 12.625 -35.109375 C 13.195312 -35.109375 13.484375 -34.820312 13.484375 -34.25 L 13.484375 -4.78125 L 17.265625 -4.78125 C 17.890625 -4.78125 18.203125 -4.492188 18.203125 -3.921875 L 18.203125 -0.859375 C 18.203125 -0.285156 17.890625 0 17.265625 0 Z"/></g></g>'
-    + '</svg>';
-
-  // Titre
-  var titre = document.createElement('div');
-  titre.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;margin-bottom:0.4rem;opacity:0;transition:opacity 0.8s;';
-  titre.textContent = 'Mise à jour Compo OS';
-
-  var version = document.createElement('div');
-  version.style.cssText = 'font-family:Arial,monospace;font-size:0.65rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2.5rem;opacity:0;transition:opacity 0.8s;';
-  version.textContent = 'Version '+COMPO_VERSION;
-
-  // Étape courante
-  var etapeEl = document.createElement('div');
-  etapeEl.style.cssText = 'font-family:Arial,monospace;font-size:0.68rem;color:rgba(255,255,255,0.45);margin-bottom:0.8rem;height:1.2em;transition:opacity 0.3s;min-width:300px;text-align:center;';
-  etapeEl.textContent = '';
-
-  // Barre de progression
-  var barreBg = document.createElement('div');
-  barreBg.style.cssText = 'width:300px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-bottom:2.5rem;';
-  var barreFill = document.createElement('div');
-  barreFill.style.cssText = 'height:3px;background:#ea5b1c;border-radius:2px;width:0%;transition:width 0.5s ease;';
-  barreBg.appendChild(barreFill);
-
-  // Pourcentage
-  var pctEl = document.createElement('div');
-  pctEl.style.cssText = 'font-family:Arial,monospace;font-size:0.6rem;color:rgba(255,255,255,0.25);';
-  pctEl.textContent = '0%';
-
-  overlay.appendChild(logo);
-  overlay.appendChild(titre);
-  overlay.appendChild(version);
-  overlay.appendChild(etapeEl);
-  overlay.appendChild(barreBg);
-  overlay.appendChild(pctEl);
-  document.body.appendChild(overlay);
-
-  // Fade in des éléments
-  setTimeout(function(){ logo.style.opacity='1'; }, 100);
-  setTimeout(function(){ titre.style.opacity='1'; version.style.opacity='1'; }, 400);
-
-  // Jouer les étapes
-  var steps = COMPO_UPDATE_STEPS;
-  var totalDur = steps.reduce(function(s,st){ return s+st.dur; }, 0);
-  var elapsed = 0;
-  var i = 0;
-
-  function nextStep(){
-    if(i >= steps.length){
-      // Terminer
-      barreFill.style.width = '100%';
-      pctEl.textContent = '100%';
-      etapeEl.textContent = 'Prêt !';
-      setTimeout(function(){
-        overlay.style.transition = 'opacity 0.6s';
-        overlay.style.opacity = '0';
-        setTimeout(function(){
-          if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
-          if(callback) callback();
-        }, 650);
-      }, 500);
-      return;
-    }
-    var step = steps[i];
-    etapeEl.style.opacity = '0';
-    setTimeout(function(){
-      etapeEl.textContent = step.label;
-      etapeEl.style.opacity = '1';
-    }, 150);
-    elapsed += step.dur;
-    var pct = Math.round((elapsed / totalDur) * 100);
-    barreFill.style.width = pct+'%';
-    pctEl.textContent = pct+'%';
-    i++;
-    setTimeout(nextStep, step.dur);
-  }
-
-  setTimeout(nextStep, 800);
-}
-
-
-
+// Patchnote supprimé
+function afficherPatchNote(){ /* supprimé */ }
+function fermerPatchNote(){ /* supprimé */ }
+function osUpdateAnimer(callback){ if(callback) callback(); }
 
 function chargerAlertTicketsAccueil(){
   var role = getUserRole();
@@ -14832,13 +14426,14 @@ function osLoadPageContent(pageId, winEl){
     return;
   }
 
-  if(pageId === 'benevoles'){
-    setTimeout(function(){ osBenevolesDashRender(); }, 50);
+  // L'app "accueil" ouvre Ma Rédac' (la page d'accueil moderne)
+  if(pageId === 'accueil'){
+    setTimeout(function(){ osRedactionsRender(); }, 50);
     return;
   }
 
-  if(pageId === 'redactions'){
-    setTimeout(function(){ osRedactionsRender(); }, 50);
+  if(pageId === 'benevoles'){
+    setTimeout(function(){ osBenevolesDashRender(); }, 50);
     return;
   }
 
@@ -14998,8 +14593,8 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'mes-articles') osMesArticlesRender();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'statut') statutChargerDB();
+    // Ne pas appeler preremplirAuteur ici — chargerDansRedaction s'en charge
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
-    if(pageId === 'redaction') setTimeout(preremplirAuteur, 100);
     if(pageId === 'briefing') brfChargerDB();
     if(pageId === 'cps') cpsCharger();
     if(pageId === 'cps-admin') cpsAdminCharger();
@@ -18556,29 +18151,14 @@ function osSauvegarderOfflineQueue(doc){
 }
 
 function osChargerOfflineQueue(){
-  try {
-    _offlineQueue = JSON.parse(localStorage.getItem('compo_os_offline_queue')||'[]');
-  } catch(e){ _offlineQueue = []; }
+  // Mode hors ligne supprimé — vider la queue résiduelle
+  try{ localStorage.removeItem('compo_os_offline_queue'); }catch(e){}
+  _offlineQueue = [];
 }
 
 function osSyncOfflineQueue(){
-  if(!osVerifierConnexion() || !_offlineQueue.length) return;
-  var queue = _offlineQueue.slice();
+  // Mode hors ligne supprimé — ne rien faire
   _offlineQueue = [];
-  localStorage.setItem('compo_os_offline_queue', '[]');
-  
-  var count = 0;
-  queue.forEach(function(item){
-    db.sauvegarderArticle(item.doc).then(function(){
-      count++;
-      if(count === queue.length){
-        notif(count + ' article(s) synchronise(s) avec le cloud !');
-      }
-    }).catch(function(){
-      _offlineQueue.push(item);
-      localStorage.setItem('compo_os_offline_queue', JSON.stringify(_offlineQueue));
-    });
-  });
 }
 
 // Écouter la reconnexion
@@ -22383,7 +21963,7 @@ function osRedactionsChangerOnglet(onglet){
   // Marquer les sujets comme vus si on quitte l'onglet sujets
   if(_redacOnglet === 'sujets'){
     try{
-      var allIds = _sujetsData.map(function(s){return s.id;});
+      var allIds = (_sujetsData||[]).map(function(s){return s.id;});
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
@@ -22392,16 +21972,19 @@ function osRedactionsChangerOnglet(onglet){
   }
   _redacOnglet = onglet;
   var wc = document.getElementById('wincontent-redactions');
+  if(!wc) return;
   var uid = getUserId();
 
-  // Trouver le lien de la rédaction ACTIVE
-  var monLien = _membresRedactionsData.find(function(mr){
+  // Utiliser le cache — pas de nouveau fetch réseau
+  // Les données _membresRedactionsData / _membresData / etc. sont déjà chargées
+  var monLien = (_membresRedactionsData||[]).find(function(mr){
     return mr.membre_id === uid && mr.redaction_id === window._redacActiveId;
-  }) || _membresRedactionsData.find(function(mr){ return mr.membre_id === uid; });
+  }) || (_membresRedactionsData||[]).find(function(mr){ return mr.membre_id === uid; });
 
   var maRedacId = window._redacActiveId || (monLien ? monLien.redaction_id : null);
   var monRoleMedia = monLien ? monLien.role_redac : null;
 
+  // Render directement sans refaire les 8 fetch de osRedactionsRender
   osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
 }
 
@@ -23058,19 +22641,8 @@ function osRedacChargerMesArticles(zone){
   fetch(url, {headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    // Fallback par prénom si aucun résultat
-    if(!arts||arts.code||!arts.length){
-      var prenom = getUserPrenom();
-      if(prenom){
-        var urlFallback = SB_URL+'/rest/v1/articles?auteur=ilike.'+encodeURIComponent(prenom+'*')+'&select=id,titre,statut,updated_at&order=updated_at.desc';
-        if(window._redacActiveId) urlFallback += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
-        return fetch(urlFallback,{headers:authH}).then(function(r){return r.json();});
-      }
-    }
-    return arts;
-  })
-  .then(function(arts){
-    if(!arts||arts.code){ zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--rouge);">Erreur.</div>'; return; }
+    if(!arts||arts.code){ arts = []; }
+    if(!arts.length){ zone.innerHTML='<div style="padding:0.4rem 0;font-family:monospace;font-size:0.72rem;color:var(--gris);">Aucun article.</div>'; return; }
 
     // Si on est dans plusieurs rédactions, filtrer uniquement les articles de la rédaction active
     // en vérifiant si l'auteur est bien membre de cette rédaction
@@ -23644,11 +23216,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
     h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.7rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Publiés</th><th style="font-family:monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Heures</th><th></th></tr></thead><tbody>';
     membresLiensActifs.forEach(function(mr){
       var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
-      if(!mb){
-        // Membre pas dans le cache — chercher dans tous les membres sans filtre role
-        mb = (_membresData||[]).find(function(m){ return m.id === mr.membre_id; });
-      }
-      if(!mb) return;
+      if(!mb) return; // Membre absent du cache — skip
       var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
       var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[mb.role]||'#D3D1C7,#444441').split(',');
       // Compter les articles depuis tousArts (fetch direct déjà fait)
@@ -23686,7 +23254,14 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
 
 function osAdminSelectRedac(redacId){
   _adminRedacSelectId = redacId;
-  osRedactionsRender();
+  // Utiliser le cache — pas de rechargement complet
+  var wc = document.getElementById('wincontent-redactions');
+  if(!wc) return;
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var depuis30ISO = new Date(Date.now()-30*24*3600*1000).toISOString();
+  var debutMoisISO2 = new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString();
+  _osRedactionsRenderAdminSuite(wc, uid, window._tousArticles||[], authH, depuis30ISO, debutMoisISO2);
 }
 
 function osChargerHeuresMembre(uid){
@@ -23718,11 +23293,11 @@ function osChargerHeuresMembres(redacId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
   var idsRedac = _membresRedactionsData.filter(function(mr){ return mr.redaction_id===redacId; }).map(function(mr){ return mr.membre_id; });
   if(!idsRedac.length) return;
-  fetch(SB_URL+'/rest/v1/heures_benevolat?select=membre_id,duree_minutes',{headers:authH})
+  // Filtrer par membre_id pour ne pas ramener tout le tableau
+  fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=in.('+idsRedac.join(',')+')'+'&select=membre_id,duree_minutes',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     if(!data||data.code) return;
-    // Grouper par membre
     var totaux = {};
     data.forEach(function(h){ totaux[h.membre_id] = (totaux[h.membre_id]||0) + h.duree_minutes; });
     idsRedac.forEach(function(mid){
@@ -23738,6 +23313,44 @@ function osChargerHeuresMembres(redacId){
 }
 
 // ---- ACTIONS ADMIN ----
+function osRedactionEditerModal(redacId){
+  var redac = (_redactionsData||[]).find(function(r){ return r.id===redacId; });
+  if(!redac){ notif('Rédaction introuvable'); return; }
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:14px;padding:1.5rem;width:360px;display:flex;flex-direction:column;gap:0.9rem;box-shadow:0 24px 60px rgba(0,0,0,0.3);';
+  modal.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">Modifier la rédaction</div>'
+    +'<div><div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-edit-nom" type="text" value="'+esc(redac.nom||'')+'" style="width:100%;font-family:monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +'<div><div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-edit-dept" type="text" value="'+esc(redac.departement||'')+'" style="width:100%;font-family:monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +'<div><div style="font-family:monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><div style="display:flex;gap:0.5rem;align-items:center;"><input id="redac-edit-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:40px;height:36px;border:none;border-radius:4px;cursor:pointer;padding:2px;"><span style="font-family:monospace;font-size:0.7rem;color:var(--gris);">Couleur de la rédaction</span></div></div>'
+    +'<div style="display:flex;gap:0.5rem;">'
+    +'<button id="redac-edit-cancel" style="flex:1;font-family:monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
+    +'<button id="redac-edit-submit" style="flex:1;font-family:monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Enregistrer</button>'
+    +'</div>';
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
+  modal.querySelector('#redac-edit-cancel').onclick = function(){ document.body.removeChild(overlay); };
+  modal.querySelector('#redac-edit-submit').onclick = function(){
+    var nom = (modal.querySelector('#redac-edit-nom').value||'').trim();
+    var dept = (modal.querySelector('#redac-edit-dept').value||'').trim();
+    var couleur = modal.querySelector('#redac-edit-couleur').value;
+    if(!nom){ notif('Le nom est obligatoire'); return; }
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur})})
+    .then(function(r){
+      if(r.ok){
+        // Mettre à jour le cache local
+        redac.nom = nom; redac.departement = dept||null; redac.couleur = couleur;
+        notif('Rédaction mise à jour ✓','succes');
+        document.body.removeChild(overlay);
+        osRedactionsRender();
+      } else notif('Erreur mise à jour');
+    }).catch(function(){ notif('Erreur réseau'); });
+  };
+}
+
 function osRedactionCreerModal(){
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -23850,7 +23463,14 @@ function osAdminRetirerMembreRedac(membreId, redacId){
 function osRedacChefChangerRole(membreId, redacId, nouveauRole){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
-  .then(function(r){ if(r.ok) notif('Rôle mis à jour ✓','succes'); else notif('Erreur mise à jour'); })
+  .then(function(r){
+    if(r.ok){
+      // Mettre à jour le cache local immédiatement
+      var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
+      if(lien) lien.role_redac = nouveauRole;
+      notif('Rôle mis à jour ✓','succes');
+    } else notif('Erreur mise à jour');
+  })
   .catch(function(){ notif('Erreur réseau'); });
 }
 
@@ -28077,6 +27697,7 @@ function osAgendaOuvrirDetail(ev){
   if(isAdmin && ev.statut !== 'annule'){
     html += '<div style="padding:0.8rem 1.5rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.5rem;flex-wrap:wrap;background:var(--gris-clair);border-radius:0 0 14px 14px;">';
     html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;">✏️ Modifier</button>';
+    html += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',null)" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #1A5276;border-radius:5px;background:white;color:#1A5276;cursor:pointer;">📋 Ordre de mission</button>';
     html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:white;color:#A32D2D;cursor:pointer;">🚫 Annuler</button>';
     html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer;">🗑️ Supprimer</button>';
     html += '</div>';
@@ -28148,7 +27769,12 @@ function osAgendaOuvrirDetail(ev){
         var stCoul = {en_attente:'#856404',confirme:'#155724',refuse:'#A32D2D'};
         var stLabel = {en_attente:'En attente de validation',confirme:'Inscrit ✓',refuse:'Refusé'};
         iz += '<div style="background:'+(monInscription.statut==='confirme'?'#D4EDDA':'#FFF3CD')+';border-radius:8px;padding:0.6rem 0.8rem;font-size:0.82rem;color:'+stCoul[monInscription.statut]+';font-weight:600;margin-bottom:0.5rem;">'+(stLabel[monInscription.statut]||monInscription.statut)+'</div>';
+        iz += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
         iz += '<button id="agenda-desinscr-btn" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:white;color:#A32D2D;cursor:pointer;">Se désinscrire</button>';
+        if(monInscription.statut==='confirme'){
+          iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="font-family:monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #1A5276;border-radius:5px;background:white;color:#1A5276;cursor:pointer;">📋 Mon ordre de mission</button>';
+        }
+        iz += '</div>';
       }
     }
 
@@ -28169,6 +27795,7 @@ function osAgendaOuvrirDetail(ev){
         iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
           +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
           +'<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
+          +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #1A5276;border-radius:3px;background:white;color:#1A5276;cursor:pointer;">📋</button>':'')
           +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
           +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
           +'</div>';
@@ -28803,6 +28430,161 @@ function osAgendaEnvoyerEmailAnnulation(evId){
       });
     });
   });
+}
+
+// ── ORDRE DE MISSION ──────────────────────────────────────────────
+function osAgendaOrdreMission(evId, membreId){
+  var ev = (_agendaEvenements||[]).find(function(e){ return e.id===evId; });
+  if(!ev){ notif('Événement introuvable','erreur'); return; }
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var uid = membreId || getUserId();
+
+  // Charger les infos du membre
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=prenom,nom,role,email,fonction',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
+    _osGenererOrdreMission(ev, m);
+  }).catch(function(){
+    // Fallback avec les données locales
+    var mLocal = (_membresData||[]).find(function(x){return x.id===uid;}) || {prenom:getUserPrenom(),nom:'',role:getUserRole(),email:'',fonction:[]};
+    _osGenererOrdreMission(ev, mLocal);
+  });
+}
+
+function _osGenererOrdreMission(ev, membre){
+  var debut = new Date(ev.date_debut);
+  var fin   = ev.date_fin ? new Date(ev.date_fin) : null;
+  var today = new Date();
+
+  var dateEv   = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var heureEv  = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  var heureFinEv = fin ? fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : null;
+  var dateEmis = today.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  var nomMembre = ((membre.prenom||'')+' '+(membre.nom||'')).trim() || 'Membre';
+  var fonctions = [];
+  try{ fonctions = Array.isArray(membre.fonction) ? membre.fonction : JSON.parse(membre.fonction||'[]'); }catch(e){}
+  var fonctionLabel = fonctions.length ? fonctions.join(', ') : membre.role||'Rédacteur';
+
+  var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+
+  // Utiliser about:blank pour éviter la page blanche
+  var win = window.open('about:blank','_blank','width=820,height=1100');
+  if(!win){ notif('Autorise les popups pour générer l\'ordre de mission','alerte'); return; }
+
+  var css = [
+    '*{margin:0;padding:0;box-sizing:border-box;}',
+    'body{font-family:Arial,sans-serif;background:#f0f0f0;padding:24px 16px;color:#1A1A2E;}',
+    '.doc{max-width:760px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.12);}',
+    '.no-print{max-width:760px;margin:0 auto 12px;display:flex;gap:8px;}',
+    '.btn-print{background:#E8461E;color:white;border:none;padding:8px 18px;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:600;}',
+    '.btn-close{background:#E5E7EB;color:#374151;border:none;padding:8px 14px;border-radius:6px;font-size:.85rem;cursor:pointer;}',
+    // Header
+    '.header{background:#1A1A2E;padding:28px 36px 20px;}',
+    '.header-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}',
+    '.org-name{font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:#E8461E;margin-bottom:4px;}',
+    '.doc-title{font-size:1.5rem;font-weight:800;color:white;letter-spacing:-.01em;}',
+    '.doc-ref{font-size:.62rem;color:rgba(255,255,255,.35);margin-top:4px;}',
+    '.header-badge{background:rgba(232,70,30,.15);border:1px solid rgba(232,70,30,.4);border-radius:8px;padding:8px 14px;text-align:center;}',
+    '.header-badge-icon{font-size:1.4rem;}',
+    '.header-badge-label{font-size:.58rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}',
+    '.header-divider{height:2px;background:linear-gradient(90deg,#E8461E,transparent);margin-top:16px;}',
+    // Sections
+    '.section{padding:20px 36px;border-bottom:1px solid #F3F4F6;}',
+    '.section-title{font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:#9CA3AF;margin-bottom:12px;font-weight:600;}',
+    '.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}',
+    '.field{background:#F9FAFB;border-radius:6px;padding:10px 14px;}',
+    '.field-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:4px;}',
+    '.field-value{font-size:.88rem;color:#1A1A2E;font-weight:600;}',
+    '.field-value.large{font-size:1rem;}',
+    '.field-value.highlight{color:#E8461E;}',
+    // Objet
+    '.objet-box{background:#1A1A2E;border-radius:8px;padding:16px 20px;margin:0 36px 20px;}',
+    '.objet-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:6px;}',
+    '.objet-text{font-size:.95rem;color:white;font-weight:700;line-height:1.4;}',
+    // Signature
+    '.sign-zone{padding:20px 36px 28px;}',
+    '.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;}',
+    '.sign-box{border:1.5px solid #E5E7EB;border-radius:8px;padding:16px;min-height:90px;}',
+    '.sign-box-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:12px;}',
+    '.sign-name{font-size:.78rem;color:#374151;margin-top:auto;}',
+    // Footer
+    '.footer{background:#F9FAFB;padding:12px 36px;display:flex;justify-content:space-between;border-top:1px solid #F3F4F6;}',
+    '.footer-text{font-size:.58rem;color:#D1D5DB;}',
+    '@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.no-print{display:none;}}'
+  ].join('\n');
+
+  var ref = 'OM-'+today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+evId.replace(/[^A-Z0-9]/gi,'').substring(0,6).toUpperCase();
+
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Ordre de mission — '+nomMembre+'</title><style>'+css+'</style></head><body>';
+
+  // Boutons
+  html += '<div class="no-print"><button class="btn-print" onclick="window.print()">🖨 Imprimer / PDF</button><button class="btn-close" onclick="window.close()">Fermer</button></div>';
+
+  html += '<div class="doc">';
+
+  // Header
+  html += '<div class="header">'
+    +'<div class="header-top">'
+    +'<div><div class="org-name">Ipsum Média · Association loi 1901</div>'
+    +'<div class="doc-title">Ordre de mission</div>'
+    +'<div class="doc-ref">Réf. '+ref+' · Émis le '+dateEmis+'</div></div>'
+    +'<div class="header-badge">'
+    +'<div class="header-badge-icon">'+t.icon+'</div>'
+    +'<div class="header-badge-label">'+t.l+'</div>'
+    +'</div></div>'
+    +'<div class="header-divider"></div></div>';
+
+  // Objet
+  html += '<div style="padding:20px 36px 0;">'
+    +'<div class="objet-box">'
+    +'<div class="objet-label">Objet de la mission</div>'
+    +'<div class="objet-text">'+esc(ev.titre||'')+'</div>'
+    +'</div></div>';
+
+  // Bénéficiaire
+  html += '<div class="section"><div class="section-title">Bénéficiaire de l\'ordre de mission</div>'
+    +'<div class="grid-2">'
+    +'<div class="field"><div class="field-label">Nom et prénom</div><div class="field-value large">'+esc(nomMembre)+'</div></div>'
+    +'<div class="field"><div class="field-label">Fonction</div><div class="field-value">'+esc(fonctionLabel)+'</div></div>'
+    +(membre.email?'<div class="field"><div class="field-label">Email</div><div class="field-value">'+esc(membre.email)+'</div></div>':'')
+    +'<div class="field"><div class="field-label">Organisation</div><div class="field-value">Ipsum Média</div></div>'
+    +'</div></div>';
+
+  // Détails de la mission
+  html += '<div class="section"><div class="section-title">Détails de la mission</div>'
+    +'<div class="grid-2">'
+    +'<div class="field"><div class="field-label">Date</div><div class="field-value highlight">'+dateEv+'</div></div>'
+    +'<div class="field"><div class="field-label">Horaires</div><div class="field-value">'+heureEv+(heureFinEv?' → '+heureFinEv:'')+'</div></div>'
+    +(ev.lieu?'<div class="field" style="grid-column:1/-1"><div class="field-label">Lieu</div><div class="field-value">'+esc(ev.lieu)+'</div></div>':'')
+    +(ev.organisateur?'<div class="field"><div class="field-label">Organisateur</div><div class="field-value">'+esc(ev.organisateur)+'</div></div>':'')
+    +(ev.lien_visio?'<div class="field"><div class="field-label">Lien visio</div><div class="field-value" style="font-size:.75rem;word-break:break-all;">'+esc(ev.lien_visio)+'</div></div>':'')
+    +'</div></div>';
+
+  // Description si présente
+  if(ev.description){
+    html += '<div class="section"><div class="section-title">Notes de mission</div>'
+      +'<div style="font-size:.82rem;color:#374151;line-height:1.6;white-space:pre-wrap;">'+esc(ev.description)+'</div></div>';
+  }
+
+  // Signatures
+  html += '<div class="sign-zone"><div class="section-title">Signatures</div>'
+    +'<div class="sign-grid">'
+    +'<div class="sign-box"><div class="sign-box-title">Le président · Tom Duez</div><div style="flex:1;min-height:50px;"></div><div class="sign-name">Signature et date</div></div>'
+    +'<div class="sign-box"><div class="sign-box-title">L\'intéressé · '+esc(nomMembre)+'</div><div style="flex:1;min-height:50px;"></div><div class="sign-name">Signature et date</div></div>'
+    +'</div></div>';
+
+  // Footer
+  html += '<div class="footer">'
+    +'<span class="footer-text">Ipsum Média · contact@ipsummedia.fr · Association loi 1901 du Tarn</span>'
+    +'<span class="footer-text">'+ref+'</span>'
+    +'</div>';
+
+  html += '</div></body></html>';
+  win.document.write(html);
+  win.document.close();
 }
 
 function osAgendaNouvelEvenement(){
@@ -29542,39 +29324,9 @@ function osProjetsMesTaches(body){
 }
 
 function osMigrerBrouillonsLocaux(){
-  var drafts = JSON.parse(localStorage.getItem('ipsum_drafts') || '[]');
-  if(!drafts.length) return;
-
-  var auteur = getUserNomComplet();
-  var miens = drafts.filter(function(d){ return !d.auteur || d.auteur === auteur; });
-  if(!miens.length) return;
-
-  console.log('[Migration] ' + miens.length + ' brouillon(s) local/locaux à migrer...');
-
-  var promesses = miens.map(function(doc){
-    return db.sauvegarderArticle(doc).then(function(){
-      return doc.id; // succès
-    }).catch(function(){
-      return null; // échec
-    });
-  });
-
-  Promise.all(promesses).then(function(resultats){
-    var succes = resultats.filter(function(r){ return r !== null; });
-    var echecs = resultats.filter(function(r){ return r === null; }).length;
-
-    if(succes.length){
-      // Supprimer du localStorage ceux qui ont été migrés
-      var restants = drafts.filter(function(d){ return !succes.includes(d.id); });
-      localStorage.setItem('ipsum_drafts', JSON.stringify(restants));
-      console.log('[Migration] ' + succes.length + ' brouillon(s) migré(s) vers la base');
-      if(echecs === 0){
-        notif('✅ ' + succes.length + ' brouillon(s) local/locaux migrés vers le cloud', 'succes');
-      } else {
-        notif('⚠️ ' + succes.length + ' migré(s), ' + echecs + ' en échec (conservé(s) en local)');
-      }
-    }
-  });
+  // Mode hors ligne supprimé — plus de migration localStorage → base
+  // Nettoyer silencieusement les éventuels brouillons locaux résiduels
+  try{ localStorage.removeItem('ipsum_drafts'); }catch(e){}
 }
 
 
