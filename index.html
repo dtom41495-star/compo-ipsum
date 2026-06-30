@@ -3160,6 +3160,9 @@ input:focus,select:focus,textarea:focus{
 .pip-line-todo{background:#F3F4F6;}
 @keyframes pip-pulse{0%,100%{box-shadow:0 0 0 3px rgba(232,70,30,.2);}50%{box-shadow:0 0 0 6px rgba(232,70,30,.07);}}
 @keyframes pip-pulse-red{0%,100%{box-shadow:0 0 0 3px rgba(220,38,38,.2);}50%{box-shadow:0 0 0 6px rgba(220,38,38,.06);}}
+@keyframes popIn{from{transform:scale(.88);opacity:0;}to{transform:scale(1);opacity:1;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes fadeOut{from{opacity:1;}to{opacity:0;}}
 
 
 .bvn-role-btn{font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;padding:0.4rem 0.8rem;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);flex:1;transition:all 0.12s;}
@@ -9808,37 +9811,159 @@ function rWorkflowMajInterface(doc){
 
 function rWorkflowAvancer(nouveauStatut){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
-
   var doc = buildDoc();
   doc.statut = nouveauStatut;
-
-  // Toujours préserver l'auteur original — jamais écraser sur un avancement de workflow
-  if(currentDoc.auteur_id){
-    doc.auteur    = currentDoc.auteur;
-    doc.auteur_id = currentDoc.auteur_id;
-  }
-
+  if(currentDoc.auteur_id){ doc.auteur=currentDoc.auteur; doc.auteur_id=currentDoc.auteur_id; }
   db.sauvegarderArticle(doc).then(function(){
     currentDoc = doc;
-    var labels = {corrige:'Marqué comme corrigé ✓',valide:'Article validé ✓',publie:'Article publié 🚀','en-relecture':'Envoyé en correction ✓'};
-    notif(labels[nouveauStatut]||'Statut mis à jour','succes');
     rWorkflowMajInterface(currentDoc);
     _docModifie = false;
-    if(nouveauStatut==='publie') rWorkflowNotifierRedacteur(currentDoc, 'publié');
+    osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide') osNotifierComArticleValide(currentDoc);
-  }).catch(function(){
-    notif('Erreur lors de la sauvegarde','erreur');
-  });
+  }).catch(function(){ notif('Erreur lors de la sauvegarde','erreur'); });
+}
+
+// ── Popup + email sur changement de statut ─────────────────────────
+function osNotifStatutArticle(doc, statut){
+  var configs = {
+    'en-relecture':{ icon:'🔍', titre:'Article envoyé en correction',
+      msg:'Ton article est maintenant entre les mains du correcteur. Tu seras notifié dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false },
+    corrige:{ icon:'✅', titre:'Article marqué comme corrigé',
+      msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:false },
+    valide:{ icon:'⭐', titre:'Article validé !',
+      msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true },
+    publie:{ icon:'📢', titre:'Article publié !',
+      msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true },
+    refuse:{ icon:'🔴', titre:'Article renvoyé au rédacteur',
+      msg:'Le rédacteur a été notifié par email avec le motif et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false },
+  };
+  var cfg = configs[statut];
+  if(!cfg) return;
+
+  // Popup animée
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;transform:scale(.92);animation:popIn .2s ease forwards;">'
+    +'<div style="background:'+cfg.bg+';padding:1.4rem 1.6rem;border-bottom:3px solid '+cfg.couleur+'30;">'
+    +'<div style="font-size:2rem;margin-bottom:.4rem;">'+cfg.icon+'</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.98rem;color:'+cfg.couleur+';">'+cfg.titre+'</div>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.6rem;">'
+    +'<div style="font-size:.88rem;font-weight:600;color:#1A1A2E;margin-bottom:.4rem;">«&nbsp;'+esc(doc.titre||'Sans titre')+'&nbsp;»</div>'
+    +'<div style="font-size:.82rem;color:#6B7280;line-height:1.6;">'+cfg.msg+'</div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.6rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;">'
+    +'<button id="notif-statut-ok" style="padding:.5rem 1.4rem;background:'+cfg.couleur+';color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">OK</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+  var close = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+  document.getElementById('notif-statut-ok').onclick = close;
+  overlay.onclick = function(e){ if(e.target===overlay) close(); };
+  setTimeout(close, 10000);
+
+  // Email auteur si validé ou publié
+  if(cfg.email && doc.auteur_id) _osEmailStatutArticle(doc, statut, cfg);
+}
+
+function _osEmailStatutArticle(doc, statut, cfg){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var m = data&&data[0]; if(!m||!m.email) return;
+    var sujets = { valide:'⭐ Ton article a été validé — ', publie:'📢 Ton article est publié — ' };
+    var intros = {
+      valide:'Bonne nouvelle ! Ton article a été relu et validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack.',
+      publie:'Félicitations ! Ton article est maintenant en ligne sur Ipsum Média.'
+    };
+    // Extrait : 15 premières lignes non vides du corps
+    var extrait = ''; var lignes = [];
+    if(doc.corps){
+      lignes = doc.corps.split('\n').filter(function(l){ return l.trim(); });
+      extrait = lignes.slice(0,15).join('\n');
+    }
+    var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
+      +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
+      +'<span style="font-size:1.2rem;">'+cfg.icon+'</span>'
+      +'<span style="color:white;font-weight:700;font-size:.95rem;margin-left:.5rem;">Ipsum Média · Compo OS</span>'
+      +'</div>'
+      +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
+      +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
+      +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">'+intros[statut]+'</p>'
+      +'<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1rem;">'
+      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.3rem;">Article</div>'
+      +'<div style="font-weight:700;font-size:.92rem;color:#1A1A2E;">'+esc(doc.titre||'Sans titre')+'</div>'
+      +(doc.rubrique?'<div style="font-size:.7rem;color:#6B7280;margin-top:.2rem;">'+esc(doc.rubrique)+'</div>':'')
+      +'</div>'
+      +(extrait
+        ? '<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1.2rem;">'
+          +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.6rem;">Début de l\'article</div>'
+          +'<div style="font-size:.82rem;color:#374151;line-height:1.65;white-space:pre-wrap;font-family:Georgia,serif;">'+esc(extrait)+(lignes.length>15?'\n[…]':'')+'</div>'
+          +'</div>'
+        : '')
+      +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:.55rem 1.4rem;border-radius:8px;text-decoration:none;font-size:.82rem;font-weight:600;">Ouvrir Compo OS →</a>'
+      +'</div>'
+      +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
+      +'</div>';
+    envoyerEmailResend(m.email, (sujets[statut]||'')+esc(doc.titre||''), html, 'statut_article');
+  }).catch(function(){});
+}
+
+// Email refus avec note + extrait
+function _osEmailRefusArticle(doc, note){
+  if(!doc.auteur_id) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var m = data&&data[0]; if(!m||!m.email) return;
+    var extrait = ''; var lignes = [];
+    if(doc.corps){
+      lignes = doc.corps.split('\n').filter(function(l){ return l.trim(); });
+      extrait = lignes.slice(0,15).join('\n');
+    }
+    var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
+      +'<div style="background:#DC2626;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
+      +'<span style="font-size:1.2rem;">📝</span>'
+      +'<span style="color:white;font-weight:700;font-size:.95rem;margin-left:.5rem;">Article renvoyé en correction</span>'
+      +'</div>'
+      +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
+      +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
+      +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">Ton article a été relu et nécessite des modifications avant d\'être validé.</p>'
+      +'<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:.8rem;">'
+      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.3rem;">Article</div>'
+      +'<div style="font-weight:700;font-size:.92rem;color:#1A1A2E;">'+esc(doc.titre||'Sans titre')+'</div>'
+      +'</div>'
+      +'<div style="background:#FEE2E2;border-left:3px solid #DC2626;padding:.8rem 1rem;border-radius:0 8px 8px 0;margin-bottom:1rem;">'
+      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#991B1B;margin-bottom:.4rem;">Motif du refus</div>'
+      +'<div style="font-size:.85rem;color:#7F1D1D;font-style:italic;">'+esc(note||'Article à retravailler')+'</div>'
+      +'</div>'
+      +(extrait
+        ? '<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1.2rem;">'
+          +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.6rem;">Début de l\'article</div>'
+          +'<div style="font-size:.82rem;color:#374151;line-height:1.65;white-space:pre-wrap;font-family:Georgia,serif;">'+esc(extrait)+(lignes.length>15?'\n[…]':'')+'</div>'
+          +'</div>'
+        : '')
+      +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:.55rem 1.4rem;border-radius:8px;text-decoration:none;font-size:.82rem;font-weight:600;">Modifier dans Compo OS →</a>'
+      +'</div>'
+      +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
+      +'</div>';
+    envoyerEmailResend(m.email, '📝 Ton article nécessite des modifications — '+esc(doc.titre||''), html, 'refus_article');
+  }).catch(function(){});
+}
+
+function rWorkflowNotifierRedacteur(doc, action){
+  if(action==='publié') osNotifStatutArticle(doc, 'publie');
 }
 
 function rWorkflowRenvoyer(){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article'); return; }
-  // Modale inline pour le commentaire
   var mo = document.createElement('div');
   mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
   mo.innerHTML = '<div style="background:white;border-radius:12px;padding:1.4rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.2);">'
     +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;">Renvoyer au rédacteur</div>'
-    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Explique ce qui doit être corrigé.</div>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Explique ce qui doit être corrigé. Un email avec le motif et le début de l\'article sera envoyé.</div>'
     +'<textarea id="renvoi-msg" rows="4" placeholder="Ex : Le chapeau est trop long, retravailler l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
     +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
     +'<button id="renvoi-ok" style="flex:1;padding:0.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Renvoyer</button>'
@@ -9856,57 +9981,15 @@ function rWorkflowRenvoyer(){
       body:JSON.stringify({statut:'brouillon', note_interne: commentaire.trim()})
     }).then(function(r){
       if(r.ok){
-        currentDoc.statut='brouillon';
-        notif('Article renvoyé au rédacteur ✓','succes');
+        currentDoc.statut = 'brouillon';
+        currentDoc.note_interne = commentaire.trim();
         rWorkflowMajInterface(currentDoc);
-        // Email au rédacteur si possible
-        if(currentDoc.auteur_id){
-          var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-          fetch(SB_URL+'/rest/v1/membres?id=eq.'+currentDoc.auteur_id+'&select=email,prenom',{headers:authH2})
-          .then(function(r2){return r2.json();})
-          .then(function(data){
-            var m = data&&data[0];
-            if(m&&m.email){
-              var html = '<div style="font-family:sans-serif;max-width:500px;">'
-                +'<div style="background:#1A1A2E;padding:1rem 1.4rem;border-radius:8px 8px 0 0;">'
-                +'<div style="color:white;font-weight:700;">📝 Article renvoyé en correction</div></div>'
-                +'<div style="padding:1.2rem;background:#F7F8FA;">'
-                +'<p style="font-size:.9rem;color:#374151;">Bonjour '+(m.prenom||'')+',</p>'
-                +'<p style="font-size:.85rem;color:#374151;margin-top:.5rem;">Ton article <strong>"'+esc(currentDoc.titre||'')+'"</strong> a été renvoyé avec la note suivante :</p>'
-                +'<div style="background:white;border-left:3px solid #E8461E;padding:.7rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.85rem;color:#374151;font-style:italic;">'+esc(commentaire)+'</div>'
-                +'<a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:.5rem 1.2rem;border-radius:6px;text-decoration:none;font-size:.82rem;font-weight:600;">Ouvrir Compo OS</a>'
-                +'</div></div>';
-              envoyerEmailResend(m.email, '📝 Ton article a été renvoyé : '+esc(currentDoc.titre||''), html, 'correction');
-            }
-          });
-        }
+        _osEmailRefusArticle(currentDoc, commentaire.trim());
+        osNotifStatutArticle({titre:currentDoc.titre, auteur_id:currentDoc.auteur_id}, 'refuse');
       } else notif('Erreur','erreur');
     });
   };
 }
-
-function rWorkflowNotifierRedacteur(doc, action){
-  if(!doc||!doc.auteur_id) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var m = data&&data[0];
-    if(!m||!m.email) return;
-    fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:200,
-        messages:[{role:'user',content:'Génère juste: "ok"'}]
-      })
-    }).catch(function(){});
-    // Email via Supabase Edge Function si disponible
-    notif('Rédacteur notifié');
-  }).catch(function(){});
-}
-
-
 
 function rFormat(type){
   var ta = document.getElementById('r-corps');
@@ -14670,8 +14753,10 @@ function osLoadPageContent(pageId, winEl){
   }
 
   // App correction directe
-  if(pageId === 'app-correction'){
-    setTimeout(function(){ osAppCorrectionRender(); }, 50);
+  if(pageId === 'app-correction' || pageId === 'brouillons'){
+    // Fusionné dans mes-articles — ouvrir sur l'onglet "À corriger"
+    _maOnglet = 'corriger';
+    setTimeout(function(){ osMesArticlesRender(); }, 50);
     return;
   }
   if(pageId === 'app-com'){
@@ -14770,7 +14855,6 @@ function osLoadPageContent(pageId, winEl){
       chargerAlertPublication();
       chargerAlertTicketsAccueil();
     }
-    if(pageId === 'brouillons') osMesArticlesRender();
     if(pageId === 'mes-articles') osMesArticlesRender();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'statut') statutChargerDB();
@@ -19046,42 +19130,75 @@ function osStatsAdminRender(){
 
 
 // ===== APP MES ARTICLES (unifiée) =====
-var _maOnglet = 'tout';
+var _maOnglet = 'mes';
 var _maCache  = [];
 var _maSearch = '';
 var _maTri    = 'date_desc';
 
 function osMesArticlesRender(){
-  var wc = document.getElementById('wincontent-mes-articles') ||
-           document.getElementById('wincontent-brouillons');
+  var wc = document.getElementById('wincontent-mes-articles')
+        || document.getElementById('wincontent-brouillons')
+        || document.getElementById('wincontent-app-correction');
   if(!wc){ setTimeout(osMesArticlesRender, 200); return; }
   wc.innerHTML = '';
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:#F7F8FA;';
 
+  var role = getUserRole();
+
+  // Onglets selon le rôle
+  var onglets = [{ id:'mes', label:'📰 Mes articles' }];
+  if(role === 'correcteur' || role === 'admin') onglets.push({ id:'corriger', label:'🔍 À corriger' });
+  if(role === 'admin') onglets.push({ id:'tous', label:'📋 Tous' });
+  if(!onglets.find(function(o){ return o.id===_maOnglet; })) _maOnglet = 'mes';
+
   // ── HEADER ──
   var hdr = document.createElement('div');
-  hdr.style.cssText = 'flex-shrink:0;padding:.7rem 1rem;border-bottom:1px solid var(--gris-bord);background:white;';
-  hdr.innerHTML =
-    '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">Mes articles</div>'
+  hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
+
+  // Ligne 1 : titre + contrôles
+  var l1 = document.createElement('div');
+  l1.style.cssText = 'display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.7rem 1rem .4rem;';
+  l1.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">Articles</div>'
     +'<span id="ma-os-count" style="font-size:.62rem;color:var(--gris);"></span>'
     +'<div style="flex:1;"></div>'
     +'<input id="ma-os-search" type="text" placeholder="🔍 Rechercher..." oninput="maOsFiltre()" style="font-size:.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;width:140px;outline:none;">'
     +'<select id="ma-os-tri" onchange="maOsFiltre()" style="font-size:.68rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:20px;background:white;">'
-    +'<option value="date_desc">Plus récent</option>'
-    +'<option value="date_asc">Plus ancien</option>'
-    +'<option value="titre_asc">Titre A→Z</option>'
+    +'<option value="date_desc">Plus récent</option><option value="date_asc">Plus ancien</option><option value="titre_asc">Titre A→Z</option>'
     +'</select>'
-    +'<button onclick="osMesArticlesRender()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>'
-    +'<button onclick="osOpenWindow(\'redaction\');setTimeout(resetRedaction,200)" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">+ Nouveau</button>'
-    +'</div>'
-    // Filtres statut
-    +'<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.55rem;">'
-    +['tous','brouillon','en-relecture','corrige','valide','publie'].map(function(f){
-      var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',publie:'Publié'};
-      return '<button class="ma-os-ftab'+(f==='tous'?' active':'')+'" data-f="'+f+'" onclick="maOsSetFiltre(this)">'+labels[f]+'</button>';
-    }).join('')
-    +'</div>';
+    +'<button onclick="osMesArticlesCharger()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>'
+    +'<button onclick="osOpenWindow(\'redaction\');setTimeout(resetRedaction,200)" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">+ Nouveau</button>';
+  hdr.appendChild(l1);
+
+  // Ligne 2 : onglets rôle (seulement si plusieurs onglets)
+  if(onglets.length > 1){
+    var l2 = document.createElement('div');
+    l2.style.cssText = 'display:flex;border-bottom:2px solid var(--gris-bord);padding:0 1rem;';
+    onglets.forEach(function(o){
+      var btn = document.createElement('button');
+      var actif = _maOnglet === o.id;
+      btn.style.cssText = 'font-size:.72rem;padding:.5rem .8rem;border:none;background:transparent;cursor:pointer;'
+        +'border-bottom:2.5px solid '+(actif?'var(--rouge)':'transparent')+';margin-bottom:-2px;'
+        +'color:'+(actif?'var(--encre)':'var(--gris)')+';font-weight:'+(actif?'700':'400')+';';
+      btn.textContent = o.label;
+      btn.onclick = (function(id){ return function(){ _maOnglet=id; osMesArticlesRender(); }; })(o.id);
+      l2.appendChild(btn);
+    });
+    hdr.appendChild(l2);
+  }
+
+  // Ligne 3 : filtres statut
+  var l3 = document.createElement('div');
+  l3.style.cssText = 'display:flex;gap:.3rem;flex-wrap:wrap;padding:.45rem 1rem;';
+  ['tous','brouillon','en-relecture','corrige','valide','publie'].forEach(function(f){
+    var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',publie:'Publié'};
+    var btn = document.createElement('button');
+    btn.className = 'ma-os-ftab'+(f==='tous'?' active':'');
+    btn.dataset.f = f;
+    btn.textContent = labels[f];
+    btn.onclick = function(){ maOsSetFiltre(this); };
+    l3.appendChild(btn);
+  });
+  hdr.appendChild(l3);
   wc.appendChild(hdr);
 
   // ── LISTE ──
@@ -19101,13 +19218,15 @@ function osMesArticlesCharger(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   var q;
-  if(role === 'admin'){
-    // Admin : tous les articles de la rédaction active (ou tous si pas de rédac active)
+  if(_maOnglet === 'tous' && role === 'admin'){
     q = window._redacActiveId
       ? SB_URL+'/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(window._redacActiveId)+'&select=*&order=updated_at.desc.nullslast'
       : SB_URL+'/rest/v1/articles?select=*&order=updated_at.desc.nullslast';
+  } else if(_maOnglet === 'corriger'){
+    q = role === 'admin'
+      ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast'
+      : SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast';
   } else {
-    // Rédacteur/correcteur : ses articles + articles où il est correcteur désigné
     q = uid
       ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=*&order=updated_at.desc.nullslast'
       : SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc.nullslast';
@@ -19266,6 +19385,10 @@ function maOsRefuser(id){
       notif('Article renvoyé en brouillon','succes');
       var a=_maCache.find(function(x){return x.id===id;});
       if(a){a.statut='brouillon';a.note_interne=note||'Article à retravailler';}
+      // Email au rédacteur avec motif + extrait
+      _osEmailRefusArticle(a||{id:id,auteur_id:null}, note);
+      // Popup
+      osNotifStatutArticle({titre:a&&a.titre||'',auteur_id:a&&a.auteur_id}, 'refuse');
       maOsFiltre();
     }else notif('Erreur','erreur');
   });
@@ -25683,9 +25806,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56', roles:['redacteur','correcteur','admin'], store:true, desc:'Messagerie privée interne — échange avec les autres membres de la rédaction.' },
   { id:'accueil',        icon:'🏠', label:'Accueil',       color:'#1A1A2E', roles:['redacteur','correcteur','admin'] },
   { id:'redaction',      icon:'✍️', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
-  { id:'mes-articles',   icon:'📰', label:'Mes Articles',   color:'#856404', roles:['redacteur','admin'] },
-  { id:'brouillons',     icon:'🔍', label:'Correction',     color:'#1A5276', roles:['correcteur'] },
-  { id:'app-correction', icon:'🔍', label:'Corrections',    color:'#1A5276', roles:['admin'] },
+  { id:'mes-articles',   icon:'📰', label:'Articles',       color:'#1A5276', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'📝', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'📇', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps',            icon:'📰', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
@@ -25719,9 +25840,9 @@ var ALL_APPS_CATALOGUE = [
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
   redacteur: ['redaction','mes-articles','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','redactions','boutique','mail'],
-  correcteur: ['brouillons','correction','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions','boutique','mail'],
+  correcteur: ['mes-articles','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','redactions','boutique','mail'],
   redac_chef: ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','redactions','agenda','boutique','mail'],
-  admin:      ['redaction','mes-articles','app-correction','statut','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique','mail','tresorerie'],
+  admin:      ['redaction','mes-articles','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','redactions','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
 
 window._userApps = null;
