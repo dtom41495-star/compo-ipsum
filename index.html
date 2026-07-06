@@ -5473,25 +5473,25 @@ function buildDoc(){
   var redacIdFromHidden = hiddenRedac ? hiddenRedac.dataset.redacId || null : null;
   var redacId = window._redacActiveId || redacIdFromHidden || (currentDoc && currentDoc.redaction_id) || null;
 
-  // Lire l'auteur depuis le select s'il est visible, sinon depuis l'input caché
+  // Lire l'auteur
   var elSelect = document.getElementById('r-auteur-select');
   var elAuteur = document.getElementById('r-auteur');
   var auteurNom, auteurId;
-  if(elSelect && elSelect.style.display !== 'none' && elSelect.selectedIndex >= 0){
+
+  // Si on corrige l'article de quelqu'un d'autre, TOUJOURS garder l'auteur original
+  // Cette règle prime sur tout le reste
+  if(currentDoc && currentDoc.auteur_id && currentDoc.auteur_id !== getUserId()){
+    auteurNom = currentDoc.auteur || '';
+    auteurId  = currentDoc.auteur_id;
+  } else if(elSelect && elSelect.style.display !== 'none' && elSelect.selectedIndex >= 0){
+    // Admin choisit l'auteur dans le select (nouvel article)
     var optSel = elSelect.options[elSelect.selectedIndex];
     auteurNom = optSel.value;
     auteurId  = optSel.dataset.membreId || getUserId();
   } else {
+    // Rédacteur normal
     auteurNom = elAuteur ? elAuteur.value.trim() : getUserNomComplet();
     auteurId  = getUserId();
-  }
-
-  // Toujours préserver l'auteur original si l'article est déjà en base
-  // et que l'utilisateur courant n'est pas l'auteur
-  var isAuteurOriginal = !currentDoc || !currentDoc.auteur_id || currentDoc.auteur_id === getUserId();
-  if(!isAuteurOriginal){
-    auteurNom = currentDoc.auteur || auteurNom;
-    auteurId  = currentDoc.auteur_id;
   }
 
   return {
@@ -5601,27 +5601,41 @@ function rChangerRedaction(){
 }
 
 
+function osOuvrirNouvelArticle(){
+  osOpenWindow('redaction');
+  var _attente = 0;
+  function _attendre(){
+    _attente += 100;
+    // Attendre que le cache des rédactions soit prêt (max 3s)
+    if((!window._redactionsData || !window._redactionsData.length) && _attente < 3000){
+      setTimeout(_attendre, 100);
+      return;
+    }
+    resetRedaction();
+    osPopulerSelectRedaction();
+    preremplirAuteur();
+  }
+  setTimeout(_attendre, 150);
+}
+
 function resetRedaction(){
   osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
   // Pré-remplir la rédaction depuis la rédaction active du membre
-  var redacEl = document.getElementById('r-redaction');
-  if(redacEl){
-    var redacNomActif = 'Rédaction Tarn'; // fallback
-    if(window._redacActiveId && window._redactionsData){
-      var redacActive = _redactionsData.find(function(r){ return r.id === window._redacActiveId; });
-      if(redacActive) redacNomActif = redacActive.nom;
+  // Mettre à jour le badge rédaction
+  var nomElR = document.getElementById('r-redaction-nom');
+  var hiddenR = document.getElementById('r-redaction');
+  if(window._redacActiveId && window._redactionsData && window._redactionsData.length){
+    var redacActive = window._redactionsData.find(function(r){ return r.id===window._redacActiveId; });
+    if(redacActive){
+      if(nomElR) nomElR.textContent = redacActive.nom;
+      if(hiddenR){ hiddenR.value = redacActive.nom; hiddenR.dataset.redacId = redacActive.id; }
     }
-    // Chercher l'option correspondante ou sélectionner la plus proche
-    var found = false;
-    for(var i=0; i<redacEl.options.length; i++){
-      if(redacEl.options[i].value === redacNomActif || redacEl.options[i].text === redacNomActif){
-        redacEl.selectedIndex = i; found = true; break;
-      }
-    }
-    if(!found) redacEl.value = redacNomActif;
+  } else {
+    // Cache pas encore prêt — osPopulerSelectRedaction va réessayer
+    setTimeout(osPopulerSelectRedaction, 400);
   }
   tags=[];renderTags();imgB64=null; imgFile=null;cpLies=[];
   removeImg();renderCpLies();
@@ -7091,7 +7105,6 @@ function afficherBonjour(){
 function preremplirAuteur(){
   // Ne pas écraser si on édite l'article de quelqu'un d'autre
   if(currentDoc && currentDoc.auteur_id && currentDoc.auteur_id !== getUserId()){
-    // Juste rendre le champ readonly — ne pas changer la valeur
     var elAuteur = document.getElementById('r-auteur');
     if(elAuteur){
       elAuteur.readOnly = true;
@@ -7099,25 +7112,50 @@ function preremplirAuteur(){
       elAuteur.style.color = 'var(--gris)';
       elAuteur.style.cursor = 'not-allowed';
     }
-    // Cacher le select s'il est visible
     var elSelect = document.getElementById('r-auteur-select');
     if(elSelect) elSelect.style.display = 'none';
+    // Mettre à jour le badge même dans ce cas
+    if(currentDoc.redaction_id){
+      var nomElE = document.getElementById('r-redaction-nom');
+      var hiddenElE = document.getElementById('r-redaction');
+      var ri = (window._redactionsData||[]).find(function(r){ return r.id===currentDoc.redaction_id; });
+      if(ri){ if(nomElE) nomElE.textContent=ri.nom; if(hiddenElE){hiddenElE.value=ri.nom;hiddenElE.dataset.redacId=ri.id;} }
+    }
     return;
   }
+
   var role = getUserRole();
-  var uid = getUserId();
-  var n = getUserNomComplet();
-  var elAuteur = document.getElementById('r-auteur');
-  var elSelect = document.getElementById('r-auteur-select');
+  var uid  = getUserId();
+  var n    = getUserNomComplet();
+  var elAuteur   = document.getElementById('r-auteur');
+  var elSelect   = document.getElementById('r-auteur-select');
   var elRedaction = document.getElementById('r-redaction');
 
   if(!elAuteur || !uid || !_session) return;
+
+  // Si le cache des rédactions est vide, l'attendre (max 2s) puis continuer
+  if(!window._redactionsData || !window._redactionsData.length){
+    var authH0 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+    Promise.all([
+      fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH0}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH0}).then(function(r){return r.json();})
+    ]).then(function(res){
+      if(res[0]&&!res[0].code) window._redactionsData=res[0];
+      if(res[1]&&!res[1].code){
+        // Fusionner dans _membresRedactionsData
+        var existing = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id!==uid; });
+        window._membresRedactionsData = existing.concat(res[1].map(function(l){ return Object.assign({membre_id:uid},l); }));
+      }
+      preremplirAuteur(); // relancer maintenant que le cache est prêt
+    }).catch(function(){});
+    return;
+  }
+
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
 
   // Récupérer le lien rédaction — utiliser _redacActiveId si déjà choisi
   var maRedacIdDirect = window._redacActiveId || null;
   if(maRedacIdDirect){
-    // Rédaction déjà choisie — pas besoin de fetch
     var monRoleRedacDirect = null;
     var lienDirect = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id===uid && mr.redaction_id===maRedacIdDirect; });
     if(lienDirect) monRoleRedacDirect = lienDirect.role_redac;
@@ -7126,14 +7164,25 @@ function preremplirAuteur(){
     return;
   }
 
-  // Récupérer le lien rédaction du membre
+  // Chercher dans le cache membres_redactions
+  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
+  if(mesLiens.length){
+    var monLien = mesLiens[0];
+    var maRedacId = monLien.redaction_id;
+    var monRoleRedac = monLien.role_redac;
+    if(maRedacId && !window._redacActiveId) window._redacActiveId = maRedacId;
+    var isChefOuAdmin = role==='admin' || monRoleRedac==='redac_chef';
+    _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH);
+    return;
+  }
+
+  // Fallback fetch si vraiment rien en cache
   fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(liens){
     var monLien = (liens && !liens.code && liens.length) ? liens[0] : null;
     var monRoleRedac = monLien ? monLien.role_redac : null;
     var maRedacId = monLien ? monLien.redaction_id : null;
-    // Ne pas écraser _redacActiveId s'il a déjà été choisi par l'utilisateur
     if(maRedacId && !window._redacActiveId) window._redacActiveId = maRedacId;
     var isChefOuAdmin = role === 'admin' || monRoleRedac === 'redac_chef';
     _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, maRedacId, monRoleRedac, isChefOuAdmin, authH);
@@ -7183,13 +7232,14 @@ function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, m
       elAuteur.style.cursor = 'not-allowed';
     }
 
-    // --- Badge rédaction ---
-    // Mettre à jour le nom affiché et l'input caché
-    var nomEl = document.getElementById('r-redaction-nom');
+    // Badge rédaction
+    var nomEl   = document.getElementById('r-redaction-nom');
     var hiddenEl = document.getElementById('r-redaction');
-    var btnChg = document.getElementById('r-redaction-changer');
+    var btnChg  = document.getElementById('r-redaction-changer');
+    console.log('[badge] maRedacId=', maRedacId, '_redactionsData=', (window._redactionsData||[]).length, '_redacActiveId=', window._redacActiveId);
     if(maRedacId){
       var redacInfo = (window._redactionsData||[]).find(function(r){ return r.id===maRedacId; });
+      console.log('[badge] redacInfo=', redacInfo);
       if(redacInfo){
         if(nomEl) nomEl.textContent = redacInfo.nom;
         if(hiddenEl){ hiddenEl.value = redacInfo.nom; hiddenEl.dataset.redacId = redacInfo.id; }
@@ -7858,10 +7908,21 @@ var db = {
       if(existe){
         method = 'PATCH';
         url = SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId);
-        // Ne jamais écraser auteur/auteur_id si l'article appartient à quelqu'un d'autre
+        // Ne jamais écraser auteur/auteur_id si l'article existe déjà en base
+        // Cas 1 : l'article appartient à quelqu'un d'autre (auteur_id différent)
+        // Cas 2 : l'article a un auteur_id en base (le garder toujours)
         var existingAuteurId = existing[0] && existing[0].auteur_id;
         var monId = getUserId();
         if(existingAuteurId && existingAuteurId !== monId){
+          // Correcteur ou admin qui modifie l'article de quelqu'un d'autre
+          delete payload.auteur;
+          delete payload.auteur_id;
+        } else if(existingAuteurId && existingAuteurId === monId){
+          // C'est bien mon article, auteur_id est correct, pas besoin de le renvoyer
+          // (laisser le payload tel quel)
+        } else if(!existingAuteurId && payload.auteur_id !== monId){
+          // Article sans auteur_id en base mais le payload met quelqu'un d'autre
+          // Protéger : ne pas écraser
           delete payload.auteur;
           delete payload.auteur_id;
         }
@@ -9158,35 +9219,142 @@ function seDeconnecter(){
 function lancerCompo(){
   // S'assurer que l'OS est lancé
   if(!_osReady) osLancer();
-  // Refresh token si proche de l'expiration
   osRefreshSiNecessaire();
-  // Lancer le splash
-  setTimeout(function(){
-    var s = document.getElementById('splash');
-    if(s){ s.classList.add('fade-out'); setTimeout(function(){s.style.display='none';},500); }
-    // Verifier que le role n'a pas change en interdit
-    var roleActuel = getUserRole();
-    if(roleActuel === 'interdit'){
-      seDeconnecter();
-      return;
+
+  // Créer l'écran de chargement post-login
+  var existing = document.getElementById('compo-loading-screen');
+  if(existing) existing.remove();
+
+  var loader = document.createElement('div');
+  loader.id = 'compo-loading-screen';
+  loader.style.cssText = 'position:fixed;inset:0;z-index:999990;background:#FDFAF9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;';
+  loader.innerHTML =
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
+    // Logo
+    +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);animation:popIn .35s cubic-bezier(.34,1.56,.64,1) forwards;">'
+    +'<span style="font-size:1.5rem;">📰</span></div>'
+    // Titre
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:#1A1A2E;letter-spacing:-.02em;">Compo OS</div>'
+    // Etape courante
+    +'<div id="compo-loading-step" style="font-family:DM Sans,sans-serif;font-size:.72rem;color:#9CA3AF;min-height:1.2em;text-align:center;"></div>'
+    // Barre de progression
+    +'<div style="width:200px;height:3px;background:#F3F4F6;border-radius:2px;overflow:hidden;">'
+    +'<div id="compo-loading-bar" style="height:3px;background:linear-gradient(90deg,#E8461E,#F59E0B);border-radius:2px;width:0%;transition:width .4s ease;"></div>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(loader);
+
+  // Fonction pour mettre a jour la progression
+  var _loadStep = function(label, pct){
+    var el = document.getElementById('compo-loading-step');
+    var bar = document.getElementById('compo-loading-bar');
+    if(el) el.textContent = label;
+    if(bar) bar.style.width = pct + '%';
+  };
+
+  // Fermer l'ecran de chargement
+  var _loadDone = function(){
+    var s = document.getElementById('compo-loading-screen');
+    if(s){
+      s.style.transition = 'opacity .4s ease';
+      s.style.opacity = '0';
+      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 420);
     }
+  };
+
+  var roleActuel = getUserRole();
+  if(roleActuel === 'interdit'){ seDeconnecter(); return; }
+
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  _loadStep('Connexion...', 5);
+
+  // Preload de toutes les données nécessaires en parallele
+  var fetches = {
+    redactions:       fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
+    membresRedacs:    fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
+    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
+    mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
+    annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
+    cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
+  };
+
+  _loadStep('Rédactions...', 20);
+
+  // Suivre la progression au fil des résolutions
+  var done = 0;
+  var total = Object.keys(fetches).length;
+  var labels = {redactions:'Rédactions',membresRedacs:'Équipe',membres:'Membres',mesArticles:'Articles',annonces:'Annonces',cps:'Communiqués'};
+  var results = {};
+
+  var promises = Object.keys(fetches).map(function(key){
+    return fetches[key].then(function(data){
+      results[key] = data;
+      done++;
+      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
+    }).catch(function(){
+      results[key] = [];
+      done++;
+      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
+    });
+  });
+
+  Promise.all(promises).then(function(){
+    _loadStep('Mise en place...', 88);
+
+    // Peupler les caches globaux
+    if(results.redactions && !results.redactions.code)         window._redactionsData = results.redactions;
+    if(results.membresRedacs && !results.membresRedacs.code)   window._membresRedactionsData = results.membresRedacs;
+    if(results.membres && !results.membres.code)               window._membresData = results.membres;
+    if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
+    if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
+
+    // Définir la rédaction active si une seule
+    if(!window._redacActiveId && window._membresRedactionsData && uid){
+      var mesLiens = window._membresRedactionsData.filter(function(mr){ return mr.membre_id===uid; });
+      if(mesLiens.length===1) window._redacActiveId = mesLiens[0].redaction_id;
+    }
+
+    _loadStep('Démarrage...', 95);
+
+    // Construire l'interface
     afficherBonjour();
     appliquerRole();
-    osBuildDock(); // appelé ici — après _chargerAppsUtilisateur, _userApps est peuplé
+    osBuildDock();
     osBuildDesktopIcons();
     construireNav();
     construireAccueil();
-    chargerAnnonces();
-    chargerRSS();
-    chargerAccueilArticles();
-    chargerAccueilBriefing();
-    chargerAlertCorrection();
-    chargerAlertPublication();
-    chargerAlertTickets();
-    chargerAlertTicketsAccueil();
+
+    _loadStep('', 100);
+
+    // Fermer l'écran de chargement
+    setTimeout(function(){
+      _loadDone();
+      // Déclencher les chargements secondaires apres affichage
+      chargerAnnonces();
+      chargerRSS();
+      chargerAccueilArticles();
+      chargerAccueilBriefing();
+      chargerAlertCorrection();
+      chargerAlertPublication();
+      chargerAlertTickets();
+      chargerAlertTicketsAccueil();
+      chargerDepuisURL();
+      ssInit();
+    }, 300);
+
+  }).catch(function(){
+    // Fallback si le preload échoue - lancer quand même
+    _loadDone();
+    afficherBonjour();
+    appliquerRole();
+    osBuildDock();
+    osBuildDesktopIcons();
+    construireNav();
+    construireAccueil();
     chargerDepuisURL();
-    ssInit();
-  }, 1700);
+  });
 }
 
 
@@ -11807,7 +11975,7 @@ function osLancer(){
     osVerifierPremiereLancement();
     osChargerOfflineQueue();
     osSyncOfflineQueue();
-    osEnregistrerServiceWorker();
+    // Service Worker désactivé (blob: protocol non supporté en prod)
     osVerifierEtatConnexion();
     chargerAnnonces();
     chargerAccueilBriefing();
@@ -11821,27 +11989,30 @@ function osLancer(){
     // Horloge bureau
     osClockInit();
     // Refresh périodique des fonctions membre (toutes les 5 min)
-    setInterval(function(){
-      var uid = getUserId();
-      if(!uid||!_session) return;
-      var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=fonction,role',{headers:authH})
-      .then(function(r){return r.json();})
-      .then(function(data){
-        var m = data&&!data.code&&data[0];
-        if(!m) return;
-        var f = m.fonction;
-        if(typeof f==='string'){ try{f=JSON.parse(f);}catch(e){f=[];} }
-        var newFonctions = Array.isArray(f)?f:[];
-        var changed = JSON.stringify(newFonctions) !== JSON.stringify(window._membreCourantFonction||[]);
-        window._membreCourantFonction = newFonctions;
-        if(m.role) localStorage.setItem('ipsum_user_role', m.role);
-        if(changed){ osBuildDock(); osBuildDesktopIcons(); }
-      }).catch(function(){});
-    }, 300000);
+    var uid = getUserId();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    if(uid && uid !== 'undefined'){
+      setInterval(function(){
+        var uidRefresh = getUserId();
+        if(!uidRefresh||!_session) return;
+        var authHRefresh = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+uidRefresh+'&select=fonction,role',{headers:authHRefresh})
+        .then(function(r){return r.json();})
+        .then(function(data){
+          var m = data&&!data.code&&data[0];
+          if(!m) return;
+          var f = m.fonction;
+          if(typeof f==='string'){ try{f=JSON.parse(f);}catch(e){f=[];} }
+          var newFonctions = Array.isArray(f)?f:[];
+          var changed = JSON.stringify(newFonctions) !== JSON.stringify(window._membreCourantFonction||[]);
+          window._membreCourantFonction = newFonctions;
+          if(m.role) localStorage.setItem('ipsum_user_role', m.role);
+          if(changed){ osBuildDock(); osBuildDesktopIcons(); }
+        }).catch(function(){});
+      }, 300000);
 
-    // Charger les données complètes du membre (dont fonction) au démarrage
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif',{headers:authH})
+      // Charger les données complètes du membre (dont fonction) au démarrage
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       var m = data&&!data.code&&data[0];
@@ -11860,26 +12031,31 @@ function osLancer(){
         }
       }
     }).catch(function(){});
+    } // fin if(uid)
 
-    // Pré-charger les rédactions et liens au démarrage — disponibles partout (rédaction, correction, agenda...)
+    // Pré-charger les rédactions et liens au démarrage
+    // (lancerCompo fait un preload complet, mais on garde ce fetch léger comme fallback rapide)
     var authHRedac = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-    Promise.all([
-      fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authHRedac}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authHRedac}).then(function(r){return r.json();})
-    ]).then(function(res){
-      if(res[0]&&!res[0].code) window._redactionsData = res[0];
-      if(res[1]&&!res[1].code) window._membresRedactionsData = res[1];
-      // Définir la rédaction active si membre dans une seule rédaction
-      var uid2 = getUserId();
-      var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid2; });
-      if(mesLiens.length===1 && !window._redacActiveId){
-        window._redacActiveId = mesLiens[0].redaction_id;
-      }
-    }).catch(function(){});
+    if(!window._redactionsData || !window._redactionsData.length){
+      Promise.all([
+        fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authHRedac}).then(function(r){return r.json();}),
+        fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authHRedac}).then(function(r){return r.json();})
+      ]).then(function(res){
+        if(res[0]&&!res[0].code) window._redactionsData=res[0];
+        if(res[1]&&!res[1].code) window._membresRedactionsData=res[1];
+        var uid2 = getUserId();
+        var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid2; });
+        if(mesLiens.length===1 && !window._redacActiveId){
+          window._redacActiveId = mesLiens[0].redaction_id;
+        }
+      }).catch(function(){});
+    }
 
     // Vérifier si le membre est dans plusieurs rédactions
     var uid = getUserId();
     var role = getUserRole();
+    // Ne pas déclencher si pas de session valide
+    if(!uid || uid === 'undefined' || !_session || !_session.access_token) return;
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
     fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH})
     .then(function(r){return r.json();})
@@ -14590,6 +14766,24 @@ function _osOpenWindowExecuter(pageId){
     saveIndicator.id = 'win-save-indicator';
     saveIndicator.style.cssText = 'font-family:monospace;font-size:0.58rem;padding:2px 7px;border-radius:8px;background:rgba(39,174,96,0.15);color:#27AE60;border:0.5px solid rgba(39,174,96,0.3);white-space:nowrap;flex-shrink:0;';
     saveIndicator.textContent = '🟢 Sauvegardé';
+    // Forcer le chargement des rédactions si cache vide
+    if(!window._redactionsData || !window._redactionsData.length){
+      var authHR = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+      Promise.all([
+        fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authHR}).then(function(r){return r.json();}),
+        fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authHR}).then(function(r){return r.json();})
+      ]).then(function(res){
+        if(res[0]&&!res[0].code) window._redactionsData=res[0];
+        if(res[1]&&!res[1].code) window._membresRedactionsData=res[1];
+        // Définir rédac active si une seule
+        if(!window._redacActiveId && window._membresRedactionsData){
+          var uid2=getUserId();
+          var mesL=(window._membresRedactionsData||[]).filter(function(mr){return mr.membre_id===uid2;});
+          if(mesL.length===1) window._redacActiveId=mesL[0].redaction_id;
+        }
+        setTimeout(osPopulerSelectRedaction, 50);
+      }).catch(function(){});
+    }
   }
   
   tb.appendChild(traffic);
@@ -14858,7 +15052,6 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'mes-articles') osMesArticlesRender();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'statut') statutChargerDB();
-    // Ne pas appeler preremplirAuteur ici — chargerDansRedaction s'en charge
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'briefing') brfChargerDB();
     if(pageId === 'cps') cpsCharger();
@@ -14866,6 +15059,11 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'boutique') osBoutiqueRender();
     if(pageId === 'tresorerie') osTresorerieRender();
     if(pageId === 'visuels-pro') osVisuelsProPreRemplir();
+    // Rédaction : preremplir auteur et badge rédaction si pas déjà chargé via chargerDansRedaction
+    if(pageId === 'redaction' && !currentDoc){
+      osPopulerSelectRedaction();
+      preremplirAuteur();
+    }
   }, 100);
 }
 
@@ -19166,7 +19364,7 @@ function osMesArticlesRender(){
     +'<option value="date_desc">Plus récent</option><option value="date_asc">Plus ancien</option><option value="titre_asc">Titre A→Z</option>'
     +'</select>'
     +'<button onclick="osMesArticlesCharger()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>'
-    +'<button onclick="osOpenWindow(\'redaction\');setTimeout(resetRedaction,200)" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">+ Nouveau</button>';
+    +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">+ Nouveau</button>';
   hdr.appendChild(l1);
 
   // Ligne 2 : onglets rôle (seulement si plusieurs onglets)
@@ -19219,6 +19417,7 @@ function osMesArticlesCharger(){
 
   var q;
   if(_maOnglet === 'tous' && role === 'admin'){
+    // Admin — tous les articles de la rédaction active
     q = window._redacActiveId
       ? SB_URL+'/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(window._redacActiveId)+'&select=*&order=updated_at.desc.nullslast'
       : SB_URL+'/rest/v1/articles?select=*&order=updated_at.desc.nullslast';
@@ -22426,7 +22625,7 @@ function osRedacChargerAlertes(zone){
         if(!arts||arts.code) return '';
         if(role !== 'admin') arts = arts.filter(function(a){ return a.correcteur_id === uid; });
         if(!arts.length) return '';
-        return '<div onclick="osOpenWindow(\'app-correction\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+        return '<div onclick="_maOnglet=\'corriger\';osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
           +'<span style="font-size:1rem;">🔍</span>'
           +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#1A5276;">'+arts.length+' article'+(arts.length>1?'s':'')+' en attente de correction</div>'
           +'<div style="font-family:monospace;font-size:0.58rem;color:#1A5276;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
@@ -25804,7 +26003,7 @@ function _nettViderChampParLots(table, col, ids, payload, headers, cb){
 // Toutes les apps disponibles dans le système (catalogue complet)
 var ALL_APPS_CATALOGUE = [
   { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56', roles:['redacteur','correcteur','admin'], store:true, desc:'Messagerie privée interne — échange avec les autres membres de la rédaction.' },
-  { id:'accueil',        icon:'🏠', label:'Accueil',       color:'#1A1A2E', roles:['redacteur','correcteur','admin'] },
+  // accueil supprimé du catalogue actif — remplacé par redactions (Ma Rédac)
   { id:'redaction',      icon:'✍️', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
   { id:'mes-articles',   icon:'📰', label:'Articles',       color:'#1A5276', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'📝', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
@@ -25848,7 +26047,7 @@ var PROFILS_PREDEFINIS = {
 window._userApps = null;
 
 function _chargerAppsUtilisateur(userId, callback, roleOverride){
-  if(!userId){ callback(); return; }
+  if(!userId || userId === 'undefined'){ if(callback)callback(); return; }
   fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
