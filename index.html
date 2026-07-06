@@ -26191,15 +26191,179 @@ function osGestionAppsRender(){
   var wc = document.getElementById('wincontent-gestion-apps');
   if(!wc) return;
   wc.innerHTML = osLoadingHtml();
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
 
-  // Charger tous les membres + leurs apps
+  // Onglet actif
+  var _onglet = window._gestionAppsOnglet || 'apps';
+
   Promise.all([
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction&order=prenom.asc', { headers:SB_HEADERS }).then(function(r){ return r.json(); }),
-    fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', { headers:SB_HEADERS }).then(function(r){ return r.json(); })
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();})
   ]).then(function(results){
-    var membres = (!results[0]||results[0].code) ? [] : results[0];
-    var appsData = (!results[1]||results[1].code) ? [] : results[1];
+    var membres   = (!results[0]||results[0].code) ? [] : results[0];
+    var appsData  = (!results[1]||results[1].code) ? [] : results[1];
+    var redacs    = (!results[2]||results[2].code) ? [] : results[2];
 
+    wc.innerHTML = '';
+
+    // Header avec onglets
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
+    hdr.innerHTML = '<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 1.2rem .4rem;">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.9rem;color:var(--encre);">Administration</div>'
+      +'<div style="flex:1;"></div>'
+      +'</div>'
+      +'<div style="display:flex;border-bottom:2px solid var(--gris-bord);padding:0 1.2rem;">'
+      +[['apps','⚙️ Apps'],['membres','👥 Membres']].map(function(t){
+        var a = _onglet===t[0];
+        return '<button onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="font-size:.72rem;padding:.5rem .8rem;border:none;background:transparent;cursor:pointer;border-bottom:2.5px solid '+(a?'var(--rouge)':'transparent')+';margin-bottom:-2px;color:'+(a?'var(--encre)':'var(--gris)')+';font-weight:'+(a?700:400)+';">'+t[1]+'</button>';
+      }).join('')
+      +'</div>';
+    wc.appendChild(hdr);
+
+    var body = document.createElement('div');
+    body.style.cssText = 'flex:1;overflow-y:auto;';
+    wc.appendChild(body);
+
+    if(_onglet === 'membres'){
+      _osGestionMembresRender(body, membres, redacs);
+    } else {
+      _osGestionAppsBodyRender(body, membres, appsData);
+    }
+  }).catch(function(){ wc.innerHTML = osErreurHtml(osGestionAppsRender); });
+}
+
+// ── Onglet Membres ──────────────────────────────────────────────────
+function _osGestionMembresRender(zone, membres, redacs){
+  var html = '<div style="padding:1rem 1.2rem;">';
+
+  // Bouton inviter
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
+    +'<div style="font-size:.72rem;color:var(--gris);">'+membres.length+' membre(s) actif(s)</div>'
+    +'<button onclick="osInviterMembreModal()" style="font-size:.72rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">+ Inviter un membre</button>'
+    +'</div>';
+
+  // Liste membres
+  membres.forEach(function(m){
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+    var initiales = ((m.prenom||'')[0]||'?').toUpperCase()+((m.nom||'')[0]||'?').toUpperCase();
+    html += '<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem .9rem;background:white;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:.5rem;">'
+      +'<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+esc(initiales)+'</div>'
+      +'<div style="flex:1;">'
+      +'<div style="font-weight:600;font-size:.85rem;color:var(--encre);">'+esc((m.prenom||'')+' '+(m.nom||''))+'</div>'
+      +'<div style="font-size:.62rem;color:var(--gris);">'+esc(m.email||'')+'</div>'
+      +'</div>'
+      +'<span style="font-size:.6rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+';font-weight:600;">'+esc(m.role||'')+'</span>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
+      +'</div>';
+  });
+
+  html += '</div>';
+  zone.innerHTML = html;
+}
+
+function osInviterMembreModal(){
+  var redacs = window._redactionsData || [];
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(460px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
+    +'<div style="background:var(--rouge);padding:1.2rem 1.5rem;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:white;">Inviter un nouveau membre</div>'
+    +'<div style="font-size:.68rem;color:rgba(255,255,255,.7);margin-top:2px;">Un email d\'invitation sera envoyé automatiquement</div>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.5rem;display:flex;flex-direction:column;gap:.7rem;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Prénom *</label><input id="inv-prenom" type="text" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;outline:none;" placeholder="Emma"></div>'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Nom *</label><input id="inv-nom" type="text" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;outline:none;" placeholder="Planchon"></div>'
+    +'</div>'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Email *</label><input id="inv-email" type="email" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;outline:none;" placeholder="emma@ipsummedia.fr"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rôle *</label><select id="inv-role" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
+    +'<option value="redacteur">Rédacteur</option>'
+    +'<option value="correcteur">Correcteur</option>'
+    +'<option value="admin">Admin</option>'
+    +'</select></div>'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rédaction</label><select id="inv-redac" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
+    +'<option value="">Aucune</option>'
+    +redacs.map(function(r){return '<option value="'+r.id+'">'+esc(r.nom)+'</option>';}).join('')
+    +'</select></div>'
+    +'</div>'
+    +'<div id="inv-error" style="display:none;font-size:.72rem;color:#DC2626;background:#FEE2E2;border-radius:6px;padding:6px 10px;"></div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
+    +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
+    +'<button id="inv-submit" onclick="osInviterMembreValider()" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Envoyer l\'invitation</button>'
+    +'</div>'
+    +'</div>';
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+  setTimeout(function(){ var el=document.getElementById('inv-prenom'); if(el)el.focus(); },50);
+}
+
+function osInviterMembreValider(){
+  var prenom   = (document.getElementById('inv-prenom')||{}).value.trim();
+  var nom      = (document.getElementById('inv-nom')||{}).value.trim();
+  var email    = (document.getElementById('inv-email')||{}).value.trim();
+  var role     = (document.getElementById('inv-role')||{}).value;
+  var redac_id = (document.getElementById('inv-redac')||{}).value||null;
+  var errEl    = document.getElementById('inv-error');
+  var btn      = document.getElementById('inv-submit');
+
+  if(!prenom||!nom||!email||!role){
+    if(errEl){errEl.textContent='Tous les champs obligatoires doivent être remplis.';errEl.style.display='block';}
+    return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    if(errEl){errEl.textContent='Adresse email invalide.';errEl.style.display='block';}
+    return;
+  }
+
+  if(btn){btn.disabled=true;btn.textContent='Envoi en cours...';}
+  if(errEl) errEl.style.display='none';
+
+  var authH = Object.assign({},SB_HEADERS,{
+    'Authorization':'Bearer '+(_session&&_session.access_token||''),
+    'Content-Type':'application/json'
+  });
+
+  fetch(SB_URL.replace('/rest/v1','') + '/functions/v1/invite-membre', {
+    method:'POST',
+    headers: authH,
+    body: JSON.stringify({prenom, nom, email, role, redaction_id: redac_id})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error){
+      if(errEl){errEl.textContent=data.error;errEl.style.display='block';}
+      if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
+      return;
+    }
+    var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
+    if(ov) ov.remove();
+    notif('Invitation envoyée à '+email+' !','succes');
+    window._gestionAppsOnglet = 'membres';
+    osGestionAppsRender();
+  })
+  .catch(function(err){
+    if(errEl){errEl.textContent='Erreur réseau : '+String(err);errEl.style.display='block';}
+    if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
+  });
+}
+
+function osDesactiverMembre(id, nom){
+  if(!confirm('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
+  .then(function(r){
+    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRender(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+// ── Onglet Apps (ancien contenu) ────────────────────────────────────
+function _osGestionAppsBodyRender(zone, membres, appsData){
     // Construire map membre_id -> Set(app_ids)
     var appsParMembre = {};
     appsData.forEach(function(row){
@@ -26207,17 +26371,8 @@ function osGestionAppsRender(){
       appsParMembre[row.membre_id].add(row.app_id);
     });
 
-    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
-
-    // Header
-    html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
-    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Gestion des apps</div>';
-    html += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Coche les apps accessibles pour chaque membre. Les changements s\'appliquent à la prochaine connexion.</div>';
-    html += '</div>';
-
-    // Liste membres
-    html += '<div style="flex:1;overflow-y:auto;">';
-
+    var html = '<div style="padding:0;">';
+    html += '<div style="padding:.6rem 1.4rem .4rem;font-family:monospace;font-size:.6rem;color:var(--gris);">Coche les apps accessibles pour chaque membre. Les changements s\'appliquent à la prochaine connexion.</div>';
     membres.forEach(function(m){
       var nomAffiche = (m.prenom||'').trim() || (m.nom||'').trim()
         ? (esc(m.prenom||'')+' '+esc(m.nom||'')).trim()
@@ -26299,15 +26454,13 @@ function osGestionAppsRender(){
       html += '</div>'; // membre block
     });
 
-    html += '</div></div>'; // scroll + flex
-    wc.innerHTML = html;
+    html += '</div>'; // outer
+    zone.innerHTML = html;
     window._gappAppsParMembre = appsParMembre;
     window._gappMembres = membres;
-
-  }).catch(function(){
-    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
-  });
 }
+
+function osGestionAppsToggle_placeholder(){}
 
 function osGestionAppsToggle(membreId){
   var grid = document.getElementById('gapp-grid-'+membreId);
