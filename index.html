@@ -763,20 +763,15 @@ body {
   inset: 0;
   z-index: 9999;
   display: flex;
-  align-items: stretch;
-}
-/* Panneau gauche */
-.os-login-left {
-  position: relative;
-  width: 52%;
+  align-items: center;
+  justify-content: center;
   background: #1A1A2E;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 44px 48px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  box-sizing: border-box;
 }
-.os-login-left::before {
+#os-login::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -786,7 +781,7 @@ body {
   pointer-events: none;
 }
 /* Image de fond floutée à faible opacité */
-.os-login-left::after {
+#os-login::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -795,37 +790,40 @@ body {
   filter: blur(2px);
   pointer-events: none;
 }
-/* Bande orange gauche */
-.os-login-left-bar {
+/* Nom rédaction en filigrane, centré derrière la carte */
+.os-login-watermark {
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: #EA5B1C;
-  z-index: 2;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  font-family: 'Poppins', sans-serif;
+  font-size: 11rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.035);
+  line-height: 1;
+  letter-spacing: -3px;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
 }
-.os-login-left > * { position: relative; z-index: 2; }
-/* Panneau droit */
-.os-login-right {
+/* Colonne centrale (logo + carte + stats) */
+.os-login-center {
   position: relative;
-  flex: 1;
-  background: #FDFAF9;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 44px 48px;
-  overflow: hidden;
+  gap: 1.1rem;
+  width: 100%;
+  max-width: 400px;
+  margin: auto 0;
 }
-.os-login-right::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 15% 15%, rgba(234,91,28,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 85%, rgba(234,91,28,0.04) 0%, transparent 50%);
-  pointer-events: none;
+.os-login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
-.os-login-right > * { position: relative; z-index: 1; }
 /* Heure et date */
 .os-login-time {
   font-family: Arial,sans-serif;
@@ -838,20 +836,28 @@ body {
 .os-login-date { display: none; }
 /* Carte de connexion */
 .os-login-card {
-  background: transparent;
+  background: #FDFAF9;
   border: none;
-  border-radius: 0;
-  padding: 0;
+  border-radius: 20px;
+  padding: 1.8rem 2.4rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  min-width: 300px;
-  max-width: 360px;
   width: 100%;
-  box-shadow: none;
-  backdrop-filter: none;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  box-sizing: border-box;
 }
+/* Contact en cas de problème */
+.os-login-contact {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .68rem;
+  color: #9CA3AF;
+  text-align: center;
+  margin-top: .9rem;
+}
+.os-login-contact a { color: #EA5B1C; font-weight: 600; text-decoration: none; }
+.os-login-contact a:hover { text-decoration: underline; }
 .os-login-input {
   width: 100%;
   background: white !important;
@@ -915,12 +921,13 @@ body {
   padding: 8px 12px;
 }
 .os-login-error.visible { display: block; }
-/* Stats footer gauche */
+/* Stats footer */
 .os-login-stats {
   display: flex;
   gap: 28px;
+  justify-content: center;
   border-top: 0.5px solid rgba(255,255,255,0.08);
-  padding-top: 20px;
+  padding-top: 12px;
 }
 .os-login-stat-n {
   font-family: 'Poppins', sans-serif;
@@ -938,10 +945,9 @@ body {
   margin-top: 2px;
 }
 @media (max-width: 700px) {
-  #os-login { flex-direction: column; }
-  .os-login-left { width: 100%; padding: 32px 28px; min-height: 220px; }
-  .os-login-right { padding: 32px 28px; }
-  .os-login-card { max-width: 100%; }
+  #os-login { padding: 16px; }
+  .os-login-watermark { font-size: 6rem; }
+  .os-login-card { padding: 1.5rem 1.3rem; }
 }
 
 
@@ -3882,48 +3888,24 @@ input:focus,select:focus,textarea:focus{
 
 <div id="os-login">
 
-  <!-- Panneau gauche -->
-  <div class="os-login-left">
-    <div class="os-login-left-bar"></div>
-    <canvas id="os-login-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
+  <canvas id="os-login-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
+  <div id="login-redac-label" class="os-login-watermark">TARN</div>
 
-    <!-- Top : logo + titre -->
-    <div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:40px;">
-        <img src="data:image/png;base64,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" style="height:56px;width:auto;opacity:0.92;" alt="Ipsum Média">
-        <div class="os-login-time" id="os-login-clock">00:00</div>
-        <div class="os-login-date" id="os-login-date"></div>
-      </div>
-      <div style="font-family:Arial,sans-serif;font-size:0.7rem;font-weight:600;color:#EA5B1C;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">Bienvenue chez</div>
-      <div style="font-family:'Poppins',sans-serif;font-size:2.4rem;font-weight:800;color:white;line-height:1.1;margin-bottom:6px;">Ipsum Média</div>
-      <div style="font-family:Arial,sans-serif;font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:32px;letter-spacing:0.06em;font-style:italic;">le Tarn en Grand</div>
-      <div style="width:36px;height:2px;background:#EA5B1C;border-radius:2px;margin-bottom:32px;"></div>
-      <!-- Nom rédaction en grand -->
-      <div id="login-redac-label" style="font-family:'Poppins',sans-serif;font-size:5.5rem;font-weight:800;color:rgba(255,255,255,0.07);line-height:1;letter-spacing:-2px;user-select:none;margin-top:8px;">TARN</div>
+  <div class="os-login-center">
+
+    <!-- Logo + heure -->
+    <div class="os-login-brand">
+      <img src="data:image/png;base64,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" style="height:52px;width:auto;opacity:0.92;" alt="Ipsum Média">
+      <div style="font-family:Arial,sans-serif;font-size:0.66rem;font-weight:600;color:#EA5B1C;text-transform:uppercase;letter-spacing:0.14em;">Bienvenue chez Ipsum Média</div>
+      <div class="os-login-time" id="os-login-clock">00:00</div>
+      <div class="os-login-date" id="os-login-date"></div>
     </div>
 
-    <!-- Bas : stats -->
-    <div class="os-login-stats">
-      <div>
-        <div class="os-login-stat-n" id="login-stat-redacteurs">—</div>
-        <div class="os-login-stat-l">rédacteurs</div>
-      </div>
-      <div>
-        <div class="os-login-stat-n" id="login-stat-articles">—</div>
-        <div class="os-login-stat-l">articles publiés</div>
-      </div>
-      <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
-        <span style="font-family:Arial,sans-serif;font-size:0.6rem;font-weight:600;color:#EA5B1C;background:rgba(234,91,28,0.15);border:1px solid rgba(234,91,28,0.3);border-radius:4px;padding:3px 8px;text-transform:uppercase;letter-spacing:0.1em;">Tarn</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Panneau droit -->
-  <div class="os-login-right">
+    <!-- Carte de connexion -->
     <div class="os-login-card">
 
       <!-- Logo Compo OS -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:2rem;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.2rem;">
         <div style="width:38px;height:38px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(232,70,30,0.3);">
           <span style="font-size:1.1rem;">📰</span>
         </div>
@@ -3934,19 +3916,20 @@ input:focus,select:focus,textarea:focus{
       </div>
 
       <!-- Titre -->
-      <div style="margin-bottom:1.8rem;">
+      <div style="margin-bottom:1.1rem;">
         <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#1A1A2E;margin-bottom:4px;line-height:1.2;">Connexion</div>
         <div style="font-size:.82rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Accède à ton espace rédaction</div>
       </div>
 
       <!-- Champs -->
-      <div style="width:100%;margin-bottom:.8rem;">
+      <div style="width:100%;margin-bottom:.6rem;">
         <div style="font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Email</div>
         <input class="os-login-input" type="email" id="os-login-email" placeholder="prenom@ipsummedia.fr" autocomplete="email">
       </div>
-      <div style="width:100%;margin-bottom:1.2rem;">
+      <div style="width:100%;margin-bottom:.9rem;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <div style="font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;">Mot de passe</div>
+          <span onclick="osMotDePasseOublieModal()" style="font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;color:#EA5B1C;cursor:pointer;">Mot de passe oublié ?</span>
         </div>
         <input class="os-login-input" type="password" id="os-login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') osLoginValider()">
       </div>
@@ -3960,14 +3943,30 @@ input:focus,select:focus,textarea:focus{
       <!-- Erreur -->
       <div class="os-login-error" id="os-login-error"></div>
 
+      <!-- Contact en cas de problème -->
+      <div class="os-login-contact">Un problème de connexion ? Contacte <a href="mailto:contact@ipsummedia.fr">contact@ipsummedia.fr</a></div>
+
       <!-- Footer -->
-      <div style="display:flex;align-items:center;gap:8px;margin-top:2rem;width:100%;">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:.9rem;width:100%;">
         <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
         <span style="font-family:'DM Sans',sans-serif;font-size:.58rem;color:#D1D5DB;text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Tarn</span>
         <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
       </div>
 
     </div>
+
+    <!-- Stats -->
+    <div class="os-login-stats">
+      <div>
+        <div class="os-login-stat-n" id="login-stat-redacteurs">—</div>
+        <div class="os-login-stat-l">rédacteurs</div>
+      </div>
+      <div>
+        <div class="os-login-stat-n" id="login-stat-articles">—</div>
+        <div class="os-login-stat-l">articles publiés</div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -5647,6 +5646,7 @@ function resetRedaction(){
   if(btn) btn.style.display = 'block';
   document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>';
   setUrg('normal');updateStats();
+  osStartAutosave(); // Démarrer aussi pour les nouveaux articles (pas seulement les reprises)
 }
 
 // ===== BROUILLONS =====
@@ -5689,6 +5689,7 @@ function chargerBrouillons(){
 function reprendreBrouillon(id){
   const drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
   const doc=drafts.find(d=>d.id===id);if(!doc)return;
+  currentDoc = doc; // Réutiliser l'id existant — sinon la prochaine sauvegarde crée un nouvel article
   go('redaction');
   setTimeout(()=>{
     setType(doc.type||'article');
@@ -5705,6 +5706,7 @@ function reprendreBrouillon(id){
     imgB64=doc.image||null;
     if(imgB64){document.getElementById('r-img-prev').src=imgB64;document.getElementById('r-img-prev').style.display='block';document.getElementById('r-img-rem').style.display='inline-block';document.getElementById('r-img-leg').style.display='block';document.getElementById('r-img-leg').value=doc.image_legende||'';}
     setUrg(doc.urgence||'normal');updateStats();
+    osStartAutosave(); // Baseline calculée une fois les champs remplis
     notif('Brouillon repris : '+(doc.titre||'Sans titre'));
   },100);
 }
@@ -7269,74 +7271,6 @@ function preremplirCorrecteur(){
   if(el&&!el.value) el.value=n;
 }
 
-// SPLASH
-window.addEventListener('DOMContentLoaded',function(){
-  function showLogin(){
-    var s=document.getElementById('splash');
-    var ls=document.getElementById('login-screen');
-    if(s) s.style.display='none';
-    if(ls) ls.classList.add('visible');
-    var mdp=document.getElementById('login-mdp');
-    var em=document.getElementById('login-email');
-    if(mdp) mdp.addEventListener('keydown',function(e){if(e.key==='Enter') loginValider();});
-    if(em) em.addEventListener('keydown',function(e){if(e.key==='Enter') mdp.focus();});
-  }
-  try {
-    var stored = localStorage.getItem('ipsum_session');
-    if(!stored){ showLogin(); return; }
-    var sess;
-    try { sess = JSON.parse(stored); } catch(e){ showLogin(); return; }
-    if(!sess || !sess.access_token){ showLogin(); return; }
-
-    // Normaliser expires_at — Supabase renvoie parfois en secondes, parfois en ms
-    var expiresAt = sess.expires_at || 0;
-    // Si expires_at < 1e10 c'est en secondes (Unix timestamp), sinon en ms
-    var expiresMs = expiresAt < 1e10 ? expiresAt * 1000 : expiresAt;
-    var now = Date.now();
-
-    if(expiresMs > now){
-      // Token encore valide — charger les apps puis lancer
-      _session = sess;
-      SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
-      var uid0 = sess.user && sess.user.id;
-      if(uid0){
-        _chargerAppsUtilisateur(uid0, function(){ lancerCompo(); chargerDepuisURL(); });
-      } else {
-        lancerCompo();
-        chargerDepuisURL();
-      }
-    } else if(sess.refresh_token){
-      // Token expiré mais refresh_token disponible — tenter un refresh silencieux
-      fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{
-        method:'POST',
-        headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({refresh_token:sess.refresh_token})
-      }).then(function(r){return r.json();})
-      .then(function(data){
-        if(!data.access_token){ showLogin(); return; }
-        sess.access_token = data.access_token;
-        if(data.refresh_token) sess.refresh_token = data.refresh_token;
-        sess.expires_at = Math.floor(Date.now()/1000) + (data.expires_in||3600);
-        _session = sess;
-        SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
-        localStorage.setItem('ipsum_session', JSON.stringify(sess));
-        var uid1 = sess.user && sess.user.id;
-        if(uid1){
-          _chargerAppsUtilisateur(uid1, function(){ lancerCompo(); chargerDepuisURL(); });
-        } else {
-          lancerCompo();
-          chargerDepuisURL();
-        }
-      }).catch(function(){ showLogin(); });
-    } else {
-      showLogin();
-    }
-  } catch(e) {
-    console.error('Init error:', e);
-    showLogin();
-  }
-});
-
 // ENTER dans bienvenue
 document.addEventListener('keydown',function(e){
   var bvn=document.getElementById('bienvenue');
@@ -7898,6 +7832,7 @@ var db = {
 
     // Vérifier si l'article existe déjà en base
     var articleId = doc.id;
+    var estUneCreation = false; // ne loguer 'creation' dans historique que pour un vrai nouvel article
     return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId)+'&select=id,auteur_id', {
       headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')})
     })
@@ -7931,12 +7866,13 @@ var db = {
         method = 'POST';
         url = SB_URL+'/rest/v1/articles';
         payload.id = articleId;
+        estUneCreation = true;
       }
       return fetch(url, {method:method, headers:authHeaders, body:JSON.stringify(payload)});
     })
     .then(function(r){ return r.json(); })
     .then(function(data){
-      if(doc.historique && doc.historique.length){
+      if(estUneCreation && doc.historique && doc.historique.length){
         var derniere = doc.historique[doc.historique.length-1];
         return fetch(SB_URL+'/rest/v1/historique', {
           method: 'POST',
@@ -9186,17 +9122,125 @@ function chargerProfilMembre(userId){
   });
 }
 
-function loginMotDePasseOublie(){
-  var email = document.getElementById('login-email').value.trim();
-  if(!email){ notif('Saisis ton email dabord'); return; }
-  fetch('https://ctmekufqaxdelgfyjwly.supabase.co/auth/v1/recover', {
+function osMotDePasseOublieModal(){
+  var prefill = (document.getElementById('os-login-email')||{}).value || '';
+  var ov = document.createElement('div');
+  ov.id = 'mdp-oublie-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:#1A1A2E;">Mot de passe oublié</div>'
+    +'<div style="font-size:.72rem;color:#9CA3AF;margin-top:2px;">On t\'envoie un lien pour en choisir un nouveau</div>'
+    +'</div>'
+    +'<div style="padding:0 1.5rem 1.2rem;">'
+    +'<input id="mdp-oublie-email" type="email" value="'+esc(prefill)+'" placeholder="prenom@ipsummedia.fr" style="width:100%;padding:.6rem .8rem;border:1.5px solid #E5E0DC;border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;" onkeydown="if(event.key===\'Enter\') osMotDePasseOublieEnvoyer()">'
+    +'<div id="mdp-oublie-msg" style="display:none;font-size:.72rem;margin-top:8px;padding:6px 10px;border-radius:6px;"></div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
+    +'<button onclick="document.getElementById(\'mdp-oublie-overlay\').remove()" style="padding:.5rem 1rem;background:transparent;border:1px solid #E5E0DC;border-radius:8px;font-size:.78rem;cursor:pointer;color:#6B7280;">Annuler</button>'
+    +'<button id="mdp-oublie-btn" onclick="osMotDePasseOublieEnvoyer()" style="padding:.5rem 1.2rem;background:#EA5B1C;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Envoyer le lien</button>'
+    +'</div>'
+    +'</div>';
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+  setTimeout(function(){ var el=document.getElementById('mdp-oublie-email'); if(el) el.focus(); },50);
+}
+
+function osMotDePasseOublieEnvoyer(){
+  var email = (document.getElementById('mdp-oublie-email')||{}).value.trim();
+  var msgEl = document.getElementById('mdp-oublie-msg');
+  var btn = document.getElementById('mdp-oublie-btn');
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Adresse email invalide.'; }
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
+  if(msgEl) msgEl.style.display='none';
+  fetch(SB_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent('https://compo.ipsummedia.fr'), {
     method: 'POST',
-    headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE', 'Content-Type': 'application/json' },
+    headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email })
   }).then(function(){
-    notif('Email de réinitialisation envoyé a ' + email);
+    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#D4EDDA'; msgEl.style.color='#155724'; msgEl.textContent='Si un compte existe avec cet email, un lien de réinitialisation vient d’être envoyé.'; }
+    if(btn){ btn.textContent='Lien envoyé ✓'; }
   }).catch(function(){
-    notif('Erreur envoi email');
+    if(btn){ btn.disabled=false; btn.textContent='Envoyer le lien'; }
+    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau, réessaie.'; }
+  });
+}
+
+// Détecte le retour du lien "mot de passe oublié" (#access_token=...&type=recovery)
+function _osCheckRecoveryHash(){
+  var hash = window.location.hash || '';
+  if(hash.indexOf('type=recovery') === -1) return false;
+  var params = new URLSearchParams(hash.substring(1));
+  var accessToken = params.get('access_token');
+  if(!accessToken) return false;
+  osAfficherEcranNouveauMotDePasse(accessToken);
+  return true;
+}
+
+function osAfficherEcranNouveauMotDePasse(accessToken){
+  var loginEl = document.getElementById('os-login');
+  if(loginEl) loginEl.style.display = 'none';
+  if(document.getElementById('nouveau-mdp-screen')) return;
+  var screen = document.createElement('div');
+  screen.id = 'nouveau-mdp-screen';
+  screen.dataset.accessToken = accessToken;
+  screen.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#1A1A2E;display:flex;align-items:center;justify-content:center;padding:2rem 1rem;';
+  screen.innerHTML =
+    '<div style="background:#FDFAF9;border-radius:20px;padding:2.2rem 2.4rem;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.35);box-sizing:border-box;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.4rem;color:#1A1A2E;margin-bottom:4px;">Nouveau mot de passe</div>'
+    +'<div style="font-size:.82rem;color:#9CA3AF;font-family:\'DM Sans\',sans-serif;margin-bottom:1.4rem;">Choisis un mot de passe pour ton compte Compo</div>'
+    +'<div style="margin-bottom:.7rem;"><input id="nmdp-pass1" type="password" placeholder="Nouveau mot de passe" class="os-login-input" autocomplete="new-password"></div>'
+    +'<div style="margin-bottom:1rem;"><input id="nmdp-pass2" type="password" placeholder="Confirme le mot de passe" class="os-login-input" autocomplete="new-password" onkeydown="if(event.key===\'Enter\') osValiderNouveauMotDePasse()"></div>'
+    +'<button id="nmdp-btn" class="os-login-btn" onclick="osValiderNouveauMotDePasse()">Valider</button>'
+    +'<div id="nmdp-error" class="os-login-error"></div>'
+    +'</div>';
+  document.body.appendChild(screen);
+  setTimeout(function(){ var el=document.getElementById('nmdp-pass1'); if(el) el.focus(); },50);
+}
+
+function osValiderNouveauMotDePasse(){
+  var screen = document.getElementById('nouveau-mdp-screen');
+  var accessToken = screen ? screen.dataset.accessToken : null;
+  var p1 = (document.getElementById('nmdp-pass1')||{}).value || '';
+  var p2 = (document.getElementById('nmdp-pass2')||{}).value || '';
+  var errEl = document.getElementById('nmdp-error');
+  var btn = document.getElementById('nmdp-btn');
+  if(errEl) errEl.classList.remove('visible');
+  if(p1.length < 6){
+    if(errEl){ errEl.textContent='Le mot de passe doit faire au moins 6 caractères.'; errEl.classList.add('visible'); }
+    return;
+  }
+  if(p1 !== p2){
+    if(errEl){ errEl.textContent='Les deux mots de passe ne correspondent pas.'; errEl.classList.add('visible'); }
+    return;
+  }
+  if(!accessToken){
+    if(errEl){ errEl.textContent='Lien invalide ou expiré. Refais une demande.'; errEl.classList.add('visible'); }
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Validation...'; }
+  fetch(SB_URL+'/auth/v1/user', {
+    method: 'PUT',
+    headers: { 'apikey': SB_KEY, 'Authorization':'Bearer '+accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: p1 })
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.error || data.msg){
+      if(errEl){ errEl.textContent = data.error_description || data.msg || 'Erreur, le lien a peut-être expiré.'; errEl.classList.add('visible'); }
+      if(btn){ btn.disabled=false; btn.textContent='Valider'; }
+      return;
+    }
+    if(screen) screen.remove();
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    var loginEl = document.getElementById('os-login');
+    if(loginEl) loginEl.style.display = 'flex';
+    notif('Mot de passe mis à jour ! Connecte-toi.', 'succes');
+  }).catch(function(){
+    if(errEl){ errEl.textContent='Erreur réseau.'; errEl.classList.add('visible'); }
+    if(btn){ btn.disabled=false; btn.textContent='Valider'; }
   });
 }
 
@@ -9795,6 +9839,7 @@ function ouvrirAssignationDepuisDoc(doc){
 // ── AUTOSAVE ──
 var _autosaveInterval = null;
 var _autosaveHash = '';
+var _autosaveInFlight = false; // verrou partagé entre l'interval et l'autosave debounced (input)
 
 function _autosaveHash_calc(){
   var titre = (document.getElementById('r-titre')||{}).value||'';
@@ -9803,10 +9848,28 @@ function _autosaveHash_calc(){
   return titre+'||'+chapeau+'||'+corps;
 }
 
+// Sauvegarde locale de secours partagée entre les deux systèmes d'autosave
+function _autosaveFallbackLocal(doc){
+  try{
+    var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var idx = drafts.findIndex(function(d){ return d.id===doc.id; });
+    if(idx>=0) drafts[idx]=doc; else drafts.push(doc);
+    localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
+  }catch(e){}
+}
+function _autosaveClearLocalDraft(id){
+  try{
+    var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var idx = drafts.findIndex(function(d){ return d.id===id; });
+    if(idx>=0){ drafts.splice(idx,1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
+  }catch(e){}
+}
+
 function osStartAutosave(){
   osClearAutosave();
   _autosaveHash = _autosaveHash_calc();
   _autosaveInterval = setInterval(function(){
+    if(_autosaveInFlight) return; // une sauvegarde (autre système) est déjà en cours
     var titre = (document.getElementById('r-titre')||{}).value||'';
     if(!titre.trim()) return; // jamais autosave sans titre
     var hash = _autosaveHash_calc();
@@ -9815,16 +9878,19 @@ function osStartAutosave(){
     // Autosave silencieux
     var doc = buildDoc();
     if(!doc.id) return;
+    _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
       currentDoc = doc;
       osSaveIndicateur('sauvegarde');
+      _autosaveClearLocalDraft(doc.id);
       // Indicateur discret
       var ind = document.getElementById('r-save-indicator');
       if(ind){ ind.textContent = '✓ Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
     }).catch(function(){
+      _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = '⚠ Connexion perdue'; ind.style.color='var(--rouge)'; }
-    });
+      if(ind){ ind.textContent = '⚠ Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
+    }).finally(function(){ _autosaveInFlight = false; });
   }, 45000); // toutes les 45 secondes
 }
 
@@ -14549,6 +14615,7 @@ document.addEventListener('input', function(e){
   // Déclencher l'autosave 30s après la dernière frappe
   if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
   _autoSaveTimer = setTimeout(function(){
+    if(_autosaveInFlight) return; // laisser l'autre autosave passer, on retentera au prochain tick
     var hash = _autoSaveHash();
     if(hash === _autoSaveLastHash) return; // rien de changé
     var titre = (document.getElementById('r-titre')||{}).value||'';
@@ -14557,18 +14624,15 @@ document.addEventListener('input', function(e){
     _autoSaveLastHash = hash;
     // Sauvegarde silencieuse — pas de toast, juste l'indicateur
     var doc = buildDoc();
+    _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
+      currentDoc = doc; // Synchroniser — sinon la sauvegarde suivante crée un nouvel article
       osSaveIndicateur('sauvegarde');
+      _autosaveClearLocalDraft(doc.id);
     }).catch(function(){
-      // Fallback local silencieux
-      try{
-        var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-        var idx=drafts.findIndex(function(d){return d.id===doc.id;});
-        if(idx>=0)drafts[idx]=doc;else drafts.push(doc);
-        localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));
-        osSaveIndicateur('sauvegarde');
-      }catch(err){}
-    });
+      _autosaveFallbackLocal(doc); // Fallback local silencieux
+      osSaveIndicateur('sauvegarde');
+    }).finally(function(){ _autosaveInFlight = false; });
   }, 30000); // 30 secondes après la dernière frappe
 });
 
@@ -15192,6 +15256,8 @@ function osSavePrompt(pageId){
   btnDiscard.onmouseover = function(){ this.style.color='#FF5F57'; };
   btnDiscard.onmouseout  = function(){ this.style.color='rgba(0,0,0,0.35)'; };
   btnDiscard.onclick = function(){
+    _autosaveClearLocalDraft(currentDoc && currentDoc.id);
+    osClearAutosave();
     document.body.removeChild(overlay);
     osCloseWindowForce(pageId);
   };
@@ -18620,8 +18686,19 @@ function osChargerOfflineQueue(){
 }
 
 function osSyncOfflineQueue(){
-  // Mode hors ligne supprimé — ne rien faire
-  _offlineQueue = [];
+  _offlineQueue = []; // ancienne file générique désactivée, non réutilisée
+  // Ne retenter que si la fenêtre de rédaction est ouverte sur un article connu
+  if(!_windows || !_windows['redaction'] || !currentDoc || !currentDoc.id) return;
+  var drafts = [];
+  try{ drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]'); }catch(e){ return; }
+  var cached = drafts.find(function(d){ return d.id === currentDoc.id; });
+  if(!cached) return;
+  db.sauvegarderArticle(cached).then(function(){
+    currentDoc = cached;
+    _autosaveClearLocalDraft(cached.id);
+    osSaveIndicateur('sauvegarde');
+    notif('Article resynchronisé après reconnexion ✓','succes');
+  }).catch(function(){ /* toujours pas fiable — nouvelle tentative au prochain "online" */ });
 }
 
 // Écouter la reconnexion
@@ -26046,12 +26123,25 @@ var PROFILS_PREDEFINIS = {
 
 window._userApps = null;
 
-function _chargerAppsUtilisateur(userId, callback, roleOverride){
+function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
   if(!userId || userId === 'undefined'){ if(callback)callback(); return; }
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:SB_HEADERS })
+  var authHApps = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:authHApps })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    if(!data || data.code || !data.length){
+    if(!data || data.code){
+      // Erreur API (ex: token pas encore synchronisé) — retenter avant de conclure à un compte non configuré
+      _retryCount = _retryCount || 0;
+      if(_retryCount < 3){
+        setTimeout(function(){ _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount+1); }, 600);
+        return;
+      }
+      window._userApps = null;
+      window._userAppsAll = null;
+      if(callback) callback();
+      return;
+    }
+    if(!data.length){
       window._userApps = null;
       window._userAppsAll = null;
       // Si l'OOBE est déjà faite mais aucune app configurée → écran d'attente
@@ -26323,10 +26413,11 @@ function osInviterMembreValider(){
   if(btn){btn.disabled=true;btn.textContent='Envoi en cours...';}
   if(errEl) errEl.style.display='none';
 
-  var authH = Object.assign({},SB_HEADERS,{
+  var authH = {
+    'apikey': SB_KEY,
     'Authorization':'Bearer '+(_session&&_session.access_token||''),
     'Content-Type':'application/json'
-  });
+  };
 
   fetch(SB_URL.replace('/rest/v1','') + '/functions/v1/invite-membre', {
     method:'POST',
@@ -27534,6 +27625,9 @@ function oobeTerminer(){
 (function(){
 
   function demarrer(){
+  // Lien "mot de passe oublié" cliqué depuis l'email — prioritaire sur tout le reste
+  if(_osCheckRecoveryHash()) return;
+
   function loginClock(){
     var now = new Date();
     var h = String(now.getHours()).padStart(2,'0');
