@@ -594,7 +594,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.6rem;
+  padding: 0 1rem;
   padding-bottom: 12px;
   flex-shrink: 0;
   pointer-events: none;
@@ -609,9 +609,7 @@ body {
 #os-dock-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  width: 100%;
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
@@ -1108,12 +1106,12 @@ body {
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  padding: 0.8rem;
-  min-width: 260px;
-  max-width: 320px;
-  max-height: 80vh;
-  overflow-y: auto;
+  border-radius: 18px;
+  padding: 1.1rem;
+  width: min(560px, 92vw);
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 24px 60px rgba(0,0,0,0.6);
   opacity: 0;
   pointer-events: none;
@@ -1125,11 +1123,34 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
+.sm-search-wrap { margin-bottom: 0.9rem; flex-shrink: 0; }
+.sm-search-wrap input {
+  width: 100%; padding: 0.6rem 0.9rem; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white;
+  font-size: 0.85rem; font-family: 'DM Sans',sans-serif; outline: none; box-sizing: border-box;
+}
+.sm-search-wrap input::placeholder { color: rgba(255,255,255,0.4); }
+.sm-section-label {
+  font-family: Arial,sans-serif; font-size: 0.62rem; color: rgba(255,255,255,0.45);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; flex-shrink: 0;
+}
+.sm-grid {
+  display: grid; grid-template-columns: repeat(6,1fr); gap: 10px;
+  overflow-y: auto; max-height: 340px; padding-bottom: 0.4rem;
+}
+.sm-app-icon { display:flex; flex-direction:column; align-items:center; gap:0.3rem; cursor:pointer; position:relative; }
+.sm-app-img { width:50px; height:50px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.35rem; transition: transform 0.15s; }
+.sm-app-icon:hover .sm-app-img { transform: scale(1.08); }
+.sm-app-label { font-size:0.6rem; color:rgba(255,255,255,0.8); text-align:center; line-height:1.25; font-family:'DM Sans',sans-serif; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sm-toggle-all {
+  align-self: center; margin: 0.7rem 0 0.1rem; padding: 0.4rem 1.1rem;
+  background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+  color: rgba(255,255,255,0.7); font-size: 0.72rem; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.sm-toggle-all:hover { background: rgba(255,255,255,0.08); color: white; }
+
 .start-menu-header {
   display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.5rem 0.6rem 0.8rem;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  margin-bottom: 0.4rem;
 }
 .start-menu-avatar {
   width: 36px; height: 36px; border-radius: 50%;
@@ -1149,22 +1170,20 @@ body {
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 
-.start-menu-item {
-  display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.75);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-  border: none; background: transparent; width: 100%; text-align: left;
+.start-menu-footer {
+  display: flex; align-items: center; justify-content: space-between; padding-top: 0.7rem; flex-shrink: 0;
 }
-.start-menu-item:hover { background: rgba(255,255,255,0.08); color: white; }
-.start-menu-item.danger:hover { background: rgba(232,70,30,0.15); color: #FF8070; }
-.start-menu-item-icon { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+.sm-footer-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.sm-icon-btn {
+  width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent;
+  color: rgba(255,255,255,0.75); font-size: 1rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: background 0.12s, color 0.12s;
+}
+.sm-icon-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+.sm-icon-btn.danger:hover { background: rgba(232,70,30,0.2); color: #FF8070; }
 .start-menu-sep {
   height: 1px; background: rgba(255,255,255,0.08);
-  margin: 0.4rem 0;
+  margin: 0.4rem 0; flex-shrink: 0;
 }
 
 
@@ -1281,6 +1300,34 @@ body {
   position: absolute; top: 8px; right: 10px;
   background: transparent; border: none;
   color: rgba(255,255,255,0.3); font-size: 1rem; cursor: pointer;
+}
+
+@keyframes slideInUpCentered {
+  from { opacity:0; transform:translateX(-50%) translateY(10px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+#os-apps-moved-tooltip {
+  position: fixed;
+  bottom: calc(var(--dock-h) + 14px);
+  left: 50%;
+  z-index: 9900;
+  background: rgba(10,10,20,0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  min-width: 240px;
+  max-width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+  animation: slideInUpCentered 0.3s ease forwards;
+}
+#os-apps-moved-tooltip .fs-tooltip-arrow {
+  top: auto; bottom: -6px; right: auto; left: 50%;
+  transform: translateX(-50%) rotate(225deg);
+  border-left: none; border-top: none;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
 }
 
 
@@ -3789,7 +3836,14 @@ input:focus,select:focus,textarea:focus{
     <div class="fs-tooltip-text">Clique sur <strong style="color:var(--rouge);">⛶ Plein écran</strong> en haut à droite pour revenir en mode fenêtré.</div>
   </div>
 
-  
+  <div id="os-apps-moved-tooltip">
+    <div class="fs-tooltip-arrow"></div>
+    <button class="fs-tooltip-close" onclick="osDismissAppsMovedTooltip()">×</button>
+    <div class="fs-tooltip-title">📦 Les apps ont déménagé</div>
+    <div class="fs-tooltip-text">Toutes tes apps sont maintenant dans le <strong style="color:var(--rouge);">📰 Menu</strong> — épinglées et complètes au même endroit.</div>
+  </div>
+
+
   <!-- WORKSPACE -->
   <div id="os-workspace">
     <div id="os-desktop-icons"></div>
@@ -3862,31 +3916,31 @@ input:focus,select:focus,textarea:focus{
   
   <!-- MENU DÉMARRER -->
   <div id="os-start-menu">
-    <div class="start-menu-header">
-      <div class="start-menu-avatar">📰</div>
-      <div class="start-menu-info">
-        <div class="start-menu-name" id="start-menu-name"></div>
-        <div class="start-menu-role" id="start-menu-role">...</div>
+    <div class="sm-search-wrap">
+      <input type="text" id="sm-search" placeholder="🔍 Rechercher une app…" oninput="osStartMenuFiltrer(this.value)">
+    </div>
+
+    <div class="sm-section-label" id="sm-section-label">Épinglées</div>
+    <div class="sm-grid" id="sm-grid-pinned"></div>
+    <div class="sm-grid" id="sm-grid-all" style="display:none;"></div>
+    <button class="sm-toggle-all" id="sm-toggle-all" onclick="osStartMenuToggleAll()">Toutes les apps ›</button>
+
+    <div class="start-menu-sep"></div>
+    <div class="start-menu-footer">
+      <div class="start-menu-header">
+        <div class="start-menu-avatar">📰</div>
+        <div class="start-menu-info">
+          <div class="start-menu-name" id="start-menu-name"></div>
+          <div class="start-menu-role" id="start-menu-role">...</div>
+        </div>
+      </div>
+      <div class="sm-footer-actions">
+        <button class="sm-icon-btn" onclick="osStartAction('params')" title="Paramètres">⚙️</button>
+        <button class="sm-icon-btn" onclick="osStartAction('patchnote')" title="Notes de version">🆕</button>
+        <button class="sm-icon-btn" onclick="osStartAction('spotlight')" title="Rechercher ⌘K">🔍</button>
+        <button class="sm-icon-btn danger" onclick="osStartAction('deconnecter')" title="Se déconnecter">⏻</button>
       </div>
     </div>
-    <div class="start-menu-sep"></div>
-    <button class="start-menu-item" onclick="osStartAction('params')">
-      <span class="start-menu-item-icon">⚙️</span>
-      <span>Paramètres</span>
-    </button>
-    <button class="start-menu-item" onclick="osStartAction('patchnote')">
-      <span class="start-menu-item-icon">🆕</span>
-      <span>Notes de version</span>
-    </button>
-    <button class="start-menu-item" onclick="osStartAction('spotlight')">
-      <span class="start-menu-item-icon">🔍</span>
-      <span>Rechercher <span style="font-family:monospace;font-size:0.65rem;opacity:0.5;">⌘K</span></span>
-    </button>
-    <div class="start-menu-sep"></div>
-    <button class="start-menu-item danger" onclick="osStartAction('deconnecter')">
-      <span class="start-menu-item-icon">⏻</span>
-      <span>Se déconnecter</span>
-    </button>
   </div>
 
   <!-- DOCK -->
@@ -11089,6 +11143,7 @@ function osLancer(){
   osAfficherRedactionLabel();
   setTimeout(osRequestFullscreen, 500);
   setTimeout(osShowFsTooltip, 2000);
+  setTimeout(osShowAppsMovedTooltip, 8500);
 
   setTimeout(function(){
     osChargerNotifsDemarrage();
@@ -13394,7 +13449,7 @@ var _dockContextMenu = null;
 
 function osBuildDock(){
   // Init DND au démarrage
-  if(_session) setTimeout(function(){ osInitDND(); osVerifierDispoVisuels(); }, 1000);
+  if(_session) setTimeout(function(){ osInitDND(); osVerifierDispoVisuels(); if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte(); }, 1000);
   var dock = document.getElementById('os-dock-inner');
   if(!dock) return;
 
@@ -13452,6 +13507,7 @@ function osBuildDock(){
   }
   var TCHAP_APP = { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56' };
   apps = apps.filter(function(a){ return a.id !== 'tchap'; });
+  if(window._visuelsProAccessible !== true){ apps = apps.filter(function(a){ return a.id !== 'visuels-pro'; }); }
   apps = [TCHAP_APP].concat(apps);
   var pinnedIds = apps.map(function(a){ return a.id; });
 
@@ -13474,25 +13530,6 @@ function osBuildDock(){
     });
   }
 
-  // Séparateur + Launchpad
-  dock.appendChild(_creerSepDock());
-  var launchIcon = document.createElement('div');
-  launchIcon.className = 'dock-icon';
-  launchIcon.title = 'Toutes les apps';
-  var launchImg = document.createElement('div');
-  launchImg.className = 'dock-icon-img';
-  launchImg.style.cssText = 'background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);';
-  launchImg.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="1" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="1" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/><rect x="10" y="10" width="7" height="7" rx="1.5" fill="white" opacity="0.9"/></svg>';
-  var launchDot = document.createElement('div');
-  launchDot.className = 'dock-dot';
-  var launchLabel = document.createElement('div');
-  launchLabel.className = 'dock-icon-label';
-  launchLabel.textContent = 'Apps';
-  launchIcon.appendChild(launchImg);
-  launchIcon.appendChild(launchDot);
-  launchIcon.appendChild(launchLabel);
-  launchIcon.onclick = function(){ osLaunchpadToggle(); };
-  dock.appendChild(launchIcon);
 }
 
 function _creerSepDock(id){
@@ -13704,6 +13741,7 @@ function osOpenWindow(pageId){
   // Apps externes
   var appDef = (ALL_APPS_CATALOGUE||[]).find(function(a){return a.id===pageId;});
   if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
+  if(pageId === 'visuels-pro' && !osVisuelsVerifierAcces()) return;
   if(pageId === 'app-correction' || pageId === 'correction') osChronoStart('correction');
   _osOpenWindowExecuter(pageId);
   // Mettre à jour le dock pour montrer la fenêtre ouverte
@@ -14918,6 +14956,7 @@ function osSpotlightSearch(q){
     {id:'guide',label:'Manuel',icon:'📖'},
     {id:'log',label:'Journal',icon:'📜'},
   ];
+  pages = pages.filter(function(p){ return p.id!=='visuels-pro' || window._visuelsProAccessible===true; });
   var filtered = q ? pages.filter(function(p){ return p.label.toLowerCase().includes(q.toLowerCase()); }) : pages;
   res.innerHTML = '';
   filtered.slice(0,6).forEach(function(p){
@@ -14944,37 +14983,143 @@ function osToggleStartMenu(){
     var roleEl = document.getElementById('start-menu-role');
     if(nameEl) nameEl.textContent = getUserPrenom() + ' ' + getUserNom();
     if(roleEl) roleEl.textContent = getUserRole();
+    var search = document.getElementById('sm-search');
+    if(search) search.value = '';
+    osStartMenuRender();
+    osStartMenuFiltrer('');
+    setTimeout(function(){ if(search) search.focus(); }, 150);
   }
 }
 
-function osRenderStartMenuApps(){
-  var zone = document.getElementById('start-menu-apps');
-  if(!zone) return;
-  var role = getUserRole();
-  var fonctions2 = getUserFonction();
-  var monLien2 = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
-  var roleRedac2 = monLien2 ? monLien2.role_redac : null;
-  var profil2 = (role !== 'admin' && roleRedac2 === 'redac_chef') ? 'redac_chef' : role;
-  var apps = window._userApps || DOCK_APPS[profil2] || DOCK_APPS[role] || DOCK_APPS.redacteur;
-  if(Array.isArray(fonctions2) && fonctions2.indexOf('tresorier') !== -1 && !apps.some(function(a){ return a.id==='tresorerie'; })){
-    apps = apps.concat([{ id:'tresorerie', icon:'💶', label:'Trésorerie', color:'#0F6E56' }]);
+// Construit une tuile d'app pour le menu (grille épinglées ou toutes les apps)
+function _creerAppTuile(app, epingle){
+  var icon = document.createElement('div');
+  icon.className = 'sm-app-icon';
+  icon.dataset.appid = app.id;
+  icon.dataset.label = app.label.toLowerCase();
+
+  var img = document.createElement('div');
+  img.className = 'sm-app-img';
+  img.style.background = app.color;
+  img.textContent = app.icon;
+
+  var label = document.createElement('div');
+  label.className = 'sm-app-label';
+  label.textContent = app.label;
+
+  if(epingle){
+    var badgePin = document.createElement('div');
+    badgePin.style.cssText = 'position:absolute;top:-3px;right:2px;width:8px;height:8px;border-radius:50%;background:#ea5b1c;border:1.5px solid rgba(0,0,0,0.3);';
+    icon.appendChild(badgePin);
   }
-  var TCHAP_APP = { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56' };
-  apps = apps.filter(function(a){ return a.id !== 'tchap'; });
-  apps = [TCHAP_APP].concat(apps);
-  zone.innerHTML = '';
-  apps.forEach(function(app){
-    var btn = document.createElement('button');
-    btn.className = 'start-menu-item';
-    btn.innerHTML = '<span class="start-menu-item-icon" style="background:'+app.color+';color:white;border-radius:6px;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;">'+app.icon+'</span>'
-      +'<span>'+app.label+'</span>';
-    btn.onclick = function(){
-      var menu = document.getElementById('os-start-menu');
-      if(menu) menu.classList.remove('visible');
-      osOpenWindow(app.id);
-    };
-    zone.appendChild(btn);
+
+  var BADGE_APPS = ['tickets','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
+  if(BADGE_APPS.indexOf(app.id) !== -1){
+    var smBadge = document.createElement('span');
+    smBadge.style.cssText = 'position:absolute;top:-3px;left:2px;background:#FF5F57;color:white;border-radius:9px;font-size:0.5rem;font-weight:700;font-family:monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid rgba(0,0,0,0.3);display:none;';
+    icon.appendChild(smBadge);
+    var dockBadge = document.getElementById('dock-badge-'+app.id);
+    if(dockBadge && dockBadge.style.display !== 'none'){
+      smBadge.textContent = dockBadge.textContent;
+      smBadge.style.display = 'inline';
+    }
+  }
+
+  icon.appendChild(img);
+  icon.appendChild(label);
+
+  icon.onclick = function(e){
+    if(e.target.closest('.lp-ctx-menu')) return;
+    osToggleStartMenu();
+    osOpenWindow(app.id);
+  };
+
+  var pressTimer;
+  icon.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    osLaunchpadContextMenu(app, epingle, e.clientX, e.clientY);
   });
+  icon.addEventListener('touchstart', function(){ pressTimer = setTimeout(function(){ osLaunchpadContextMenu(app, epingle, 0, 0); }, 600); }, {passive:true});
+  icon.addEventListener('touchend', function(){ clearTimeout(pressTimer); });
+
+  img.addEventListener('mouseover', function(){ img.style.transform='scale(1.1)'; });
+  img.addEventListener('mouseout',  function(){ img.style.transform=''; });
+
+  return icon;
+}
+
+function osStartMenuRender(){
+  var role2 = getUserRole();
+  var fonctions2 = getUserFonction();
+  var allApps;
+  if(window._userAppsAll && window._userAppsAll.length){
+    allApps = window._userAppsAll;
+  } else {
+    allApps = ALL_APPS_CATALOGUE.filter(function(a){
+      if(a.legacy) return false;
+      if(!a.roles) return true;
+      if(!a.roles.includes(role2)) return false;
+      if(a.fonctions_requises && a.fonctions_requises.length && role2 !== 'admin'){
+        return a.fonctions_requises.some(function(f){ return fonctions2.indexOf(f) !== -1; });
+      }
+      return true;
+    });
+  }
+  var epinglesIds = (window._userApps||[]).map(function(a){ return a.id; });
+
+  var appsAff = allApps.slice();
+  if(!appsAff.find(function(a){ return a.id==='compo-store'; })){
+    var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
+    if(storeApp) appsAff.push(storeApp);
+  }
+  appsAff = appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
+
+  var pinnedApps = appsAff.filter(function(a){ return epinglesIds.indexOf(a.id)!==-1; });
+  if(!pinnedApps.length) pinnedApps = appsAff.slice(0,6);
+
+  var gridPinned = document.getElementById('sm-grid-pinned');
+  var gridAll = document.getElementById('sm-grid-all');
+  if(!gridPinned || !gridAll) return;
+  gridPinned.innerHTML = '';
+  gridAll.innerHTML = '';
+  pinnedApps.forEach(function(app){ gridPinned.appendChild(_creerAppTuile(app, true)); });
+  appsAff.forEach(function(app){ gridAll.appendChild(_creerAppTuile(app, epinglesIds.indexOf(app.id)!==-1)); });
+}
+
+function osStartMenuToggleAll(){
+  var pinned = document.getElementById('sm-grid-pinned');
+  var all = document.getElementById('sm-grid-all');
+  var label = document.getElementById('sm-section-label');
+  var btn = document.getElementById('sm-toggle-all');
+  if(!pinned || !all) return;
+  var showingAll = all.style.display !== 'none';
+  pinned.style.display = showingAll ? 'grid' : 'none';
+  all.style.display = showingAll ? 'none' : 'grid';
+  if(label) label.textContent = showingAll ? 'Épinglées' : 'Toutes les apps';
+  if(btn) btn.textContent = showingAll ? 'Toutes les apps ›' : '‹ Épinglées';
+}
+
+function osStartMenuFiltrer(q){
+  var gridPinned = document.getElementById('sm-grid-pinned');
+  var gridAll = document.getElementById('sm-grid-all');
+  var label = document.getElementById('sm-section-label');
+  var toggleBtn = document.getElementById('sm-toggle-all');
+  if(!gridPinned || !gridAll) return;
+  if(q){
+    gridPinned.style.display = 'none';
+    gridAll.style.display = 'grid';
+    if(toggleBtn) toggleBtn.style.display = 'none';
+    if(label) label.textContent = 'Résultats';
+    gridAll.querySelectorAll('.sm-app-icon').forEach(function(icon){
+      icon.style.display = icon.dataset.label.indexOf(q.toLowerCase())!==-1 ? 'flex' : 'none';
+    });
+  } else {
+    gridAll.querySelectorAll('.sm-app-icon').forEach(function(icon){ icon.style.display='flex'; });
+    gridPinned.style.display = 'grid';
+    gridAll.style.display = 'none';
+    if(toggleBtn) toggleBtn.style.display = '';
+    if(label) label.textContent = 'Épinglées';
+  }
 }
 
 function osStartAction(action){
@@ -15755,6 +15900,14 @@ function osDNDMajUI(){
   }
 }
 
+// Renvoie l'id des membres ayant une fonction communication (communication / responsable_com / com_externe / com_interne)
+function _osComMembreIds(membres){
+  return (membres||[]).filter(function(m){
+    var f = fonctionArray(m.fonction);
+    return f.indexOf('communication')!==-1 || f.indexOf('responsable_com')!==-1 || f.indexOf('com_externe')!==-1 || f.indexOf('com_interne')!==-1;
+  }).map(function(m){ return m.id; });
+}
+
 function osVerifierDispoVisuels(){
   // Vérifier si au moins un membre de la com est disponible (dnd=false)
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -15762,46 +15915,50 @@ function osVerifierDispoVisuels(){
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    // Trouver les membres de la com disponibles
-    var comDispos = membres.filter(function(m){
-      var fonctions = fonctionArray(m.fonction);
-      return fonctions.indexOf('communication') !== -1;
-    });
-    window._comDisponible = comDispos.length > 0;
-    osDNDMajVisuelsAcces();
+    window._comDisponible = _osComMembreIds(membres).length > 0;
+    osCalculerAccesVisuels();
   }).catch(function(){
-    window._comDisponible = true; // En cas d'erreur, on autorise
-    osDNDMajVisuelsAcces();
+    window._comDisponible = true; // En cas d'erreur, comportement prudent (app cachée)
+    osCalculerAccesVisuels();
   });
 }
 
-function osDNDMajVisuelsAcces(){
-  var comDispo = window._comDisponible !== false;
-  // Mettre à jour l'icône visuels dans le dock
-  var dockBtns = document.querySelectorAll('[data-page="visuels-pro"]');
-  dockBtns.forEach(function(btn){
-    if(!comDispo){
-      btn.style.opacity = '0.4';
-      btn.title = 'Visuels — Aucun membre de la com disponible';
-      btn.onclick = function(e){ e.stopPropagation(); notif('🔕 Aucun membre de la communication n\'est disponible','erreur'); };
-    } else {
-      btn.style.opacity = '1';
-      btn.title = 'Visuels Pro';
-      btn.onclick = null; // Rétablir le comportement normal
-    }
-  });
+// Un membre de la com s'est-il déjà connecté au moins une fois (ligne dans presence) ?
+function osVerifierComDejaConnecte(){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,fonction',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(membres){
+    var comIds = _osComMembreIds((!membres||membres.code)?[]:membres);
+    if(!comIds.length){ window._comDejaConnecte = false; osCalculerAccesVisuels(); return; }
+    fetch(SB_URL+'/rest/v1/presence?membre_id=in.('+comIds.join(',')+')&select=membre_id&limit=1',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      window._comDejaConnecte = !!(rows && !rows.code && rows.length);
+      osCalculerAccesVisuels();
+    }).catch(function(){ window._comDejaConnecte = false; osCalculerAccesVisuels(); });
+  }).catch(function(){ window._comDejaConnecte = false; osCalculerAccesVisuels(); });
+}
+
+// Visible seulement si : un communicant s'est déjà connecté au moins une fois ET aucun n'est actuellement disponible
+function osCalculerAccesVisuels(){
+  if(window._comDejaConnecte === undefined || window._comDisponible === undefined) return; // attendre les deux résultats
+  var visible = window._comDejaConnecte === true && window._comDisponible === false;
+  if(window._visuelsProAccessible === visible) return; // pas de changement, rien à refaire
+  window._visuelsProAccessible = visible;
+  osBuildDock();
+  osBuildDesktopIcons();
 }
 
 function osVisuelsVerifierAcces(){
   // Appelé avant d'ouvrir visuels — retourne true si accessible
-  if(window._comDisponible === false){
-    // Modale indisponible
+  if(window._visuelsProAccessible !== true){
     var mo = document.createElement('div');
     mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
     mo.innerHTML = '<div style="background:white;border-radius:12px;padding:2rem;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'
       +'<div style="font-size:2.5rem;margin-bottom:0.8rem;">🔕</div>'
       +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.5rem;">Appli Visuels indisponible</div>'
-      +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1.2rem;">Aucun membre de la communication n\'est disponible pour le moment. Réessaie plus tard ou contacte la com.</div>'
+      +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1.2rem;">'+(window._comDejaConnecte===false?'Aucun membre de la communication ne s\'est encore connecté.':'Un membre de la communication est disponible pour s\'en charger.')+'</div>'
       +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:0.5rem 1.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">OK</button>'
       +'</div>';
     document.body.appendChild(mo);
@@ -16278,6 +16435,26 @@ function osShowFsTooltip(){
 function osDismissTooltip(){
   localStorage.setItem('compo_os_fs_tooltip', '1');
   var el = document.getElementById('os-fs-tooltip');
+  if(el){
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    setTimeout(function(){ el.style.display='none'; }, 300);
+  }
+}
+
+function osShowAppsMovedTooltip(){
+  var seen = localStorage.getItem('compo_os_apps_moved_tooltip');
+  if(seen) return;
+  var el = document.getElementById('os-apps-moved-tooltip');
+  if(el){
+    el.style.display = 'block';
+    setTimeout(osDismissAppsMovedTooltip, 6000); // auto-ferme après 6s
+  }
+}
+
+function osDismissAppsMovedTooltip(){
+  localStorage.setItem('compo_os_apps_moved_tooltip', '1');
+  var el = document.getElementById('os-apps-moved-tooltip');
   if(el){
     el.style.opacity = '0';
     el.style.transition = 'opacity 0.3s';
@@ -21371,6 +21548,9 @@ function osRedacChargerRecrutement(zone, uid){
         }
       }
       if(getUserRole()==='admin'){
+        if(a.statut==='ouvert'){
+          r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacNotifierAnnonceRecrutement(this.dataset.aid,this.dataset.atit,this)" style="font-size:0.6rem;padding:3px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;cursor:pointer;color:var(--gris);">📨 Notifier</button>';
+        }
         r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacSupprimerAnnonceRecrutement(this.dataset.aid,this.dataset.atit)" style="font-size:0.6rem;padding:3px 9px;border:1px solid #DC2626;border-radius:6px;background:transparent;cursor:pointer;color:#DC2626;">🗑️ Supprimer</button>';
       }
       r += '</div></div></div>';
@@ -21403,6 +21583,59 @@ function osRedacSupprimerAnnonceRecrutement(annonceId, annonceTitre){
       notif('Erreur lors de la suppression','erreur');
     }
   }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
+  if(!confirm('Envoyer un email à tous les membres actifs pour l\'annonce "'+annonceTitre+'" ?')) return;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/recrutement_annonces?id=eq.'+annonceId+'&select=*',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var a = data && data[0];
+    if(!a){
+      notif('Annonce introuvable','erreur');
+      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+      return;
+    }
+    fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom&actif=eq.true&email=not.is.null',{headers:SB_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(destinataires){
+      destinataires = (destinataires||[]).filter(function(m){ return m.email && m.email.indexOf('@')!==-1; });
+      if(!destinataires.length){
+        notif('Aucun destinataire trouvé','alerte');
+        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+        return;
+      }
+      var nb = 0, echecs = [];
+      function envoyerProchain(idx){
+        if(idx >= destinataires.length){
+          var msg = nb+' email(s) envoyé(s) ✓';
+          if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
+          notif(msg, nb>0?'succes':'alerte');
+          if(btn){ btn.textContent = '✓ Envoyé'; }
+          return;
+        }
+        var m = destinataires[idx];
+        var html = '<h2 style="color:#E8461E;">📢 Nouvelle annonce de recrutement</h2>'
+          +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+          +'<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
+          +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(a.titre||'')+'</h3>'
+          +(a.description?'<p style="margin:0.5rem 0 0;font-size:0.9rem;white-space:pre-wrap;">'+esc(a.description)+'</p>':'')
+          +(a.email_contact?'<div style="color:#666;font-size:0.85rem;margin-top:0.5rem;">📧 '+esc(a.email_contact)+'</div>':'')
+          +'</div>'
+          +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Voir sur Compo</a></p>';
+        envoyerEmailResend(m.email, '[Compo] Recrutement : '+a.titre, html, 'recrutement')
+        .then(function(r){ if(r && r.ok !== false) nb++; else echecs.push(m.email); })
+        .catch(function(){ echecs.push(m.email); })
+        .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+      }
+      envoyerProchain(0);
+    });
+  }).catch(function(){
+    notif('Erreur','erreur');
+    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+  });
 }
 
 function osRedacCandidater(annonceId, annonceTitre){
@@ -24126,159 +24359,6 @@ function osTitresCopier(el, titre){
   }).catch(function(){ notif('Copier : '+titre); });
 }
 
-// ===== LAUNCHPAD =====
-
-var _launchpadVisible = false;
-
-function osLaunchpadToggle(){
-  var lp = document.getElementById('os-launchpad');
-  if(!lp){
-    osLaunchpadCreer();
-    return;
-  }
-  _launchpadVisible = !_launchpadVisible;
-  lp.style.opacity = _launchpadVisible ? '1' : '0';
-  lp.style.pointerEvents = _launchpadVisible ? 'all' : 'none';
-  lp.style.transform = _launchpadVisible ? 'scale(1)' : 'scale(1.05)';
-  if(_launchpadVisible) osLaunchpadRendre(lp);
-}
-
-function osLaunchpadCreer(){
-  var lp = document.createElement('div');
-  lp.id = 'os-launchpad';
-  lp.style.cssText = 'position:fixed;inset:0;z-index:800;background:rgba(10,10,20,0.7);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 6rem;transition:opacity 0.25s,transform 0.25s;opacity:0;pointer-events:none;transform:scale(1.05);';
-  lp.onclick = function(e){ if(e.target===lp) osLaunchpadToggle(); };
-
-  // Recherche
-  var searchWrap = document.createElement('div');
-  searchWrap.style.cssText = 'width:100%;max-width:400px;margin-bottom:2rem;';
-  var search = document.createElement('input');
-  search.type = 'text';
-  search.id = 'launchpad-search';
-  search.placeholder = 'Rechercher une app…';
-  search.style.cssText = 'width:100%;padding:0.7rem 1rem;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:white;font-size:0.9rem;font-family:DM Sans,sans-serif;outline:none;box-sizing:border-box;text-align:center;';
-  search.oninput = function(){ osLaunchpadFiltrer(this.value); };
-  searchWrap.appendChild(search);
-  lp.appendChild(searchWrap);
-
-  // Grille
-  var grid = document.createElement('div');
-  grid.id = 'launchpad-grid';
-  grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:center;align-items:flex-start;width:100%;max-width:700px;overflow-y:auto;';
-  lp.appendChild(grid);
-
-  document.body.appendChild(lp);
-  _launchpadVisible = true;
-  lp.style.opacity = '1';
-  lp.style.pointerEvents = 'all';
-  lp.style.transform = 'scale(1)';
-  osLaunchpadRendre(lp);
-  setTimeout(function(){ search.focus(); }, 200);
-}
-
-function osLaunchpadRendre(lp){
-  var grid = document.getElementById('launchpad-grid');
-  if(!grid) return;
-  var uid = getUserId();
-  var role2 = getUserRole();
-  var fonctions2 = getUserFonction();
-  var allApps;
-  if(window._userAppsAll && window._userAppsAll.length){
-    allApps = window._userAppsAll;
-  } else {
-    // Filtrer le catalogue par rôle — ne jamais afficher les apps admin à un rédacteur
-    allApps = ALL_APPS_CATALOGUE.filter(function(a){
-      if(a.legacy) return false;
-      if(!a.roles) return true;
-      if(!a.roles.includes(role2)) return false;
-      if(a.fonctions_requises && a.fonctions_requises.length && role2 !== 'admin'){
-        return a.fonctions_requises.some(function(f){ return fonctions2.indexOf(f) !== -1; });
-      }
-      return true;
-    });
-  }
-  var epingles = (window._userApps||[]).map(function(a){ return a.id; });
-
-  // Toujours inclure compo-store dans le launchpad
-  var appsAff = allApps.slice();
-  if(!appsAff.find(function(a){ return a.id==='compo-store'; })){
-    var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
-    if(storeApp) appsAff.push(storeApp);
-  }
-
-  grid.innerHTML = '';
-  appsAff.filter(function(a){ return !a.legacy; }).forEach(function(app){
-    var epingle = epingles.includes(app.id);
-    var icon = document.createElement('div');
-    icon.className = 'launchpad-icon';
-    icon.dataset.appid = app.id;
-    icon.dataset.label = app.label.toLowerCase();
-    icon.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:0.4rem;cursor:pointer;width:80px;position:relative;';
-
-    var img = document.createElement('div');
-    img.style.cssText = 'width:58px;height:58px;border-radius:13px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.6rem;transition:transform 0.15s;';
-    img.textContent = app.icon;
-
-    var label = document.createElement('div');
-    label.style.cssText = 'font-size:0.65rem;color:rgba(255,255,255,0.85);text-align:center;line-height:1.3;font-family:DM Sans,sans-serif;max-width:80px;';
-    label.textContent = app.label;
-
-    // Badge épinglé (point orange)
-    if(epingle){
-      var badgePin = document.createElement('div');
-      badgePin.style.cssText = 'position:absolute;top:-4px;right:4px;width:10px;height:10px;border-radius:50%;background:#ea5b1c;border:1.5px solid rgba(0,0,0,0.3);';
-      icon.appendChild(badgePin);
-    }
-
-    // Badge de notification (copie depuis dock si existant)
-    var BADGE_APPS = ['tickets','tableau','app-correction','brouillons','cps','cps-admin','tchap','projets'];
-    if(BADGE_APPS.indexOf(app.id) !== -1){
-      var lpBadge = document.createElement('span');
-      lpBadge.id = 'lp-badge-'+app.id;
-      lpBadge.style.cssText = 'position:absolute;top:-4px;left:4px;background:#FF5F57;color:white;border-radius:10px;font-size:0.55rem;font-weight:700;font-family:monospace;padding:1px 5px;min-width:16px;text-align:center;border:2px solid rgba(0,0,0,0.3);display:none;';
-      icon.appendChild(lpBadge);
-      // Copier la valeur du badge dock si elle existe
-      var dockBadge = document.getElementById('dock-badge-'+app.id);
-      if(dockBadge && dockBadge.style.display !== 'none'){
-        lpBadge.textContent = dockBadge.textContent;
-        lpBadge.style.display = 'inline';
-      }
-    }
-
-    icon.appendChild(img);
-    icon.appendChild(label);
-
-    // Clic : ouvrir l'app + fermer launchpad
-    icon.onclick = function(e){
-      if(e.target.closest('.lp-ctx-menu')) return;
-      osLaunchpadToggle();
-      osOpenWindow(app.id);
-    };
-
-    // Long press / clic droit : menu épingler
-    var pressTimer;
-    icon.addEventListener('contextmenu', function(e){
-      e.preventDefault();
-      osLaunchpadContextMenu(app, epingle, e.clientX, e.clientY);
-    });
-    icon.addEventListener('touchstart', function(){ pressTimer = setTimeout(function(){ osLaunchpadContextMenu(app, epingle, 0, 0); }, 600); }, {passive:true});
-    icon.addEventListener('touchend', function(){ clearTimeout(pressTimer); });
-
-    img.addEventListener('mouseover', function(){ img.style.transform='scale(1.1)'; });
-    img.addEventListener('mouseout',  function(){ img.style.transform=''; });
-
-    grid.appendChild(icon);
-  });
-}
-
-function osLaunchpadFiltrer(q){
-  var icons = document.querySelectorAll('.launchpad-icon');
-  icons.forEach(function(icon){
-    var match = !q || icon.dataset.label.includes(q.toLowerCase());
-    icon.style.display = match ? 'flex' : 'none';
-  });
-}
-
 function osLaunchpadContextMenu(app, estEpingle, x, y){
   // Supprimer menu existant
   var old = document.getElementById('lp-ctx-menu');
@@ -24310,7 +24390,7 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
 
   // Ouvrir
   menu.appendChild(menuItem('▶ Ouvrir', function(){
-    osLaunchpadToggle();
+    osToggleStartMenu();
     osOpenWindow(app.id);
   }));
 
@@ -24364,9 +24444,9 @@ function osLaunchpadToggleEpingle(appId, epingle){
         }
       }
       osBuildDock();
-      // Rafraîchir le launchpad
-      var lp = document.getElementById('os-launchpad');
-      if(lp && _launchpadVisible) osLaunchpadRendre(lp);
+      // Rafraîchir le menu si ouvert
+      var menu = document.getElementById('os-start-menu');
+      if(menu && menu.classList.contains('visible')) osStartMenuRender();
     }
   }).catch(function(){ notif('Erreur épinglage'); });
 }
