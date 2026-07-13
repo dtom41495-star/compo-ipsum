@@ -215,11 +215,6 @@ select:focus {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-on-surface-variant); }
 
-/* ── Status bar ── */
-#os-status-bar {
-  background: linear-gradient(90deg, #D93D18, #B83210) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,.25) !important;
-}
 
 /* ── Toast ── */
 .os-toast {
@@ -324,7 +319,7 @@ hr, [class*="-sep"]:not(.dock-sep) {
   --window-bg: rgba(245,243,239,0.96);
   --window-shadow: 0 32px 80px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.15);
   --titlebar-h: 38px;
-  --dock-h: 70px;
+  --dock-h: 52px;
   --menubar-h: 28px;
 }
 
@@ -341,7 +336,7 @@ body {
 /* ===== DESKTOP ===== */
 #os-desktop {
   position: fixed;
-  top: 28px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -377,26 +372,6 @@ body {
 /* MENUBAR SUPPRIMÉE - remplacée par overlay en bas à droite */
 #os-menubar { display: none !important; }
 
-/* Info overlay */
-#os-status-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 28px;
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  padding: 0 14px;
-  background: linear-gradient(90deg, #E8461E, #C0392B);
-  pointer-events: none;
-}
-#os-status-bar > * { pointer-events: all; }
-.status-pill {
-  font-family: Arial,sans-serif;
-  font-size: 0.6rem;
-  color: rgba(255,255,255,0.75);
-}
 
 /* ===== LOADING / ERROR STATES ===== */
 @keyframes os-pulse {
@@ -608,15 +583,18 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255,255,255,0.15);
-  padding: 4px 150px 4px 14px;
+  padding: 2px 140px 2px 14px;
   pointer-events: all;
+}
+#os-dock-inner.dock-align-centre {
+  justify-content: center;
 }
 /* Zone système à droite (recherche + horloge + afficher bureau) */
 #os-taskbar-tray {
@@ -624,28 +602,30 @@ body {
   right: 0; top: 0; bottom: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding-right: 4px;
 }
 .tray-btn {
+  position: relative;
   display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  border: none; border-radius: 8px;
+  width: 28px; height: 28px;
+  border: none; border-radius: 7px;
   background: transparent;
   color: rgba(255,255,255,0.8);
-  font-size: 1rem; cursor: pointer;
+  font-size: 0.88rem; cursor: pointer;
   transition: background 0.12s;
 }
 .tray-btn:hover { background: rgba(255,255,255,0.12); }
+.tray-btn.active { background: rgba(255,255,255,0.22); }
 #os-taskbar-clock {
   display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
-  padding: 4px 10px; border-radius: 8px; cursor: default;
-  font-family: Arial,sans-serif; line-height: 1.35;
+  padding: 2px 8px; border-radius: 7px; cursor: default;
+  font-family: Arial,sans-serif; line-height: 1.25;
   transition: background 0.12s;
 }
 #os-taskbar-clock:hover { background: rgba(255,255,255,0.08); }
-#os-taskbar-time { font-size: 0.72rem; color: rgba(255,255,255,0.92); font-weight: 600; }
-#os-taskbar-date { font-size: 0.58rem; color: rgba(255,255,255,0.55); }
+#os-taskbar-time { font-size: 0.66rem; color: rgba(255,255,255,0.92); font-weight: 600; }
+#os-taskbar-date { font-size: 0.52rem; color: rgba(255,255,255,0.55); }
 #os-taskbar-showdesktop {
   width: 7px; height: 100%;
   border: none; border-left: 1px solid rgba(255,255,255,0.15);
@@ -661,16 +641,44 @@ body {
   cursor: pointer;
   position: relative;
 }
-.dock-icon-img {
-  width: 46px; height: 46px;
+.dock-icon-pill {
+  display: flex;
+  align-items: center;
   border-radius: 11px;
+  transition: background 0.2s;
+}
+.dock-icon.active-app .dock-icon-pill {
+  background: rgba(255,255,255,0.14);
+  padding-right: 10px;
+}
+.dock-icon-name {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: white;
+  font-family: 'DM Sans', sans-serif;
+  transition: max-width 0.25s ease, opacity 0.2s ease 0.05s, margin-left 0.25s ease;
+  margin-left: 0;
+}
+.dock-icon.active-app .dock-icon-name {
+  max-width: 160px;
+  opacity: 1;
+  margin-left: 8px;
+}
+.dock-icon-img {
+  width: 34px; height: 34px;
+  border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
   position: relative;
+  flex-shrink: 0;
 }
 .dock-icon:hover .dock-icon-img {
-  transform: translateY(-8px) scale(1.15);
+  transform: translateY(-6px) scale(1.15);
 }
 .dock-icon-label {
   font-size: 0.6rem;
@@ -713,7 +721,7 @@ body {
 }
 .dock-dot.visible { opacity: 1; }
 .dock-sep {
-  width: 1px; height: 36px;
+  width: 1px; height: 26px;
   background: rgba(255,255,255,0.2);
   margin: 0 4px;
   align-self: center;
@@ -1115,20 +1123,6 @@ body {
 
 
 /* MENU DÉMARRER */
-#os-start-btn {
-  width: 46px; height: 46px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, #E8461E, #C73A18);
-  border: none;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem;
-  box-shadow: 0 4px 12px rgba(232,70,30,0.5);
-  transition: transform 0.15s, box-shadow 0.15s;
-  flex-shrink: 0;
-}
-#os-start-btn:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(232,70,30,0.5); }
-
 #os-start-menu {
   position: fixed;
   bottom: calc(var(--dock-h) + 12px);
@@ -1295,7 +1289,7 @@ body {
 /* TOOLTIP FULLSCREEN */
 #os-fs-tooltip {
   position: fixed;
-  top: 52px;
+  bottom: calc(var(--dock-h) + 14px);
   right: 16px;
   z-index: 9900;
   background: rgba(10,10,20,0.95);
@@ -1306,19 +1300,16 @@ body {
   min-width: 220px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   display: none;
-  animation: slideInRight 0.3s ease;
-}
-@keyframes slideInRight {
-  from { opacity:0; transform:translateX(10px); }
-  to   { opacity:1; transform:translateX(0); }
+  animation: slideInUp 0.3s ease;
 }
 .fs-tooltip-arrow {
   position: absolute;
-  top: -6px; right: 20px;
+  bottom: -6px; right: 20px; top: auto;
   width: 12px; height: 12px;
   background: rgba(10,10,20,0.95);
-  border-left: 1px solid rgba(255,255,255,0.15);
-  border-top: 1px solid rgba(255,255,255,0.15);
+  border-left: none; border-top: none;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
   transform: rotate(45deg);
 }
 .fs-tooltip-title {
@@ -1381,53 +1372,6 @@ body {
   display: none;
   z-index: 2;
 }
-
-/* PAGE SUJETS dans fenêtre */
-#winpage-sujets {
-  padding: 1.5rem;
-}
-.sujets-header {
-  margin-bottom: 1.2rem;
-}
-.sujets-empty {
-  font-family: Arial,sans-serif;
-  font-size: 0.78rem;
-  color: var(--gris);
-  text-align: center;
-  padding: 2rem;
-}
-.sujet-win-card {
-  background: white;
-  border: 1.5px solid var(--gris-bord);
-  border-radius: 8px;
-  padding: 1rem 1.2rem;
-  margin-bottom: 0.7rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  cursor: pointer;
-}
-.sujet-win-card:hover {
-  border-color: var(--rouge);
-  box-shadow: 0 4px 16px rgba(232,70,30,0.1);
-}
-.sujet-win-card-header {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; gap: 0.8rem;
-  margin-bottom: 0.5rem;
-}
-.sujet-win-titre {
-  font-weight: 700; font-size: 0.92rem;
-  color: var(--encre); flex: 1; line-height: 1.4;
-}
-.sujet-win-note {
-  font-size: 0.8rem; color: var(--gris);
-  line-height: 1.5; margin-top: 0.4rem;
-  font-style: italic;
-}
-.sujet-win-footer {
-  display: flex; align-items: center;
-  justify-content: space-between; margin-top: 0.8rem;
-}
-
 
 /* ===== APP TUTOS ===== */
 .tuto-app { padding: 0; display: flex; height: 100%; }
@@ -2703,10 +2647,6 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
   .os-toast.show { transform: translateY(0) !important; }
   .os-toast.hide { transform: translateY(-120%) !important; }
 
-  /* Status bar en haut à gauche sur mobile */
-  #os-status-bar {
-    display: none !important;
-  }
   #os-desktop {
     top: 0 !important;
   }
@@ -3844,23 +3784,6 @@ input:focus,select:focus,textarea:focus{
 
 <div id="os-desktop">
   <div id="os-bg"></div>
-  
-  <!-- STATUS BAR -->
-  <div id="os-status-bar">
-    <span style="font-family:Arial,sans-serif;font-size:0.6rem;font-weight:700;color:white;letter-spacing:.1em;">COMPO OS</span>
-    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <span id="status-user" style="font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);"></span>
-      <span style="width:1px;height:10px;background:rgba(255,255,255,0.3);display:inline-block;"></span>
-      <span id="status-time" style="font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.75);"></span>
-      <span style="width:1px;height:10px;background:rgba(255,255,255,0.3);display:inline-block;"></span>
-      <div id="os-focus-btn" onclick="osToggleFocusMode()" style="cursor:pointer;pointer-events:all;opacity:0.7;font-size:0.7rem;" title="Mode focus">🔔</div>
-      <div id="os-dnd-btn" onclick="osToggleDND()" style="cursor:pointer;pointer-events:all;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.15);border:none;padding:2px 10px;border-radius:10px;display:flex;align-items:center;gap:4px;" title="Mode Ne pas déranger">
-        <span id="os-dnd-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;"></span>
-        <span id="os-dnd-label">Disponible</span>
-      </div>
-      <div id="os-fs-btn" onclick="osToggleFullscreen()" style="cursor:pointer;pointer-events:all;font-family:Arial,sans-serif;font-size:0.6rem;color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.15);border:none;padding:2px 8px;border-radius:4px;" title="Plein écran">⛶ Plein écran</div>
-    </div>
-  </div>
 
   <!-- TOOLTIP PLEIN ÉCRAN -->
   <div id="os-fs-tooltip">
@@ -3931,12 +3854,6 @@ input:focus,select:focus,textarea:focus{
       </div>
     </div>
 
-    <!-- BOUTON SIDEBAR -->
-    <div id="os-sidebar-toggle" onclick="osToggleSidebar()" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:22px;height:60px;background:rgba(255,255,255,0.25);backdrop-filter:blur(10px);border-radius:8px 0 0 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;transition:background 0.2s;box-shadow:-2px 0 10px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">
-      <span style="font-size:0.65rem;color:rgba(255,255,255,0.8);">‹</span>
-      <span id="nc-badge" class="nc-badge" style="display:none;background:#FF5F57;color:white;font-size:0.5rem;font-weight:700;padding:1px 4px;border-radius:8px;font-family:monospace;"></span>
-    </div>
-
     <div id="os-redaction-label" style="position:absolute;bottom:72px;left:20px;pointer-events:none;user-select:none;display:none;">
       <div style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.35);text-shadow:0 1px 3px rgba(0,0,0,0.5);">Rédaction</div>
       <div id="os-redaction-nom" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1.1rem;color:rgba(255,255,255,0.5);text-shadow:0 1px 4px rgba(0,0,0,0.6);letter-spacing:0.05em;margin-top:1px;">Tarn</div>
@@ -3944,7 +3861,7 @@ input:focus,select:focus,textarea:focus{
   </div>
 
   <!-- SIDEBAR WIDGETS -->
-  <div id="os-sidebar" style="position:fixed;right:-280px;top:28px;width:280px;height:calc(100% - 28px - 60px);background:rgba(235,235,240,0.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-left:1px solid rgba(0,0,0,0.08);z-index:500;transition:right 0.3s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;overflow:hidden;">
+  <div id="os-sidebar" style="position:fixed;right:-280px;top:0;width:280px;height:calc(100% - var(--dock-h));background:rgba(235,235,240,0.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-left:1px solid rgba(0,0,0,0.08);z-index:500;transition:right 0.3s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0.9rem 0.5rem;flex-shrink:0;">
       <div style="font-family:Arial,sans-serif;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.12em;color:rgba(0,0,0,0.4);">Widgets</div>
       <button onclick="osToggleSidebar()" style="background:rgba(0,0,0,0.08);border:none;color:rgba(0,0,0,0.5);cursor:pointer;font-size:0.75rem;padding:2px 7px;border-radius:10px;">›</button>
@@ -3983,10 +3900,7 @@ input:focus,select:focus,textarea:focus{
 
   <!-- DOCK -->
   <div id="os-dock">
-    <div id="os-dock-inner">
-      <button id="os-start-btn" onclick="osToggleStartMenu()" title="Menu Ipsum">📰</button>
-      <div class="dock-sep" style="height:36px;margin:0 4px;align-self:center;"></div>
-    </div>
+    <div id="os-dock-inner"></div>
   </div>
 </div>
 
@@ -4009,56 +3923,6 @@ input:focus,select:focus,textarea:focus{
 
 <!-- PAGES CACHÉES (source pour les fenêtres) -->
 <div style="display:none;" id="pages-source">
-  <div id="page-sujets" style="display:none;">
-
-    <!-- ONGLETS -->
-    <div id="sujets-tabs" style="display:flex;gap:0;border-bottom:1.5px solid var(--gris-bord);margin-bottom:1rem;">
-      <button id="sujets-tab-liste" onclick="osSujetsChangerOnglet('liste')" style="font-family:monospace;font-size:0.72rem;padding:0.5rem 1.1rem;border:none;background:transparent;border-bottom:2.5px solid var(--rouge);color:var(--encre);cursor:pointer;font-weight:600;margin-bottom:-1.5px;">📌 Sujets</button>
-      <button id="sujets-tab-briefing" onclick="osSujetsChangerOnglet('briefing')" style="font-family:monospace;font-size:0.72rem;padding:0.5rem 1.1rem;border:none;background:transparent;border-bottom:2.5px solid transparent;color:var(--gris);cursor:pointer;font-weight:500;margin-bottom:-1.5px;display:none;">📋 Préparer un briefing</button>
-    </div>
-
-    <!-- ONGLET SUJETS -->
-    <div id="sujets-panel-liste">
-      <div id="sujets-win-list">
-        <div class="sujets-empty"></div>
-      </div>
-    </div>
-
-    <!-- ONGLET BRIEFING (rédac chef + admin) -->
-    <div id="sujets-panel-briefing" style="display:none;">
-      <div class="form-grid" style="margin-bottom:1.2rem;">
-        <div class="form-group">
-          <label>Edition</label>
-          <input type="text" id="brf-edition" placeholder="Ex: Edition 42">
-        </div>
-        <div class="form-group">
-          <label>Date de la newsletter</label>
-          <input type="date" id="brf-date">
-        </div>
-        <div class="form-group full">
-          <label>Note générale pour l'équipe</label>
-          <textarea id="brf-note" style="min-height:70px;" placeholder="Consignes générales, contexte de la semaine..."></textarea>
-        </div>
-        <div class="form-group full">
-          <label>Rédaction</label>
-          <select id="brf-redaction" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);font-family:monospace;font-size:0.8rem;"></select>
-        </div>
-      </div>
-      <div class="section-label">Sujets de la semaine</div>
-      <div id="brf-sujets-list" style="margin-bottom:0.8rem;"></div>
-      <button class="btn sec" onclick="brfAjouterSujet()" style="margin-bottom:1.5rem;">+ Ajouter un sujet</button>
-      <div class="btn-row">
-        <button class="btn" onclick="brfSauvegarderEtPublier()" style="background:linear-gradient(135deg,#155724,#1E7E34);">✅ Publier les sujets</button>
-        <button class="btn sec" onclick="brfExporterPDFVrai()">📄 Exporter en PDF</button>
-        <button class="btn sec" onclick="brfReset()">Tout effacer</button>
-      </div>
-      <hr style="border:none;border-top:1px solid var(--gris-bord);margin:2rem 0;">
-      <div class="section-label">Sujets en base <span id="brf-db-badge" style="font-family:monospace;font-size:0.65rem;padding:1px 6px;background:var(--rouge);color:white;border-radius:8px;display:none;"></span></div>
-      <button class="btn sec" onclick="brfChargerDB()" style="margin-bottom:0.8rem;font-size:0.8rem;">🔄 Afficher les sujets publiés</button>
-      <div id="brf-db-list" style="display:none;"></div>
-    </div>
-
-  </div>
 
 <!-- COMMUNIQUÉ -->
 <div class="page" id="page-communique">
@@ -4937,7 +4801,7 @@ input:focus,select:focus,textarea:focus{
 
 <!-- MODAL CP LECTEUR -->
 <!-- DRAWER COMMUNIQUE -->
-<div id="drawer-cp" style="display:none;position:fixed;top:var(--status-bar-height,28px);right:0;height:calc(100% - var(--status-bar-height,28px) - 50px);width:min(460px,45vw);background:var(--blanc);z-index:200;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;border-left:1px solid var(--gris-bord);">
+<div id="drawer-cp" style="display:none;position:fixed;top:0;right:0;height:calc(100% - 50px);width:min(460px,45vw);background:var(--blanc);z-index:200;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;border-left:1px solid var(--gris-bord);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:2px solid var(--encre);position:sticky;top:0;background:var(--blanc);z-index:1;">
     <div>
       <div style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.2rem;">Communique de presse</div>
@@ -8613,7 +8477,10 @@ function chargerProfilMembre(userId){
       var snEl = document.getElementById('start-menu-name');
       if(snEl) snEl.textContent = membre.prenom + ' ' + membre.nom;
       var srEl = document.getElementById('start-menu-role');
-      if(srEl) srEl.textContent = membre.role;
+      if(srEl){
+        var roleLabelsInit = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+        srEl.textContent = roleLabelsInit[membre.role] || membre.role;
+      }
     } else {
       // Nouveau compte sans ligne dans membres — ne pas écraser le localStorage avec un préfixe email
       var email = _session && _session.user ? _session.user.email : '';
@@ -9918,27 +9785,6 @@ function brfSauvegarderEtPublier(){
     if(badge){ badge.textContent = sujets.length; badge.style.display='inline'; }
   }).catch(function(){ notif('Erreur publication','erreur'); });
 }
-
-function osSujetsChangerOnglet(onglet){
-  var panelListe = document.getElementById('sujets-panel-liste');
-  var panelBriefing = document.getElementById('sujets-panel-briefing');
-  var tabListe = document.getElementById('sujets-tab-liste');
-  var tabBriefing = document.getElementById('sujets-tab-briefing');
-  if(!panelListe) return;
-  if(onglet === 'briefing'){
-    panelListe.style.display = 'none';
-    panelBriefing.style.display = 'block';
-    if(tabListe){ tabListe.style.borderBottomColor='transparent'; tabListe.style.color='var(--gris)'; tabListe.style.fontWeight='500'; }
-    if(tabBriefing){ tabBriefing.style.borderBottomColor='var(--rouge)'; tabBriefing.style.color='var(--encre)'; tabBriefing.style.fontWeight='600'; }
-    brfInitRedactionSelect();
-  } else {
-    panelListe.style.display = 'block';
-    panelBriefing.style.display = 'none';
-    if(tabListe){ tabListe.style.borderBottomColor='var(--rouge)'; tabListe.style.color='var(--encre)'; tabListe.style.fontWeight='600'; }
-    if(tabBriefing){ tabBriefing.style.borderBottomColor='transparent'; tabBriefing.style.color='var(--gris)'; tabBriefing.style.fontWeight='500'; }
-  }
-}
-
 
 function brfInitRedactionSelect(){
   var sel = document.getElementById('brf-redaction');
@@ -13318,7 +13164,7 @@ function osToggleSidebar(){
   var sb = document.getElementById('os-sidebar');
   var btn = document.getElementById('os-sidebar-toggle');
   if(sb) sb.style.right = _sidebarOpen ? '0' : '-280px';
-  if(btn) btn.textContent = _sidebarOpen ? '›' : '‹';
+  if(btn) btn.classList.toggle('active', _sidebarOpen);
   if(_sidebarOpen) osChargerWidgets();
 }
 
@@ -13485,11 +13331,19 @@ var _appRefreshMap = {
 
 var _dockContextMenu = null;
 
+function osAppliquerAlignementDock(pos){
+  pos = pos || localStorage.getItem('compo_os_dock_align') || 'gauche';
+  localStorage.setItem('compo_os_dock_align', pos);
+  var dockInner = document.getElementById('os-dock-inner');
+  if(dockInner) dockInner.classList.toggle('dock-align-centre', pos === 'centre');
+}
+
 function osBuildDock(){
   // Init DND au démarrage
   if(_session) setTimeout(function(){ osInitDND(); osVerifierDispoVisuels(); if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte(); }, 1000);
   var dock = document.getElementById('os-dock-inner');
   if(!dock) return;
+  osAppliquerAlignementDock();
 
   // Si _membreCourantFonction n'est pas encore chargé, le charger d'abord
   if(window._membreCourantFonction === undefined && getUserId()){
@@ -13514,7 +13368,7 @@ function osBuildDock(){
   var startBtn = document.createElement('div');
   startBtn.id = 'os-start-btn';
   startBtn.className = 'dock-icon';
-  startBtn.innerHTML = '<div class="dock-icon-img" style="background:var(--rouge);font-size:1.1rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);">📰</div><div class="dock-dot"></div><div class="dock-icon-label">Menu</div>';
+  startBtn.innerHTML = '<div class="dock-icon-pill"><div class="dock-icon-img" style="background:var(--rouge);font-size:1.15rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);">☰</div></div><div class="dock-dot"></div><div class="dock-icon-label">Menu</div>';
   startBtn.onclick = function(e){ e.stopPropagation(); osToggleStartMenu(); };
   dock.appendChild(startBtn);
 
@@ -13572,7 +13426,14 @@ function osBuildDock(){
   var tray = document.createElement('div');
   tray.id = 'os-taskbar-tray';
   tray.innerHTML =
-    '<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)">🔍</button>'
+    '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications">🗂️<span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
+    +'<button id="os-focus-btn" class="tray-btn" onclick="osToggleFocusMode()" style="opacity:0.6;font-size:0.8rem;" title="Activer le mode focus">🔔</button>'
+    +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
+    +'<span id="os-dnd-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
+    +'<span id="os-dnd-label">Disponible</span>'
+    +'</div>'
+    +'<button id="os-fs-btn" class="tray-btn" onclick="osToggleFullscreen()" title="Plein écran">⛶</button>'
+    +'<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)">🔍</button>'
     +'<div id="os-taskbar-clock" title="Horloge">'
     +'<span id="os-taskbar-time">--:--</span>'
     +'<span id="os-taskbar-date"></span>'
@@ -13580,6 +13441,8 @@ function osBuildDock(){
     +'<button id="os-taskbar-showdesktop" onclick="osShowDesktop()" title="Afficher le bureau"></button>';
   dock.appendChild(tray);
   osTaskbarClockInit();
+  osDNDMajUI();
+  dock.style.paddingRight = (tray.offsetWidth + 24) + 'px';
 }
 
 // Horloge de la barre des tâches — un seul interval global
@@ -13612,9 +13475,12 @@ function _creerSepDock(id){
 
 function _creerIconeDock(app, isPinned){
   var icon = document.createElement('div');
-  icon.className = 'dock-icon';
+  icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '');
   icon.dataset.page = app.id;
   icon.dataset.pinned = isPinned ? '1' : '0';
+
+  var pill = document.createElement('div');
+  pill.className = 'dock-icon-pill';
 
   var img = document.createElement('div');
   img.className = 'dock-icon-img';
@@ -13624,6 +13490,13 @@ function _creerIconeDock(app, isPinned){
   // Bordure subtile pour les apps non épinglées
   if(!isPinned) img.style.outline = '2px solid rgba(255,255,255,0.3)';
 
+  var name = document.createElement('div');
+  name.className = 'dock-icon-name';
+  name.textContent = app.label;
+
+  pill.appendChild(img);
+  pill.appendChild(name);
+
   var dot = document.createElement('div');
   dot.className = 'dock-dot' + (_windows[app.id] ? ' visible' : '');
   dot.id = 'dock-dot-'+app.id;
@@ -13632,7 +13505,7 @@ function _creerIconeDock(app, isPinned){
   label.className = 'dock-icon-label';
   label.textContent = app.label;
 
-  icon.appendChild(img);
+  icon.appendChild(pill);
   icon.appendChild(dot);
   icon.appendChild(label);
 
@@ -13945,7 +13818,8 @@ function _osOpenWindowExecuter(pageId){
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
-    newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets'
+    newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
+    snake:'🐍 Presse Express'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -14095,6 +13969,11 @@ function osLoadPageContent(pageId, winEl){
     return;
   }
 
+  if(pageId === 'snake'){
+    setTimeout(function(){ osSnakeRender(); }, 50);
+    return;
+  }
+
   if(pageId === 'tchap'){
     setTimeout(function(){ tchapRender(); }, 50);
     return;
@@ -14219,32 +14098,6 @@ function osLoadPageContent(pageId, winEl){
   // Page tutos spéciale
   if(pageId === 'tutos'){
     setTimeout(function(){ osTutoRender(); }, 50);
-    return;
-  }
-  
-  // Page sujets spéciale
-  if(pageId === 'sujets'){
-    content.innerHTML =
-      '<div style="display:flex;flex-direction:column;height:100%;">'
-      +'<div style="padding:0.7rem 1.2rem;border-bottom:1px solid var(--gris-bord);background:var(--gris-clair);flex-shrink:0;display:flex;align-items:center;gap:0.8rem;">'
-      +'<div style="flex:1;">'
-      +'<div style="font-weight:600;font-size:0.82rem;color:var(--encre);">Récap des nouveaux sujets</div>'
-      +'<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">Recevoir un email quand la rédac propose de nouveaux sujets ou CPs</div>'
-      +'</div>'
-      +'<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;flex-shrink:0;">'
-      +'<input type="checkbox" id="sujets-notif-toggle" style="accent-color:var(--rouge);width:16px;height:16px;" onchange="osSujetsToggleNotif(this.checked)">'
-      +'<span style="font-family:monospace;font-size:0.65rem;color:var(--gris);">M\'abonner</span>'
-      +'</label>'
-      +'</div>'
-      +'<div style="flex:1;overflow-y:auto;padding:1.2rem;">'
-      +'<div class="panel-title">Sujets à rédiger</div>'
-      +'<div class="panel-subtitle" style="margin-bottom:1rem;">Sujets proposés par la rédaction en chef. Réserve-en un pour commencer !</div>'
-      +'<div id="sujets-win-list-main"></div>'
-      +'</div>'
-      +'</div>';
-    osSujetsChargerNotifEtat();
-    var listEl = document.getElementById('sujets-win-list-main');
-    if(listEl){ osSujetsRender(_sujetsData, listEl); }
     return;
   }
   
@@ -14438,6 +14291,7 @@ function osSavePrompt(pageId){
 function osCloseWindowForce(pageId){
   var win = _windows[pageId];
   if(!win) return;
+  if(pageId === 'snake') osSnakeCleanup();
   var el = win.el;
   el.style.transform = 'scale(0.85)';
   el.style.opacity = '0';
@@ -14446,6 +14300,7 @@ function osCloseWindowForce(pageId){
     if(el.parentNode) el.parentNode.removeChild(el);
   }, 200);
   delete _windows[pageId];
+  if(window._activeWindowId === pageId) window._activeWindowId = null;
   // Mettre à jour le dock
   setTimeout(osDockMajFenetresOuvertes, 50);
   setTimeout(osVerifierDockVisibilite, 250);
@@ -14458,6 +14313,8 @@ function osFocusWindow(pageId){
   Object.values(_windows).forEach(function(w){ w.el.classList.remove('active'); });
   win.el.classList.add('active');
   win.el.style.zIndex = _zCounter;
+  window._activeWindowId = pageId;
+  osUpdateDockActiveState();
   // Refresh des données si la fonction existe
   var refreshFn = _appRefreshMap[pageId];
   if(refreshFn){
@@ -14471,10 +14328,20 @@ function osFocusWindow(pageId){
   }
 }
 
+function osUpdateDockActiveState(){
+  document.querySelectorAll('#os-dock .dock-icon').forEach(function(icon){
+    icon.classList.toggle('active-app', icon.dataset.page === window._activeWindowId);
+  });
+}
+
 function osMinimizeWindow(pageId){
   var win = _windows[pageId];
   if(!win) return;
   win.el.classList.add('minimized');
+  if(window._activeWindowId === pageId){
+    window._activeWindowId = null;
+    osUpdateDockActiveState();
+  }
 }
 
 function osMaximizeWindow(pageId){
@@ -14703,26 +14570,6 @@ function osBuildDesktopIcons(){
     container.appendChild(statsAdminIcon);
   }
 
-  // Icône Sujets toujours présente
-  var sujetsIcon = document.createElement('div');
-  sujetsIcon.className = 'desktop-icon';
-  sujetsIcon.onclick = osOuvrirSujets;
-  var sujetsImg = document.createElement('div');
-  sujetsImg.className = 'desktop-icon-img';
-  sujetsImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
-  sujetsImg.textContent = '📌';
-  sujetsImg.style.position = 'relative';
-  var sujetsBadge = document.createElement('span');
-  sujetsBadge.className = 'desktop-icon-badge';
-  sujetsBadge.id = 'desktop-badge-sujets';
-  sujetsImg.appendChild(sujetsBadge);
-  var sujetsLabel = document.createElement('div');
-  sujetsLabel.className = 'desktop-icon-label';
-  sujetsLabel.textContent = 'Sujets';
-  sujetsIcon.appendChild(sujetsImg);
-  sujetsIcon.appendChild(sujetsLabel);
-  container.appendChild(sujetsIcon);
-  
   // Toutes les apps disponibles
   var OFFLINE_APPS = ['edition', 'lecture'];
   var allApps = [
@@ -14778,6 +14625,20 @@ function osBuildDesktopIcons(){
     bugsIcon.appendChild(bugsImg); bugsIcon.appendChild(bugsLabel);
     container.appendChild(bugsIcon);
   }
+
+  // Icône Presse Express (mini-jeu snake)
+  var snakeIcon = document.createElement('div');
+  snakeIcon.className = 'desktop-icon';
+  snakeIcon.onclick = osOuvrirSnake;
+  var snakeImg = document.createElement('div');
+  snakeImg.className = 'desktop-icon-img';
+  snakeImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
+  snakeImg.textContent = '🐍';
+  var snakeLabel = document.createElement('div');
+  snakeLabel.className = 'desktop-icon-label';
+  snakeLabel.textContent = 'Presse Express';
+  snakeIcon.appendChild(snakeImg); snakeIcon.appendChild(snakeLabel);
+  container.appendChild(snakeIcon);
 
   // Icône Paramètres
   var paramsIcon = document.createElement('div');
@@ -15053,7 +14914,10 @@ function osToggleStartMenu(){
     var nameEl = document.getElementById('start-menu-name');
     var roleEl = document.getElementById('start-menu-role');
     if(nameEl) nameEl.textContent = getUserPrenom() + ' ' + getUserNom();
-    if(roleEl) roleEl.textContent = getUserRole();
+    if(roleEl){
+      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+      roleEl.textContent = roleLabels[getUserRole()] || getUserRole();
+    }
     var search = document.getElementById('sm-search');
     if(search) search.value = '';
     osStartMenuRender();
@@ -16563,220 +16427,57 @@ function osSujetsCharger(callback){
   }).catch(function(){ _sujetsData = []; });
 }
 
-function osSujetsRender(sujets, container){
-  if(!container) return;
-  container.innerHTML = '';
-  if(!sujets || !sujets.length){
-    container.innerHTML = '<div class="sujets-empty">Aucun sujet disponible pour le moment.</div>';
-    return;
+function osOuvrirSujets(){
+  // Fusionné avec Ma Rédac' — ouvre la rédaction directement sur l'onglet Sujets
+  _redacOnglet = 'sujets';
+  if(_windows['redactions']){
+    osFocusWindow('redactions');
+    osRedactionsChangerOnglet('sujets');
+  } else {
+    osOpenWindow('redactions');
   }
-  var PRIO = {urgente:'#721C24', normale:'#856404', faible:'#155724'};
-  var PRIO_BG = {urgente:'#F8D7DA', normale:'#FFF3CD', faible:'#D4EDDA'};
-  var TYPE = {article:'Article', breve:'Brève', reportage:'Reportage', interview:'Interview'};
-
-  sujets.forEach(function(s){
-    var card = document.createElement('div');
-    card.className = 'sujet-win-card';
-
-    var prio = s.priorite || 'normale';
-    var header = document.createElement('div');
-    header.className = 'sujet-win-card-header';
-
-    var titre = document.createElement('div');
-    titre.className = 'sujet-win-titre';
-    titre.textContent = s.titre || 'Sans titre';
-
-    var badges = document.createElement('div');
-    badges.style.cssText = 'display:flex;gap:0.4rem;flex-shrink:0;';
-    badges.innerHTML =
-      '<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO[prio]+';border:1px solid '+PRIO[prio]+';">'+prio+'</span>'+
-      '<span style="font-family:monospace;font-size:0.6rem;padding:2px 7px;background:#D6EAF8;color:#1A5276;border:1px solid #1A5276;">'+(TYPE[s.type]||s.type||'Article')+'</span>';
-
-    header.appendChild(titre);
-    header.appendChild(badges);
-
-    var footer = document.createElement('div');
-    footer.className = 'sujet-win-footer';
-
-    var nomMoi = getUserNomComplet();
-    var isPris = s.statut === 'en_cours' && s.responsable;
-    var estMoi = s.responsable && s.responsable.trim() === nomMoi.trim();
-
-    var meta = document.createElement('div');
-    meta.style.cssText = 'font-size:0.7rem;color:var(--gris);';
-    if(isPris){
-      meta.innerHTML = '<span style="font-weight:600;color:var(--encre);">✍️ '+esc(s.responsable)+'</span> <span style="color:var(--gris);">· en cours de rédaction</span>';
-    } else if(s.responsable){
-      meta.textContent = 'Pour : ' + s.responsable;
-    }
-
-    var btn = null;
-    if(!isPris){
-      btn = document.createElement('button');
-      btn.className = 'btn';
-      btn.textContent = 'Réserver et rédiger';
-      btn.style.cssText = 'font-size:0.7rem;padding:0.4rem 0.9rem;';
-      btn.onclick = (function(sujet){ return function(e){
-        e.stopPropagation();
-        _sujetCourant = sujet;
-        var titreEl = document.getElementById('sujet-modal-titre');
-        var metaEl = document.getElementById('sujet-modal-meta');
-        var noteEl = document.getElementById('sujet-modal-note');
-        if(titreEl) titreEl.textContent = sujet.titre || 'Sans titre';
-        if(metaEl){
-          metaEl.innerHTML = '';
-          var span = document.createElement('span');
-          span.style.cssText = 'font-family:monospace;font-size:0.62rem;padding:3px 8px;background:#FFF3CD;color:#856404;border:1px solid #856404;';
-          span.textContent = sujet.priorite || 'normale';
-          metaEl.appendChild(span);
-        }
-        if(noteEl && sujet.note){ noteEl.textContent=sujet.note; noteEl.style.display='block'; }
-        else if(noteEl){ noteEl.style.display='none'; }
-        var modal = document.getElementById('modal-sujet');
-        if(modal) modal.style.display = 'flex';
-      }; })(s);
-    } else if(estMoi){
-      btn = document.createElement('button');
-      btn.style.cssText = 'font-size:0.7rem;padding:0.4rem 0.9rem;background:transparent;border:1px solid #856404;color:#856404;cursor:pointer;border-radius:4px;';
-      btn.textContent = 'Abandonner';
-      btn.onclick = (function(sujet){ return function(e){
-        e.stopPropagation();
-        if(!confirm('Abandonner ce sujet ? Il redeviendra disponible.')) return;
-        var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-        fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id),{
-          method:'PATCH',headers:authH,
-          body:JSON.stringify({statut:'ouvert',responsable:null})
-        }).then(function(r){ if(r.ok){ notif('Sujet abandonné'); osOuvrirSujets(); } });
-      }; })(s);
-    }
-
-    if(s.note){
-      var note = document.createElement('div');
-      note.className = 'sujet-win-note';
-      note.textContent = s.note;
-      card.appendChild(header);
-      card.appendChild(note);
-    } else {
-      card.appendChild(header);
-    }
-    if(isPris){
-      card.style.cssText = card.className ? '' : '';
-      card.style.background = '#F9FAFB';
-      card.style.borderColor = '#D1D5DB';
-      card.style.opacity = '0.9';
-    }
-
-    footer.appendChild(meta);
-    if(btn) footer.appendChild(btn);
-    // Bouton supprimer — admin ou rédac chef sur ses propres sujets
-    var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId(); });
-    var isChefRedac = monLienRedac && monLienRedac.role_redac === 'redac_chef';
-    var peutSupprimerSujet = getUserRole() === 'admin' || (isChefRedac && s.created_by === getUserId());
-    if(peutSupprimerSujet){
-      var btnSuppr = document.createElement('button');
-      btnSuppr.style.cssText = 'font-size:0.65rem;padding:0.3rem 0.6rem;background:none;border:0.5px solid #A32D2D;border-radius:4px;color:#A32D2D;cursor:pointer;font-family:monospace;';
-      btnSuppr.textContent = '🗑️';
-      btnSuppr.title = 'Supprimer ce sujet';
-      btnSuppr.onclick = (function(sujet, cardEl){ return function(e){
-        e.stopPropagation();
-        if(!confirm('Supprimer le sujet "'+sujet.titre+'" ?')) return;
-        var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-        fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id),{method:'DELETE',headers:authH})
-        .then(function(r){
-          if(r.ok){ notif('Sujet supprimé','succes'); cardEl.remove(); }
-          else notif('Erreur suppression');
-        }).catch(function(){ notif('Erreur réseau'); });
-      }; })(s, card);
-      footer.appendChild(btnSuppr);
-    }
-    card.appendChild(footer);
-    container.appendChild(card);
-  });
 }
 
-function osOuvrirSujets(){
-  // Créer une fenêtre dédiée
-  if(!_windows['sujets']){
-    var fakePage = document.getElementById('page-sujets');
-    if(!fakePage){
-      fakePage = document.createElement('div');
-      fakePage.id = 'page-sujets';
-      document.getElementById('pages-source').appendChild(fakePage);
-    }
-    osOpenWindow('sujets');
-  } else {
-    osFocusWindow('sujets');
-  }
-  // Afficher l'onglet briefing pour rédac chef et admin
-  setTimeout(function(){
-    var role = getUserRole();
-    var tabBriefing = document.getElementById('sujets-tab-briefing');
-    if(tabBriefing){
-      var monLien = _membresRedactionsData && _membresRedactionsData.find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
-      var isChefOuAdmin = role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
-      tabBriefing.style.display = isChefOuAdmin ? 'block' : 'none';
-    }
-  }, 200);
-  // Construire le contenu de la fenêtre avec onglets
-  setTimeout(function(){
-    var wc = document.getElementById('wincontent-sujets');
-    if(!wc) return;
-    var role = getUserRole();
-    var monLien = (_membresRedactionsData||[]).find(function(mr){
-      return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId;
-    });
-    var isChefOuAdmin = role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
+function osOuvrirBriefingModal(){
+  var existing = document.getElementById('briefing-modal-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
 
-    // Construire le HTML (toujours, pour garantir les onglets)
-    var tabBriefingStyle = isChefOuAdmin ? '' : 'display:none;';
-    wc.innerHTML =
-      '<div style="display:flex;flex-direction:column;height:100%;">'
-      +'<div style="display:flex;border-bottom:1.5px solid var(--gris-bord);flex-shrink:0;background:white;">'
-      +'<button id="sujets-tab-liste" onclick="osSujetsChangerOnglet(\'liste\')" style="font-family:monospace;font-size:0.72rem;padding:0.6rem 1.1rem;border:none;background:transparent;border-bottom:2.5px solid var(--rouge);color:var(--encre);cursor:pointer;font-weight:600;margin-bottom:-1.5px;">📌 Sujets</button>'
-      +'<button id="sujets-tab-briefing" onclick="osSujetsChangerOnglet(\'briefing\')" style="font-family:monospace;font-size:0.72rem;padding:0.6rem 1.1rem;border:none;background:transparent;border-bottom:2.5px solid transparent;color:var(--gris);cursor:pointer;font-weight:500;margin-bottom:-1.5px;'+tabBriefingStyle+'">📋 Préparer un briefing</button>'
-      +'</div>'
-      +'<div id="sujets-panel-liste" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">'
-        +'<div style="padding:0.6rem 1.2rem;border-bottom:1px solid var(--gris-bord);background:var(--gris-clair);flex-shrink:0;display:flex;align-items:center;gap:0.8rem;">'
-        +'<div style="flex:1;"><div style="font-weight:600;font-size:0.78rem;color:var(--encre);">Nouveaux sujets</div>'
-        +'<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);">Recevoir un email quand de nouveaux sujets sont proposés</div></div>'
-        +'<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;flex-shrink:0;">'
-        +'<input type="checkbox" id="sujets-notif-toggle" style="accent-color:var(--rouge);width:15px;height:15px;" onchange="osSujetsToggleNotif(this.checked)">'
-        +'<span style="font-family:monospace;font-size:0.62rem;color:var(--gris);">M\'abonner</span>'
-        +'</label></div>'
-        +'<div style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">'
-        +'<div id="sujets-win-list-dyn"><div class="sujets-empty"></div></div>'
-        +'</div>'
-      +'</div>'
-      +'<div id="sujets-panel-briefing" style="flex:1;overflow-y:auto;padding:1.2rem;display:none;">'
-        +'<div class="form-grid" style="margin-bottom:1.2rem;">'
-        +'<div class="form-group"><label>Edition</label><input type="text" id="brf-edition" placeholder="Ex: Edition 42"></div>'
-        +'<div class="form-group"><label>Date</label><input type="date" id="brf-date"></div>'
-        +'<div class="form-group full"><label>Note générale</label><textarea id="brf-note" style="min-height:60px;" placeholder="Consignes générales..."></textarea></div>'
-        +'<div class="form-group full"><label>Rédaction</label><select id="brf-redaction" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);font-family:monospace;font-size:0.8rem;"></select></div>'
-        +'</div>'
-        +'<div class="section-label">Sujets</div>'
-        +'<div id="brf-sujets-list" style="margin-bottom:0.8rem;"></div>'
-        +'<button class="btn sec" onclick="brfAjouterSujet()" style="margin-bottom:1.2rem;">+ Ajouter un sujet</button>'
-        +'<div class="btn-row">'
-        +'<button class="btn" onclick="brfSauvegarderEtPublier()" style="background:linear-gradient(135deg,#155724,#1E7E34);">✅ Publier</button>'
-        +'<button class="btn sec" onclick="brfExporterPDFVrai()">📄 PDF</button>'
-        +'<button class="btn sec" onclick="brfReset()">Effacer</button>'
-        +'</div>'
-        +'<hr style="border:none;border-top:1px solid var(--gris-bord);margin:1.5rem 0;">'
-        +'<div class="section-label">Sujets publiés <span id="brf-db-badge" style="font-family:monospace;font-size:0.65rem;padding:1px 6px;background:var(--rouge);color:white;border-radius:8px;display:none;"></span></div>'
-        +'<button class="btn sec" onclick="brfChargerDB()" style="margin-bottom:0.8rem;font-size:0.8rem;">🔄 Afficher</button>'
-        +'<div id="brf-db-list" style="display:none;"></div>'
-      +'</div>'
-      +'</div>';
+  var overlay = document.createElement('div');
+  overlay.id = 'briefing-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-    osSujetsChargerNotifEtat();
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(640px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
+  card.innerHTML =
+    '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">📋 Préparer un briefing</div>'
+    +'<button onclick="document.getElementById(\'briefing-modal-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div class="form-grid" style="margin-bottom:1.2rem;">'
+    +'<div class="form-group"><label>Edition</label><input type="text" id="brf-edition" placeholder="Ex: Edition 42"></div>'
+    +'<div class="form-group"><label>Date</label><input type="date" id="brf-date"></div>'
+    +'<div class="form-group full"><label>Note générale</label><textarea id="brf-note" style="min-height:60px;" placeholder="Consignes générales..."></textarea></div>'
+    +'<div class="form-group full"><label>Rédaction</label><select id="brf-redaction" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);font-family:monospace;font-size:0.8rem;"></select></div>'
+    +'</div>'
+    +'<div class="section-label">Sujets</div>'
+    +'<div id="brf-sujets-list" style="margin-bottom:0.8rem;"></div>'
+    +'<button class="btn sec" onclick="brfAjouterSujet()" style="margin-bottom:1.2rem;">+ Ajouter un sujet</button>'
+    +'<div class="btn-row">'
+    +'<button class="btn" onclick="brfSauvegarderEtPublier()" style="background:linear-gradient(135deg,#155724,#1E7E34);">✅ Publier</button>'
+    +'<button class="btn sec" onclick="brfExporterPDFVrai()">📄 PDF</button>'
+    +'<button class="btn sec" onclick="brfReset()">Effacer</button>'
+    +'</div>'
+    +'<hr style="border:none;border-top:1px solid var(--gris-bord);margin:1.5rem 0;">'
+    +'<div class="section-label">Sujets publiés <span id="brf-db-badge" style="font-family:monospace;font-size:0.65rem;padding:1px 6px;background:var(--rouge);color:white;border-radius:8px;display:none;"></span></div>'
+    +'<button class="btn sec" onclick="brfChargerDB()" style="margin-bottom:0.8rem;font-size:0.8rem;">🔄 Afficher</button>'
+    +'<div id="brf-db-list" style="display:none;"></div>'
+    +'</div>';
 
-    var listEl = document.getElementById('sujets-win-list-dyn');
-    if(listEl){
-      listEl.innerHTML = osLoadingHtml();
-      osSujetsCharger(function(sujets){ osSujetsRender(sujets, listEl); });
-    }
-  }, 200);
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  brfInitRedactionSelect();
 }
 
 function osSujetsChargerNotifEtat(){
@@ -17719,7 +17420,42 @@ function osParamsRenderSection(section, container){
     themeAction.appendChild(btnSombre);
     rowTheme.appendChild(themeAction);
     container.appendChild(rowTheme);
-    
+
+    // Position des icônes de la barre des tâches
+    var rowDockAlign = document.createElement('div');
+    rowDockAlign.className = 'params-row';
+    var alignActif = localStorage.getItem('compo_os_dock_align') || 'gauche';
+    rowDockAlign.innerHTML = '<div><div class="params-label">Icônes de la barre des tâches</div><div class="params-label-sub">Position des icônes d\'apps (dont le Menu)</div></div>';
+
+    var alignAction = document.createElement('div');
+    alignAction.style.cssText = 'display:flex;gap:0.4rem;';
+
+    var btnGauche = document.createElement('button');
+    var styleActif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
+    var styleInactif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
+    btnGauche.style.cssText = alignActif === 'gauche' ? styleActif : styleInactif;
+    btnGauche.textContent = '◀ Gauche';
+
+    var btnCentre = document.createElement('button');
+    btnCentre.style.cssText = alignActif === 'centre' ? styleActif : styleInactif;
+    btnCentre.textContent = '• Centre';
+
+    btnGauche.onclick = function(){
+      osAppliquerAlignementDock('gauche');
+      btnGauche.style.cssText = styleActif;
+      btnCentre.style.cssText = styleInactif;
+    };
+    btnCentre.onclick = function(){
+      osAppliquerAlignementDock('centre');
+      btnCentre.style.cssText = styleActif;
+      btnGauche.style.cssText = styleInactif;
+    };
+
+    alignAction.appendChild(btnGauche);
+    alignAction.appendChild(btnCentre);
+    rowDockAlign.appendChild(alignAction);
+    container.appendChild(rowDockAlign);
+
     // Fond decran
     var rowWp = document.createElement('div');
     rowWp.className = 'params-row';
@@ -17988,6 +17724,189 @@ function osOuvrirAppCorrection(){
 }
 
 
+
+// ===== MINI-JEU PRESSE EXPRESS (snake) =====
+var SNAKE_GRID = 16;
+var _snakeState = null;
+var _snakeLoopId = null;
+var _snakeKeyHandler = null;
+
+function osOuvrirSnake(){
+  if(_windows['snake']) osFocusWindow('snake');
+  else osOpenWindow('snake');
+}
+
+function osSnakeRender(){
+  var wc = document.getElementById('wincontent-snake');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;background:#0D0D1A;overflow:hidden;';
+  wc.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;flex-shrink:0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:white;">🐍 Presse Express</div>'
+    +'<div style="font-family:monospace;font-size:0.75rem;color:#FAC775;">Score : <span id="snake-score">0</span></div>'
+    +'</div>'
+    +'<div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;padding:0 1rem 1rem;">'
+    +'<canvas id="snake-canvas" style="display:block;background:#15151F;border-radius:8px;"></canvas>'
+    +'<div id="snake-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;background:rgba(13,13,26,0.92);">'
+    +'<div style="font-size:2rem;">🗞️</div>'
+    +'<div id="snake-overlay-title" style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;padding:0 1rem;">Attrape le journal !</div>'
+    +'<div style="font-family:monospace;font-size:0.68rem;color:rgba(255,255,255,0.5);text-align:center;max-width:220px;">Flèches ou ZQSD pour diriger le serpent.</div>'
+    +'<button onclick="osSnakeDemarrer()" style="font-family:DM Sans,sans-serif;font-weight:600;font-size:0.82rem;padding:0.55rem 1.4rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;">Jouer</button>'
+    +'</div>'
+    +'</div>';
+  osSnakeRedimensionnerCanvas();
+}
+
+function osSnakeRedimensionnerCanvas(){
+  var canvas = document.getElementById('snake-canvas');
+  if(!canvas) return;
+  var wrap = canvas.parentElement;
+  var taille = Math.floor(Math.max(200, Math.min(wrap.clientWidth - 32, wrap.clientHeight - 32, 480)));
+  canvas.width = taille;
+  canvas.height = taille;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#15151F';
+  ctx.fillRect(0, 0, taille, taille);
+}
+
+function osSnakePlacerJournal(serpent){
+  var libres = [];
+  for(var x=0; x<SNAKE_GRID; x++){
+    for(var y=0; y<SNAKE_GRID; y++){
+      if(!serpent.some(function(s){ return s.x===x && s.y===y; })) libres.push({x:x, y:y});
+    }
+  }
+  return libres[Math.floor(Math.random()*libres.length)];
+}
+
+function osSnakeDemarrer(){
+  var canvas = document.getElementById('snake-canvas');
+  if(!canvas) return;
+  osSnakeRedimensionnerCanvas();
+  var overlay = document.getElementById('snake-overlay');
+  if(overlay) overlay.style.display = 'none';
+
+  var depart = [{x:7,y:8},{x:6,y:8},{x:5,y:8}];
+  _snakeState = {
+    serpent: depart,
+    direction: {x:1, y:0},
+    prochaineDirection: {x:1, y:0},
+    journal: osSnakePlacerJournal(depart),
+    score: 0,
+    vitesse: 190,
+    enCours: true
+  };
+  osSnakeMajScore();
+  osSnakeDessiner();
+
+  if(_snakeLoopId) clearTimeout(_snakeLoopId);
+  _snakeLoopId = setTimeout(osSnakeTick, _snakeState.vitesse);
+
+  if(_snakeKeyHandler) document.removeEventListener('keydown', _snakeKeyHandler);
+  _snakeKeyHandler = function(e){
+    if(!_snakeState || !_snakeState.enCours) return;
+    var win = _windows['snake'];
+    if(!win || !win.el.classList.contains('active')) return;
+    var carte = {
+      ArrowUp:{x:0,y:-1}, z:{x:0,y:-1}, Z:{x:0,y:-1},
+      ArrowDown:{x:0,y:1}, s:{x:0,y:1}, S:{x:0,y:1},
+      ArrowLeft:{x:-1,y:0}, q:{x:-1,y:0}, Q:{x:-1,y:0},
+      ArrowRight:{x:1,y:0}, d:{x:1,y:0}, D:{x:1,y:0}
+    };
+    var nd = carte[e.key];
+    if(!nd) return;
+    e.preventDefault();
+    var d = _snakeState.direction;
+    if(nd.x === -d.x && nd.y === -d.y) return;
+    _snakeState.prochaineDirection = nd;
+  };
+  document.addEventListener('keydown', _snakeKeyHandler);
+}
+
+function osSnakeTick(){
+  if(!_snakeState || !_snakeState.enCours) return;
+  var s = _snakeState;
+  s.direction = s.prochaineDirection;
+  var tete = { x: s.serpent[0].x + s.direction.x, y: s.serpent[0].y + s.direction.y };
+
+  var collision = tete.x < 0 || tete.x >= SNAKE_GRID || tete.y < 0 || tete.y >= SNAKE_GRID
+    || s.serpent.some(function(seg){ return seg.x===tete.x && seg.y===tete.y; });
+
+  if(collision){
+    osSnakeGameOver();
+    return;
+  }
+
+  s.serpent.unshift(tete);
+
+  if(tete.x === s.journal.x && tete.y === s.journal.y){
+    s.score++;
+    osSnakeMajScore();
+    s.journal = osSnakePlacerJournal(s.serpent);
+    s.vitesse = Math.max(110, s.vitesse - 2);
+  } else {
+    s.serpent.pop();
+  }
+
+  osSnakeDessiner();
+  _snakeLoopId = setTimeout(osSnakeTick, s.vitesse);
+}
+
+function osSnakeMajScore(){
+  var el = document.getElementById('snake-score');
+  if(el) el.textContent = _snakeState ? _snakeState.score : 0;
+}
+
+function osSnakeRoundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function osSnakeDessiner(){
+  var canvas = document.getElementById('snake-canvas');
+  if(!canvas || !_snakeState) return;
+  var ctx = canvas.getContext('2d');
+  var cell = canvas.width / SNAKE_GRID;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#15151F';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = (cell*0.85)+'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🗞️', (_snakeState.journal.x+0.5)*cell, (_snakeState.journal.y+0.5)*cell+1);
+
+  _snakeState.serpent.forEach(function(seg, i){
+    ctx.fillStyle = i===0 ? '#E8461E' : 'rgba(232,70,30,'+(0.9 - Math.min(i*0.03, 0.55))+')';
+    var pad = cell*0.08;
+    osSnakeRoundRect(ctx, seg.x*cell+pad, seg.y*cell+pad, cell-pad*2, cell-pad*2, cell*0.25);
+  });
+}
+
+function osSnakeGameOver(){
+  if(_snakeState) _snakeState.enCours = false;
+  if(_snakeLoopId){ clearTimeout(_snakeLoopId); _snakeLoopId = null; }
+  var overlay = document.getElementById('snake-overlay');
+  var titre = document.getElementById('snake-overlay-title');
+  if(titre) titre.textContent = 'Édition bouclée ! Score : '+(_snakeState ? _snakeState.score : 0);
+  if(overlay){
+    overlay.style.display = 'flex';
+    var btn = overlay.querySelector('button');
+    if(btn) btn.textContent = 'Rejouer';
+  }
+}
+
+function osSnakeCleanup(){
+  if(_snakeLoopId){ clearTimeout(_snakeLoopId); _snakeLoopId = null; }
+  if(_snakeKeyHandler){ document.removeEventListener('keydown', _snakeKeyHandler); _snakeKeyHandler = null; }
+  _snakeState = null;
+}
 
 // ===== DASHBOARD STATS =====
 var _statsData = [];
@@ -19448,6 +19367,22 @@ function cpsInvitationCreerSujet(cpId){
   });
 }
 
+function _cpsChargerSujetsParCp(cpIds, callback){
+  if(!cpIds || !cpIds.length){ window._cpsSujetsParCp = {}; if(callback) callback(); return; }
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?cp_id=in.('+cpIds.map(function(id){return encodeURIComponent(id);}).join(',')+')&select=id,cp_id,statut,responsable', {headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    var map = {};
+    (rows && !rows.code ? rows : []).forEach(function(row){
+      var existant = map[row.cp_id];
+      if(!existant || (row.statut==='en_cours' && existant.statut!=='en_cours')) map[row.cp_id] = row;
+    });
+    window._cpsSujetsParCp = map;
+    if(callback) callback();
+  }).catch(function(){ window._cpsSujetsParCp = {}; if(callback) callback(); });
+}
+
 function cpsCharger(){
   var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
   if(!liste) return;
@@ -19460,7 +19395,9 @@ function cpsCharger(){
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;
     window._cpsData = cps;
-    cpsRendreListe(liste, cps);
+    _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
+      cpsRendreListe(liste, cps);
+    });
   }).catch(function(){ liste.innerHTML = osErreurHtml('cpsCharger'); });
 }
 
@@ -19768,8 +19705,14 @@ function cpsMakeCard(cp, isAdmin){
   }
 
   // Boutons éditoriaux — Transformer en sujet / Créer article
-  var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;" onclick="event.stopPropagation()">'
-    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;">📌 Transformer en sujet</button>'
+  var sujetLie = (window._cpsSujetsParCp||{})[cp.id];
+  var boutonSujet = sujetLie
+    ? (sujetLie.statut === 'en_cours'
+        ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;">✍️ Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
+        : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;">📌 Sujet créé — pas encore réservé</span>')
+    : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;">📌 Transformer en sujet</button>';
+  var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
+    +boutonSujet
     +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;">✍️ Créer un article</button>'
     +(cp.fichier_pdf?'<button data-url="'+esc(cp.fichier_pdf)+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;">📎 Télécharger PDF</button>':'')
     +'</div>';
@@ -19791,7 +19734,7 @@ function cpsMakeCard(cp, isAdmin){
 }
 
 function cpsCréerSujet(cpId){
-  var cps = window._cpsData||[];
+  var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
@@ -19816,7 +19759,7 @@ function cpsCréerSujet(cpId){
 }
 
 function cpsCréerArticle(cpId){
-  var cps = window._cpsData||[];
+  var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
   // Ouvrir la rédaction avec le CP pré-rempli
@@ -20471,7 +20414,9 @@ function cpsAdminCharger(){
     }
 
     window._cpAdminListe = cps;
-    cpsFiltres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
+    _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
+      cpsFiltres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, true)); });
+    });
   }).catch(function(){
     liste.innerHTML = osErreurHtml('cpsCharger');
   });
@@ -20492,18 +20437,29 @@ function cpsEnvoyerNotifsManuelles(){
       return;
     }
 
-    // Récupérer tous les abonnés
-    fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(abos){
-      if(!abos||abos.code||!abos.length){
-        notif('Aucun abonné');
+    // Récupérer les abonnés globaux + tous les membres des rédactions concernées par ces CPs
+    // (un CP marqué pour une rédaction doit prévenir toute la rédaction, pas seulement les abonnés manuels)
+    var redactionIds = cps.map(function(cp){return cp.redaction_id;}).filter(Boolean);
+    redactionIds = redactionIds.filter(function(id,i){ return redactionIds.indexOf(id)===i; });
+
+    Promise.all([
+      fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id',{headers:authH}).then(function(r){return r.json();}),
+      redactionIds.length
+        ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=in.('+redactionIds.join(',')+')&select=membre_id',{headers:authH}).then(function(r){return r.json();})
+        : Promise.resolve([])
+    ])
+    .then(function(res){
+      var abos = (!res[0]||res[0].code) ? [] : res[0];
+      var redacMembres = (!res[1]||res[1].code) ? [] : res[1];
+      var ids = abos.map(function(a){return a.membre_id;}).concat(redacMembres.map(function(a){return a.membre_id;}));
+      ids = ids.filter(function(id,i){ return ids.indexOf(id)===i; });
+      if(!ids.length){
+        notif('Aucun destinataire (ni abonné, ni rédaction ciblée)');
         if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
         return;
       }
-      var ids = abos.map(function(a){return a.membre_id;});
-      // Filtrer directement en base sur les IDs abonnés avec email valide
-      var idsFilter = '('+ids.join(',')+')'; 
+      // Filtrer directement en base sur les IDs concernés avec email valide
+      var idsFilter = '('+ids.join(',')+')';
       fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom&actif=eq.true&id=in.'+idsFilter+'&email=not.is.null',{headers:SB_HEADERS})
       .then(function(r){return r.json();})
       .then(function(destinataires){
@@ -20549,7 +20505,7 @@ function cpsEnvoyerNotifsManuelles(){
             +'<p>'+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
             +cpHtml
             +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'
-            +'<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo. Pour te désabonner, rends-toi dans l\'appli CPs → onglet Abonnements.</p>';
+            +'<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo, ou parce que ta rédaction est concernée par au moins un de ces communiqués.</p>';
           envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
           .then(function(r){
             if(r && r.ok !== false) nb++;
@@ -21465,26 +21421,35 @@ function osRedactionsRender(){
 }
 
 // ---- SÉLECTEUR MULTI-RÉDACTIONS ----
+var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur', correcteur:'Correcteur', admin:'Admin'};
+
 function osRedactionsRenderSelecteur(wc, uid, liens){
   var h = '<div style="padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;">';
   h += '<div style="text-align:center;">';
   h += '<div style="font-size:2rem;margin-bottom:0.8rem;">🗞️</div>';
   h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:var(--encre);margin-bottom:0.4rem;">Dans quelle rédaction veux-tu travailler ?</div>';
-  h += '<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);">Tu es membre de plusieurs rédactions.</div>';
+  h += '<div style="font-family:monospace;font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;">Tu es membre de '+liens.length+' rédactions</div>';
   h += '</div>';
-  h += '<div style="display:flex;flex-direction:column;gap:0.7rem;width:100%;max-width:340px;">';
+  h += '<div style="display:flex;flex-direction:column;gap:0.6rem;width:100%;max-width:420px;">';
+  var tousArticles = window._tousArticles || [];
   liens.forEach(function(lien){
     var redac = _redactionsData.find(function(r){ return r.id === lien.redaction_id; });
     if(!redac) return;
     var couleur = redac.couleur || '#EA5B1C';
     var membresCount = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; }).length;
-    h += '<button onclick="osRedactionsChoisirRedac(\''+lien.redaction_id+'\')" style="display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;background:white;border:1.5px solid var(--gris-bord);border-radius:12px;cursor:pointer;text-align:left;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\''+couleur+'\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'">';
-    h += '<div style="width:40px;height:40px;border-radius:10px;background:'+couleur+';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">🗞️</div>';
+    var enCours = tousArticles.filter(function(a){ return a.redaction_id === redac.id && a.statut !== 'publie'; }).length;
+    var isChef = lien.role_redac === 'redac_chef';
+    var roleLabel = ROLE_REDAC_LABELS[lien.role_redac] || lien.role_redac || '';
+    h += '<button onclick="osRedactionsChoisirRedac(\''+lien.redaction_id+'\')" style="display:flex;align-items:center;gap:0.9rem;padding:0.85rem 1rem;background:white;border:1px solid var(--gris-bord);border-left:3px solid '+couleur+';border-radius:11px;cursor:pointer;text-align:left;transition:border-color 0.15s, transform 0.15s;" onmouseover="this.style.borderColor=\''+couleur+'\';this.style.transform=\'translateX(2px)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\';this.style.borderLeftColor=\''+couleur+'\';this.style.transform=\'none\'">';
+    h += '<div style="width:38px;height:38px;border-radius:10px;background:'+couleur+';display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;color:white;">🗞️</div>';
     h += '<div style="flex:1;min-width:0;">';
-    h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">'+esc(redac.nom)+'</div>';
-    h += '<div style="font-family:monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+(redac.departement||'')+' · '+membresCount+' membre(s) · '+(lien.role_redac==='redac_chef'?'<span style="color:#27500A;background:#C0DD97;padding:1px 6px;border-radius:3px;">Rédac chef</span>':lien.role_redac)+'</div>';
-    h += '</div>';
-    h += '<div style="font-size:1.2rem;color:var(--gris);">→</div>';
+    h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.86rem;color:var(--encre);">'+esc(redac.nom)+'</div>';
+    h += '<div style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-top:0.3rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
+    h += isChef ? '<span style="font-size:0.56rem;padding:1px 6px;border-radius:3px;background:#EAF3DE;color:#27500A;">'+roleLabel+'</span>' : '<span>'+esc(roleLabel)+'</span>';
+    h += '<span>👥 '+membresCount+'</span>';
+    h += '<span>✍️ '+enCours+' en cours</span>';
+    h += '</div></div>';
+    h += '<div style="color:var(--gris);font-size:1rem;flex-shrink:0;">→</div>';
     h += '</button>';
   });
   h += '</div></div>';
@@ -21498,24 +21463,30 @@ function _osAfficherSelecteurRedaction(liens){
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+((_session&&_session.access_token)||localStorage.getItem('ipsum_token')||'')});
   var redacIds = liens.map(function(l){ return l.redaction_id; });
-  // Utiliser _redactionsData si déjà chargé
-  if(window._redactionsData && window._redactionsData.length){
-    var redactionsFiltrees = _redactionsData.filter(function(r){ return redacIds.indexOf(r.id) !== -1; });
-    _osAfficherSelecteurRedactionRender(redactionsFiltrees, liens);
-    return;
-  }
-  // Charger les rédactions avec la clé anon (pas besoin de token)
-  fetch(SB_URL+'/rest/v1/redactions?select=id,nom,couleur&order=nom.asc', {headers: SB_HEADERS})
-  .then(function(r){return r.json();})
-  .then(function(toutes){
-    var redactions = (toutes&&!toutes.code) ? toutes.filter(function(r){ return redacIds.indexOf(r.id)!==-1; }) : [];
-    _osAfficherSelecteurRedactionRender(redactions, liens);
-  }).catch(function(){
-    _osAfficherSelecteurRedactionRender([], liens);
+
+  var pRedactions = (window._redactionsData && window._redactionsData.length)
+    ? Promise.resolve(_redactionsData.filter(function(r){ return redacIds.indexOf(r.id) !== -1; }))
+    : fetch(SB_URL+'/rest/v1/redactions?select=id,nom,couleur&order=nom.asc', {headers: SB_HEADERS})
+        .then(function(r){return r.json();})
+        .then(function(toutes){ return (toutes&&!toutes.code) ? toutes.filter(function(r){ return redacIds.indexOf(r.id)!==-1; }) : []; })
+        .catch(function(){ return []; });
+
+  // Effectif par rédaction — requête légère, juste pour l'affichage des stats
+  var pEffectifs = fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=in.('+redacIds.join(',')+')&select=redaction_id', {headers: authH})
+    .then(function(r){return r.json();})
+    .then(function(rows){ return (rows&&!rows.code) ? rows : []; })
+    .catch(function(){ return []; });
+
+  Promise.all([pRedactions, pEffectifs]).then(function(res){
+    var redactions = res[0];
+    var effectifsParRedac = {};
+    res[1].forEach(function(row){ effectifsParRedac[row.redaction_id] = (effectifsParRedac[row.redaction_id]||0) + 1; });
+    _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac);
   });
 }
 
-function _osAfficherSelecteurRedactionRender(redactions, liens){
+function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac){
+    effectifsParRedac = effectifsParRedac || {};
     var overlay = document.createElement('div');
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
@@ -21532,8 +21503,8 @@ function _osAfficherSelecteurRedactionRender(redactions, liens){
     title.textContent = 'Dans quelle rédaction veux-tu travailler ?';
 
     var sub = document.createElement('div');
-    sub.style.cssText = 'font-family:monospace;font-size:0.75rem;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:2rem;';
-    sub.textContent = 'Tu es membre de plusieurs rédactions.';
+    sub.style.cssText = 'font-family:monospace;font-size:0.68rem;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:2rem;text-transform:uppercase;letter-spacing:0.06em;';
+    sub.textContent = 'Tu es membre de '+liens.length+' rédactions';
 
     card.appendChild(icon);
     card.appendChild(title);
@@ -21544,20 +21515,23 @@ function _osAfficherSelecteurRedactionRender(redactions, liens){
       var nom = redac ? redac.nom : lien.redaction_id;
       var couleur = redac ? (redac.couleur||'#EA5B1C') : '#EA5B1C';
       var isChef = lien.role_redac === 'redac_chef';
+      var roleLabel = ROLE_REDAC_LABELS[lien.role_redac] || lien.role_redac || '';
+      var membresCount = effectifsParRedac[lien.redaction_id] || 0;
 
       var btn = document.createElement('button');
-      btn.style.cssText = 'display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;cursor:pointer;text-align:left;width:100%;margin-bottom:0.8rem;transition:background 0.15s,border-color 0.15s;';
-      btn.onmouseover = function(){ this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor=couleur; };
-      btn.onmouseout  = function(){ this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'; };
+      btn.style.cssText = 'display:flex;align-items:center;gap:0.9rem;padding:0.9rem 1.1rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-left:3px solid '+couleur+';border-radius:11px;cursor:pointer;text-align:left;width:100%;margin-bottom:0.6rem;transition:background 0.15s,border-color 0.15s,transform 0.15s;';
+      btn.onmouseover = function(){ this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor=couleur; this.style.transform='translateX(2px)'; };
+      btn.onmouseout  = function(){ this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'; this.style.borderLeftColor=couleur; this.style.transform='none'; };
 
       btn.innerHTML =
-        '<div style="width:44px;height:44px;border-radius:12px;background:'+couleur+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">✍️</div>'
+        '<div style="width:38px;height:38px;border-radius:10px;background:'+couleur+';display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;">🗞️</div>'
         +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:white;">'+esc(nom)+'</div>'
-        +'<div style="font-family:monospace;font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:2px;">'
-        +(isChef?'<span style="background:#C0DD97;color:#27500A;padding:1px 6px;border-radius:3px;font-size:0.6rem;">Rédac chef</span>':'rédacteur')
+        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:white;">'+esc(nom)+'</div>'
+        +'<div style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">'
+        +(isChef?'<span style="background:#C0DD97;color:#27500A;padding:1px 6px;border-radius:3px;font-size:0.56rem;">'+roleLabel+'</span>':'<span>'+esc(roleLabel)+'</span>')
+        +'<span>👥 '+membresCount+'</span>'
         +'</div></div>'
-        +'<div style="color:rgba(255,255,255,0.3);font-size:1.1rem;">→</div>';
+        +'<div style="color:rgba(255,255,255,0.3);font-size:1rem;flex-shrink:0;">→</div>';
 
       btn.onclick = function(){
         overlay.remove();
@@ -21878,7 +21852,17 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
 }
 
 function osRedactionsMembre_OngletSujets(uid, roleRedac){
-  return '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
+  var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;margin-bottom:0.8rem;flex-wrap:wrap;">'
+    +'<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-family:monospace;font-size:0.62rem;color:var(--gris);">'
+    +'<input type="checkbox" id="sujets-notif-toggle" style="accent-color:var(--rouge);width:15px;height:15px;" onchange="osSujetsToggleNotif(this.checked)">'
+    +'M\'abonner aux nouveaux sujets par email</label>';
+  if(isChefOuAdmin){
+    h += '<button onclick="osOuvrirBriefingModal()" style="font-family:monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">+ Nouveau sujet</button>';
+  }
+  h += '</div>';
+  h += '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  return h;
 }
 
 function osRedacChargerSujets(zone, roleRedac){
@@ -21918,9 +21902,10 @@ function osRedacChargerSujets(zone, roleRedac){
           +'<span style="font-size:0.7rem;font-weight:600;color:#374151;">✍️ '+esc(s.responsable)+'</span>'
           +'<span style="font-size:0.62rem;color:var(--gris);">en cours de rédaction</span>'
           +'</div>';
-        // Si c'est moi, proposer d'abandonner
+        // Si c'est moi, proposer d'écrire l'article ou d'abandonner
         if(estMoi){
-          h += '<button data-sid="'+s.id+'" onclick="brfAbandonnerSujetDepuisRedac(this.dataset.sid)" style="font-family:monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;">Abandonner</button>';
+          h += '<button data-sid="'+s.id+'" onclick="osRedacRedigerSujet(this.dataset.sid)" style="font-family:monospace;font-size:0.6rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">✍️ Rédiger</button>'
+            +'<button data-sid="'+s.id+'" onclick="brfAbandonnerSujetDepuisRedac(this.dataset.sid)" style="font-family:monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;">Abandonner</button>';
         }
       } else {
         // Sujet libre — bouton Réserver
@@ -22566,30 +22551,36 @@ function osRedacOuvrirSujet(el){
   var sujetId = el.dataset.sujetId;
   var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
   if(!sujet){ osOuvrirSujets(); return; }
-  _sujetCourant = sujet;
-  var titreEl = document.getElementById('sujet-modal-titre');
-  var metaEl  = document.getElementById('sujet-modal-meta');
-  var noteEl  = document.getElementById('sujet-modal-note');
-  if(titreEl) titreEl.textContent = sujet.titre||'Sans titre';
-  if(metaEl){ metaEl.innerHTML=''; var sp=document.createElement('span'); sp.style.cssText='font-family:monospace;font-size:0.62rem;padding:3px 8px;background:#FFF3CD;color:#856404;border:1px solid #856404;'; sp.textContent=sujet.priorite||'normale'; metaEl.appendChild(sp); }
-  if(noteEl&&sujet.note){ noteEl.textContent=sujet.note; noteEl.style.display='block'; } else if(noteEl){ noteEl.style.display='none'; }
-  var modal = document.getElementById('modal-sujet');
-  if(modal) modal.style.display='flex';
+  ouvrirModalSujet(sujet);
 }
 
 function osRedacReserverSujet(btn){
   var sujetId = btn.dataset.sujetId;
   var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
   if(!sujet) return;
-  _sujetCourant = sujet;
-  var titreEl = document.getElementById('sujet-modal-titre');
-  var metaEl  = document.getElementById('sujet-modal-meta');
-  var noteEl  = document.getElementById('sujet-modal-note');
-  if(titreEl) titreEl.textContent = sujet.titre||'Sans titre';
-  if(metaEl){ metaEl.innerHTML=''; var sp=document.createElement('span'); sp.style.cssText='font-family:monospace;font-size:0.62rem;padding:3px 8px;background:#FFF3CD;color:#856404;border:1px solid #856404;'; sp.textContent=sujet.priorite||'normale'; metaEl.appendChild(sp); }
-  if(noteEl&&sujet.note){ noteEl.textContent=sujet.note; noteEl.style.display='block'; } else if(noteEl){ noteEl.style.display='none'; }
-  var modal = document.getElementById('modal-sujet');
-  if(modal) modal.style.display='flex';
+  ouvrirModalSujet(sujet);
+}
+
+function osRedacRedigerSujet(sujetId){
+  var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+  var draft = drafts.find(function(d){ return d._sujet_id === sujetId; });
+  if(draft){
+    reprendreBrouillon(draft.id);
+    return;
+  }
+  // Pas de brouillon local retrouvé (autre appareil, cache vidé...) — repartir d'une rédaction pré-remplie avec les infos du sujet
+  var sujet = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
+  if(!sujet){ notif('Sujet introuvable','erreur'); return; }
+  go('redaction');
+  setTimeout(function(){
+    setType(sujet.type||'article');
+    var titreEl = document.getElementById('r-titre');
+    if(titreEl){ titreEl.value = sujet.titre||''; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
+    var angleEl = document.getElementById('r-angle');
+    if(angleEl) angleEl.value = sujet.note||'';
+    preremplirAuteur();
+    setUrg(sujet.priorite === 'urgente' ? 'urgent' : 'normal');
+  }, 100);
 }
 
 function osSujetSupprimerDepuisRedac(sujetId){
@@ -22849,6 +22840,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   if(_redacOnglet === 'sujets'){
     var zoneSujets = document.getElementById('redac-sujets-zone');
     if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac);
+    osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac'){
     var zoneEdito = document.getElementById('redac-chef-edito-zone');
@@ -25523,6 +25515,7 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'</div>'
       +'<span style="font-size:.6rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+';font-weight:600;">'+esc(m.role||'')+'</span>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion">✉️</button>'
+      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer un lien de création de mot de passe">📨</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe">🔑</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
       +'</div>';
@@ -25618,6 +25611,24 @@ function osInviterMembreValider(){
   .catch(function(err){
     if(errEl){errEl.textContent='Erreur réseau : '+String(err);errEl.style.display='block';}
     if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
+  });
+}
+
+function osRenvoyerInvitation(email, nom, btn){
+  if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
+  if(!confirm('Renvoyer un lien de création de mot de passe à '+nom+' ('+email+') ?')) return;
+  var texteOriginal = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  fetch(SB_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent('https://compo.ipsummedia.fr'), {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+  }).then(function(){
+    notif('Invitation renvoyée à '+email+' !','succes');
+  }).catch(function(){
+    notif('Erreur réseau, réessaie.','erreur');
+  }).finally(function(){
+    if(btn){ btn.disabled = false; btn.textContent = texteOriginal; }
   });
 }
 
