@@ -4220,8 +4220,11 @@ input:focus,select:focus,textarea:focus{
 
       <!-- Abandon sujet -->
       <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;border-radius:8px;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-        <span style="font-size:0.65rem;color:#856404;">Sujet réservé — les autres ne le voient plus</span>
-        <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
+        <span style="font-size:0.65rem;color:#856404;">📌 Sujet réservé — les autres ne le voient plus</span>
+        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+          <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
+          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
+        </div>
       </div>
 
       <!-- Lien partage -->
@@ -5382,6 +5385,20 @@ function reprendreBrouillon(id){
     imgB64=doc.image||null;
     if(imgB64){document.getElementById('r-img-prev').src=imgB64;document.getElementById('r-img-prev').style.display='block';document.getElementById('r-img-rem').style.display='inline-block';document.getElementById('r-img-leg').style.display='block';document.getElementById('r-img-leg').value=doc.image_legende||'';}
     setUrg(doc.urgence||'normal');updateStats();
+    var abandonBtn = document.getElementById('r-abandon-sujet');
+    if(abandonBtn){
+      if(doc._sujet_id){
+        abandonBtn.style.display = 'flex';
+        abandonBtn.dataset.sujetId = doc._sujet_id;
+        abandonBtn.dataset.sujetTitre = doc._sujet_titre||'';
+      } else {
+        abandonBtn.style.display = 'none';
+        abandonBtn.dataset.sujetId = '';
+      }
+    }
+    // Suggestion : ouvrir le communiqué source si lié
+    if(doc.cp_id) rArticleAfficherCpSourceExistant(doc.cp_id);
+    else { var affCp = document.getElementById('r-cp-source-affichage'); if(affCp) affCp.style.display='none'; }
     osStartAutosave(); // Baseline calculée une fois les champs remplis
     notif('Brouillon repris : '+(doc.titre||'Sans titre'));
   },100);
@@ -10001,6 +10018,24 @@ function brfAbandonnerSujet(){
   }).catch(function(){ notif('Erreur'); });
 }
 
+function osRedacVoirSujetLie(){
+  var btn = document.getElementById('r-abandon-sujet');
+  var sujetId = btn && btn.dataset.sujetId;
+  if(!sujetId) return;
+
+  var enCache = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
+  if(enCache){ ouvrirModalSujet(enCache); return; }
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=*', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var sujet = data && !data.code && data[0];
+    if(!sujet){ notif('Sujet introuvable','erreur'); return; }
+    ouvrirModalSujet(sujet);
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function demanderSuppression(doc){
   if(!confirm('Envoyer une demande de suppression a l admin pour cet article ?')) return;
   var auteur = getUserNomComplet();
@@ -10195,6 +10230,8 @@ function reserverSujetModal(){
       abandonBtn.dataset.sujetId = sujet.id;
       abandonBtn.dataset.sujetTitre = sujet.titre;
     }
+    // Suggestion : ouvrir le communiqué source si le sujet en avait un lié
+    if(window._sujetModalCp) rArticleSetCpSource(window._sujetModalCp);
   }, 150);
 }
 
@@ -19772,7 +19809,7 @@ function cpsCréerArticle(cpId){
     var corpsEl = document.getElementById('r-corps');
     if(corpsEl) corpsEl.value = (cp.corps||'').substring(0,1500);
     // Lier le CP
-    if(cp.id){ window.currentDoc = window.currentDoc||{}; window.currentDoc.cp_id = cp.id; }
+    if(cp.id){ window.currentDoc = window.currentDoc||{}; window.currentDoc.cp_id = cp.id; rArticleSetCpSource(cp); }
     preremplirAuteur();
     notif('Rédaction pré-remplie depuis le CP ✓','succes');
   }, 350);
@@ -28768,6 +28805,23 @@ function osProjetsRender(){
   bar.innerHTML = '<div style="flex:1;font-size:0.72rem;color:var(--gris);">📋 Ipsum Projets</div>'
     +'<a href="'+PROJETS_EXTERNAL_URL+'" target="_blank" style="font-size:0.65rem;padding:3px 10px;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);text-decoration:none;">⛶ Plein écran</a>';
   wc.appendChild(bar);
+
+  // iprojets.ipsummedia.fr n'est servi qu'en http:// — un navigateur en https:// (comme Compo)
+  // bloque silencieusement ce type d'iframe (contenu mixte), ce qui donne une fenêtre blanche.
+  // Pas de contournement possible côté front tant que ce site n'a pas son propre certificat HTTPS.
+  var iframeBloque = PROJETS_EXTERNAL_URL.indexOf('http://') === 0 && window.location.protocol === 'https:';
+
+  if(iframeBloque){
+    var fallback = document.createElement('div');
+    fallback.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;';
+    fallback.innerHTML =
+      '<div style="font-size:2rem;">📋</div>'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">Ipsum Projets ne peut pas s\'afficher ici</div>'
+      +'<div style="font-family:monospace;font-size:0.72rem;color:var(--gris);max-width:340px;line-height:1.6;">Le site n\'est disponible qu\'en http:// (non sécurisé) — le navigateur bloque son affichage dans Compo, qui est en https://. Ouvre-le dans un nouvel onglet en attendant.</div>'
+      +'<a href="'+PROJETS_EXTERNAL_URL+'" target="_blank" style="font-family:DM Sans,sans-serif;font-weight:600;font-size:0.85rem;padding:0.6rem 1.4rem;background:var(--rouge);color:white;border-radius:8px;text-decoration:none;">Ouvrir Ipsum Projets ↗</a>';
+    wc.appendChild(fallback);
+    return;
+  }
 
   var iframe = document.createElement('iframe');
   iframe.src = PROJETS_EXTERNAL_URL;
