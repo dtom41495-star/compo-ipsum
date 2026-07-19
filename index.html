@@ -22448,7 +22448,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
     var btnCarte = document.getElementById('redac-carte-btn');
-    if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, null); });
+    if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, {total:mesArticles.length, publies:mesPublies.length}); });
     var btnBilan = document.getElementById('redac-bilan-btn');
     if(btnBilan) btnBilan.addEventListener('click', function(){ osGenererBilanAnnuel(uid); });
     // Articles — fetch direct
@@ -23163,6 +23163,11 @@ function osGenererBilanAnnuel(membreId){
   var finAnnee   = new Date(annee,11,31,23,59,59).toISOString();
   var uid = membreId || getUserId();
   notif('Génération du bilan en cours…');
+  // Ouvrir la fenêtre tout de suite (avant les fetch async) — sinon le navigateur bloque
+  // silencieusement la popup et elle reste vide
+  var win = window.open('','_blank','width=800,height=900');
+  if(!win){ notif('Autorise les popups pour générer le bilan'); return; }
+  win.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Génération du bilan en cours…</p>');
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+uid+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
@@ -23195,8 +23200,7 @@ function osGenererBilanAnnuel(membreId){
     var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
     var STATUT_LABELS = {publie:'Publié',valide:'Validé','en-relecture':'En relecture',corrige:'Corrigé',brouillon:'Brouillon'};
     var STATUT_COLORS = {publie:'#155724',valide:'#0C5460','en-relecture':'#1A5276',corrige:'#856404',brouillon:'#6c757d'};
-    var win = window.open('','_blank','width=800,height=900');
-    if(!win){ notif('Autorise les popups pour générer le bilan'); return; }
+    if(!win || win.closed){ notif('Autorise les popups pour générer le bilan'); return; }
     var initiales = (prenom[0]||'?').toUpperCase()+(nom[0]||'?').toUpperCase();
     var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
       +'<title>Bilan '+annee+' \u2014 '+prenom+' '+nom+'</title>'
@@ -27531,6 +27535,8 @@ function osAgendaAjouterParticipant(evId){
     }).then(function(r){
       if(!r.ok){ notif('Erreur ou déjà inscrit','erreur'); return; }
       notif('Participant ajouté ✓','succes');
+      // Créditer tout de suite si l'événement est déjà passé — pas besoin d'attendre la prochaine connexion
+      osAgendaCreditHeuresAuto();
       var ev = _agendaEvenements.find(function(e){return e.id===evId;});
       if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); }
     });
@@ -28071,6 +28077,12 @@ function osAgendaOrdreMission(evId, membreId){
   var ev = (_agendaEvenements||[]).find(function(e){ return e.id===evId; });
   if(!ev){ notif('Événement introuvable','erreur'); return; }
 
+  // Ouvrir la fenêtre tout de suite, dans le même tick que le clic — sinon le navigateur
+  // bloque silencieusement la popup une fois qu'on attend un fetch async, et elle reste vide
+  var win = window.open('about:blank','_blank','width=820,height=1100');
+  if(!win){ notif('Autorise les popups pour générer l\'ordre de mission','alerte'); return; }
+  win.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Génération de l\'ordre de mission…</p>');
+
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = membreId || getUserId();
 
@@ -28079,15 +28091,15 @@ function osAgendaOrdreMission(evId, membreId){
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
-    _osGenererOrdreMission(ev, m);
+    _osGenererOrdreMission(ev, m, win);
   }).catch(function(){
     // Fallback avec les données locales
     var mLocal = (_membresData||[]).find(function(x){return x.id===uid;}) || {prenom:getUserPrenom(),nom:'',role:getUserRole(),email:'',fonction:[]};
-    _osGenererOrdreMission(ev, mLocal);
+    _osGenererOrdreMission(ev, mLocal, win);
   });
 }
 
-function _osGenererOrdreMission(ev, membre){
+function _osGenererOrdreMission(ev, membre, win){
   var debut = new Date(ev.date_debut);
   var fin   = ev.date_fin ? new Date(ev.date_fin) : null;
   var today = new Date();
@@ -28104,9 +28116,7 @@ function _osGenererOrdreMission(ev, membre){
 
   var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
 
-  // Utiliser about:blank pour éviter la page blanche
-  var win = window.open('about:blank','_blank','width=820,height=1100');
-  if(!win){ notif('Autorise les popups pour générer l\'ordre de mission','alerte'); return; }
+  if(!win || win.closed){ notif('Autorise les popups pour générer l\'ordre de mission','alerte'); return; }
 
   var css = [
     '*{margin:0;padding:0;box-sizing:border-box;}',
@@ -28150,7 +28160,7 @@ function _osGenererOrdreMission(ev, membre){
     '@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.no-print{display:none;}}'
   ].join('\n');
 
-  var ref = 'OM-'+today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+evId.replace(/[^A-Z0-9]/gi,'').substring(0,6).toUpperCase();
+  var ref = 'OM-'+today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+ev.id.replace(/[^A-Z0-9]/gi,'').substring(0,6).toUpperCase();
 
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Ordre de mission — '+nomMembre+'</title><style>'+css+'</style></head><body>';
 
