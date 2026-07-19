@@ -13339,6 +13339,7 @@ function osOpenWindow(pageId){
   var appDef = (ALL_APPS_CATALOGUE||[]).find(function(a){return a.id===pageId;});
   if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
   if(pageId === 'visuels-pro' && !osVisuelsVerifierAcces()) return;
+  if(pageId === 'redaction') osChronoStart('redaction');
   if(pageId === 'app-correction' || pageId === 'correction') osChronoStart('correction');
   _osOpenWindowExecuter(pageId);
   // Mettre à jour le dock pour montrer la fenêtre ouverte
@@ -13813,10 +13814,16 @@ function osChronoStop(type){
   if(duree < 1 || duree > 240) return;
   var uid = getUserId();
   if(!uid || !_session) return;
+  // Si un chef/admin rédige au nom de quelqu'un d'autre (auteur choisi via le select),
+  // créditer le vrai auteur — pas celui qui a la fenêtre ouverte
+  var membreCredit = uid;
+  if(type === 'redaction' && currentDoc && currentDoc.auteur_id && currentDoc.auteur_id !== uid){
+    membreCredit = currentDoc.auteur_id;
+  }
   fetch(SB_URL+'/rest/v1/heures_benevolat',{
     method:'POST',
     headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||''),'Prefer':'return=minimal'}),
-    body:JSON.stringify({ membre_id:uid, type:type, duree_minutes:duree })
+    body:JSON.stringify({ membre_id:membreCredit, type:type, duree_minutes:duree })
   }).catch(function(){});
 }
 
@@ -15891,6 +15898,8 @@ function osChargerNotifsDemarrage(){
   setTimeout(osProjetsInitBadge, 2500);
   // Migration brouillons locaux vers la base
   setTimeout(osMigrerBrouillonsLocaux, 3000);
+  // Crédit automatique des heures agenda / invitations presse passées
+  setTimeout(osAgendaCreditHeuresAuto, 3500);
   // Présence en ligne
   setTimeout(osPresenceInit, 1000);
   var allNotifs = [];
@@ -22673,9 +22682,9 @@ function osChargerHeuresMembre(uid){
   .then(function(r){return r.json();})
   .then(function(data){
     if(!data||data.code) return;
-    var totaux = {redaction:0, correction:0, agenda:0};
+    var totaux = {redaction:0, correction:0, agenda:0, manuel:0};
     data.forEach(function(h){ totaux[h.type] = (totaux[h.type]||0) + h.duree_minutes; });
-    var total = totaux.redaction + totaux.correction + totaux.agenda;
+    var total = 0; Object.keys(totaux).forEach(function(k){ total += totaux[k]; });
     function fmt(m){ var h=Math.floor(m/60),mn=m%60; return h+'h'+(mn>0?mn:''); }
     var elTotal = document.getElementById('membre-heures-total');
     var elDetail = document.getElementById('membre-heures-detail');
@@ -22685,6 +22694,7 @@ function osChargerHeuresMembre(uid){
       if(totaux.redaction) parts.push(fmt(totaux.redaction)+' rédac');
       if(totaux.correction) parts.push(fmt(totaux.correction)+' correc');
       if(totaux.agenda) parts.push(fmt(totaux.agenda)+' agenda');
+      if(totaux.manuel) parts.push(fmt(totaux.manuel)+' manuel');
       elDetail.textContent = parts.length ? '('+parts.join(' · ')+')' : '';
     }
   }).catch(function(){});
@@ -25141,6 +25151,7 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion">✉️</button>'
       +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer un lien de création de mot de passe">📨</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe">🔑</button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat">⏱️</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
       +'</div>';
   });
@@ -25322,6 +25333,60 @@ function osResetMotDePasseMembreEnvoyer(membreId){
   }).catch(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
     if(btn){ btn.disabled=false; btn.textContent='Réinitialiser'; }
+  });
+}
+
+function osCrediterHeuresModal(id, nom){
+  var ov = document.createElement('div');
+  ov.id = 'crediter-heures-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:var(--encre);">⏱️ Créditer des heures</div>'
+    +'<div style="font-size:.72rem;color:var(--gris);margin-top:2px;">Pour '+esc(nom)+' — pour une activité hors article/agenda</div>'
+    +'</div>'
+    +'<div style="padding:0 1.5rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;">'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Durée (heures)</label><input id="cred-heures-duree" type="number" min="0.25" step="0.25" placeholder="Ex: 2.5" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Description</label><input id="cred-heures-desc" type="text" placeholder="Ex: Aide déménagement local" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
+    +'<div id="cred-heures-msg" style="display:none;font-size:.72rem;padding:6px 10px;border-radius:6px;"></div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
+    +'<button onclick="document.getElementById(\'crediter-heures-overlay\').remove()" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
+    +'<button id="cred-heures-btn" data-id="'+id+'" onclick="osCrediterHeuresEnvoyer(this.dataset.id)" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Créditer</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){ var el=document.getElementById('cred-heures-duree'); if(el) el.focus(); },50);
+}
+
+function osCrediterHeuresEnvoyer(membreId){
+  var dureeH = parseFloat((document.getElementById('cred-heures-duree')||{}).value);
+  var desc = (document.getElementById('cred-heures-desc')||{}).value.trim();
+  var msgEl = document.getElementById('cred-heures-msg');
+  var btn = document.getElementById('cred-heures-btn');
+  if(!dureeH || dureeH <= 0){
+    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Indique une durée valide.'; }
+    return;
+  }
+  var dureeMin = Math.round(dureeH * 60);
+  if(btn){ btn.disabled=true; btn.textContent='...'; }
+  if(msgEl) msgEl.style.display='none';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/heures_benevolat',{
+    method:'POST', headers:authH,
+    body:JSON.stringify({ membre_id:membreId, type:'manuel', duree_minutes:dureeMin, description:desc||null })
+  }).then(function(r){
+    if(!r.ok){
+      if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur lors du crédit.'; }
+      if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
+      return;
+    }
+    var ov = document.getElementById('crediter-heures-overlay');
+    if(ov) ov.remove();
+    notif('Heures créditées ✓','succes');
+  }).catch(function(){
+    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
+    if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
   });
 }
 
@@ -27202,7 +27267,10 @@ function osAgendaOuvrirDetail(ev){
     return;
   }
   var uid = getUserId();
-  var isAdmin = getUserRole() === 'admin';
+  var role = getUserRole();
+  var isAdmin = role === 'admin';
+  var monLienAgDetail = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===window._redacActiveId; });
+  var peutGererParticipants = isAdmin || (monLienAgDetail && monLienAgDetail.role_redac === 'redac_chef');
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var existing = document.getElementById('agenda-detail-overlay');
   if(existing) document.body.removeChild(existing);
@@ -27342,29 +27410,31 @@ function osAgendaOuvrirDetail(ev){
       }
     }
 
-    // Liste complète (admin)
-    if(isAdmin && inscriptions.length){
-      iz += '<div style="margin-top:0.8rem;">';
-      iz += '<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Liste des participants</div>';
-      var ST_CONF = {
-        en_attente: {c:'#856404',bg:'#FFF3CD',l:'En attente'},
-        confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
-        refuse:     {c:'#A32D2D',bg:'#FCEBEB',l:'Refusé'}
-      };
-      inscriptions.forEach(function(insc){
-        var m = membres.find(function(x){return x.id===insc.membre_id;});
-        var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')).trim() : 'Inconnu';
-        var sc = ST_CONF[insc.statut]||{c:'#333',bg:'#eee',l:insc.statut};
-        var dateInscr = insc.created_at ? new Date(insc.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-        iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-          +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
-          +'<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
-          +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #1A5276;border-radius:3px;background:white;color:#1A5276;cursor:pointer;">📋</button>':'')
-          +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
-          +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
-          +'</div>';
-      });
-      iz += '</div>';
+    // Gestion des participants (admin + rédac chef)
+    if(peutGererParticipants){
+      if(inscriptions.length){
+        iz += '<div style="margin-top:0.8rem;">';
+        iz += '<div style="font-family:monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Liste des participants</div>';
+        var ST_CONF = {
+          en_attente: {c:'#856404',bg:'#FFF3CD',l:'En attente'},
+          confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
+          refuse:     {c:'#A32D2D',bg:'#FCEBEB',l:'Refusé'}
+        };
+        inscriptions.forEach(function(insc){
+          var m = membres.find(function(x){return x.id===insc.membre_id;});
+          var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')).trim() : 'Inconnu';
+          var sc = ST_CONF[insc.statut]||{c:'#333',bg:'#eee',l:insc.statut};
+          var dateInscr = insc.created_at ? new Date(insc.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+          iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+            +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
+            +'<span style="font-family:monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
+            +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #1A5276;border-radius:3px;background:white;color:#1A5276;cursor:pointer;">📋</button>':'')
+            +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
+            +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
+            +'</div>';
+        });
+        iz += '</div>';
+      }
 
       // Bouton ajouter un participant manuellement
       iz += '<div style="margin-top:0.8rem;">';
@@ -28322,7 +28392,8 @@ function osAgendaSauvegarder(evId){
     var overlay = document.getElementById('agenda-form-overlay');
     if(overlay) document.body.removeChild(overlay);
     osAgendaCharger();
-    if(!isEdit) osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
+    // Événement passé (saisi rétroactivement pour créditer des heures) — ne pas inviter à un événement déjà terminé
+    if(!isEdit && new Date(payload.date_debut) > new Date()) osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
   }).catch(function(){ notif('Erreur sauvegarde'); });
 }
 
