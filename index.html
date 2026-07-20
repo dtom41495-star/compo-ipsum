@@ -22873,17 +22873,40 @@ function osAdminRetirerMembreRedac(membreId, redacId){
 
 // ---- ACTIONS RÉDAC CHEF ----
 function osRedacChefChangerRole(membreId, redacId, nouveauRole){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
-  .then(function(r){
-    if(r.ok){
-      // Mettre à jour le cache local immédiatement
-      var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
-      if(lien) lien.role_redac = nouveauRole;
-      notif('Rôle mis à jour ✓','succes');
-    } else notif('Erreur mise à jour');
-  })
-  .catch(function(){ notif('Erreur réseau'); });
+  function appliquer(){
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
+    .then(function(r){
+      if(r.ok){
+        // Mettre à jour le cache local immédiatement
+        var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
+        if(lien) lien.role_redac = nouveauRole;
+        notif('Rôle mis à jour ✓','succes');
+      } else notif('Erreur mise à jour');
+    })
+    .catch(function(){ notif('Erreur réseau'); });
+  }
+
+  // Un chef non-admin qui se retire lui-même son statut perd instantanément l'écran
+  // qui permet de le restaurer (visible seulement aux chefs) — on bloque s'il est le seul chef.
+  var uid = getUserId();
+  if(membreId === uid && nouveauRole !== 'redac_chef' && getUserRole() !== 'admin'){
+    var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacId)+'&role_redac=eq.redac_chef&select=membre_id',{headers:authHGet})
+    .then(function(r){return r.json();})
+    .then(function(chefs){
+      var autresChefs = (chefs||[]).filter(function(l){ return l.membre_id !== membreId; });
+      if(autresChefs.length === 0){
+        notif('Impossible : tu es le seul chef de cette rédaction. Nomme d\'abord quelqu\'un d\'autre chef.','erreur');
+        var sel = document.querySelector('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]');
+        if(sel) sel.value = 'redac_chef';
+        return;
+      }
+      appliquer();
+    }).catch(function(){ notif('Erreur réseau'); });
+  } else {
+    appliquer();
+  }
 }
 
 function osRedacChefAjouterMembre(redacId){
