@@ -27477,7 +27477,7 @@ function osAgendaOuvrirDetail(ev){
 
 function osAgendaSInscrire(evId){
   var uid = getUserId();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
   var statutInitial = (ev && ev.validation_admin) ? 'en_attente' : 'confirme';
@@ -27487,8 +27487,22 @@ function osAgendaSInscrire(evId){
     body:JSON.stringify({evenement_id:evId, membre_id:uid, statut:statutInitial})
   }).then(function(r){
     if(!r.ok){ notif('Erreur inscription'); return; }
+    return r.json();
+  }).then(function(data){
+    if(!data) return;
+    var inscr = data && data[0];
     if(statutInitial === 'confirme'){
       notif('Inscription confirmée ✓','succes');
+      if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
+        var duree = ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
+        if(duree > 0){
+          var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+          fetch(SB_URL+'/rest/v1/heures_benevolat',{
+            method:'POST', headers:authHPost,
+            body:JSON.stringify({ membre_id:uid, type:'agenda', duree_minutes:duree, reference_id:inscr.id, description:'Participation : '+esc(ev.titre||'') })
+          }).catch(function(){});
+        }
+      }
     } else {
       notif('Demande d\'inscription envoyée ✓ — en attente de validation','succes');
       // Notifier l'admin par email
@@ -27579,89 +27593,6 @@ function osAgendaAjouterParticipant(evId){
       });
     });
   }
-}
-
-function osAgendaValiderInscr(inscrId, evId){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var insc = data && data.length ? data[0] : null;
-    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'confirme'})})
-    .then(function(r){
-      if(!r.ok) return;
-      notif('Inscription confirmée ✓','succes');
-      var ev = _agendaEvenements.find(function(e){ return e.id === (evId||( insc&&insc.evenement_id)); });
-      // Les heures seront créditées automatiquement après la fin de l'événement
-
-      // Email à l'inscrit
-      if(insc){
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          var m = membres && membres[0];
-          if(!m || !m.email) return;
-          var evTitre = ev ? esc(ev.titre||'') : 'Événement';
-          var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
-          var heureStr = ev ? new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#155724;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Inscription confirmée</h2>'
-            +'</div>'
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
-            +(debut?'<p>📅 '+debut+(heureStr?' à '+heureStr:'')+'</p>':'')
-            +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
-            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
-            +'</div></div>';
-          envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
-        }).catch(function(){});
-      }
-
-      if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
-    });
-  });
-}
-
-function osAgendaRefuserInscr(inscrId, evId){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var insc = data && data.length ? data[0] : null;
-    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
-    .then(function(r){
-      if(!r.ok) return;
-      notif('Inscription refusée');
-
-      // Email à l'inscrit
-      if(insc){
-        var ev = _agendaEvenements.find(function(e){ return e.id === (evId||(insc&&insc.evenement_id)); });
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          var m = membres && membres[0];
-          if(!m || !m.email) return;
-          var evTitre = ev ? esc(ev.titre||'') : 'Événement';
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Inscription non retenue</h2>'
-            +'</div>'
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
-            +'<p style="color:#666;font-size:0.82rem;">Si tu as des questions, contacte un administrateur sur Compo.</p>'
-            +'</div></div>';
-          envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
-        }).catch(function(){});
-      }
-
-      if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
-    });
-  });
 }
 
 function osAgendaAdminDesinscrire(inscrId, evId){
@@ -27943,24 +27874,47 @@ function osAgendaValiderInscr(inscrId, evId){
     .then(function(r){
       if(r.ok){
         notif('Inscription confirmée ✓','succes');
+        var ev = insc ? _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); }) : null;
         // Calculer et enregistrer les heures de bénévolat
-        if(insc){
-          var ev = _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); });
-          if(ev && ev.date_debut && ev.date_fin){
-            var duree = Math.round((new Date(ev.date_fin) - new Date(ev.date_debut)) / 60000);
-            if(duree > 0){
-              fetch(SB_URL+'/rest/v1/heures_benevolat',{
-                method:'POST',
-                headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||''),'Prefer':'return=minimal'}),
-                body:JSON.stringify({
-                  membre_id: insc.membre_id,
-                  type: 'agenda',
-                  duree_minutes: duree,
-                  reference_id: inscrId
-                })
-              }).catch(function(){});
-            }
+        if(insc && ev && ev.date_debut){
+          var duree = ev.date_fin ? Math.round((new Date(ev.date_fin) - new Date(ev.date_debut)) / 60000) : 60;
+          if(duree > 0){
+            fetch(SB_URL+'/rest/v1/heures_benevolat',{
+              method:'POST',
+              headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||''),'Prefer':'return=minimal'}),
+              body:JSON.stringify({
+                membre_id: insc.membre_id,
+                type: 'agenda',
+                duree_minutes: duree,
+                reference_id: inscrId
+              })
+            }).catch(function(){});
           }
+        }
+        // Email à l'inscrit
+        if(insc){
+          var authHGet2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet2})
+          .then(function(r){return r.json();})
+          .then(function(membres){
+            var m = membres && membres[0];
+            if(!m || !m.email) return;
+            var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+            var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
+            var heureStr = ev ? new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+            var html = '<div style="font-family:sans-serif;max-width:500px;">'
+              +'<div style="background:#155724;padding:1rem 1.5rem;">'
+              +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Inscription confirmée</h2>'
+              +'</div>'
+              +'<div style="padding:1rem 1.5rem;">'
+              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+              +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
+              +(debut?'<p>📅 '+debut+(heureStr?' à '+heureStr:'')+'</p>':'')
+              +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
+              +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+              +'</div></div>';
+            envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
+          }).catch(function(){});
         }
         if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
       }
@@ -27970,12 +27924,39 @@ function osAgendaValiderInscr(inscrId, evId){
 
 function osAgendaRefuserInscr(inscrId, evId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
-  .then(function(r){
-    if(r.ok){
-      notif('Inscription refusée');
-      if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
-    }
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var insc = data && data.length ? data[0] : null;
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse'})})
+    .then(function(r){
+      if(r.ok){
+        notif('Inscription refusée');
+        // Email à l'inscrit
+        if(insc){
+          var ev = _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); });
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+          .then(function(r){return r.json();})
+          .then(function(membres){
+            var m = membres && membres[0];
+            if(!m || !m.email) return;
+            var evTitre = ev ? esc(ev.titre||'') : 'Événement';
+            var html = '<div style="font-family:sans-serif;max-width:500px;">'
+              +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
+              +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Inscription non retenue</h2>'
+              +'</div>'
+              +'<div style="padding:1rem 1.5rem;">'
+              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+              +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
+              +'<p style="color:#666;font-size:0.82rem;">Si tu as des questions, contacte un administrateur sur Compo.</p>'
+              +'</div></div>';
+            envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
+          }).catch(function(){});
+        }
+        if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
+      }
+    });
   });
 }
 
