@@ -27529,15 +27529,30 @@ function osAgendaAjouterParticipant(evId){
 
   if(val.startsWith('membre_')){
     var membreId = val.replace('membre_','');
+    var authHRep = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
     fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
-      method:'POST', headers:authH,
+      method:'POST', headers:authHRep,
       body:JSON.stringify({evenement_id:evId, membre_id:membreId, statut:'confirme'})
     }).then(function(r){
       if(!r.ok){ notif('Erreur ou déjà inscrit','erreur'); return; }
+      return r.json();
+    }).then(function(data){
+      if(!data) return;
       notif('Participant ajouté ✓','succes');
-      // Créditer tout de suite si l'événement est déjà passé — pas besoin d'attendre la prochaine connexion
-      osAgendaCreditHeuresAuto();
+      var inscr = data && data[0];
       var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+      // Créditer directement CE membre si l'événement est déjà passé — osAgendaCreditHeuresAuto()
+      // ne vérifie que les inscriptions de la personne connectée, pas celle qu'on vient d'ajouter
+      if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
+        var duree = ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
+        if(duree > 0){
+          var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+          fetch(SB_URL+'/rest/v1/heures_benevolat',{
+            method:'POST', headers:authHPost,
+            body:JSON.stringify({ membre_id:membreId, type:'agenda', duree_minutes:duree, reference_id:inscr.id, description:'Participation : '+esc(ev.titre||'') })
+          }).catch(function(){});
+        }
+      }
       if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); }
     });
   } else if(val.startsWith('redac_')){
