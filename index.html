@@ -13014,21 +13014,24 @@ function osChargerWidgets(){
       }).catch(function(){});
     })();
     // Widget Substack — derniers articles publiés de la rédaction active de l'utilisateur
+    // (repli sur le flux national Ipsum Média si l'utilisateur n'est rattaché à aucune rédaction, ex : admin)
     (function(){
-      if(!redacId) return;
-      fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId)+'&select=lien_substack',{headers:authH})
-      .then(function(r){return r.json();})
+      (redacId
+        ? fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId)+'&select=nom,lien_substack',{headers:authH}).then(function(r){return r.json();})
+        : Promise.resolve(null)
+      )
       .then(function(rows){
-        var lien = rows && rows[0] && rows[0].lien_substack;
-        if(!lien) return;
-        return fetch(SB_URL+'/functions/v1/rss-substack?feed='+encodeURIComponent(lien),{headers:authH});
+        var redacInfoWidget = rows && rows[0] ? rows[0] : null;
+        var lien = redacInfoWidget ? redacInfoWidget.lien_substack : null;
+        var feedParam = lien ? '?feed='+encodeURIComponent(lien) : '';
+        return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authH}).then(function(r){return r.json();})
+          .then(function(data){ return {data:data, redacInfoWidget:redacInfoWidget}; });
       })
-      .then(function(r){ return r ? r.json() : null; })
-      .then(function(data){
+      .then(function(res){
+        var data = res.data, redacInfoWidget = res.redacInfoWidget;
         var articles = (data && data.articles) ? data.articles : [];
         if(!articles.length) return;
-        var redacInfoWidget = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
-        var nomRedac = redacInfoWidget ? redacInfoWidget.nom : 'Ma rédac\'';
+        var nomRedac = redacInfoWidget ? redacInfoWidget.nom : 'Ipsum Média';
         var lienBase = (redacInfoWidget && redacInfoWidget.lien_substack) ? redacInfoWidget.lien_substack.replace(/\/feed\/?$/,'').replace(/^([^:]+:)?\/\//,'https://') : 'https://ipsummedia.substack.com';
         var sHtml = articles.slice(0,4).map(function(a){
           var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){}
@@ -14641,7 +14644,7 @@ var _konamiProgres = 0;
 document.addEventListener('keydown', function(e){
   var desktop = document.getElementById('os-desktop');
   if(!desktop || desktop.style.display === 'none') return;
-  var touche = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  var touche = (e.key && e.key.length === 1) ? e.key.toLowerCase() : e.key;
   if(touche === KONAMI_SEQUENCE[_konamiProgres]){
     _konamiProgres++;
     if(_konamiProgres === KONAMI_SEQUENCE.length){
@@ -14877,11 +14880,18 @@ function osExitFullscreen(){
 }
 
 function osToggleFullscreen(){
-  var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  var isFs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
   if(isFs) osExitFullscreen(); else osRequestFullscreen();
-  var btn = document.getElementById('os-fs-btn');
-  if(btn) btn.textContent = isFs ? '⛶' : '⛶';
 }
+
+function _osMajIconeFullscreen(){
+  var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+  var btn = document.getElementById('os-fs-btn');
+  if(btn) btn.innerHTML = '<i class="ti ti-arrows-'+(isFs?'minimize':'maximize')+'"></i>';
+}
+['fullscreenchange','webkitfullscreenchange','mozfullscreenchange'].forEach(function(evt){
+  document.addEventListener(evt, _osMajIconeFullscreen);
+});
 
 
 // ===== CENTRE DE NOTIFICATIONS =====
@@ -18505,84 +18515,94 @@ function bugEnvoyer(message, stack, source){
     }).catch(function(){});
   }
 
-  // Notifier l'utilisateur
-  bugAfficherBanniere(message);
+  var critique = _bugEstCritique();
+  if(critique) _bugAlerterAdminCritique(rapport);
+  bugAfficherFenetreErreur(rapport, critique);
 }
 
-function bugAfficherBanniere(message){
-  var existing = document.getElementById('bug-banner');
-  if(existing) existing.parentNode.removeChild(existing);
+// Une erreur est jugée critique si le bureau n'a pas pu s'afficher après connexion,
+// ou si plusieurs erreurs distinctes s'enchaînent en peu de temps (plantage en cascade).
+var _bugTimestamps = [];
+function _bugEstCritique(){
+  var desktop = document.getElementById('os-desktop');
+  var desktopManquant = !!(_session && (!desktop || getComputedStyle(desktop).display === 'none'));
+  var maintenant = Date.now();
+  _bugTimestamps.push(maintenant);
+  _bugTimestamps = _bugTimestamps.filter(function(t){ return maintenant - t < 15000; });
+  return desktopManquant || _bugTimestamps.length >= 3;
+}
 
-  var banner = document.createElement('div');
-  banner.id = 'bug-banner';
-  banner.style.cssText = [
-    'position:fixed',
-    'bottom:calc(var(--dock-h,80px) + 12px)',
-    'left:50%',
-    'transform:translateX(-50%)',
-    'z-index:99999',
-    'background:rgba(20,20,30,0.96)',
-    'backdrop-filter:blur(20px)',
-    'border:1px solid rgba(255,95,87,0.4)',
-    'border-radius:12px',
-    'padding:0.8rem 1.2rem',
-    'display:flex',
-    'align-items:center',
-    'gap:0.8rem',
-    'box-shadow:0 8px 32px rgba(0,0,0,0.5)',
-    'max-width:480px',
-    'animation:slideUpIn 0.3s cubic-bezier(0.34,1.2,0.64,1)',
-  ].join(';');
+// Alerte immédiate à l'administrateur par email pour les erreurs critiques —
+// limitée à un envoi toutes les 10 minutes pour ne pas spammer en cas de plantage en boucle.
+var _bugEmailCooldown = false;
+function _bugAlerterAdminCritique(rapport){
+  if(_bugEmailCooldown || typeof envoyerEmailResend !== 'function') return;
+  _bugEmailCooldown = true;
+  setTimeout(function(){ _bugEmailCooldown = false; }, 10*60*1000);
+  var html = '<div style="font-family:sans-serif;max-width:520px;">'
+    +'<div style="background:#721C24;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">🚨 Erreur critique sur Compo</h2></div>'
+    +'<div style="padding:1rem 1.5rem;">'
+    +'<p style="font-weight:600;">'+esc(rapport.message)+'</p>'
+    +'<p style="font-size:0.85rem;color:#555;">Utilisateur : '+esc(rapport.user_nom||'Non connecté')+' ('+esc(rapport.user_role||'')+')<br>Page : '+esc(rapport.page)+'<br>URL : '+esc(rapport.url)+'</p>'
+    +(rapport.stack?'<pre style="font-size:0.7rem;background:#F3F4F6;padding:0.6rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;">'+esc(rapport.stack.substring(0,800))+'</pre>':'')
+    +'</div></div>';
+  envoyerEmailResend(ADMIN_EMAIL, '[Compo] Erreur critique — '+rapport.message.substring(0,60), html, 'bug_critique').catch(function(){});
+}
 
-  var icon = document.createElement('div');
-  icon.style.cssText = 'font-size:1.4rem;flex-shrink:0;';
-  icon.textContent = '🐛';
+function bugAfficherFenetreErreur(rapport, critique){
+  // Une seule fenêtre d'erreur affichée à la fois — les erreurs suivantes restent journalisées silencieusement
+  if(document.getElementById('os-error-dialog')) return;
+  var message = rapport.message || 'Erreur inconnue';
 
-  var body = document.createElement('div');
-  body.style.cssText = 'flex:1;';
+  var overlay = document.createElement('div');
+  overlay.id = 'os-error-dialog';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:1000000;background:rgba(20,20,30,0.45);display:flex;align-items:center;justify-content:center;font-family:DM Sans,Arial,sans-serif;';
 
-  var title = document.createElement('div');
-  title.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:0.78rem;color:white;margin-bottom:2px;';
-  title.textContent = 'Erreur détectée et signalée';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:white;border-radius:10px;width:420px;max-width:92vw;box-shadow:0 30px 70px rgba(0,0,0,0.4);overflow:hidden;';
 
-  var desc = document.createElement('div');
-  desc.style.cssText = 'font-family:Arial,monospace;font-size:0.62rem;color:rgba(255,255,255,0.45);line-height:1.4;';
-  var short = (message||'Erreur inconnue').substring(0, 80);
-  desc.textContent = short + (message && message.length > 80 ? '...' : '');
+  var barre = document.createElement('div');
+  barre.style.cssText = 'background:#1A1A2E;padding:0.5rem 0.5rem 0.5rem 0.9rem;display:flex;align-items:center;justify-content:space-between;';
+  barre.innerHTML = '<span style="color:rgba(255,255,255,0.75);font-size:0.7rem;font-family:Space Mono,monospace;">Compo OS</span>';
+  var btnX = document.createElement('button');
+  btnX.style.cssText = 'width:26px;height:22px;border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:0.9rem;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;';
+  btnX.innerHTML = '<i class="ti ti-x"></i>';
+  btnX.onmouseover = function(){ this.style.background='#E24B4A'; this.style.color='white'; };
+  btnX.onmouseout = function(){ this.style.background='transparent'; this.style.color='rgba(255,255,255,0.6)'; };
+  barre.appendChild(btnX);
 
-  var sub = document.createElement('div');
-  sub.style.cssText = 'font-size:0.6rem;color:rgba(255,95,87,0.7);margin-top:3px;font-family:Space Mono,monospace;';
-  sub.textContent = 'Le bug a été transmis automatiquement à l équipe.';
+  var corps = document.createElement('div');
+  corps.style.cssText = 'padding:1.4rem 1.4rem 1.1rem;display:flex;gap:1rem;';
+  corps.innerHTML = '<div style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:#E24B4A;display:flex;align-items:center;justify-content:center;"><i class="ti ti-x" style="color:white;font-size:1.2rem;font-weight:700;"></i></div>'
+    +'<div style="flex:1;min-width:0;">'
+    +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);margin-bottom:0.35rem;">'+(critique?'Une erreur bloquante est survenue':'Une erreur est survenue')+'</div>'
+    +'<div style="font-size:0.76rem;color:var(--gris);line-height:1.45;word-break:break-word;">'+esc(message.substring(0,220))+'</div>'
+    +(critique?'<div style="margin-top:0.7rem;background:#FCEBEB;border:1px solid #F5C6C6;border-radius:6px;padding:0.5rem 0.7rem;font-size:0.68rem;color:#A32D2D;">⚠️ Il est déconseillé de continuer sans recharger la page — certaines actions pourraient ne pas s\'enregistrer correctement.</div>':'')
+    +'<div style="margin-top:0.85rem;font-size:0.66rem;color:var(--gris);line-height:1.6;">Le bug a été transmis automatiquement à l\'équipe. Besoin d\'aide tout de suite ? <a href="mailto:'+ADMIN_EMAIL+'?subject='+encodeURIComponent('[Compo] '+message.substring(0,80))+'" style="color:#E8461E;">'+ADMIN_EMAIL+'</a> ou <a href="https://chat.google.com" target="_blank" rel="noopener" style="color:#E8461E;">via le Tchat</a>.</div>'
+    +'</div>';
 
-  body.appendChild(title);
-  body.appendChild(desc);
-  body.appendChild(sub);
+  var pied = document.createElement('div');
+  pied.style.cssText = 'padding:0.7rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;justify-content:flex-end;gap:0.5rem;';
+  var btnFermer = document.createElement('button');
+  btnFermer.textContent = critique ? 'Continuer quand même' : 'Fermer';
+  btnFermer.style.cssText = 'font-family:Space Mono,monospace;font-size:0.72rem;padding:0.4rem 1rem;border-radius:6px;border:1px solid var(--gris-bord);background:white;cursor:pointer;color:var(--encre);';
+  pied.appendChild(btnFermer);
+  if(critique){
+    var btnRecharger = document.createElement('button');
+    btnRecharger.textContent = 'Recharger la page';
+    btnRecharger.style.cssText = 'font-family:Space Mono,monospace;font-size:0.72rem;padding:0.4rem 1rem;border-radius:6px;border:none;background:var(--rouge);color:white;cursor:pointer;font-weight:600;';
+    btnRecharger.onclick = function(){ window.location.reload(); };
+    pied.appendChild(btnRecharger);
+  }
 
-  var closeBtn = document.createElement('button');
-  closeBtn.style.cssText = 'background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:1.1rem;cursor:pointer;padding:0;flex-shrink:0;line-height:1;';
-  closeBtn.textContent = '×';
-  closeBtn.onmouseover = function(){ this.style.color='white'; };
-  closeBtn.onmouseout  = function(){ this.style.color='rgba(255,255,255,0.3)'; };
-  closeBtn.onclick = function(){
-    banner.style.opacity='0';
-    banner.style.transform='translateX(-50%) translateY(10px)';
-    banner.style.transition='opacity 0.2s,transform 0.2s';
-    setTimeout(function(){ if(banner.parentNode) banner.parentNode.removeChild(banner); }, 200);
-  };
+  box.appendChild(barre); box.appendChild(corps); box.appendChild(pied);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 
-  banner.appendChild(icon);
-  banner.appendChild(body);
-  banner.appendChild(closeBtn);
-  document.body.appendChild(banner);
-
-  // Auto-fermer après 6s
-  setTimeout(function(){
-    if(!banner.parentNode) return;
-    banner.style.opacity='0';
-    banner.style.transform='translateX(-50%) translateY(10px)';
-    banner.style.transition='opacity 0.3s,transform 0.3s';
-    setTimeout(function(){ if(banner.parentNode) banner.parentNode.removeChild(banner); }, 300);
-  }, 6000);
+  function fermer(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+  btnX.onclick = fermer;
+  btnFermer.onclick = fermer;
+  overlay.onclick = function(e){ if(e.target===overlay) fermer(); };
 }
 
 // CSS animation
@@ -19051,7 +19071,8 @@ function cpsRendreListe(liste, cps){
   recherche.innerHTML = '<input id="cps-search" type="text" placeholder="🔍 Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="flex:1;padding:0.45rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;">'
     +'<button onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);">⬇ CSV</button>';
   liste.appendChild(recherche);
-  document.getElementById('cps-search').oninput = function(){
+  var champRecherche = recherche.querySelector('#cps-search');
+  if(champRecherche) champRecherche.oninput = function(){
     window._cpsRecherche = this.value;
     cpsRendreListe(liste, window._cpsData||[]);
   };
@@ -22603,14 +22624,14 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
   var totalMembres = _membresData.length;
   var nouveauxCeMois = (window._nouveauxMembres||[]).length;
-  var artsMois = tousArts.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
   var artsPublies = tousArts.filter(function(a){ return a.statut==='publie'; });
+  var artsMois = artsPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
 
   h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
   function gCard(n,l,c){ return '<div style="background:var(--encre-fixe);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'white')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-top:3px;">'+l+'</div></div>'; }
   h += gCard(totalMembres,'Bénévoles total');
   h += gCard(nouveauxCeMois,'Nouveaux ce mois','#E67E22');
-  h += gCard(artsMois.length,'Articles ce mois','#EA5B1C');
+  h += gCard(artsMois.length,'Publiés ce mois','#EA5B1C');
   h += gCard(artsPublies.length,'Publiés total','#27AE60');
   h += '</div>';
 
@@ -22651,7 +22672,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
     });
     var artsRedac = tousArts.filter(function(a){ return a.redaction_id === redac.id; });
     var artsRedacPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
-    var artsRedacMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+    var artsRedacMois = artsRedacPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
     var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
     var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
 
