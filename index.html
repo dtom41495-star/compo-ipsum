@@ -350,7 +350,7 @@ body {
 #os-bg {
   position: absolute;
   inset: 0;
-  background: url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
+  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png") center/cover no-repeat;
   z-index: 0;
 }
 #os-bg::before {
@@ -833,7 +833,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
+  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png") center/cover no-repeat;
   opacity: 0.06;
   filter: blur(2px);
   pointer-events: none;
@@ -3033,7 +3033,7 @@ input:focus,select:focus,textarea:focus{
 /* ===== LOGIN ===== */
 #login-screen{
   position:fixed;inset:0;z-index:9995;
-  background:#1A1A2E url('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png') center/cover no-repeat;
+  background:#1A1A2E url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png") center/cover no-repeat;
   display:none;align-items:center;justify-content:center;padding:1rem;
 }
 #login-screen::before{
@@ -3736,6 +3736,12 @@ input:focus,select:focus,textarea:focus{
     <div id="os-redaction-label" style="position:absolute;bottom:72px;left:20px;pointer-events:none;user-select:none;display:none;">
       <div style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.35);text-shadow:0 1px 3px rgba(0,0,0,0.5);">Rédaction</div>
       <div id="os-redaction-nom" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1.1rem;color:rgba(255,255,255,0.5);text-shadow:0 1px 4px rgba(0,0,0,0.6);letter-spacing:0.05em;margin-top:1px;">Tarn</div>
+    </div>
+
+    <!-- Watermark identité — nom et rôle du membre connecté -->
+    <div id="os-user-watermark" style="position:absolute;top:58%;left:50%;transform:translate(-50%,-50%);pointer-events:none;user-select:none;text-align:center;">
+      <div id="os-user-watermark-role" style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.2em;color:rgba(255,255,255,0.4);text-shadow:0 1px 3px rgba(0,0,0,0.5);"></div>
+      <div id="os-user-watermark-nom" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1.3rem;color:rgba(255,255,255,0.55);text-shadow:0 1px 4px rgba(0,0,0,0.6);letter-spacing:0.04em;margin-top:2px;"></div>
     </div>
   </div>
 
@@ -10550,6 +10556,7 @@ function osLancer(){
   osAppliquerThemeAuDemarrage();
   osAppliquerWallpaperAuDemarrage();
   osAfficherRedactionLabel();
+  osAfficherUserWatermark();
   setTimeout(osRequestFullscreen, 500);
   setTimeout(osShowFsTooltip, 2000);
   setTimeout(osShowAppsMovedTooltip, 8500);
@@ -10661,6 +10668,17 @@ function osLancer(){
       osOpenWindow('redactions');
     });
   }, 300);
+}
+
+function osAfficherUserWatermark(){
+  var nomEl = document.getElementById('os-user-watermark-nom');
+  var roleEl = document.getElementById('os-user-watermark-role');
+  if(!nomEl || !roleEl) return;
+  var nom = (getUserPrenom()+' '+getUserNom()).trim();
+  if(!nom) return;
+  var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+  nomEl.textContent = nom;
+  roleEl.textContent = roleLabels[getUserRole()] || getUserRole() || '';
 }
 
 function osAfficherRedactionLabel(){
@@ -12841,7 +12859,8 @@ function osChargerWidgets(){
         var redacInfoWidget = rows && rows[0] ? rows[0] : null;
         var lien = redacInfoWidget ? redacInfoWidget.lien_substack : null;
         var feedParam = lien ? '?feed='+encodeURIComponent(lien) : '';
-        return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authH}).then(function(r){return r.json();})
+        var authHRss = {'apikey': SB_KEY, 'Authorization': authH.Authorization};
+        return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authHRss}).then(function(r){return r.json();})
           .then(function(data){ return {data:data, redacInfoWidget:redacInfoWidget}; });
       })
       .then(function(res){
@@ -14166,7 +14185,7 @@ function osBuildDesktopIcons(){
     allApps.push({ id:'log', icon:'<i class="ti ti-file-text"></i>', label:'Journal', color:'#2C3E50' });
   }
   if(role === 'redacteur' || role === 'correcteur'){
-    allApps.push({ id:'cps', icon:'<i class="ti ti-news"></i>', label:'CPs', color:'#4A235A', forceBureau:true });
+    allApps.push({ id:'cps', icon:'<i class="ti ti-news"></i>', label:'Communiqués', color:'#4A235A', forceBureau:true });
   }
   
   // N'afficher que celles qui ne sont PAS dans le dock, sauf forceBureau, et pas les legacy
@@ -14320,7 +14339,7 @@ function osBuildDesktopIcons(){
   cpImg.innerHTML = '<i class="ti ti-clipboard-list"></i>';
   var cpLabel = document.createElement('div');
   cpLabel.className = 'desktop-icon-label';
-  cpLabel.textContent = 'CPs';
+  cpLabel.textContent = 'Communiqués';
   cpIcon.appendChild(cpImg);
   cpIcon.appendChild(cpLabel);
   container.appendChild(cpIcon);
@@ -16598,7 +16617,7 @@ function osParamsRenderSection(section, container){
     wpGrid.className = 'wallpaper-grid';
     
     var WPS = [
-      { id:'default', url:'https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png', label:'Ipsum Original' },
+      { id:'default', url:"https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png", label:'Ipsum Original' },
       { id:'dark', url:'', label:'Sombre uni', color:'linear-gradient(135deg,#0D0D1A,#1A1A2E)' },
       { id:'rouge', url:'', label:'Rouge Ipsum', color:'linear-gradient(135deg,#E8461E,#C73A18)' },
     ];
@@ -16724,7 +16743,7 @@ function osAppliquerWallpaper(id, url, color){
 
 function osAppliquerWallpaperAuDemarrage(){
   var id = localStorage.getItem('compo_os_wallpaper') || 'default';
-  var DEFAULT_WP = 'https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/fond%20decembre%202025.png';
+  var DEFAULT_WP = "https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png";
   if(id === 'custom'){
     var custom = localStorage.getItem('compo_os_wallpaper_custom');
     if(custom) osAppliquerWallpaper('custom', custom, null);
@@ -18178,7 +18197,8 @@ function osSubstackRender(){
     var redacInfo = rows && rows[0] ? rows[0] : null;
     var lien = redacInfo ? redacInfo.lien_substack : null;
     var feedParam = lien ? '?feed='+encodeURIComponent(lien) : '';
-    return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authH}).then(function(r){return r.json();})
+    var authHRss = {'apikey': SB_KEY, 'Authorization': authH.Authorization};
+    return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authHRss}).then(function(r){return r.json();})
       .then(function(data){ return {data:data, redacInfo:redacInfo}; });
   })
   .then(function(res){
@@ -24545,8 +24565,8 @@ var ALL_APPS_CATALOGUE = [
   { id:'mes-articles',   icon:'<i class="ti ti-article"></i>', label:'Articles',       color:'#993C1D', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
-  { id:'cps',            icon:'<i class="ti ti-speakerphone"></i>', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
-  { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'CPs Admin',      color:'#4A235A', roles:['admin','redac_chef'] },
+  { id:'cps',            icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['redacteur','correcteur'] },
+  { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
   { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
   { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
   { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin'], fonctions_requises:['secretaire','president','vice_president'] },
