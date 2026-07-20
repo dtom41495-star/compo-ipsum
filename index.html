@@ -13013,13 +13013,23 @@ function osChargerWidgets(){
         widget('📢','Rejoindre l\'équipe', rHtml+'<div style="margin-top:6px;"><button onclick="osOuvrirRecrutement()" style="font-size:0.62rem;width:100%;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;cursor:pointer;font-weight:600;">Voir toutes les annonces →</button></div>');
       }).catch(function(){});
     })();
-    // Widget Substack — derniers articles publiés
+    // Widget Substack — derniers articles publiés de la rédaction active de l'utilisateur
     (function(){
-      fetch(SB_URL+'/functions/v1/rss-substack',{headers:authH})
+      if(!redacId) return;
+      fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId)+'&select=lien_substack',{headers:authH})
       .then(function(r){return r.json();})
+      .then(function(rows){
+        var lien = rows && rows[0] && rows[0].lien_substack;
+        if(!lien) return;
+        return fetch(SB_URL+'/functions/v1/rss-substack?feed='+encodeURIComponent(lien),{headers:authH});
+      })
+      .then(function(r){ return r ? r.json() : null; })
       .then(function(data){
         var articles = (data && data.articles) ? data.articles : [];
         if(!articles.length) return;
+        var redacInfoWidget = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+        var nomRedac = redacInfoWidget ? redacInfoWidget.nom : 'Ma rédac\'';
+        var lienBase = (redacInfoWidget && redacInfoWidget.lien_substack) ? redacInfoWidget.lien_substack.replace(/\/feed\/?$/,'').replace(/^([^:]+:)?\/\//,'https://') : 'https://ipsummedia.substack.com';
         var sHtml = articles.slice(0,4).map(function(a){
           var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){}
           return '<a href="'+esc(a.lien)+'" target="_blank" rel="noopener" style="display:block;padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-decoration:none;">'
@@ -13027,8 +13037,8 @@ function osChargerWidgets(){
             +(dateStr?'<div style="font-family:Space Mono,monospace;font-size:0.55rem;color:rgba(0,0,0,0.35);margin-top:2px;">'+dateStr+'</div>':'')
             +'</a>';
         }).join('');
-        widget('<i class="ti ti-news"></i>','Ipsum Média — publié',
-          sHtml+'<div style="margin-top:6px;"><a href="https://ipsummedia.substack.com" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.62rem;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;text-decoration:none;font-weight:600;">Voir tous les articles →</a></div>'
+        widget('<i class="ti ti-news"></i>', esc(nomRedac)+' — publié',
+          sHtml+'<div style="margin-top:6px;"><a href="'+esc(lienBase)+'" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.62rem;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;text-decoration:none;font-weight:600;">Voir tous les articles →</a></div>'
         );
       }).catch(function(){});
     })();
@@ -14381,21 +14391,6 @@ function osBuildDesktopIcons(){
     container.appendChild(bugsIcon);
   }
 
-  // Icône Presse Express (mini-jeu snake)
-  var snakeIcon = document.createElement('div');
-  snakeIcon.className = 'desktop-icon';
-  snakeIcon.onclick = osOuvrirSnake;
-  var snakeImg = document.createElement('div');
-  snakeImg.className = 'desktop-icon-img';
-  snakeImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
-  snakeImg.style.color = 'white';
-  snakeImg.innerHTML = '<i class="ti ti-device-gamepad-2"></i>';
-  var snakeLabel = document.createElement('div');
-  snakeLabel.className = 'desktop-icon-label';
-  snakeLabel.textContent = 'Presse Express';
-  snakeIcon.appendChild(snakeImg); snakeIcon.appendChild(snakeLabel);
-  container.appendChild(snakeIcon);
-
   // Icône Paramètres
   var paramsIcon = document.createElement('div');
   paramsIcon.className = 'desktop-icon';
@@ -14637,6 +14632,24 @@ document.addEventListener('keydown', function(e){
   if(e.key==='Escape'){
     var sp = document.getElementById('os-spotlight');
     if(sp) sp.classList.remove('visible');
+  }
+});
+
+// Easter egg — code Konami pour débloquer Presse Express
+var KONAMI_SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+var _konamiProgres = 0;
+document.addEventListener('keydown', function(e){
+  var desktop = document.getElementById('os-desktop');
+  if(!desktop || desktop.style.display === 'none') return;
+  var touche = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if(touche === KONAMI_SEQUENCE[_konamiProgres]){
+    _konamiProgres++;
+    if(_konamiProgres === KONAMI_SEQUENCE.length){
+      _konamiProgres = 0;
+      osOuvrirSnake();
+    }
+  } else {
+    _konamiProgres = (touche === KONAMI_SEQUENCE[0]) ? 1 : 0;
   }
 });
 
@@ -15577,6 +15590,7 @@ function osToggleDND(){
       osDNDMajUI();
       osVerifierDispoVisuels();
       notif(_dndActif ? '🔕 Mode Ne pas déranger activé' : '🟢 Tu es de nouveau disponible', _dndActif?'':'succes');
+      if(_dndActif) _osNotifierVieAssoIndisponibilite(getUserNomComplet(), 'signalé(e) indisponible');
     }
   });
 }
@@ -20326,11 +20340,12 @@ function osBenevolesDashRender(){
   var wc = document.getElementById('wincontent-benevoles');
   if(!wc) return;
   var isAdmin = getUserRole() === 'admin';
+  var isVieAsso = isAdmin || getUserHasFonction('vie_asso');
   wc.innerHTML = osLoadingHtml();
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
   ];
   if(isAdmin) fetches.push(fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}));
   Promise.all(fetches).then(function(results){
@@ -20350,7 +20365,14 @@ function osBenevolesDashRender(){
       var delai=delais.length?Math.round(delais.reduce(function(s,v){return s+v;},0)/delais.length):null;
       var dernAct=m.derniere_activite?new Date(m.derniere_activite):null;
       var inactif=!dernAct||(Date.now()-dernAct)/(1000*60*60*24)>14;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5)};
+      // Fraîcheur de publication — pour la vie associative : brève (7j) / article (30j)
+      var publisBreves=publis.filter(function(a){return a.type==='breve';});
+      var publisArts=publis.filter(function(a){return a.type!=='breve';});
+      var derniereBreve=publisBreves.length?new Date(Math.max.apply(null,publisBreves.map(function(a){return new Date(a.updated_at);}))):null;
+      var dernierArticle=publisArts.length?new Date(Math.max.apply(null,publisArts.map(function(a){return new Date(a.updated_at);}))):null;
+      var joursBreve=derniereBreve?Math.floor((Date.now()-derniereBreve)/(1000*60*60*24)):null;
+      var joursArticle=dernierArticle?Math.floor((Date.now()-dernierArticle)/(1000*60*60*24)):null;
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle};
     });
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
@@ -20392,7 +20414,10 @@ function osBenevolesDashRender(){
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<div style="margin-left:auto;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
     sh+='<div style="flex:1;overflow-y:auto;" id="benv-tableau"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--gris-clair);">';
-    ['Bénévole','Rôle','Articles/mois','Publiés','Délai','Activité','Statut',''].forEach(function(h){sh+='<th style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);padding:0.55rem 0.9rem;text-align:left;font-weight:500;white-space:nowrap;">'+h+'</th>';});
+    var entetes=['Bénévole','Rôle','Articles/mois','Publiés','Délai','Activité'];
+    if(isVieAsso) entetes.push('Publication','Dispo');
+    entetes.push('Statut','');
+    entetes.forEach(function(h){sh+='<th style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);padding:0.55rem 0.9rem;text-align:left;font-weight:500;white-space:nowrap;">'+h+'</th>';});
     sh+='</tr></thead><tbody id="benv-tbody">';
     statsMembres.forEach(function(s){
       var m=s.membre;
@@ -20402,7 +20427,9 @@ function osBenevolesDashRender(){
       var barPct=maxDuMois>0?Math.round((s.duMois/maxDuMois)*100):0;
       var actLabel=s.derniereAct?_benvFormatDate(s.derniereAct):'—';
       var nomAff=(m.prenom||'').trim()||(m.nom||'').trim()?esc(m.prenom||'')+' '+esc(m.nom||''):'<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
-      var statBg=s.inactif?'#FCEBEB':'#EAF3DE',statCo=s.inactif?'#A32D2D':'#27500A';
+      var estInactif=s.inactif||m.marque_inactif;
+      var statBg=estInactif?'#FCEBEB':'#EAF3DE',statCo=estInactif?'#A32D2D':'#27500A';
+      var statLbl=m.marque_inactif?'Inactif (manuel)':(s.inactif?'Inactif':'Actif');
       sh+='<tr class="benv-row" data-role="'+(m.role||'')+'" style="border-bottom:1px solid var(--gris-bord);cursor:pointer;" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       sh+='<td style="padding:0.6rem 0.9rem;white-space:nowrap;"><div style="display:flex;align-items:center;gap:0.6rem;"><div style="position:relative;flex-shrink:0;"><div style="width:30px;height:30px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div><div><div style="font-weight:600;font-size:0.82rem;color:var(--encre);">'+nomAff+'</div><div style="font-size:0.67rem;color:var(--gris);">'+esc(m.email||'')+'</div></div></div></td>';
       sh+='<td style="padding:0.6rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+(m.role||'—')+'</span></td>';
@@ -20410,8 +20437,19 @@ function osBenevolesDashRender(){
       sh+='<td style="padding:0.6rem 0.9rem;font-size:0.8rem;color:var(--gris);">'+s.publies+'</td>';
       sh+='<td style="padding:0.6rem 0.9rem;font-size:0.8rem;color:var(--gris);">'+(s.delai!==null?s.delai+'j':'—')+'</td>';
       sh+='<td style="padding:0.6rem 0.9rem;font-size:0.78rem;color:var(--gris);white-space:nowrap;">'+actLabel+'</td>';
-      sh+='<td style="padding:0.6rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+statBg+';color:'+statCo+';">'+(s.inactif?'Inactif':'Actif')+'</span></td>';
-      sh+='<td style="padding:0.5rem 0.6rem;"><button onclick="event.stopPropagation();osBenevolesRelancer(\''+m.id+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">✉️</button></td>';
+      if(isVieAsso){
+        var breveTxt=s.joursBreve===null?'—':(s.joursBreve+'j'+(s.joursBreve>7?' ⚠️':''));
+        var articleTxt=s.joursArticle===null?'—':(s.joursArticle+'j'+(s.joursArticle>30?' ⚠️':''));
+        sh+='<td style="padding:0.6rem 0.9rem;font-size:0.68rem;white-space:nowrap;line-height:1.6;">'
+          +'<div style="color:'+(s.joursBreve!==null&&s.joursBreve>7?'#A32D2D':'var(--gris)')+';">Brève : '+breveTxt+'</div>'
+          +'<div style="color:'+(s.joursArticle!==null&&s.joursArticle>30?'#A32D2D':'var(--gris)')+';">Article : '+articleTxt+'</div>'
+          +'</td>';
+        sh+='<td style="padding:0.6rem 0.9rem;">'+(m.dnd?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#FCEBEB;color:#A32D2D;">Indispo</span>':'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">—</span>')+'</td>';
+      }
+      sh+='<td style="padding:0.6rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span></td>';
+      sh+='<td style="padding:0.5rem 0.6rem;white-space:nowrap;"><button onclick="event.stopPropagation();osBenevolesRelancer(\''+m.id+'\')" title="Relancer par email" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">✉️</button>'
+        +(isVieAsso?'<button onclick="event.stopPropagation();osBenevolesToggleInactif(\''+m.id+'\','+(m.marque_inactif?'false':'true')+',\''+esc((m.prenom||'')+' '+(m.nom||''))+'\')" title="'+(m.marque_inactif?'Réactiver':'Marquer inactif')+'" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;margin-left:3px;border:0.5px solid '+(m.marque_inactif?'#27500A':'#A32D2D')+';border-radius:4px;background:white;cursor:pointer;color:'+(m.marque_inactif?'#27500A':'#A32D2D')+';">'+(m.marque_inactif?'✓':'⏸')+'</button>':'')
+        +'</td>';
       sh+='</tr>';
     });
     sh+='</tbody></table></div>';
@@ -22745,44 +22783,6 @@ function osChargerHeuresMembres(redacId){
 }
 
 // ---- ACTIONS ADMIN ----
-function osRedactionEditerModal(redacId){
-  var redac = (_redactionsData||[]).find(function(r){ return r.id===redacId; });
-  if(!redac){ notif('Rédaction introuvable'); return; }
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:14px;padding:1.5rem;width:360px;display:flex;flex-direction:column;gap:0.9rem;box-shadow:0 24px 60px rgba(0,0,0,0.3);';
-  modal.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">Modifier la rédaction</div>'
-    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-edit-nom" type="text" value="'+esc(redac.nom||'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
-    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-edit-dept" type="text" value="'+esc(redac.departement||'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
-    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><div style="display:flex;gap:0.5rem;align-items:center;"><input id="redac-edit-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:40px;height:36px;border:none;border-radius:4px;cursor:pointer;padding:2px;"><span style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">Couleur de la rédaction</span></div></div>'
-    +'<div style="display:flex;gap:0.5rem;">'
-    +'<button id="redac-edit-cancel" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
-    +'<button id="redac-edit-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Enregistrer</button>'
-    +'</div>';
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  modal.querySelector('#redac-edit-cancel').onclick = function(){ document.body.removeChild(overlay); };
-  modal.querySelector('#redac-edit-submit').onclick = function(){
-    var nom = (modal.querySelector('#redac-edit-nom').value||'').trim();
-    var dept = (modal.querySelector('#redac-edit-dept').value||'').trim();
-    var couleur = modal.querySelector('#redac-edit-couleur').value;
-    if(!nom){ notif('Le nom est obligatoire'); return; }
-    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur})})
-    .then(function(r){
-      if(r.ok){
-        // Mettre à jour le cache local
-        redac.nom = nom; redac.departement = dept||null; redac.couleur = couleur;
-        notif('Rédaction mise à jour ✓','succes');
-        document.body.removeChild(overlay);
-        osRedactionsRender();
-      } else notif('Erreur mise à jour');
-    }).catch(function(){ notif('Erreur réseau'); });
-  };
-}
-
 function osRedactionCreerModal(){
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -22792,6 +22792,7 @@ function osRedactionCreerModal(){
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-new-nom" type="text" placeholder="Ex : Haute-Garonne" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-new-dept" type="text" placeholder="Ex : 31" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-new-couleur" type="color" value="#EA5B1C" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>'
+    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-new-substack" type="text" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-new-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Créer</button>'
@@ -22803,10 +22804,11 @@ function osRedactionCreerModal(){
     var nom = modal.querySelector('#redac-new-nom').value.trim();
     var dept = modal.querySelector('#redac-new-dept').value.trim();
     var couleur = modal.querySelector('#redac-new-couleur').value;
+    var substack = modal.querySelector('#redac-new-substack').value.trim();
     if(!nom){ notif('Nom requis'); return; }
     var slug = nom.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/redactions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,slug:slug,couleur:couleur})})
+    fetch(SB_URL+'/rest/v1/redactions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,slug:slug,couleur:couleur,lien_substack:substack||null})})
     .then(function(r){
       if(r.ok){ notif('Rédaction créée ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
@@ -22825,6 +22827,7 @@ function osRedactionEditerModal(redacId){
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-edit-nom" type="text" value="'+esc(redac.nom)+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-edit-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-edit-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>'
+    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-edit-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-edit-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Enregistrer</button>'
@@ -22836,9 +22839,10 @@ function osRedactionEditerModal(redacId){
     var nom = modal.querySelector('#redac-edit-nom').value.trim();
     var dept = modal.querySelector('#redac-edit-dept').value.trim();
     var couleur = modal.querySelector('#redac-edit-couleur').value;
+    var substack = modal.querySelector('#redac-edit-substack').value.trim();
     if(!nom){ notif('Nom requis'); return; }
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur})})
+    fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null})})
     .then(function(r){
       if(r.ok){ notif('Rédaction mise à jour ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
@@ -22951,6 +22955,45 @@ function osBenevolesRelancer(membreId){
   envoyerEmailResend(m.email, '[Compo] Un peu de nouvelles ?', html, 'relance')
     .then(function(){ notif('Email de relance envoyé à '+m.prenom+' ✓', 'succes'); })
     .catch(function(){ notif('Erreur envoi email'); });
+}
+
+function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
+  var texteConfirm = nouvelEtat ? 'Marquer '+nomMembre+' comme inactif ?' : 'Réactiver '+nomMembre+' ?';
+  if(!confirm(texteConfirm)) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId,{
+    method:'PATCH', headers:authH,
+    body:JSON.stringify({marque_inactif:nouvelEtat})
+  }).then(function(r){
+    if(r.ok){
+      notif(nouvelEtat ? nomMembre+' marqué(e) inactif ✓' : nomMembre+' réactivé(e) ✓', 'succes');
+      if(nouvelEtat) _osNotifierVieAssoIndisponibilite(nomMembre, 'marqué(e) inactif par la vie associative');
+      osBenevolesDashRender();
+    } else {
+      notif('Erreur — as-tu bien ajouté la colonne marque_inactif dans Supabase ?', 'erreur');
+    }
+  }).catch(function(){ notif('Erreur réseau'); });
+}
+
+// Prévient les membres taggés "vie associative" quand quelqu'un devient indisponible
+// (auto-signalement via le bouton dispo/indispo, ou marquage manuel côté vie asso)
+function _osNotifierVieAssoIndisponibilite(nomMembre, raison){
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,fonction',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(membres){
+    var cibles = (membres||[]).filter(function(m){ return fonctionArray(m.fonction).indexOf('vie_asso') !== -1; });
+    cibles.forEach(function(m){
+      if(!m.email) return;
+      var html = '<div style="font-family:sans-serif;max-width:500px;">'
+        +'<div style="background:#721C24;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">🔕 '+esc(nomMembre)+' est indisponible</h2></div>'
+        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
+        +'<p><strong>'+esc(nomMembre)+'</strong> vient d\'être '+esc(raison||'signalé(e) indisponible')+'. Ça peut valoir le coup de prendre des nouvelles.</p>'
+        +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+        +'</div></div>';
+      envoyerEmailResend(m.email, '[Compo] '+nomMembre+' est indisponible', html, 'vie_asso').catch(function(){});
+    });
+  }).catch(function(){});
 }
 
 function _benvFormatDate(d){
@@ -24945,7 +24988,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'tresorerie',     icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie',     color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'] },
   { id:'boutique',       icon:'<i class="ti ti-gift"></i>', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
   { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
-  { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
+  { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
