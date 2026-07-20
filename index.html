@@ -472,44 +472,46 @@ body {
 }
 .os-titlebar:active { cursor: grabbing; }
 
-/* Traffic lights */
-.os-traffic { display:flex; gap:8px; align-items:center; }
+/* Contrôles de fenêtre — groupe en pilule */
+.os-traffic {
+  display: flex;
+  align-items: center;
+  background: rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+:root.theme-dark .os-traffic {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+}
 .os-btn-win {
-  width: 14px; height: 14px; border-radius: 50%;
+  width: 27px; height: 24px;
   border: none; cursor: pointer;
-  transition: filter 0.15s;
-  position: relative;
-  /* Zone de clic étendue — évite les ratés de clic */
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s;
   padding: 0;
   outline: none;
-  /* Pseudo-element pour agrandir la zone tactile sans changer le visuel */
   -webkit-tap-highlight-color: transparent;
 }
-/* Zone de clic invisible 24x24 autour du bouton */
-.os-btn-win::before {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-}
-.os-btn-win:hover { filter: brightness(0.85); }
-.os-btn-close { background: #FF5F57; }
-.os-btn-min   { background: #FFBD2E; }
-.os-btn-max   { background: #28CA41; }
+.os-traffic .os-btn-win + .os-btn-win { border-left: 1px solid rgba(0,0,0,0.1); }
+:root.theme-dark .os-traffic .os-btn-win + .os-btn-win { border-left-color: rgba(255,255,255,0.15); }
+.os-btn-win:hover { background: rgba(0,0,0,0.05); }
+:root.theme-dark .os-btn-win:hover { background: rgba(255,255,255,0.08); }
+.os-btn-close:hover { background: #E24B4A; }
+.os-btn-close:hover .win-icon { color: white; }
 .win-icon {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
-  font-weight: 900;
-  color: rgba(0,0,0,0.45);
+  font-size: 13px;
+  color: rgba(0,0,0,0.55);
   line-height: 1;
-  font-family: Space Mono, monospace;
-  transition: color 0.1s;
+  transition: color 0.12s;
 }
-.os-btn-win:hover .win-icon { color: rgba(0,0,0,0.7); }
+:root.theme-dark .win-icon { color: rgba(255,255,255,0.6); }
+.os-btn-min .win-icon, .os-btn-max .win-icon { font-size: 11px; }
 
 /* Title */
 .os-titlebar-title {
@@ -1349,6 +1351,27 @@ body {
 }
 #os-apps-moved-tooltip .fs-tooltip-arrow {
   top: auto; bottom: -6px; right: auto; left: 50%;
+  transform: translateX(-50%) rotate(225deg);
+  border-left: none; border-top: none;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+#os-tour-bubble {
+  position: fixed;
+  z-index: 99901;
+  background: rgba(10,10,20,0.97);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  min-width: 260px;
+  max-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+  animation: slideInUpCentered 0.3s ease forwards;
+}
+#os-tour-bubble .fs-tooltip-arrow {
+  top: auto; bottom: -6px; left: 50%; right: auto;
   transform: translateX(-50%) rotate(225deg);
   border-left: none; border-top: none;
   border-right: 1px solid rgba(255,255,255,0.15);
@@ -3797,8 +3820,23 @@ input:focus,select:focus,textarea:focus{
   <div id="os-apps-moved-tooltip">
     <div class="fs-tooltip-arrow"></div>
     <button class="fs-tooltip-close" onclick="osDismissAppsMovedTooltip()">×</button>
-    <div class="fs-tooltip-title">📦 Les apps ont déménagé</div>
-    <div class="fs-tooltip-text">Toutes tes apps sont maintenant dans le <strong style="color:var(--rouge);">📰 Menu</strong> — épinglées et complètes au même endroit.</div>
+    <div class="fs-tooltip-title"><i class="ti ti-apps"></i> Les apps ont déménagé</div>
+    <div class="fs-tooltip-text">Toutes tes apps sont maintenant dans le <strong style="color:var(--rouge);"><i class="ti ti-news"></i> Menu</strong> — épinglées et complètes au même endroit.</div>
+  </div>
+
+  <!-- BULLE DE TUTO INTERACTIF — première connexion + relançable depuis l'icône Guide -->
+  <div id="os-tour-bubble">
+    <div class="fs-tooltip-arrow"></div>
+    <button class="fs-tooltip-close" onclick="osTourFermer()">×</button>
+    <div class="fs-tooltip-title" id="os-tour-bubble-title"></div>
+    <div class="fs-tooltip-text" id="os-tour-bubble-text"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.7rem;gap:0.5rem;">
+      <span id="os-tour-bubble-compteur" style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.4);flex-shrink:0;"></span>
+      <div style="display:flex;gap:6px;">
+        <button id="os-tour-btn-prec" onclick="osTourPrecedent()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 10px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);border-radius:6px;cursor:pointer;">← Précédent</button>
+        <button id="os-tour-btn-suiv" onclick="osTourSuivant()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 10px;background:var(--rouge);border:none;color:white;border-radius:6px;cursor:pointer;font-weight:600;">Suivant →</button>
+      </div>
+    </div>
   </div>
 
 
@@ -12962,6 +13000,25 @@ function osChargerWidgets(){
         widget('📢','Rejoindre l\'équipe', rHtml+'<div style="margin-top:6px;"><button onclick="osOuvrirRecrutement()" style="font-size:0.62rem;width:100%;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;cursor:pointer;font-weight:600;">Voir toutes les annonces →</button></div>');
       }).catch(function(){});
     })();
+    // Widget Substack — derniers articles publiés
+    (function(){
+      fetch(SB_URL+'/functions/v1/rss-substack',{headers:authH})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var articles = (data && data.articles) ? data.articles : [];
+        if(!articles.length) return;
+        var sHtml = articles.slice(0,4).map(function(a){
+          var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){}
+          return '<a href="'+esc(a.lien)+'" target="_blank" rel="noopener" style="display:block;padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-decoration:none;">'
+            +'<div style="font-size:0.73rem;color:rgba(0,0,0,0.8);font-weight:500;line-height:1.35;">'+esc(a.titre||'')+'</div>'
+            +(dateStr?'<div style="font-family:Space Mono,monospace;font-size:0.55rem;color:rgba(0,0,0,0.35);margin-top:2px;">'+dateStr+'</div>':'')
+            +'</a>';
+        }).join('');
+        widget('<i class="ti ti-news"></i>','Ipsum Média — publié',
+          sHtml+'<div style="margin-top:6px;"><a href="https://ipsummedia.substack.com" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.62rem;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;text-decoration:none;font-weight:600;">Voir tous les articles →</a></div>'
+        );
+      }).catch(function(){});
+    })();
 
     // Rafraîchir
     var btnR = document.createElement('button');
@@ -13009,7 +13066,14 @@ function osAppliquerAlignementDock(pos){
 
 function osBuildDock(){
   // Init DND au démarrage
-  if(_session) setTimeout(function(){ osInitDND(); osVerifierDispoVisuels(); if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte(); }, 1000);
+  if(_session) setTimeout(function(){
+    osInitDND(); osVerifierDispoVisuels();
+    if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte();
+    if(localStorage.getItem('compo_os_tour_pending')){
+      localStorage.removeItem('compo_os_tour_pending');
+      setTimeout(osTourDemarrer, 400); // laisse le bureau finir de s'afficher
+    }
+  }, 1000);
   var dock = document.getElementById('os-dock-inner');
   if(!dock) return;
   osAppliquerAlignementDock();
@@ -13037,7 +13101,7 @@ function osBuildDock(){
   var startBtn = document.createElement('div');
   startBtn.id = 'os-start-btn';
   startBtn.className = 'dock-icon';
-  startBtn.innerHTML = '<div class="dock-icon-pill"><div class="dock-icon-img" style="background:var(--rouge);font-size:1.15rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);">☰</div></div><div class="dock-dot"></div><div class="dock-icon-label">Menu</div>';
+  startBtn.innerHTML = '<div class="dock-icon-pill"><div class="dock-icon-img" style="background:var(--rouge);font-size:1.15rem;color:white;box-shadow:0 4px 12px rgba(0,0,0,0.4);"><i class="ti ti-menu-2"></i></div></div><div class="dock-dot"></div><div class="dock-icon-label">Menu</div>';
   startBtn.onclick = function(e){ e.stopPropagation(); osToggleStartMenu(); };
   dock.appendChild(startBtn);
 
@@ -13065,9 +13129,9 @@ function osBuildDock(){
   }
   // Ajouter trésorerie si trésorier
   if(Array.isArray(fonctions) && fonctions.indexOf('tresorier') !== -1 && !apps.some(function(a){ return a.id==='tresorerie'; })){
-    apps = apps.concat([{ id:'tresorerie', icon:'💶', label:'Trésorerie', color:'#0F6E56' }]);
+    apps = apps.concat([{ id:'tresorerie', icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie', color:'#0F6E56' }]);
   }
-  var TCHAP_APP = { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56' };
+  var TCHAP_APP = { id:'tchap', icon:'<i class="ti ti-message-circle"></i>', label:'Tchap', color:'#0F6E56' };
   apps = apps.filter(function(a){ return a.id !== 'tchap'; });
   if(window._visuelsProAccessible !== true){ apps = apps.filter(function(a){ return a.id !== 'visuels-pro'; }); }
   apps = [TCHAP_APP].concat(apps);
@@ -13087,7 +13151,7 @@ function osBuildDock(){
     dock.appendChild(_creerSepDock('open-sep'));
     openNonPinned.forEach(function(pid){
       var appInfo = ALL_APPS_CATALOGUE ? ALL_APPS_CATALOGUE.find(function(a){ return a.id===pid; }) : null;
-      var app = appInfo || { id:pid, icon:'🔲', label:pid, color:'#444' };
+      var app = appInfo || { id:pid, icon:'<i class="ti ti-app-window"></i>', label:pid, color:'#444' };
       dock.appendChild(_creerIconeDock(app, false));
     });
   }
@@ -13096,14 +13160,14 @@ function osBuildDock(){
   var tray = document.createElement('div');
   tray.id = 'os-taskbar-tray';
   tray.innerHTML =
-    '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications">🗂️<span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
-    +'<button id="os-focus-btn" class="tray-btn" onclick="osToggleFocusMode()" style="opacity:0.6;font-size:0.8rem;" title="Activer le mode focus">🔔</button>'
+    '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
+    +'<button id="os-focus-btn" class="tray-btn" onclick="osToggleFocusMode()" style="opacity:0.6;font-size:0.8rem;" title="Activer le mode focus"><i class="ti ti-bell"></i></button>'
     +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
     +'<span id="os-dnd-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
     +'<span id="os-dnd-label">Disponible</span>'
     +'</div>'
-    +'<button id="os-fs-btn" class="tray-btn" onclick="osToggleFullscreen()" title="Plein écran">⛶</button>'
-    +'<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)">🔍</button>'
+    +'<button id="os-fs-btn" class="tray-btn" onclick="osToggleFullscreen()" title="Plein écran"><i class="ti ti-arrows-maximize"></i></button>'
+    +'<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)"><i class="ti ti-search"></i></button>'
     +'<div id="os-taskbar-clock" title="Horloge">'
     +'<span id="os-taskbar-time">--:--</span>'
     +'<span id="os-taskbar-date"></span>'
@@ -13155,7 +13219,8 @@ function _creerIconeDock(app, isPinned){
   var img = document.createElement('div');
   img.className = 'dock-icon-img';
   img.style.background = app.color;
-  img.textContent = app.icon;
+  img.style.color = 'white';
+  img.innerHTML = app.icon;
   img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
   // Bordure subtile pour les apps non épinglées
   if(!isPinned) img.style.outline = '2px solid rgba(255,255,255,0.3)';
@@ -13229,14 +13294,14 @@ function _afficherMenuDock(e, app, isPinned){
   items.push({ label: app.label, style:'font-weight:700;opacity:0.7;font-size:0.75rem;cursor:default;', action:null });
   items.push({ sep:true });
   if(isOpen){
-    items.push({ label:'🔼 Mettre au premier plan', action:function(){ osFocusWindow(app.id); } });
+    items.push({ label:'<i class="ti ti-arrow-bar-to-up"></i> Mettre au premier plan', action:function(){ osFocusWindow(app.id); } });
     items.push({ label:'✕ Fermer', action:function(){ osCloseWindow(app.id); } });
     items.push({ sep:true });
   }
   if(isPinned){
-    items.push({ label:'📌 Désépingler du dock', action:function(){ osDepinglerApp(app.id); } });
+    items.push({ label:'<i class="ti ti-pinned-off"></i> Désépingler du dock', action:function(){ osDepinglerApp(app.id); } });
   } else {
-    items.push({ label:'📌 Épingler dans le dock', action:function(){ osPinglerApp(app.id); } });
+    items.push({ label:'<i class="ti ti-pin"></i> Épingler dans le dock', action:function(){ osPinglerApp(app.id); } });
   }
 
   items.forEach(function(item){
@@ -13248,7 +13313,7 @@ function _afficherMenuDock(e, app, isPinned){
     }
     var el = document.createElement('div');
     el.style.cssText = 'font-family:Space Mono,monospace;font-size:0.68rem;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;'+(item.style||'');
-    el.textContent = item.label;
+    el.innerHTML = item.label;
     if(item.action){
       el.onmouseover = function(){ this.style.background='rgba(255,255,255,0.12)'; };
       el.onmouseout  = function(){ this.style.background='transparent'; };
@@ -13486,7 +13551,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', tutos:'📖 Guide Compo OS', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -13505,28 +13570,28 @@ function _osOpenWindowExecuter(pageId){
   var traffic = document.createElement('div');
   traffic.className = 'os-traffic';
   
-  var btnClose = document.createElement('button');
-  btnClose.className = 'os-btn-win os-btn-close';
-  btnClose.title = 'Fermer';
-  btnClose.innerHTML = '<span class="win-icon">✕</span>';
-  btnClose.onclick = (function(pid){ return function(e){ e.stopPropagation(); osCloseWindow(pid); }; })(pageId);
-  
   var btnMin = document.createElement('button');
   btnMin.className = 'os-btn-win os-btn-min';
   btnMin.title = 'Minimiser';
-  btnMin.innerHTML = '<span class="win-icon">—</span>';
+  btnMin.innerHTML = '<span class="win-icon"><i class="ti ti-minus"></i></span>';
   btnMin.onclick = (function(pid){ return function(e){ e.stopPropagation(); osMinimizeWindow(pid); }; })(pageId);
-  
+
   var btnMax = document.createElement('button');
   btnMax.className = 'os-btn-win os-btn-max';
   btnMax.title = 'Agrandir';
-  btnMax.innerHTML = '<span class="win-icon">⤢</span>';
+  btnMax.innerHTML = '<span class="win-icon"><i class="ti ti-square"></i></span>';
   btnMax.onclick = (function(pid){ return function(e){ e.stopPropagation(); osMaximizeWindow(pid); }; })(pageId);
-  
-  traffic.appendChild(btnClose);
+
+  var btnClose = document.createElement('button');
+  btnClose.className = 'os-btn-win os-btn-close';
+  btnClose.title = 'Fermer';
+  btnClose.innerHTML = '<span class="win-icon"><i class="ti ti-x"></i></span>';
+  btnClose.onclick = (function(pid){ return function(e){ e.stopPropagation(); osCloseWindow(pid); }; })(pageId);
+
   traffic.appendChild(btnMin);
   traffic.appendChild(btnMax);
-  
+  traffic.appendChild(btnClose);
+
   var titleEl = document.createElement('div');
   titleEl.className = 'os-titlebar-title';
   titleEl.id = 'win-title-'+pageId;
@@ -13768,12 +13833,6 @@ function osLoadPageContent(pageId, winEl){
     return;
   }
 
-  // Page tutos spéciale
-  if(pageId === 'tutos'){
-    setTimeout(function(){ osTutoRender(); }, 50);
-    return;
-  }
-  
   // Cloner la page depuis le DOM caché
   var srcPage = document.getElementById('page-'+pageId);
   if(!srcPage) return;
@@ -14226,7 +14285,8 @@ function osBuildDesktopIcons(){
   var statsImg = document.createElement('div');
   statsImg.className = 'desktop-icon-img';
   statsImg.style.background = 'linear-gradient(135deg,#0D0D1A,#1A1A2E)';
-  statsImg.textContent = '📊';
+  statsImg.style.color = 'white';
+  statsImg.innerHTML = '<i class="ti ti-chart-bar"></i>';
   var statsLabel = document.createElement('div');
   statsLabel.className = 'desktop-icon-label';
   statsLabel.textContent = 'Stats';
@@ -14241,7 +14301,8 @@ function osBuildDesktopIcons(){
     var statsAdminImg = document.createElement('div');
     statsAdminImg.className = 'desktop-icon-img';
     statsAdminImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
-    statsAdminImg.textContent = '✏️';
+    statsAdminImg.style.color = 'white';
+    statsAdminImg.innerHTML = '<i class="ti ti-pencil"></i>';
     var statsAdminLabel = document.createElement('div');
     statsAdminLabel.className = 'desktop-icon-label';
     statsAdminLabel.textContent = 'Saisie Stats';
@@ -14252,18 +14313,18 @@ function osBuildDesktopIcons(){
   // Toutes les apps disponibles
   var OFFLINE_APPS = ['edition', 'lecture'];
   var allApps = [
-    { id:'edition', icon:'✏️', label:'Edition', color:'#6C3483', offline:true, legacy:true },
-    { id:'comparaison', icon:'⚖️', label:'Comparer', color:'#1A5276', legacy:true },
-    { id:'lecture', icon:'👁️', label:'Lecture', color:'#117A65', offline:true, legacy:true },
+    { id:'edition', icon:'<i class="ti ti-pencil"></i>', label:'Edition', color:'#6C3483', offline:true, legacy:true },
+    { id:'comparaison', icon:'<i class="ti ti-scale"></i>', label:'Comparer', color:'#1A5276', legacy:true },
+    { id:'lecture', icon:'<i class="ti ti-eye"></i>', label:'Lecture', color:'#117A65', offline:true, legacy:true },
   ];
   if(role === 'admin' || role === 'correcteur'){
-    allApps.push({ id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' });
+    allApps.push({ id:'newsletter', icon:'<i class="ti ti-mail"></i>', label:'Newsletter', color:'#155724' });
   }
   if(role === 'admin'){
-    allApps.push({ id:'log', icon:'📜', label:'Journal', color:'#2C3E50' });
+    allApps.push({ id:'log', icon:'<i class="ti ti-file-text"></i>', label:'Journal', color:'#2C3E50' });
   }
   if(role === 'redacteur' || role === 'correcteur'){
-    allApps.push({ id:'cps', icon:'📰', label:'CPs', color:'#4A235A', forceBureau:true });
+    allApps.push({ id:'cps', icon:'<i class="ti ti-news"></i>', label:'CPs', color:'#4A235A', forceBureau:true });
   }
   
   // N'afficher que celles qui ne sont PAS dans le dock, sauf forceBureau, et pas les legacy
@@ -14276,7 +14337,8 @@ function osBuildDesktopIcons(){
   var fichImg = document.createElement('div');
   fichImg.className = 'desktop-icon-img';
   fichImg.style.background = 'linear-gradient(135deg,#1A5276,#2980B9)';
-  fichImg.textContent = '📂';
+  fichImg.style.color = 'white';
+  fichImg.innerHTML = '<i class="ti ti-folder"></i>';
   fichImg.style.position = 'relative';
   var fichBadge = document.createElement('span');
   fichBadge.className = 'desktop-icon-badge';
@@ -14297,7 +14359,8 @@ function osBuildDesktopIcons(){
     var bugsImg = document.createElement('div');
     bugsImg.className = 'desktop-icon-img';
     bugsImg.style.background = 'linear-gradient(135deg,#2C3E50,#34495E)';
-    bugsImg.textContent = '🐛';
+    bugsImg.style.color = 'white';
+    bugsImg.innerHTML = '<i class="ti ti-bug"></i>';
     var bugsLabel = document.createElement('div');
     bugsLabel.className = 'desktop-icon-label';
     bugsLabel.textContent = 'Bugs';
@@ -14312,7 +14375,8 @@ function osBuildDesktopIcons(){
   var snakeImg = document.createElement('div');
   snakeImg.className = 'desktop-icon-img';
   snakeImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
-  snakeImg.textContent = '🐍';
+  snakeImg.style.color = 'white';
+  snakeImg.innerHTML = '<i class="ti ti-device-gamepad-2"></i>';
   var snakeLabel = document.createElement('div');
   snakeLabel.className = 'desktop-icon-label';
   snakeLabel.textContent = 'Presse Express';
@@ -14326,7 +14390,8 @@ function osBuildDesktopIcons(){
   var paramsImg = document.createElement('div');
   paramsImg.className = 'desktop-icon-img';
   paramsImg.style.background = 'linear-gradient(135deg,#2C3E50,#4A5568)';
-  paramsImg.textContent = '⚙️';
+  paramsImg.style.color = 'white';
+  paramsImg.innerHTML = '<i class="ti ti-settings"></i>';
   var paramsLabel = document.createElement('div');
   paramsLabel.className = 'desktop-icon-label';
   paramsLabel.textContent = 'Paramètres';
@@ -14341,7 +14406,8 @@ function osBuildDesktopIcons(){
   var agendaImg = document.createElement('div');
   agendaImg.className = 'desktop-icon-img';
   agendaImg.style.background = 'linear-gradient(135deg,#C0392B,#E74C3C)';
-  agendaImg.textContent = '📅';
+  agendaImg.style.color = 'white';
+  agendaImg.innerHTML = '<i class="ti ti-calendar"></i>';
   var agendaLabel = document.createElement('div');
   agendaLabel.className = 'desktop-icon-label';
   agendaLabel.textContent = 'Agenda';
@@ -14356,7 +14422,8 @@ function osBuildDesktopIcons(){
   var guidImg = document.createElement('div');
   guidImg.className = 'desktop-icon-img';
   guidImg.style.background = 'linear-gradient(135deg,#4A235A,#7D3C98)';
-  guidImg.textContent = '📖';
+  guidImg.style.color = 'white';
+  guidImg.innerHTML = '<i class="ti ti-book-2"></i>';
   var guidLabel = document.createElement('div');
   guidLabel.className = 'desktop-icon-label';
   guidLabel.textContent = 'Guide';
@@ -14372,7 +14439,8 @@ function osBuildDesktopIcons(){
   substackImg.className = 'desktop-icon-img';
   substackImg.style.background = 'linear-gradient(135deg,#FF6719,#E8461E)';
   substackImg.style.fontSize = '1.5rem';
-  substackImg.textContent = '📰';
+  substackImg.style.color = 'white';
+  substackImg.innerHTML = '<i class="ti ti-news"></i>';
   var substackLabel = document.createElement('div');
   substackLabel.className = 'desktop-icon-label';
   substackLabel.textContent = 'Ipsum Média';
@@ -14386,13 +14454,15 @@ function osBuildDesktopIcons(){
     
     var img = document.createElement('div');
     img.className = 'desktop-icon-img';
-    img.textContent = app.icon;
+    img.style.color = 'var(--encre)';
+    img.innerHTML = app.icon;
     img.style.position = 'relative';
 
-    // Badge 📡 pour les apps hors ligne
+    // Badge pour les apps hors ligne
     if(app.offline){
       var offBadge = document.createElement('span');
-      offBadge.textContent = '📡';
+      offBadge.innerHTML = '<i class="ti ti-wifi-off"></i>';
+      offBadge.style.color = 'white';
       offBadge.title = 'Fonctionne hors ligne';
       offBadge.style.cssText = 'position:absolute;bottom:-4px;right:-4px;font-size:0.7rem;background:rgba(0,0,0,0.5);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;line-height:1;';
       img.appendChild(offBadge);
@@ -14425,7 +14495,8 @@ function osBuildDesktopIcons(){
   mailIcon.onclick = function(){ window.open('https://mail.google.com/a/ipsummedia.fr','_blank'); };
   var mailImg = document.createElement('div');
   mailImg.className = 'desktop-icon-img';
-  mailImg.textContent = '✉️';
+  mailImg.style.color = 'var(--encre)';
+  mailImg.innerHTML = '<i class="ti ti-mail"></i>';
   var mailLabel = document.createElement('div');
   mailLabel.className = 'desktop-icon-label';
   mailLabel.textContent = 'Mail';
@@ -14439,7 +14510,8 @@ function osBuildDesktopIcons(){
   cpIcon.onclick = function(){ osOpenWindow('cps'); };
   var cpImg = document.createElement('div');
   cpImg.className = 'desktop-icon-img';
-  cpImg.textContent = '📋';
+  cpImg.style.color = 'var(--encre)';
+  cpImg.innerHTML = '<i class="ti ti-clipboard-list"></i>';
   var cpLabel = document.createElement('div');
   cpLabel.className = 'desktop-icon-label';
   cpLabel.textContent = 'CPs';
@@ -14614,7 +14686,8 @@ function _creerAppTuile(app, epingle){
   var img = document.createElement('div');
   img.className = 'sm-app-img';
   img.style.background = app.color;
-  img.textContent = app.icon;
+  img.style.color = 'white';
+  img.innerHTML = app.icon;
 
   var label = document.createElement('div');
   label.className = 'sm-app-label';
@@ -15745,12 +15818,12 @@ function osToggleFocusMode(){
   _focusMode = !_focusMode;
   var btn = document.getElementById('os-focus-btn');
   if(btn){
-    btn.textContent = _focusMode ? '🎯' : '🔔';
+    btn.innerHTML = _focusMode ? '<i class="ti ti-target-arrow"></i>' : '<i class="ti ti-bell"></i>';
     btn.title = _focusMode ? 'Mode focus actif — cliquer pour désactiver' : 'Activer le mode focus';
     btn.style.opacity = _focusMode ? '1' : '0.6';
     btn.style.background = _focusMode ? 'rgba(234,91,28,0.3)' : 'transparent';
   }
-  notif(_focusMode ? '🎯 Mode focus activé — notifications silencieuses' : '🔔 Mode focus désactivé', 'info');
+  notif(_focusMode ? 'Mode focus activé — notifications silencieuses' : 'Mode focus désactivé', 'info');
 }
 
 // ── Material ripple effect ──
@@ -16077,6 +16150,122 @@ function osDismissAppsMovedTooltip(){
   }
 }
 
+// ===== TUTO INTERACTIF — ouvre les vraies apps et pointe les éléments clés =====
+function _tourEstChefOuAdmin(){
+  var role = getUserRole();
+  var monLien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
+  return role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
+}
+
+var TOUR_ETAPES = [
+  {
+    id: 'dispo', pageId: null, cible: '#os-dnd-btn',
+    titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
+    texte: function(){
+      var estCommunicant = _osComMembreIds([{id:'moi', fonction:getUserFonction()}]).length > 0;
+      if(estCommunicant){
+        return 'Ce bouton sert à signaler que tu ne peux pas t\'investir dans l\'association en ce moment — les autres le voient tout de suite. '
+          + '<strong style="color:var(--rouge);">En tant que membre de la communication</strong>, si tu passes en indisponible et qu\'aucun autre communicant n\'est disponible, l\'outil Visuels s\'ouvre en libre-service pour les rédacteurs le temps que tu reviennes.';
+      }
+      return 'Ce bouton sert à signaler que tu ne peux pas t\'investir dans l\'association en ce moment — pas de pression, ça prévient juste les autres.';
+    }
+  },
+  {
+    id: 'redac', pageId: 'redactions', cible: '#redac-sidebar-rail',
+    titre: '<i class="ti ti-news"></i> Ma Rédac\'',
+    texte: 'Ton espace rédaction : ton profil, les sujets disponibles à réserver, les annonces de recrutement, et ta rédaction locale. Le bandeau "Sujets à rédiger" en haut te montre toujours ce qu\'il y a de plus urgent à écrire.'
+  },
+  {
+    id: 'cps',
+    pageId: function(){ return _tourEstChefOuAdmin() ? 'cps-admin' : 'cps'; },
+    cible: function(){ return _tourEstChefOuAdmin() ? '#page-cps-admin .panel-title' : '#page-cps .panel-title'; },
+    titre: '<i class="ti ti-speakerphone"></i> Communiqués de presse',
+    texte: 'Les communiqués reçus par Ipsum Média arrivent ici. Tu peux transformer un communiqué en sujet à rédiger, ou directement créer un article à partir de son contenu.'
+  },
+  {
+    id: 'redaction', pageId: 'redaction', cible: '#r-titre',
+    titre: '<i class="ti ti-pencil"></i> Rédiger un article',
+    texte: 'Ton article suit un circuit fixe : Brouillon → En relecture → Corrigé → Validé → Publié. Une fois prêt, clique sur "Envoyer en correction" pour le faire relire par un correcteur.'
+  }
+];
+
+var _tourIndex = 0;
+var _tourPageOuverte = null;
+
+function osTourDemarrer(){
+  _tourIndex = 0;
+  osTourAllerA(0);
+}
+
+function osTourAllerA(i){
+  if(i < 0) return;
+  var etape = TOUR_ETAPES[i];
+  if(!etape){ osTourFermer(); return; }
+  _tourIndex = i;
+  var pageId = typeof etape.pageId === 'function' ? etape.pageId() : etape.pageId;
+  // Ferme la fenêtre ouverte par l'étape précédente si on change de fenêtre
+  if(_tourPageOuverte && _tourPageOuverte !== pageId) osCloseWindow(_tourPageOuverte);
+  if(pageId){
+    _tourPageOuverte = pageId;
+    osOpenWindow(pageId);
+  } else {
+    _tourPageOuverte = null;
+  }
+  var cible = typeof etape.cible === 'function' ? etape.cible() : etape.cible;
+  _tourAttendreElement(cible, function(el){ osTourPositionnerBulle(el, etape); });
+}
+
+function osTourSuivant(){ osTourAllerA(_tourIndex + 1); }
+function osTourPrecedent(){ osTourAllerA(_tourIndex - 1); }
+
+function osTourFermer(){
+  var uid = getUserId();
+  if(uid) localStorage.setItem('compo_os_tour_vu_'+uid, '1');
+  var el = document.getElementById('os-tour-bubble');
+  if(el){
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    setTimeout(function(){ el.style.display='none'; el.style.opacity=''; el.style.transition=''; }, 300);
+  }
+  _tourPageOuverte = null;
+}
+
+function _tourAttendreElement(selector, callback, tentative){
+  tentative = tentative || 0;
+  var el = document.querySelector(selector);
+  if(el){ callback(el); return; }
+  if(tentative >= 40) return; // ~6s, abandon silencieux si l'élément n'apparaît jamais
+  setTimeout(function(){ _tourAttendreElement(selector, callback, tentative+1); }, 150);
+}
+
+function osTourPositionnerBulle(el, etape){
+  var bulle = document.getElementById('os-tour-bubble');
+  if(!bulle) return;
+  var titreEl = document.getElementById('os-tour-bubble-title');
+  var texteEl = document.getElementById('os-tour-bubble-text');
+  var compteurEl = document.getElementById('os-tour-bubble-compteur');
+  var btnPrec = document.getElementById('os-tour-btn-prec');
+  var btnSuiv = document.getElementById('os-tour-btn-suiv');
+  if(titreEl) titreEl.innerHTML = etape.titre;
+  if(texteEl) texteEl.innerHTML = typeof etape.texte === 'function' ? etape.texte() : etape.texte;
+  if(compteurEl) compteurEl.textContent = (_tourIndex+1)+' / '+TOUR_ETAPES.length;
+  if(btnPrec) btnPrec.style.visibility = _tourIndex === 0 ? 'hidden' : 'visible';
+  if(btnSuiv) btnSuiv.textContent = (_tourIndex === TOUR_ETAPES.length - 1) ? 'Terminé ✓' : 'Suivant →';
+
+  var rect = el.getBoundingClientRect();
+  bulle.style.left = 'auto';
+  bulle.style.right = Math.max(12, window.innerWidth - rect.right) + 'px';
+  bulle.style.bottom = Math.max(12, window.innerHeight - rect.top + 14) + 'px';
+  var arrow = bulle.querySelector('.fs-tooltip-arrow');
+  if(arrow){
+    arrow.style.left = 'auto';
+    arrow.style.right = Math.max(8, rect.width/2 - 6) + 'px';
+    arrow.style.transform = 'rotate(225deg)';
+  }
+  bulle.style.display = 'block';
+  bulle.style.opacity = '1';
+}
+
 
 // ===== APP SUJETS =====
 var _sujetsData = [];
@@ -16217,248 +16406,9 @@ function osInitSujets(){
 }
 
 
-// ===== APP TUTOS =====
-var TUTOS = [
-  {
-    id: 'premiers-pas',
-    icon: '🚀',
-    titre: 'Premiers pas',
-    desc: 'Découvre l interface Compo OS',
-    steps: [
-      { name:'Bienvenue dans Compo OS', icon:'🖥️', desc:'Compo OS est l outil de rédaction interne d Ipsum Média. Il fonctionne comme un mini système d exploitation : chaque fonctionnalité s ouvre dans une fenêtre séparée que tu peux déplacer et redimensionner.', tip:'<strong>Astuce :</strong> Tu peux ouvrir plusieurs fenêtres en même temps !' },
-      { name:'Le Dock', icon:'⚙️', desc:'En bas de l écran, le dock contient toutes tes applications. Clique sur une icône pour ouvrir la fenêtre correspondante. Un point sous l icône indique que l app est ouverte.', tip:'<strong>Astuce :</strong> Passe la souris sur une icône pour voir son nom.' },
-      { name:'Les fenêtres', icon:'🪟', desc:'Chaque fenêtre a 3 boutons en haut à gauche : rouge pour fermer, jaune pour minimiser, vert pour agrandir. Tu peux aussi la déplacer en glissant la barre de titre, et la redimensionner depuis le coin bas-droit.', tip:'<strong>Astuce :</strong> Ctrl+K ouvre la recherche Spotlight pour trouver n importe quelle app.' },
-      { name:'Le menu 📰', icon:'📰', desc:'Le bouton rouge en bas à gauche du dock ouvre le menu principal. Tu y trouveras : modifier ton profil, les notes de version et le bouton de déconnexion.', tip:'<strong>Astuce :</strong> Ton rôle (rédacteur, correcteur, admin) détermine ce que tu vois.' },
-      { name:'Les notifications', icon:'🔔', desc:'Le bouton 🔔 en haut à droite ouvre le centre de notifications. Tu y trouveras les articles à corriger, les sujets disponibles, les demandes d assistance et plus encore.', tip:'<strong>Astuce :</strong> Clique sur une notification pour ouvrir directement la bonne app.' },
-    ]
-  },
-  {
-    id: 'rediger',
-    icon: '✍️',
-    titre: 'Rédiger un article',
-    desc: 'De l écriture à l envoi en correction',
-    steps: [
-      { name:'Ouvrir la rédaction', icon:'✍️', desc:'Clique sur l icône ✍️ dans le dock pour ouvrir la fenêtre de rédaction. Tu peux aussi passer par les Sujets disponibles sur le bureau : réserve un sujet et il s ouvrira automatiquement avec le titre pré-rempli.', tip:'<strong>Astuce :</strong> Le brouillon est sauvegardé localement à chaque modification.' },
-      { name:'Remplir les champs', icon:'📝', desc:'Saisis ton prénom, le titre, le chapeau (accroche), l angle et le corps de l article. Pour une brève, le corps est limité à 400 caractères. Tu peux ajouter des tags et des sources en bas.', tip:'<strong>Astuce :</strong> Le compteur de caractères s affiche en temps réel.' },
-      { name:'Ajouter une image', icon:'🖼️', desc:'Clique sur la zone image pour ajouter une photo à ton article. Elle sera automatiquement uploadée dans le cloud lors de l envoi. Pense à remplir la légende !', tip:'<strong>Astuce :</strong> Les images sont stockées de façon sécurisée sur nos serveurs.' },
-      { name:'Envoyer en correction', icon:'🔍', desc:'Une fois ton article prêt, clique sur "Envoyer en correction". Une fenêtre s ouvre pour choisir ton correcteur parmi les membres disponibles. Le correcteur reçoit un email de notification.', tip:'<strong>Astuce :</strong> Tu peux aussi créer un lien de partage avec le bouton "Créer un lien".' },
-      { name:'Après correction', icon:'✅', desc:'Ton correcteur relit et valide ton article. Tu recevras un email quand il sera publié sur Substack. L article passe alors en statut "Publié" et n est plus modifiable.', tip:'<strong>Astuce :</strong> Contacte un admin si tu as besoin de modifier un article publié.' },
-    ]
-  },
-  {
-    id: 'sujets',
-    icon: '📌',
-    titre: 'Les sujets à rédiger',
-    desc: 'Consulter, réserver et abandonner',
-    steps: [
-      { name:'Trouver les sujets', icon:'📌', desc:'L icône 📌 sur le bureau affiche le nombre de sujets disponibles. Clique dessus pour ouvrir la fenêtre Sujets. Les sujets sont proposés par la rédaction en chef.', tip:'<strong>Astuce :</strong> Un badge rouge sur l icône indique le nombre de nouveaux sujets.' },
-      { name:'Consulter un sujet', icon:'👀', desc:'Chaque carte affiche le titre, la priorité (urgente/normale/faible), le type (article/brève/reportage) et une note de l admin. Lis bien avant de réserver !', tip:'<strong>Astuce :</strong> Les notifications te préviennent dès qu un nouveau sujet est disponible.' },
-      { name:'Réserver un sujet', icon:'🔒', desc:'Clique sur "Réserver et rédiger". Une confirmation s affiche. Une fois réservé, le sujet disparaît pour les autres membres : plus de risque de doublons !', tip:'<strong>Astuce :</strong> Un brouillon est créé automatiquement dans tes brouillons locaux.' },
-      { name:'Abandonner un sujet', icon:'↩️', desc:'Tu as changé d avis ? Dans la fenêtre Rédaction, un bandeau jaune "Sujet réservé" apparaît avec un bouton "Abandonner". Clique dessus et le sujet redevient disponible pour tout le monde.', tip:'<strong>Astuce :</strong> Ne réserve que si tu comptes vraiment écrire l article !' },
-    ]
-  },
-  {
-    id: 'correction',
-    icon: '🔍',
-    titre: 'La correction',
-    desc: 'Recevoir, corriger et valider',
-    steps: [
-      { name:'Recevoir un article', icon:'📬', desc:'Quand un rédacteur t envoie un article, tu reçois un email et une notification dans Compo. L article apparaît dans "Articles en correction" avec son statut "En relecture".', tip:'<strong>Astuce :</strong> Le centre de notifications te prévient dès qu un article t attend.' },
-      { name:'Corriger l article', icon:'✏️', desc:'Ouvre l article depuis tes notifications ou depuis la fenêtre Brouillons. Tu peux modifier le titre, le chapeau et le corps. Laisse une note pour expliquer tes modifications.', tip:'<strong>Astuce :</strong> Toutes les modifications sont trackées : le rédacteur verra le diff.' },
-      { name:'Valider et envoyer', icon:'✅', desc:'Une fois la relecture terminée, clique sur "Valider la correction". L article passe en statut "Corrigé" et le rédacteur en chef peut le publier sur Substack.', tip:'<strong>Astuce :</strong> Le rédacteur reçoit une notification avec le résumé de tes corrections.' },
-      { name:'Répondre à une assistance', icon:'🚨', desc:'Si un rédacteur t envoie une demande d assistance directement, tu la recevras dans la section Assistance. Tu peux répondre depuis Compo : le rédacteur reçoit ta réponse par email.', tip:'<strong>Astuce :</strong> Ferme le ticket une fois le problème résolu.' },
-    ]
-  },
-  {
-    id: 'visuels',
-    icon: '🖼️',
-    titre: 'Visuels Instagram',
-    desc: 'Créer posts et stories',
-    steps: [
-      { name:'Ouvrir les Visuels', icon:'🖼️', desc:'L app Visuels (mode standard) te permet de créer rapidement un visuel 1:1 pour les posts et 9:16 pour les stories. Choisis le format en haut de la fenêtre.', tip:'<strong>Astuce :</strong> Le mode Visuels Avancé permet de déplacer les éléments librement.' },
-      { name:'Personnaliser', icon:'🎨', desc:'Choisis un dégradé, télécharge ta photo, personnalise le titre, la rubrique et le lien. En mode avancé, clique sur un élément pour ouvrir sa barre d outils (taille, alignement, couleur).', tip:'<strong>Astuce :</strong> Passe en mode Story pour adapter automatiquement le titre.' },
-      { name:'Exporter', icon:'💾', desc:'Clique sur "Exporter PNG" pour télécharger ton visuel. Il est prêt à être publié sur Instagram !', tip:'<strong>Astuce :</strong> Les visuels peuvent être créés avant même que l article soit publié.' },
-    ]
-  },
-  {
-    id: 'assistance',
-    icon: '🚨',
-    titre: 'L Assistance',
-    desc: 'Ouvrir un ticket et suivre sa résolution',
-    steps: [
-      { name:'Ouvrir une demande', icon:'🚨', desc:'Clique sur le bouton rouge "Assistance" dans le dock. Un formulaire s ouvre : remplis le titre, la description et choisis le destinataire (Admin ou Correcteur). Indique la priorité.', tip:'<strong>Astuce :</strong> Plus ta description est précise, plus tu auras une réponse rapide !' },
-      { name:'Choisir le destinataire', icon:'👥', desc:'Si tu choisis "Correcteur", une liste déroulante apparaît avec les correcteurs disponibles. Si tu choisis "Admin", la demande va directement à la rédaction en chef.', tip:'<strong>Astuce :</strong> Un email est envoyé automatiquement au destinataire.' },
-      { name:'Suivre sa demande', icon:'📋', desc:'Retrouve tes demandes dans la fenêtre Assistance. Tu vois le statut (ouvert/fermé) et les réponses. Tu peux répondre pour préciser ta demande.', tip:'<strong>Astuce :</strong> Tu reçois un email à chaque réponse. Réponds depuis Compo, pas par email !' },
-      { name:'Demande résolue', icon:'✅', desc:'Quand ton problème est résolu, l admin ou le correcteur ferme le ticket. Tu reçois un email avec la réponse finale et le ticket passe en statut "Fermé".', tip:'<strong>Astuce :</strong> Si le problème revient, ouvre une nouvelle demande.' },
-    ]
-  },
-  {
-    id: 'admin',
-    icon: '⚙️',
-    titre: 'Pour les admins',
-    desc: 'Publier, gérer les membres et les annonces',
-    steps: [
-      { name:'Publier un article', icon:'📰', desc:'Va dans "Statut de l édition" et clique "Charger depuis la base". Les articles validés apparaissent avec un bouton vert "Publier". Un clic publie l article et envoie un email de félicitations au rédacteur.', tip:'<strong>Astuce :</strong> Une notification s affiche dès qu un article est prêt.' },
-      { name:'Gérer les membres', icon:'👥', desc:'Dans Supabase, tu peux changer le rôle d un membre (redacteur/correcteur/admin/interdit). Le rôle "interdit" bloque immédiatement l accès à Compo. Le changement prend effet à la prochaine connexion.', tip:'<strong>Astuce :</strong> Seuls les admins peuvent modifier les rôles dans la base.' },
-      { name:'Publier une annonce', icon:'📣', desc:'Dans Ma Rédac\', clique sur la carte "Annonce" pour envoyer un message à toute l équipe. Choisis le type (Info/Alerte/Bonne nouvelle). L annonce apparaît en haut de Ma Rédac\' pour tous les membres.', tip:'<strong>Astuce :</strong> Clique × sur une annonce pour la supprimer pour tout le monde.' },
-      { name:'Gérer le Briefing', icon:'📋', desc:'Dans la fenêtre Briefing, crée et gère les sujets à proposer à l équipe. Importe un fichier JSON ou saisie directement. Les sujets apparaissent dans Ma Rédac\' pour les rédacteurs avec un badge de notification.', tip:'<strong>Astuce :</strong> Les sujets réservés passent en "En cours" et disparaissent de la liste.' },
-      { name:'Traiter les tickets', icon:'🚨', desc:'Les demandes d assistance apparaissent dans tes notifications. Ouvre la fenêtre Assistance pour voir toutes les demandes. Tu peux répondre plusieurs fois avant de fermer le ticket.', tip:'<strong>Astuce :</strong> Un email est envoyé au membre à chaque réponse et à la fermeture.' },
-    ]
-  },
-];
-
-var _tutoTheme = 0;
-var _tutoStep = 0;
-
 function osOuvrirTutos(){
-  if(_windows['tutos']){
-    osFocusWindow('tutos');
-  } else {
-    osOpenWindow('tutos');
-  }
+  osTourDemarrer();
 }
-
-function osTutoRender(){
-  var wc = document.getElementById('wincontent-tutos');
-  if(!wc) return;
-  
-  var theme = TUTOS[_tutoTheme];
-  var step = theme.steps[_tutoStep];
-  
-  wc.innerHTML = '';
-  var app = document.createElement('div');
-  app.className = 'tuto-app';
-  
-  // Sidebar
-  var sidebar = document.createElement('div');
-  sidebar.className = 'tuto-sidebar';
-  var sideTitle = document.createElement('div');
-  sideTitle.className = 'tuto-sidebar-title';
-  sideTitle.textContent = 'Thèmes';
-  sidebar.appendChild(sideTitle);
-  
-  TUTOS.forEach(function(t, i){
-    var btn = document.createElement('button');
-    btn.className = 'tuto-theme-btn' + (i === _tutoTheme ? ' active' : '');
-    btn.innerHTML = '<span class="tuto-theme-icon">'+t.icon+'</span> '+t.titre;
-    btn.onclick = (function(idx){ return function(){
-      _tutoTheme = idx; _tutoStep = 0; osTutoRender();
-    }; })(i);
-    sidebar.appendChild(btn);
-  });
-  
-  // Contenu
-  var contentEl = document.createElement('div');
-  contentEl.className = 'tuto-content';
-  
-  // Header
-  var header = document.createElement('div');
-  header.className = 'tuto-header';
-  header.innerHTML = '<div class="tuto-title">'+theme.icon+' '+theme.titre+'</div><div class="tuto-subtitle">'+theme.desc+'</div>';
-  
-  // Steps nav
-  var stepsNav = document.createElement('div');
-  stepsNav.className = 'tuto-steps-nav';
-  theme.steps.forEach(function(s, i){
-    var dot = document.createElement('div');
-    dot.className = 'tuto-step-dot' + (i < _tutoStep ? ' done' : '') + (i === _tutoStep ? ' active' : '');
-    dot.onclick = (function(idx){ return function(){ _tutoStep=idx; osTutoRender(); }; })(i);
-    var circle = document.createElement('div');
-    circle.className = 'tuto-step-circle';
-    circle.textContent = i < _tutoStep ? '✓' : (i+1);
-    dot.appendChild(circle);
-    stepsNav.appendChild(dot);
-    if(i < theme.steps.length - 1){
-      var line = document.createElement('div');
-      line.className = 'tuto-step-line';
-      stepsNav.appendChild(line);
-    }
-  });
-  
-  // Contenu étape
-  var stepContent = document.createElement('div');
-  stepContent.className = 'tuto-step-content';
-  
-  var illus = document.createElement('div');
-  illus.className = 'tuto-step-illustration';
-  illus.textContent = step.icon;
-  
-  var stepName = document.createElement('div');
-  stepName.className = 'tuto-step-name';
-  stepName.textContent = step.name;
-  
-  var stepDesc = document.createElement('div');
-  stepDesc.className = 'tuto-step-desc';
-  stepDesc.textContent = step.desc;
-  
-  var tipEl = document.createElement('div');
-  tipEl.className = 'tuto-tip';
-  tipEl.innerHTML = step.tip;
-  
-  stepContent.appendChild(illus);
-  stepContent.appendChild(stepName);
-  stepContent.appendChild(stepDesc);
-  stepContent.appendChild(tipEl);
-  
-  // Footer
-  var footer = document.createElement('div');
-  footer.className = 'tuto-footer';
-  
-  var progress = document.createElement('div');
-  progress.className = 'tuto-progress';
-  progress.innerHTML = 'Étape <span>'+(_tutoStep+1)+'</span> sur '+theme.steps.length;
-  
-  var navBtns = document.createElement('div');
-  navBtns.className = 'tuto-nav-btns';
-  
-  if(_tutoStep > 0){
-    var btnPrev = document.createElement('button');
-    btnPrev.className = 'btn sec';
-    btnPrev.textContent = '← Précédent';
-    btnPrev.style.fontSize = '0.78rem';
-    btnPrev.onclick = function(){ _tutoStep--; osTutoRender(); };
-    navBtns.appendChild(btnPrev);
-  }
-  
-  if(_tutoStep < theme.steps.length - 1){
-    var btnNext = document.createElement('button');
-    btnNext.className = 'btn';
-    btnNext.textContent = 'Suivant →';
-    btnNext.style.fontSize = '0.78rem';
-    btnNext.onclick = function(){ _tutoStep++; osTutoRender(); };
-    navBtns.appendChild(btnNext);
-  } else {
-    // Dernier step - proposer thème suivant
-    if(_tutoTheme < TUTOS.length - 1){
-      var btnNext2 = document.createElement('button');
-      btnNext2.className = 'btn';
-      btnNext2.textContent = 'Thème suivant →';
-      btnNext2.style.cssText = 'font-size:0.78rem;background:linear-gradient(135deg,#155724,#27ae60);';
-      btnNext2.onclick = function(){ _tutoTheme++; _tutoStep=0; osTutoRender(); };
-      navBtns.appendChild(btnNext2);
-    } else {
-      var btnFin = document.createElement('button');
-      btnFin.className = 'btn';
-      btnFin.textContent = '🎉 Terminé !';
-      btnFin.style.cssText = 'font-size:0.78rem;background:linear-gradient(135deg,#155724,#27ae60);';
-      btnFin.onclick = function(){ osCloseWindow('tutos'); notif('Tu connais maintenant Compo OS !'); };
-      navBtns.appendChild(btnFin);
-    }
-  }
-  
-  footer.appendChild(progress);
-  footer.appendChild(navBtns);
-  
-  contentEl.appendChild(header);
-  contentEl.appendChild(stepsNav);
-  contentEl.appendChild(stepContent);
-  contentEl.appendChild(footer);
-  
-  app.appendChild(sidebar);
-  app.appendChild(contentEl);
-  wc.appendChild(app);
-}
-
 
 function osVerifierPremiereLancement(){
   var vu = localStorage.getItem('compo_os_tutos_propose');
@@ -22402,7 +22352,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   var h = '<div style="display:flex;height:100%;overflow:hidden;">';
 
   // Sidebar icônes
-  h += '<div style="width:54px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;">';
+  h += '<div id="redac-sidebar-rail" style="width:54px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;">';
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
@@ -24941,37 +24891,37 @@ function _nettViderChampParLots(table, col, ids, payload, headers, cb){
 
 // Toutes les apps disponibles dans le système (catalogue complet)
 var ALL_APPS_CATALOGUE = [
-  { id:'tchap', icon:'💬', label:'Tchap', color:'#0F6E56', roles:['redacteur','correcteur','admin'], store:true, desc:'Messagerie privée interne — échange avec les autres membres de la rédaction.' },
-  { id:'redaction',      icon:'✍️', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
-  { id:'mes-articles',   icon:'📰', label:'Articles',       color:'#1A5276', roles:['redacteur','correcteur','admin'] },
-  { id:'notes',          icon:'📝', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
-  { id:'carnet',         icon:'📇', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
-  { id:'cps',            icon:'📢', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
-  { id:'cps-admin',      icon:'📢', label:'CPs Admin',      color:'#4A235A', roles:['admin','redac_chef'] },
-  { id:'visuels-pro',    icon:'🎨', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
-  { id:'app-com',        icon:'📣', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
-  { id:'app-courrier',   icon:'📬', label:'Courrier',        color:'#1A5276', roles:['admin'], fonctions_requises:['secretaire','president','vice_president'] },
-  { id:'newsletter',     icon:'📨', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
-  { id:'tutos',          icon:'📖', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
-  { id:'mail',           icon:'✉️', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
-  { id:'tresorerie',     icon:'💶', label:'Trésorerie',     color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'] },
-  { id:'boutique',       icon:'🎁', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
-  { id:'stats-dashboard',icon:'📊', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
-  { id:'benevoles',      icon:'👥', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
-  { id:'redactions',     icon:'🗞️', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
-  { id:'gestion-apps',   icon:'⚙️', label:'Apps',           color:'#2C3E50', roles:['admin'] },
-  { id:'nettoyage',      icon:'🧹', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
-  { id:'log',            icon:'📜', label:'Journal',        color:'#2C3E50', roles:['admin'] },
-  { id:'comparaison',    icon:'⚖️', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
-  { id:'lecture',        icon:'👁️', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
-  { id:'edition',        icon:'✏️', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
-  { id:'lire-cp',        icon:'📄', label:'Lire un CP (v1)',color:'#2C3E50', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'un communiqué de presse en fichier JSON local.' },
-  { id:'correction',     icon:'✏️', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Correction.' },
+  { id:'tchap', icon:'<i class="ti ti-message-circle"></i>', label:'Tchap', color:'#0F6E56', roles:['redacteur','correcteur','admin'], store:true, desc:'Messagerie privée interne — échange avec les autres membres de la rédaction.' },
+  { id:'redaction',      icon:'<i class="ti ti-pencil"></i>', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
+  { id:'mes-articles',   icon:'<i class="ti ti-news"></i>', label:'Articles',       color:'#1A5276', roles:['redacteur','correcteur','admin'] },
+  { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
+  { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
+  { id:'cps',            icon:'<i class="ti ti-speakerphone"></i>', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
+  { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'CPs Admin',      color:'#4A235A', roles:['admin','redac_chef'] },
+  { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
+  { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
+  { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin'], fonctions_requises:['secretaire','president','vice_president'] },
+  { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
+  { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
+  { id:'mail',           icon:'<i class="ti ti-mail"></i>', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
+  { id:'tresorerie',     icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie',     color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'] },
+  { id:'boutique',       icon:'<i class="ti ti-gift"></i>', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
+  { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
+  { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin'] },
+  { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
+  { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
+  { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
+  { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
+  { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
+  { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
+  { id:'edition',        icon:'<i class="ti ti-pencil"></i>', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
+  { id:'lire-cp',        icon:'<i class="ti ti-file-description"></i>', label:'Lire un CP (v1)',color:'#2C3E50', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'un communiqué de presse en fichier JSON local.' },
+  { id:'correction',     icon:'<i class="ti ti-pencil"></i>', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Correction.' },
   // Apps Store
-  { id:'compteur',       icon:'📏', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
-  { id:'compo-store',    icon:'🏪', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
-  { id:'agenda',         icon:'📅', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
-  { id:'projets',        icon:'📋', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','admin'], store:true, desc:'Suivi de projets et tâches — assignation, kanban, deadlines.' },
+  { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
+  { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
+  { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
+  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','admin'], store:true, desc:'Suivi de projets et tâches — assignation, kanban, deadlines.' },
 ];
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
@@ -26630,6 +26580,7 @@ function oobeTerminer(){
 
   // Marquer OOBE comme terminé
   localStorage.setItem('compo_oobe_done_'+userId, '1');
+  localStorage.setItem('compo_os_tour_pending', '1'); // déclenche le tuto interactif au premier chargement du bureau
 
   var screen = document.getElementById('oobe-screen');
   var fermerOobe = function(){
