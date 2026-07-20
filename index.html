@@ -516,7 +516,10 @@ body {
 /* Title */
 .os-titlebar-title {
   flex: 1;
-  text-align: center;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.72rem;
   font-weight: 600;
   color: rgba(0,0,0,0.6);
@@ -1368,14 +1371,24 @@ body {
   max-width: 340px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   display: none;
-  animation: slideInUpCentered 0.3s ease forwards;
 }
 #os-tour-bubble .fs-tooltip-arrow {
-  top: auto; bottom: -6px; left: 50%; right: auto;
-  transform: translateX(-50%) rotate(225deg);
+  width: 12px; height: 12px;
+  background: rgba(10,10,20,0.97);
+}
+#os-tour-bubble .fs-tooltip-arrow.tour-arrow-bas {
+  bottom: -6px; top: auto;
   border-left: none; border-top: none;
   border-right: 1px solid rgba(255,255,255,0.15);
   border-bottom: 1px solid rgba(255,255,255,0.15);
+  transform: rotate(45deg);
+}
+#os-tour-bubble .fs-tooltip-arrow.tour-arrow-haut {
+  top: -6px; bottom: auto;
+  border-right: none; border-bottom: none;
+  border-left: 1px solid rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  transform: rotate(45deg);
 }
 
 
@@ -13624,9 +13637,9 @@ function _osOpenWindowExecuter(pageId){
     }
   }
   
-  tb.appendChild(traffic);
   tb.appendChild(titleEl);
   if(saveIndicator) tb.appendChild(saveIndicator);
+  tb.appendChild(traffic);
   
   // Contenu
   var content = document.createElement('div');
@@ -16252,17 +16265,42 @@ function osTourPositionnerBulle(el, etape){
   if(btnPrec) btnPrec.style.visibility = _tourIndex === 0 ? 'hidden' : 'visible';
   if(btnSuiv) btnSuiv.textContent = (_tourIndex === TOUR_ETAPES.length - 1) ? 'Terminé ✓' : 'Suivant →';
 
+  // Rendre visible hors-écran d'abord pour mesurer la taille réelle de la bulle
+  // (son contenu — titre/texte — varie d'une étape à l'autre, donc sa hauteur aussi)
+  bulle.style.right = 'auto';
+  bulle.style.bottom = 'auto';
+  bulle.style.left = '-9999px';
+  bulle.style.top = '-9999px';
+  bulle.style.display = 'block';
+
+  var marge = 14;
+  var vw = window.innerWidth, vh = window.innerHeight;
   var rect = el.getBoundingClientRect();
-  bulle.style.left = 'auto';
-  bulle.style.right = Math.max(12, window.innerWidth - rect.right) + 'px';
-  bulle.style.bottom = Math.max(12, window.innerHeight - rect.top + 14) + 'px';
+  var bRect = bulle.getBoundingClientRect();
+
+  // Vertical : au-dessus de la cible si assez de place, sinon en-dessous
+  var placerAuDessus = rect.top > (bRect.height + marge + 20);
+  var top = placerAuDessus ? (rect.top - bRect.height - marge) : (rect.bottom + marge);
+  top = Math.max(marge, Math.min(top, vh - bRect.height - marge));
+
+  // Horizontal : centrée sur la cible, sans déborder de l'écran
+  var left = rect.left + rect.width/2 - bRect.width/2;
+  left = Math.max(marge, Math.min(left, vw - bRect.width - marge));
+
+  bulle.style.left = left + 'px';
+  bulle.style.top = top + 'px';
+
+  // Flèche : garde le pointage vers le centre de la cible, orientée selon le côté choisi
   var arrow = bulle.querySelector('.fs-tooltip-arrow');
   if(arrow){
-    arrow.style.left = 'auto';
-    arrow.style.right = Math.max(8, rect.width/2 - 6) + 'px';
-    arrow.style.transform = 'rotate(225deg)';
+    arrow.classList.toggle('tour-arrow-bas', placerAuDessus);
+    arrow.classList.toggle('tour-arrow-haut', !placerAuDessus);
+    var arrowX = rect.left + rect.width/2 - left - 6;
+    arrowX = Math.max(14, Math.min(arrowX, bRect.width - 26));
+    arrow.style.left = arrowX + 'px';
+    arrow.style.right = 'auto';
   }
-  bulle.style.display = 'block';
+
   bulle.style.opacity = '1';
 }
 
@@ -24893,7 +24931,7 @@ function _nettViderChampParLots(table, col, ids, payload, headers, cb){
 var ALL_APPS_CATALOGUE = [
   { id:'tchap', icon:'<i class="ti ti-message-circle"></i>', label:'Tchap', color:'#0F6E56', roles:['redacteur','correcteur','admin'], store:true, desc:'Messagerie privée interne — échange avec les autres membres de la rédaction.' },
   { id:'redaction',      icon:'<i class="ti ti-pencil"></i>', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
-  { id:'mes-articles',   icon:'<i class="ti ti-news"></i>', label:'Articles',       color:'#1A5276', roles:['redacteur','correcteur','admin'] },
+  { id:'mes-articles',   icon:'<i class="ti ti-article"></i>', label:'Articles',       color:'#993C1D', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps',            icon:'<i class="ti ti-speakerphone"></i>', label:'CPs',            color:'#4A235A', roles:['redacteur','correcteur'] },
