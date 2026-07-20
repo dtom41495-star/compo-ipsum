@@ -1634,113 +1634,6 @@ body {
 .tutos-welcome-btn-secondary:hover { border-color: var(--encre); color: var(--encre); }
 
 
-/* ===== APP FICHIERS ===== */
-.fichiers-app { padding: 0; display: flex; flex-direction: column; height: 100%; }
-
-.fichiers-toolbar {
-  display: flex; align-items: center; gap: 0.8rem;
-  padding: 0.8rem 1.2rem;
-  border-bottom: 1px solid var(--gris-bord);
-  flex-shrink: 0;
-  background: rgba(0,0,0,0.02);
-}
-.fichiers-search {
-  flex: 1;
-  padding: 0.4rem 0.8rem;
-  border: 1.5px solid var(--gris-bord);
-  border-radius: 6px;
-  font-size: 0.82rem;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
-}
-.fichiers-search:focus { border-color: var(--rouge); }
-.fichiers-sort {
-  font-family: Space Mono, monospace; font-size: 0.65rem;
-  color: var(--gris); cursor: pointer;
-  padding: 4px 8px; border: 1px solid var(--gris-bord);
-  border-radius: 4px; background: white;
-}
-
-.fichiers-grid {
-  flex: 1; overflow-y: auto;
-  padding: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.8rem;
-  align-content: start;
-}
-.fichiers-empty {
-  grid-column: 1/-1;
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--gris);
-  font-size: 0.85rem;
-}
-.fichiers-empty-icon { font-size: 3rem; margin-bottom: 0.8rem; }
-
-.fichier-card {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 0.5rem; padding: 0.8rem 0.5rem;
-  border-radius: 8px; cursor: pointer;
-  transition: background 0.12s;
-  position: relative;
-}
-.fichier-card:hover { background: rgba(232,70,30,0.06); }
-.fichier-card.selected { background: rgba(232,70,30,0.1); outline: 2px solid var(--rouge); }
-.fichier-icon {
-  font-size: 2.8rem; line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
-}
-.fichier-name {
-  font-size: 0.68rem; color: var(--encre);
-  text-align: center; word-break: break-word;
-  line-height: 1.3; max-width: 110px;
-}
-.fichier-size {
-  font-family: Space Mono, monospace; font-size: 0.58rem;
-  color: var(--gris);
-}
-
-/* Panneau détail */
-.fichiers-detail {
-  width: 200px; flex-shrink: 0;
-  border-left: 1px solid var(--gris-bord);
-  padding: 1rem;
-  display: none;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-.fichiers-detail.visible { display: flex; }
-.detail-preview {
-  font-size: 3.5rem; text-align: center;
-  padding: 1rem;
-  background: var(--gris-clair);
-  border-radius: 8px;
-}
-.detail-name {
-  font-weight: 600; font-size: 0.82rem;
-  color: var(--encre); word-break: break-word;
-}
-.detail-meta {
-  font-family: Space Mono, monospace; font-size: 0.62rem;
-  color: var(--gris); line-height: 1.8;
-}
-.detail-actions { display: flex; flex-direction: column; gap: 0.4rem; margin-top: auto; }
-.detail-btn {
-  padding: 0.5rem 0.7rem; border-radius: 6px;
-  font-size: 0.72rem; cursor: pointer;
-  border: 1.5px solid var(--gris-bord);
-  background: white; color: var(--encre);
-  transition: all 0.15s; text-align: center;
-}
-.detail-btn:hover { border-color: var(--rouge); color: var(--rouge); }
-.detail-btn.danger:hover { border-color: #FF5F57; color: #FF5F57; }
-.detail-btn.primary {
-  background: var(--rouge); color: white; border-color: var(--rouge);
-}
-.detail-btn.primary:hover { background: var(--rouge-hover); }
-
-
 /* CLARTÉ BOUTONS BROUILLONS */
 .btn-cloud {
   font-family: Space Mono, monospace; font-size: 0.65rem;
@@ -2018,42 +1911,6 @@ body {
 }
 .os-toggle input:checked + .os-toggle-slider { background:var(--rouge); }
 .os-toggle input:checked + .os-toggle-slider::before { transform:translateX(20px); }
-
-/* Prévisualisation fichier */
-#fichier-preview-overlay {
-  position:fixed; inset:0; z-index:99500;
-  background:rgba(0,0,0,0.8);
-  backdrop-filter:blur(8px);
-  display:none; align-items:center; justify-content:center;
-  padding:2rem;
-}
-#fichier-preview-overlay.visible { display:flex; }
-.fichier-preview-box {
-  background:white; border-radius:12px;
-  width:90%; max-width:700px;
-  max-height:85vh; overflow:hidden;
-  display:flex; flex-direction:column;
-  box-shadow:0 32px 80px rgba(0,0,0,0.5);
-}
-.fichier-preview-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0.8rem 1.2rem;
-  border-bottom:1px solid var(--gris-bord);
-  flex-shrink:0;
-}
-.fichier-preview-title { font-weight:600; font-size:0.88rem; color:var(--encre); }
-.fichier-preview-body {
-  flex:1; overflow-y:auto; padding:1.2rem;
-  font-family:Arial,sans-serif;
-  font-size:0.78rem; line-height:1.7;
-  white-space:pre-wrap; color:var(--encre);
-}
-.fichier-preview-actions {
-  padding:0.8rem 1.2rem;
-  border-top:1px solid var(--gris-bord);
-  display:flex; gap:0.5rem; justify-content:flex-end;
-  flex-shrink:0;
-}
 
 /* Wallpaper upload */
 .wallpaper-grid {
@@ -3555,21 +3412,6 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
-<!-- PRÉVISUALISATION FICHIER -->
-<div id="fichier-preview-overlay">
-  <div class="fichier-preview-box">
-    <div class="fichier-preview-header">
-      <div class="fichier-preview-title" id="preview-title">Fichier</div>
-      <button onclick="fermerPreview()" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--gris);">×</button>
-    </div>
-    <div class="fichier-preview-body" id="preview-body"></div>
-    <div class="fichier-preview-actions">
-      <button class="btn sec" onclick="fermerPreview()">Fermer</button>
-      <button class="btn" id="preview-export-btn">⬇️ Exporter</button>
-    </div>
-  </div>
-</div>
-
 <!-- BANNIÈRE HORS LIGNE -->
 <div id="os-offline-banner">
   <div class="offline-banner-text">
@@ -3607,21 +3449,6 @@ input:focus,select:focus,textarea:focus{
       <button class="tutos-welcome-btn-secondary" onclick="osTutosWelcomeDecliner()">
         Non merci, je connais déjà
       </button>
-    </div>
-  </div>
-</div>
-
-<!-- PRÉVISUALISATION FICHIER -->
-<div id="fichier-preview-overlay">
-  <div class="fichier-preview-box">
-    <div class="fichier-preview-header">
-      <div class="fichier-preview-title" id="preview-title">Fichier</div>
-      <button onclick="fermerPreview()" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--gris);">×</button>
-    </div>
-    <div class="fichier-preview-body" id="preview-body"></div>
-    <div class="fichier-preview-actions">
-      <button class="btn sec" onclick="fermerPreview()">Fermer</button>
-      <button class="btn" id="preview-export-btn">⬇️ Exporter</button>
     </div>
   </div>
 </div>
@@ -6462,16 +6289,6 @@ function brfLireSujets(){
   return sujets;
 }
 
-function brfExporterPDF(){
-  // Dans Compo OS : sauvegarder dans Fichiers au lieu d'exporter
-  var sujets = brfLireSujets();
-  if(!sujets.length){ notif('Ajoute au moins un sujet'); return; }
-  var edition = document.getElementById('brf-edition') ? document.getElementById('brf-edition').value.trim() : '';
-  var date = document.getElementById('brf-date') ? document.getElementById('brf-date').value.trim() : '';
-  var nom = 'Briefing' + (edition ? '-'+edition : '') + (date ? '-'+date : '') + '.json';
-  var data = JSON.stringify({ edition:edition, date:date, sujets:sujets }, null, 2);
-  enregistrerDansFichiers(nom, 'json', data);
-}
 
 function brfReset(){
   if(!confirm('Effacer tout le briefing ?')) return;
@@ -10618,7 +10435,7 @@ function osGetEl(id){
   var winIds = ['wincontent-newsletter','wincontent-lecture','wincontent-redaction',
                 'wincontent-correction','wincontent-brouillons','wincontent-mes-articles',
                 'wincontent-statut','wincontent-stats-dashboard','wincontent-params',
-                'wincontent-fichiers','wincontent-tutos','wincontent-sujets',
+                'wincontent-sujets',
                 'wincontent-bugs','wincontent-briefing','wincontent-journal'];
   for(var i=0;i<winIds.length;i++){
     var wc = document.getElementById(winIds[i]);
@@ -13577,7 +13394,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', fichiers:'📂 Mes Fichiers', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -13850,12 +13667,6 @@ function osLoadPageContent(pageId, winEl){
   // Fenêtres CP dynamiques (cp-XXXXX)
   if(pageId.indexOf('cp-') === 0){
     setTimeout(function(){ osCpFenetreRender(pageId); }, 50);
-    return;
-  }
-
-  // Page fichiers spéciale
-  if(pageId === 'fichiers'){
-    setTimeout(function(){ osFichiersRender(); }, 50);
     return;
   }
 
@@ -14356,27 +14167,6 @@ function osBuildDesktopIcons(){
   // N'afficher que celles qui ne sont PAS dans le dock, sauf forceBureau, et pas les legacy
   var toShow = allApps.filter(function(a){ return !a.legacy && (a.forceBureau || dockApps.indexOf(a.id) === -1); });
   
-  // Icône Fichiers
-  var fichIcon = document.createElement('div');
-  fichIcon.className = 'desktop-icon';
-  fichIcon.onclick = osOuvrirFichiers;
-  var fichImg = document.createElement('div');
-  fichImg.className = 'desktop-icon-img';
-  fichImg.style.background = 'linear-gradient(135deg,#1A5276,#2980B9)';
-  fichImg.style.color = 'white';
-  fichImg.innerHTML = '<i class="ti ti-folder"></i>';
-  fichImg.style.position = 'relative';
-  var fichBadge = document.createElement('span');
-  fichBadge.className = 'desktop-icon-badge';
-  fichBadge.id = 'desktop-badge-fichiers';
-  fichImg.appendChild(fichBadge);
-  var fichLabel = document.createElement('div');
-  fichLabel.className = 'desktop-icon-label';
-  fichLabel.textContent = 'Fichiers';
-  fichIcon.appendChild(fichImg);
-  fichIcon.appendChild(fichLabel);
-  container.appendChild(fichIcon);
-
   // Icône Bugs (admin seulement)
   if(getUserRole() === 'admin'){
     var bugsIcon = document.createElement('div');
@@ -14442,10 +14232,10 @@ function osBuildDesktopIcons(){
   guidIcon.appendChild(guidLabel);
   container.appendChild(guidIcon);
 
-  // Icône Substack — lien vers le site Ipsum Média
+  // Icône Substack — ouvre le volet Widgets (flux RSS de la rédaction)
   var substackIcon = document.createElement('div');
   substackIcon.className = 'desktop-icon';
-  substackIcon.onclick = function(){ window.open('https://ipsummedia.substack.com/', '_blank'); };
+  substackIcon.onclick = function(){ osToggleSidebar(); };
   var substackImg = document.createElement('div');
   substackImg.className = 'desktop-icon-img';
   substackImg.style.background = 'linear-gradient(135deg,#FF6719,#E8461E)';
@@ -16136,7 +15926,6 @@ function osDesactiverImportsPourRedacteur(){
     '#brf-import-btn', // briefing import
     '[onclick*="brf-import"]',
     '[onclick*="importerFichier"]',
-    '[onclick*="brfExporterPDF"]',
     '[onclick*="brfExporterJSON"]',
   ];
   importSelectors.forEach(function(sel){
@@ -16497,279 +16286,6 @@ function osTutosWelcomeDecliner(){
 }
 
 
-// ===== APP FICHIERS (IndexedDB) =====
-var _idb = null;
-var _fichiersData = [];
-var _fichierSelectionne = null;
-
-function idbOuvrir(callback){
-  if(_idb){ callback(_idb); return; }
-  var req = indexedDB.open('compo-fichiers', 1);
-  req.onupgradeneeded = function(e){
-    var db = e.target.result;
-    if(!db.objectStoreNames.contains('fichiers')){
-      var store = db.createObjectStore('fichiers', { keyPath: 'id' });
-      store.createIndex('nom', 'nom', { unique: false });
-      store.createIndex('date', 'date', { unique: false });
-    }
-  };
-  req.onsuccess = function(e){ _idb = e.target.result; callback(_idb); };
-  req.onerror = function(){ console.error('IndexedDB erreur'); };
-}
-
-function idbSauvegarderFichier(nom, type, data, callback){
-  idbOuvrir(function(db){
-    var now = new Date();
-    var fichier = {
-      id: 'F-' + Date.now(),
-      nom: nom,
-      type: type, // 'pdf', 'json', 'md', etc.
-      data: data, // ArrayBuffer ou string
-      taille: data.byteLength || data.length || 0,
-      date: now.toISOString(),
-      auteur: getUserNomComplet()
-    };
-    var tx = db.transaction('fichiers', 'readwrite');
-    tx.objectStore('fichiers').add(fichier);
-    tx.oncomplete = function(){ if(callback) callback(fichier); };
-    tx.onerror = function(){ console.error('Erreur sauvegarde'); };
-  });
-}
-
-function idbListerFichiers(callback){
-  idbOuvrir(function(db){
-    var tx = db.transaction('fichiers', 'readonly');
-    var req = tx.objectStore('fichiers').getAll();
-    req.onsuccess = function(e){ callback(e.target.result || []); };
-    req.onerror = function(){ callback([]); };
-  });
-}
-
-function idbSupprimerFichier(id, callback){
-  idbOuvrir(function(db){
-    var tx = db.transaction('fichiers', 'readwrite');
-    tx.objectStore('fichiers').delete(id);
-    tx.oncomplete = function(){ if(callback) callback(); };
-  });
-}
-
-function osOuvrirFichiers(){
-  if(_windows['fichiers']){ osFocusWindow('fichiers'); }
-  else { osOpenWindow('fichiers'); }
-}
-
-function osFichiersRender(){
-  var wc = document.getElementById('wincontent-fichiers');
-  if(!wc) return;
-  wc.innerHTML = '';
-  
-  var app = document.createElement('div');
-  app.className = 'fichiers-app';
-  
-  // Toolbar
-  var toolbar = document.createElement('div');
-  toolbar.className = 'fichiers-toolbar';
-  var search = document.createElement('input');
-  search.className = 'fichiers-search';
-  search.placeholder = 'Rechercher un fichier...';
-  search.oninput = function(){ osFichiersFilter(this.value); };
-  var countEl = document.createElement('div');
-  countEl.className = 'fichiers-sort';
-  countEl.id = 'fichiers-count';
-  countEl.textContent = '0 fichier';
-  toolbar.appendChild(search);
-  toolbar.appendChild(countEl);
-  
-  // Body
-  var body = document.createElement('div');
-  body.style.cssText = 'display:flex;flex:1;overflow:hidden;';
-  
-  var grid = document.createElement('div');
-  grid.className = 'fichiers-grid';
-  grid.id = 'fichiers-grid';
-  grid.innerHTML = '<div class="fichiers-empty"><div class="fichiers-empty-icon">📂</div>Aucun fichier sauvegardé</div>';
-  
-  var detail = document.createElement('div');
-  detail.className = 'fichiers-detail';
-  detail.id = 'fichiers-detail';
-  
-  body.appendChild(grid);
-  body.appendChild(detail);
-  
-  app.appendChild(toolbar);
-  app.appendChild(body);
-  wc.appendChild(app);
-  
-  // Charger les fichiers
-  idbListerFichiers(function(fichiers){
-    _fichiersData = fichiers.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
-    osFichiersAfficher(_fichiersData);
-  });
-}
-
-function osFichiersAfficher(fichiers){
-  var grid = document.getElementById('fichiers-grid');
-  var countEl = document.getElementById('fichiers-count');
-  if(!grid) return;
-  
-  if(countEl) countEl.textContent = fichiers.length + ' fichier' + (fichiers.length > 1 ? 's' : '');
-  
-  if(!fichiers.length){
-    grid.innerHTML = '<div class="fichiers-empty"><div class="fichiers-empty-icon">📂</div>Aucun fichier sauvegardé.<br><br>Génère un PDF depuis le Briefing ou un article pour le retrouver ici.</div>';
-    return;
-  }
-  
-  grid.innerHTML = '';
-  var ICONS = { pdf:'📄', json:'📋', md:'📝', txt:'📃' };
-  
-  fichiers.forEach(function(f){
-    var card = document.createElement('div');
-    card.className = 'fichier-card';
-    card.dataset.id = f.id;
-    
-    var icon = document.createElement('div');
-    icon.className = 'fichier-icon';
-    icon.textContent = ICONS[f.type] || '📁';
-    
-    var name = document.createElement('div');
-    name.className = 'fichier-name';
-    name.textContent = f.nom;
-    
-    var size = document.createElement('div');
-    size.className = 'fichier-size';
-    size.textContent = osFichiersFormatSize(f.taille);
-    
-    card.appendChild(icon);
-    card.appendChild(name);
-    card.appendChild(size);
-    
-    card.onclick = (function(fichier){ return function(){
-      document.querySelectorAll('.fichier-card').forEach(function(c){ c.classList.remove('selected'); });
-      card.classList.add('selected');
-      _fichierSelectionne = fichier;
-      osFichiersAfficherDetail(fichier);
-    }; })(f);
-    
-    card.ondblclick = (function(fichier){ return function(){
-      osFichiersExporter(fichier);
-    }; })(f);
-    
-    grid.appendChild(card);
-  });
-}
-
-function osFichiersFilter(q){
-  if(!q) { osFichiersAfficher(_fichiersData); return; }
-  var filtered = _fichiersData.filter(function(f){ return f.nom.toLowerCase().includes(q.toLowerCase()); });
-  osFichiersAfficher(filtered);
-}
-
-function osFichiersAfficherDetail(f){
-  var detail = document.getElementById('fichiers-detail');
-  if(!detail) return;
-  detail.classList.add('visible');
-  detail.innerHTML = '';
-  
-  var ICONS = { pdf:'📄', json:'📋', md:'📝', txt:'📃' };
-  
-  var preview = document.createElement('div');
-  preview.className = 'detail-preview';
-  preview.textContent = ICONS[f.type] || '📁';
-  
-  var name = document.createElement('div');
-  name.className = 'detail-name';
-  name.textContent = f.nom;
-  
-  var dateStr = '';
-  try { dateStr = new Date(f.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e){}
-  
-  var meta = document.createElement('div');
-  meta.className = 'detail-meta';
-  meta.innerHTML = 'Type : '+f.type.toUpperCase()+'<br>Taille : '+osFichiersFormatSize(f.taille)+'<br>Date : '+dateStr+'<br>Par : '+f.auteur;
-  
-  var actions = document.createElement('div');
-  actions.className = 'detail-actions';
-  
-  var btnPreview = document.createElement('button');
-  btnPreview.className = 'detail-btn primary';
-  btnPreview.textContent = '👁️ Prévisualiser';
-  btnPreview.onclick = (function(fichier){ return function(){ previsualiserFichier(fichier); }; })(f);
-  
-  var btnExport = document.createElement('button');
-  btnExport.className = 'detail-btn';
-  btnExport.textContent = '⬇️ Exporter';
-  btnExport.onclick = (function(fichier){ return function(){ osFichiersExporter(fichier); }; })(f);
-  
-  var btnSuppr = document.createElement('button');
-  btnSuppr.className = 'detail-btn danger';
-  btnSuppr.textContent = '🗑️ Supprimer';
-  btnSuppr.onclick = (function(fichier){ return function(){
-    if(!confirm('Supprimer "'+fichier.nom+'" ?')) return;
-    idbSupprimerFichier(fichier.id, function(){
-      _fichierSelectionne = null;
-      detail.classList.remove('visible');
-      detail.innerHTML = '';
-      idbListerFichiers(function(fichiers){
-        _fichiersData = fichiers.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
-        osFichiersAfficher(_fichiersData);
-      });
-      notif('Fichier supprimé');
-    });
-  }; })(f);
-  
-  actions.appendChild(btnPreview);
-  actions.appendChild(btnExport);
-  actions.appendChild(btnSuppr);
-  
-  detail.appendChild(preview);
-  detail.appendChild(name);
-  detail.appendChild(meta);
-  detail.appendChild(actions);
-}
-
-function osFichiersExporter(f){
-  var blob;
-  if(f.data instanceof ArrayBuffer){
-    blob = new Blob([f.data], { type: 'application/'+f.type });
-  } else {
-    blob = new Blob([f.data], { type: 'text/plain' });
-  }
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = f.nom;
-  a.click();
-  URL.revokeObjectURL(url);
-  notif('Export de "'+f.nom+'" lancé !');
-}
-
-function osFichiersFormatSize(bytes){
-  if(!bytes) return '—';
-  if(bytes < 1024) return bytes + ' o';
-  if(bytes < 1024*1024) return Math.round(bytes/1024) + ' Ko';
-  return (bytes/(1024*1024)).toFixed(1) + ' Mo';
-}
-
-// Remplacer brfExporterPDF pour sauvegarder dans Fichiers
-function enregistrerDansFichiers(nom, type, data){
-  idbSauvegarderFichier(nom, type, data, function(f){
-    notif('"'+f.nom+'" sauvegardé dans Fichiers !');
-    // Mettre à jour le badge sur l'icône bureau si visible
-    osFichiersMajBadge();
-  });
-}
-
-function osFichiersMajBadge(){
-  idbListerFichiers(function(fichiers){
-    var badge = document.getElementById('desktop-badge-fichiers');
-    if(badge){
-      if(fichiers.length > 0){
-        badge.textContent = fichiers.length;
-        badge.style.display = 'inline';
-      }
-    }
-  });
-}
 
 
 
@@ -17215,43 +16731,6 @@ function osAppliquerWallpaperAuDemarrage(){
   }
   // 'default' = ne rien faire, le CSS s'en charge
 }
-
-// ===== PRÉVISUALISATION FICHIERS =====
-var _previewFichier = null;
-
-function previsualiserFichier(f){
-  _previewFichier = f;
-  var overlay = document.getElementById('fichier-preview-overlay');
-  var titleEl = document.getElementById('preview-title');
-  var bodyEl = document.getElementById('preview-body');
-  var exportBtn = document.getElementById('preview-export-btn');
-  if(!overlay) return;
-  
-  if(titleEl) titleEl.textContent = f.nom;
-  if(exportBtn) exportBtn.onclick = function(){ osFichiersExporter(f); };
-  
-  if(bodyEl){
-    if(typeof f.data === 'string'){
-      // JSON ou texte
-      try {
-        var parsed = JSON.parse(f.data);
-        bodyEl.textContent = JSON.stringify(parsed, null, 2);
-      } catch(e){
-        bodyEl.textContent = f.data;
-      }
-    } else {
-      bodyEl.textContent = '(Prévisualisation non disponible pour ce type de fichier)';
-    }
-  }
-  overlay.classList.add('visible');
-}
-
-function fermerPreview(){
-  var overlay = document.getElementById('fichier-preview-overlay');
-  if(overlay) overlay.classList.remove('visible');
-  _previewFichier = null;
-}
-
 
 // ===== SERVICE WORKER =====
 // Désactivé — nettoyage pour les navigateurs qui l'ont enregistré avant la désactivation
