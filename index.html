@@ -13400,7 +13400,7 @@ function _osOpenWindowExecuter(pageId){
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
-    snake:'🐍 Presse Express'
+    snake:'🐍 Presse Express', substack:'Ipsum Média'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -13572,6 +13572,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'benevoles'){
     setTimeout(function(){ osBenevolesDashRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'substack'){
+    setTimeout(function(){ osSubstackRender(); }, 50);
     return;
   }
 
@@ -14232,10 +14237,10 @@ function osBuildDesktopIcons(){
   guidIcon.appendChild(guidLabel);
   container.appendChild(guidIcon);
 
-  // Icône Substack — ouvre le volet Widgets (flux RSS de la rédaction)
+  // Icône Substack — ouvre l'app dédiée listant les derniers articles publiés
   var substackIcon = document.createElement('div');
   substackIcon.className = 'desktop-icon';
-  substackIcon.onclick = function(){ osToggleSidebar(); };
+  substackIcon.onclick = function(){ osOuvrirSubstack(); };
   var substackImg = document.createElement('div');
   substackImg.className = 'desktop-icon-img';
   substackImg.style.background = 'linear-gradient(135deg,#FF6719,#E8461E)';
@@ -18150,6 +18155,69 @@ function osBugsRender(){
   });
 }
 
+
+// ===== APP SUBSTACK (derniers articles publiés) =====
+function osOuvrirSubstack(){
+  if(_windows['substack']){ osFocusWindow('substack'); }
+  else { osOpenWindow('substack'); }
+}
+
+function osSubstackRender(){
+  var wc = document.getElementById('wincontent-substack');
+  if(!wc) return;
+  wc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Chargement…</div>';
+
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var redacId = window._redacActiveId;
+
+  (redacId
+    ? fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId)+'&select=nom,lien_substack',{headers:authH}).then(function(r){return r.json();})
+    : Promise.resolve(null)
+  )
+  .then(function(rows){
+    var redacInfo = rows && rows[0] ? rows[0] : null;
+    var lien = redacInfo ? redacInfo.lien_substack : null;
+    var feedParam = lien ? '?feed='+encodeURIComponent(lien) : '';
+    return fetch(SB_URL+'/functions/v1/rss-substack'+feedParam,{headers:authH}).then(function(r){return r.json();})
+      .then(function(data){ return {data:data, redacInfo:redacInfo}; });
+  })
+  .then(function(res){
+    var data = res.data, redacInfo = res.redacInfo;
+    var articles = (data && data.articles) ? data.articles : [];
+    var nomRedac = redacInfo ? redacInfo.nom : 'Ipsum Média';
+    var lienBase = (redacInfo && redacInfo.lien_substack) ? redacInfo.lien_substack.replace(/\/feed\/?$/,'').replace(/^([^:]+:)?\/\//,'https://') : 'https://ipsummedia.substack.com';
+
+    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
+    html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-news"></i> '+esc(nomRedac)+' — publié</div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Derniers articles publiés sur Substack</div></div>';
+    html += '<button onclick="osSubstackRender()" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:5px 10px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-refresh"></i> Actualiser</button>';
+    html += '</div>';
+
+    html += '<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">';
+    if(!articles.length){
+      html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Aucun article trouvé. Vérifie que le lien Substack de la rédaction est bien renseigné.</div>';
+    } else {
+      articles.forEach(function(a){
+        var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){}
+        html += '<a href="'+esc(a.lien)+'" target="_blank" rel="noopener" style="display:block;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:0.7rem;text-decoration:none;">';
+        html += '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;">'+esc(a.titre||'')+'</div>';
+        if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.4rem;">'+dateStr+'</div>';
+        if(a.extrait) html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.5;">'+esc(a.extrait)+'</div>';
+        html += '</a>';
+      });
+    }
+    html += '</div>';
+    html += '<div style="padding:0.7rem 1.4rem;border-top:1px solid var(--gris-bord);flex-shrink:0;">';
+    html += '<a href="'+esc(lienBase)+'" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.72rem;padding:6px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;text-decoration:none;font-weight:600;">Voir tous les articles sur Substack →</a>';
+    html += '</div></div>';
+
+    wc.innerHTML = html;
+  })
+  .catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement du flux Substack.</div>';
+  });
+}
 
 function pnToggle(section){
   var el = document.getElementById('pn-'+section);
