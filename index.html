@@ -13451,7 +13451,7 @@ function _osOpenWindowExecuter(pageId){
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
-    snake:'🐍 Presse Express', substack:'Ipsum Média'
+    snake:'🐍 Presse Express', substack:'Ipsum Média', signatures:'Signatures'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -13628,6 +13628,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'substack'){
     setTimeout(function(){ osSubstackRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'signatures'){
+    setTimeout(function(){ osSignaturesRender(); }, 50);
     return;
   }
 
@@ -18270,6 +18275,605 @@ function osSubstackRender(){
   .catch(function(){
     wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement du flux Substack.</div>';
   });
+}
+
+// ===== APP SIGNATURES (documents PDF à faire signer) =====
+var _signaturesData = [];
+var _sigNouveauPdfFile = null;
+var _sigNouveauPdfDoc = null;
+var _sigNouveauTitre = '';
+var _sigNouveauPageActuelle = 1;
+var _sigNouveauZones = [];
+var _sigMembreActifPlacement = null;
+var _sigMembresDispo = [];
+var _sigCourantSignataire = null;
+var _sigCourantDocument = null;
+
+function osOuvrirSignatures(){
+  if(_windows['signatures']){ osFocusWindow('signatures'); }
+  else { osOpenWindow('signatures'); }
+}
+
+function _sigChargerPdfJs(callback){
+  if(typeof pdfjsLib !== 'undefined'){ callback(); return; }
+  var sc = document.createElement('script');
+  sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  sc.onload = function(){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    callback();
+  };
+  sc.onerror = function(){ notif('Impossible de charger le lecteur PDF','erreur'); };
+  document.head.appendChild(sc);
+}
+
+function _sigChargerPdfLib(callback){
+  if(typeof PDFLib !== 'undefined'){ callback(); return; }
+  var sc = document.createElement('script');
+  sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+  sc.onload = callback;
+  sc.onerror = function(){ notif('Impossible de charger pdf-lib','erreur'); };
+  document.head.appendChild(sc);
+}
+
+function osSignaturesRender(){
+  var wc = document.getElementById('wincontent-signatures');
+  if(!wc) return;
+  wc.innerHTML = osLoadingHtml();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/signature_documents?select=*,signature_signataires(id,nom,statut)&order=created_at.desc',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(docs){
+    _signaturesData = (!docs || docs.code) ? [] : docs;
+    osSignaturesRenderListe(wc);
+  }).catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+  });
+}
+
+function osSignaturesRenderListe(wc){
+  var html = '<div style="display:flex;flex-direction:column;height:100%;">';
+  html += '<div style="padding:0.9rem 1.2rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">';
+  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-signature"></i> Signatures</div>';
+  html += '<button class="btn" onclick="osSignatureOuvrirCreation()" style="font-size:0.75rem;padding:0.4rem 0.9rem;">+ Nouveau document</button>';
+  html += '</div>';
+  html += '<div style="flex:1;overflow-y:auto;padding:0.9rem 1.2rem;">';
+
+  if(!_signaturesData.length){
+    html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2rem;margin-bottom:0.6rem;"><i class="ti ti-file-signature"></i></div>Aucun document pour le moment.</div>';
+  } else {
+    _signaturesData.forEach(function(d){
+      var signataires = d.signature_signataires || [];
+      var signes = signataires.filter(function(s){ return s.statut === 'signe'; }).length;
+      var total = signataires.length;
+      var complet = d.statut === 'complet';
+      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.7rem;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;gap:0.6rem;">';
+      html += '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);">'+esc(d.titre)+'</div>';
+      html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 9px;border-radius:20px;white-space:nowrap;background:'+(complet?'#EAF3DE':'#FAEEDA')+';color:'+(complet?'#27500A':'#633806')+';">'+(complet?'Complet':signes+'/'+total+' signé(s)')+'</span>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;">';
+      signataires.forEach(function(s){
+        var ok = s.statut === 'signe';
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:20px;background:'+(ok?'#EAF3DE':'var(--gris-clair)')+';color:'+(ok?'#27500A':'var(--gris)')+';"><i class="ti ti-'+(ok?'circle-check':'clock')+'"></i> '+esc(s.nom)+'</span>';
+      });
+      html += '</div>';
+      html += '<div style="display:flex;gap:0.9rem;">';
+      html += '<a href="'+esc(d.pdf_original_url)+'" target="_blank" rel="noopener" style="font-size:0.68rem;color:var(--bleu);text-decoration:none;">Voir l\'original</a>';
+      if(d.pdf_final_url) html += '<a href="'+esc(d.pdf_final_url)+'" target="_blank" rel="noopener" style="font-size:0.68rem;color:#27500A;text-decoration:none;font-weight:600;">Télécharger le PDF final</a>';
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+
+  html += '</div></div>';
+  wc.innerHTML = html;
+}
+
+function osSignatureOuvrirCreation(){
+  _sigNouveauPdfFile = null;
+  _sigNouveauPdfDoc = null;
+  _sigNouveauTitre = '';
+  _sigNouveauPageActuelle = 1;
+  _sigNouveauZones = [];
+  _sigMembreActifPlacement = null;
+
+  var overlay = document.createElement('div');
+  overlay.id = 'sig-creation-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999000;background:rgba(20,20,30,0.5);display:flex;align-items:center;justify-content:center;padding:1.5rem;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:white;border-radius:14px;width:900px;max-width:96vw;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,0.4);';
+  box.innerHTML =
+    '<div style="padding:0.9rem 1.2rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;">Nouveau document à signer</div>'
+    +'<button onclick="document.getElementById(\'sig-creation-overlay\').remove()" style="background:transparent;border:none;font-size:1.1rem;cursor:pointer;color:var(--gris);">×</button>'
+    +'</div>'
+    +'<div id="sig-creation-body" style="flex:1;overflow:hidden;display:flex;flex-direction:column;"></div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  _sigCreationEtapeUpload();
+}
+
+function _sigCreationEtapeUpload(){
+  var body = document.getElementById('sig-creation-body');
+  if(!body) return;
+  body.innerHTML =
+    '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;">'
+    +'<div><div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Titre du document</div><input id="sig-titre" type="text" placeholder="Ex : Convention de partenariat" style="width:340px;font-family:DM Sans,sans-serif;font-size:0.85rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +'<div onclick="document.getElementById(\'sig-pdf-input\').click()" style="width:340px;padding:1.4rem;border:1.5px dashed var(--gris-bord);border-radius:10px;text-align:center;cursor:pointer;color:var(--gris);box-sizing:border-box;">'
+    +'<i class="ti ti-upload" style="font-size:1.6rem;"></i><div style="font-size:0.78rem;margin-top:6px;" id="sig-pdf-label">Clique pour choisir le PDF</div>'
+    +'</div>'
+    +'<input type="file" id="sig-pdf-input" accept="application/pdf" style="display:none" onchange="_sigCreationPdfChoisi(event)">'
+    +'<button class="btn" id="sig-btn-continuer" onclick="_sigCreationChargerPages()" disabled style="opacity:0.5;">Continuer →</button>'
+    +'</div>';
+}
+
+function _sigCreationPdfChoisi(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  _sigNouveauPdfFile = file;
+  var lbl = document.getElementById('sig-pdf-label');
+  if(lbl) lbl.textContent = file.name;
+  var btn = document.getElementById('sig-btn-continuer');
+  if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+}
+
+function _sigCreationChargerPages(){
+  var titreEl = document.getElementById('sig-titre');
+  var titre = titreEl ? titreEl.value.trim() : '';
+  if(!titre){ notif('Titre requis'); return; }
+  if(!_sigNouveauPdfFile){ notif('Choisis un PDF'); return; }
+  _sigNouveauTitre = titre;
+  notif('Chargement du lecteur PDF...');
+  _sigChargerPdfJs(_sigCreationEtapePlacement);
+}
+
+function _sigCreationEtapePlacement(){
+  var body = document.getElementById('sig-creation-body');
+  if(!body) return;
+  body.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gris);">Chargement du document...</div>';
+
+  _sigNouveauPdfFile.arrayBuffer().then(function(bytes){
+    return pdfjsLib.getDocument({data:bytes}).promise;
+  }).then(function(pdfDoc){
+    _sigNouveauPdfDoc = pdfDoc;
+    _sigNouveauPageActuelle = 1;
+
+    body.innerHTML =
+      '<div style="flex:1;display:flex;overflow:hidden;">'
+      +'<div style="width:190px;flex-shrink:0;border-right:0.5px solid var(--gris-bord);padding:0.8rem;overflow-y:auto;background:var(--gris-clair);box-sizing:border-box;">'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:6px;">Qui doit signer ?</div>'
+      +'<div id="sig-membres-liste" style="display:flex;flex-direction:column;gap:4px;"></div>'
+      +'</div>'
+      +'<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">'
+      +'<div style="padding:0.5rem 0.9rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:center;gap:0.8rem;flex-shrink:0;">'
+      +'<button onclick="_sigChangerPage(-1)" style="background:transparent;border:1px solid var(--gris-bord);border-radius:5px;cursor:pointer;padding:3px 8px;"><i class="ti ti-chevron-left"></i></button>'
+      +'<span id="sig-page-indicateur" style="font-family:Space Mono,monospace;font-size:0.7rem;">Page 1</span>'
+      +'<button onclick="_sigChangerPage(1)" style="background:transparent;border:1px solid var(--gris-bord);border-radius:5px;cursor:pointer;padding:3px 8px;"><i class="ti ti-chevron-right"></i></button>'
+      +'</div>'
+      +'<div style="flex:1;overflow:auto;background:#E6E4E0;display:flex;align-items:flex-start;justify-content:center;padding:1rem;">'
+      +'<div id="sig-page-wrap" style="position:relative;box-shadow:0 4px 16px rgba(0,0,0,0.15);"><canvas id="sig-page-canvas"></canvas></div>'
+      +'</div>'
+      +'</div>'
+      +'</div>'
+      +'<div style="padding:0.8rem 1.2rem;border-top:1px solid var(--gris-bord);display:flex;justify-content:flex-end;gap:0.5rem;flex-shrink:0;">'
+      +'<button class="btn sec" onclick="document.getElementById(\'sig-creation-overlay\').remove()">Annuler</button>'
+      +'<button class="btn" onclick="osSignatureEnvoyer()"><i class="ti ti-send"></i> Envoyer aux signataires</button>'
+      +'</div>';
+
+    _sigChargerMembresPourPlacement();
+    _sigRenderPageActuelle();
+  }).catch(function(){
+    body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);">PDF illisible.</div>';
+  });
+}
+
+function _sigChargerMembresPourPlacement(){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,email&order=prenom.asc',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(membres){
+    _sigMembresDispo = (!membres || membres.code) ? [] : membres;
+    _sigRenderMembresListe();
+  }).catch(function(){ _sigMembresDispo = []; _sigRenderMembresListe(); });
+}
+
+function _sigRenderMembresListe(){
+  var zone = document.getElementById('sig-membres-liste');
+  if(!zone) return;
+  zone.innerHTML = '';
+  (_sigMembresDispo||[]).forEach(function(m){
+    var aZone = _sigNouveauZones.some(function(z){ return z.membre_id === m.id; });
+    var actif = _sigMembreActifPlacement === m.id;
+    var btn = document.createElement('button');
+    btn.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;border:1px solid '+(actif?'var(--rouge)':'transparent')+';background:'+(actif?'rgba(232,70,30,0.08)':'white')+';font-size:0.72rem;text-align:left;cursor:pointer;box-sizing:border-box;';
+    btn.innerHTML = '<span style="width:16px;height:16px;border-radius:50%;background:'+(aZone?'#27500A':'var(--gris-bord)')+';color:white;display:flex;align-items:center;justify-content:center;font-size:0.55rem;flex-shrink:0;">'+(aZone?'<i class="ti ti-check"></i>':'')+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc((m.prenom||'')+' '+(m.nom||''))+'</span>';
+    btn.onclick = function(){
+      _sigMembreActifPlacement = _sigMembreActifPlacement === m.id ? null : m.id;
+      _sigRenderMembresListe();
+    };
+    zone.appendChild(btn);
+  });
+  zone.insertAdjacentHTML('beforeend', '<div style="font-size:0.6rem;color:var(--gris);margin-top:8px;line-height:1.5;">Sélectionne une personne puis clique sur le document pour placer sa signature.</div>');
+}
+
+function _sigChangerPage(delta){
+  var next = _sigNouveauPageActuelle + delta;
+  if(next < 1 || next > _sigNouveauPdfDoc.numPages) return;
+  _sigNouveauPageActuelle = next;
+  _sigRenderPageActuelle();
+}
+
+function _sigRenderPageActuelle(){
+  var indic = document.getElementById('sig-page-indicateur');
+  if(indic) indic.textContent = 'Page '+_sigNouveauPageActuelle+' / '+_sigNouveauPdfDoc.numPages;
+
+  _sigNouveauPdfDoc.getPage(_sigNouveauPageActuelle).then(function(page){
+    var viewport = page.getViewport({scale:1.3});
+    var canvas = document.getElementById('sig-page-canvas');
+    if(!canvas) return;
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    var ctx = canvas.getContext('2d');
+    return page.render({canvasContext:ctx, viewport:viewport}).promise.then(function(){
+      var wrap = document.getElementById('sig-page-wrap');
+      if(!wrap) return;
+      wrap.style.width = viewport.width+'px';
+      wrap.style.height = viewport.height+'px';
+      wrap.querySelectorAll('.sig-zone').forEach(function(z){ z.remove(); });
+      _sigNouveauZones.filter(function(z){ return z.page === _sigNouveauPageActuelle; }).forEach(_sigDessinerZone);
+
+      wrap.onclick = function(e){
+        if(!_sigMembreActifPlacement){ if(e.target===canvas) notif('Sélectionne d\'abord une personne à gauche'); return; }
+        if(e.target !== canvas) return;
+        var rect = wrap.getBoundingClientRect();
+        var xPx = e.clientX - rect.left, yPx = e.clientY - rect.top;
+        var largeurPx = 160, hauteurPx = 60;
+        var m = (_sigMembresDispo||[]).find(function(mm){ return mm.id === _sigMembreActifPlacement; });
+        _sigNouveauZones = _sigNouveauZones.filter(function(z){ return z.membre_id !== _sigMembreActifPlacement; });
+        _sigNouveauZones.push({
+          membre_id: _sigMembreActifPlacement,
+          nom: m ? ((m.prenom||'')+' '+(m.nom||'')) : '',
+          email: m ? m.email : '',
+          page: _sigNouveauPageActuelle,
+          x: Math.max(0, Math.min(1-largeurPx/rect.width, (xPx - largeurPx/2)/rect.width)),
+          y: Math.max(0, Math.min(1-hauteurPx/rect.height, (yPx - hauteurPx/2)/rect.height)),
+          w: largeurPx/rect.width,
+          h: hauteurPx/rect.height
+        });
+        _sigMembreActifPlacement = null;
+        _sigRenderMembresListe();
+        _sigRenderPageActuelle();
+      };
+    });
+  });
+}
+
+function _sigDessinerZone(zone){
+  var wrap = document.getElementById('sig-page-wrap');
+  if(!wrap) return;
+  var el = document.createElement('div');
+  el.className = 'sig-zone';
+  el.style.cssText = 'position:absolute;left:'+(zone.x*100)+'%;top:'+(zone.y*100)+'%;width:'+(zone.w*100)+'%;height:'+(zone.h*100)+'%;border:2px dashed #E8461E;background:rgba(232,70,30,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Space Mono,monospace;font-size:0.6rem;color:#993C1D;cursor:move;text-align:center;padding:2px;box-sizing:border-box;';
+  el.textContent = zone.nom;
+  el.title = 'Glisser pour repositionner · clic droit pour retirer';
+  el.oncontextmenu = function(e){
+    e.preventDefault();
+    _sigNouveauZones = _sigNouveauZones.filter(function(z){ return z !== zone; });
+    _sigRenderMembresListe();
+    _sigRenderPageActuelle();
+  };
+  el.onmousedown = function(e){
+    e.stopPropagation();
+    var startX = e.clientX, startY = e.clientY, origX = zone.x, origY = zone.y;
+    var mover = function(e2){
+      var wrapRect = wrap.getBoundingClientRect();
+      zone.x = Math.min(1-zone.w, Math.max(0, origX + (e2.clientX-startX)/wrapRect.width));
+      zone.y = Math.min(1-zone.h, Math.max(0, origY + (e2.clientY-startY)/wrapRect.height));
+      el.style.left = (zone.x*100)+'%';
+      el.style.top = (zone.y*100)+'%';
+    };
+    var up = function(){ document.removeEventListener('mousemove', mover); document.removeEventListener('mouseup', up); };
+    document.addEventListener('mousemove', mover);
+    document.addEventListener('mouseup', up);
+  };
+  wrap.appendChild(el);
+}
+
+function osSignatureEnvoyer(){
+  if(!_sigNouveauZones.length){ notif('Place au moins une signature sur le document'); return; }
+  notif('Envoi en cours...');
+  var docId = 'SIG-'+Date.now().toString(36).toUpperCase();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var path = 'documents/'+docId+'.pdf';
+
+  _sigNouveauPdfFile.arrayBuffer().then(function(buf){
+    return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
+      method:'POST',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+(_session?_session.access_token:SB_KEY), 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      body: buf
+    });
+  }).then(function(r){
+    if(!r.ok) throw new Error('upload du PDF échoué');
+    var pdfUrl = SB_URL+'/storage/v1/object/public/documents-signature/'+path;
+    return fetch(SB_URL+'/rest/v1/signature_documents', {
+      method:'POST', headers:authH,
+      body: JSON.stringify({
+        id:docId, titre:_sigNouveauTitre, pdf_original_url:pdfUrl,
+        nb_pages:_sigNouveauPdfDoc.numPages, createur_id:getUserId(), createur_nom:getUserNomComplet()
+      })
+    });
+  }).then(function(r){
+    if(!r.ok) throw new Error('création du document échouée');
+    var signataires = _sigNouveauZones.map(function(z){
+      return {
+        id: 'SIG-'+docId+'-'+Math.random().toString(36).slice(2,8),
+        document_id:docId, membre_id:z.membre_id, nom:z.nom, email:z.email,
+        token: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2)+Date.now().toString(36)),
+        page:z.page, pos_x:z.x, pos_y:z.y, largeur:z.w, hauteur:z.h
+      };
+    });
+    return fetch(SB_URL+'/rest/v1/signature_signataires', { method:'POST', headers:authH, body:JSON.stringify(signataires) })
+      .then(function(r2){ if(!r2.ok) throw new Error('création des signataires échouée'); return signataires; });
+  }).then(function(signataires){
+    signataires.forEach(function(s){
+      var lien = 'https://compo.ipsummedia.fr/?signature='+s.token;
+      var html = '<div style="font-family:sans-serif;max-width:500px;">'
+        +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document à signer</h2></div>'
+        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
+        +'<p><strong>'+esc(_sigNouveauTitre)+'</strong> attend ta signature.</p>'
+        +'<a href="'+lien+'" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Signer le document</a>'
+        +'<p style="font-size:0.75rem;color:#888;margin-top:1rem;">Signature possible depuis un téléphone ou un ordinateur, en quelques secondes.</p>'
+        +'</div></div>';
+      envoyerEmailResend(s.email, '[Compo] '+_sigNouveauTitre+' — à signer', html, 'signature').catch(function(){});
+    });
+    notif('Document envoyé à '+signataires.length+' signataire(s) ✓','succes');
+    var overlay = document.getElementById('sig-creation-overlay');
+    if(overlay) overlay.remove();
+    osSignaturesRender();
+  }).catch(function(e){
+    notif('Erreur : '+e.message,'erreur');
+  });
+}
+
+// ---- Écran public de signature (accessible sans connexion via ?signature=token) ----
+function _osCheckSignatureLien(){
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('signature');
+  if(!token) return false;
+  osAfficherEcranSignature(token);
+  return true;
+}
+
+function _sigEcranMessage(titre, texte, succes){
+  return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;padding:2rem;text-align:center;">'
+    +'<div style="font-size:2.4rem;color:'+(succes?'#27500A':'var(--gris)')+';"><i class="ti ti-'+(succes?'circle-check':'file-off')+'"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:var(--encre);">'+titre+'</div>'
+    +'<div style="font-size:0.85rem;color:var(--gris);max-width:280px;">'+texte+'</div>'
+    +'</div>';
+}
+
+function osAfficherEcranSignature(token){
+  var loginEl = document.getElementById('os-login');
+  if(loginEl) loginEl.style.display = 'none';
+  var screen = document.createElement('div');
+  screen.id = 'signature-screen';
+  screen.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#F1EFE8;display:flex;flex-direction:column;overflow:hidden;';
+  screen.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gris);font-family:Space Mono,monospace;font-size:0.8rem;">Chargement du document...</div>';
+  document.body.appendChild(screen);
+
+  fetch(SB_URL+'/rest/v1/signature_signataires?token=eq.'+encodeURIComponent(token)+'&select=*,signature_documents(*)', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var signataire = rows && rows[0];
+    if(!signataire){ screen.innerHTML = _sigEcranMessage('Lien invalide', 'Ce lien de signature n\'existe pas ou plus.'); return; }
+    _sigCourantSignataire = signataire;
+    _sigCourantDocument = signataire.signature_documents;
+    if(signataire.statut === 'signe'){
+      screen.innerHTML = _sigEcranMessage('Déjà signé', 'Tu as déjà signé ce document, merci !', true);
+      return;
+    }
+    _sigRenderEcranSignature(screen);
+  }).catch(function(){
+    screen.innerHTML = _sigEcranMessage('Erreur', 'Impossible de charger le document. Vérifie ta connexion.');
+  });
+}
+
+function _sigRenderEcranSignature(screen){
+  var doc = _sigCourantDocument, sig = _sigCourantSignataire;
+  screen.innerHTML =
+    '<div style="padding:0.8rem 1rem;background:#1A1A2E;flex-shrink:0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:white;">'+esc(doc.titre)+'</div>'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:2px;">Signature demandée à '+esc(sig.nom)+'</div>'
+    +'</div>'
+    +'<div id="sig-view-wrap" style="flex:1;overflow:auto;display:flex;justify-content:center;padding:0.8rem;background:#E6E4E0;">'
+    +'<div style="position:relative;" id="sig-view-page"><canvas id="sig-view-canvas" style="max-width:100%;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.15);"></canvas></div>'
+    +'</div>'
+    +'<div style="padding:0.9rem 1rem;background:white;border-top:1px solid var(--gris-bord);flex-shrink:0;">'
+    +'<button onclick="_sigOuvrirPadSignature()" style="width:100%;padding:0.9rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;"><i class="ti ti-signature"></i> Signer le document</button>'
+    +'</div>';
+
+  function charger(){
+    fetch(doc.pdf_original_url).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+      return pdfjsLib.getDocument({data:buf}).promise;
+    }).then(function(pdfDoc){
+      return pdfDoc.getPage(sig.page);
+    }).then(function(page){
+      var wrapEl = document.getElementById('sig-view-wrap');
+      var wrapWidth = wrapEl.clientWidth - 20;
+      var baseViewport = page.getViewport({scale:1});
+      var scale = Math.min(wrapWidth / baseViewport.width, 1.6);
+      var viewport = page.getViewport({scale:scale});
+      var canvas = document.getElementById('sig-view-canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      var pageDiv = document.getElementById('sig-view-page');
+      pageDiv.style.width = viewport.width+'px';
+      pageDiv.style.height = viewport.height+'px';
+      var ctx = canvas.getContext('2d');
+      return page.render({canvasContext:ctx, viewport:viewport}).promise;
+    }).then(function(){
+      var pageDiv = document.getElementById('sig-view-page');
+      var marque = document.createElement('div');
+      marque.style.cssText = 'position:absolute;left:'+(sig.pos_x*100)+'%;top:'+(sig.pos_y*100)+'%;width:'+(sig.largeur*100)+'%;height:'+(sig.hauteur*100)+'%;border:2px dashed #E8461E;background:rgba(232,70,30,0.1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#993C1D;font-family:Space Mono,monospace;text-align:center;';
+      marque.textContent = 'Ta signature ici';
+      pageDiv.appendChild(marque);
+    }).catch(function(){
+      var wrapEl = document.getElementById('sig-view-wrap');
+      if(wrapEl) wrapEl.innerHTML = '<div style="color:var(--rouge);font-size:0.8rem;padding:2rem;text-align:center;">Impossible d\'afficher le document.</div>';
+    });
+  }
+
+  _sigChargerPdfJs(charger);
+}
+
+function _sigOuvrirPadSignature(){
+  var overlay = document.createElement('div');
+  overlay.id = 'sig-pad-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:white;display:flex;flex-direction:column;';
+  overlay.innerHTML =
+    '<div style="padding:0.9rem 1rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;">Dessine ta signature</div>'
+    +'<button onclick="document.getElementById(\'sig-pad-overlay\').remove()" style="background:transparent;border:none;font-size:1.1rem;cursor:pointer;color:var(--gris);">×</button>'
+    +'</div>'
+    +'<div style="flex:1;position:relative;touch-action:none;"><canvas id="sig-pad-canvas" style="width:100%;height:100%;display:block;background:#FAFAF8;"></canvas>'
+    +'<div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);pointer-events:none;">Signe avec le doigt ou la souris</div></div>'
+    +'<div style="padding:0.9rem 1rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.6rem;flex-shrink:0;">'
+    +'<button onclick="_sigPadEffacer()" style="flex:1;padding:0.8rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;font-size:0.85rem;cursor:pointer;"><i class="ti ti-eraser"></i> Effacer</button>'
+    +'<button onclick="_sigPadValider()" style="flex:2;padding:0.8rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ti ti-circle-check"></i> Valider ma signature</button>'
+    +'</div>';
+  document.body.appendChild(overlay);
+
+  var canvas = document.getElementById('sig-pad-canvas');
+  var ratio = window.devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * ratio;
+  canvas.height = canvas.clientHeight * ratio;
+  var ctx = canvas.getContext('2d');
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1A1A2E';
+  var dessine = false, aDessine = false;
+
+  function pos(e){
+    var rect = canvas.getBoundingClientRect();
+    var p = e.touches ? e.touches[0] : e;
+    return { x:p.clientX-rect.left, y:p.clientY-rect.top };
+  }
+  function debut(e){ e.preventDefault(); dessine = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+  function trace(e){ if(!dessine) return; e.preventDefault(); var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); aDessine = true; }
+  function fin(){ dessine = false; }
+
+  canvas.addEventListener('mousedown', debut);
+  canvas.addEventListener('mousemove', trace);
+  window.addEventListener('mouseup', fin);
+  canvas.addEventListener('touchstart', debut, {passive:false});
+  canvas.addEventListener('touchmove', trace, {passive:false});
+  canvas.addEventListener('touchend', fin);
+
+  window._sigPadADessine = function(){ return aDessine; };
+  window._sigPadReset = function(){ aDessine = false; ctx.clearRect(0,0,canvas.width,canvas.height); };
+}
+
+function _sigPadEffacer(){ if(window._sigPadReset) window._sigPadReset(); }
+
+function _sigPadValider(){
+  if(!window._sigPadADessine || !window._sigPadADessine()){ notif('Dessine ta signature avant de valider'); return; }
+  var canvas = document.getElementById('sig-pad-canvas');
+  var dataUrl = canvas.toDataURL('image/png');
+  notif('Enregistrement de ta signature...');
+  fetch(SB_URL+'/rest/v1/signature_signataires?id=eq.'+_sigCourantSignataire.id, {
+    method:'PATCH', headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
+    body: JSON.stringify({ statut:'signe', signature_data:dataUrl, signed_at:new Date().toISOString() })
+  }).then(function(r){
+    if(!r.ok) throw new Error();
+    var overlayPad = document.getElementById('sig-pad-overlay');
+    if(overlayPad) overlayPad.remove();
+    var screen = document.getElementById('signature-screen');
+    if(screen) screen.innerHTML = _sigEcranMessage('Signature enregistrée', 'Merci, ta signature a bien été prise en compte.', true);
+    _sigVerifierDocumentComplet(_sigCourantSignataire.document_id);
+  }).catch(function(){
+    notif('Erreur — la signature n\'a pas pu être enregistrée','erreur');
+  });
+}
+
+function _sigVerifierDocumentComplet(documentId){
+  fetch(SB_URL+'/rest/v1/signature_signataires?document_id=eq.'+documentId+'&select=statut', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    if(!rows || !rows.length) return;
+    var complet = rows.every(function(r){ return r.statut === 'signe'; });
+    if(complet) _osGenererPdfFinal(documentId);
+  }).catch(function(){});
+}
+
+function _osGenererPdfFinal(documentId){
+  fetch(SB_URL+'/rest/v1/signature_documents?id=eq.'+documentId+'&select=*', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(docs){
+    var doc = docs && docs[0];
+    if(!doc || doc.statut === 'complet') return;
+    fetch(SB_URL+'/rest/v1/signature_signataires?document_id=eq.'+documentId+'&select=*', {headers:SB_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(signataires){
+      _sigChargerPdfLib(function(){
+        _sigAssemblerPdfFinal(doc, signataires || []);
+      });
+    });
+  }).catch(function(){});
+}
+
+function _sigAssemblerPdfFinal(doc, signataires){
+  var PDFDocument = PDFLib.PDFDocument;
+  fetch(doc.pdf_original_url).then(function(r){ return r.arrayBuffer(); })
+  .then(function(pdfBytes){ return PDFDocument.load(pdfBytes); })
+  .then(function(pdfDoc){
+    var pages = pdfDoc.getPages();
+    var chaine = Promise.resolve();
+    signataires.forEach(function(s){
+      if(!s.signature_data) return;
+      chaine = chaine.then(function(){
+        var page = pages[s.page-1];
+        if(!page) return;
+        var base64 = s.signature_data.split(',')[1] || '';
+        var binaire = atob(base64);
+        var octets = new Uint8Array(binaire.length);
+        for(var i=0;i<binaire.length;i++) octets[i] = binaire.charCodeAt(i);
+        return pdfDoc.embedPng(octets).then(function(png){
+          var pw = page.getWidth(), ph = page.getHeight();
+          var w = s.largeur*pw, h = s.hauteur*ph;
+          var x = s.pos_x*pw;
+          var y = ph - (s.pos_y*ph) - h;
+          page.drawImage(png, {x:x, y:y, width:w, height:h});
+        });
+      });
+    });
+    return chaine.then(function(){ return pdfDoc.save(); });
+  }).then(function(finalBytes){
+    var path = 'documents/'+doc.id+'-final.pdf';
+    return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
+      method:'POST',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      body: finalBytes
+    }).then(function(r){
+      if(!r.ok) throw new Error('upload du PDF final échoué');
+      return SB_URL+'/storage/v1/object/public/documents-signature/'+path;
+    });
+  }).then(function(finalUrl){
+    return fetch(SB_URL+'/rest/v1/signature_documents?id=eq.'+doc.id, {
+      method:'PATCH', headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
+      body: JSON.stringify({ statut:'complet', pdf_final_url:finalUrl })
+    }).then(function(){ return finalUrl; });
+  }).then(function(finalUrl){
+    signataires.forEach(function(s){
+      var html = '<div style="font-family:sans-serif;max-width:500px;">'
+        +'<div style="background:#1A5726;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document entièrement signé</h2></div>'
+        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
+        +'<p><strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties.</p>'
+        +'<a href="'+esc(finalUrl)+'" style="display:inline-block;background:#155724;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Télécharger le PDF final</a>'
+        +'</div></div>';
+      envoyerEmailResend(s.email, '[Compo] '+doc.titre+' — signé par tous', html, 'signature_complete').catch(function(){});
+    });
+  }).catch(function(e){ console.error('Erreur génération PDF final', e); });
 }
 
 function pnToggle(section){
@@ -24001,6 +24605,13 @@ var NOTE_COULEURS = {
 var _notesDebounce = {};
 var _notesData = [];
 var _noteSelectionnee = null;
+var _notesFiltreCouleur = 'Toutes';
+
+function osNotesSetCouleurFiltre(c){
+  _notesFiltreCouleur = c;
+  var wc = document.getElementById('wincontent-notes');
+  if(wc) osNotesBuildUI(wc);
+}
 
 function osNotesRender(){
   var wc = document.getElementById('wincontent-notes');
@@ -24027,18 +24638,39 @@ function osNotesBuildUI(wc){
   var isMobile = window.innerWidth < 700;
   var html = '<div style="display:flex;height:100%;overflow:hidden;">';
 
-  // Colonne gauche — liste des notes
+  // Rail couleurs — même style que le rail Ma Rédac' / Sources
+  if(!isMobile){
+    html += '<div id="notes-couleur-rail" style="width:130px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;overflow-y:auto;">';
+    var couleursRail = [
+      {id:'Toutes', label:'Toutes', dot:null},
+      {id:'jaune',  label:'Jaune',  dot:NOTE_COULEURS.jaune.dot},
+      {id:'rose',   label:'Rose',   dot:NOTE_COULEURS.rose.dot},
+      {id:'vert',   label:'Vert',   dot:NOTE_COULEURS.vert.dot},
+      {id:'bleu',   label:'Bleu',   dot:NOTE_COULEURS.bleu.dot},
+      {id:'orange', label:'Orange', dot:NOTE_COULEURS.orange.dot},
+      {id:'blanc',  label:'Blanc',  dot:NOTE_COULEURS.blanc.dot}
+    ];
+    couleursRail.forEach(function(c){
+      var actif = _notesFiltreCouleur === c.id;
+      var pastille = c.dot ? '<span style="width:11px;height:11px;border-radius:50%;background:'+c.dot+';flex-shrink:0;border:1px solid rgba(0,0,0,0.1);"></span>' : '<i class="ti ti-list"></i>';
+      html += '<button onclick="osNotesSetCouleurFiltre(\''+c.id+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+pastille+'</span>'+c.label+'</button>';
+    });
+    html += '</div>';
+  }
+
+  // Colonne — liste des notes
+  var notesFiltrees = _notesFiltreCouleur === 'Toutes' ? _notesData : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
   html += '<div id="notes-sidebar" style="'+(isMobile && _noteSelectionnee ? 'display:none;' : '')+'width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);">';
   html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
-  html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+_notesData.length+' note(s)</span>';
+  html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
   html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:Space Mono,monospace;cursor:pointer;">+ Nouvelle</button>';
   html += '</div>';
   html += '<div style="flex:1;overflow-y:auto;" id="notes-liste">';
 
-  if(!_notesData.length){
-    html += '<div style="padding:1rem;text-align:center;font-size:0.78rem;color:var(--gris);">Aucune note.<br>Crée ta première !</div>';
+  if(!notesFiltrees.length){
+    html += '<div style="padding:1rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+(_notesData.length?'Aucune note de cette couleur.':'Aucune note.<br>Crée ta première !')+'</div>';
   } else {
-    _notesData.forEach(function(n){
+    notesFiltrees.forEach(function(n){
       var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
       var actif = n.id === _noteSelectionnee;
       var dateStr = _benvFormatDate(new Date(n.updated_at));
@@ -24139,6 +24771,7 @@ function osNoteNouvelle(){
     if(r.ok){
       _notesData.unshift(payload);
       _noteSelectionnee = id;
+      _notesFiltreCouleur = 'Toutes'; // sinon la nouvelle note (jaune) peut disparaître d'un filtre actif
       var wc = document.getElementById('wincontent-notes');
       if(wc) osNotesBuildUI(wc);
       setTimeout(function(){
@@ -24611,6 +25244,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
+  { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin'] },
   { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
   { id:'edition',        icon:'<i class="ti ti-pencil"></i>', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
@@ -24628,7 +25262,7 @@ var PROFILS_PREDEFINIS = {
   redacteur: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail'],
   correcteur: ['mes-articles','redactions','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail'],
   redac_chef: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail'],
-  admin:      ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','tchap','agenda','projets','boutique','mail','tresorerie'],
+  admin:      ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
 
 window._userApps = null;
@@ -25509,15 +26143,14 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
 
 function osCarnetSetCat(cat){
   _carnetFiltreCategorie = cat;
-  // Mettre à jour les boutons filtres
+  // Mettre à jour les boutons du rail
   var wc = document.getElementById('wincontent-carnet');
   if(wc){
     wc.querySelectorAll('button[onclick^="osCarnetSetCat"]').forEach(function(btn){
       var btnCat = btn.textContent.trim();
       var active = btnCat === cat;
-      btn.style.background = active ? 'var(--rouge)' : 'white';
-      btn.style.color = active ? 'white' : 'var(--gris)';
-      btn.style.borderColor = active ? 'var(--rouge)' : 'var(--gris-bord)';
+      btn.style.background = active ? 'var(--rouge)' : 'transparent';
+      btn.style.color = active ? 'white' : 'var(--encre)';
     });
   }
   _rafraichirListeCarnet();
@@ -26343,6 +26976,8 @@ function oobeTerminer(){
 
   // Lien "mot de passe oublié" cliqué depuis l'email — prioritaire sur tout le reste
   if(_osCheckRecoveryHash()) return;
+  // Lien de signature de document reçu par email — accessible sans connexion
+  if(_osCheckSignatureLien()) return;
 
   function loginClock(){
     var now = new Date();
