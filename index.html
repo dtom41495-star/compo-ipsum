@@ -3277,60 +3277,6 @@ input:focus,select:focus,textarea:focus{
 .ticket-reponse-label { font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;text-transform:uppercase;margin-bottom:0.3rem; }
 
 
-/* PATCH NOTE */
-#modal-patchnote {
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(26,26,46,0.7);
-  display: none; align-items: center; justify-content: center; padding: 1rem;
-}
-#modal-patchnote.visible { display: flex; }
-.patchnote-card {
-  background: white;
-  max-width: 540px; width: 100%;
-  max-height: 85vh; overflow-y: auto;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
-}
-.patchnote-header {
-  background: var(--encre-fixe);
-  padding: 1.4rem 1.6rem;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.patchnote-version {
-  font-family: Arial,sans-serif;
-  font-size: 0.65rem; color: var(--rouge);
-  text-transform: uppercase; letter-spacing: 0.1em;
-  margin-bottom: 0.3rem;
-}
-.patchnote-titre {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 700; font-size: 1.1rem; color: white;
-}
-.patchnote-body { padding: 1.4rem 1.6rem; }
-.patchnote-section {
-  margin-bottom: 1.2rem;
-}
-.patchnote-section-label {
-  font-family: Arial,sans-serif;
-  font-size: 0.6rem; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--gris);
-  margin-bottom: 0.5rem;
-}
-.patchnote-item {
-  display: flex; gap: 0.6rem;
-  align-items: flex-start;
-  font-size: 0.85rem; color: var(--encre);
-  line-height: 1.5; margin-bottom: 0.4rem;
-}
-.patchnote-emoji { flex-shrink: 0; font-size: 1rem; }
-.patchnote-footer {
-  padding: 1rem 1.6rem 1.4rem;
-  display: flex; justify-content: flex-end; gap: 0.6rem;
-  border-top: 1px solid var(--gris-bord);
-}
-
-
-
-
 /* SCREENSAVER */
 #screensaver {
   position: fixed; inset: 0; z-index: 99999;
@@ -3778,7 +3724,6 @@ input:focus,select:focus,textarea:focus{
       </div>
       <div class="sm-footer-actions">
         <button class="sm-icon-btn" onclick="osStartAction('params')" title="Paramètres"><i class="ti ti-settings"></i></button>
-        <button class="sm-icon-btn" onclick="osStartAction('patchnote')" title="Notes de version"><i class="ti ti-sparkles"></i></button>
         <button class="sm-icon-btn" onclick="osStartAction('spotlight')" title="Rechercher ⌘K"><i class="ti ti-search"></i></button>
         <button class="sm-icon-btn danger" onclick="osStartAction('deconnecter')" title="Se déconnecter"><i class="ti ti-power"></i></button>
       </div>
@@ -3981,7 +3926,7 @@ input:focus,select:focus,textarea:focus{
     <input type="text" id="r-auteur" placeholder="Auteur *" style="display:none;">
     <!-- Rédaction active — affichage + bouton changer -->
     <div id="r-redaction-badge" style="display:flex;align-items:center;gap:4px;background:var(--gris-clair);border:1px solid var(--gris-bord);border-radius:6px;padding:3px 8px;font-size:0.68rem;color:var(--encre);cursor:default;">
-      <span style="font-size:0.65rem;">🗞️</span>
+      <span style="font-size:0.65rem;"><i class="ti ti-news"></i></span>
       <span id="r-redaction-nom">Rédaction...</span>
       <button id="r-redaction-changer" onclick="rChangerRedaction()" style="display:none;font-size:0.55rem;padding:1px 5px;margin-left:2px;background:var(--rouge);color:white;border:none;border-radius:3px;cursor:pointer;" title="Changer de rédaction">Changer</button>
     </div>
@@ -3999,16 +3944,16 @@ input:focus,select:focus,textarea:focus{
     </div>
     <div style="flex:1;"></div>
     <div id="r-cp-badge" style="display:none;align-items:center;gap:4px;background:#EAF3DE;border:1px solid #C0DD97;border-radius:6px;padding:3px 8px;font-size:0.65rem;color:#27500A;">
-      <span>📰</span><span id="r-cp-badge-titre" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <span><i class="ti ti-news"></i></span><span id="r-cp-badge-titre" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       <button onclick="rArticleDetacherCpSource()" style="background:none;border:none;cursor:pointer;color:#27500A;padding:0;font-size:0.7rem;">✕</button>
     </div>
     <div id="r-statut-badge" style="display:none;font-size:0.62rem;padding:3px 10px;border-radius:20px;font-weight:600;"></div>
-    <button onclick="sauvegarderCloud()" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;flex-shrink:0;">☁️ Sauvegarder</button>
+    <button onclick="sauvegarderCloud()" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;flex-shrink:0;"><i class="ti ti-cloud-upload"></i> Sauvegarder</button>
   </div>
 
   <!-- Commentaire correction -->
   <div id="r-commentaire-correction" style="display:none;flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #856404;padding:0.6rem 1rem;">
-    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">💬 Commentaire du correcteur</div>
+    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"><i class="ti ti-message-circle"></i> Commentaire du correcteur</div>
     <div id="r-commentaire-txt" style="font-size:0.8rem;color:#5a3e00;"></div>
   </div>
 
@@ -4019,7 +3964,7 @@ input:focus,select:focus,textarea:focus{
       <!-- CP source -->
       <div id="r-cp-source-zone" style="margin-bottom:0.8rem;">
         <div id="r-cp-source-affichage" style="display:none;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;align-items:center;gap:0.7rem;margin-bottom:0.5rem;">
-          <span style="font-size:0.9rem;">📰</span>
+          <span style="font-size:0.9rem;"><i class="ti ti-news"></i></span>
           <div style="flex:1;min-width:0;">
             <div id="r-cp-source-titre" style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
             <div id="r-cp-source-org" style="font-size:0.6rem;color:var(--gris);"></div>
@@ -4052,17 +3997,22 @@ input:focus,select:focus,textarea:focus{
       <div style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:0.6rem;flex-wrap:wrap;">
         <button onclick="rFormat('bold')" title="Gras" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-weight:700;font-size:0.8rem;">B</button>
         <button onclick="rFormat('italic')" title="Italique" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-style:italic;font-size:0.8rem;">I</button>
-        <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;">❝</button>
-        <button onclick="rFormat('link')" title="Lien" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;">🔗</button>
+        <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-quote"></i></button>
+        <button onclick="rFormat('link')" title="Lien" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-link"></i></button>
+        <button onclick="document.getElementById('r-img-inline').click()" title="Insérer une image" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-photo"></i></button>
+        <input type="file" id="r-img-inline" accept="image/*" style="display:none" onchange="rInsererImageInline(event)">
         <div style="width:1px;background:var(--gris-bord);margin:2px 2px;"></div>
         <button onclick="rFormat('h2')" title="Sous-titre" style="padding:0 8px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.65rem;font-weight:700;">H2</button>
         <button onclick="rFormat('h3')" title="Sous-sous-titre" style="padding:0 8px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.65rem;font-weight:700;">H3</button>
         <button onclick="rFormat('ul')" title="Liste" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;">•</button>
+        <div style="width:1px;background:var(--gris-bord);margin:2px 2px;"></div>
+        <button id="r-btn-apercu" onclick="rBasculerApercu()" title="Aperçu" style="padding:0 10px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.68rem;"><i class="ti ti-eye"></i> Aperçu</button>
       </div>
 
       <!-- Corps -->
       <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()"
         style="width:100%;min-height:400px;font-size:0.95rem;font-family:'DM Sans',sans-serif;line-height:1.75;color:var(--encre);border:none;background:transparent;outline:none;resize:vertical;padding:0;display:block;margin-bottom:0.5rem;"></textarea>
+      <div id="r-corps-preview" style="display:none;width:100%;min-height:400px;font-size:0.95rem;font-family:'DM Sans',sans-serif;line-height:1.75;color:var(--encre);padding:0;margin-bottom:0.5rem;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-top:1px solid var(--gris-bord);margin-bottom:1.2rem;">
         <div class="stats-bar" id="stats-bar" style="margin:0;"></div>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -4075,7 +4025,7 @@ input:focus,select:focus,textarea:focus{
       <div class="form-group" style="margin-bottom:1rem;">
         <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Image d'illustration</label>
         <div class="upload-zone" onclick="document.getElementById('r-img').click()" style="padding:0.8rem;border-radius:8px;margin-top:0.4rem;">
-          <div style="font-size:1.2rem;">🖼</div>
+          <div style="font-size:1.2rem;"><i class="ti ti-photo"></i></div>
           <p style="margin-top:4px;font-size:0.72rem;color:var(--gris);">Clique pour ajouter une image (JPG, PNG)</p>
           <input type="file" id="r-img" accept="image/*" style="display:none" onchange="loadImg(event)">
         </div>
@@ -4107,7 +4057,7 @@ input:focus,select:focus,textarea:focus{
 
       <!-- Abandon sujet -->
       <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;border-radius:8px;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-        <span style="font-size:0.65rem;color:#856404;">📌 Sujet réservé — les autres ne le voient plus</span>
+        <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
         <div style="display:flex;gap:0.5rem;flex-shrink:0;">
           <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
           <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
@@ -4126,23 +4076,23 @@ input:focus,select:focus,textarea:focus{
       <!-- ACTIONS -->
       <div id="r-actions-bas" style="padding:1rem 0 2rem;border-top:1px solid var(--gris-bord);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <div id="r-actions-redacteur" style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" onclick="ouvrirAssignation()" style="font-size:0.72rem;padding:5px 12px;">🔍 Envoyer en correction</button>
-          <button class="btn sec" onclick="rArticleLierCpSource()" style="font-size:0.72rem;padding:5px 12px;">📰 Lier un CP</button>
-          <button class="btn sec" onclick="exporterArticle()" style="font-size:0.72rem;padding:5px 12px;">🔗 Partager</button>
-          <button class="btn sec" onclick="genererVisuelsDepuisRedaction()" style="font-size:0.72rem;padding:5px 12px;">🎨 Visuels</button>
-          <button class="btn sec" onclick="ouvrirFS('r')" style="font-size:0.72rem;padding:5px 12px;">⛶ Plein écran</button>
+          <button class="btn" onclick="ouvrirAssignation()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-send"></i> Envoyer en correction</button>
+          <button class="btn sec" onclick="rArticleLierCpSource()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-news"></i> Lier un CP</button>
+          <button class="btn sec" onclick="exporterArticle()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-share"></i> Partager</button>
+          <button class="btn sec" onclick="genererVisuelsDepuisRedaction()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-palette"></i> Visuels</button>
+          <button class="btn sec" onclick="ouvrirFS('r')" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-arrows-maximize"></i> Plein écran</button>
         </div>
         <div id="r-actions-correcteur" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button onclick="rWorkflowAvancer('corrige')" style="background:#0C5460;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;">✅ Marquer comme corrigé</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;">↩ Renvoyer au rédacteur</button>
+          <button onclick="rWorkflowAvancer('corrige')" style="background:#0C5460;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-circle-check"></i> Marquer comme corrigé</button>
+          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer au rédacteur</button>
         </div>
         <div id="r-actions-chef" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button onclick="rWorkflowAvancer('valide')" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;">✓ Valider</button>
-          <button onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;">🚀 Publier</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;">↩ Renvoyer</button>
+          <button onclick="rWorkflowAvancer('valide')" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
+          <button onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
+          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>
         </div>
         <div style="flex:1;"></div>
-        <button onclick="exporterArticleJSON()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);cursor:pointer;">📄 JSON</button>
+        <button onclick="exporterArticleJSON()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);cursor:pointer;"><i class="ti ti-file-code"></i> JSON</button>
         <button onclick="resetRedaction()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:none;color:var(--gris);cursor:pointer;">Tout effacer</button>
       </div>
 
@@ -4488,7 +4438,8 @@ input:focus,select:focus,textarea:focus{
       <div style="flex:1;"></div>
       <!-- Recherche -->
       <div style="position:relative;flex-shrink:0;">
-        <input id="ma-search" type="text" placeholder="🔍 Rechercher..." oninput="maFiltrerListe()" style="font-size:0.72rem;padding:5px 10px;border:1px solid var(--gris-bord);border-radius:20px;width:160px;outline:none;">
+        <i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.7rem;color:var(--gris);pointer-events:none;"></i>
+        <input id="ma-search" type="text" placeholder="Rechercher..." oninput="maFiltrerListe()" style="font-size:0.72rem;padding:5px 10px 5px 24px;border:1px solid var(--gris-bord);border-radius:20px;width:160px;outline:none;">
       </div>
       <!-- Tri -->
       <select id="ma-tri" onchange="maFiltrerListe()" style="font-size:0.7rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:20px;background:white;color:var(--encre);">
@@ -5660,7 +5611,7 @@ function renderLecture(){
   if(doc.chapeau)h+='<div class="art-chapeau">'+esc(doc.chapeau)+'</div>';
   if(doc.image)h+='<img class="art-img" src="'+doc.image+'" alt="'+(doc.image_legende||'')+'">'+(doc.image_legende?'<div style="font-family:\'Arial\',monospace;font-size:0.68rem;color:var(--gris);margin-bottom:1rem;">'+esc(doc.image_legende)+'</div>':'');
   h+='<div class="art-meta"><span>Par '+esc(doc.auteur)+'</span>'+(doc.redaction?'<span>'+esc(doc.redaction)+'</span>':'')+(doc.rubrique?'<span>'+esc(doc.rubrique)+'</span>':'')+(doc.tags&&doc.tags.length?'<span>'+doc.tags.map(t=>esc(t)).join(' · ')+'</span>':'')+'<span>'+new Date(doc.cree_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</span>'+(doc.date_publication?'<span>Pub. prévue : '+doc.date_publication+'</span>':'')+'</div>';
-  h+='<div class="art-corps">'+esc(doc.corps)+'</div>';
+  h+='<div class="art-corps">'+mdVersHtml(doc.corps)+'</div>';
   if(doc.sources&&doc.sources.length)h+='<div class="art-sources"><strong>Sources</strong><br>'+doc.sources.map(s=>esc(s)).join('<br>')+'</div>';
   if(doc.communiques&&doc.communiques.length){
     h+='<div class="art-cp-block">Communiqués sources : '+doc.communiques.map(cp=>'<strong>'+esc(cp.objet)+'</strong> ('+esc(cp.organisation)+')'+(cp.embargo?' | Embargo : '+cp.embargo:'')).join(' · ')+'</div>';
@@ -7618,11 +7569,11 @@ function maFiltrerListe(){
 
     // ── Pipeline ──
     var ETAPES = [
-      {id:'brouillon',     l:'Brouillon',     icon:'✏️'},
-      {id:'en-relecture',  l:'Relecture',      icon:'🔍'},
-      {id:'corrige',       l:'Corrigé',        icon:'✅'},
-      {id:'valide',        l:'Validé',         icon:'⭐'},
-      {id:'publie',        l:'Publié',         icon:'📢'},
+      {id:'brouillon',     l:'Brouillon',     icon:'<i class="ti ti-pencil"></i>'},
+      {id:'en-relecture',  l:'Relecture',      icon:'<i class="ti ti-search"></i>'},
+      {id:'corrige',       l:'Corrigé',        icon:'<i class="ti ti-circle-check"></i>'},
+      {id:'valide',        l:'Validé',         icon:'<i class="ti ti-star"></i>'},
+      {id:'publie',        l:'Publié',         icon:'<i class="ti ti-speakerphone"></i>'},
     ];
     var idxActuel = ETAPES.findIndex(function(e){ return e.id===s; });
     // Refusé = brouillon avec note_interne
@@ -7636,7 +7587,7 @@ function maFiltrerListe(){
       // Cas refusé — brouillon est rouge
       if(estRefuse && e.id==='brouillon') cls = 'pip-refuse';
       pipeline += '<div class="pip-step '+cls+'">';
-      pipeline +=   '<div class="pip-dot">'+(done?'✓':(current?e.icon:'·'))+'</div>';
+      pipeline +=   '<div class="pip-dot">'+(done?'<i class="ti ti-check"></i>':(current?e.icon:'·'))+'</div>';
       pipeline +=   '<div class="pip-label">'+e.l+'</div>';
       pipeline += '</div>';
       if(i < ETAPES.length-1){
@@ -7648,7 +7599,7 @@ function maFiltrerListe(){
     // Note correction si refusé
     var noteHtml = '';
     if(estRefuse && doc.note_interne){
-      noteHtml = '<div class="ma-note-refuse">💬 '+esc(doc.note_interne)+'</div>';
+      noteHtml = '<div class="ma-note-refuse"><i class="ti ti-message-circle"></i> '+esc(doc.note_interne)+'</div>';
     }
 
     // Titre + meta
@@ -7669,12 +7620,12 @@ function maFiltrerListe(){
 
     // Modifier (auteur, brouillon)
     if(estMonArticle && (s==='brouillon')){
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-primary" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')">✏️ Modifier</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-primary" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i> Modifier</button>';
     }
 
     // Corriger (correcteur désigné, article en relecture)
     if(estCorrecteur && s==='en-relecture'){
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')">🔍 Corriger</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
     }
     if(estCorrecteur && s==='en-relecture'){
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
@@ -7682,16 +7633,16 @@ function maFiltrerListe(){
 
     // Corriger (admin) — article en relecture ou corrigé
     if(role==='admin' && (s==='en-relecture'||s==='corrige') && !estMonArticle){
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')">🔍 Corriger</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
     }
 
     // Lire
-    actionsHtml += '<button class="ma-v2-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
+    actionsHtml += '<button class="ma-v2-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i> Lire</button>';
 
     // Copier lien
     var lien = genererLien(doc.id);
-    actionsHtml += '<button class="ma-v2-btn" title="Copier le lien" data-lien="'+esc(lien)+'" onclick="navigator.clipboard.writeText(this.dataset.lien).then(function(){notif(\'Lien copié !\');})">🔗</button>';
+    actionsHtml += '<button class="ma-v2-btn" title="Copier le lien" data-lien="'+esc(lien)+'" onclick="navigator.clipboard.writeText(this.dataset.lien).then(function(){notif(\'Lien copié !\');})"><i class="ti ti-link"></i></button>';
 
     actionsHtml += '</div>';
 
@@ -9107,6 +9058,85 @@ function rFormat(type){
   ta.focus();
   ta.selectionStart = ta.selectionEnd = start + replacement.length;
   updateStats();
+}
+
+// Convertit le Markdown produit par la barre de formatage (gras, italique, citation,
+// liens, titres, listes, images) en HTML, pour l'aperçu et la lecture d'un article.
+function mdVersHtml(md){
+  if(!md) return '';
+  var html = esc(md);
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, function(m){ return '<ul>'+m.replace(/\n+$/,'')+'</ul>\n\n'; });
+  html = html.split(/\n{2,}/).map(function(bloc){
+    if(/^<(h2|h3|blockquote|ul|img)/.test(bloc.trim())) return bloc;
+    return bloc.trim() ? '<p>'+bloc.replace(/\n/g,'<br>')+'</p>' : '';
+  }).join('');
+  return html;
+}
+
+function rBasculerApercu(){
+  var ta = document.getElementById('r-corps');
+  var prev = document.getElementById('r-corps-preview');
+  var btn = document.getElementById('r-btn-apercu');
+  if(!ta || !prev) return;
+  var enApercu = prev.style.display !== 'none';
+  if(enApercu){
+    prev.style.display = 'none';
+    ta.style.display = 'block';
+    if(btn) btn.innerHTML = '<i class="ti ti-eye"></i> Aperçu';
+  } else {
+    prev.innerHTML = mdVersHtml(ta.value) || '<span style="color:var(--gris);">Rien à prévisualiser pour le moment.</span>';
+    prev.style.display = 'block';
+    ta.style.display = 'none';
+    if(btn) btn.innerHTML = '<i class="ti ti-pencil"></i> Édition';
+  }
+}
+
+// Upload direct vers Supabase Storage (chemin unique par image) — pas de base64 en base,
+// contrairement à l'image d'illustration historique.
+function rInsererImageInline(event){
+  var file = event.target.files[0];
+  event.target.value = '';
+  if(!file) return;
+  var ta = document.getElementById('r-corps');
+  if(!ta) return;
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  notif('Envoi de l\'image...');
+  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  var path = 'articles/inline-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    fetch(SB_URL + '/storage/v1/object/images-articles/' + path, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY),
+        'Content-Type': file.type || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: e.target.result
+    }).then(function(r){
+      if(!r.ok) throw new Error('upload échoué');
+      var url = SB_URL + '/storage/v1/object/public/images-articles/' + path;
+      var before = ta.value.substring(0, start);
+      var after = ta.value.substring(end);
+      var insertion = '\n![Légende de l\'image]('+url+')\n';
+      ta.value = before + insertion + after;
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + insertion.length;
+      updateStats();
+      notif('Image ajoutée à l\'article','succes');
+    }).catch(function(){ notif('Erreur envoi image','erreur'); });
+  };
+  reader.onerror = function(){ notif('Erreur lecture du fichier','erreur'); };
+  reader.readAsArrayBuffer(file);
 }
 
 
@@ -13893,6 +13923,12 @@ function osCloseWindowForce(pageId){
   var win = _windows[pageId];
   if(!win) return;
   if(pageId === 'snake') osSnakeCleanup();
+  // Même effet de rebond que l'ouverture, mais à la fermeture
+  var dockIcon = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
+  if(dockIcon){
+    dockIcon.classList.add('bouncing');
+    setTimeout(function(){ dockIcon.classList.remove('bouncing'); }, 500);
+  }
   var el = win.el;
   el.style.transform = 'scale(0.85)';
   el.style.opacity = '0';
@@ -14660,11 +14696,6 @@ function osStartAction(action){
   if(action === 'deconnecter') osSeDeconnecter();
   else if(action === 'params'){
     osOuvrirParams();
-  }
-  else if(action === 'patchnote'){
-    // Réafficher le patch note
-    var modal = document.getElementById('modal-patchnote');
-    if(modal) modal.style.display = 'flex';
   }
   else if(action === 'spotlight'){
     var sp = document.getElementById('os-spotlight');
