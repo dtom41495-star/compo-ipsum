@@ -18319,12 +18319,65 @@ function osSignaturesRender(){
   var wc = document.getElementById('wincontent-signatures');
   if(!wc) return;
   wc.innerHTML = osLoadingHtml();
+
+  if(getUserRole() !== 'admin'){
+    osSignaturesRenderMesDocuments(wc);
+    return;
+  }
+
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/signature_documents?select=*,signature_signataires(id,nom,statut)&order=created_at.desc',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(docs){
     _signaturesData = (!docs || docs.code) ? [] : docs;
     osSignaturesRenderListe(wc);
+  }).catch(function(){
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+  });
+}
+
+function osSignaturesRenderMesDocuments(wc){
+  var uid = getUserId();
+  if(!uid){ wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gris);">Non connecté.</div>'; return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/signature_signataires?membre_id=eq.'+uid+'&select=*,signature_documents(*)&order=id.desc',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var mesDocs = (!rows || rows.code) ? [] : rows;
+
+    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
+    html += '<div style="padding:0.9rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
+    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-signature"></i> Mes documents à signer</div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Seuls les documents où tu as été invité(e) apparaissent ici.</div>';
+    html += '</div>';
+    html += '<div style="flex:1;overflow-y:auto;padding:0.9rem 1.2rem;">';
+
+    if(!mesDocs.length){
+      html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2rem;margin-bottom:0.6rem;"><i class="ti ti-file-signature"></i></div>Aucun document à signer pour le moment.</div>';
+    } else {
+      mesDocs.forEach(function(s){
+        var doc = s.signature_documents || {};
+        var signe = s.statut === 'signe';
+        var complet = doc.statut === 'complet';
+        html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.7rem;">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;margin-bottom:0.6rem;">';
+        html += '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);">'+esc(doc.titre||'')+'</div>';
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 9px;border-radius:20px;white-space:nowrap;background:'+(signe?'#EAF3DE':'#FAEEDA')+';color:'+(signe?'#27500A':'#633806')+';"><i class="ti ti-'+(signe?'circle-check':'clock')+'"></i> '+(signe?'Signé':'En attente de ta signature')+'</span>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:0.9rem;flex-wrap:wrap;">';
+        if(!signe){
+          html += '<button onclick="osAfficherEcranSignature(\''+s.token+'\')" style="font-size:0.72rem;padding:0.4rem 0.9rem;background:#E8461E;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-signature"></i> Signer maintenant</button>';
+        } else if(complet && doc.pdf_final_url){
+          html += '<a href="'+esc(doc.pdf_final_url)+'" target="_blank" rel="noopener" style="font-size:0.72rem;color:#27500A;text-decoration:none;font-weight:600;">Télécharger le PDF final</a>';
+        } else {
+          html += '<span style="font-size:0.7rem;color:var(--gris);">En attente de la signature des autres parties.</span>';
+        }
+        html += '</div></div>';
+      });
+    }
+
+    html += '</div></div>';
+    wc.innerHTML = html;
   }).catch(function(){
     wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
   });
@@ -18656,11 +18709,33 @@ function _sigEcranMessage(titre, texte, succes){
 function osAfficherEcranSignature(token){
   var loginEl = document.getElementById('os-login');
   if(loginEl) loginEl.style.display = 'none';
+  var ancien = document.getElementById('signature-screen');
+  if(ancien) ancien.remove();
+  var ancienBtn = document.getElementById('signature-screen-fermer');
+  if(ancienBtn) ancienBtn.remove();
+
   var screen = document.createElement('div');
   screen.id = 'signature-screen';
   screen.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#F1EFE8;display:flex;flex-direction:column;overflow:hidden;';
   screen.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gris);font-family:Space Mono,monospace;font-size:0.8rem;">Chargement du document...</div>';
   document.body.appendChild(screen);
+
+  // Si on arrive ici depuis l'OS déjà connecté (ex: "Mes documents à signer"), on peut revenir en arrière —
+  // depuis le lien public reçu par email (pas de session), il n'y a nulle part où "revenir".
+  if(_session){
+    var btnFermer = document.createElement('button');
+    btnFermer.id = 'signature-screen-fermer';
+    btnFermer.title = 'Retour à Compo';
+    btnFermer.style.cssText = 'position:fixed;top:14px;right:14px;z-index:100001;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,0.35);color:white;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+    btnFermer.innerHTML = '<i class="ti ti-x"></i>';
+    btnFermer.onclick = function(){
+      var s = document.getElementById('signature-screen');
+      if(s) s.remove();
+      btnFermer.remove();
+      osSignaturesRender();
+    };
+    document.body.appendChild(btnFermer);
+  }
 
   fetch(SB_URL+'/rest/v1/signature_signataires?token=eq.'+encodeURIComponent(token)+'&select=*,signature_documents(*)', {headers:SB_HEADERS})
   .then(function(r){ return r.json(); })
@@ -25244,7 +25319,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
-  { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin'] },
+  { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
   { id:'edition',        icon:'<i class="ti ti-pencil"></i>', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
@@ -25259,9 +25334,9 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail'],
-  correcteur: ['mes-articles','redactions','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail'],
-  redac_chef: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail'],
+  redacteur: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
+  correcteur: ['mes-articles','redactions','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail','signatures'],
+  redac_chef: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
   admin:      ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
 
