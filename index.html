@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Compo · Ipsum Média</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,6 +329,7 @@ body {
   background: var(--encre-fixe);
   overflow: hidden;
   height: 100vh;
+  height: 100dvh; /* suit la barre d'adresse mobile qui apparaît/disparaît, contrairement à 100vh */
   width: 100vw;
   cursor: default;
   user-select: none;
@@ -2506,7 +2507,21 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
     -ms-overflow-style: none !important;
   }
   #os-dock-inner::-webkit-scrollbar { display: none; }
-  #os-taskbar-tray { display: none !important; }
+  /* La tray système est masquée sur mobile (recherche, horloge, plein écran...) SAUF le bouton
+     disponible/indispo — épinglé en haut à droite de l'écran pour rester accessible sans PC,
+     même par-dessus une app ouverte en plein écran. */
+  #os-taskbar-tray { position: static !important; }
+  #os-taskbar-tray > *:not(#os-dnd-btn) { display: none !important; }
+  #os-dnd-btn {
+    position: fixed !important;
+    top: calc(8px + env(safe-area-inset-top)) !important;
+    right: 8px !important;
+    z-index: 600 !important;
+    background: rgba(15,15,25,0.88) !important;
+    border-radius: 20px !important;
+    padding: 6px 12px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  }
 
   .dock-icon-img {
     width: 38px !important;
@@ -13071,6 +13086,15 @@ function osBuildDock(){
   osTaskbarClockInit();
   osDNDMajUI();
   dock.style.paddingRight = (tray.offsetWidth + 24) + 'px';
+
+  // Sur mobile, le bouton dispo/indispo doit rester accessible sans passer par un PC.
+  // #os-dock-inner a un backdrop-filter qui crée un nouveau contexte de positionnement :
+  // un position:fixed resterait piégé à l'intérieur du dock au lieu d'être fixé à l'écran.
+  // On sort donc le bouton du dock pour l'épingler en haut à droite de l'écran.
+  var dndBtn = document.getElementById('os-dnd-btn');
+  if(dndBtn && window.innerWidth <= 768 && dndBtn.parentElement !== document.body){
+    document.body.appendChild(dndBtn);
+  }
 }
 
 // Horloge de la barre des tâches — un seul interval global
@@ -14558,7 +14582,6 @@ function osToggleStartMenu(){
     if(search) search.value = '';
     osStartMenuRender();
     osStartMenuFiltrer('');
-    setTimeout(function(){ if(search) search.focus(); }, 150);
   }
 }
 
@@ -18320,7 +18343,8 @@ function osSignaturesRender(){
   if(!wc) return;
   wc.innerHTML = osLoadingHtml();
 
-  if(getUserRole() !== 'admin'){
+  var gestionnaire = getUserRole() === 'admin' || getUserHasFonction('secretaire');
+  if(!gestionnaire){
     osSignaturesRenderMesDocuments(wc);
     return;
   }
@@ -20901,7 +20925,7 @@ function osBenevolesDashRender(){
         var mesCandidatures = (!res[1]||res[1].code)?[]:res[1];
         var mesCandidaturesIds = mesCandidatures.map(function(c){return c.annonce_id;});
         var h = '';
-        if(isAdmin){
+        if(isVieAsso){
           h += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.8rem;">';
           h += '<button onclick="osBenvAnnonceNouvelle()" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;">+ Nouvelle annonce</button>';
           h += '</div>';
@@ -20931,7 +20955,7 @@ function osBenevolesDashRender(){
               r += '<span style="font-size:0.62rem;padding:3px 8px;border-radius:6px;background:#EAF3DE;color:#155724;">'+statLabel+'</span>';
             }
           }
-          if(isAdmin){
+          if(isVieAsso){
             r += '<div style="display:flex;gap:4px;">';
             r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceToggle(this.dataset.aid,\''+a.statut+'\')" style="font-size:0.62rem;padding:2px 8px;border:1px solid var(--gris-bord);border-radius:5px;background:transparent;cursor:pointer;color:var(--gris);">'+(a.statut==='ouvert'?'Fermer':'Rouvrir')+'</button>';
             r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceVoirCandidatures(this.dataset.aid)" style="font-size:0.62rem;padding:2px 8px;border:1px solid #1A5276;border-radius:5px;background:transparent;cursor:pointer;color:#1A5276;">Candidatures</button>';
@@ -20941,7 +20965,7 @@ function osBenevolesDashRender(){
           return r;
         }
         if(!annonces.length){
-          h += '<div style="text-align:center;padding:2rem;color:var(--gris);">Aucune annonce de recrutement.'+(isAdmin?' Crée la première !':'')+'</div>';
+          h += '<div style="text-align:center;padding:2rem;color:var(--gris);">Aucune annonce de recrutement.'+(isVieAsso?' Crée la première !':'')+'</div>';
         } else {
           if(ouvertes.length){
             h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;">Postes ouverts ('+ouvertes.length+')</div>';
@@ -25307,7 +25331,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
   { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
   { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
-  { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin'], fonctions_requises:['secretaire','president','vice_president'] },
+  { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['secretaire','president','vice_president'] },
   { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
   { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'mail',           icon:'<i class="ti ti-mail"></i>', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
