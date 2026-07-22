@@ -8883,24 +8883,45 @@ function rWorkflowAvancer(nouveauStatut){
   }).catch(function(){ notif('Erreur lors de la sauvegarde','erreur'); });
 }
 
+// Config partagée entre la popup affichée à l'acteur (en-relecture/refuse — c'est déjà lui
+// le bon destinataire) et celle affichée à l'auteur plus tard (corrige/valide/publie —
+// des étapes réalisées par quelqu'un d'autre, donc pas logique de les montrer à l'acteur).
+var STATUT_ARTICLE_CONFIGS = {
+  'en-relecture':{ icon:'🔍', titre:'Article envoyé en correction',
+    msg:'Ton article est maintenant entre les mains du correcteur. Tu seras notifié dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false, pourAuteur:false },
+  corrige:{ icon:'✅', titre:'Article marqué comme corrigé',
+    msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:true, pourAuteur:true },
+  valide:{ icon:'⭐', titre:'Article validé !',
+    msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true, pourAuteur:true },
+  publie:{ icon:'📢', titre:'Article publié !',
+    msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true, pourAuteur:true },
+  refuse:{ icon:'🔴', titre:'Article renvoyé au rédacteur',
+    msg:'Le rédacteur a été notifié par email avec le motif et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false, pourAuteur:false },
+};
+
 // ── Popup + email sur changement de statut ─────────────────────────
+// Appelé juste après l'action : pour en-relecture/refuse l'acteur EST le bon
+// destinataire (il vient d'envoyer/refuser lui-même), donc on lui montre la popup.
+// Pour corrigé/validé/publié, l'acteur est le correcteur/rédac chef/admin — pas l'auteur —
+// donc on ne lui montre pas la popup faite pour l'auteur : un simple toast suffit,
+// et c'est osVerifierNotifsAuteurArticles() qui montrera la popup au bon moment, à l'auteur.
 function osNotifStatutArticle(doc, statut){
-  var configs = {
-    'en-relecture':{ icon:'🔍', titre:'Article envoyé en correction',
-      msg:'Ton article est maintenant entre les mains du correcteur. Tu seras notifié dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false },
-    corrige:{ icon:'✅', titre:'Article marqué comme corrigé',
-      msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:false },
-    valide:{ icon:'⭐', titre:'Article validé !',
-      msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true },
-    publie:{ icon:'📢', titre:'Article publié !',
-      msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true },
-    refuse:{ icon:'🔴', titre:'Article renvoyé au rédacteur',
-      msg:'Le rédacteur a été notifié par email avec le motif et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false },
-  };
-  var cfg = configs[statut];
+  var cfg = STATUT_ARTICLE_CONFIGS[statut];
   if(!cfg) return;
 
-  // Popup animée
+  if(cfg.pourAuteur){
+    notif('Statut mis à jour : '+cfg.titre.toLowerCase(), 'succes');
+  } else {
+    _osAfficherPopupStatutArticle(doc, statut, cfg);
+  }
+
+  // Email auteur si corrigé, validé ou publié
+  if(cfg.email && doc.auteur_id) _osEmailStatutArticle(doc, statut, cfg);
+}
+
+function _osAfficherPopupStatutArticle(doc, statut, cfg){
+  cfg = cfg || STATUT_ARTICLE_CONFIGS[statut];
+  if(!cfg) return;
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
   overlay.innerHTML =
@@ -8917,13 +8938,53 @@ function osNotifStatutArticle(doc, statut){
     +'<button id="notif-statut-ok" style="padding:.5rem 1.4rem;background:'+cfg.couleur+';color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">OK</button>'
     +'</div></div>';
   document.body.appendChild(overlay);
-  var close = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+  var close = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); _osAfficherPopupStatutSuivante(); };
   document.getElementById('notif-statut-ok').onclick = close;
   overlay.onclick = function(e){ if(e.target===overlay) close(); };
   setTimeout(close, 10000);
+}
 
-  // Email auteur si validé ou publié
-  if(cfg.email && doc.auteur_id) _osEmailStatutArticle(doc, statut, cfg);
+// File d'attente — si plusieurs de tes articles ont changé de statut, on les montre un par un
+var _fileNotifsAuteur = [];
+var _notifAuteurEnCours = false;
+function _osAfficherPopupStatutSuivante(){
+  _notifAuteurEnCours = false;
+  if(!_fileNotifsAuteur.length) return;
+  var next = _fileNotifsAuteur.shift();
+  _notifAuteurEnCours = true;
+  _osAfficherPopupStatutArticle(next.doc, next.statut, STATUT_ARTICLE_CONFIGS[next.statut]);
+}
+
+// Vérifie si l'un de mes articles a changé de statut (corrigé/validé/publié) depuis la
+// dernière fois que j'ai vu Compo, et me montre la popup correspondante — que je sois déjà
+// en train d'utiliser Compo (vérification périodique) ou que je viens tout juste de l'ouvrir.
+function osVerifierNotifsAuteurArticles(){
+  var uid = getUserId();
+  if(!uid || !_session) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(corrige,valide,publie)&select=id,titre,statut,corps,rubrique,updated_at',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(articles){
+    if(!articles || articles.code || !articles.length) return;
+    var vus = [];
+    try{ vus = JSON.parse(localStorage.getItem('compo_notifs_statut_vus_'+uid)||'[]'); }catch(e){}
+    var nouveaux = [];
+    articles.forEach(function(a){
+      var cle = a.id+'|'+a.statut;
+      if(vus.indexOf(cle) === -1){
+        nouveaux.push(a);
+        vus.push(cle);
+      }
+    });
+    if(!nouveaux.length) return;
+    // On ne garde qu'un historique raisonnable pour ne pas faire grossir le localStorage indéfiniment
+    if(vus.length > 500) vus = vus.slice(vus.length-500);
+    localStorage.setItem('compo_notifs_statut_vus_'+uid, JSON.stringify(vus));
+    nouveaux.forEach(function(a){
+      _fileNotifsAuteur.push({ doc:a, statut:a.statut });
+    });
+    if(!_notifAuteurEnCours) _osAfficherPopupStatutSuivante();
+  }).catch(function(){});
 }
 
 function _osEmailStatutArticle(doc, statut, cfg){
@@ -8932,8 +8993,9 @@ function _osEmailStatutArticle(doc, statut, cfg){
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
-    var sujets = { valide:'⭐ Ton article a été validé — ', publie:'📢 Ton article est publié — ' };
+    var sujets = { corrige:'✅ Ton article a été corrigé — ', valide:'⭐ Ton article a été validé — ', publie:'📢 Ton article est publié — ' };
     var intros = {
+      corrige:'Ton article a été relu et corrigé. Il est maintenant entre les mains du rédacteur en chef pour validation avant publication.',
       valide:'Bonne nouvelle ! Ton article a été relu et validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack.',
       publie:'Félicitations ! Ton article est maintenant en ligne sur Ipsum Média.'
     };
@@ -10618,6 +10680,9 @@ function osLancer(){
     osVerifierEtatConnexion();
     chargerAlertTickets();
     ssInit();
+    // Popup "ton article a été corrigé/validé/publié" — montrée à l'auteur, pas à qui a fait l'action
+    setTimeout(osVerifierNotifsAuteurArticles, 4000);
+    setInterval(osVerifierNotifsAuteurArticles, 3*60*1000);
     // Créditer automatiquement les heures des événements passés
     setTimeout(osAgendaCreditHeuresAuto, 5000);
     // Horloge bureau
