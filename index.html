@@ -13071,9 +13071,9 @@ function osBuildDock(){
   tray.innerHTML =
     '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
     +'<button id="os-focus-btn" class="tray-btn" onclick="osToggleFocusMode()" style="opacity:0.6;font-size:0.8rem;" title="Activer le mode focus"><i class="ti ti-bell"></i></button>'
-    +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
-    +'<span id="os-dnd-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
-    +'<span id="os-dnd-label">Disponible</span>'
+    +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn dnd-toggle-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
+    +'<span id="os-dnd-dot" class="dnd-toggle-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
+    +'<span id="os-dnd-label" class="dnd-toggle-label">Disponible</span>'
     +'</div>'
     +'<button id="os-fs-btn" class="tray-btn" onclick="osToggleFullscreen()" title="Plein écran"><i class="ti ti-arrows-maximize"></i></button>'
     +'<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)"><i class="ti ti-search"></i></button>'
@@ -15480,22 +15480,23 @@ function osToggleDND(){
   });
 }
 
+// Met à jour TOUTES les instances du bouton dispo/indispo (barre des tâches, rail Ma Rédac'...)
 function osDNDMajUI(){
-  var dot   = document.getElementById('os-dnd-dot');
-  var label = document.getElementById('os-dnd-label');
-  var btn   = document.getElementById('os-dnd-btn');
-  if(!dot||!label) return;
-  if(_dndActif){
-    dot.style.background = '#E8461E';
-    label.textContent = 'Indispo';
-    btn.style.background = 'rgba(232,70,30,0.25)';
-    btn.style.color = 'rgba(255,200,180,0.95)';
-  } else {
-    dot.style.background = '#4CAF50';
-    label.textContent = 'Disponible';
-    btn.style.background = 'rgba(255,255,255,0.15)';
-    btn.style.color = 'rgba(255,255,255,0.9)';
-  }
+  document.querySelectorAll('.dnd-toggle-dot').forEach(function(dot){
+    dot.style.background = _dndActif ? '#E8461E' : '#4CAF50';
+  });
+  document.querySelectorAll('.dnd-toggle-label').forEach(function(label){
+    label.textContent = _dndActif ? 'Indispo' : 'Disponible';
+  });
+  document.querySelectorAll('.dnd-toggle-btn').forEach(function(btn){
+    if(btn.dataset.style === 'rail'){
+      btn.style.background = _dndActif ? 'rgba(232,70,30,0.1)' : 'transparent';
+      btn.style.color = _dndActif ? '#E8461E' : 'var(--encre)';
+    } else {
+      btn.style.background = _dndActif ? 'rgba(232,70,30,0.25)' : 'rgba(255,255,255,0.15)';
+      btn.style.color = _dndActif ? 'rgba(255,200,180,0.95)' : 'rgba(255,255,255,0.9)';
+    }
+  });
 }
 
 // Renvoie l'id des membres ayant une fonction communication (communication / responsable_com / com_externe / com_interne)
@@ -22753,6 +22754,8 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
 
   // Sidebar — rail élargi (icône + libellé toujours visible)
   h += '<div id="redac-sidebar-rail" style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;">';
+  // Bouton dispo/indispo — accessible ici en plus de la barre des tâches, plus pratique sur mobile
+  h += '<button class="dnd-toggle-btn" data-style="rail" onclick="osToggleDND()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:transparent;color:var(--encre);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;margin-bottom:6px;"><span class="dnd-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#4CAF50;flex-shrink:0;"></span><span class="dnd-toggle-label">Disponible</span></button>';
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
@@ -22823,6 +22826,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   }
   h += '</div></div>';
   wc.innerHTML = h;
+  osDNDMajUI(); // synchronise l'état réel du bouton dispo/indispo qu'on vient d'ajouter au rail
 
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
