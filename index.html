@@ -4661,8 +4661,9 @@ input:focus,select:focus,textarea:focus{
         </div>
       </div>
     </div>
+    <div id="sujet-modal-pris" style="display:none;margin:0 1.4rem 1rem;padding:0.6rem 0.9rem;background:#FFF3CD;border:1px solid #856404;border-radius:6px;font-size:0.78rem;color:#856404;"></div>
     <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
-      <button class="btn" onclick="reserverSujetModal()">Réserver et rédiger</button>
+      <button id="sujet-modal-reserver-btn" class="btn" onclick="reserverSujetModal()">Réserver et rédiger</button>
       <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
     </div>
   </div>
@@ -9520,6 +9521,31 @@ function ouvrirModalSujet(sujet){
   // Afficher CP lié si déjà en base (colonne cp_id sur briefing si elle existe)
   if(sujet.cp_id) sujetModalChargerCp(sujet.cp_id);
 
+  // Empêcher de réserver un sujet déjà pris par quelqu'un d'autre — sans ça le bouton
+  // "Réserver et rédiger" écrase silencieusement le responsable existant.
+  var estDejaPris = sujet.statut === 'en_cours' && sujet.responsable;
+  var estMoi = estDejaPris && sujet.responsable.trim() === getUserNomComplet().trim();
+  var boutonReserver = document.getElementById('sujet-modal-reserver-btn');
+  var blocPris = document.getElementById('sujet-modal-pris');
+  if(estDejaPris && !estMoi){
+    if(boutonReserver) boutonReserver.style.display = 'none';
+    if(blocPris){ blocPris.style.display = 'block'; blocPris.textContent = 'Déjà réservé par '+sujet.responsable+' — impossible de le réattribuer depuis ici.'; }
+  } else if(estMoi){
+    if(boutonReserver){
+      boutonReserver.style.display = 'inline-flex';
+      boutonReserver.textContent = 'Rédiger';
+      boutonReserver.onclick = function(){ fermerModalSujet(); osRedacRedigerSujet(sujet.id); };
+    }
+    if(blocPris) blocPris.style.display = 'none';
+  } else {
+    if(boutonReserver){
+      boutonReserver.style.display = 'inline-flex';
+      boutonReserver.textContent = 'Réserver et rédiger';
+      boutonReserver.onclick = reserverSujetModal;
+    }
+    if(blocPris) blocPris.style.display = 'none';
+  }
+
   var modal = document.getElementById('modal-sujet');
   if(modal) modal.style.display = 'flex';
 }
@@ -9589,10 +9615,28 @@ function fermerModalSujet(){
 function reserverSujetModal(){
   if(!_sujetCourant) return;
   var sujet = _sujetCourant;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+
+  // Revérifier l'état réel en base avant d'écraser — les données affichées peuvent être
+  // périmées (sujet pris par quelqu'un d'autre entre-temps, ou fiche mise en cache).
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id)+'&select=statut,responsable', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var actuel = data && data[0];
+    if(actuel && actuel.statut === 'en_cours' && actuel.responsable && actuel.responsable.trim() !== getUserNomComplet().trim()){
+      notif('Trop tard — ce sujet vient d\'être réservé par '+actuel.responsable,'erreur');
+      fermerModalSujet();
+      if(_redacOnglet === 'sujets') osRedactionsChangerOnglet('sujets');
+      return;
+    }
+    _reserverSujetConfirme(sujet, authH);
+  }).catch(function(){ _reserverSujetConfirme(sujet, authH); });
+}
+
+function _reserverSujetConfirme(sujet, authH){
   fermerModalSujet();
 
   // Passer en en_cours dans la base avec l'auth correcte
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id), {
     method: 'PATCH',
     headers: authH,
