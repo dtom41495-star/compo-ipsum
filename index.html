@@ -3020,6 +3020,10 @@ input:focus,select:focus,textarea:focus{
 .brf-onglet{font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.5rem 1rem;cursor:pointer;border:none;background:transparent;color:var(--gris);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.14s;}
 .brf-onglet.active{color:var(--rouge);border-bottom-color:var(--rouge);}
 .brf-onglet:hover:not(.active){color:var(--encre);}
+.cps-rail-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--encre);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;transition:background 0.15s;}
+.cps-rail-btn i{font-size:0.95rem;flex-shrink:0;width:1.1em;text-align:center;}
+.cps-rail-btn.active{background:var(--rouge);color:white;}
+.cps-rail-btn:hover:not(.active){background:var(--gris-bord);}
 .brouillon-badge{display:inline-block;font-family:Arial,sans-serif;font-size:0.58rem;padding:0.12rem 0.45rem;border:1px solid;text-transform:uppercase;letter-spacing:0.04em;}
 .badge-local{background:#FFF3CD;color:#856404;border-color:#856404;}
 .badge-cloud{background:#D6EAF8;color:#1A5276;border-color:#1A5276;}
@@ -3775,27 +3779,29 @@ input:focus,select:focus,textarea:focus{
 
 
 <!-- PAGE CPS LECTURE (tous) -->
-<div class="page" id="page-cps">
-  <div class="panel-title">📰 Communiqués de presse</div>
-  <div class="panel-subtitle">Consultez les communiqués reçus par Ipsum Média</div>
-
-  <!-- Onglets -->
-  <div style="display:flex;gap:0;border-bottom:2px solid var(--gris-bord);margin-bottom:1rem;">
-    <button class="brf-onglet active" id="cps-tab-liste" onclick="cpsOnglet('liste',this)">📰 Communiqués</button>
-    <button class="brf-onglet" id="cps-tab-abonnements" onclick="cpsOnglet('abonnements',this)">🔔 Mes abonnements</button>
-  </div>
-
-  <!-- Vue liste -->
-  <div id="cps-view-liste">
-    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-      <button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;">🔄 Actualiser</button>
+<div class="page" id="page-cps" style="padding:0;">
+  <div style="display:flex;height:100%;overflow:hidden;">
+    <!-- Rail — même DA que Ma Rédac' -->
+    <div style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;">
+      <button class="cps-rail-btn active" id="cps-tab-liste" onclick="cpsOnglet('liste',this)"><i class="ti ti-news"></i>Communiqués</button>
+      <button class="cps-rail-btn" id="cps-tab-abonnements" onclick="cpsOnglet('abonnements',this)"><i class="ti ti-bell"></i>Mes abonnements</button>
     </div>
-    <div id="cps-liste"></div>
-  </div>
 
-  <!-- Vue abonnements -->
-  <div id="cps-view-abonnements" style="display:none;">
-    <div id="cps-abonnement-zone"></div>
+    <!-- Contenu -->
+    <div style="flex:1;overflow-y:auto;padding:1.2rem 1.4rem;box-sizing:border-box;">
+      <!-- Vue liste -->
+      <div id="cps-view-liste">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button>
+        </div>
+        <div id="cps-liste"></div>
+      </div>
+
+      <!-- Vue abonnements -->
+      <div id="cps-view-abonnements" style="display:none;">
+        <div id="cps-abonnement-zone"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -18930,8 +18936,11 @@ function cpsRendreListe(liste, cps){
   // ── Barre de recherche
   var recherche = document.createElement('div');
   recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
-  recherche.innerHTML = '<input id="cps-search" type="text" placeholder="🔍 Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="flex:1;padding:0.45rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;">'
-    +'<button onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);">⬇ CSV</button>';
+  recherche.innerHTML = '<div style="position:relative;flex:1;">'
+    +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
+    +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
+    +'</div>'
+    +'<button onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
   liste.appendChild(recherche);
   var champRecherche = recherche.querySelector('#cps-search');
   if(champRecherche) champRecherche.oninput = function(){
@@ -18943,17 +18952,17 @@ function cpsRendreListe(liste, cps){
   var barreType = document.createElement('div');
   barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
   [
-    {id:'tous',            label:'Tous ('+cps.length+')'},
-    {id:'communique',      label:'📰 CPs ('+communiques.length+')'},
-    {id:'invitation_presse',label:'🎤 Invits ('+invitations.length+')'},
-    {id:'non_lus',         label:'🔴 Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
+    {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
+    {id:'communique',      icon:'ti-news',            label:'CPs ('+communiques.length+')'},
+    {id:'invitation_presse',icon:'ti-microphone',     label:'Invits ('+invitations.length+')'},
+    {id:'non_lus',         icon:'ti-circle-filled',   label:'Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
   ].forEach(function(f){
     var btn = document.createElement('button');
     var isActif = filtreType===f.id;
-    btn.style.cssText = 'font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
       +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
       +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
-    btn.textContent = f.label;
+    btn.innerHTML = (f.icon?'<i class="ti '+f.icon+'"></i> ':'')+esc(f.label);
     btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     barreType.appendChild(btn);
   });
@@ -18974,12 +18983,12 @@ function cpsRendreListe(liste, cps){
   });
   var rightVue = document.createElement('div');
   rightVue.style.cssText = 'display:flex;gap:0.3rem;';
-  [{id:'cartes',l:'⊞'},{id:'liste',l:'☰'},{id:'veille',l:'🏢'},{id:'calendrier',l:'📅'}].forEach(function(f){
+  [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
     var b = document.createElement('button');
     var a = filtreVue===f.id;
-    b.style.cssText = 'font-size:0.75rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';';
+    b.style.cssText = 'font-size:0.75rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';display:inline-flex;align-items:center;';
     b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
-    b.textContent = f.l;
+    b.innerHTML = '<i class="ti '+f.icon+'"></i>';
     b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     rightVue.appendChild(b);
   });
@@ -18992,7 +19001,7 @@ function cpsRendreListe(liste, cps){
   if(rsvpUrgents.length){
     var rsvpBanner = document.createElement('div');
     rsvpBanner.style.cssText = 'background:#FFEEBA;border:1.5px solid #F39C12;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:center;gap:0.6rem;';
-    rsvpBanner.innerHTML = '<span style="font-size:1.1rem;">⚠️</span>'
+    rsvpBanner.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:1.1rem;color:#856404;flex-shrink:0;"></i>'
       +'<div><strong style="font-size:0.78rem;color:#856404;">'+rsvpUrgents.length+' invitation'+(rsvpUrgents.length>1?'s':'')+' nécessite'+(rsvpUrgents.length>1?'nt':'')+ ' une réponse</strong>'
       +'<div style="font-size:0.68rem;color:#856404;">'+rsvpUrgents.map(function(c){return esc(c.titre||c.objet||'')+ ' → avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR');}).join(' · ')+'</div></div>';
     liste.appendChild(rsvpBanner);
@@ -19026,8 +19035,8 @@ function cpsvListe(liste, cps, vus){
     row.innerHTML = (nonLu?'<span style="width:7px;height:7px;border-radius:50%;background:#7D3C98;flex-shrink:0;display:inline-block;"></span>':'<span style="width:7px;height:7px;flex-shrink:0;display:inline-block;"></span>')
       +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:'+(nonLu?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
       +'<div style="font-size:0.62rem;color:var(--gris);">'+esc(cp.organisation||cp.source||'')+(d?' · '+d:'')+'</div></div>'
-      +(cp.fichier_pdf||cp.fichier_b64?'<span title="PDF disponible" style="font-size:0.75rem;">📎</span>':'')
-      +(cp.reponse_requise?'<span title="Réponse requise" style="font-size:0.75rem;">⚠️</span>':'');
+      +(cp.fichier_pdf||cp.fichier_b64?'<i class="ti ti-paperclip" title="PDF disponible" style="font-size:0.75rem;color:var(--gris);"></i>':'')
+      +(cp.reponse_requise?'<i class="ti ti-alert-triangle" title="Réponse requise" style="font-size:0.75rem;color:#856404;"></i>':'');
     row.onclick = function(){ cpsOuvrirDetail(cp); };
     t.appendChild(row);
   });
@@ -19041,7 +19050,7 @@ function cpsvVeille(liste, parOrga){
     sec.style.cssText = 'margin-bottom:1rem;';
     var header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;padding:0.4rem 0;border-bottom:2px solid var(--rouge);cursor:pointer;';
-    header.innerHTML = '<span style="font-size:0.88rem;font-weight:700;color:var(--encre);">🏢 '+esc(orga)+'</span>'
+    header.innerHTML = '<span style="font-size:0.88rem;font-weight:700;color:var(--encre);"><i class="ti ti-building" style="vertical-align:-2px;margin-right:4px;"></i>'+esc(orga)+'</span>'
       +'<span style="font-size:0.62rem;color:var(--gris);background:var(--gris-clair);padding:1px 7px;border-radius:10px;">'+cpsOrga.length+' CP'+(cpsOrga.length>1?'s':'')+'</span>';
     var body = document.createElement('div');
     var collapsed = false;
@@ -19075,7 +19084,7 @@ function cpsvCalendrier(liste, cps){
     var mo = parMois[k];
     var sec = document.createElement('div');
     sec.style.cssText = 'margin-bottom:1rem;';
-    sec.innerHTML = '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rouge);font-weight:700;margin-bottom:0.5rem;">📅 '+mo.label+'</div>';
+    sec.innerHTML = '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rouge);font-weight:700;margin-bottom:0.5rem;"><i class="ti ti-calendar" style="vertical-align:-2px;margin-right:4px;"></i>'+mo.label+'</div>';
     mo.items.forEach(function(c){
       var d = new Date(c.date_evenement||c.date_cp);
       var row = document.createElement('div');
@@ -19085,7 +19094,7 @@ function cpsvCalendrier(liste, cps){
         +'<div style="font-size:0.5rem;text-transform:uppercase;">'+d.toLocaleDateString('fr-FR',{weekday:'short'})+'</div></div>'
         +'<div style="flex:1;"><div style="font-size:0.82rem;font-weight:600;">'+esc(c.titre||c.objet||'')+'</div>'
         +'<div style="font-size:0.65rem;color:var(--gris);">'+esc(c.organisation||c.source||'')+(c.lieu_evenement?' · '+esc(c.lieu_evenement):'')+'</div>'
-        +(c.reponse_requise?'<div style="font-size:0.62rem;color:#856404;background:#FFF3CD;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px;">⚠️ Réponse avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR')+'</div>':'')
+        +(c.reponse_requise?'<div style="font-size:0.62rem;color:#856404;background:#FFF3CD;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px;"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:2px;"></i>Réponse avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR')+'</div>':'')
         +'</div>';
       row.onclick = function(){ cpsOuvrirDetail(c); };
       sec.appendChild(row);
@@ -19140,7 +19149,7 @@ function cpsMakeCard(cp, isAdmin){
     : '';
 
   var pdfBadge = cp.fichier_pdf
-    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;">📎 PDF</span>'
+    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> PDF</span>'
     : '';
 
   var uid = getUserId();
@@ -19150,14 +19159,14 @@ function cpsMakeCard(cp, isAdmin){
   var peutEditer = isAdmin || isChef;
 
   var adminBtns = peutEditer ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
-    '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;">✏️ Modifier</button>' +
-    (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;">📤 Publier</button>' : '') +
-    (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;">🗑️</button>' : '') +
+    '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-pencil"></i> Modifier</button>' +
+    (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-send"></i> Publier</button>' : '') +
+    (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;"><i class="ti ti-trash"></i></button>' : '') +
     '</div>') : '';
 
   // Badge type invitation
   var typeBadge = cp.type === 'invitation_presse'
-    ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;">🎤 Invitation</span>'
+    ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
     : '';
 
   // Infos événement pour invitation
@@ -19165,13 +19174,13 @@ function cpsMakeCard(cp, isAdmin){
   if(cp.type === 'invitation_presse'){
     if(cp.date_evenement){
       var evDate = new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-      evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;">📅 '+evDate+'</div>';
+      evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+evDate+'</div>';
     }
-    if(cp.lieu_evenement) evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;">📍 '+esc(cp.lieu_evenement)+'</div>';
+    if(cp.lieu_evenement) evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#784212;margin-bottom:0.2rem;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.lieu_evenement)+'</div>';
     if(cp.reponse_requise && cp.date_reponse){
       var dateRep = new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
       var urgent = new Date(cp.date_reponse) < new Date(Date.now()+3*86400000);
-      evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:'+(urgent?'#A32D2D':'#856404')+';font-weight:'+(urgent?'700':'400')+';">⏰ RSVP avant le '+dateRep+(urgent?' — URGENT':'')+'</div>';
+      evInfos += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:'+(urgent?'#A32D2D':'#856404')+';font-weight:'+(urgent?'700':'400')+';"><i class="ti ti-clock" style="vertical-align:-1px;margin-right:3px;"></i>RSVP avant le '+dateRep+(urgent?' — URGENT':'')+'</div>';
     }
   }
 
@@ -19182,7 +19191,7 @@ function cpsMakeCard(cp, isAdmin){
     var evPasse = cp.date_evenement && new Date(cp.date_evenement) < new Date();
     if(!evPasse){
       dispBtn = '<div style="margin-top:0.5rem;" onclick="event.stopPropagation()">'
-        +'<button onclick="cpsInvitationSeDeclarer(\''+cp.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;background:#FDEBD0;border:0.5px solid #784212;color:#784212;border-radius:5px;cursor:pointer;">✋ Je suis disponible</button>'
+        +'<button onclick="cpsInvitationSeDeclarer(\''+cp.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;background:#FDEBD0;border:0.5px solid #784212;color:#784212;border-radius:5px;cursor:pointer;"><i class="ti ti-hand-stop"></i> Je suis disponible</button>'
         +'</div>';
     }
   }
@@ -19191,13 +19200,13 @@ function cpsMakeCard(cp, isAdmin){
   var sujetLie = (window._cpsSujetsParCp||{})[cp.id];
   var boutonSujet = sujetLie
     ? (sujetLie.statut === 'en_cours'
-        ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;">✍️ Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
-        : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;">📌 Sujet créé — pas encore réservé</span>')
-    : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;">📌 Transformer en sujet</button>';
+        ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;"><i class="ti ti-pencil"></i> Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
+        : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;"><i class="ti ti-pin"></i> Sujet créé — pas encore réservé</span>')
+    : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;"><i class="ti ti-pin"></i> Transformer en sujet</button>';
   var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
     +boutonSujet
-    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;">✍️ Créer un article</button>'
-    +(cp.fichier_pdf?'<button data-url="'+esc(cp.fichier_pdf)+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;">📎 Télécharger PDF</button>':'')
+    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;"><i class="ti ti-pencil"></i> Créer un article</button>'
+    +(cp.fichier_pdf?'<button data-url="'+esc(cp.fichier_pdf)+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>':'')
     +'</div>';
 
   card.innerHTML =
@@ -19205,8 +19214,8 @@ function cpsMakeCard(cp, isAdmin){
       '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
       '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
     '</div>' +
-    (cp.source ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;">📍 '+esc(cp.source)+'</div>' : '') +
-    (dateStr ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;">📅 '+dateStr+'</div>' : '') +
+    (cp.source ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.source)+'</div>' : '') +
+    (dateStr ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+dateStr+'</div>' : '') +
     evInfos +
     (cp.corps ? '<div style="font-size:0.8rem;color:var(--gris);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+esc(cp.corps)+'</div>' : '') +
     dispBtn +
@@ -19366,17 +19375,17 @@ function osCpFenetreRender(winId){
   hdr.innerHTML =
     '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:white;margin-bottom:0.3rem;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +'<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">'
-    +(cp.source?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">📍 '+esc(cp.source)+'</span>':'')
-    +(cp.organisation?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">🏢 '+esc(cp.organisation)+'</span>':'')
-    +(dateStr?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">📅 '+dateStr+'</span>':'')
+    +(cp.source?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:2px;"></i>'+esc(cp.source)+'</span>':'')
+    +(cp.organisation?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);"><i class="ti ti-building" style="vertical-align:-1px;margin-right:2px;"></i>'+esc(cp.organisation)+'</span>':'')
+    +(dateStr?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:2px;"></i>'+dateStr+'</span>':'')
     +(cp.statut==='publie'
       ?'<span style="background:#D4EDDA;color:#155724;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Publié</span>'
       :'<span style="background:#FFF3CD;color:#856404;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Brouillon</span>')
     +'</div>'
     +'<div style="display:flex;gap:0.4rem;margin-top:0.6rem;">'
-    +'<button onclick="tchapPartagerFiche(\'cp\',\''+esc(cp.id)+'\')" style="background:rgba(15,110,86,0.3);border:none;color:#9FE1CB;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;">💬 Tchap</button>'
-    +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;">📤 Publier</button>':'')
-    +(isAdmin?'<button onclick="cpsAdminEditer(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;">✏️ Modifier</button>':'')
+    +'<button onclick="tchapPartagerFiche(\'cp\',\''+esc(cp.id)+'\')" style="background:rgba(15,110,86,0.3);border:none;color:#9FE1CB;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-message-circle"></i> Tchap</button>'
+    +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-send"></i> Publier</button>':'')
+    +(isAdmin?'<button onclick="cpsAdminEditer(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-pencil"></i> Modifier</button>':'')
     +'</div>';
   wc.appendChild(hdr);
 
@@ -19430,9 +19439,9 @@ function osCpFenetreRender(winId){
 
     // Infos événement
     var evH = '<div style="display:flex;flex-wrap:wrap;gap:0.8rem;margin-bottom:0.7rem;">';
-    if(cp.date_evenement) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#784212;">📅 '+new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+'</div>';
-    if(cp.lieu_evenement) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#784212;">📍 '+esc(cp.lieu_evenement)+'</div>';
-    if(cp.reponse_requise && cp.date_reponse) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#A32D2D;font-weight:600;">⏰ RSVP avant le '+new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
+    if(cp.date_evenement) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#784212;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+'</div>';
+    if(cp.lieu_evenement) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#784212;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.lieu_evenement)+'</div>';
+    if(cp.reponse_requise && cp.date_reponse) evH += '<div style="font-family:Space Mono,monospace;font-size:0.7rem;color:#A32D2D;font-weight:600;"><i class="ti ti-clock" style="vertical-align:-1px;margin-right:3px;"></i>RSVP avant le '+new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
     evH += '</div>';
 
     evH += '<div id="inv-dispos-'+cp.id+'" style="min-height:40px;">'+osLoadingHtml()+'</div>';
@@ -19455,11 +19464,11 @@ function osCpFenetreRender(winId){
         var btnDisp = document.createElement('button');
         if(maDisp && maDisp.statut !== 'refuse'){
           btnDisp.style.cssText = 'font-family:Space Mono,monospace;font-size:0.7rem;padding:5px 12px;background:white;color:#A32D2D;border:0.5px solid #A32D2D;border-radius:6px;cursor:pointer;';
-          btnDisp.textContent = '✕ Je ne suis plus disponible';
+          btnDisp.innerHTML = '<i class="ti ti-x"></i> Je ne suis plus disponible';
           btnDisp.onclick = function(){ cpsInvitationSeRetirer(maDisp.id, cp.id); };
         } else {
           btnDisp.style.cssText = 'font-family:Space Mono,monospace;font-size:0.7rem;padding:5px 12px;background:#784212;color:white;border:none;border-radius:6px;cursor:pointer;';
-          btnDisp.textContent = '✋ Je suis disponible';
+          btnDisp.innerHTML = '<i class="ti ti-hand-stop"></i> Je suis disponible';
           btnDisp.onclick = function(){ cpsInvitationSeDeclarer(cp.id); };
         }
         btnZone.appendChild(btnDisp);
@@ -19468,7 +19477,7 @@ function osCpFenetreRender(winId){
       if(isAdmin){
         var btnSujet = document.createElement('button');
         btnSujet.style.cssText = 'font-family:Space Mono,monospace;font-size:0.7rem;padding:5px 12px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;';
-        btnSujet.textContent = '📋 Créer un sujet';
+        btnSujet.innerHTML = '<i class="ti ti-pin"></i> Créer un sujet';
         btnSujet.onclick = function(){ cpsInvitationCreerSujet(cp.id); };
         btnZone.appendChild(btnSujet);
       }
@@ -19580,10 +19589,11 @@ function _cpsUploadPdf(file, cpId){
 function cpsChargerContactsSelect(){
   var sel = document.getElementById('cps-contact-id');
   if(!sel || sel.dataset.loaded) return;
-  fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation&order=nom.asc', { headers:SB_HEADERS })
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation&order=nom.asc', { headers:authH })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    if(!data || data.code) return;
+    if(!data || data.code){ notif('Erreur de chargement des contacts','erreur'); return; }
     data.forEach(function(c){
       var opt = document.createElement('option');
       opt.value = c.id;
@@ -19591,7 +19601,7 @@ function cpsChargerContactsSelect(){
       sel.appendChild(opt);
     });
     sel.dataset.loaded = '1';
-  }).catch(function(){});
+  }).catch(function(){ notif('Erreur réseau — contacts non chargés','erreur'); });
 }
 
 // ---- ADMIN : Nouveau formulaire ----
@@ -19782,7 +19792,7 @@ function cpsAdminSupprimer(id){
 // --- ABONNEMENT ---
 function cpsOnglet(onglet, btn){
   // Onglets
-  document.querySelectorAll('#page-cps .brf-onglet, #wincontent-cps .brf-onglet').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('#page-cps .cps-rail-btn, #wincontent-cps .cps-rail-btn').forEach(function(b){ b.classList.remove('active'); });
   if(btn) btn.classList.add('active');
   // Vues
   ['liste','abonnements'].forEach(function(v){
@@ -19801,7 +19811,7 @@ function cpsAfficherAbonnement(){
   Promise.all([
     fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+uid+'&select=id', {headers:headers}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid+'&select=contact_id', {headers:headers}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation,categorie&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation,categorie&order=nom.asc', {headers:headers}).then(function(r){return r.json();})
   ]).then(function(res){
     var abonneGlobal = res[0] && res[0].length > 0;
     var abonneSources = (!res[1]||res[1].code) ? [] : res[1].map(function(r){return r.contact_id;});
@@ -19811,7 +19821,7 @@ function cpsAfficherAbonnement(){
     html += '<div style="margin-bottom:1rem;">';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Notifications CPs</div>';
     html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;border-radius:8px;'+(abonneGlobal?'background:#D4EDDA;border:1.5px solid #155724;':'background:#FFF3CD;border:1.5px solid #856404;')+'">';
-    html += '<span style="font-size:1.1rem;">'+(abonneGlobal?'🔔':'🔕')+'</span>';
+    html += '<span style="font-size:1.1rem;"><i class="ti '+(abonneGlobal?'ti-bell':'ti-bell-off')+'"></i></span>';
     html += '<div style="flex:1;"><div style="font-weight:700;font-size:0.82rem;color:var(--encre);">'+(abonneGlobal?'Notifications activées':'Notifications désactivées')+'</div>';
     html += '<div style="font-size:0.72rem;color:var(--gris);">'+(abonneGlobal?'Tu reçois les récapitulatifs CPs par email.':'Tu ne reçois plus les récapitulatifs CPs.')+'</div></div>';
     html += '<button class="btn'+(abonneGlobal?' sec':'')+'" onclick="cpsToggleAbonnementGlobal('+abonneGlobal+')" style="font-size:0.72rem;padding:0.35rem 0.8rem;">'+(abonneGlobal?'Se désabonner':'Se réabonner')+'</button>';
@@ -26365,13 +26375,18 @@ function osCarnetRender(){
   if(!wc) return;
   wc.innerHTML = osLoadingHtml();
 
-  fetch(SB_URL+'/rest/v1/contacts_sources?select=*&order=nom.asc', { headers:SB_HEADERS })
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/contacts_sources?select=*&order=nom.asc', { headers:authH })
   .then(function(r){ return r.json(); })
   .then(function(contacts){
-    _carnetContacts = (!contacts || contacts.code) ? [] : contacts;
+    if(!contacts || contacts.code){
+      wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement'+(contacts&&contacts.message?' : '+esc(contacts.message):'')+'.</div>';
+      return;
+    }
+    _carnetContacts = contacts;
     osCarnetBuildUI(wc);
   }).catch(function(){
-    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur réseau.</div>';
   });
 }
 
