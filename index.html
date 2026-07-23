@@ -31172,7 +31172,6 @@ function tchapInitBadge(){
 
 var _tchapRealtimeChannel = null;
 var _tchapDerniersVus = {};
-var _tchapRappelEnvoye = {};
 
 function tchapActiverRealtime(){
   var uid = getUserId();
@@ -31232,15 +31231,13 @@ function tchapVerifierRappelEmail(){
       if(!parExp[msg.expediteur_id]) parExp[msg.expediteur_id] = [];
       parExp[msg.expediteur_id].push(msg);
     });
-    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom',{headers:authH})
+    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom,tchap_dernier_rappel',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       var moi = data && data[0];
       if(!moi||!moi.email) return;
       var maintenant = Date.now();
-      var cle = uid+'_rappel';
-      if(_tchapRappelEnvoye[cle] && (maintenant-_tchapRappelEnvoye[cle]) < 4*60*60*1000) return;
-      _tchapRappelEnvoye[cle] = maintenant;
+      if(moi.tchap_dernier_rappel && (maintenant-new Date(moi.tchap_dernier_rappel).getTime()) < 4*60*60*1000) return;
       var totalMsgs = msgs.length;
       var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
         +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">Messages non lus sur Tchap</h1></div>'
@@ -31257,6 +31254,13 @@ function tchapVerifierRappelEmail(){
       });
       html += '<p style="text-align:center;margin-top:1rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;font-weight:600;">Ouvrir Tchap</a></p>'
         +'</div></div>';
+      // Marquer le rappel comme envoyé en base avant l'envoi, pour que le garde-fou des 4h
+      // tienne même si l'onglet est fermé/rouvert entre-temps (ne dépend plus de la mémoire JS).
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid,{
+        method:'PATCH',
+        headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
+        body:JSON.stringify({tchap_dernier_rappel:new Date().toISOString()})
+      }).catch(function(){});
       envoyerEmailResend(moi.email,'[Compo] Tu as '+totalMsgs+' message(s) non lu(s) sur Tchap',html,'tchap_rappel');
     }).catch(function(){});
   }).catch(function(){});
