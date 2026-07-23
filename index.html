@@ -12577,7 +12577,7 @@ var _appRefreshMap = {
   'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
   'notes':          function(){ osNotesRender&&osNotesRender(); },
   'boutique':       function(){ osBoutiqueRender(); },
-  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc && typeof osStatsDashRender==='function') osStatsDashRender(); }
+  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) osStatsAppRender(); }
 };
 
 var _dockContextMenu = null;
@@ -13085,7 +13085,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Tableau de bord', 'stats-admin':'📊 Saisie Stats', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -13322,14 +13322,9 @@ function osLoadPageContent(pageId, winEl){
     return;
   }
 
-  // Dashboard stats
+  // Dashboard stats (vue d'ensemble + éditeur, un seul app)
   if(pageId === 'stats-dashboard'){
-    setTimeout(function(){ osStatsDashboardRender(); }, 50);
-    return;
-  }
-  // Admin stats
-  if(pageId === 'stats-admin'){
-    setTimeout(function(){ osStatsAdminRender(); }, 50);
+    setTimeout(function(){ osStatsAppRender(); }, 50);
     return;
   }
 
@@ -13809,23 +13804,6 @@ function osBuildDesktopIcons(){
   statsLabel.textContent = 'Stats';
   statsIcon.appendChild(statsImg); statsIcon.appendChild(statsLabel);
   container.appendChild(statsIcon);
-
-  // Icône Saisie stats (admin seulement)
-  if(getUserRole() === 'admin'){
-    var statsAdminIcon = document.createElement('div');
-    statsAdminIcon.className = 'desktop-icon';
-    statsAdminIcon.onclick = osOuvrirStatsAdmin;
-    var statsAdminImg = document.createElement('div');
-    statsAdminImg.className = 'desktop-icon-img';
-    statsAdminImg.style.background = 'linear-gradient(135deg,#E8461E,#C73A18)';
-    statsAdminImg.style.color = 'white';
-    statsAdminImg.innerHTML = '<i class="ti ti-pencil"></i>';
-    var statsAdminLabel = document.createElement('div');
-    statsAdminLabel.className = 'desktop-icon-label';
-    statsAdminLabel.textContent = 'Saisie Stats';
-    statsAdminIcon.appendChild(statsAdminImg); statsAdminIcon.appendChild(statsAdminLabel);
-    container.appendChild(statsAdminIcon);
-  }
 
   // Toutes les apps disponibles
   var OFFLINE_APPS = ['edition', 'lecture'];
@@ -16686,15 +16664,12 @@ var _statsChartAnimFrame = null;
 
 // ===== RENDU DASHBOARD =====
 var _statsMoisIdx = -1; // -1 = dernier mois
+var _statsOnglet = 'vue'; // 'vue' | 'editeur' — un seul app pour consulter et modifier
+var _statsEditeurVue = null; // null = menu de choix | 'mois' | 'substack'
 
 function osOuvrirStats(){
   if(_windows['stats-dashboard']){ osFocusWindow('stats-dashboard'); }
   else { osOpenWindow('stats-dashboard'); }
-}
-
-function osOuvrirStatsAdmin(){
-  if(_windows['stats-admin']){ osFocusWindow('stats-admin'); }
-  else { osOpenWindow('stats-admin'); }
 }
 
 function statsCharger(callback){
@@ -16724,14 +16699,91 @@ function statsCalcTotal(d){
          (d.vues_threads||0)+(d.vues_facebook||0)+(d.vues_tiktok||0)+(d.vues_instagram||0);
 }
 
-function osStatsDashboardRender(){
+// Un seul app Stats — rail Vue d'ensemble / Éditeur, au lieu de deux apps séparées
+// dont une seule permettait de modifier les chiffres.
+function osStatsAppRender(){
   var wc = document.getElementById('wincontent-stats-dashboard');
   if(!wc) return;
-  wc.innerHTML = osLoadingHtml();
+  wc.innerHTML = '';
+
+  var outer = document.createElement('div');
+  outer.style.cssText = 'display:flex;height:100%;overflow:hidden;';
+
+  var isAdmin = getUserRole() === 'admin';
+  var onglets = [{id:'vue', icon:'ti-chart-bar', label:'Vue d\'ensemble'}];
+  if(isAdmin) onglets.push({id:'editeur', icon:'ti-pencil', label:'Éditeur'});
+
+  if(isAdmin){
+    var rail = document.createElement('div');
+    rail.style.cssText = 'width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
+    onglets.forEach(function(o){
+      var btn = document.createElement('button');
+      var actif = _statsOnglet === o.id;
+      btn.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;';
+      btn.innerHTML = '<i class="ti '+o.icon+'"></i>'+o.label;
+      btn.onclick = function(){ _statsOnglet = o.id; osStatsAppRender(); };
+      rail.appendChild(btn);
+    });
+    outer.appendChild(rail);
+  }
+
+  var contentOuter = document.createElement('div');
+  contentOuter.style.cssText = 'flex:1;min-width:0;overflow-y:auto;'+(_statsOnglet==='vue'?'background:#0D0D1A;':'background:var(--fond-page,#F5F3EF);');
+  outer.appendChild(contentOuter);
+
+  wc.appendChild(outer);
+
+  if(!isAdmin || _statsOnglet === 'vue') _statsRenderVueEnsemble(contentOuter);
+  else osStatsEditeurRender(contentOuter);
+}
+
+function osStatsEditeurRender(zone){
+  zone.innerHTML = '';
+
+  if(!_statsEditeurVue){
+    var menu = document.createElement('div');
+    menu.style.cssText = 'padding:1.4rem;display:flex;flex-direction:column;gap:0.8rem;max-width:480px;';
+    menu.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);margin-bottom:0.2rem;">Que veux-tu faire ?</div>';
+    var options = [
+      { id:'mois', icon:'ti-calendar-stats', titre:'Chiffres du mois', desc:'Ajouter ou modifier les totaux mensuels par réseau.' },
+      { id:'substack', icon:'ti-eye', titre:'Vues par article', desc:'Importer le PDF de stats d\'un article Substack.' }
+    ];
+    options.forEach(function(o){
+      var carte = document.createElement('button');
+      carte.style.cssText = 'display:flex;align-items:center;gap:0.9rem;text-align:left;padding:1rem 1.2rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;cursor:pointer;transition:border-color .15s;';
+      carte.onmouseover = function(){ this.style.borderColor = 'var(--rouge)'; };
+      carte.onmouseout  = function(){ this.style.borderColor = 'var(--gris-bord)'; };
+      carte.innerHTML = '<div style="width:42px;height:42px;border-radius:10px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;"><i class="ti '+o.icon+'"></i></div>'
+        +'<div><div style="font-weight:700;font-size:0.88rem;color:var(--encre);">'+o.titre+'</div><div style="font-size:0.75rem;color:var(--gris);margin-top:2px;">'+o.desc+'</div></div>';
+      carte.onclick = function(){ _statsEditeurVue = o.id; osStatsEditeurRender(zone); };
+      menu.appendChild(carte);
+    });
+    zone.appendChild(menu);
+    return;
+  }
+
+  var retourBar = document.createElement('div');
+  retourBar.style.cssText = 'padding:0.9rem 1.2rem 0;';
+  var btnRetour = document.createElement('button');
+  btnRetour.style.cssText = 'background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:4px;padding:0;';
+  btnRetour.innerHTML = '<i class="ti ti-arrow-left"></i> Retour';
+  btnRetour.onclick = function(){ _statsEditeurVue = null; _statsEditId = null; osStatsEditeurRender(zone); };
+  retourBar.appendChild(btnRetour);
+  zone.appendChild(retourBar);
+
+  var sousZone = document.createElement('div');
+  zone.appendChild(sousZone);
+  if(_statsEditeurVue === 'mois') _statsRenderChiffresMois(sousZone);
+  else if(_statsEditeurVue === 'substack') _statsSubstackRenderImport(sousZone);
+}
+
+function _statsRenderVueEnsemble(zone){
+  if(!zone) return;
+  zone.innerHTML = osLoadingHtml();
 
   statsCharger(function(data){
     if(!data.length){
-      wc.innerHTML = '<div class="stats-app"><div style="padding:2rem;color:rgba(255,255,255,0.4);text-align:center;">Aucune donnée.</div></div>';
+      zone.innerHTML = '<div class="stats-app"><div style="padding:2rem;color:rgba(255,255,255,0.4);text-align:center;">Aucune donnée.</div></div>';
       return;
     }
 
@@ -16773,7 +16825,7 @@ function osStatsDashboardRender(){
     });
     select.onchange = function(){
       _statsMoisIdx = parseInt(this.value);
-      osStatsDashboardRender();
+      _statsRenderVueEnsemble(zone);
     };
 
     // Dot live si mois courant
@@ -16788,10 +16840,12 @@ function osStatsDashboardRender(){
     if(getUserRole() === 'admin'){
       var btnEdit = document.createElement('button');
       btnEdit.style.cssText = 'background:rgba(232,70,30,0.2);border:1px solid rgba(232,70,30,0.4);color:white;border-radius:5px;padding:3px 8px;font-size:0.62rem;font-family:Space Mono,monospace;cursor:pointer;';
-      btnEdit.textContent = '✏️ Modifier';
+      btnEdit.innerHTML = '<i class="ti ti-pencil"></i> Modifier';
       btnEdit.onclick = function(){
         _statsEditId = last.id;
-        osOuvrirStatsAdmin();
+        _statsOnglet = 'editeur';
+        _statsEditeurVue = 'mois';
+        osStatsAppRender();
         setTimeout(function(){ statsPreRemplirFormulaire(last); }, 300);
       };
       hdrRight.appendChild(btnEdit);
@@ -16928,8 +16982,8 @@ function osStatsDashboardRender(){
     charts.appendChild(cPlat);
 
     app.appendChild(charts);
-    wc.innerHTML = '';
-    wc.appendChild(app);
+    zone.innerHTML = '';
+    zone.appendChild(app);
 
     setTimeout(function(){
       // Courbe
@@ -17239,7 +17293,7 @@ function _statsSubstackRenderImport(container){
   container.innerHTML = '';
   var box = document.createElement('div');
   box.className = 'stats-form';
-  box.style.marginTop = '1.2rem';
+  box.style.cssText = 'height:auto;overflow-y:visible;';
   box.innerHTML = '<div class="stats-form-title">Vues par article (Substack)</div>'
     + '<div class="stats-form-sub">Importe le PDF de la page Statistiques d\'un article Substack (onglet "Vue d\'ensemble") pour enregistrer son nombre de vues.</div>';
 
@@ -17279,7 +17333,7 @@ function _statsSubstackRenderImport(container){
 
   var listeBox = document.createElement('div');
   listeBox.className = 'stats-form';
-  listeBox.style.marginTop = '1rem';
+  listeBox.style.cssText = 'height:auto;overflow-y:visible;margin-top:1rem;';
   listeBox.innerHTML = '<div class="stats-form-title">Articles suivis</div>';
   var listeZone = document.createElement('div');
   listeZone.id = 'stats-substack-liste';
@@ -17359,16 +17413,16 @@ function _statsSubstackChargerListe(zone){
   }).catch(function(){ zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;">Erreur.</div>'; });
 }
 
-function osStatsAdminRender(){
-  var wc = document.getElementById('wincontent-stats-admin');
-  if(!wc) return;
-  wc.innerHTML = '';
+function _statsRenderChiffresMois(zone){
+  if(!zone) return;
+  zone.innerHTML = '';
 
   statsCharger(function(data){
     data.forEach(function(d){ d._total=statsCalcTotal(d); });
     var form=document.createElement('div');
     form.className='stats-form';
-    form.innerHTML='<div class="stats-form-title">📊 Saisie des statistiques</div><div class="stats-form-sub">Ajoute un nouveau mois ou modifie un existant.</div>';
+    form.style.cssText='height:auto;overflow-y:visible;'; // le scroll est géré par le conteneur de l'éditeur, pas ici
+    form.innerHTML='<div class="stats-form-title">Chiffres du mois</div><div class="stats-form-sub">Ajoute un nouveau mois ou modifie un existant.</div>';
 
     var fields=[
       {id:'sf-mois',label:'Mois',placeholder:'Avril 2026',type:'text'},
@@ -17452,9 +17506,7 @@ function osStatsAdminRender(){
           notif(_statsEditId?'Stats mises a jour !':'Stats de '+mois+' enregistrees !');
           _statsEditId=null;
           fields.forEach(function(f){var el=document.getElementById(f.id);if(el)el.value='';});
-          osStatsAdminRender();
-          // Refresh dashboard si ouvert
-          if(_windows['stats-dashboard']) osStatsDashboardRender();
+          _statsRenderChiffresMois(zone);
         } else notif('Erreur enregistrement');
         btnSave.disabled=false;btnSave.textContent='Enregistrer le mois';
       }).catch(function(){notif('Erreur reseau');btnSave.disabled=false;btnSave.textContent='Enregistrer le mois';});
@@ -17498,7 +17550,7 @@ function osStatsAdminRender(){
       btnDel.onclick=(function(dd){return function(){
         if(!confirm('Supprimer '+dd.mois+' ?')) return;
         fetch(SB_URL+'/rest/v1/stats_mensuelles?id=eq.'+dd.id,{method:'DELETE',headers:SB_HEADERS})
-        .then(function(r){if(r.ok){notif(dd.mois+' supprime');osStatsAdminRender();}});
+        .then(function(r){if(r.ok){notif(dd.mois+' supprime');_statsRenderChiffresMois(zone);}});
       };})(d);
 
       acts.appendChild(btnEd);acts.appendChild(btnDel);
@@ -17507,11 +17559,7 @@ function osStatsAdminRender(){
     });
     form.appendChild(hist);
 
-    var substackContainer = document.createElement('div');
-    form.appendChild(substackContainer);
-    _statsSubstackRenderImport(substackContainer);
-
-    wc.appendChild(form);
+    zone.appendChild(form);
 
     // Pre-remplir si mode edition
     if(_statsEditId){
