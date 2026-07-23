@@ -9357,6 +9357,7 @@ function brfSauvegarderEtPublier(){
         statut:'ouvert',
         redaction_id:redacId||null,
         cp_id:s.cp_id||null,
+        date_cible:date||null,
         note:(edition?'['+edition+'] ':'')+(date?'['+date+'] ':'')+(s.angle||'')+(note?' | '+note:''),
         created_by:getUserId()
       })
@@ -10629,6 +10630,9 @@ function osLancer(){
     // Popup "ton article a été corrigé/validé/publié" — montrée à l'auteur, pas à qui a fait l'action
     setTimeout(osVerifierNotifsAuteurArticles, 4000);
     setInterval(osVerifierNotifsAuteurArticles, 3*60*1000);
+    // Nouvelle version déployée — bandeau discret pour proposer de recharger
+    setTimeout(osVerifierNouvelleVersion, 3000);
+    setInterval(osVerifierNouvelleVersion, 5*60*1000);
     // Créditer automatiquement les heures des événements passés
     setTimeout(osAgendaCreditHeuresAuto, 5000);
     // Horloge bureau
@@ -13144,7 +13148,8 @@ function _osOpenWindowExecuter(pageId){
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
-    snake:'🐍 Presse Express', substack:'Ipsum Média', signatures:'Signatures'
+    snake:'🐍 Presse Express', substack:'Ipsum Média', signatures:'Signatures',
+    'calendrier-edito':'🗓️ Calendrier éditorial'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -13336,6 +13341,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'notes'){
     setTimeout(function(){ osNotesRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'calendrier-edito'){
+    setTimeout(function(){ osCalendrierEditoRender(); }, 50);
     return;
   }
 
@@ -13629,6 +13639,8 @@ function osCloseWindowForce(pageId){
   // Mettre à jour le dock
   setTimeout(osDockMajFenetresOuvertes, 50);
   setTimeout(osVerifierDockVisibilite, 250);
+  // Une nouvelle version attendait que la rédaction se termine pour être proposée
+  if(pageId === 'redaction' && _compoVersionChangeeEnAttente) osVerifierNouvelleVersion();
 }
 
 function osFocusWindow(pageId){
@@ -15045,7 +15057,7 @@ function osAppComCharger(){
       h += '<div style="background:#F5F3FF;border-radius:8px;padding:0.6rem 0.8rem;margin-top:0.7rem;">';
       h += '<div style="font-size:0.62rem;font-weight:700;color:#7C3AED;margin-bottom:5px;">🎨 Visuels à créer</div>';
       h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
-      var visuels = ['Post Instagram','Story Instagram','Couverture newsletter','Twitter/X','Miniature site'];
+      var visuels = ['Post Instagram','Story Instagram'];
       visuels.forEach(function(v){
         h += '<span style="font-size:0.65rem;padding:2px 8px;border-radius:10px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;">'+v+'</span>';
       });
@@ -15084,7 +15096,7 @@ function osAppComBrief(id, titre){
   .then(function(arts){
     var a = arts&&arts[0];
     if(!a){ notif('Article introuvable','erreur'); return; }
-    osGenererBriefZip(a, '[ ] Post Instagram (1080x1080)\n[ ] Story Instagram (1080x1920)\n[ ] Couverture newsletter Substack\n[ ] Twitter/X\n[ ] Miniature site web');
+    osGenererBriefZip(a, '[ ] Post Instagram (1080x1080)\n[ ] Story Instagram (1080x1920)');
   });
 }
 
@@ -15245,9 +15257,6 @@ function osNotifierComArticleValide(article){
       +'<ul style="margin:0;padding-left:1.2rem;font-size:0.8rem;color:#374151;line-height:1.8;">'
       +'<li>Post Instagram (carré 1080×1080)</li>'
       +'<li>Story Instagram (1080×1920)</li>'
-      +'<li>Couverture newsletter Substack</li>'
-      +'<li>Visuel Twitter / X</li>'
-      +'<li>Miniature site web</li>'
       +'</ul></div>'
       +(article.image?'<div style="margin-top:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Image de l\'article</div><img src="'+article.image+'" style="max-width:100%;border-radius:6px;" alt="Image article"></div>':'')
       +'<div style="margin-top:1.2rem;text-align:center;">'
@@ -15276,7 +15285,7 @@ function osGenererBriefZip(article, checklist){
   brief      += 'DATE : '+new Date().toLocaleDateString('fr-FR')+'\n\n';
   if(article.chapeau)  brief += 'CHAPEAU :\n'+article.chapeau+'\n\n';
   if(article.corps)    brief += 'EXTRAIT :\n'+article.corps.substring(0,600)+'\n\n';
-  brief      += 'VISUELS À CRÉER :\n'+(checklist||'[ ] Post Instagram\n[ ] Story\n[ ] Newsletter\n[ ] Twitter\n[ ] Miniature')+'\n\n';
+  brief      += 'VISUELS À CRÉER :\n'+(checklist||'[ ] Post Instagram\n[ ] Story')+'\n\n';
   brief      += '================================\n';
   brief      += 'Généré par Compo OS\n';
 
@@ -15510,6 +15519,41 @@ function notifPersistante(msg, type, actionLabel, actionFn, icone){
     persistent: true,
     icon: icone||'📨',
     action: actionLabel ? {label:actionLabel, fn:actionFn||function(){}} : null
+  });
+}
+
+// ===== DÉTECTION D'UNE NOUVELLE VERSION DÉPLOYÉE =====
+// Pas de version en dur à maintenir : on compare l'ETag/Last-Modified du fichier
+// réellement servi (HEAD, sans passer par le cache) à celui vu au chargement.
+var _compoVersionInitiale = null;
+var _compoNouvelleVersionSignalee = false;
+var _compoVersionChangeeEnAttente = false;
+
+function _compoRecupererVersionServeur(){
+  return fetch(location.origin + location.pathname, { method:'HEAD', cache:'no-store' })
+    .then(function(r){
+      // etag/last-modified si l'hébergeur les envoie ; sinon la taille du fichier en dernier recours
+      // (moins fiable : ne détecte pas une édition qui garderait exactement la même taille en octets)
+      return r.headers.get('etag') || r.headers.get('last-modified') || r.headers.get('content-length') || null;
+    })
+    .catch(function(){ return null; });
+}
+
+function osVerifierNouvelleVersion(){
+  _compoRecupererVersionServeur().then(function(v){
+    if(!v) return; // en-têtes indisponibles (dev local, hébergeur qui ne les envoie pas...) : on ne peut pas comparer
+    if(_compoVersionInitiale === null){ _compoVersionInitiale = v; return; }
+    if(v === _compoVersionInitiale) return;
+    if(_compoNouvelleVersionSignalee) return;
+    // Ne pas risquer de faire perdre un article en cours de rédaction : on attend que la fenêtre
+    // Rédaction soit fermée avant de proposer le rechargement (osCloseWindowForce relance ce check).
+    if(window._windows && window._windows['redaction']){
+      _compoVersionChangeeEnAttente = true;
+      return;
+    }
+    _compoNouvelleVersionSignalee = true;
+    _compoVersionChangeeEnAttente = false;
+    notifPersistante('Une nouvelle version de Compo est disponible.', 'info', 'Recharger', function(){ location.reload(); }, '🔄');
   });
 }
 
@@ -21535,6 +21579,428 @@ function brfAbandonnerSujetDepuisRedac(sujetId){
   });
 }
 
+// ===== CALENDRIER ÉDITORIAL =====
+var _caleMois = new Date().getMonth();
+var _caleAnnee = new Date().getFullYear();
+var _caleData = { sujets:[], cps:[], articles:[], posts:[] };
+var PLATEFORME_ICONS = { instagram:'📸', facebook:'👍', tiktok:'🎵', threads:'🧵' };
+var SUJET_STATUT_STYLE = {
+  ouvert:'background:#FFF3CD;color:#856404;',
+  en_cours:'background:#D6EAF8;color:#1A5276;',
+  publie:'background:#D4EDDA;color:#155724;'
+};
+
+function _caleEstChefOuAdmin(){
+  var role = getUserRole();
+  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
+  return role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
+}
+
+function _caleDateStr(annee, mois, jour){
+  return annee+'-'+pad(mois+1)+'-'+pad(jour);
+}
+
+function osCalendrierEditoRender(){
+  var wc = document.getElementById('wincontent-calendrier-edito');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
+  wc.innerHTML = osLoadingHtml();
+  _caleChargerDonnees(function(){ _caleRendreVue(); });
+}
+
+function _caleChargerDonnees(callback){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var redacId = window._redacActiveId;
+  var qs = redacId ? '&redaction_id=eq.'+encodeURIComponent(redacId) : '';
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours,publie)&date_cible=not.is.null'+qs+'&select=*',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/communiques?date_cp=not.is.null'+qs+'&select=id,titre,objet,date_cp,statut',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie'+qs+'&select=id,titre,type,updated_at&order=updated_at.desc&limit=200',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/posts_reseaux?select=*'+qs,{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(results){
+    _caleData.sujets   = (!results[0]||results[0].code) ? [] : results[0];
+    _caleData.cps      = (!results[1]||results[1].code) ? [] : results[1];
+    _caleData.articles = (!results[2]||results[2].code) ? [] : results[2];
+    _caleData.posts    = (!results[3]||results[3].code) ? [] : results[3];
+    if(callback) callback();
+  }).catch(function(){
+    _caleData = { sujets:[], cps:[], articles:[], posts:[] };
+    if(callback) callback();
+  });
+}
+
+function _caleItemsDuJour(d){
+  var items = [];
+  (_caleData.sujets||[]).forEach(function(s){
+    if(!s.date_cible) return;
+    var dj = new Date(s.date_cible+'T00:00:00');
+    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
+      var initiales = s.responsable ? ' · '+s.responsable.trim().split(' ').map(function(p){return p[0]||'';}).join('').toUpperCase().slice(0,2) : '';
+      items.push({ type:'sujet', raw:s, label:esc(s.titre||'Sujet')+initiales, style:SUJET_STATUT_STYLE[s.statut]||SUJET_STATUT_STYLE.ouvert });
+    }
+  });
+  (_caleData.cps||[]).forEach(function(c){
+    if(!c.date_cp) return;
+    var dj = new Date(c.date_cp+'T00:00:00');
+    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
+      items.push({ type:'cp', raw:c, label:'📰 '+esc(c.titre||c.objet||'CP'), style:'background:#EAE0F0;color:#4A235A;' });
+    }
+  });
+  (_caleData.articles||[]).forEach(function(a){
+    if(!a.updated_at) return;
+    var dj = new Date(a.updated_at);
+    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
+      var icon = a.type==='breve' ? '⚡' : '📄';
+      items.push({ type:'article', raw:a, label:icon+' '+esc(a.titre||'Article'), style:'background:#D4EDDA;color:#155724;' });
+    }
+  });
+  (_caleData.posts||[]).forEach(function(p){
+    if(!p.date_prevue) return;
+    var dj = new Date(p.date_prevue+'T00:00:00');
+    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
+      var icon = PLATEFORME_ICONS[p.plateforme]||'📱';
+      var estPublie = p.statut==='publie';
+      items.push({ type:'post', raw:p, label:icon+' '+esc((p.contenu||'').slice(0,30)), style: estPublie ? 'background:#7D3C98;color:white;' : 'background:white;color:#7D3C98;border:1px solid #7D3C98;' });
+    }
+  });
+  return items;
+}
+
+function _caleRendreVue(){
+  var wc = document.getElementById('wincontent-calendrier-edito');
+  if(!wc) return;
+  wc.innerHTML = '';
+  var estChefOuAdmin = _caleEstChefOuAdmin();
+
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.7rem 1.2rem;';
+  hdr.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);">🗓️ Calendrier éditorial</div>';
+  wc.appendChild(hdr);
+
+  var nav = document.createElement('div');
+  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.6rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
+  var moisNom = new Date(_caleAnnee,_caleMois,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  nav.innerHTML =
+    '<button onclick="_caleMoisPrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;">‹</button>'
+    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.9rem;color:var(--encre);text-transform:capitalize;">'+moisNom+'</div>'
+    +'<button onclick="_caleMoisNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;">›</button>';
+  wc.appendChild(nav);
+
+  var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var hdrJours = document.createElement('div');
+  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
+  JOURS.forEach(function(j, idx){
+    var el = document.createElement('div');
+    el.style.cssText = 'text-align:center;font-family:Space Mono,monospace;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
+    el.textContent = j;
+    hdrJours.appendChild(el);
+  });
+  wc.appendChild(hdrJours);
+
+  var scrollZone = document.createElement('div');
+  scrollZone.style.cssText = 'flex:1;overflow-y:auto;padding:0 0.6rem 0.6rem;';
+
+  var cellGrid = document.createElement('div');
+  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gris-bord);';
+
+  var premier = new Date(_caleAnnee, _caleMois, 1);
+  var jourSemaine = (premier.getDay() + 6) % 7;
+  var nbJours = new Date(_caleAnnee, _caleMois+1, 0).getDate();
+  var today = new Date();
+
+  for(var i=0; i<jourSemaine; i++){
+    var empty = document.createElement('div');
+    empty.style.cssText = 'min-height:78px;background:var(--gris-clair);';
+    cellGrid.appendChild(empty);
+  }
+
+  for(var d=1; d<=nbJours; d++){
+    var isToday = today.getDate()===d && today.getMonth()===_caleMois && today.getFullYear()===_caleAnnee;
+    var isWeekend = ((d + jourSemaine - 1) % 7) >= 5;
+    var itemsDuJour = _caleItemsDuJour(d);
+
+    var cell = document.createElement('div');
+    cell.style.cssText = 'min-height:78px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(itemsDuJour.length?'pointer':'default')+';';
+
+    var numEl = document.createElement('div');
+    numEl.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
+    numEl.textContent = d;
+    cell.appendChild(numEl);
+
+    itemsDuJour.slice(0,3).forEach(function(item){
+      var chip = document.createElement('div');
+      chip.style.cssText = 'font-size:0.5rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;'+item.style;
+      chip.textContent = item.label;
+      cell.appendChild(chip);
+    });
+    if(itemsDuJour.length > 3){
+      var more = document.createElement('div');
+      more.style.cssText = 'font-size:0.5rem;color:var(--rouge);font-family:Space Mono,monospace;font-weight:600;';
+      more.textContent = '+'+(itemsDuJour.length-3)+' autres';
+      cell.appendChild(more);
+    }
+
+    if(itemsDuJour.length){
+      cell.onclick = (function(dateStr, items){ return function(){ _caleOuvrirJour(dateStr, items); }; })(_caleDateStr(_caleAnnee,_caleMois,d), itemsDuJour);
+    }
+    cellGrid.appendChild(cell);
+  }
+
+  scrollZone.appendChild(cellGrid);
+  wc.appendChild(scrollZone);
+
+  var footer = document.createElement('div');
+  footer.id = 'cale-sujets-a-programmer';
+  footer.style.cssText = 'flex-shrink:0;';
+  wc.appendChild(footer);
+  if(estChefOuAdmin) _caleRendreSujetsAProgrammer();
+}
+
+function _caleMoisPrev(){ _caleMois--; if(_caleMois<0){_caleMois=11;_caleAnnee--;} _caleRendreVue(); }
+function _caleMoisNext(){ _caleMois++; if(_caleMois>11){_caleMois=0;_caleAnnee++;} _caleRendreVue(); }
+
+function _caleOuvrirJour(dateStr, items){
+  var existing = document.getElementById('cale-jour-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+  var estChefOuAdmin = _caleEstChefOuAdmin();
+  var overlay = document.createElement('div');
+  overlay.id = 'cale-jour-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:12px;max-width:420px;width:100%;max-height:78vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:1.2rem;';
+
+  var dateAff = new Date(dateStr+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">'
+    +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);text-transform:capitalize;">'+dateAff+'</div>'
+    +'<button onclick="document.getElementById(\'cale-jour-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>';
+
+  items.forEach(function(item){
+    h += '<div style="border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 0.8rem;margin-bottom:0.5rem;">';
+    if(item.type==='sujet'){
+      var s = item.raw;
+      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+esc(s.titre||'')+'</div>';
+      h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.4rem;">Sujet · '+esc(s.statut||'')+(s.responsable?' · '+esc(s.responsable):'')+'</div>';
+      if(estChefOuAdmin){
+        h += '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">'
+          +'<input type="date" id="cale-date-sujet-'+s.id+'" value="'+(s.date_cible||'')+'" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
+          +'<button data-id="'+s.id+'" onclick="_caleReprogrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Déplacer</button>'
+          +'<button data-id="'+s.id+'" onclick="_caleRetirerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Retirer</button>'
+          +'</div>';
+      }
+    } else if(item.type==='cp'){
+      var c = item.raw;
+      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">📰 '+esc(c.titre||c.objet||'')+'</div>';
+      h += '<div style="font-size:0.68rem;color:var(--gris);">Communiqué de presse</div>';
+    } else if(item.type==='article'){
+      var a = item.raw;
+      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+(a.type==='breve'?'⚡':'📄')+' '+esc(a.titre||'')+'</div>';
+      h += '<div style="font-size:0.68rem;color:var(--gris);">'+(a.type==='breve'?'Brève publiée':'Article publié')+'</div>';
+    } else if(item.type==='post'){
+      var p = item.raw;
+      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+(PLATEFORME_ICONS[p.plateforme]||'📱')+' '+esc(p.contenu||'')+'</div>';
+      h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.4rem;">'+esc(p.plateforme||'')+' · '+(p.statut==='publie'?'Publié':'Prévu')+'</div>';
+      if(estChefOuAdmin){
+        h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
+        if(p.statut!=='publie') h += '<button data-id="'+p.id+'" onclick="_calePostMarquerPublie(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:#155724;color:white;cursor:pointer;">Marquer publié</button>';
+        h += '<input type="date" id="cale-date-post-'+p.id+'" value="'+(p.date_prevue||'')+'" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
+          +'<button data-id="'+p.id+'" onclick="_calePostReplanifier(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Replanifier</button>'
+          +'<button data-id="'+p.id+'" onclick="_calePostSupprimer(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Supprimer</button>';
+        h += '</div>';
+      }
+    }
+    h += '</div>';
+  });
+
+  if(estChefOuAdmin){
+    h += '<button onclick="document.getElementById(\'cale-jour-overlay\').remove();osOuvrirPostReseauModal(\''+dateStr+'\')" style="width:100%;margin-top:0.4rem;padding:0.5rem;background:transparent;border:1.5px dashed #7D3C98;border-radius:8px;color:#7D3C98;font-size:0.75rem;font-weight:600;cursor:pointer;">+ Ajouter un post réseaux</button>';
+  }
+
+  modal.innerHTML = h;
+  overlay.appendChild(modal);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function _caleFermerJourEtRafraichir(){
+  var overlay = document.getElementById('cale-jour-overlay');
+  if(overlay) overlay.remove();
+  osCalendrierEditoRender();
+}
+
+function _caleReprogrammerSujet(sujetId){
+  var input = document.getElementById('cale-date-sujet-'+sujetId);
+  var val = input ? input.value : '';
+  if(!val){ notif('Choisis une date'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
+    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:val})
+  }).then(function(r){
+    if(r.ok){ notif('Sujet reprogrammé ✓','succes'); _caleFermerJourEtRafraichir(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function _caleRetirerSujet(sujetId){
+  if(!confirm('Retirer ce sujet du calendrier ? Il reste dans les sujets, juste sans échéance.')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
+    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:null})
+  }).then(function(r){
+    if(r.ok){ notif('Retiré du calendrier'); _caleFermerJourEtRafraichir(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function _calePostMarquerPublie(postId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
+    method:'PATCH', headers:authH, body:JSON.stringify({statut:'publie'})
+  }).then(function(r){
+    if(r.ok){ notif('Post marqué publié ✓','succes'); _caleFermerJourEtRafraichir(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function _calePostReplanifier(postId){
+  var input = document.getElementById('cale-date-post-'+postId);
+  var val = input ? input.value : '';
+  if(!val){ notif('Choisis une date'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
+    method:'PATCH', headers:authH, body:JSON.stringify({date_prevue:val})
+  }).then(function(r){
+    if(r.ok){ notif('Post replanifié ✓','succes'); _caleFermerJourEtRafraichir(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function _calePostSupprimer(postId){
+  if(!confirm('Supprimer ce post prévu ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
+    method:'DELETE', headers:authH
+  }).then(function(r){
+    if(r.ok){ notif('Post supprimé'); _caleFermerJourEtRafraichir(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function _caleRendreSujetsAProgrammer(){
+  var zone = document.getElementById('cale-sujets-a-programmer');
+  if(!zone) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var redacId = window._redacActiveId;
+  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&date_cible=is.null&order=created_at.desc&select=id,titre,statut';
+  if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
+  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
+    sujets = (!sujets||sujets.code) ? [] : sujets;
+    if(!sujets.length){ zone.innerHTML=''; return; }
+    var h = '<div style="border-top:1px solid var(--gris-bord);background:white;padding:0.7rem 1.2rem;max-height:150px;overflow-y:auto;">';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.5rem;">Sujets à programmer ('+sujets.length+')</div>';
+    sujets.forEach(function(s){
+      h += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--gris-clair);">';
+      h += '<div style="flex:1;font-size:0.78rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(s.titre||'')+'</div>';
+      h += '<input type="date" id="cale-prog-'+s.id+'" style="font-size:0.7rem;padding:2px 5px;border:1px solid var(--gris-bord);border-radius:4px;">';
+      h += '<button data-id="'+s.id+'" onclick="_caleProgrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;flex-shrink:0;">Programmer</button>';
+      h += '</div>';
+    });
+    h += '</div>';
+    zone.innerHTML = h;
+  }).catch(function(){ zone.innerHTML=''; });
+}
+
+function _caleProgrammerSujet(sujetId){
+  var input = document.getElementById('cale-prog-'+sujetId);
+  var val = input ? input.value : '';
+  if(!val){ notif('Choisis une date'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
+    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:val})
+  }).then(function(r){
+    if(r.ok){ notif('Sujet programmé ✓','succes'); osCalendrierEditoRender(); }
+    else notif('Erreur','erreur');
+  });
+}
+
+function osOuvrirPostReseauModal(datePreremplie){
+  var existing = document.getElementById('post-reseau-modal-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'post-reseau-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
+  card.innerHTML =
+    '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">📱 Planifier un post réseaux</div>'
+    +'<button onclick="document.getElementById(\'post-reseau-modal-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div class="form-grid" style="margin-bottom:1rem;">'
+    +'<div class="form-group full"><label>Contenu / légende</label><textarea id="pr-contenu" style="min-height:70px;" placeholder="Ce que dit le post..."></textarea></div>'
+    +'<div class="form-group"><label>Plateforme</label><select id="pr-plateforme"><option value="instagram">📸 Instagram</option><option value="facebook">👍 Facebook</option><option value="tiktok">🎵 TikTok</option><option value="threads">🧵 Threads</option></select></div>'
+    +'<div class="form-group"><label>Date</label><input type="date" id="pr-date" value="'+(datePreremplie||'')+'"></div>'
+    +'<div class="form-group full"><label>Article lié (optionnel)</label><select id="pr-article"><option value="">— Aucun —</option></select></div>'
+    +'</div>'
+    +'<div class="btn-row">'
+    +'<button class="btn" onclick="osEnregistrerPostReseau()">Enregistrer</button>'
+    +'</div>'
+    +'</div>';
+
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  _calePeuplerArticlesRecents();
+}
+
+function _calePeuplerArticlesRecents(){
+  var sel = document.getElementById('pr-article');
+  if(!sel) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var redacId = window._redacActiveId;
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&limit=20&select=id,titre';
+  if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
+  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(arts){
+    arts = (!arts||arts.code) ? [] : arts;
+    arts.forEach(function(a){
+      var opt = document.createElement('option');
+      opt.value = a.id; opt.textContent = a.titre||a.id;
+      sel.appendChild(opt);
+    });
+  }).catch(function(){});
+}
+
+function osEnregistrerPostReseau(){
+  var contenu = ((document.getElementById('pr-contenu')||{}).value||'').trim();
+  var plateforme = (document.getElementById('pr-plateforme')||{}).value||'instagram';
+  var date = (document.getElementById('pr-date')||{}).value||'';
+  var articleId = (document.getElementById('pr-article')||{}).value||null;
+  if(!contenu || !date){ notif('Contenu et date obligatoires'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = {
+    id:'RS-'+Date.now(),
+    contenu:contenu,
+    plateforme:plateforme,
+    date_prevue:date,
+    statut:'prevu',
+    article_id:articleId||null,
+    redaction_id:window._redacActiveId||null,
+    created_by:getUserId()
+  };
+  fetch(SB_URL+'/rest/v1/posts_reseaux',{method:'POST',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){
+    if(r.ok){
+      notif('Post réseaux planifié ✓','succes');
+      var overlay = document.getElementById('post-reseau-modal-overlay');
+      if(overlay) overlay.remove();
+      osCalendrierEditoRender();
+    } else notif('Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function _osRedacActionsRapides(role, roleRedac){
   var actions = {
     redacteur: [
@@ -24943,6 +25409,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
+  { id:'calendrier-edito', icon:'<i class="ti ti-calendar-event"></i>', label:'Calendrier édito', color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
@@ -24961,10 +25428,10 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
-  correcteur: ['mes-articles','redactions','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail','signatures'],
-  redac_chef: ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
-  admin:      ['redaction','mes-articles','redactions','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
+  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
+  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail','signatures'],
+  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
+  admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
 
 window._userApps = null;
