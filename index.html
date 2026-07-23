@@ -17459,8 +17459,8 @@ function maOsMakeCard(doc, uid, role){
     actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="db.getArticle(this.dataset.id).then(osMontrerDiff)">🔎 Diff</button>';
   // Lire
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
-  // Supprimer admin
-  if(role==='admin')
+  // Supprimer — admin sur tout, auteur sur son propre brouillon (pas envoyé)
+  if(role==='admin' || (estAuteur && s==='brouillon'))
     actHtml+='<button style="'+_maBtn('danger')+'" data-id="'+doc.id+'" onclick="maOsSupprimer(this.dataset.id)">🗑️</button>';
   actHtml+='</div>';
 
@@ -17498,10 +17498,49 @@ function maOsRefuser(id){
 }
 
 function maOsSupprimer(id){
-  if(!confirm('Supprimer définitivement cet article ?')) return;
+  var doc = (_maCache||[]).find(function(a){return a.id===id;});
+  var titre = doc ? (doc.titre||'Sans titre') : 'cet article';
+  var existing = document.getElementById('ma-suppr-overlay');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'ma-suppr-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.15s ease;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(400px,94vw);box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;padding:1.4rem 1.5rem;';
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">'
+    +'<div style="width:36px;height:36px;border-radius:50%;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;"><i class="ti ti-trash"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Supprimer cet article ?</div>'
+    +'</div>'
+    +'<div style="font-size:0.82rem;color:var(--gris);line-height:1.5;margin-bottom:1.2rem;">« '+esc(titre)+' » sera supprimé définitivement. Cette action est irréversible.</div>'
+    +'<div style="display:flex;gap:0.5rem;justify-content:flex-end;">'
+    +'<button onclick="document.getElementById(\'ma-suppr-overlay\').remove()" class="btn sec" style="font-size:0.78rem;padding:0.5rem 1rem;">Annuler</button>'
+    +'<button onclick="maOsSupprimerConfirme(\''+id+'\')" style="font-size:0.78rem;padding:0.5rem 1rem;border:none;border-radius:7px;background:#A32D2D;color:white;cursor:pointer;font-weight:600;">Supprimer</button>'
+    +'</div>';
+
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function maOsSupprimerConfirme(id){
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{method:'DELETE',headers:authH})
-  .then(function(r){if(r.ok){notif('Article supprimé','succes');_maCache=_maCache.filter(function(a){return a.id!==id;});maOsFiltre();}});
+  .then(function(r){
+    var overlay = document.getElementById('ma-suppr-overlay');
+    if(overlay) overlay.remove();
+    if(r.ok){
+      notif('Article supprimé','succes');
+      _maCache=_maCache.filter(function(a){return a.id!==id;});
+      maOsFiltre();
+    } else notif('Erreur lors de la suppression','erreur');
+  }).catch(function(){
+    var overlay = document.getElementById('ma-suppr-overlay');
+    if(overlay) overlay.remove();
+    notif('Erreur réseau','erreur');
+  });
 }
 
 
@@ -21322,6 +21361,10 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
   if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.62);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
   h += '</div>';
+  h += '<div style="text-align:center;flex-shrink:0;padding:0 0.8rem;">';
+  h += '<div id="membre-heures-banner" style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">—</div>';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.6);white-space:nowrap;">Bénévolat <span id="membre-heures-banner-detail" style="text-transform:none;letter-spacing:0;"></span></div>';
+  h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
   h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-id-badge" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
   h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
@@ -21389,8 +21432,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += statBrin('stat-arts','Articles');
   h += statBrin('stat-pub','Publiés','#27AE60');
   h += statBrin('stat-mois','Ce mois','#EA5B1C');
-  h += '<div style="flex:1;padding:0.55rem 0.4rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:#1A5276;">'+mesParticipations.length+'</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">Activités</div></div>';
-  h += '<div style="flex:1.4;padding:0.55rem 0.4rem;text-align:center;"><div id="membre-heures-total" style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:#7D3C98;">—</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">Bénévolat <span id="membre-heures-detail" style="text-transform:none;letter-spacing:0;"></span></div></div>';
+  h += '<div style="flex:1;padding:0.55rem 0.4rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:#1A5276;">'+mesParticipations.length+'</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">Activités</div></div>';
   h += '</div>';
 
   // Mes derniers articles
@@ -23283,8 +23325,8 @@ function osChargerHeuresMembre(uid){
     data.forEach(function(h){ totaux[h.type] = (totaux[h.type]||0) + h.duree_minutes; });
     var total = 0; Object.keys(totaux).forEach(function(k){ total += totaux[k]; });
     function fmt(m){ var h=Math.floor(m/60),mn=m%60; return h+'h'+(mn>0?mn:''); }
-    var elTotal = document.getElementById('membre-heures-total');
-    var elDetail = document.getElementById('membre-heures-detail');
+    var elTotal = document.getElementById('membre-heures-banner');
+    var elDetail = document.getElementById('membre-heures-banner-detail');
     if(elTotal) elTotal.textContent = fmt(total);
     if(elDetail){
       var parts = [];
