@@ -7970,7 +7970,7 @@ function lancerCompo(){
   var fetches = {
     redactions:       fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     membresRedacs:    fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
-    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
+    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
     mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
     annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
     cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
