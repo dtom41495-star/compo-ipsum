@@ -21361,13 +21361,13 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
   if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.62);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
   h += '</div>';
-  h += '<div style="text-align:center;flex-shrink:0;padding:0 0.8rem;">';
-  h += '<div id="membre-heures-banner" style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">—</div>';
-  h += '<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.6);white-space:nowrap;">Bénévolat <span id="membre-heures-banner-detail" style="text-transform:none;letter-spacing:0;"></span></div>';
-  h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
   h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-id-badge" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
   h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
+  h += '</div>';
+  h += '<div style="text-align:center;flex-shrink:0;">';
+  h += '<div id="membre-heures-banner" style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">—</div>';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.6);white-space:nowrap;">Bénévolat</div>';
   h += '</div>';
   h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;margin-top:10px;flex-wrap:wrap;align-items:center;">';
@@ -23326,16 +23326,7 @@ function osChargerHeuresMembre(uid){
     var total = 0; Object.keys(totaux).forEach(function(k){ total += totaux[k]; });
     function fmt(m){ var h=Math.floor(m/60),mn=m%60; return h+'h'+(mn>0?mn:''); }
     var elTotal = document.getElementById('membre-heures-banner');
-    var elDetail = document.getElementById('membre-heures-banner-detail');
     if(elTotal) elTotal.textContent = fmt(total);
-    if(elDetail){
-      var parts = [];
-      if(totaux.redaction) parts.push(fmt(totaux.redaction)+' rédac');
-      if(totaux.correction) parts.push(fmt(totaux.correction)+' correc');
-      if(totaux.agenda) parts.push(fmt(totaux.agenda)+' agenda');
-      if(totaux.manuel) parts.push(fmt(totaux.manuel)+' manuel');
-      elDetail.textContent = parts.length ? '('+parts.join(' · ')+')' : '';
-    }
   }).catch(function(){});
 }
 
