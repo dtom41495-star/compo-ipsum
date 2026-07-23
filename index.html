@@ -15458,7 +15458,7 @@ function osChargerNotifsDemarrage(){
     .then(function(arts){
       if(arts && !arts.code){
         arts.forEach(function(a){
-          allNotifs.push({msg:'Pret a publier : '+a.titre, type:'publication', action:function(){ osOpenWindow('benevoles'); }});
+          allNotifs.push({msg:'Pret a publier : '+a.titre, type:'publication', action:function(){ _redacOnglet='redac'; osOpenWindow('redactions'); }});
         });
       }
       tryFlush();
@@ -22064,7 +22064,7 @@ function osRedacChargerAlertes(zone){
       .then(function(r){return r.json();})
       .then(function(arts){
         if(!arts||arts.code||!arts.length) return '';
-        return '<div onclick="osOpenWindow(\'statut\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+        return '<div onclick="_redacOnglet=\'redac\';osOpenWindow(\'redactions\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
           +'<span style="font-size:1rem;"><i class="ti ti-circle-check"></i></span>'
           +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#155724;">'+arts.length+' article'+(arts.length>1?'s':'')+' prêt'+(arts.length>1?'s':'')+' à publier</div>'
           +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#155724;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
