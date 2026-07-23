@@ -5666,6 +5666,61 @@ function renderCmpDiff(){
 }
 
 // ===== MARKDOWN =====
+// Le presse-papier "texte brut" (writeText) n'est pas interprété comme du Markdown par
+// l'éditeur riche de Substack — il colle les # et ** au caractère près. On copie donc aussi
+// une version HTML équivalente (text/html), que les éditeurs riches préfèrent au collage et
+// qui arrive déjà mise en forme (titres, gras, italique, listes).
+function _mdInlineVersHtml(ligne){
+  var t = esc(ligne);
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  return t;
+}
+function _mdVersHtmlLeger(md){
+  var lignes = (md||'').split('\n');
+  var html = '', dansListe = false;
+  lignes.forEach(function(ligne){
+    var t = ligne.trim();
+    if(!t){ if(dansListe){ html+='</ul>'; dansListe=false; } return; }
+    if(t === '---'){ if(dansListe){ html+='</ul>'; dansListe=false; } html+='<hr>'; return; }
+    var mTitre = t.match(/^(#{1,3})\s+(.*)$/);
+    if(mTitre){
+      if(dansListe){ html+='</ul>'; dansListe=false; }
+      var n = mTitre[1].length;
+      html += '<h'+n+'>'+_mdInlineVersHtml(mTitre[2])+'</h'+n+'>';
+      return;
+    }
+    var mListe = t.match(/^-\s+(.*)$/);
+    if(mListe){
+      if(!dansListe){ html+='<ul>'; dansListe=true; }
+      html += '<li>'+_mdInlineVersHtml(mListe[1])+'</li>';
+      return;
+    }
+    if(dansListe){ html+='</ul>'; dansListe=false; }
+    html += '<p>'+_mdInlineVersHtml(t)+'</p>';
+  });
+  if(dansListe) html += '</ul>';
+  return html;
+}
+function _copierPourSubstack(md, msgSucces){
+  var html = _mdVersHtmlLeger(md);
+  if(navigator.clipboard && window.ClipboardItem){
+    try{
+      var item = new ClipboardItem({
+        'text/plain': new Blob([md], {type:'text/plain'}),
+        'text/html': new Blob([html], {type:'text/html'})
+      });
+      navigator.clipboard.write([item]).then(function(){
+        notif(msgSucces||'Texte copié (mise en forme conservée) — colle-le dans Substack','succes');
+      }).catch(function(){
+        navigator.clipboard.writeText(md).then(function(){ notif(msgSucces||'Texte copié - colle-le dans Substack'); });
+      });
+      return;
+    }catch(e){}
+  }
+  navigator.clipboard.writeText(md).then(function(){ notif(msgSucces||'Texte copié - colle-le dans Substack'); });
+}
+
 function genMd(src){
   if(!currentDoc)return;
   let md='# '+currentDoc.titre+'\n\n';
@@ -5677,7 +5732,7 @@ function genMd(src){
   if(currentDoc.tags&&currentDoc.tags.length)md+='\n'+currentDoc.tags.map(t=>'#'+t).join(' ')+'\n';
   if(currentDoc.sources&&currentDoc.sources.length)md+='\n**Sources**\n'+currentDoc.sources.map(s=>'- '+s).join('\n')+'\n';
   const el=document.getElementById('md-'+src);el.textContent=md;el.style.display='block';
-  navigator.clipboard.writeText(md).then(()=>notif('Texte copié - colle-le dans Substack'));
+  _copierPourSubstack(md);
 }
 
 // ===== FULLSCREEN =====
@@ -5880,7 +5935,7 @@ function nlGenerer(){
 function nlCopier(){
   var md = document.getElementById('nl-apercu').textContent;
   if(!md) return;
-  navigator.clipboard.writeText(md).then(function(){ notif('Copie dans le presse-papier'); });
+  _copierPourSubstack(md, 'Copié (mise en forme conservée) — colle dans Substack');
 }
 function nlExporter(){
   var md = document.getElementById('nl-apercu').textContent;
@@ -17064,6 +17119,184 @@ function statsPreRemplirFormulaire(d){
   if(btn) btn.textContent = 'Mettre a jour';
 }
 
+// ===== VUES PAR ARTICLE (import PDF stats Substack) =====
+function _extraireTitreSubstack(texte){
+  var lignes = (texte||'').split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  var idxMeta = lignes.findIndex(function(l){ return /•.*Publié/i.test(l); });
+  if(idxMeta <= 0) return null;
+  return lignes.slice(0, idxMeta).join(' ').replace(/\s+/g,' ').trim();
+}
+function _extraireVuesSubstack(texte){
+  var lignes = (texte||'').split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  var idx = lignes.findIndex(function(l){ return /nombre total de vues/i.test(l); });
+  if(idx === -1) return null;
+  for(var i=idx+1; i<lignes.length && i<idx+3; i++){
+    var brut = lignes[i].replace(/[^\d]/g,'');
+    if(brut) return parseInt(brut,10);
+  }
+  return null;
+}
+function _pdfExtraireTexte(file, callback){
+  _sigChargerPdfJs(function(){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var typedArray = new Uint8Array(e.target.result);
+      pdfjsLib.getDocument({data:typedArray}).promise.then(function(pdf){
+        var pagePromises = [];
+        for(var p=1; p<=pdf.numPages; p++){
+          pagePromises.push(pdf.getPage(p).then(function(page){
+            return page.getTextContent().then(function(content){
+              var items = content.items.slice().sort(function(a,b){
+                var dy = b.transform[5]-a.transform[5];
+                if(Math.abs(dy) > 2) return dy;
+                return a.transform[4]-b.transform[4];
+              });
+              var lignes = [], ligneActuelle = [], yPrec = null;
+              items.forEach(function(it){
+                var y = it.transform[5];
+                if(yPrec !== null && Math.abs(y-yPrec) > 2){
+                  lignes.push(ligneActuelle.join(' '));
+                  ligneActuelle = [];
+                }
+                ligneActuelle.push(it.str);
+                yPrec = y;
+              });
+              if(ligneActuelle.length) lignes.push(ligneActuelle.join(' '));
+              return lignes.join('\n');
+            });
+          }));
+        }
+        Promise.all(pagePromises).then(function(pagesTexte){ callback(pagesTexte.join('\n')); });
+      }).catch(function(){ callback(null); });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function _statsSubstackRenderImport(container){
+  container.innerHTML = '';
+  var box = document.createElement('div');
+  box.className = 'stats-form';
+  box.style.marginTop = '1.2rem';
+  box.innerHTML = '<div class="stats-form-title">Vues par article (Substack)</div>'
+    + '<div class="stats-form-sub">Importe le PDF de la page Statistiques d\'un article Substack (onglet "Vue d\'ensemble") pour enregistrer son nombre de vues.</div>';
+
+  var btnImport = document.createElement('button');
+  btnImport.className = 'btn sec';
+  btnImport.style.marginBottom = '1rem';
+  btnImport.textContent = 'Importer un PDF';
+
+  var fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'application/pdf'; fileInput.style.display = 'none';
+  btnImport.onclick = function(){ fileInput.click(); };
+
+  var zonePreview = document.createElement('div');
+  zonePreview.id = 'stats-substack-preview';
+
+  fileInput.onchange = function(){
+    var file = fileInput.files[0];
+    if(!file) return;
+    zonePreview.innerHTML = osLoadingHtml();
+    _pdfExtraireTexte(file, function(texte){
+      if(!texte){ zonePreview.innerHTML = '<div style="color:var(--rouge);font-size:0.8rem;">Impossible de lire ce PDF.</div>'; return; }
+      var titreDetecte = _extraireTitreSubstack(texte);
+      var vuesDetectees = _extraireVuesSubstack(texte);
+      if(vuesDetectees === null){
+        zonePreview.innerHTML = '<div style="color:var(--rouge);font-size:0.8rem;">Nombre de vues introuvable dans ce PDF — vérifie que c\'est bien la page Statistiques (onglet "Vue d\'ensemble") d\'un article.</div>';
+        return;
+      }
+      _statsSubstackAfficherConfirmation(zonePreview, titreDetecte, vuesDetectees);
+    });
+    fileInput.value = '';
+  };
+
+  box.appendChild(btnImport);
+  box.appendChild(fileInput);
+  box.appendChild(zonePreview);
+  container.appendChild(box);
+
+  var listeBox = document.createElement('div');
+  listeBox.className = 'stats-form';
+  listeBox.style.marginTop = '1rem';
+  listeBox.innerHTML = '<div class="stats-form-title">Articles suivis</div>';
+  var listeZone = document.createElement('div');
+  listeZone.id = 'stats-substack-liste';
+  listeZone.innerHTML = osLoadingHtml();
+  listeBox.appendChild(listeZone);
+  container.appendChild(listeBox);
+  _statsSubstackChargerListe(listeZone);
+}
+
+function _statsSubstackAfficherConfirmation(zone, titreDetecte, vues){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?select=id,titre,vues_substack&order=updated_at.desc&limit=300',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(articles){
+    articles = (!articles||articles.code) ? [] : articles;
+    var meilleurId = '';
+    if(titreDetecte){
+      var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); };
+      var cible = norm(titreDetecte);
+      var trouve = articles.find(function(a){ return norm(a.titre) === cible; })
+        || articles.find(function(a){ var t=norm(a.titre); return t && (cible.indexOf(t)>=0 || t.indexOf(cible)>=0); });
+      if(trouve) meilleurId = trouve.id;
+    }
+    var h = '<div style="background:var(--gris-clair);border-radius:8px;padding:0.9rem 1rem;margin-top:0.6rem;">';
+    h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">Titre détecté</div>';
+    h += '<div style="font-size:0.85rem;font-weight:600;color:var(--encre);margin-bottom:0.6rem;">'+esc(titreDetecte||'(non détecté)')+'</div>';
+    h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">Vues détectées</div>';
+    h += '<div style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:var(--rouge);margin-bottom:0.8rem;">'+vues.toLocaleString('fr-FR')+'</div>';
+    h += '<label style="font-size:0.78rem;color:var(--gris);display:block;margin-bottom:0.3rem;">Article correspondant dans Compo</label>';
+    h += '<select id="stats-substack-select-article" style="width:100%;padding:0.5rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;margin-bottom:0.8rem;">';
+    h += '<option value="">— Choisir un article —</option>';
+    articles.forEach(function(a){
+      h += '<option value="'+a.id+'"'+(a.id===meilleurId?' selected':'')+'>'+esc(a.titre||'Sans titre')+(a.vues_substack!=null?' (actuellement '+a.vues_substack+' vues)':'')+'</option>';
+    });
+    h += '</select>';
+    h += '<button class="btn" id="stats-substack-confirmer">Enregistrer les vues</button>';
+    h += '</div>';
+    zone.innerHTML = h;
+    document.getElementById('stats-substack-confirmer').onclick = function(){
+      var articleId = document.getElementById('stats-substack-select-article').value;
+      if(!articleId){ notif('Choisis l\'article correspondant'); return; }
+      _statsSubstackEnregistrer(articleId, vues, zone);
+    };
+  }).catch(function(){ zone.innerHTML = '<div style="color:var(--rouge);font-size:0.8rem;">Erreur de chargement des articles.</div>'; });
+}
+
+function _statsSubstackEnregistrer(articleId, vues, zone){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId),{
+    method:'PATCH', headers:authH,
+    body:JSON.stringify({vues_substack:vues, vues_substack_maj:new Date().toISOString()})
+  }).then(function(r){
+    if(r.ok){
+      notif('Vues enregistrées ✓','succes');
+      zone.innerHTML = '';
+      var liste = document.getElementById('stats-substack-liste');
+      if(liste) _statsSubstackChargerListe(liste);
+    } else notif('Erreur enregistrement','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function _statsSubstackChargerListe(zone){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?vues_substack=not.is.null&select=id,titre,vues_substack,vues_substack_maj&order=vues_substack.desc&limit=50',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(articles){
+    articles = (!articles||articles.code) ? [] : articles;
+    if(!articles.length){ zone.innerHTML = '<div style="color:var(--gris);font-size:0.78rem;padding:0.5rem 0;">Aucun article suivi pour le moment.</div>'; return; }
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+    h += '<thead><tr style="text-align:left;color:var(--gris);font-size:0.6rem;text-transform:uppercase;"><th style="padding:0.3rem 0;">Article</th><th style="padding:0.3rem 0;text-align:right;">Vues</th><th style="padding:0.3rem 0;text-align:right;">Mis à jour</th></tr></thead><tbody>';
+    articles.forEach(function(a){
+      var maj = a.vues_substack_maj ? new Date(a.vues_substack_maj).toLocaleDateString('fr-FR') : '—';
+      h += '<tr style="border-top:1px solid var(--gris-bord);"><td style="padding:0.4rem 0;">'+esc(a.titre||'Sans titre')+'</td><td style="padding:0.4rem 0;text-align:right;font-weight:700;">'+a.vues_substack.toLocaleString('fr-FR')+'</td><td style="padding:0.4rem 0;text-align:right;color:var(--gris);">'+maj+'</td></tr>';
+    });
+    h += '</tbody></table>';
+    zone.innerHTML = h;
+  }).catch(function(){ zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;">Erreur.</div>'; });
+}
+
 function osStatsAdminRender(){
   var wc = document.getElementById('wincontent-stats-admin');
   if(!wc) return;
@@ -17212,6 +17445,10 @@ function osStatsAdminRender(){
     });
     form.appendChild(hist);
     wc.appendChild(form);
+
+    var substackContainer = document.createElement('div');
+    wc.appendChild(substackContainer);
+    _statsSubstackRenderImport(substackContainer);
 
     // Pre-remplir si mode edition
     if(_statsEditId){
@@ -17445,6 +17682,7 @@ function maOsMakeCard(doc, uid, role){
   var metaHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-bottom:.55rem;">'
     +(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
     +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
+    +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
     +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
     +age+'</div>';
 
@@ -22484,9 +22722,9 @@ function osRedacChargerMesArticles(zone){
   // Fetch articles — si plusieurs IDs, utiliser in.(...)
   var url;
   if(tousMesIds.length > 1){
-    url = SB_URL+'/rest/v1/articles?auteur_id=in.('+tousMesIds.join(',')+')'+'&select=id,titre,statut,updated_at&order=updated_at.desc';
+    url = SB_URL+'/rest/v1/articles?auteur_id=in.('+tousMesIds.join(',')+')'+'&select=id,titre,statut,updated_at,vues_substack&order=updated_at.desc';
   } else {
-    url = SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,updated_at&order=updated_at.desc';
+    url = SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,updated_at,vues_substack&order=updated_at.desc';
   }
   if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
 
@@ -22534,6 +22772,7 @@ function osRedacChargerMesArticles(zone){
       row.innerHTML=
         '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
         +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
+        +(a.vues_substack!=null?'<span title="Vues Substack" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 7px;background:#FDEBD0;color:#784212;border-radius:10px;flex-shrink:0;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+a.vues_substack.toLocaleString('fr-FR')+'</span>':'')
         +'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:'+sd.bg+';color:'+sd.c+';border-radius:10px;flex-shrink:0;">'+sd.l+'</span>';
       zone.appendChild(row);
     });
