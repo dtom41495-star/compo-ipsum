@@ -323,6 +323,13 @@ hr, [class*="-sep"]:not(.dock-sep) {
   --dock-h: 52px;
   --menubar-h: 28px;
 }
+/* Interrupteur générique (ex : abonnements par email) */
+.compo-toggle { position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0; cursor:pointer; }
+.compo-toggle input { position:absolute; opacity:0; width:0; height:0; }
+.compo-toggle .track { position:absolute; inset:0; background:var(--gris-bord); border-radius:20px; transition:background 0.15s; }
+.compo-toggle .thumb { position:absolute; top:2px; left:2px; width:18px; height:18px; background:white; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.25); transition:transform 0.15s; }
+.compo-toggle input:checked + .track { background:var(--rouge); }
+.compo-toggle input:checked ~ .thumb { transform:translateX(16px); }
 
 body {
   font-family: 'DM Sans', -apple-system, sans-serif;
@@ -839,22 +846,6 @@ body {
   filter: blur(2px);
   pointer-events: none;
 }
-/* Nom rédaction en filigrane, centré derrière la carte */
-.os-login-watermark {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  font-family: 'Poppins', sans-serif;
-  font-size: 11rem;
-  font-weight: 800;
-  color: rgba(255,255,255,0.035);
-  line-height: 1;
-  letter-spacing: -3px;
-  user-select: none;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 1;
-}
 /* Colonne centrale (logo + carte + stats) */
 .os-login-center {
   position: relative;
@@ -995,7 +986,6 @@ body {
 }
 @media (max-width: 700px) {
   #os-login { padding: 16px; }
-  .os-login-watermark { font-size: 6rem; }
   .os-login-card { padding: 1.5rem 1.3rem; }
 }
 
@@ -2507,21 +2497,10 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
     -ms-overflow-style: none !important;
   }
   #os-dock-inner::-webkit-scrollbar { display: none; }
-  /* La tray système est masquée sur mobile (recherche, horloge, plein écran...) SAUF le bouton
-     disponible/indispo — épinglé en haut à droite de l'écran pour rester accessible sans PC,
-     même par-dessus une app ouverte en plein écran. */
-  #os-taskbar-tray { position: static !important; }
-  #os-taskbar-tray > *:not(#os-dnd-btn) { display: none !important; }
-  #os-dnd-btn {
-    position: fixed !important;
-    top: calc(8px + env(safe-area-inset-top)) !important;
-    right: 8px !important;
-    z-index: 600 !important;
-    background: rgba(15,15,25,0.88) !important;
-    border-radius: 20px !important;
-    padding: 6px 12px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-  }
+  /* La tray système est masquée sur mobile (recherche, horloge, plein écran, dispo/indispo...) —
+     le bouton dispo/indispo reste accessible depuis le rail de Ma Rédac', pas besoin de le
+     dupliquer ici en position flottante (ça causait des soucis d'affichage sur mobile). */
+  #os-taskbar-tray { display: none !important; }
 
   .dock-icon-img {
     width: 38px !important;
@@ -3523,7 +3502,6 @@ input:focus,select:focus,textarea:focus{
 <div id="os-login">
 
   <canvas id="os-login-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
-  <div id="login-redac-label" class="os-login-watermark">TARN</div>
 
   <div class="os-login-center">
 
@@ -3545,7 +3523,7 @@ input:focus,select:focus,textarea:focus{
         </div>
         <div>
           <div style="font-family:'Poppins',sans-serif;font-size:.82rem;font-weight:700;color:#1A1A2E;line-height:1.1;">Compo OS</div>
-          <div style="font-size:.6rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Ipsum Média · Tarn</div>
+          <div style="font-size:.6rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Ipsum Média</div>
         </div>
       </div>
 
@@ -3583,22 +3561,10 @@ input:focus,select:focus,textarea:focus{
       <!-- Footer -->
       <div style="display:flex;align-items:center;gap:8px;margin-top:.9rem;width:100%;">
         <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
-        <span style="font-family:'DM Sans',sans-serif;font-size:.58rem;color:#D1D5DB;text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Tarn</span>
+        <span style="font-family:'DM Sans',sans-serif;font-size:.58rem;color:#D1D5DB;text-transform:uppercase;letter-spacing:.1em;">Ipsum Média</span>
         <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
       </div>
 
-    </div>
-
-    <!-- Stats -->
-    <div class="os-login-stats">
-      <div>
-        <div class="os-login-stat-n" id="login-stat-redacteurs">—</div>
-        <div class="os-login-stat-l">rédacteurs</div>
-      </div>
-      <div>
-        <div class="os-login-stat-n" id="login-stat-articles">—</div>
-        <div class="os-login-stat-l">articles publiés</div>
-      </div>
     </div>
 
   </div>
@@ -3887,9 +3853,9 @@ input:focus,select:focus,textarea:focus{
             <label>⏰ RSVP avant le</label>
             <input type="date" id="cps-date-reponse">
           </div>
-          <div class="form-group full" style="display:flex;align-items:center;gap:0.6rem;">
-            <input type="checkbox" id="cps-reponse-requise" style="width:16px;height:16px;accent-color:var(--rouge);">
+          <div class="form-group full" style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;">
             <label style="margin:0;font-size:0.85rem;">RSVP requis</label>
+            <label class="compo-toggle"><input type="checkbox" id="cps-reponse-requise"><span class="track"></span><span class="thumb"></span></label>
           </div>
         </div>
       </div>
@@ -10487,7 +10453,6 @@ function ssInit(){
 
 // Init (differe apres chargement DOM)
 document.addEventListener('DOMContentLoaded', function(){ try{ setType('article'); }catch(e){} });
-document.addEventListener('DOMContentLoaded', function(){ setTimeout(osChargerStatsLogin, 500); });
 
 
 
@@ -11190,22 +11155,10 @@ var _tresSearch      = '';
 var _tresFiltreType  = '';
 
 function _tresBuildUI(wc, txs, postes){
-  var now   = new Date();
   var annee = _tresFiltreAnnee;
 
-  // Filtrer par période
-  var txsFilt = txs.filter(function(t){
-    if(!t.date) return true;
-    var d = t.date.substring(0,4);
-    if(String(annee) !== d) return false;
-    if(_tresFiltreMois && t.date.substring(5,7) !== _tresFiltreMois) return false;
-    if(_tresSearch && !(t.description||'').toLowerCase().includes(_tresSearch.toLowerCase())
-       && !(t.type||'').toLowerCase().includes(_tresSearch.toLowerCase())) return false;
-    if(_tresFiltreType && t.type !== _tresFiltreType) return false;
-    return true;
-  });
-
-  // Calculs globaux (toutes années pour solde réel)
+  // Calculs globaux (toutes années pour solde réel) — pour l'en-tête uniquement,
+  // n'a pas besoin d'être recalculé quand on change simplement d'onglet.
   var txsChrono = txs.slice().sort(function(a,b){return a.date<b.date?-1:1;});
   var running = 0;
   txsChrono.forEach(function(t){ running+=(parseFloat(t.credit)||0)-(parseFloat(t.debit)||0); t._solde=Math.round(running*100)/100; });
@@ -11213,11 +11166,20 @@ function _tresBuildUI(wc, txs, postes){
   var txsAnF = txs.filter(function(t){return t.date&&t.date.substring(0,4)===String(annee);});
   var totalRec = txsAnF.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
   var totalDep = txsAnF.reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
-  var nonPointes = txsFilt.filter(function(t){return !t.pointe;}).length;
+  var txsFiltPourCompteur = txs.filter(function(t){
+    if(!t.date) return true;
+    if(String(annee) !== t.date.substring(0,4)) return false;
+    if(_tresFiltreMois && t.date.substring(5,7) !== _tresFiltreMois) return false;
+    if(_tresSearch && !(t.description||'').toLowerCase().includes(_tresSearch.toLowerCase())
+       && !(t.type||'').toLowerCase().includes(_tresSearch.toLowerCase())) return false;
+    if(_tresFiltreType && t.type !== _tresFiltreType) return false;
+    return true;
+  });
+  var nonPointes = txsFiltPourCompteur.filter(function(t){return !t.pointe;}).length;
 
   wc.innerHTML = '';
 
-  // ── HEADER ──
+  // ── HEADER ── (fixe : ne dépend pas de l'onglet actif)
   var hdr = document.createElement('div');
   hdr.style.cssText = 'flex-shrink:0;background:linear-gradient(135deg,#0F6E56,#085041);padding:1rem 1.4rem;';
   hdr.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">'
@@ -11237,24 +11199,58 @@ function _tresBuildUI(wc, txs, postes){
     }).join('')+'</div>';
   wc.appendChild(hdr);
 
-  // ── ONGLETS ──
+  // ── ONGLETS ── (fixe : cliquer un onglet ne reconstruit plus le header ni la barre elle-même)
   var tabBar = document.createElement('div');
+  tabBar.id = 'tres-tabbar';
   tabBar.style.cssText = 'display:flex;border-bottom:2px solid #E5E7EB;flex-shrink:0;background:white;overflow-x:auto;';
   var TABS = [['mouvements','📋 Mouvements'],['ajouter','+ Ajouter'],['budget','📐 Budget'],['rapport','🏛 Rapport AG'],['cloture','📅 Clôture'],['notes_frais','💸 Notes de frais'],['rapprochement','🏦 Rapprochement'],['cotisations','👥 Cotisations'],['bilan','🖨 Bilan PDF']];
   TABS.forEach(function(t){
     var btn = document.createElement('button');
     var a = _tresOnglet===t[0];
+    btn.dataset.onglet = t[0];
     btn.style.cssText = 'flex-shrink:0;padding:.6rem .8rem;border:none;background:transparent;font-size:.68rem;cursor:pointer;border-bottom:2.5px solid '+(a?'var(--rouge)':'transparent')+';color:'+(a?'var(--encre)':'var(--gris)')+';font-weight:'+(a?'700':'400')+';margin-bottom:-2px;white-space:nowrap;';
     btn.textContent = t[1];
-    btn.onclick = (function(id){ return function(){ _tresOnglet=id; _tresBuildUI(wc,window._tresorerieData,window._tresorerieBudget); }; })(t[0]);
+    btn.onclick = (function(id){ return function(){ _tresChangerOnglet(id); }; })(t[0]);
     tabBar.appendChild(btn);
   });
   wc.appendChild(tabBar);
 
-  // ── CONTENU ──
+  // ── CONTENU ── (seule partie reconstruite en changeant d'onglet)
   var body = document.createElement('div');
+  body.id = 'tres-body';
   body.style.cssText = 'flex:1;overflow-y:auto;min-height:0;';
   wc.appendChild(body);
+
+  _tresRenderOngletActuel();
+}
+
+function _tresChangerOnglet(id){
+  _tresOnglet = id;
+  document.querySelectorAll('#tres-tabbar button[data-onglet]').forEach(function(btn){
+    var actif = btn.dataset.onglet === id;
+    btn.style.borderBottomColor = actif ? 'var(--rouge)' : 'transparent';
+    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
+    btn.style.fontWeight = actif ? '700' : '400';
+  });
+  _tresRenderOngletActuel();
+}
+
+function _tresRenderOngletActuel(){
+  var body = document.getElementById('tres-body');
+  if(!body) return;
+  var txs = window._tresorerieData||[];
+  var postes = window._tresorerieBudget||[];
+  var annee = _tresFiltreAnnee;
+  var txsFilt = txs.filter(function(t){
+    if(!t.date) return true;
+    var d = t.date.substring(0,4);
+    if(String(annee) !== d) return false;
+    if(_tresFiltreMois && t.date.substring(5,7) !== _tresFiltreMois) return false;
+    if(_tresSearch && !(t.description||'').toLowerCase().includes(_tresSearch.toLowerCase())
+       && !(t.type||'').toLowerCase().includes(_tresSearch.toLowerCase())) return false;
+    if(_tresFiltreType && t.type !== _tresFiltreType) return false;
+    return true;
+  });
 
   if(_tresOnglet==='mouvements')      _tresRenderMouvements(body, txsFilt, txs, annee);
   else if(_tresOnglet==='ajouter')    _tresRenderFormulaire(body, null);
@@ -12760,14 +12756,6 @@ function osBuildDock(){
   osDNDMajUI();
   dock.style.paddingRight = (tray.offsetWidth + 24) + 'px';
 
-  // Sur mobile, le bouton dispo/indispo doit rester accessible sans passer par un PC.
-  // #os-dock-inner a un backdrop-filter qui crée un nouveau contexte de positionnement :
-  // un position:fixed resterait piégé à l'intérieur du dock au lieu d'être fixé à l'écran.
-  // On sort donc le bouton du dock pour l'épingler en haut à droite de l'écran.
-  var dndBtn = document.getElementById('os-dnd-btn');
-  if(dndBtn && window.innerWidth <= 768 && dndBtn.parentElement !== document.body){
-    document.body.appendChild(dndBtn);
-  }
 }
 
 // Horloge de la barre des tâches — un seul interval global
@@ -13823,30 +13811,6 @@ function osMakeDraggable(win, handle){
   document.addEventListener('mouseup', function(){
     dragging = false;
   });
-}
-
-function osChargerStatsLogin(){
-  // Nombre de membres actifs hors admins
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.admin&select=id',{headers:SB_HEADERS})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var el = document.getElementById('login-stat-redacteurs');
-    if(el && d && !d.code) el.textContent = d.length;
-  }).catch(function(){});
-  // Nombre d'articles publiés
-  fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&select=id',{headers:SB_HEADERS})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var el = document.getElementById('login-stat-articles');
-    if(el && d && !d.code) el.textContent = d.length;
-  }).catch(function(){});
-  // Nom de la rédaction principale
-  fetch(SB_URL+'/rest/v1/redactions?select=nom&order=created_at.asc&limit=1',{headers:SB_HEADERS})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var el = document.getElementById('login-redac-label');
-    if(el && d && !d.code && d.length) el.textContent = d[0].nom.toUpperCase();
-  }).catch(function(){});
 }
 
 function osStartStatusBar(){
@@ -15746,7 +15710,11 @@ function _tourEstChefOuAdmin(){
 
 var TOUR_ETAPES = [
   {
-    id: 'dispo', pageId: null, cible: '#os-dnd-btn',
+    id: 'dispo',
+    // Sur mobile, le bouton n'est plus dans la barre des tâches (retiré, source de bugs
+    // d'affichage) — il vit désormais dans le rail de Ma Rédac', donc on ouvre cette page-là.
+    pageId: function(){ return window.innerWidth <= 768 ? 'redactions' : null; },
+    cible: function(){ return window.innerWidth <= 768 ? '.dnd-toggle-btn[data-style="rail"]' : '#os-dnd-btn'; },
     titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
     texte: function(){
       var estCommunicant = _osComMembreIds([{id:'moi', fonction:getUserFonction()}]).length > 0;
@@ -17450,9 +17418,11 @@ function osMesArticlesRender(){
         +'border-bottom:2.5px solid '+(actif?'var(--rouge)':'transparent')+';margin-bottom:-2px;'
         +'color:'+(actif?'var(--encre)':'var(--gris)')+';font-weight:'+(actif?'700':'400')+';';
       btn.textContent = o.label;
-      btn.onclick = (function(id){ return function(){ _maOnglet=id; osMesArticlesRender(); }; })(o.id);
+      btn.dataset.onglet = o.id;
+      btn.onclick = (function(id){ return function(){ osMesArticlesChangerOnglet(id); }; })(o.id);
       l2.appendChild(btn);
     });
+    l2.id = 'ma-os-onglets';
     hdr.appendChild(l2);
   }
 
@@ -17478,6 +17448,19 @@ function osMesArticlesRender(){
   list.innerHTML = '<div style="text-align:center;padding:2rem;font-size:.78rem;color:var(--gris);">Chargement...</div>';
   wc.appendChild(list);
 
+  osMesArticlesCharger();
+}
+
+function osMesArticlesChangerOnglet(id){
+  // Ne touche que la liste et l'état actif des onglets — garde le champ recherche/tri
+  // intact (ne perd plus sa valeur/focus à chaque changement d'onglet).
+  _maOnglet = id;
+  document.querySelectorAll('#ma-os-onglets button[data-onglet]').forEach(function(btn){
+    var actif = btn.dataset.onglet === id;
+    btn.style.borderBottomColor = actif ? 'var(--rouge)' : 'transparent';
+    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
+    btn.style.fontWeight = actif ? '700' : '400';
+  });
   osMesArticlesCharger();
 }
 
@@ -18249,7 +18232,7 @@ function _sigRenderPageActuelle(){
         if(e.target !== canvas) return;
         var rect = wrap.getBoundingClientRect();
         var xPx = e.clientX - rect.left, yPx = e.clientY - rect.top;
-        var largeurPx = 160, hauteurPx = 60;
+        var largeurPx = 230, hauteurPx = 120;
         var m = (_sigMembresDispo||[]).find(function(mm){ return mm.id === _sigMembreActifPlacement; });
         _sigNouveauZones = _sigNouveauZones.filter(function(z){ return z.membre_id !== _sigMembreActifPlacement; });
         _sigNouveauZones.push({
@@ -18433,6 +18416,7 @@ function _sigRenderEcranSignature(screen){
     +'<div style="position:relative;" id="sig-view-page"><canvas id="sig-view-canvas" style="max-width:100%;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.15);"></canvas></div>'
     +'</div>'
     +'<div style="padding:0.9rem 1rem;background:white;border-top:1px solid var(--gris-bord);flex-shrink:0;">'
+    +'<input id="sig-mention-input" type="text" maxlength="60" placeholder="Mention (optionnel) — ex : Lu et approuvé" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.82rem;box-sizing:border-box;margin-bottom:0.6rem;">'
     +'<button onclick="_sigOuvrirPadSignature()" style="width:100%;padding:0.9rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;"><i class="ti ti-signature"></i> Signer le document</button>'
     +'</div>';
 
@@ -18523,10 +18507,12 @@ function _sigPadValider(){
   if(!window._sigPadADessine || !window._sigPadADessine()){ notif('Dessine ta signature avant de valider'); return; }
   var canvas = document.getElementById('sig-pad-canvas');
   var dataUrl = canvas.toDataURL('image/png');
+  var mentionInput = document.getElementById('sig-mention-input');
+  var mention = mentionInput ? mentionInput.value.trim() : '';
   notif('Enregistrement de ta signature...');
   fetch(SB_URL+'/rest/v1/signature_signataires?id=eq.'+_sigCourantSignataire.id, {
     method:'PATCH', headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
-    body: JSON.stringify({ statut:'signe', signature_data:dataUrl, signed_at:new Date().toISOString() })
+    body: JSON.stringify({ statut:'signe', signature_data:dataUrl, mention:mention||null, signed_at:new Date().toISOString() })
   }).then(function(r){
     if(!r.ok) throw new Error();
     var overlayPad = document.getElementById('sig-pad-overlay');
@@ -18567,30 +18553,68 @@ function _osGenererPdfFinal(documentId){
 
 function _sigAssemblerPdfFinal(doc, signataires){
   var PDFDocument = PDFLib.PDFDocument;
+  var StandardFonts = PDFLib.StandardFonts;
+  var rgb = PDFLib.rgb;
   fetch(doc.pdf_original_url).then(function(r){ return r.arrayBuffer(); })
   .then(function(pdfBytes){ return PDFDocument.load(pdfBytes); })
   .then(function(pdfDoc){
     var pages = pdfDoc.getPages();
-    var chaine = Promise.resolve();
-    signataires.forEach(function(s){
-      if(!s.signature_data) return;
-      chaine = chaine.then(function(){
-        var page = pages[s.page-1];
-        if(!page) return;
-        var base64 = s.signature_data.split(',')[1] || '';
-        var binaire = atob(base64);
-        var octets = new Uint8Array(binaire.length);
-        for(var i=0;i<binaire.length;i++) octets[i] = binaire.charCodeAt(i);
-        return pdfDoc.embedPng(octets).then(function(png){
-          var pw = page.getWidth(), ph = page.getHeight();
-          var w = s.largeur*pw, h = s.hauteur*ph;
-          var x = s.pos_x*pw;
-          var y = ph - (s.pos_y*ph) - h;
-          page.drawImage(png, {x:x, y:y, width:w, height:h});
+    return Promise.all([
+      pdfDoc.embedFont(StandardFonts.HelveticaBold),
+      pdfDoc.embedFont(StandardFonts.Helvetica)
+    ]).then(function(fonts){
+      var fontNom = fonts[0], fontMention = fonts[1];
+      var chaine = Promise.resolve();
+      signataires.forEach(function(s){
+        if(!s.signature_data) return;
+        chaine = chaine.then(function(){
+          var page = pages[s.page-1];
+          if(!page) return;
+          var base64 = s.signature_data.split(',')[1] || '';
+          var binaire = atob(base64);
+          var octets = new Uint8Array(binaire.length);
+          for(var i=0;i<binaire.length;i++) octets[i] = binaire.charCodeAt(i);
+          return pdfDoc.embedPng(octets).then(function(png){
+            var pw = page.getWidth(), ph = page.getHeight();
+            var boxW = s.largeur*pw, boxH = s.hauteur*ph;
+            var boxX = s.pos_x*pw;
+            var boxY = ph - (s.pos_y*ph) - boxH;
+
+            // Réserve le bas de la zone pour le nom (+ la mention libre si renseignée)
+            var nomTaille = Math.max(7, Math.min(10, boxH*0.13));
+            var mentionTaille = Math.max(6, Math.min(8.5, boxH*0.10));
+            var texteH = nomTaille + (s.mention ? mentionTaille + 3 : 0) + 6;
+            var imgAreaH = Math.max(boxH*0.4, boxH - texteH);
+
+            // La signature garde ses proportions d'origine (pas d'étirement qui la « compresse »)
+            var ratioImg = png.width / png.height;
+            var w = boxW, h = w / ratioImg;
+            if(h > imgAreaH){ h = imgAreaH; w = h * ratioImg; }
+            var imgX = boxX + (boxW - w) / 2;
+            var imgY = boxY + boxH - h;
+            page.drawImage(png, {x:imgX, y:imgY, width:w, height:h});
+
+            var nomTxt = s.nom || '';
+            var nomLargeur = fontNom.widthOfTextAtSize(nomTxt, nomTaille);
+            page.drawText(nomTxt, {
+              x: boxX + Math.max(0, (boxW - nomLargeur) / 2),
+              y: boxY + boxH - h - nomTaille - 2,
+              size: nomTaille, font: fontNom, color: rgb(0.1,0.1,0.18)
+            });
+
+            if(s.mention){
+              var mentionLargeur = fontMention.widthOfTextAtSize(s.mention, mentionTaille);
+              page.drawText(s.mention, {
+                x: boxX + Math.max(0, (boxW - mentionLargeur) / 2),
+                y: boxY + boxH - h - nomTaille - mentionTaille - 5,
+                size: mentionTaille, font: fontMention, color: rgb(0.4,0.4,0.45)
+              });
+            }
+          });
         });
       });
-    });
-    return chaine.then(function(){ return pdfDoc.save(); });
+      return chaine;
+    }).then(function(){ return pdfDoc.save(); });
   }).then(function(finalBytes){
     var path = 'documents/'+doc.id+'-final.pdf';
     return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
@@ -21390,8 +21414,19 @@ function osRedactionsChangerOnglet(onglet){
   var maRedacId = window._redacActiveId || (monLien ? monLien.redaction_id : null);
   var monRoleMedia = monLien ? monLien.role_redac : null;
 
-  // Render directement sans refaire les 8 fetch de osRedactionsRender
-  osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
+  // Ne reconstruit que la zone de contenu et l'état actif du rail — le rail lui-même
+  // (icônes, bouton dispo/indispo, bouton changer de rédaction) reste en place.
+  if(document.getElementById('redac-content-outer')){
+    document.querySelectorAll('#redac-sidebar-rail button[data-onglet]').forEach(function(btn){
+      var actif = btn.dataset.onglet === onglet;
+      btn.style.background = actif ? 'var(--rouge)' : 'transparent';
+      btn.style.color = actif ? 'white' : 'var(--encre)';
+    });
+    _osRedacRenderContenu(uid, maRedacId, monRoleMedia);
+  } else {
+    // Filet de sécurité si la structure du rail n'existe pas encore (premier rendu)
+    osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
+  }
 }
 
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
@@ -21399,26 +21434,34 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var h = '';
 
-  // Header profil
-  h += '<div style="background:var(--encre-fixe);border-radius:14px;padding:1rem 1.2rem;">';
+  // Header profil — teinté à la couleur de la rédaction active
+  var fondHeader = redac && couleurRedac
+    ? 'linear-gradient(135deg,'+couleurRedac+' 0%,var(--encre-fixe) 130%)'
+    : 'var(--encre-fixe)';
+  h += '<div style="background:'+fondHeader+';border-radius:14px;padding:1rem 1.2rem;">';
   h += '<div style="display:flex;align-items:center;gap:0.9rem;">';
   h += '<div style="position:relative;flex-shrink:0;">';
-  h += '<div style="width:46px;height:46px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:'+rc[1]+';">'+initiales+'</div>';
-  h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);"></span>';
+  h += '<div style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,0.16);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:white;">'+initiales+'</div>';
+  h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span>';
   h += '</div>';
   h += '<div style="flex:1;min-width:0;">';
   h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
-  if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.5);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
+  if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.62);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
   h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
-  h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-id-badge" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
-  h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.25);border-radius:7px;background:rgba(255,255,255,0.08);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
+  h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-id-badge" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
+  h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
   h += '</div>';
   h += '</div>';
-  h += '<div style="display:flex;gap:0.4rem;margin-top:8px;flex-wrap:wrap;">';
-  h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+'">'+(membre.role||'')+'</span>';
-  if(roleRedac === 'redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:#C0DD97;color:#27500A;">Rédac en chef</span>';
-  if(redac) h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:'+couleurRedac+'33;color:'+couleurRedac+';border:1px solid '+couleurRedac+'55;">'+esc(redac.nom)+'</span>';
+  h += '<div style="display:flex;gap:0.4rem;margin-top:10px;flex-wrap:wrap;align-items:center;">';
+  h += '<span title="Rôle global sur Compo" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.14);color:white;">'+(membre.role||'')+'</span>';
+  if(redac){
+    var estChefDeCetteRedac = roleRedac === 'redac_chef';
+    h += '<span title="Statut sur cette rédaction" style="font-family:Space Mono,monospace;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:10px;background:white;color:'+couleurRedac+';display:inline-flex;align-items:center;gap:4px;">'
+      +(estChefDeCetteRedac?'<i class="ti ti-crown" style="font-size:0.62rem;"></i>':'')
+      +esc(redac.nom)+(estChefDeCetteRedac?' · Chef':'')
+      +'</span>';
+  }
   h += '</div>';
   h += '</div>';
 
@@ -21497,12 +21540,17 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
 
 function osRedactionsMembre_OngletSujets(uid, roleRedac){
   var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
-  var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;margin-bottom:0.8rem;flex-wrap:wrap;">'
-    +'<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'
-    +'<input type="checkbox" id="sujets-notif-toggle" style="accent-color:var(--rouge);width:15px;height:15px;" onchange="osSujetsToggleNotif(this.checked)">'
-    +'M\'abonner aux nouveaux sujets par email</label>';
+  var h = '<div style="display:flex;align-items:stretch;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.8rem;">';
+  h += '<div style="flex:1;min-width:230px;display:flex;align-items:center;gap:0.7rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.6rem 0.8rem;">';
+  h += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
+  h += '<div style="flex:1;min-width:0;">';
+  h += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">Nouveaux sujets par email</div>';
+  h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">Reçois un email dès qu\'un sujet est proposé à l\'équipe</div>';
+  h += '</div>';
+  h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
+  h += '</div>';
   if(isChefOuAdmin){
-    h += '<button onclick="osOuvrirBriefingModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">+ Nouveau sujet</button>';
+    h += '<button onclick="osOuvrirBriefingModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;align-self:center;">+ Nouveau sujet</button>';
   }
   h += '</div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
@@ -21553,10 +21601,13 @@ function osRedacChargerSujets(zone, roleRedac){
         }
       } else {
         // Sujet libre — bouton Réserver
+        h += '<div style="display:flex;gap:0.4rem;align-items:center;">';
         h += '<button data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Réserver</button>';
         if(isChefOuAdmin){
+          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirAssignation(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid #1A5276;border-radius:4px;background:white;color:#1A5276;cursor:pointer;"><i class="ti ti-user-plus" style="vertical-align:-2px;margin-right:3px;"></i>Attribuer</button>';
           h += '<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
         }
+        h += '</div>';
       }
       h += '</div></div>';
     });
@@ -21720,7 +21771,7 @@ function _caleRendreVue(){
     var itemsDuJour = _caleItemsDuJour(d);
 
     var cell = document.createElement('div');
-    cell.style.cssText = 'min-height:78px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(itemsDuJour.length?'pointer':'default')+';';
+    cell.style.cssText = 'min-height:78px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:pointer;';
 
     var numEl = document.createElement('div');
     numEl.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
@@ -21740,9 +21791,7 @@ function _caleRendreVue(){
       cell.appendChild(more);
     }
 
-    if(itemsDuJour.length){
-      cell.onclick = (function(dateStr, items){ return function(){ _caleOuvrirJour(dateStr, items); }; })(_caleDateStr(_caleAnnee,_caleMois,d), itemsDuJour);
-    }
+    cell.onclick = (function(dateStr, items){ return function(){ _caleOuvrirJour(dateStr, items); }; })(_caleDateStr(_caleAnnee,_caleMois,d), itemsDuJour);
     cellGrid.appendChild(cell);
   }
 
@@ -21775,6 +21824,10 @@ function _caleOuvrirJour(dateStr, items){
     +'<button onclick="document.getElementById(\'cale-jour-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
     +'</div>';
 
+  if(!items.length){
+    h += '<div style="text-align:center;padding:1.2rem 0.5rem;color:var(--gris);font-size:0.78rem;">Rien de prévu ce jour-là.</div>';
+  }
+
   items.forEach(function(item){
     h += '<div style="border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 0.8rem;margin-bottom:0.5rem;">';
     if(item.type==='sujet'){
@@ -21783,7 +21836,7 @@ function _caleOuvrirJour(dateStr, items){
       h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.4rem;">Sujet · '+esc(s.statut||'')+(s.responsable?' · '+esc(s.responsable):'')+'</div>';
       if(estChefOuAdmin){
         h += '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">'
-          +'<input type="date" id="cale-date-sujet-'+s.id+'" value="'+(s.date_cible||'')+'" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
+          +'<input type="date" id="cale-date-sujet-'+s.id+'" value="'+(s.date_cible||'')+'" style="width:130px;flex-shrink:0;font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
           +'<button data-id="'+s.id+'" onclick="_caleReprogrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Déplacer</button>'
           +'<button data-id="'+s.id+'" onclick="_caleRetirerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Retirer</button>'
           +'</div>';
@@ -21803,7 +21856,7 @@ function _caleOuvrirJour(dateStr, items){
       if(estChefOuAdmin){
         h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
         if(p.statut!=='publie') h += '<button data-id="'+p.id+'" onclick="_calePostMarquerPublie(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:#155724;color:white;cursor:pointer;">Marquer publié</button>';
-        h += '<input type="date" id="cale-date-post-'+p.id+'" value="'+(p.date_prevue||'')+'" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
+        h += '<input type="date" id="cale-date-post-'+p.id+'" value="'+(p.date_prevue||'')+'" style="width:130px;flex-shrink:0;font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
           +'<button data-id="'+p.id+'" onclick="_calePostReplanifier(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Replanifier</button>'
           +'<button data-id="'+p.id+'" onclick="_calePostSupprimer(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Supprimer</button>';
         h += '</div>';
@@ -21900,8 +21953,8 @@ function _caleRendreSujetsAProgrammer(){
     h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.5rem;">Sujets à programmer ('+sujets.length+')</div>';
     sujets.forEach(function(s){
       h += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--gris-clair);">';
-      h += '<div style="flex:1;font-size:0.78rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(s.titre||'')+'</div>';
-      h += '<input type="date" id="cale-prog-'+s.id+'" style="font-size:0.7rem;padding:2px 5px;border:1px solid var(--gris-bord);border-radius:4px;">';
+      h += '<div style="flex:1;min-width:0;font-size:0.78rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(s.titre||'')+'</div>';
+      h += '<input type="date" id="cale-prog-'+s.id+'" style="width:130px;flex-shrink:0;font-size:0.7rem;padding:2px 5px;border:1px solid var(--gris-bord);border-radius:4px;">';
       h += '<button data-id="'+s.id+'" onclick="_caleProgrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;flex-shrink:0;">Programmer</button>';
       h += '</div>';
     });
@@ -22667,6 +22720,87 @@ function osSujetSupprimerDepuisRedac(sujetId){
   }).catch(function(){notif('Erreur réseau');});
 }
 
+// ── Attribuer un sujet à quelqu'un (chef/admin) — ex : une personne a contacté
+// la rédaction et veut écrire sur un sujet précis, pas besoin qu'elle le réserve elle-même
+var _sujetAssignMembres = [];
+
+function osSujetOuvrirAssignation(sujetId){
+  var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
+  if(!sujet) return;
+  var existing = document.getElementById('sujet-assign-overlay');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'sujet-assign-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:12px;max-width:380px;width:100%;max-height:78vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:1.2rem;';
+  modal.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">'
+    +'<div style="font-weight:700;font-size:0.85rem;color:var(--encre);">Attribuer « '+esc(sujet.titre||'')+' »</div>'
+    +'<button onclick="document.getElementById(\'sujet-assign-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.8rem;">Choisis à qui confier ce sujet — il apparaîtra directement chez cette personne comme « en cours », elle n\'a rien à réserver.</div>'
+    +'<div id="sujet-assign-liste">'+osLoadingHtml()+'</div>';
+  overlay.appendChild(modal);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+
+  var redacId = window._redacActiveId;
+  var ids = (window._membresRedactionsData||[]).filter(function(mr){ return mr.redaction_id===redacId; }).map(function(mr){ return mr.membre_id; });
+  var zone = document.getElementById('sujet-assign-liste');
+  if(!ids.length){ if(zone) zone.innerHTML = '<div style="text-align:center;color:var(--gris);font-size:0.78rem;padding:1rem;">Aucun membre dans cette rédaction.</div>'; return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&actif=eq.true&role=neq.interdit&select=id,prenom,nom,email&order=prenom.asc',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(membres){
+    membres = (!membres||membres.code) ? [] : membres;
+    _sujetAssignMembres = membres;
+    var z = document.getElementById('sujet-assign-liste');
+    if(!z) return;
+    if(!membres.length){ z.innerHTML = '<div style="text-align:center;color:var(--gris);font-size:0.78rem;padding:1rem;">Aucun membre disponible.</div>'; return; }
+    var h = '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+    membres.forEach(function(m){
+      h += '<button data-mid="'+m.id+'" onclick="osSujetAssigner(\''+sujetId+'\',this.dataset.mid)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:white;font-size:0.8rem;text-align:left;cursor:pointer;box-sizing:border-box;color:var(--encre);">'
+        +esc((m.prenom||'')+' '+(m.nom||''))
+        +'</button>';
+    });
+    h += '</div>';
+    z.innerHTML = h;
+  }).catch(function(){
+    var z = document.getElementById('sujet-assign-liste');
+    if(z) z.innerHTML = '<div style="text-align:center;color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement.</div>';
+  });
+}
+
+function osSujetAssigner(sujetId, membreId){
+  var m = (_sujetAssignMembres||[]).find(function(x){ return x.id===membreId; });
+  if(!m) return;
+  var nom = ((m.prenom||'')+' '+(m.nom||'')).trim();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
+    method:'PATCH', headers:authH,
+    body: JSON.stringify({statut:'en_cours', responsable:nom})
+  }).then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    notif('Sujet attribué à '+nom+' ✓','succes');
+    if(m.email){
+      var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
+      var titreSujet = sujet ? sujet.titre : '';
+      var html = '<div style="font-family:sans-serif;max-width:500px;">'
+        +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">📌 Un sujet t\'a été attribué</h2></div>'
+        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
+        +'<p>On t\'a confié le sujet <strong>'+esc(titreSujet||'')+'</strong> sur Compo.</p>'
+        +(sujet && sujet.note ? '<p style="color:#666;font-size:0.85rem;">'+esc(sujet.note)+'</p>' : '')
+        +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Ouvrir Compo</a>'
+        +'</div></div>';
+      envoyerEmailResend(m.email, '📌 Sujet attribué : '+(titreSujet||''), html, 'sujet-attribue');
+    }
+    var overlay = document.getElementById('sujet-assign-overlay');
+    if(overlay) overlay.remove();
+    osRedactionsChangerOnglet(_redacOnglet);
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   if(!redacId){ return '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune r\u00e9daction assign\u00e9e.</div>'; }
   var redac = _redactionsData.find(function(r){ return r.id === redacId; });
@@ -22802,25 +22936,41 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
 function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   var membre = _membresData.find(function(m){ return m.id === uid; });
   if(!membre){ wc.innerHTML='<div style="padding:2rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Profil introuvable.</div>'; return; }
-  var redac = redacId ? _redactionsData.find(function(r){ return r.id === redacId; }) : null;
-  var couleurRedac = redac ? (redac.couleur||'#EA5B1C') : '#EA5B1C';
-  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
-  var mesArticles = (window._mesArticlesPerso && window._mesArticlesPerso.length)
-    ? window._mesArticlesPerso
-    : _articlesRedacData.filter(function(a){ return a.auteur_id===uid; });
-  
-  var mesPublies = mesArticles.filter(function(a){ return a.statut==='publie'; });
-  var mesDuMois = mesArticles.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-  var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){ return i.membre_id===uid && new Date(i.created_at)>=debutMois; });
 
-  // Sidebar onglets + contenu
+  window._redacCtx = { uid:uid, redacId:redacId, roleRedac:roleRedac };
+
+  // Sidebar onglets + contenu — le rail est construit une seule fois ; changer d'onglet
+  // (osRedactionsChangerOnglet) ne touche plus qu'à la zone de contenu, pour éviter que
+  // tout le panneau (rail compris) ne clignote/disparaisse à chaque clic.
   var h = '<div style="display:flex;height:100%;overflow:hidden;">';
 
   // Sidebar — rail élargi (icône + libellé toujours visible)
   h += '<div id="redac-sidebar-rail" style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;">';
   // Bouton dispo/indispo — accessible ici en plus de la barre des tâches, plus pratique sur mobile
   h += '<button class="dnd-toggle-btn" data-style="rail" onclick="osToggleDND()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:transparent;color:var(--encre);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;margin-bottom:6px;"><span class="dnd-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#4CAF50;flex-shrink:0;"></span><span class="dnd-toggle-label">Disponible</span></button>';
+  var onglets = _osRedacOngletsListe();
+  onglets.forEach(function(o){
+    var actif = _redacOnglet === o.id;
+    h += '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+o.icon+'</span>'+o.label+o.badge+'</button>';
+  });
+  h += '<div style="flex:1;"></div>';
+  // Bouton changer de rédaction si multi-redac
+  var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
+  if(mesLiensSidebar.length > 1){
+    h += '<button onclick="window._redacActiveId=null;osRedactionsRender();" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--gris);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><i class="ti ti-refresh"></i> Changer de rédaction</button>';
+  }
+  h += '</div>';
+
+  // Zone contenu — reconstruite à chaque changement d'onglet, sans toucher au rail
+  h += '<div id="redac-content-outer" style="flex:1;position:relative;overflow:hidden;"></div>';
+  h += '</div>';
+  wc.innerHTML = h;
+  osDNDMajUI(); // synchronise l'état réel du bouton dispo/indispo qu'on vient d'ajouter au rail
+
+  _osRedacRenderContenu(uid, redacId, roleRedac, membre);
+}
+
+function _osRedacOngletsListe(){
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
@@ -22831,31 +22981,38 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     onglets.push({id:'admin', icon:'<i class="ti ti-settings"></i>', label:'Gestion rédactions'});
   }
   onglets.forEach(function(o){
-    var actif = _redacOnglet === o.id;
-    // Badge point rouge sur l'onglet Sujets si nouveaux sujets
-    var badge = '';
+    o.badge = '';
     if(o.id === 'sujets'){
       var sujetsData = window._sujetsData || [];
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
-      if(nouveaux.length){
-        badge = '<span style="width:7px;height:7px;border-radius:50%;background:#FF5F57;flex-shrink:0;margin-left:auto;"></span>';
-      }
+      if(nouveaux.length) o.badge = '<span style="width:7px;height:7px;border-radius:50%;background:#FF5F57;flex-shrink:0;margin-left:auto;"></span>';
     }
-    h += '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+o.icon+'</span>'+o.label+badge+'</button>';
   });
-  h += '<div style="flex:1;"></div>';
-  // Bouton changer de rédaction si multi-redac
-  var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
-  if(mesLiensSidebar.length > 1){
-    h += '<button onclick="window._redacActiveId=null;osRedactionsRender();" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--gris);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><i class="ti ti-refresh"></i> Changer de rédaction</button>';
-  }
-  h += '</div>';
+  return onglets;
+}
+
+function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
+  var outer = document.getElementById('redac-content-outer');
+  if(!outer) return;
+  membre = membre || _membresData.find(function(m){ return m.id === uid; });
+  if(!membre) return;
+
+  var redac = redacId ? _redactionsData.find(function(r){ return r.id === redacId; }) : null;
+  var couleurRedac = redac ? (redac.couleur||'#EA5B1C') : '#EA5B1C';
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var mesArticles = (window._mesArticlesPerso && window._mesArticlesPerso.length)
+    ? window._mesArticlesPerso
+    : _articlesRedacData.filter(function(a){ return a.auteur_id===uid; });
+
+  var mesPublies = mesArticles.filter(function(a){ return a.statut==='publie'; });
+  var mesDuMois = mesArticles.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
+  var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){ return i.membre_id===uid && new Date(i.created_at)>=debutMois; });
 
   // Zone contenu — fond sombre comme dans la maquette
-  h += '<div style="flex:1;position:relative;overflow:hidden;">';
-  h += '<div style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
+  var h = '<div style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
   // Bandeau beta
   h += '<div style="background:#FFF3CD;border:1px solid #FFEAA7;border-radius:8px;padding:0.6rem 0.9rem;display:flex;align-items:center;gap:0.6rem;">';
   h += '<span style="font-size:0.9rem;flex-shrink:0;color:#856404;"><i class="ti ti-alert-triangle"></i></span>';
@@ -22882,6 +23039,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
 
   h += '</div>';
   // Barre flottante façon barre des tâches — indique la section actuellement ouverte
+  var onglets = _osRedacOngletsListe();
   var ongletActif = onglets.find(function(o){ return o.id === _redacOnglet; });
   if(ongletActif){
     h += '<div style="position:absolute;left:14px;bottom:14px;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,0.14);pointer-events:none;">';
@@ -22889,9 +23047,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.72rem;color:var(--encre);">'+ongletActif.label+'</span>';
     h += '</div>';
   }
-  h += '</div></div>';
-  wc.innerHTML = h;
-  osDNDMajUI(); // synchronise l'état réel du bouton dispo/indispo qu'on vient d'ajouter au rail
+  outer.innerHTML = h;
 
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
@@ -23113,8 +23269,9 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
 
 function osAdminSelectRedac(redacId){
   _adminRedacSelectId = redacId;
-  // Utiliser le cache — pas de rechargement complet
-  var wc = document.getElementById('wincontent-redactions');
+  // Utiliser le cache — pas de rechargement complet, et ne toucher que la zone admin
+  // (pas #wincontent-redactions en entier, sinon ça efface le rail à gauche)
+  var wc = document.getElementById('redac-admin-zone');
   if(!wc) return;
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -23994,9 +24151,9 @@ function osTableauRender(){
       html += '</select>';
       html += '<input type="date" id="tableau-expire" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);border-radius:4px;" placeholder="Expire le...">';
       html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
-      html += '<input type="checkbox" id="tableau-epingle" style="accent-color:var(--rouge);">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.6rem;">';
       html += '<label for="tableau-epingle" style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--encre);">📌 Épingler cette annonce</label>';
+      html += '<label class="compo-toggle"><input type="checkbox" id="tableau-epingle"><span class="track"></span><span class="thumb"></span></label>';
       html += '</div>';
       html += '<textarea id="tableau-message" rows="2" placeholder="Ton message pour l\'équipe..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);font-family:DM Sans,sans-serif;font-size:0.88rem;resize:vertical;box-sizing:border-box;margin-bottom:0.6rem;border-radius:4px;"></textarea>';
       html += '<div style="display:flex;gap:0.5rem;">';
@@ -27228,8 +27385,8 @@ var AGENDA_TYPES = {
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
-var AGENDA_CIBLE_FONCTIONS = ['redac_chef','tresorier','responsable_com','com_externe','vie_asso'];
-var FONCTIONS_LBL = {redac_chef:'Rédac en chef',tresorier:'Trésorier',responsable_com:'Resp. com',com_externe:'Com externe',vie_asso:'Vie asso'};
+var AGENDA_CIBLE_FONCTIONS = ['tresorier','responsable_com','com_externe','vie_asso'];
+var FONCTIONS_LBL = {tresorier:'Trésorier',responsable_com:'Resp. com',com_externe:'Com externe',vie_asso:'Vie asso'};
 
 function osAgendaRender(){
   var wc = document.getElementById('wincontent-agenda');
@@ -27981,11 +28138,11 @@ function osAgendaOuvrirDetail(ev){
       iz += '<button onclick="osAgendaAjouterParticipant(\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;background:#1A5276;color:white;border:none;border-radius:6px;cursor:pointer;">+ Ajouter</button>';
       iz += '</div></div>';
       iz += '<div style="margin-top:0.8rem;padding:0.7rem;background:var(--gris-clair);border-radius:8px;">';
-      iz += '<label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;">'
-        +'<input type="checkbox" id="ag-notif-email" style="accent-color:var(--rouge);width:15px;height:15px;" checked>'
-        +'<div><div style="font-family:Space Mono,monospace;font-size:0.65rem;font-weight:600;">📧 Notifier les inscrits par email</div>'
+      iz += '<div style="display:flex;align-items:center;gap:0.6rem;">'
+        +'<div style="flex:1;"><div style="font-family:Space Mono,monospace;font-size:0.65rem;font-weight:600;">📧 Notifier les inscrits par email</div>'
         +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">Envoie un rappel avec les infos de l\'événement</div></div>'
-        +'</label>';
+        +'<label class="compo-toggle"><input type="checkbox" id="ag-notif-email" checked><span class="track"></span><span class="thumb"></span></label>'
+        +'</div>';
       iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\')" style="margin-top:0.5rem;font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;width:100%;">📨 Envoyer le rappel</button>';
       iz += '</div>';
     }
@@ -28828,8 +28985,9 @@ function osAgendaOuvrirFormulaire(ev){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
     +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Places max</label>'
     +'<input id="ag-places" type="number" min="1" value="'+(ev&&ev.places_max?ev.places_max:'')+'" placeholder="Illimité" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'<div style="display:flex;align-items:center;gap:0.5rem;padding-top:1.4rem;"><input type="checkbox" id="ag-validation"'+(ev&&ev.validation_admin?' checked':'')+' style="accent-color:var(--rouge);width:16px;height:16px;">'
-    +'<label for="ag-validation" style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--encre);cursor:pointer;">Validation admin</label></div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding-top:1.4rem;">'
+    +'<label for="ag-validation" style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--encre);cursor:pointer;">Validation admin</label>'
+    +'<label class="compo-toggle"><input type="checkbox" id="ag-validation"'+(ev&&ev.validation_admin?' checked':'')+'><span class="track"></span><span class="thumb"></span></label></div>'
     +'</div>'
 
     // Bouton
@@ -29044,7 +29202,11 @@ function osProjetsOuvrirProjet(projet){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = getUserId();
   var isAdmin = getUserRole()==='admin';
-  var isRedacChef = (function(){var d=window._benvData;if(!d)return false;var s=d.find(function(x){return x.membre.id===uid;});return s&&s.membre.fonction==='redac_chef';})();
+  var isRedacChef = (function(){
+    var redacId = projet.redaction_id || window._redacActiveId;
+    var lien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id===uid && mr.redaction_id===redacId; });
+    return !!(lien && lien.role_redac==='redac_chef');
+  })();
   var peutGerer = isAdmin || isRedacChef || projet.cree_par===uid;
 
   Promise.all([
@@ -29587,7 +29749,7 @@ var _tchapConvActive = null;
 var _tchapMembers = [];
 var _tchapPollInterval = null;
 var FONCTIONS_LABELS = {
-  redac_chef:'Rédac en chef', tresorier:'Trésorier·ère',
+  tresorier:'Trésorier·ère',
   communication:'Communication',
   responsable_com:'Resp. com', com_externe:'Com externe',
   com_interne:'Com interne', vie_asso:'Vie associative',
@@ -29595,7 +29757,6 @@ var FONCTIONS_LABELS = {
   vice_president:'Vice-président·e'
 };
 var FONCTIONS_LIST_GLOBAL = [
-  {id:'redac_chef',    label:'Rédacteur·rice en chef'},
   {id:'tresorier',     label:'Trésorier·ère'},
   {id:'communication', label:'Communication'},
   {id:'responsable_com',label:'Responsable communication'},
@@ -29633,7 +29794,7 @@ function fonctionLong(val){
   var arr = fonctionArray(val);
   if(!arr.length) return '';
   var LONG = {
-    redac_chef:'Rédacteur·rice en chef', tresorier:'Trésorier·ère',
+    tresorier:'Trésorier·ère',
     responsable_com:'Responsable communication', com_externe:'Communication externe',
     com_interne:'Communication interne', vie_asso:'Vie associative',
     secretaire:'Secrétaire', president:'Président·e',
