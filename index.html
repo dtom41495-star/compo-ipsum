@@ -3779,32 +3779,6 @@ input:focus,select:focus,textarea:focus{
 
 
 <!-- PAGE CPS LECTURE (tous) -->
-<div class="page" id="page-cps" style="padding:0;">
-  <div style="display:flex;height:100%;overflow:hidden;">
-    <!-- Rail — même DA que Ma Rédac' -->
-    <div style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;">
-      <button class="cps-rail-btn active" id="cps-tab-liste" onclick="cpsOnglet('liste',this)"><i class="ti ti-news"></i>Communiqués</button>
-      <button class="cps-rail-btn" id="cps-tab-abonnements" onclick="cpsOnglet('abonnements',this)"><i class="ti ti-bell"></i>Mes abonnements</button>
-    </div>
-
-    <!-- Contenu -->
-    <div style="flex:1;overflow-y:auto;padding:1.2rem 1.4rem;box-sizing:border-box;">
-      <!-- Vue liste -->
-      <div id="cps-view-liste">
-        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-          <button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button>
-        </div>
-        <div id="cps-liste"></div>
-      </div>
-
-      <!-- Vue abonnements -->
-      <div id="cps-view-abonnements" style="display:none;">
-        <div id="cps-abonnement-zone"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- PAGE CPS ADMIN -->
 <div class="page" id="page-cps-admin">
   <div class="panel-title">📰 Gestion des communiqués</div>
@@ -10441,7 +10415,6 @@ var DOCK_APPS = {
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
-    { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
   correcteur: [
@@ -10450,7 +10423,6 @@ var DOCK_APPS = {
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
-    { id:'cps', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
   admin: [
@@ -12569,7 +12541,6 @@ var _appRefreshMap = {
   'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
   'redactions':     function(){ osRedactionsRender(); },
   'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(wc) osMesArticlesRender(); },
-  'cps':            function(){ cpsCharger(); },
   'cps-admin':      function(){ cpsAdminCharger(); },
   'projets':        function(){ osProjetsChargerListe(); },
   'tchap':          function(){ tchapRender(); },
@@ -12779,7 +12750,7 @@ function _creerIconeDock(app, isPinned){
   icon.appendChild(label);
 
   // Badge notifications
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps','cps-admin','tchap','projets'];
+  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var badge = document.createElement('span');
     badge.className = 'desktop-icon-badge';
@@ -12978,6 +12949,18 @@ setInterval(function(){
   }).catch(function(){});
 }, 5 * 60 * 1000);
 
+// Les Communiqués sont intégrés dans le rail de Ma Rédac' (onglet 'cps') — plus d'app séparée.
+function osOuvrirCommuniques(filtreType){
+  if(filtreType) window._cpsFiltreActif = filtreType;
+  if(_windows['redactions']){
+    osFocusWindow('redactions');
+    osRedactionsChangerOnglet('cps');
+  } else {
+    _redacOnglet = 'cps';
+    osOpenWindow('redactions');
+  }
+}
+
 // ── Vérification périodique des nouveaux CPs ──
 var _cpLastVu = localStorage.getItem('compo_cp_last_vu') || new Date(0).toISOString();
 var _cpVusIds = (function(){ try{ return JSON.parse(localStorage.getItem('compo_cp_vus_ids')||'[]'); }catch(e){ return []; } })();
@@ -13003,10 +12986,9 @@ function osCheckNouveauxCPs(){
     notifPersistante(
       msg, 'info',
       'Voir les CPs',
-      function(){ osOpenWindow('cps'); },
+      function(){ osOuvrirCommuniques(); },
       '📨'
     );
-    osMajBadge('cps', nb);
     // Mémoriser tous les IDs vus
     data.forEach(function(cp){
       if(_cpVusIds.indexOf(cp.id) === -1) _cpVusIds.push(cp.id);
@@ -13066,6 +13048,9 @@ function osAfficherInterdit(){
 }
 
 function _osOpenWindowExecuter(pageId){
+  // On ouvre une fenêtre : annuler le rechargement auto programmé pour cause d'inactivité
+  _annulerMajBureauInactif();
+
   // Si fenêtre existe déjà, la mettre au premier plan
   if(_windows[pageId]){
     var win = _windows[pageId];
@@ -13085,7 +13070,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', cps:'📰 Communiqués de presse', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -13389,7 +13374,6 @@ function osLoadPageContent(pageId, winEl){
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'briefing') brfChargerDB();
-    if(pageId === 'cps') cpsCharger();
     if(pageId === 'cps-admin') cpsAdminCharger();
     if(pageId === 'boutique') osBoutiqueRender();
     if(pageId === 'tresorerie') osTresorerieRender();
@@ -13578,6 +13562,8 @@ function osCloseWindowForce(pageId){
   setTimeout(osVerifierDockVisibilite, 250);
   // Une nouvelle version attendait que la rédaction se termine pour être proposée
   if(pageId === 'redaction' && _compoVersionChangeeEnAttente) osVerifierNouvelleVersion();
+  // Bureau vide — si une mise à jour attend, programmer le rechargement auto après inactivité
+  _planifierMajBureauInactif();
 }
 
 function osFocusWindow(pageId){
@@ -13818,10 +13804,6 @@ function osBuildDesktopIcons(){
   if(role === 'admin'){
     allApps.push({ id:'log', icon:'<i class="ti ti-file-text"></i>', label:'Journal', color:'#2C3E50' });
   }
-  if(role === 'redacteur' || role === 'correcteur'){
-    allApps.push({ id:'cps', icon:'<i class="ti ti-news"></i>', label:'Communiqués', color:'#4A235A', forceBureau:true });
-  }
-  
   // N'afficher que celles qui ne sont PAS dans le dock, sauf forceBureau, et pas les legacy
   var toShow = allApps.filter(function(a){ return !a.legacy && (a.forceBureau || dockApps.indexOf(a.id) === -1); });
   
@@ -13928,7 +13910,7 @@ function osBuildDesktopIcons(){
     }
     
     // Badge notifications (ex: CPs non lus)
-    var BADGE_DESKTOP = ['cps','cps-admin','tickets'];
+    var BADGE_DESKTOP = ['cps-admin','tickets'];
     if(BADGE_DESKTOP.indexOf(app.id) !== -1){
       var notifBadge = document.createElement('span');
       notifBadge.className = 'desktop-icon-badge';
@@ -13962,21 +13944,6 @@ function osBuildDesktopIcons(){
   mailIcon.appendChild(mailImg);
   mailIcon.appendChild(mailLabel);
   container.appendChild(mailIcon);
-
-  // Raccourci Communiqués de presse
-  var cpIcon = document.createElement('div');
-  cpIcon.className = 'desktop-icon';
-  cpIcon.onclick = function(){ osOpenWindow('cps'); };
-  var cpImg = document.createElement('div');
-  cpImg.className = 'desktop-icon-img';
-  cpImg.style.color = 'var(--encre)';
-  cpImg.innerHTML = '<i class="ti ti-clipboard-list"></i>';
-  var cpLabel = document.createElement('div');
-  cpLabel.className = 'desktop-icon-label';
-  cpLabel.textContent = 'Communiqués';
-  cpIcon.appendChild(cpImg);
-  cpIcon.appendChild(cpLabel);
-  container.appendChild(cpIcon);
 }
 
 // Surcharger go() pour ouvrir les fenêtres
@@ -14156,7 +14123,7 @@ function _creerAppTuile(app, epingle){
     icon.appendChild(badgePin);
   }
 
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps','cps-admin','tchap','projets'];
+  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var smBadge = document.createElement('span');
     smBadge.style.cssText = 'position:absolute;top:-3px;left:2px;background:#FF5F57;color:white;border-radius:9px;font-size:0.5rem;font-weight:700;font-family:Space Mono,monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid rgba(0,0,0,0.3);display:none;z-index:2;';
@@ -15450,7 +15417,47 @@ function osVerifierNouvelleVersion(){
     _compoNouvelleVersionSignalee = true;
     _compoVersionChangeeEnAttente = false;
     notifPersistante('Une nouvelle version de Compo est disponible.', 'info', 'Recharger', function(){ location.reload(); }, '🔄');
+    // Si le bureau est déjà vide (personne n'a rouvert d'app depuis), programmer le rechargement auto
+    _planifierMajBureauInactif();
   });
+}
+
+// ===== RECHARGEMENT AUTO SI BUREAU INACTIF ET MISE À JOUR DISPONIBLE =====
+// N'agit que si une nouvelle version a déjà été détectée (osVerifierNouvelleVersion) —
+// jamais de rechargement "juste parce que" sans mise à jour réelle en attente.
+var _bureauInactifTimer = null;
+
+function _annulerMajBureauInactif(){
+  if(_bureauInactifTimer){ clearTimeout(_bureauInactifTimer); _bureauInactifTimer = null; }
+}
+
+function _planifierMajBureauInactif(){
+  _annulerMajBureauInactif();
+  if(!_compoNouvelleVersionSignalee) return;
+  if(Object.keys(_windows||{}).length > 0) return; // au moins une appli ouverte
+  _bureauInactifTimer = setTimeout(function(){
+    _bureauInactifTimer = null;
+    // Revérifier juste avant d'agir : une appli a pu s'ouvrir entre-temps
+    if(Object.keys(_windows||{}).length > 0) return;
+    _afficherAnimationMajEtRecharger();
+  }, 120000);
+}
+
+function _afficherAnimationMajEtRecharger(){
+  if(document.getElementById('compo-maj-auto-screen')) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'compo-maj-auto-screen';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999990;background:#FDFAF9;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s ease;';
+  overlay.innerHTML =
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
+    +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);">'
+    +'<i class="ti ti-refresh" style="font-size:1.5rem;color:white;animation:spin 1.1s linear infinite;"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:#1A1A2E;letter-spacing:-.02em;text-align:center;line-height:1.4;">Compo a été mis à jour<br>pendant ton absence</div>'
+    +'<div style="font-family:DM Sans,sans-serif;font-size:.72rem;color:#9CA3AF;">Rechargement en cours…</div>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.style.opacity = '1'; });
+  setTimeout(function(){ location.reload(); }, 10000);
 }
 
 function _dismissToast(toast){
@@ -15664,10 +15671,10 @@ var TOUR_ETAPES = [
   },
   {
     id: 'cps',
-    pageId: function(){ return _tourEstChefOuAdmin() ? 'cps-admin' : 'cps'; },
-    cible: function(){ return _tourEstChefOuAdmin() ? '#page-cps-admin .panel-title' : '#page-cps .panel-title'; },
+    pageId: function(){ return _tourEstChefOuAdmin() ? 'cps-admin' : 'redactions'; },
+    cible: function(){ return _tourEstChefOuAdmin() ? '#page-cps-admin .panel-title' : '#redac-cps-groupe'; },
     titre: '<i class="ti ti-speakerphone"></i> Communiqués de presse',
-    texte: 'Les communiqués reçus par Ipsum Média arrivent ici. Tu peux transformer un communiqué en sujet à rédiger, ou directement créer un article à partir de son contenu.'
+    texte: 'Les communiqués reçus par Ipsum Média arrivent ici, dans Ma Rédac\'. Tu peux transformer un communiqué en sujet à rédiger, ou directement créer un article à partir de son contenu.'
   },
   {
     id: 'redaction', pageId: 'redaction', cible: '#r-titre',
@@ -20139,18 +20146,6 @@ function cpsAdminSupprimer(id){
 }
 
 // --- ABONNEMENT ---
-function cpsOnglet(onglet, btn){
-  // Onglets
-  document.querySelectorAll('#page-cps .cps-rail-btn, #wincontent-cps .cps-rail-btn').forEach(function(b){ b.classList.remove('active'); });
-  if(btn) btn.classList.add('active');
-  // Vues
-  ['liste','abonnements'].forEach(function(v){
-    var el = document.getElementById('cps-view-'+v) || document.querySelector('[id="cps-view-'+v+'"]');
-    if(el) el.style.display = v === onglet ? 'block' : 'none';
-  });
-  if(onglet === 'abonnements') cpsAfficherAbonnement();
-}
-
 function cpsAfficherAbonnement(){
   var zone = osGetEl('cps-abonnement-zone') || document.getElementById('cps-abonnement-zone');
   if(!zone) return;
@@ -20730,7 +20725,6 @@ function osBenevolesDashRender(){
     ['brouillon','en-relecture','corrige','valide','publie'].forEach(function(s){var n=articles.filter(function(a){return a.statut===s;}).length;var sd=statDef[s];eh+='<div style="background:'+sd.bg+';color:'+sd.c+';font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\''+s+'\')">'+sd.l+' <strong>'+n+'</strong></div>';});
     eh+='<div style="background:var(--gris-clair);color:var(--gris);font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\'tous\')">Tous <strong>'+articles.length+'</strong></div>';
     eh+='</div>';
-    eh+='<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.7rem;font-weight:600;padding:0.4rem 0.9rem;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;">📨 Notifier les abonnés</button>';
     eh+='</div>';
     if(artBloques.length) eh+='<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.4rem;font-size:0.78rem;color:#A32D2D;">⚠️ '+artBloques.length+' article(s) bloqué(s) en correction depuis +5 jours</div>';
     if(artValides.length) eh+='<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;">✅ '+artValides.length+' article(s) validé(s) en attente de publication</div>';
@@ -21503,6 +21497,7 @@ function osRedacChargerRecrutement(zone, uid){
     fetch(SB_URL+'/rest/v1/recrutement_candidatures?membre_id=eq.'+uid+'&select=annonce_id,statut',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     var annonces = (!res[0]||res[0].code)?[]:res[0];
+    window._recrutementAnnonces = annonces; // pour le badge du rail Ma Rédac'
     var mesCandids = (!res[1]||res[1].code)?[]:res[1];
     var mesCandidsIds = mesCandids.map(function(c){return c.annonce_id;});
     var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
@@ -21661,6 +21656,19 @@ function osRedacCandidater(annonceId, annonceTitre){
 
   // Si on clique sur sujets, marquer tous les sujets comme vus
 
+// Le rail n'est reconstruit qu'une fois (voir osRedactionsChangerOnglet) — pour qu'un badge
+// apparaisse ou disparaisse sans attendre un re-rendu complet du rail, on le met à jour
+// directement dans le DOM du bouton concerné.
+function _osRedacMajBadgeRail(ongletId, count){
+  var btn = document.querySelector('#redac-sidebar-rail button[data-onglet="'+ongletId+'"]');
+  if(!btn) return;
+  var existant = btn.querySelector('.rail-badge');
+  if(!count){ if(existant) existant.remove(); return; }
+  var html = _railBadgeNombre(count);
+  if(existant) existant.outerHTML = html;
+  else btn.insertAdjacentHTML('beforeend', html);
+}
+
 function osRedactionsChangerOnglet(onglet){
   // Marquer les sujets comme vus si on quitte l'onglet sujets
   if(_redacOnglet === 'sujets'){
@@ -21670,6 +21678,18 @@ function osRedactionsChangerOnglet(onglet){
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
       localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
+      _osRedacMajBadgeRail('sujets', 0);
+    }catch(e){}
+  }
+  // Marquer les annonces de recrutement comme vues si on quitte l'onglet recrutement
+  if(_redacOnglet === 'recrutement'){
+    try{
+      var allIdsR = (window._recrutementAnnonces||[]).map(function(a){return a.id;});
+      var seenR2 = [];
+      try{ seenR2 = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+      var newSeenR = seenR2.concat(allIdsR.filter(function(id){ return seenR2.indexOf(id)===-1; }));
+      localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeenR));
+      _osRedacMajBadgeRail('recrutement', 0);
     }catch(e){}
   }
   _redacOnglet = onglet;
@@ -21828,6 +21848,9 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '</div>';
   if(isChefOuAdmin){
     h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;align-self:center;">+ Nouveau sujet</button>';
+  }
+  if(getUserRole()==='admin'){
+    h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:center;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
   }
   h += '</div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
@@ -23347,10 +23370,19 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   // Bouton dispo/indispo — accessible ici en plus de la barre des tâches, plus pratique sur mobile
   h += '<button class="dnd-toggle-btn" data-style="rail" onclick="osToggleDND()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:transparent;color:var(--encre);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;margin-bottom:6px;"><span class="dnd-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#4CAF50;flex-shrink:0;"></span><span class="dnd-toggle-label">Disponible</span></button>';
   var onglets = _osRedacOngletsListe();
-  onglets.forEach(function(o){
+  function boutonOnglet(o){
     var actif = _redacOnglet === o.id;
-    h += '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+o.icon+'</span>'+o.label+o.badge+'</button>';
+    return '<button data-onglet="'+o.id+'" onclick="osRedactionsChangerOnglet(this.dataset.onglet)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+o.icon+'</span>'+o.label+(o.badge||'')+'</button>';
+  }
+  onglets.forEach(function(o){
+    if(o.groupe) return; // rendus à part ci-dessous, dans leur propre encadré
+    h += boutonOnglet(o);
   });
+  // Communiqués — groupé à part dans un encadré blanc arrondi (au lieu du gris du rail),
+  // avec son sous-menu "Mes abonnements" juste en dessous.
+  h += '<div id="redac-cps-groupe" style="background:white;border-radius:10px;padding:4px;margin-top:4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">';
+  onglets.filter(function(o){ return o.groupe==='cps'; }).forEach(function(o){ h += boutonOnglet(o); });
+  h += '</div>';
   h += '<div style="flex:1;"></div>';
   // Bouton changer de rédaction si multi-redac
   var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
@@ -23368,12 +23400,22 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   _osRedacRenderContenu(uid, redacId, roleRedac, membre);
 }
 
+function _railBadgeNombre(n){
+  if(!n) return '';
+  return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#FF5F57;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
+}
+
 function _osRedacOngletsListe(){
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
     {id:'recrutement', icon:'<i class="ti ti-speakerphone"></i>', label:'Recrutement'},
-    {id:'redac',       icon:'<i class="ti ti-news"></i>', label:'Ma rédaction'}
+    {id:'redac',       icon:'<i class="ti ti-news"></i>', label:'Ma rédaction'},
+    // Communiqués + son sous-menu — rendus à part dans un encadré blanc (voir
+    // osRedactionsRenderAvecOnglets), mais listés ici aussi pour la barre flottante
+    // et le tour guidé, qui s'appuient tous les deux sur cette liste.
+    {id:'cps',             icon:'<i class="ti ti-news"></i>', label:'Communiqués', groupe:'cps'},
+    {id:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Mes abonnements', groupe:'cps'}
   ];
   if(getUserRole() === 'admin'){
     onglets.push({id:'admin', icon:'<i class="ti ti-settings"></i>', label:'Gestion rédactions'});
@@ -23385,7 +23427,14 @@ function _osRedacOngletsListe(){
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
-      if(nouveaux.length) o.badge = '<span style="width:7px;height:7px;border-radius:50%;background:#FF5F57;flex-shrink:0;margin-left:auto;"></span>';
+      o.badge = _railBadgeNombre(nouveaux.length);
+    }
+    if(o.id === 'recrutement'){
+      var annonces = window._recrutementAnnonces || [];
+      var seenR = [];
+      try{ seenR = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+      var nouvellesAnn = annonces.filter(function(a){ return a.statut==='ouvert' && seenR.indexOf(a.id) === -1; });
+      o.badge = _railBadgeNombre(nouvellesAnn.length);
     }
   });
   return onglets;
@@ -23427,6 +23476,11 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     h += osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre);
   } else if(_redacOnglet === 'admin'){
     h += '<div id="redac-admin-zone" style="min-height:200px;"></div>';
+  } else if(_redacOnglet === 'cps'){
+    h += '<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;"><button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button></div>';
+    h += '<div id="cps-liste">'+osLoadingHtml()+'</div>';
+  } else if(_redacOnglet === 'cps-abonnements'){
+    h += '<div id="cps-abonnement-zone">'+osLoadingHtml()+'</div>';
   }
 
   h += '</div>';
@@ -23461,6 +23515,21 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     if(zoneAlertes) osRedacChargerAlertes(zoneAlertes);
     var zoneAnnonces = document.getElementById('redac-annonces-zone');
     if(zoneAnnonces) osRedacChargerAnnonces(zoneAnnonces);
+    // Charger juste le nombre d'annonces de recrutement ouvertes non vues, pour le badge du rail
+    // (l'onglet Recrutement lui-même charge le détail complet quand on l'ouvre)
+    if(!window._recrutementAnnonces){
+      var authHRec = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+      fetch(SB_URL+'/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id,statut',{headers:authHRec})
+      .then(function(r){return r.json();})
+      .then(function(annonces){
+        if(!annonces||annonces.code) return;
+        window._recrutementAnnonces = annonces;
+        var seenR = [];
+        try{ seenR = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+        var nouvelles = annonces.filter(function(a){ return seenR.indexOf(a.id)===-1; });
+        _osRedacMajBadgeRail('recrutement', nouvelles.length);
+      }).catch(function(){});
+    }
   }
   if(_redacOnglet === 'recrutement'){
     var zoneRecrut = document.getElementById('redac-recrutement-zone');
@@ -23500,6 +23569,12 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   if(_redacOnglet === 'admin'){
     var zone = document.getElementById('redac-admin-zone');
     if(zone) osRedactionsRenderAdmin(zone, uid);
+  }
+  if(_redacOnglet === 'cps'){
+    cpsCharger();
+  }
+  if(_redacOnglet === 'cps-abonnements'){
+    cpsAfficherAbonnement();
   }
 }
 
@@ -25938,7 +26013,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'mes-articles',   icon:'<i class="ti ti-article"></i>', label:'Articles',       color:'#993C1D', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
-  { id:'cps',            icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
   { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
   { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
@@ -25970,8 +26044,8 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
-  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','cps','tutos','tchap','projets','boutique','mail','signatures'],
+  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
+  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures'],
   redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
   admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
 };
@@ -28331,13 +28405,9 @@ function osAgendaJourDetail(evs){
 }
 
 function osAgendaOuvrirDetail(ev){
-  // Événement virtuel = invitation presse → ouvrir dans l'appli CPs
+  // Événement virtuel = invitation presse → ouvrir Communiqués dans Ma Rédac'
   if(ev._virtuel && ev._cpId){
-    osOpenWindow('cps');
-    setTimeout(function(){
-      window._cpsFiltreActif = 'invitation_presse';
-      cpsCharger();
-    }, 400);
+    osOuvrirCommuniques('invitation_presse');
     return;
   }
   var uid = getUserId();
