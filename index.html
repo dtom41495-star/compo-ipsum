@@ -152,18 +152,25 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
 }
 
-/* Textarea rédaction — style plus généreux */
+/* Textarea rédaction — style plus généreux (mêmes grandes surfaces que r-titre :
+   un radius "sm" comme les petits champs y devient imperceptible vu leur hauteur). */
+#r-titre,
 #r-corps,
 #r-chapeau,
 #r-angle {
-  border-radius: var(--md-shape-md) !important;
+  border-radius: var(--md-shape-lg) !important;
   padding: 0.8rem 1rem !important;
   line-height: 1.65 !important;
   background: white !important;
   border-color: var(--md-outline-variant) !important;
 }
+#r-titre {
+  line-height: 1.3 !important;
+}
+#r-titre:focus,
 #r-corps:focus,
-#r-chapeau:focus {
+#r-chapeau:focus,
+#r-angle:focus {
   border-color: var(--md-primary) !important;
   box-shadow: 0 0 0 3px rgba(232,70,30,0.10) !important;
 }
@@ -2366,7 +2373,7 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .cp-pdf-embed{width:100%;height:500px;border:1px solid var(--gris-bord);margin-top:1rem;}
 
 /* FULLSCREEN */
-.fs-overlay{display:none;position:fixed;inset:0;background:var(--blanc);z-index:300;overflow-y:auto;padding:4rem 2rem;}
+.fs-overlay{display:none;position:fixed;inset:0;background:var(--blanc);z-index:999995;overflow-y:auto;padding:4rem 2rem;}
 .fs-overlay.open{display:block;}
 .fs-close{position:fixed;top:1rem;right:1.3rem;font-family:Arial,sans-serif;font-size:0.68rem;text-transform:uppercase;cursor:pointer;border:1.5px solid var(--encre);background:transparent;padding:0.35rem 0.85rem;}
 .fs-body{max-width:660px;margin:0 auto;font-size:1.03rem;line-height:2;}
@@ -2988,6 +2995,11 @@ input:focus,select:focus,textarea:focus{
 .ma-v2-btn-red:hover{background:#FEE2E2!important;}
 .ma-note-refuse{font-size:.72rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 10px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;}
 
+/* ── Filtres statut "Mes articles" (pilules) ── */
+.ma-os-ftab{font-family:'DM Sans',sans-serif;font-size:.68rem;font-weight:600;padding:5px 13px;border:1.5px solid #E5E7EB;border-radius:20px;background:white;color:var(--gris);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.ma-os-ftab:hover{border-color:var(--rouge);color:var(--rouge);}
+.ma-os-ftab.active{background:var(--rouge);border-color:var(--rouge);color:white;box-shadow:0 2px 8px rgba(232,70,30,.3);}
+
 /* ── Pipeline workflow ── */
 .ma-pipeline{display:flex;align-items:center;}
 .pip-step{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
@@ -3007,6 +3019,8 @@ input:focus,select:focus,textarea:focus{
 .pip-line-todo{background:#F3F4F6;}
 @keyframes pip-pulse{0%,100%{box-shadow:0 0 0 3px rgba(232,70,30,.2);}50%{box-shadow:0 0 0 6px rgba(232,70,30,.07);}}
 @keyframes pip-pulse-red{0%,100%{box-shadow:0 0 0 3px rgba(220,38,38,.2);}50%{box-shadow:0 0 0 6px rgba(220,38,38,.06);}}
+.pip-strie-fill{animation:pip-strie 1s linear infinite;}
+@keyframes pip-strie{from{background-position:0 0,0 0;}to{background-position:0 0,24px 0;}}
 @keyframes popIn{from{transform:scale(.88);opacity:0;}to{transform:scale(1);opacity:1;}}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes fadeOut{from{opacity:1;}to{opacity:0;}}
@@ -3998,7 +4012,7 @@ input:focus,select:focus,textarea:focus{
       <!-- Tags -->
       <div class="form-group" style="margin-bottom:1rem;">
         <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Mots-clés</label>
-        <div class="tags-wrap" id="tags-wrap" style="margin-top:0.4rem;"><input class="tag-input" id="tag-input" placeholder="Ajouter + Entrée" onkeydown="addTag(event)"></div>
+        <div class="tags-wrap" id="tags-wrap" style="margin-top:0.4rem;"><input type="text" class="tag-input" id="tag-input" placeholder="Ajouter + Entrée" onkeydown="addTag(event)"></div>
       </div>
 
       <!-- Sources -->
@@ -5169,7 +5183,7 @@ function renderCorrection(){
   (osGetEl('c-codeid')||document.getElementById('c-codeid')).innerHTML='<span class="code-id">'+doc.id+'</span>';
   (osGetEl('c-statbadge')||document.getElementById('c-statbadge')).innerHTML=bStat(doc.statut);
   (osGetEl('c-urgbadge')||document.getElementById('c-urgbadge')).innerHTML=doc.urgence?bUrg(doc.urgence):'';
-  (osGetEl('c-fraicheur')||document.getElementById('c-fraicheur')).innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le);
+  (osGetEl('c-fraicheur')||document.getElementById('c-fraicheur')).innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le, doc.statut);
   (osGetEl('c-auteur')||document.getElementById('c-auteur')).value=doc.auteur||'';
   (osGetEl('c-titre-orig')||document.getElementById('c-titre-orig')).textContent=doc.titre||'';
   (osGetEl('c-titre-new')||document.getElementById('c-titre-new')).value=doc.titre||'';
@@ -5541,7 +5555,7 @@ function renderLecture(){
   document.getElementById('l-codeid').innerHTML='<span class="code-id">'+doc.id+'</span>';
   document.getElementById('l-statbadge').innerHTML=bStat(doc.statut);
   document.getElementById('l-urgbadge').innerHTML=doc.urgence?bUrg(doc.urgence):'';
-  document.getElementById('l-fraicheur').innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le);
+  document.getElementById('l-fraicheur').innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le, doc.statut);
   let h='<div class="art-titre">'+esc(doc.titre)+'</div>';
   if(doc.chapeau)h+='<div class="art-chapeau">'+esc(doc.chapeau)+'</div>';
   if(doc.image)h+='<img class="art-img" src="'+doc.image+'" alt="'+(doc.image_legende||'')+'">'+(doc.image_legende?'<div style="font-family:\'Arial\',monospace;font-size:0.68rem;color:var(--gris);margin-bottom:1rem;">'+esc(doc.image_legende)+'</div>':'');
@@ -6040,14 +6054,19 @@ function escHtml(str){
 }
 
 
-function badgeFraicheur(dateStr){
+function badgeFraicheur(dateStr, statut){
   if(!dateStr) return '';
   var d = new Date(dateStr);
   var now = new Date();
   var heures = Math.floor((now - d) / 3600000);
   var jours = Math.floor(heures / 24);
   var txt, cls;
-  if(heures < 24){
+  // Une fois publié, l'ancienneté n'est plus un problème à surveiller —
+  // on affiche juste la date, sans l'alerte "vérifier la fraîcheur".
+  if(statut === 'publie'){
+    txt = heures < 24 ? (heures < 1 ? 'Publié il y a moins d\'une heure' : 'Publié il y a '+heures+'h') : 'Publié il y a '+jours+' jour'+(jours>1?'s':'');
+    cls = 'fraicheur-ok';
+  } else if(heures < 24){
     txt = heures < 1 ? 'Il y a moins d\'une heure' : 'Il y a '+heures+'h';
     cls = 'fraicheur-ok';
   } else if(jours <= 2){
@@ -7451,7 +7470,7 @@ function maFiltrerListe(){
     var s = doc.statut||'brouillon';
     var estMonArticle = (uid && doc.auteur_id===uid) || (!uid && doc.auteur===nom);
     var estCorrecteur = doc.correcteur_id && doc.correcteur_id===uid;
-    var age = badgeFraicheur(doc.updated_at||doc.created_at);
+    var age = badgeFraicheur(doc.updated_at||doc.created_at, s);
 
     var card = document.createElement('div');
     card.className = 'ma-card-v2';
@@ -17613,14 +17632,15 @@ function osMesArticlesRender(){
     +'<select id="ma-os-tri" onchange="maOsFiltre()" style="font-size:.68rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:20px;background:white;">'
     +'<option value="date_desc">Plus récent</option><option value="date_asc">Plus ancien</option><option value="titre_asc">Titre A→Z</option>'
     +'</select>'
-    +'<button onclick="osMesArticlesCharger()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>'
-    +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">+ Nouveau</button>';
+    +'<button onclick="osMesArticlesCharger()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>';
   hdr.appendChild(l1);
 
-  // Ligne 2 : onglets rôle (seulement si plusieurs onglets)
+  // Ligne 2 : onglets rôle (à gauche) + bouton Nouveau (aligné à droite, même ligne)
+  var l2 = document.createElement('div');
+  l2.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gris-bord);padding:0 1rem;';
+  var ongletsWrap = document.createElement('div');
+  ongletsWrap.style.cssText = 'display:flex;';
   if(onglets.length > 1){
-    var l2 = document.createElement('div');
-    l2.style.cssText = 'display:flex;border-bottom:2px solid var(--gris-bord);padding:0 1rem;';
     onglets.forEach(function(o){
       var btn = document.createElement('button');
       var actif = _maOnglet === o.id;
@@ -17630,11 +17650,17 @@ function osMesArticlesRender(){
       btn.textContent = o.label;
       btn.dataset.onglet = o.id;
       btn.onclick = (function(id){ return function(){ osMesArticlesChangerOnglet(id); }; })(o.id);
-      l2.appendChild(btn);
+      ongletsWrap.appendChild(btn);
     });
-    l2.id = 'ma-os-onglets';
-    hdr.appendChild(l2);
   }
+  l2.id = 'ma-os-onglets';
+  l2.appendChild(ongletsWrap);
+  var btnNouveau = document.createElement('button');
+  btnNouveau.textContent = '+ Nouveau';
+  btnNouveau.style.cssText = 'font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;margin:.35rem 0;';
+  btnNouveau.onclick = osOuvrirNouvelArticle;
+  l2.appendChild(btnNouveau);
+  hdr.appendChild(l2);
 
   // Ligne 3 : filtres statut
   var l3 = document.createElement('div');
@@ -17753,40 +17779,38 @@ function maOsMakeCard(doc, uid, role){
   var estRefuse     = s==='brouillon' && doc.note_interne;
 
   var card = document.createElement('div');
-  card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:12px;padding:.9rem 1rem;margin-bottom:.6rem;transition:box-shadow .15s,border-color .15s;';
+  card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:12px;padding:.9rem 1rem;margin-bottom:.6rem;transition:box-shadow .15s,border-color .15s;cursor:pointer;';
   card.onmouseover=function(){this.style.borderColor='rgba(232,70,30,.35)';this.style.boxShadow='0 3px 12px rgba(232,70,30,.08)';};
   card.onmouseout =function(){this.style.borderColor='#E5E7EB';this.style.boxShadow='';};
+  // Clic sur la carte (hors boutons d'action) = ouvrir l'article, en édition si
+  // l'auteur peut encore le modifier, sinon en lecture.
+  var actionParDefaut = (estAuteur && s==='brouillon') ? 'edition' : 'lecture';
+  card.onclick=function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
 
-  // ── PIPELINE ──
+  // ── PIPELINE (barre de progression striée) ──
   var ETAPES=[
-    {id:'brouillon',l:'Brouillon',icon:'✏️'},
-    {id:'en-relecture',l:'Relecture',icon:'🔍'},
-    {id:'corrige',l:'Corrigé',icon:'✅'},
-    {id:'valide',l:'Validé',icon:'⭐'},
-    {id:'publie',l:'Publié',icon:'📢'},
+    {id:'brouillon',l:'Brouillon',c1:'#F59E0B',c2:'#FCD34D'},
+    {id:'en-relecture',l:'En relecture',c1:'#2E86C1',c2:'#85C1E9'},
+    {id:'corrige',l:'Corrigé',c1:'#0C9C8D',c2:'#58D6C4'},
+    {id:'valide',l:'Validé',c1:'#E8461E',c2:'#F5B041'},
+    {id:'publie',l:'Publié',c1:'#059669',c2:'#34D399'},
   ];
   var idx=ETAPES.findIndex(function(e){return e.id===s;});
-  var pip='<div style="display:flex;align-items:center;margin-bottom:.6rem;">';
-  ETAPES.forEach(function(e,i){
-    var done=i<idx, cur=i===idx;
-    var isRefuse=estRefuse&&e.id==='brouillon';
-    var dotBg=isRefuse?'#DC2626':done?'#059669':cur?'var(--rouge)':'#F3F4F6';
-    var dotColor=done||cur||isRefuse?'white':'#D1D5DB';
-    var lblColor=isRefuse?'#DC2626':done?'#059669':cur?'var(--rouge)':'#D1D5DB';
-    var anim=cur&&!estRefuse?' animation:pip-pulse 1.6s ease-in-out infinite;':'';
-    var animRef=isRefuse?' animation:pip-pulse-red 1.2s ease-in-out infinite;':'';
-    pip+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">'
-      +'<div style="width:26px;height:26px;border-radius:50%;background:'+dotBg+';color:'+dotColor+';'
-      +'display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;'+anim+animRef+';">'
-      +(done?'✓':cur?e.icon:'·')+'</div>'
-      +'<div style="font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;font-weight:'+(cur?700:500)+';color:'+lblColor+';white-space:nowrap;">'+e.l+'</div>'
-      +'</div>';
-    if(i<ETAPES.length-1){
-      var lineBg=i<idx?'#059669':i===idx?'linear-gradient(90deg,#059669,var(--rouge))':'#F3F4F6';
-      pip+='<div style="flex:1;height:4px;border-radius:2px;margin:0 3px 14px;background:'+lineBg+';"></div>';
-    }
-  });
-  pip+='</div>';
+  if(idx<0) idx=0;
+  var etapeActuelle=ETAPES[idx];
+  var etapeSuivante=ETAPES[idx+1];
+  var pct=Math.round(((idx+1)/ETAPES.length)*100);
+  var gc1=estRefuse?'#DC2626':etapeActuelle.c1, gc2=estRefuse?'#F87171':etapeActuelle.c2;
+  var pip='<div style="margin-bottom:.65rem;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;background:linear-gradient(90deg,'+gc1+','+gc2+');-webkit-background-clip:text;background-clip:text;color:transparent;">'
+      +(estRefuse?'Refusé — à corriger':esc(etapeActuelle.l))+'</div>'
+    +(etapeSuivante
+        ?'<div style="font-size:.6rem;color:var(--gris);margin:1px 0 5px;">Prochaine étape : '+esc(etapeSuivante.l)+'</div>'
+        :'<div style="font-size:.6rem;color:#059669;margin:1px 0 5px;">🎉 Dernière étape</div>')
+    +'<div style="width:100%;height:8px;border-radius:5px;background:#EEF0F2;overflow:hidden;">'
+    +'<div class="pip-strie-fill" style="width:'+pct+'%;height:100%;border-radius:5px;background-image:linear-gradient(90deg,'+gc1+','+gc2+'),repeating-linear-gradient(135deg,rgba(255,255,255,.4) 0px,rgba(255,255,255,.4) 6px,transparent 6px,transparent 12px);background-size:100% 100%,24px 24px;"></div>'
+    +'</div>'
+    +'</div>';
 
   // Note refus
   var noteHtml='';
@@ -17795,7 +17819,7 @@ function maOsMakeCard(doc, uid, role){
   }
 
   // Titre + meta
-  var age=badgeFraicheur(doc.updated_at||doc.created_at);
+  var age=badgeFraicheur(doc.updated_at||doc.created_at, s);
   var titreHtml='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);margin-bottom:.2rem;">'+esc(doc.titre||'Sans titre')+'</div>';
   var metaHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-bottom:.55rem;">'
     +(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
