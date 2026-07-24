@@ -18179,6 +18179,14 @@ function osSubstackRender(){
     html += '<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">';
     if(!articles.length){
       html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Aucun article trouvé. Vérifie que le lien Substack de la rédaction est bien renseigné.</div>';
+      // Détail technique — évite de laisser l'admin deviner pourquoi ça échoue
+      // (lien mort, typo, domaine injoignable...) sans avoir à checker les logs Supabase.
+      if(data && data.error){
+        html += '<div style="max-width:420px;margin:0 auto;text-align:center;font-family:Space Mono,monospace;font-size:0.68rem;color:var(--rouge);background:rgba(232,70,30,0.06);border:1px solid rgba(232,70,30,0.2);border-radius:8px;padding:0.6rem 0.8rem;">'+esc(String(data.error))+'</div>';
+      }
+      if(redacInfo && redacInfo.lien_substack){
+        html += '<div style="max-width:420px;margin:0.5rem auto 0;text-align:center;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">Lien testé : '+esc(redacInfo.lien_substack)+'</div>';
+      }
     } else {
       articles.forEach(function(a){
         var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){}
@@ -21870,11 +21878,15 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '</div>';
   h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
   h += '</div>';
-  if(isChefOuAdmin){
-    h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;align-self:center;">+ Nouveau sujet</button>';
-  }
-  if(getUserRole()==='admin'){
-    h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:center;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
+  if(isChefOuAdmin || getUserRole()==='admin'){
+    h += '<div style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
+    if(isChefOuAdmin){
+      h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Nouveau sujet</button>';
+    }
+    if(getUserRole()==='admin'){
+      h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
+    }
+    h += '</div>';
   }
   h += '</div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
