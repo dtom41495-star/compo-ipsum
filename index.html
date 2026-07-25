@@ -7080,10 +7080,18 @@ var db = {
         payload.id = articleId;
         estUneCreation = true;
       }
-      return fetch(url, {method:method, headers:authHeaders, body:JSON.stringify(payload)});
+      return fetch(url, {method:method, headers:authHeaders, body:JSON.stringify(payload)}).then(function(r){
+        if(!r.ok) return r.json().then(function(e){ throw new Error(e.message||e.hint||('HTTP '+r.status)); });
+        return r.json();
+      });
     })
-    .then(function(r){ return r.json(); })
     .then(function(data){
+      // PostgREST renvoie 200 avec un tableau vide si le WHERE (id) ne matche
+      // aucune ligne visible pour ce rôle (RLS) — sans ça on croirait la sauvegarde
+      // réussie (et on enverrait la notif/email) alors que rien n'a été écrit.
+      if(!Array.isArray(data) || !data.length){
+        throw new Error('Aucune ligne mise à jour — vérifie les droits (RLS) ou que l\'article existe toujours.');
+      }
       if(estUneCreation && doc.historique && doc.historique.length){
         var derniere = doc.historique[doc.historique.length-1];
         return fetch(SB_URL+'/rest/v1/historique', {
@@ -8682,7 +8690,7 @@ function rWorkflowAvancer(nouveauStatut){
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide' && currentDoc.type !== 'breve') osNotifierComArticleValide(currentDoc);
-  }).catch(function(){ notif('Erreur lors de la sauvegarde','erreur'); });
+  }).catch(function(err){ notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur'); });
 }
 
 // Config partagée entre la popup affichée à l'acteur (en-relecture/refuse — c'est déjà lui
@@ -10541,6 +10549,9 @@ function osLancer(){
     // Popup "ton article a été corrigé/validé/publié" — montrée à l'auteur, pas à qui a fait l'action
     setTimeout(osVerifierNotifsAuteurArticles, 4000);
     setInterval(osVerifierNotifsAuteurArticles, 3*60*1000);
+    // Popup "tu as été marqué(e) inactif(ve)" — montrée au bénévole concerné
+    setTimeout(osVerifierNotifInactif, 4000);
+    setInterval(osVerifierNotifInactif, 3*60*1000);
     // Nouvelle version déployée — bandeau discret pour proposer de recharger
     setTimeout(osVerifierNouvelleVersion, 3000);
     setInterval(osVerifierNouvelleVersion, 5*60*1000);
@@ -24016,6 +24027,49 @@ function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
       notif('Erreur — as-tu bien ajouté la colonne marque_inactif dans Supabase ?', 'erreur');
     }
   }).catch(function(){ notif('Erreur réseau'); });
+}
+
+// Prévient le bénévole lui-même quand il est marqué inactif (peu importe qui a fait
+// l'action — admin, vie asso ou rédac chef) : vérifié au démarrage + périodiquement,
+// avec un état "vu" en localStorage pour ne montrer la popup qu'au vrai changement.
+function osVerifierNotifInactif(){
+  var uid = getUserId();
+  if(!uid || !_session) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=marque_inactif',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var m = rows && rows[0];
+    if(!m) return;
+    var etatActuel = m.marque_inactif ? 'inactif' : 'actif';
+    var etatVu = localStorage.getItem('compo_inactif_etat_vu_'+uid);
+    if(etatActuel === 'inactif' && etatVu !== 'inactif') _osAfficherPopupInactif();
+    localStorage.setItem('compo_inactif_etat_vu_'+uid, etatActuel);
+  })
+  .catch(function(){});
+}
+
+function _osAfficherPopupInactif(){
+  if(document.getElementById('popup-inactif-overlay')) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'popup-inactif-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;transform:scale(.92);animation:popIn .2s ease forwards;">'
+    +'<div style="background:#FCEBEB;padding:1.4rem 1.6rem;border-bottom:3px solid rgba(163,45,45,.2);">'
+    +'<div style="font-size:2rem;margin-bottom:.4rem;">⏸️</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.98rem;color:#A32D2D;">Tu as été marqué(e) inactif(ve)</div>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.6rem;">'
+    +'<div style="font-size:.82rem;color:#6B7280;line-height:1.6;">La rédaction t\'a placé(e) en "inactif" dans le suivi de l\'équipe. Si tu penses qu\'il s\'agit d\'une erreur, ou si tu veux reprendre du service, contacte la vie associative ou ton rédac chef.</div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.6rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;">'
+    +'<button id="popup-inactif-ok" style="padding:.5rem 1.4rem;background:#A32D2D;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">Compris</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('popup-inactif-ok').onclick = function(){
+    if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  };
 }
 
 // Prévient les membres taggés "vie associative" quand quelqu'un devient indisponible
