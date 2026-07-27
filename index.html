@@ -152,24 +152,47 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(232,70,30,0.12) !important;
 }
 
-/* Textarea rédaction — style plus généreux (mêmes grandes surfaces que r-titre :
-   un radius "sm" comme les petits champs y devient imperceptible vu leur hauteur). */
+/* Titre / chapeau / corps — surface d'écriture épurée façon Substack : pas de
+   cadre ni de fond, juste une typo soignée (angle éditorial, lui, reste un
+   champ classique puisqu'il vit dans le panneau Réglages, pas sur la page). */
 #r-titre,
 #r-corps,
-#r-chapeau,
-#r-angle {
-  border-radius: var(--md-shape-lg) !important;
-  padding: 0.8rem 1rem !important;
-  line-height: 1.65 !important;
-  background: white !important;
-  border-color: var(--md-outline-variant) !important;
+#r-chapeau {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 #r-titre {
-  line-height: 1.3 !important;
+  font-size: 1.9rem !important;
+  font-weight: 800 !important;
+  font-family: 'Poppins', sans-serif !important;
+  line-height: 1.25 !important;
+  color: var(--encre) !important;
+}
+#r-chapeau {
+  font-size: 1.05rem !important;
+  line-height: 1.5 !important;
+  color: var(--gris) !important;
+}
+#r-corps {
+  font-size: 1.02rem !important;
+  line-height: 1.85 !important;
 }
 #r-titre:focus,
 #r-corps:focus,
-#r-chapeau:focus,
+#r-chapeau:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Angle éditorial — dans le panneau Réglages, garde le style "champ classique" */
+#r-angle {
+  border-radius: var(--md-shape-lg) !important;
+  padding: 0.6rem 0.8rem !important;
+  background: white !important;
+  border-color: var(--md-outline-variant) !important;
+}
 #r-angle:focus {
   border-color: var(--md-primary) !important;
   box-shadow: 0 0 0 3px rgba(232,70,30,0.10) !important;
@@ -3891,39 +3914,18 @@ input:focus,select:focus,textarea:focus{
 <!-- RÉDACTION -->
 <div class="page" id="page-redaction" style="padding:0!important;max-width:none!important;margin:0!important;display:flex;flex-direction:column;min-height:100%;background:white;">
 
-  <!-- BARRE HAUTE fixe -->
-  <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:0.5rem 0.9rem;border-bottom:1px solid var(--gris-bord);background:white;flex-wrap:wrap;">
-    <div style="display:flex;border:1px solid var(--gris-bord);border-radius:6px;overflow:hidden;flex-shrink:0;">
-      <button class="toggle-btn active" id="tb-article" onclick="setType('article')" style="font-size:0.68rem;padding:4px 12px;border-radius:0;">Article</button>
-      <button class="toggle-btn" id="tb-breve" onclick="setType('breve')" style="font-size:0.68rem;padding:4px 12px;border-radius:0;">Brève</button>
-    </div>
-    <select id="r-auteur-select" style="font-size:0.72rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:6px;background:white;color:var(--encre);min-width:120px;display:none;"></select>
-    <input type="text" id="r-auteur" placeholder="Auteur *" style="display:none;">
-    <!-- Rédaction active — affichage + bouton changer -->
-    <div id="r-redaction-badge" style="display:flex;align-items:center;gap:4px;background:var(--gris-clair);border:1px solid var(--gris-bord);border-radius:6px;padding:3px 8px;font-size:0.68rem;color:var(--encre);cursor:default;">
-      <span style="font-size:0.65rem;"><i class="ti ti-news"></i></span>
-      <span id="r-redaction-nom">Rédaction...</span>
-      <button id="r-redaction-changer" onclick="rChangerRedaction()" style="display:none;font-size:0.55rem;padding:1px 5px;margin-left:2px;background:var(--rouge);color:white;border:none;border-radius:3px;cursor:pointer;" title="Changer de rédaction">Changer</button>
+  <!-- BARRE HAUTE fixe — allégée : le reste des réglages est dans le panneau latéral -->
+  <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0.6rem 1rem;border-bottom:1px solid var(--gris-bord);background:white;flex-wrap:wrap;">
+    <div style="display:flex;border:1px solid var(--gris-bord);border-radius:20px;overflow:hidden;flex-shrink:0;">
+      <button class="toggle-btn active" id="tb-article" onclick="setType('article')" style="font-size:0.68rem;padding:5px 14px;border-radius:0;">Article</button>
+      <button class="toggle-btn" id="tb-breve" onclick="setType('breve')" style="font-size:0.68rem;padding:5px 14px;border-radius:0;">Brève</button>
     </div>
     <!-- Input caché pour compatibilité buildDoc -->
     <input type="hidden" id="r-redaction" value="">
-    <select id="r-rubrique" style="font-size:0.72rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:6px;background:white;color:var(--encre);">
-      <option value="">Rubrique</option>
-      <option>Actu locale</option><option>Actu nationale</option><option>Reportage</option>
-      <option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option>
-    </select>
-    <div style="display:flex;border:1px solid var(--gris-bord);border-radius:6px;overflow:hidden;flex-shrink:0;">
-      <button class="urg-btn an" id="ub-normal" onclick="setUrg('normal')" style="font-size:0.62rem;padding:4px 9px;border:none;border-radius:0;">Normal</button>
-      <button class="urg-btn" id="ub-moyen" onclick="setUrg('moyen')" style="font-size:0.62rem;padding:4px 9px;border:none;border-left:1px solid var(--gris-bord);border-radius:0;">Moyen</button>
-      <button class="urg-btn" id="ub-urgent" onclick="setUrg('urgent')" style="font-size:0.62rem;padding:4px 9px;border:none;border-left:1px solid var(--gris-bord);border-radius:0;">Urgent</button>
-    </div>
     <div style="flex:1;"></div>
-    <div id="r-cp-badge" style="display:none;align-items:center;gap:4px;background:#EAF3DE;border:1px solid #C0DD97;border-radius:6px;padding:3px 8px;font-size:0.65rem;color:#27500A;">
-      <span><i class="ti ti-news"></i></span><span id="r-cp-badge-titre" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-      <button onclick="rArticleDetacherCpSource()" style="background:none;border:none;cursor:pointer;color:#27500A;padding:0;font-size:0.7rem;">✕</button>
-    </div>
-    <div id="r-statut-badge" style="display:none;font-size:0.62rem;padding:3px 10px;border-radius:20px;font-weight:600;"></div>
-    <button onclick="sauvegarderCloud()" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;flex-shrink:0;"><i class="ti ti-cloud-upload"></i> Sauvegarder</button>
+    <div id="r-statut-badge" style="display:none;font-size:0.62rem;padding:4px 12px;border-radius:20px;font-weight:600;"></div>
+    <button onclick="rOuvrirReglages()" title="Réglages de l'article" style="width:34px;height:34px;border:1px solid var(--gris-bord);border-radius:10px;background:white;cursor:pointer;color:var(--encre);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-adjustments-horizontal"></i></button>
+    <button onclick="sauvegarderCloud()" style="background:#E8461E;color:white;border:none;border-radius:20px;padding:7px 18px;font-size:0.72rem;font-weight:600;cursor:pointer;flex-shrink:0;"><i class="ti ti-cloud-upload"></i> Sauvegarder</button>
   </div>
 
   <!-- Commentaire correction -->
@@ -3932,13 +3934,58 @@ input:focus,select:focus,textarea:focus{
     <div id="r-commentaire-txt" style="font-size:0.8rem;color:#5a3e00;"></div>
   </div>
 
-  <!-- ZONE SCROLLABLE — tout le reste -->
-  <div style="flex:1;">
-    <div style="max-width:860px;width:100%;margin:0 auto;padding:1.5rem 2rem;box-sizing:border-box;">
+  <!-- Panneau latéral Réglages — rubrique, urgence, auteur, image, mots-clés, sources, date, angle -->
+  <div id="drawer-redac-reglages" style="display:none;position:fixed;top:0;right:0;height:100%;width:min(400px,90vw);background:var(--blanc);z-index:999200;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;border-left:1px solid var(--gris-bord);">
+    <div style="padding:1rem 1.3rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;background:var(--blanc);z-index:1;">
+      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);"><i class="ti ti-adjustments-horizontal"></i> Réglages de l'article</div>
+      <button onclick="rFermerReglages()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gris);line-height:1;">✕</button>
+    </div>
+    <div style="padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.2rem;">
 
-      <!-- CP source -->
-      <div id="r-cp-source-zone" style="margin-bottom:0.8rem;">
-        <div id="r-cp-source-affichage" style="display:none;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;align-items:center;gap:0.7rem;margin-bottom:0.5rem;">
+      <!-- Auteur -->
+      <select id="r-auteur-select" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;display:none;box-sizing:border-box;"></select>
+      <input type="text" id="r-auteur" placeholder="Auteur *" style="display:none;font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;box-sizing:border-box;">
+
+      <!-- Rédaction active — affichage + bouton changer -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rédaction</label>
+        <div id="r-redaction-badge" style="display:flex;align-items:center;gap:6px;background:var(--gris-clair);border:1px solid var(--gris-bord);border-radius:8px;padding:6px 10px;font-size:0.78rem;color:var(--encre);margin-top:0.35rem;">
+          <span style="font-size:0.75rem;"><i class="ti ti-news"></i></span>
+          <span id="r-redaction-nom" style="flex:1;">Rédaction...</span>
+          <button id="r-redaction-changer" onclick="rChangerRedaction()" style="display:none;font-size:0.6rem;padding:3px 8px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;" title="Changer de rédaction">Changer</button>
+        </div>
+      </div>
+
+      <!-- Rubrique -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rubrique</label>
+        <select id="r-rubrique" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;margin-top:0.35rem;box-sizing:border-box;">
+          <option value="">Rubrique</option>
+          <option>Actu locale</option><option>Actu nationale</option><option>Reportage</option>
+          <option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option>
+        </select>
+      </div>
+
+      <!-- Urgence -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Urgence</label>
+        <div style="display:flex;border:1px solid var(--gris-bord);border-radius:8px;overflow:hidden;margin-top:0.35rem;">
+          <button class="urg-btn an" id="ub-normal" onclick="setUrg('normal')" style="flex:1;font-size:0.68rem;padding:6px 9px;border:none;border-radius:0;">Normal</button>
+          <button class="urg-btn" id="ub-moyen" onclick="setUrg('moyen')" style="flex:1;font-size:0.68rem;padding:6px 9px;border:none;border-left:1px solid var(--gris-bord);border-radius:0;">Moyen</button>
+          <button class="urg-btn" id="ub-urgent" onclick="setUrg('urgent')" style="flex:1;font-size:0.68rem;padding:6px 9px;border:none;border-left:1px solid var(--gris-bord);border-radius:0;">Urgent</button>
+        </div>
+      </div>
+
+      <!-- Angle -->
+      <div class="form-group" id="rg-angle">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Angle éditorial</label>
+        <input type="text" id="r-angle" placeholder="Ton point de vue sur le sujet" spellcheck="true" lang="fr"
+          style="width:100%;font-size:0.82rem;font-family:'DM Sans',sans-serif;color:var(--encre);border:1px solid var(--gris-bord);border-radius:8px;padding:6px 10px;background:white;outline:none;margin-top:0.35rem;box-sizing:border-box;">
+      </div>
+
+      <!-- CP source lié -->
+      <div id="r-cp-source-zone">
+        <div id="r-cp-source-affichage" style="display:none;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;align-items:center;gap:0.7rem;">
           <span style="font-size:0.9rem;"><i class="ti ti-news"></i></span>
           <div style="flex:1;min-width:0;">
             <div id="r-cp-source-titre" style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
@@ -3949,27 +3996,79 @@ input:focus,select:focus,textarea:focus{
         </div>
       </div>
 
+      <!-- Image -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Image d'illustration</label>
+        <div class="upload-zone" onclick="document.getElementById('r-img').click()" style="padding:0.8rem;border-radius:8px;margin-top:0.35rem;">
+          <div style="font-size:1.2rem;"><i class="ti ti-photo"></i></div>
+          <p style="margin-top:4px;font-size:0.72rem;color:var(--gris);">Clique pour ajouter une image (JPG, PNG)</p>
+          <input type="file" id="r-img" accept="image/*" style="display:none" onchange="loadImg(event)">
+        </div>
+        <img id="r-img-prev" class="img-preview">
+        <button class="img-remove" id="r-img-rem" onclick="removeImg()">Supprimer l'image</button>
+        <input type="text" id="r-img-leg" placeholder="Légende de l'image" style="margin-top:0.4rem;display:none;font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;box-sizing:border-box;">
+      </div>
+
+      <!-- Tags -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Mots-clés</label>
+        <div class="tags-wrap" id="tags-wrap" style="margin-top:0.35rem;"><input type="text" class="tag-input" id="tag-input" placeholder="Ajouter + Entrée" onkeydown="addTag(event)"></div>
+      </div>
+
+      <!-- Sources -->
+      <div class="form-group" id="rg-sources">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
+        <div class="sources-list" id="sources-list" style="margin-top:0.35rem;">
+          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>
+        </div>
+        <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
+      </div>
+
+      <!-- Date -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Date de publication souhaitée</label>
+        <input type="date" id="r-datepub" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;margin-top:0.35rem;box-sizing:border-box;">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ZONE SCROLLABLE — surface d'écriture, épurée -->
+  <div style="flex:1;">
+    <div style="max-width:720px;width:100%;margin:0 auto;padding:2.5rem 2rem 1.5rem;box-sizing:border-box;">
+
+      <!-- Abandon sujet -->
+      <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;border-radius:8px;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.2rem;">
+        <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
+        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+          <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
+          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
+        </div>
+      </div>
+
+      <!-- Lien partage -->
+      <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;border-radius:8px;margin-bottom:1.2rem;">
+        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
+          <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
+        </div>
+      </div>
+
       <!-- Titre -->
-      <textarea id="r-titre" placeholder="Titre de l'article *" rows="1"
+      <textarea id="r-titre" placeholder="Titre de l'article" rows="1" spellcheck="true" lang="fr"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateStats();"
-        style="resize:none;overflow:hidden;width:100%;font-size:1.35rem;font-weight:700;font-family:'DM Sans',sans-serif;color:var(--encre);border:none;border-bottom:2px solid var(--gris-bord);border-radius:0;padding:0.3rem 0;background:transparent;line-height:1.3;outline:none;display:block;margin-bottom:0.8rem;"
-        onfocus="this.style.borderBottomColor='var(--rouge)'" onblur="this.style.borderBottomColor='var(--gris-bord)'"></textarea>
+        style="resize:none;overflow:hidden;width:100%;font-size:1.9rem;font-weight:800;font-family:'Poppins',sans-serif;color:var(--encre);border:none;border-radius:0;padding:0;background:transparent;line-height:1.25;outline:none;display:block;margin-bottom:0.6rem;letter-spacing:-0.01em;"></textarea>
 
       <!-- Chapeau -->
-      <textarea id="r-chapeau" placeholder="Introduction — accroche du lecteur" rows="2"
-        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"
-        style="resize:none;overflow:hidden;width:100%;font-size:0.92rem;font-family:'DM Sans',sans-serif;color:var(--gris);border:none;border-bottom:1px solid var(--gris-bord);border-radius:0;padding:0.2rem 0;background:transparent;outline:none;display:block;margin-bottom:0.8rem;"
-        onfocus="this.style.borderBottomColor='var(--encre)'" onblur="this.style.borderBottomColor='var(--gris-bord)'"></textarea>
-
-      <!-- Angle -->
-      <div id="rg-angle" style="margin-bottom:0.8rem;">
-        <input type="text" id="r-angle" placeholder="Angle éditorial — ton point de vue"
-          style="width:100%;font-size:0.82rem;font-family:'DM Sans',sans-serif;color:var(--gris);border:none;border-bottom:1px dashed var(--gris-bord);border-radius:0;padding:0.2rem 0;background:transparent;outline:none;"
-          onfocus="this.style.borderBottomColor='var(--encre)'" onblur="this.style.borderBottomColor='var(--gris-bord)'">
+      <div id="rg-chapeau" class="form-group">
+        <textarea id="r-chapeau" placeholder="Introduction — accroche du lecteur" rows="2" spellcheck="true" lang="fr"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"
+          style="resize:none;overflow:hidden;width:100%;font-size:1.05rem;font-family:'DM Sans',sans-serif;color:var(--gris);border:none;border-radius:0;padding:0;background:transparent;outline:none;display:block;margin-bottom:1.4rem;line-height:1.5;"></textarea>
       </div>
 
       <!-- Toolbar formatage -->
-      <div style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:0.6rem;flex-wrap:wrap;">
+      <div style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
         <button onclick="rFormat('bold')" title="Gras" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-weight:700;font-size:0.8rem;">B</button>
         <button onclick="rFormat('italic')" title="Italique" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-style:italic;font-size:0.8rem;">I</button>
         <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-quote"></i></button>
@@ -3985,66 +4084,14 @@ input:focus,select:focus,textarea:focus{
       </div>
 
       <!-- Corps -->
-      <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()"
-        style="width:100%;min-height:400px;font-size:0.95rem;font-family:'DM Sans',sans-serif;line-height:1.75;color:var(--encre);border:none;background:transparent;outline:none;resize:vertical;padding:0;display:block;margin-bottom:0.5rem;"></textarea>
-      <div id="r-corps-preview" style="display:none;width:100%;min-height:400px;font-size:0.95rem;font-family:'DM Sans',sans-serif;line-height:1.75;color:var(--encre);padding:0;margin-bottom:0.5rem;"></div>
+      <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()" spellcheck="true" lang="fr"
+        style="width:100%;min-height:440px;font-size:1.02rem;font-family:'DM Sans',sans-serif;line-height:1.85;color:var(--encre);border:none;background:transparent;outline:none;resize:vertical;padding:0;display:block;margin-bottom:0.5rem;"></textarea>
+      <div id="r-corps-preview" style="display:none;width:100%;min-height:440px;font-size:1.02rem;font-family:'DM Sans',sans-serif;line-height:1.85;color:var(--encre);padding:0;margin-bottom:0.5rem;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-top:1px solid var(--gris-bord);margin-bottom:1.2rem;">
         <div class="stats-bar" id="stats-bar" style="margin:0;"></div>
         <div style="display:flex;align-items:center;gap:6px;">
           <div style="width:60px;height:4px;background:var(--gris-bord);border-radius:2px;"><div class="lisib-fill" id="lisib-fill" style="height:4px;border-radius:2px;width:0%;background:var(--gris);"></div></div>
           <div class="lisib-label" id="lisib-label" style="font-size:0.58rem;color:var(--gris);white-space:nowrap;">Lisibilité —</div>
-        </div>
-      </div>
-
-      <!-- Image -->
-      <div class="form-group" style="margin-bottom:1rem;">
-        <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Image d'illustration</label>
-        <div class="upload-zone" onclick="document.getElementById('r-img').click()" style="padding:0.8rem;border-radius:8px;margin-top:0.4rem;">
-          <div style="font-size:1.2rem;"><i class="ti ti-photo"></i></div>
-          <p style="margin-top:4px;font-size:0.72rem;color:var(--gris);">Clique pour ajouter une image (JPG, PNG)</p>
-          <input type="file" id="r-img" accept="image/*" style="display:none" onchange="loadImg(event)">
-        </div>
-        <img id="r-img-prev" class="img-preview">
-        <button class="img-remove" id="r-img-rem" onclick="removeImg()">Supprimer l'image</button>
-        <input type="text" id="r-img-leg" placeholder="Légende de l'image" style="margin-top:0.4rem;display:none;font-size:0.82rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:6px;width:100%;">
-      </div>
-
-      <!-- Tags -->
-      <div class="form-group" style="margin-bottom:1rem;">
-        <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Mots-clés</label>
-        <div class="tags-wrap" id="tags-wrap" style="margin-top:0.4rem;"><input type="text" class="tag-input" id="tag-input" placeholder="Ajouter + Entrée" onkeydown="addTag(event)"></div>
-      </div>
-
-      <!-- Sources -->
-      <div class="form-group" id="rg-sources" style="margin-bottom:1rem;">
-        <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
-        <div class="sources-list" id="sources-list" style="margin-top:0.4rem;">
-          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>
-        </div>
-        <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
-      </div>
-
-      <!-- Date -->
-      <div class="form-group" style="margin-bottom:1rem;">
-        <label style="font-size:0.7rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Date de publication souhaitée</label>
-        <input type="date" id="r-datepub" style="font-size:0.82rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:6px;width:180px;margin-top:0.4rem;">
-      </div>
-
-      <!-- Abandon sujet -->
-      <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;border-radius:8px;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-        <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
-        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
-          <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
-          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
-        </div>
-      </div>
-
-      <!-- Lien partage -->
-      <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;border-radius:8px;margin-bottom:1rem;">
-        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-          <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
-          <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
         </div>
       </div>
 
@@ -4811,6 +4858,16 @@ function setType(t){
 function setUrg(v){
   currentUrg=v;
   ['normal','moyen','urgent'].forEach(u=>document.getElementById('ub-'+u).className='urg-btn'+(u===v?' '+(u==='normal'?'an':u==='moyen'?'am':'au'):''));
+}
+
+// ===== PANNEAU RÉGLAGES (rubrique, urgence, auteur, image, mots-clés, sources, date, angle) =====
+function rOuvrirReglages(){
+  var d = document.getElementById('drawer-redac-reglages');
+  if(d) d.style.display = 'flex';
+}
+function rFermerReglages(){
+  var d = document.getElementById('drawer-redac-reglages');
+  if(d) d.style.display = 'none';
 }
 
 // ===== STATS =====
@@ -8772,24 +8829,29 @@ function osVerifierNotifsAuteurArticles(){
   var uid = getUserId();
   if(!uid || !_session) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  var cleStockage = 'compo_notifs_statut_vus_'+uid;
   fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(corrige,valide,publie)&select=id,titre,statut,corps,rubrique,updated_at',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(articles){
     if(!articles || articles.code || !articles.length) return;
+    // Tout premier lancement sur ce navigateur (clé jamais créée) — ne pas rejouer
+    // tout l'historique en rafale (ex: 73 articles publiés = 73 popups à la suite).
+    // On se contente de mémoriser l'état actuel comme "déjà vu", silencieusement.
+    var premiereFois = localStorage.getItem(cleStockage) === null;
     var vus = [];
-    try{ vus = JSON.parse(localStorage.getItem('compo_notifs_statut_vus_'+uid)||'[]'); }catch(e){}
+    try{ vus = JSON.parse(localStorage.getItem(cleStockage)||'[]'); }catch(e){}
     var nouveaux = [];
     articles.forEach(function(a){
       var cle = a.id+'|'+a.statut;
       if(vus.indexOf(cle) === -1){
-        nouveaux.push(a);
+        if(!premiereFois) nouveaux.push(a);
         vus.push(cle);
       }
     });
-    if(!nouveaux.length) return;
     // On ne garde qu'un historique raisonnable pour ne pas faire grossir le localStorage indéfiniment
     if(vus.length > 500) vus = vus.slice(vus.length-500);
-    localStorage.setItem('compo_notifs_statut_vus_'+uid, JSON.stringify(vus));
+    localStorage.setItem(cleStockage, JSON.stringify(vus));
+    if(!nouveaux.length) return;
     nouveaux.forEach(function(a){
       _fileNotifsAuteur.push({ doc:a, statut:a.statut });
     });
@@ -12998,6 +13060,9 @@ var _cpVusIds = (function(){ try{ return JSON.parse(localStorage.getItem('compo_
 function osCheckNouveauxCPs(){
   if(!_session || !getUserId()) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Tout premier lancement sur ce navigateur (clé jamais créée) — ne pas notifier
+  // tous les CPs déjà publiés d'un coup, juste mémoriser l'état actuel comme "déjà vu".
+  var premiereFois = localStorage.getItem('compo_cp_vus_ids') === null;
   // Récupérer les 20 derniers CPs publiés
   fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,organisation,created_at&limit=20',{headers:authH})
   .then(function(r){return r.json();})
@@ -13008,17 +13073,19 @@ function osCheckNouveauxCPs(){
       return _cpVusIds.indexOf(cp.id) === -1;
     });
     if(!nouveaux.length) return;
-    var nb = nouveaux.length;
-    var titre = nouveaux[0].titre || nouveaux[0].organisation || 'Nouveau communiqué';
-    var msg = nb > 1
-      ? nb + ' nouveaux communiqués de presse disponibles'
-      : '📰 ' + titre;
-    notifPersistante(
-      msg, 'info',
-      'Voir les CPs',
-      function(){ osOuvrirCommuniques(); },
-      '📨'
-    );
+    if(!premiereFois){
+      var nb = nouveaux.length;
+      var titre = nouveaux[0].titre || nouveaux[0].organisation || 'Nouveau communiqué';
+      var msg = nb > 1
+        ? nb + ' nouveaux communiqués de presse disponibles'
+        : '📰 ' + titre;
+      notifPersistante(
+        msg, 'info',
+        'Voir les CPs',
+        function(){ osOuvrirCommuniques(); },
+        '📨'
+      );
+    }
     // Mémoriser tous les IDs vus
     data.forEach(function(cp){
       if(_cpVusIds.indexOf(cp.id) === -1) _cpVusIds.push(cp.id);
