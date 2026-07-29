@@ -29731,6 +29731,16 @@ var PROJETS_PRIOS = {
 
 
 var PROJETS_EXTERNAL_URL = 'http://iprojets.ipsummedia.fr/';
+var PROJETS_ORIGIN = (function(){ try{ return new URL(PROJETS_EXTERNAL_URL).origin; }catch(e){ return PROJETS_EXTERNAL_URL; } })();
+
+// SSO vers l'iframe Ipsum Projets : l'iframe signale qu'elle est prête,
+// Compo lui transmet la session en cours pour éviter un 2e login.
+window.addEventListener('message', function(e){
+  if(e.origin !== PROJETS_ORIGIN) return;
+  if(e.data && e.data.type === 'ipsum-projets-ready' && _session){
+    e.source.postMessage({type:'compo-session', session:_session}, PROJETS_ORIGIN);
+  }
+});
 
 function osProjetsRender(){
   var wc = document.getElementById('wincontent-projets');
