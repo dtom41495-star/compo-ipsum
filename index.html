@@ -19311,16 +19311,24 @@ function cpsInvitationRetirerDisponibilite(dispId, cpId){
   .then(function(r){
     if(r.ok){
       notif('Disponibilité retirée','succes');
-      var ex = document.getElementById('cp-fenetre-overlay');
-      if(ex) document.body.removeChild(ex);
-      // Recharger le CP depuis la base pour rouvrir la fiche
+      // Recharger le CP depuis la base et rafraîchir la fiche en place — avant,
+      // ça référençait un id ('cp-fenetre-overlay') jamais créé (les fiches CP
+      // sont des fenêtres OS, pas un overlay) et passait l'objet CP entier à
+      // osCpFenetreRender, qui attend en fait l'id de la fenêtre : ça ne
+      // rafraîchissait donc jamais rien visuellement.
+      var winId = 'cp-'+cpId;
       var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
       fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*',{headers:authHGet})
       .then(function(r){return r.json();})
       .then(function(data){
         var cp = data&&data[0];
-        if(cp) osCpFenetreRender(cp);
-        else cpsAdminCharger();
+        if(cp && _windows[winId]){
+          window._cpEnAttente = window._cpEnAttente || {};
+          window._cpEnAttente[winId] = cp;
+          osCpFenetreRender(winId);
+        } else if(!cp){
+          cpsAdminCharger();
+        }
       }).catch(function(){ cpsAdminCharger(); });
     } else { notif('Erreur','erreur'); }
   });
@@ -19332,10 +19340,18 @@ function cpsInvitationSeRetirer(dispId, cpId){
   .then(function(r){
     if(r.ok){
       notif('Disponibilité retirée','succes');
-      // Recharger la fiche
-      var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;});
-      if(cp){ var ex=document.getElementById('cp-fenetre-overlay'); if(ex) document.body.removeChild(ex); osCpFenetreRender(cp); }
-      else cpsCharger();
+      // Rafraîchir la fiche déjà ouverte, comme ci-dessus
+      var winId = 'cp-'+cpId;
+      if(_windows[winId]){
+        var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;}) || (window._cpEnAttente||{})[winId];
+        if(cp){
+          window._cpEnAttente = window._cpEnAttente || {};
+          window._cpEnAttente[winId] = cp;
+          osCpFenetreRender(winId);
+        }
+      } else {
+        cpsCharger();
+      }
     } else { notif('Erreur','erreur'); }
   });
 }
@@ -27563,6 +27579,7 @@ function osCarnetChargerCPs(contactId){
       var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
       var statBg = cp.statut === 'publie' ? '#D4EDDA' : '#FFF3CD';
       var statCo = cp.statut === 'publie' ? '#155724' : '#856404';
+      var statLbl = cp.statut === 'publie' ? 'Publié' : 'Brouillon';
       html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osCarnetOuvrirCP(\''+cp.id+'\')" onmouseover="this.style.opacity=\'0.75\'" onmouseout="this.style.opacity=\'1\'">';
       html += '<div style="flex:1;min-width:0;">';
       html += '<div style="font-size:0.82rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📰 '+esc(cp.titre||'Sans titre')+'</div>';
@@ -27570,7 +27587,7 @@ function osCarnetChargerCPs(contactId){
       html += '</div>';
       html += '<div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0;">';
       if(cp.fichier_pdf) html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:#E6F1FB;color:#0C447C;">📎 PDF</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:'+statBg+';color:'+statCo+';">'+cp.statut+'</span>';
+      html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span>';
       html += '</div>';
       html += '</div>';
     });
@@ -28869,9 +28886,11 @@ function osAgendaJourDetail(evs){
 }
 
 function osAgendaOuvrirDetail(ev){
-  // Événement virtuel = invitation presse → ouvrir Communiqués dans Ma Rédac'
+  // Événement virtuel = invitation presse → ouvrir directement la fiche du CP
+  // concerné (avant : ouvrait juste la liste filtrée des communiqués, sans
+  // jamais montrer le détail de CETTE invitation précise).
   if(ev._virtuel && ev._cpId){
-    osOuvrirCommuniques('invitation_presse');
+    cpsOuvrirDetailParId(ev._cpId);
     return;
   }
   var uid = getUserId();
@@ -30594,56 +30613,11 @@ function osCommuniqueRender(){
   // Rebrancher les event handlers (les boutons inline onclick fonctionnent déjà via les strings)
 }
 
-function osOuvrirFicheCP(cpId){
-  // Ouvre un CP depuis n'importe où (Tchap, etc.) dans une fenêtre OS
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var cp = data && data[0] ? data[0] : null;
-    if(!cp){ notif('CP introuvable'); return; }
-    // Ouvrir dans une fenêtre OS dédiée
-    var winId = 'cp-fiche-'+cpId;
-    if(_windows[winId]){ osFocusWindow(winId); return; }
-    osCreateWindow({
-      id: winId,
-      title: '📄 '+esc(cp.objet||'Communiqué'),
-      width: 560, height: 600,
-      content: osBuildCPFicheHTML(cp)
-    });
-  }).catch(function(){ notif('Erreur chargement CP'); });
-}
-
-function osBuildCPFicheHTML(cp){
-  var fields = [
-    ['Sujet', cp.objet],
-    ['Organisation', cp.organisation],
-    ['Type', cp.type_actu==='local'?'Actu locale':'Actu nationale'],
-    ['Contact', cp.contact?cp.contact.nom:null],
-    ['Email', cp.contact?cp.contact.email:null],
-    ['Tél', cp.contact?cp.contact.tel:null],
-    ['Reçu le', cp.date_reception],
-    ['Embargo', cp.embargo]
-  ];
-  var metaHtml = fields.filter(function(f){return f[1];}).map(function(f){
-    return '<div style="display:flex;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-      +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);width:80px;flex-shrink:0;padding-top:2px;">'+f[0]+'</span>'
-      +'<span style="font-size:0.82rem;color:var(--encre);">'+esc(f[1])+'</span></div>';
-  }).join('');
-
-  var pdfHtml = cp.fichier_b64
-    ? '<div style="margin-top:1rem;"><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF</div>'
-      +'<embed src="'+cp.fichier_b64+'" type="application/pdf" style="width:100%;height:350px;border:1px solid var(--gris-bord);border-radius:4px;"></div>'
-    : '<p style="color:var(--gris);font-size:0.82rem;margin-top:1rem;font-family:Space Mono,monospace;">Aucun PDF joint.</p>';
-
-  return '<div style="padding:1rem 1.2rem;overflow-y:auto;height:100%;box-sizing:border-box;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);margin-bottom:0.3rem;">'+esc(cp.objet||'Sans sujet')+'</div>'
-    +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-bottom:1rem;">'+esc(cp.organisation||'')+'</div>'
-    +'<div>'+metaHtml+'</div>'
-    +pdfHtml
-    +'</div>';
-}
-
+// osOuvrirFicheCP / osBuildCPFicheHTML supprimées : code mort (aucun appelant),
+// utilisaient les champs de l'ancien modèle CP (objet/organisation/contact/
+// type_actu) qui n'existent plus sur les communiqués créés aujourd'hui, et
+// appelaient osCreateWindow — une fonction qui n'est même définie nulle part
+// dans le fichier. La vraie fiche CP, à jour, c'est cpsOuvrirDetail/osCpFenetreRender.
 
 function osProjetsInitBadge(){
   var uid = getUserId();
@@ -30821,6 +30795,22 @@ function tchapChargerConversations(){
   }).catch(function(){});
 }
 
+// Aperçu lisible pour la liste de conversations — sans ça, une fiche partagée
+// affichait le JSON brut du marqueur [FICHE:...] à la place d'un résumé.
+// Devenu important maintenant que le partage de fiche est la seule activité possible.
+function _tchapApercuMessage(contenu){
+  contenu = contenu || '';
+  if(contenu.indexOf('[FICHE:') !== -1){
+    try{
+      var fiche = JSON.parse(contenu.substring(contenu.indexOf('\n')+1));
+      if(fiche._tchap_type === 'contact') return '📇 Contact partagé';
+      if(fiche._tchap_type === 'cp') return '📰 CP partagé';
+    }catch(e){}
+    return '📎 Fiche partagée';
+  }
+  return contenu;
+}
+
 function tchapRendreConvListe(convMap, membres, uid){
   var list = document.getElementById('tchap-conv-list');
   if(!list) return;
@@ -30893,7 +30883,7 @@ function tchapRendreConvListe(convMap, membres, uid){
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-weight:'+(conv.nonLus?'700':'500')+';font-size:0.82rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:'+(osEstEnLigne(m.id)?'#27AE60':'var(--gris)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(osEstEnLigne(m.id)?'En ligne':(fonctionLabel?fonctionLabel:(redacLabel?'Rédac '+redacLabel:'')))+'</div>'
-      +'<div style="font-size:0.68rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">'+esc((conv.dernierMsg||'').substring(0,30))+'</div>'
+      +'<div style="font-size:0.68rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">'+esc(_tchapApercuMessage(conv.dernierMsg).substring(0,30))+'</div>'
       +'</div>';
     item.onclick = function(){tchapOuvrirConv(m);};
     list.appendChild(item);
@@ -31249,29 +31239,19 @@ function tchapOuvrirConv(membre){
   msgZone.innerHTML = osLoadingHtml();
   right.appendChild(msgZone);
 
+  // Plus de composeur de texte libre — Tchap sert uniquement à transférer des
+  // contacts et des CP entre membres (les vraies conversations passent par
+  // Google Chat). Le bouton "Partager" est donc ouvert à tout le monde, alors
+  // qu'il n'était avant réservé qu'aux correcteurs/admin en plus de l'envoi de texte.
   var inputZone = document.createElement('div');
-  inputZone.style.cssText = 'padding:0.7rem 1rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.5rem;align-items:flex-end;flex-shrink:0;background:white;';
-  var rolesAttachment = ['correcteur','admin']; // + redac_chef quand le rôle existera
-  var peutJoindre = rolesAttachment.indexOf(getUserRole()) !== -1;
-
+  inputZone.style.cssText = 'padding:0.7rem 1rem;border-top:1px solid var(--gris-bord);flex-shrink:0;background:white;';
   inputZone.innerHTML =
-    (peutJoindre ? '<button id="tchap-attach-btn" title="Joindre un contact ou CP" style="background:var(--gris-clair);color:var(--gris);border:1px solid var(--gris-bord);border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">📎</button>' : '')
-    +'<textarea id="tchap-input" placeholder="Écrire un message…" rows="1" style="flex:1;padding:0.5rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:18px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none;outline:none;line-height:1.4;max-height:100px;overflow-y:auto;box-sizing:border-box;"></textarea>'
-    +'<button id="tchap-send-btn" style="background:var(--rouge);color:white;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">↑</button>';
+    '<button id="tchap-attach-btn" style="width:100%;padding:0.6rem;background:var(--gris-clair);color:var(--encre);border:1px solid var(--gris-bord);border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:0.5rem;">📎 Partager un contact ou un CP</button>';
   right.appendChild(inputZone);
 
   setTimeout(function(){
-    var ta = document.getElementById('tchap-input');
-    var btn = document.getElementById('tchap-send-btn');
     var attachBtn = document.getElementById('tchap-attach-btn');
-    if(btn) btn.onclick = function(){ tchapEnvoyer(membre.id); };
     if(attachBtn) attachBtn.onclick = function(){ tchapOuvrirAttachment(membre); };
-    if(ta){
-      ta.addEventListener('keydown', function(e){
-        if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();tchapEnvoyer(membre.id);}
-      });
-      ta.focus();
-    }
   }, 100);
 
   tchapChargerMessages(membre.id);
@@ -31451,27 +31431,9 @@ function tchapSupprimerMessage(msgId, wrapperEl){
   }).catch(function(){ notif('Erreur réseau'); });
 }
 
-function tchapEnvoyer(destinataireId){
-  var ta = document.getElementById('tchap-input');
-  if(!ta) return;
-  var contenu = ta.value.trim();
-  if(!contenu) return;
-  var uid = getUserId();
-  ta.value = '';
-  fetch(SB_URL+'/rest/v1/tchap_messages',{
-    method:'POST',
-    headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'}),
-    body:JSON.stringify({expediteur_id:uid,destinataire_id:destinataireId,contenu:contenu})
-  }).then(function(r){return r.json();})
-  .then(function(data){
-    var zone = document.getElementById('tchap-messages');
-    if(zone&&data&&data[0]){
-      tchapAfficherMessage(data[0],uid,zone);
-      zone.scrollTop = zone.scrollHeight;
-    }
-    tchapChargerConversations();
-  }).catch(function(){notif('Erreur envoi message');});
-}
+// tchapEnvoyer (envoi de texte libre) supprimée — Tchap ne sert plus qu'à
+// transférer des contacts/CP (tchapPartagerFiche/tchapEnvoyerFiche ci-dessous),
+// les vraies conversations passant par Google Chat.
 
 function tchapPartagerFiche(type, id, destinataireOverride){
   var uid = getUserId();
