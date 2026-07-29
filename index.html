@@ -7064,6 +7064,9 @@ var db = {
 
   // Sauvegarder ou mettre à jour un article
   sauvegarderArticle: function(doc){
+    // Choc-point de tous les enregistrements d'article (manuel, auto-save, workflow,
+    // resync hors-ligne...) — un seul endroit pour montrer l'animation "en cours".
+    if(typeof osSaveIndicateur === 'function') osSaveIndicateur('encours');
     var payload = {
       type: doc.type || 'article',
       statut: doc.statut || 'brouillon',
@@ -7156,6 +7159,16 @@ var db = {
         }).then(function(){ return data; });
       }
       return data;
+    })
+    .then(function(data){
+      // Garantit que l'indicateur sort toujours de l'état "en cours" (animé), même
+      // si l'appelant ne touche pas lui-même l'indicateur dans son .then/.catch —
+      // certains ne le faisaient pas, ce qui aurait laissé l'animation tourner sans fin.
+      if(typeof osSaveIndicateur === 'function') osSaveIndicateur('sauvegarde');
+      return data;
+    }, function(err){
+      if(typeof osSaveIndicateur === 'function') osSaveIndicateur('erreur');
+      throw err;
     });
   },
 
@@ -10834,7 +10847,7 @@ function osBoutiqueRender(){
   var wc = document.getElementById('wincontent-boutique');
   if(!wc) return;
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
-  wc.innerHTML = '"+osLoadingHtml()+"';
+  wc.innerHTML = osLoadingHtml();
 
   var uid = getUserId();
   var role = getUserRole();
@@ -11128,17 +11141,34 @@ function osBoutiqueVoirCommandes(){
 }
 
 // ===== LOADING / ERROR HELPERS =====
-function osLoadingHtml(){
-  return '<div class="os-loading">'
+// `retryFnName` est optionnel — sans lui, comportement inchangé (pas de timeout).
+// Avec lui, si le chargement traîne plus de `timeoutMs` (9s par défaut), le
+// spinner est remplacé par un message + bouton "Réessayer" appelant cette
+// fonction — utile pour les connexions lentes où l'appli semblait juste figée
+// indéfiniment, sans jamais dire à l'utilisateur quoi faire.
+function osLoadingHtml(retryFnName, timeoutMs){
+  if(!retryFnName){
+    return '<div class="os-loading">'
+      +'<div class="os-loading-dots"><span></span><span></span><span></span></div>'
+      +'<div class="os-loading-label">Communication en cours avec le serveur</div>'
+      +'</div>';
+  }
+  var idUnique = 'os-loading-'+Date.now()+'-'+Math.floor(Math.random()*1e6);
+  setTimeout(function(){
+    var el = document.getElementById(idUnique);
+    if(!el) return; // déjà remplacé — chargement terminé (ou en erreur) entre-temps
+    el.outerHTML = osErreurHtml(retryFnName, 'Ça prend plus de temps que prévu — vérifie ta connexion.');
+  }, timeoutMs || 9000);
+  return '<div class="os-loading" id="'+idUnique+'">'
     +'<div class="os-loading-dots"><span></span><span></span><span></span></div>'
     +'<div class="os-loading-label">Communication en cours avec le serveur</div>'
     +'</div>';
 }
-function osErreurHtml(retryCb){
+function osErreurHtml(retryCb, message){
   var cbStr = retryCb ? 'onclick="'+retryCb+'()"' : '';
   return '<div class="os-error">'
     +'<div class="os-error-icon">🔌</div>'
-    +'<div class="os-error-msg">Uh oh, ça n\'a pas marché</div>'
+    +'<div class="os-error-msg">'+(message || 'Uh oh, ça n\'a pas marché')+'</div>'
     +(retryCb ? '<button class="os-error-btn" '+cbStr+'>↺ Réessayer</button>' : '')
     +'</div>';
 }
@@ -12961,6 +12991,13 @@ function osSaveIndicateur(etat){
     el.style.background = 'rgba(255,189,46,0.15)';
     el.style.color = '#856404';
     el.style.borderColor = 'rgba(255,189,46,0.3)';
+  } else if(etat === 'encours'){
+    // Animation de progression pendant l'enregistrement réel (entre le clic/l'autosave
+    // et la réponse du serveur) — avant, rien ne s'affichait pendant ce laps de temps.
+    el.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 0.8s linear infinite;vertical-align:-2px;"></i> Enregistrement...';
+    el.style.background = 'rgba(26,82,118,0.12)';
+    el.style.color = '#1A5276';
+    el.style.borderColor = 'rgba(26,82,118,0.3)';
   } else if(etat === 'sauvegarde'){
     el.textContent = '🟢 Sauvegardé';
     el.style.background = 'rgba(39,174,96,0.15)';
@@ -13300,8 +13337,14 @@ function _osOpenWindowExecuter(pageId){
     osMakeDraggable(win, tb);
     osMakeResizable(win);
   }
-  // Focus au clic
-  win.addEventListener('mousedown', function(){ osFocusWindow(pageId); });
+  // Focus au clic — seulement si la fenêtre n'est pas déjà active. Sinon, chaque
+  // clic à l'intérieur d'une fenêtre déjà ouverte (ex: cliquer sur un sujet ou un
+  // bénévole) redéclenchait osFocusWindow, qui relance un refresh complet des
+  // données dès que 60s se sont écoulées depuis le dernier — perçu comme un
+  // rechargement intempestif de l'appli au clic, surtout visible sur connexion lente.
+  win.addEventListener('mousedown', function(){
+    if(window._activeWindowId !== pageId) osFocusWindow(pageId);
+  });
   
   osFocusWindow(pageId);
   
@@ -17951,8 +17994,30 @@ function _maBtn(t){
 }
 
 function maOsRefuser(id){
-  var note=prompt('Motif du refus (visible par le rédacteur) :');
-  if(note===null) return;
+  // Fenêtre intégrée (même style que rWorkflowRenvoyer) au lieu du prompt() natif
+  // du navigateur — plus cohérent visuellement, et personnalisable/testable.
+  var mo = document.createElement('div');
+  mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  mo.innerHTML = '<div style="background:white;border-radius:12px;padding:1.4rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.2);">'
+    +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;">Refuser l\'article</div>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Motif du refus, visible par le rédacteur (optionnel).</div>'
+    +'<textarea id="refus-motif" rows="4" placeholder="Ex : Le chapeau est trop long, retravailler l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
+    +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
+    +'<button id="refus-ok" style="flex:1;padding:0.5rem;background:#A32D2D;color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Refuser</button>'
+    +'<button id="refus-annuler" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
+    +'</div></div>';
+  document.body.appendChild(mo);
+  setTimeout(function(){ var ta=document.getElementById('refus-motif'); if(ta) ta.focus(); }, 50);
+  mo.onclick = function(e){ if(e.target===mo) mo.remove(); };
+  document.getElementById('refus-annuler').onclick = function(){ mo.remove(); };
+  document.getElementById('refus-ok').onclick = function(){
+    var note = (document.getElementById('refus-motif')||{}).value || '';
+    mo.remove();
+    _maOsRefuserConfirme(id, note);
+  };
+}
+
+function _maOsRefuserConfirme(id, note){
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à retravailler'})})
   .then(function(r){
@@ -20714,7 +20779,7 @@ function osBenevolesDashRender(){
   if(!wc) return;
   var isAdmin = getUserRole() === 'admin';
   var isVieAsso = isAdmin || getUserHasFonction('vie_asso');
-  wc.innerHTML = osLoadingHtml();
+  wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
@@ -21421,7 +21486,7 @@ function osRedactionsRender(){
   if(!wc) return;
   var role = getUserRole();
   var uid = getUserId();
-  wc.innerHTML = osLoadingHtml();
+  wc.innerHTML = osLoadingHtml('osRedactionsRender');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
@@ -22795,7 +22860,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
 
   var card = document.createElement('div');
   card.style.cssText = 'background:white;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
-  card.innerHTML = '"+osLoadingHtml()+"';
+  card.innerHTML = osLoadingHtml();
   overlay.appendChild(card);
   overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
   document.body.appendChild(overlay);
@@ -25979,7 +26044,7 @@ function osNettoyageRender(moisLimite){
   var wc = document.getElementById('wincontent-nettoyage');
   if(!wc) return;
 
-  wc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Analyse en cours...</div>';
+  wc.innerHTML = osLoadingHtml('osNettoyageRender');
 
   var now = new Date();
   var debutJour = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -27195,7 +27260,7 @@ var _carnetEditId = null;
 function osCarnetRender(){
   var wc = document.getElementById('wincontent-carnet');
   if(!wc) return;
-  wc.innerHTML = osLoadingHtml();
+  wc.innerHTML = osLoadingHtml('osCarnetRender');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/contacts_sources?select=*&order=nom.asc', { headers:authH })
@@ -28257,7 +28322,7 @@ function osAgendaRender(){
   var role = getUserRole();
   var isAdmin = role === 'admin';
   var monLien = (_membresRedactionsData||[]).find(function(mr){ return mr.membre_id===getUserId() && mr.redaction_id===window._redacActiveId; });
-  var isChefOuAdmin = isAdmin || (monLien && monLien.role_redac==='redac_chef');
+  var isChefOuAdmin = isAdmin || getUserHasFonction('vie_asso') || (monLien && monLien.role_redac==='redac_chef');
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
 
   // Header principal
@@ -28334,7 +28399,7 @@ function osAgendaRendreVue(){
 function osAgendaCharger(){
   var body = document.getElementById('agenda-body');
   if(!body) return;
-  body.innerHTML = '"+osLoadingHtml()+"';
+  body.innerHTML = osLoadingHtml('osAgendaCharger');
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   Promise.all([
@@ -30066,7 +30131,7 @@ function osProjetsOuvrirProjet(projet){
   osProjetsRendreListe();
   var right = document.getElementById('projets-right');
   if(!right) return;
-  right.innerHTML = '"+osLoadingHtml()+"';
+  right.innerHTML = osLoadingHtml();
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = getUserId();
