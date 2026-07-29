@@ -25974,7 +25974,8 @@ function osNoteSupprimer(id){
 
 // ===== NETTOYAGE =====
 
-function osNettoyageRender(){
+function osNettoyageRender(moisLimite){
+  moisLimite = moisLimite || 3;
   var wc = document.getElementById('wincontent-nettoyage');
   if(!wc) return;
 
@@ -25983,7 +25984,6 @@ function osNettoyageRender(){
   var now = new Date();
   var debutJour = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   var debutMois = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  var moisLimite = 3;
 
   // Charger les stats de toutes les tables + emails en parallèle
   Promise.all([
@@ -26148,6 +26148,26 @@ function osNettoyageRender(){
       'var(--gris)',
       '', 'nett-contact-hist', true); // info seulement, pas de suppression
 
+    // Suppression manuelle — cherche un article ou un sujet précis à supprimer,
+    // indépendamment de son ancienneté (contrairement aux sections au-dessus qui
+    // ne ciblent que les vieux brouillons).
+    html += '<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--gris-bord);">';
+    html += '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;">Suppression manuelle</div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.8rem;">Cherche un article ou un sujet précis à supprimer, quel que soit son statut ou son ancienneté.</div>';
+
+    html += '<div style="margin-bottom:1rem;">';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Articles</div>';
+    html += '<input type="text" id="nett-art-search" placeholder="Rechercher un article par titre..." oninput="osNettoyageRechercherArticles()" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;box-sizing:border-box;margin-bottom:0.4rem;">';
+    html += '<div id="nett-art-results"></div>';
+    html += '</div>';
+
+    html += '<div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Sujets</div>';
+    html += '<input type="text" id="nett-sujet-search" placeholder="Rechercher un sujet par titre..." oninput="osNettoyageRechercherSujets()" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;box-sizing:border-box;margin-bottom:0.4rem;">';
+    html += '<div id="nett-sujet-results"></div>';
+    html += '</div>';
+    html += '</div>';
+
     // Récap
     html += '<div style="background:#1A1A2E;border-radius:8px;padding:0.9rem 1.1rem;margin-top:0.5rem;display:flex;gap:1.5rem;flex-wrap:wrap;">';
     html += '<div><div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.4);">Articles en base</div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.2rem;color:white;">'+articles.length+'</div></div>';
@@ -26176,18 +26196,14 @@ function osNettoyageRender(){
   });
 }
 
+var _nettSliderTimer = null;
 function osNettoyageMajSlider(val){
   var label = document.getElementById('nett-mois-label');
   if(label) label.textContent = val+' mois';
-  // Recharger avec la nouvelle valeur
-  setTimeout(function(){ osNettoyageRender(); }, 300);
-  // Hack : mettre à jour le slider après render
-  setTimeout(function(){
-    var s = document.getElementById('nett-mois');
-    if(s) s.value = val;
-    var l = document.getElementById('nett-mois-label');
-    if(l) l.textContent = val+' mois';
-  }, 350);
+  // Recharger avec la nouvelle valeur — le rendu reconstruit le slider avec la
+  // bonne valeur, donc plus besoin du hack qui le remettait à jour après coup.
+  clearTimeout(_nettSliderTimer);
+  _nettSliderTimer = setTimeout(function(){ osNettoyageRender(parseInt(val,10)); }, 300);
 }
 
 function osNettoyageAction(btnId){
@@ -26264,11 +26280,14 @@ function osNettoyageAction(btnId){
 }
 
 // Supprimer par lots (IDs) — DELETE avec filtre IN
+// `table` est déjà le chemin complet ('/rest/v1/articles', etc.) passé par les appelants —
+// préfixer à nouveau par '/rest/v1' ici donnait une URL invalide (/rest/v1/rest/v1/...),
+// donc TOUTES les actions de nettoyage (supprimer/nettoyer/vider) échouaient silencieusement.
 function _nettSupprimerParLots(table, col, ids, headers, cb){
   if(!ids.length){ cb(true); return; }
   // Supabase: ?id=in.(id1,id2,...)
   var filter = col+'=in.('+ids.map(function(id){ return encodeURIComponent(id); }).join(',')+')';
-  fetch(SB_URL+'/rest/v1'+table+'?'+filter, {
+  fetch(SB_URL+table+'?'+filter, {
     method:'DELETE', headers:headers
   }).then(function(r){ cb(r.ok); }).catch(function(){ cb(false); });
 }
@@ -26278,7 +26297,7 @@ function _nettViderChampParLots(table, col, ids, payload, headers, cb){
   if(!ids.length){ cb(true); return; }
   var done = 0, errors = 0;
   ids.forEach(function(id){
-    fetch(SB_URL+'/rest/v1'+table+'?'+col+'=eq.'+encodeURIComponent(id), {
+    fetch(SB_URL+table+'?'+col+'=eq.'+encodeURIComponent(id), {
       method:'PATCH',
       headers: Object.assign({}, headers, {'Prefer':'return=minimal'}),
       body: JSON.stringify(payload)
@@ -26291,6 +26310,96 @@ function _nettViderChampParLots(table, col, ids, payload, headers, cb){
       if(done === ids.length) cb(false);
     });
   });
+}
+
+// Recherche + suppression manuelle d'articles/sujets précis, indépendamment de
+// leur ancienneté — complète les sections automatiques ci-dessus qui ne
+// couvrent que les vieux brouillons.
+var _nettArtSearchTimer = null;
+function osNettoyageRechercherArticles(){
+  clearTimeout(_nettArtSearchTimer);
+  _nettArtSearchTimer = setTimeout(function(){
+    var q = (document.getElementById('nett-art-search')||{}).value||'';
+    var zone = document.getElementById('nett-art-results');
+    if(!zone) return;
+    if(!q.trim()){ zone.innerHTML=''; return; }
+    zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
+    fetch(SB_URL+'/rest/v1/articles?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,auteur,updated_at&order=updated_at.desc&limit=15', {headers:SB_HEADERS})
+    .then(function(r){return r.json();})
+    .then(function(arts){
+      if(!arts||arts.code||!arts.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
+      var html='';
+      arts.forEach(function(a){
+        var dateStr = a.updated_at ? new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+        html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+          +'<div style="flex:1;min-width:0;overflow:hidden;">'
+          +'<div style="font-size:0.8rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
+          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+esc(a.statut||'')+' · '+esc(a.auteur||'?')+' · '+dateStr+'</div>'
+          +'</div>'
+          +'<button onclick="osNettoyageSupprimerArticle(\''+a.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;background:white;color:var(--rouge);cursor:pointer;flex-shrink:0;">Supprimer</button>'
+          +'</div>';
+      });
+      zone.innerHTML = html;
+    }).catch(function(){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--rouge);padding:0.4rem 0;">Erreur.</div>'; });
+  }, 300);
+}
+
+function osNettoyageSupprimerArticle(id){
+  if(!confirm('Supprimer définitivement cet article (et son historique) ?\nCette action est irréversible.')) return;
+  var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  // Nettoyer l'historique lié d'abord — sinon on laisse des lignes orphelines
+  // (ou la suppression de l'article échoue si une contrainte FK existe).
+  fetch(SB_URL+'/rest/v1/historique?article_id=eq.'+encodeURIComponent(id), {method:'DELETE', headers:headers})
+  .then(function(){
+    return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {method:'DELETE', headers:headers});
+  }).then(function(r){
+    notif(r.ok ? 'Article supprimé !' : 'Erreur suppression');
+    if(r.ok) osNettoyageRechercherArticles();
+  }).catch(function(){ notif('Erreur réseau'); });
+}
+
+var _nettSujetSearchTimer = null;
+function osNettoyageRechercherSujets(){
+  clearTimeout(_nettSujetSearchTimer);
+  _nettSujetSearchTimer = setTimeout(function(){
+    var q = (document.getElementById('nett-sujet-search')||{}).value||'';
+    var zone = document.getElementById('nett-sujet-results');
+    if(!zone) return;
+    if(!q.trim()){ zone.innerHTML=''; return; }
+    zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
+    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:SB_HEADERS})
+    .then(function(r){return r.json();})
+    .then(function(sujets){
+      if(!sujets||sujets.code||!sujets.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
+      var html='';
+      sujets.forEach(function(s){
+        var dateStr = s.created_at ? new Date(s.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+        html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+          +'<div style="flex:1;min-width:0;overflow:hidden;">'
+          +'<div style="font-size:0.8rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.titre||'Sans titre')+'</div>'
+          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+esc(s.statut||'')+(s.responsable?' · '+esc(s.responsable):'')+' · '+dateStr+'</div>'
+          +'</div>'
+          +'<button onclick="osNettoyageSupprimerSujet(\''+s.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;background:white;color:var(--rouge);cursor:pointer;flex-shrink:0;">Supprimer</button>'
+          +'</div>';
+      });
+      zone.innerHTML = html;
+    }).catch(function(){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--rouge);padding:0.4rem 0;">Erreur.</div>'; });
+  }, 300);
+}
+
+function osNettoyageSupprimerSujet(id){
+  if(!confirm('Supprimer définitivement ce sujet ?\nLes articles qui y étaient liés perdront simplement ce lien (rien d\'autre ne change pour eux).\nCette action est irréversible.')) return;
+  var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  // Détacher les articles qui pointent vers ce sujet avant de le supprimer —
+  // sinon référence morte (ou rejet FK si une contrainte existe côté base).
+  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(id), {
+    method:'PATCH', headers:headers, body: JSON.stringify({sujet_id:null})
+  }).then(function(){
+    return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(id), {method:'DELETE', headers:headers});
+  }).then(function(r){
+    notif(r.ok ? 'Sujet supprimé !' : 'Erreur suppression');
+    if(r.ok) osNettoyageRechercherSujets();
+  }).catch(function(){ notif('Erreur réseau'); });
 }
 
 // ===== GESTION DES APPS PAR UTILISATEUR =====
