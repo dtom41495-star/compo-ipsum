@@ -8745,6 +8745,16 @@ function rWorkflowAvancer(nouveauStatut){
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide' && currentDoc.type !== 'breve') osNotifierComArticleValide(currentDoc);
+    // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
+    // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").
+    // Même logique que publierArticle(), qui gère le cas "publication depuis une liste".
+    var sujetLie = doc.sujet_id || doc._sujet_id;
+    if(nouveauStatut==='publie' && sujetLie){
+      var authHSujet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+      fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetLie), {
+        method:'PATCH', headers:authHSujet, body:JSON.stringify({statut:'publie'})
+      }).catch(function(){});
+    }
   }).catch(function(err){ notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur'); });
 }
 
@@ -20708,13 +20718,16 @@ function osBenevolesDashRender(){
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
   ];
   if(isAdmin) fetches.push(fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}));
   Promise.all(fetches).then(function(results){
     var membres=(!results[0]||results[0].code)?[]:results[0];
     var articles=(!results[1]||results[1].code)?[]:results[1];
-    var demandes=isAdmin&&results[2]&&!results[2].code?results[2]:[];
+    var membresRedacsRows=(!results[2]||results[2].code)?[]:results[2];
+    var membresAvecRedac={}; membresRedacsRows.forEach(function(row){ membresAvecRedac[row.membre_id]=true; });
+    var demandes=isAdmin&&results[3]&&!results[3].code?results[3]:[];
     var artBloques=articles.filter(function(a){var age=(Date.now()-new Date(a.updated_at))/(1000*60*60*24);return(a.statut==='en-relecture'||a.statut==='corrige')&&age>5;});
     var artValides=articles.filter(function(a){return a.statut==='valide';});
     var artCorrection=articles.filter(function(a){return a.statut==='en-relecture'||a.statut==='corrige';});
@@ -20735,7 +20748,7 @@ function osBenevolesDashRender(){
       var dernierArticle=publisArts.length?new Date(Math.max.apply(null,publisArts.map(function(a){return new Date(a.updated_at);}))):null;
       var joursBreve=derniereBreve?Math.floor((Date.now()-derniereBreve)/(1000*60*60*24)):null;
       var joursArticle=dernierArticle?Math.floor((Date.now()-dernierArticle)/(1000*60*60*24)):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle};
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]};
     });
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
@@ -20799,7 +20812,10 @@ function osBenevolesDashRender(){
       sh+='<div class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'#ea5b1c\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'var(--gris-bord)\'" style="background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 0.8rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:0.55rem;">';
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;"><div style="width:32px;height:32px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
-      sh+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div></div>';
+      sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
+        +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.8rem;flex-shrink:0;">⚠️</span>':'')
+        +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.8rem;flex-shrink:0;">❗</span>':'')
+        +'</div>';
       sh+='</div>';
       sh+='<div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center;">';
       sh+='<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+(m.role||'—')+'</span>';
@@ -24286,12 +24302,19 @@ function osBenevolesOuvrirFiche(membreId){
   html += '<div style="padding:1rem 1.5rem;border-top:1px solid var(--gris-bord);display:flex;flex-direction:column;gap:0.7rem;background:var(--gris-clair);">';
   if(!isSelf || isAdmin){
     if(!isSelf){
-      // Rédaction — admin sur les autres seulement
-      var redacMembre = m.redaction || 'tarn';
-      var redacLabel = redacMembre.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join('-');
+      // Rédaction — admin sur les autres seulement. Avant, un membre sans aucune
+      // ligne dans membres_redactions retombait silencieusement sur "Tarn" par
+      // défaut (m.redaction || 'tarn'), masquant le vrai souci : montrer une
+      // alerte claire à la place quand il n'est rattaché à rien.
       html += '<div style="display:flex;align-items:center;gap:0.5rem;">';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0;white-space:nowrap;">Rédaction :</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:var(--encre-fixe);color:white;">'+redacLabel+'</span>';
+      if(s.sansRedaction){
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:#FCEBEB;color:#A32D2D;">❗ Aucune rédaction — à rattacher</span>';
+      } else {
+        var redacMembre = m.redaction || '—';
+        var redacLabel = redacMembre.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join('-');
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:var(--encre-fixe);color:white;">'+redacLabel+'</span>';
+      }
       html += '</div>';
     }
     // Fonctions — admin peut modifier les siennes et celles des autres
@@ -24308,8 +24331,9 @@ function osBenevolesOuvrirFiche(membreId){
     html += '</div>';
     html += '<button id="benv-btn-fonction-save" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.62rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;margin-top:2px;">✓ Enregistrer</button>';
     html += '</div>';
-    if(!isSelf){
-      // Rôle — admin sur les autres seulement
+    if(!isSelf && isAdmin){
+      // Rôle — admin sur les autres seulement (la condition ne se fiait avant qu'à
+      // !isSelf, donc n'importe quel rôle voyait et pouvait cliquer ces boutons)
       html += '<div id="benv-role-btns" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0;">Rôle :</span>';
       ['redacteur','correcteur','admin'].forEach(function(r){
@@ -24729,6 +24753,7 @@ function osBenevolesChangerFonction(membreId, fonction){
 }
 
 function osBenevolesChangerRole(membreId, nouveauRole){
+  if(getUserRole() !== 'admin'){ notif('Seul un admin peut changer le rôle d\'un membre','erreur'); return; }
   if(!confirm('Changer le rôle en "'+nouveauRole+'" ?')) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
