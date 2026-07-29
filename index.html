@@ -3935,7 +3935,9 @@ input:focus,select:focus,textarea:focus{
   </div>
 
   <!-- Panneau latéral Réglages — rubrique, urgence, auteur, image, mots-clés, sources, date, angle -->
-  <div id="drawer-redac-reglages" style="display:none;position:fixed;top:0;right:0;height:100%;width:min(400px,90vw);background:var(--blanc);z-index:999200;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;border-left:1px solid var(--gris-bord);">
+  <!-- position:absolute (pas fixed) — reste contenu dans la fenêtre (ancêtre .os-window-content
+       est position:relative + .os-window a overflow:hidden), ne déborde plus sur la barre de titre. -->
+  <div id="drawer-redac-reglages" style="display:none;position:absolute;top:0;right:0;height:100%;width:min(400px,90vw);background:var(--blanc);z-index:50;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;border-left:1px solid var(--gris-bord);">
     <div style="padding:1rem 1.3rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;background:var(--blanc);z-index:1;">
       <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);"><i class="ti ti-adjustments-horizontal"></i> Réglages de l'article</div>
       <button onclick="rFermerReglages()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gris);line-height:1;">✕</button>
@@ -21887,7 +21889,8 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Actions rapides</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.5rem;">';
     actionsRedac.forEach(function(a){
-      h += '<button onclick="osOpenWindow(\''+a.page+'\')" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;cursor:pointer;text-align:left;transition:border-color 0.1s,background 0.1s;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'white\'">';
+      var onclickAttr = a.action || ("osOpenWindow('"+a.page+"')");
+      h += '<button onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;cursor:pointer;text-align:left;transition:border-color 0.1s,background 0.1s;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'white\'">';
       h += '<span style="font-size:1.1rem;">'+a.icon+'</span>';
       h += '<div><div style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+a.titre+'</div><div style="font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);">'+a.desc+'</div></div>';
       h += '</button>';
@@ -22509,7 +22512,7 @@ function _osRedacActionsRapides(role, roleRedac){
     ]
   };
   var liste = actions[role] || actions.redacteur;
-  if(roleRedac === 'redac_chef') liste = liste.concat([{icon:'<i class="ti ti-news"></i>', titre:'Ma rédaction', desc:'Gérer l\'équipe', page:'redactions'}]);
+  if(roleRedac === 'redac_chef') liste = liste.concat([{icon:'<i class="ti ti-news"></i>', titre:'Ma rédaction', desc:'Gérer l\'équipe', action:"osRedactionsChangerOnglet('redac')"}]);
   return liste;
 }
 
