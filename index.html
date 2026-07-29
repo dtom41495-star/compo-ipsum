@@ -22039,6 +22039,71 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   return h;
 }
 
+// Nettoyage manuel des sujets dont l'article lié est déjà publié — utile pour
+// les anciens sujets jamais soumis au marquage automatique (ajouté après coup
+// dans rWorkflowAvancer/publierArticle), qui restent donc "ouverts"/"en cours"
+// indéfiniment alors que l'article correspondant est bel et bien publié.
+function osNettoyerSujetsPublies(){
+  var btn = document.getElementById('btn-nettoyer-sujets');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Recherche...'; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  Promise.all([
+    // Sujets déjà marqués publiés (par le système automatique)
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&select=id,titre',{headers:authH}).then(function(r){return r.json();}),
+    // Articles publiés qui pointent vers un sujet — pour retrouver les sujets
+    // "anciens" jamais marqués, restés ouverts/en cours malgré un article publié
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&sujet_id=not.is.null&select=sujet_id',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var sujetsDejaMarques = (!res[0]||res[0].code) ? [] : res[0];
+    var idsDepuisArticles = (!res[1]||res[1].code) ? [] : res[1].map(function(a){return a.sujet_id;}).filter(Boolean);
+    var idsDejaMarques = sujetsDejaMarques.map(function(s){return s.id;});
+    var idsManquants = Array.from(new Set(idsDepuisArticles)).filter(function(id){ return idsDejaMarques.indexOf(id) === -1; });
+
+    function terminerAvecListe(sujets){
+      if(!sujets.length){
+        notif('Aucun sujet à nettoyer — tout est déjà à jour ✓','succes');
+        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+        return;
+      }
+      var noms = sujets.slice(0,5).map(function(s){return '• '+(s.titre||'Sans titre');}).join('\n')
+        + (sujets.length>5 ? '\n… et '+(sujets.length-5)+' autre(s)' : '');
+      if(!confirm(sujets.length+' sujet(s) correspondant à un article déjà publié vont être supprimés définitivement :\n\n'+noms+'\n\nContinuer ?')){
+        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+        return;
+      }
+      var ids = sujets.map(function(s){return s.id;});
+      fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
+        method:'DELETE', headers:Object.assign({},authH,{'Prefer':'return=minimal'})
+      }).then(function(r){
+        if(r.ok){
+          notif(ids.length+' sujet(s) supprimé(s) ✓','succes');
+          var zone = document.getElementById('redac-sujets-zone');
+          if(zone) osRedacChargerSujets(zone, '');
+        } else {
+          notif('Erreur lors de la suppression','erreur');
+        }
+        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+      }).catch(function(){
+        notif('Erreur réseau','erreur');
+        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+      });
+    }
+
+    if(!idsManquants.length){
+      terminerAvecListe(sujetsDejaMarques);
+    } else {
+      fetch(SB_URL+'/rest/v1/briefing?id=in.('+idsManquants.join(',')+')&select=id,titre',{headers:authH}).then(function(r){return r.json();})
+      .then(function(sujetsManquants){
+        terminerAvecListe(sujetsDejaMarques.concat((!sujetsManquants||sujetsManquants.code)?[]:sujetsManquants));
+      }).catch(function(){ terminerAvecListe(sujetsDejaMarques); });
+    }
+  }).catch(function(){
+    notif('Erreur réseau','erreur');
+    if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+  });
+}
+
 function osRedactionsMembre_OngletSujets(uid, roleRedac){
   var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
   var h = '<div style="display:flex;align-items:stretch;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.8rem;">';
@@ -22057,6 +22122,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
     }
     if(getUserRole()==='admin'){
       h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
+      h += '<button id="btn-nettoyer-sujets" onclick="osNettoyerSujetsPublies()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-broom" style="vertical-align:-2px;margin-right:3px;"></i>Nettoyer les sujets publiés</button>';
     }
     h += '</div>';
   }
