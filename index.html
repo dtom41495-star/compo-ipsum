@@ -2593,19 +2593,15 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
   }
 
   /* Modales overlay : plein écran sur mobile */
-  #carnet-fiche-overlay,
   #carnet-form-overlay,
   #carnet-echange-overlay,
-  #cp-detail-overlay,
-  #benv-fiche-overlay {
+  #cp-detail-overlay {
     padding: 0 !important;
     align-items: flex-end !important;
   }
-  #carnet-fiche-overlay > div,
   #carnet-form-overlay > div,
   #carnet-echange-overlay > div,
-  #cp-detail-overlay > div,
-  #benv-fiche-overlay > div {
+  #cp-detail-overlay > div {
     max-width: 100% !important;
     width: 100% !important;
     max-height: 92vh !important;
@@ -20782,7 +20778,10 @@ function osBenevolesDashRender(){
     sh+='<div style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<div style="margin-left:auto;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
-    sh+='<div style="flex:1;overflow-y:auto;" id="benv-tableau"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--gris-clair);">';
+    // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
+    // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
+    sh+='<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
+    sh+='<div style="flex:1.3;min-width:0;overflow-y:auto;" id="benv-tableau"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--gris-clair);">';
     var entetes=['Bénévole','Rôle','Articles/mois','Publiés','Délai','Activité'];
     if(isVieAsso) entetes.push('Publication','Dispo');
     entetes.push('Statut','');
@@ -20799,7 +20798,7 @@ function osBenevolesDashRender(){
       var estInactif=s.inactif||m.marque_inactif;
       var statBg=estInactif?'#FCEBEB':'#EAF3DE',statCo=estInactif?'#A32D2D':'#27500A';
       var statLbl=m.marque_inactif?'Inactif (manuel)':(s.inactif?'Inactif':'Actif');
-      sh+='<tr class="benv-row" data-role="'+(m.role||'')+'" style="border-bottom:1px solid var(--gris-bord);cursor:pointer;" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
+      sh+='<tr class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" style="border-bottom:1px solid var(--gris-bord);cursor:pointer;" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.background=\'var(--gris-clair)\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.background=\'\'">';
       sh+='<td style="padding:0.6rem 0.9rem;white-space:nowrap;"><div style="display:flex;align-items:center;gap:0.6rem;"><div style="position:relative;flex-shrink:0;"><div style="width:30px;height:30px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div><div><div style="font-weight:600;font-size:0.82rem;color:var(--encre);">'+nomAff+'</div><div style="font-size:0.67rem;color:var(--gris);">'+esc(m.email||'')+'</div></div></div></td>';
       sh+='<td style="padding:0.6rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+(m.role||'—')+'</span></td>';
       sh+='<td style="padding:0.6rem 0.9rem;min-width:100px;"><div style="display:flex;align-items:center;gap:0.4rem;"><span style="font-weight:600;font-size:0.82rem;min-width:14px;">'+s.duMois+'</span><div style="flex:1;height:4px;background:var(--gris-bord);border-radius:2px;"><div style="width:'+barPct+'%;height:4px;background:#ea5b1c;border-radius:2px;"></div></div></div></td>';
@@ -20822,6 +20821,10 @@ function osBenevolesDashRender(){
       sh+='</tr>';
     });
     sh+='</tbody></table></div>';
+    sh+='<div id="benv-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
+      +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un·e bénévole pour voir sa fiche.</div>'
+      +'</div>';
+    sh+='</div>'; // fin de la ligne liste + fiche
     equipeDiv.innerHTML=sh;
     app.appendChild(equipeDiv);
     // ONGLET EDITO (admin uniquement — la version par rédaction est dans Ma Rédac')
@@ -24194,30 +24197,30 @@ function osBenevolesOuvrirFiche(membreId){
   if(!s) return;
 
   var m = s.membre;
-  var existing = document.getElementById('benv-fiche-overlay');
-  if(existing) document.body.removeChild(existing);
+  var card = document.getElementById('benv-detail-panel');
+  if(!card) return;
 
-  var overlay = document.createElement('div');
-  overlay.id = 'benv-fiche-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  // Marquer la ligne sélectionnée dans le tableau (au lieu d'un popup, la fiche
+  // se met à jour dans le panneau de droite, en place)
+  document.querySelectorAll('.benv-row').forEach(function(tr){
+    var actif = tr.dataset.membreId === membreId;
+    tr.classList.toggle('benv-row-active', actif);
+    tr.style.background = actif ? 'rgba(234,91,28,0.08)' : '';
+  });
 
   var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
   var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
   var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
 
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;max-width:520px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
-
   var html = '';
 
   // Header
-  html += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
+  html += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
   html += '<div style="position:relative;flex-shrink:0;"><div style="width:48px;height:48px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:0;right:0;display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
   html += '<div style="flex:1;">';
   html += '<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+(osEstEnLigne(m.id)?'rgba(39,174,96,0.2)':'rgba(255,255,255,0.08)')+';color:'+(osEstEnLigne(m.id)?'#5DCA8A':'rgba(255,255,255,0.4)')+';">'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'</span></div>';
   html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+esc(m.email||'')+'</div>';
   html += '</div>';
-  html += '<button onclick="document.body.removeChild(document.getElementById(\'benv-fiche-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;line-height:1;">×</button>';
   html += '</div>';
 
   // Stats
@@ -24261,10 +24264,17 @@ function osBenevolesOuvrirFiche(membreId){
   }
   html += '</div>';
 
+  // S'inscrit à — utile pour la vie associative : commissions, recrutement,
+  // événements, communiqués — chargé à part de façon asynchrone ci-dessous.
+  html += '<div style="padding:1rem 1.5rem;border-top:1px solid var(--gris-bord);">';
+  html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.7rem;">S\'inscrit à</div>';
+  html += '<div id="benv-fiche-inscriptions">'+osLoadingHtml()+'</div>';
+  html += '</div>';
+
   // Footer actions admin
   var isSelf = m.id === getUserId();
   var isAdmin = getUserRole() === 'admin';
-  html += '<div style="padding:1rem 1.5rem;border-top:1px solid var(--gris-bord);display:flex;flex-direction:column;gap:0.7rem;background:var(--gris-clair);border-radius:0 0 14px 14px;">';
+  html += '<div style="padding:1rem 1.5rem;border-top:1px solid var(--gris-bord);display:flex;flex-direction:column;gap:0.7rem;background:var(--gris-clair);">';
   if(!isSelf || isAdmin){
     if(!isSelf){
       // Rédaction — admin sur les autres seulement
@@ -24404,9 +24414,97 @@ function osBenevolesOuvrirFiche(membreId){
   var btnReactiver = card.querySelector('#benv-btn-reactiver');
   if(btnReactiver) btnReactiver.addEventListener('click', function(){ osBenevolesReactiver(this.dataset.membreId); });
 
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
+  var zoneInscriptions = card.querySelector('#benv-fiche-inscriptions');
+  if(zoneInscriptions) _osBenevoleChargerInscriptions(m.id, zoneInscriptions);
+}
+
+// Ce à quoi le bénévole est inscrit : commissions, candidatures de recrutement,
+// événements agenda confirmés, abonnements CP — utile pour la vie associative
+// pour voir d'un coup d'œil son implication, sans naviguer dans 4 apps différentes.
+function _osBenevoleChargerInscriptions(membreId, zone){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/commission_membres?membre_id=eq.'+encodeURIComponent(membreId)+'&select=commission_id,role_commission',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/recrutement_candidatures?membre_id=eq.'+encodeURIComponent(membreId)+'&select=annonce_id,statut',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+encodeURIComponent(membreId)+'&statut=eq.confirme&select=evenement_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+encodeURIComponent(membreId)+'&select=id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+encodeURIComponent(membreId)+'&select=contact_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/invitations_disponibilites?membre_id=eq.'+encodeURIComponent(membreId)+'&statut=eq.disponible&select=communique_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];})
+  ]).then(function(res){
+    var commissionsLiees = Array.isArray(res[0]) ? res[0] : [];
+    var candidatures     = Array.isArray(res[1]) ? res[1] : [];
+    var inscriptionsEv   = Array.isArray(res[2]) ? res[2] : [];
+    var abonneGlobalCP   = Array.isArray(res[3]) && res[3].length > 0;
+    var sourcesAbonnees  = Array.isArray(res[4]) ? res[4] : [];
+    var invitationsCP    = Array.isArray(res[5]) ? res[5] : [];
+
+    var idsCommission = commissionsLiees.map(function(c){ return c.commission_id; }).filter(Boolean);
+    var idsAnnonce     = candidatures.map(function(c){ return c.annonce_id; }).filter(Boolean);
+    var idsEvenement   = inscriptionsEv.map(function(e){ return e.evenement_id; }).filter(Boolean);
+    var idsContact     = sourcesAbonnees.map(function(a){ return a.contact_id; }).filter(Boolean);
+
+    Promise.all([
+      idsCommission.length ? fetch(SB_URL+'/rest/v1/commissions?id=in.('+idsCommission.join(',')+')&select=id,nom',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : Promise.resolve([]),
+      idsAnnonce.length ? fetch(SB_URL+'/rest/v1/recrutement_annonces?id=in.('+idsAnnonce.join(',')+')&select=id,titre',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : Promise.resolve([]),
+      idsEvenement.length ? fetch(SB_URL+'/rest/v1/agenda_evenements?id=in.('+idsEvenement.join(',')+')&select=id,titre,date_debut',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : Promise.resolve([]),
+      idsContact.length ? fetch(SB_URL+'/rest/v1/contacts_sources?id=in.('+idsContact.join(',')+')&select=id,nom,organisation',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : Promise.resolve([])
+    ]).then(function(res2){
+      var commissionsMap = {}; (Array.isArray(res2[0])?res2[0]:[]).forEach(function(c){ commissionsMap[c.id] = c; });
+      var annoncesMap = {}; (Array.isArray(res2[1])?res2[1]:[]).forEach(function(a){ annoncesMap[a.id] = a; });
+      var evenementsMap = {}; (Array.isArray(res2[2])?res2[2]:[]).forEach(function(e){ evenementsMap[e.id] = e; });
+      var contactsMap = {}; (Array.isArray(res2[3])?res2[3]:[]).forEach(function(c){ contactsMap[c.id] = c; });
+
+      var html = '';
+      var rien = true;
+
+      if(commissionsLiees.length){
+        rien = false;
+        html += '<div style="margin-bottom:0.8rem;"><div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.35rem;">Commissions</div>';
+        commissionsLiees.forEach(function(c){
+          var nom = (commissionsMap[c.commission_id]||{}).nom || 'Commission';
+          html += '<span style="display:inline-block;margin:0 4px 4px 0;font-family:Space Mono,monospace;font-size:0.62rem;padding:2px 8px;border-radius:10px;background:var(--gris-clair);color:var(--encre);">'+esc(nom)+(c.role_commission?' · '+esc(c.role_commission):'')+'</span>';
+        });
+        html += '</div>';
+      }
+      if(candidatures.length){
+        rien = false;
+        var statutLbls = {en_attente:'En attente',acceptee:'Acceptée',refusee:'Refusée'};
+        html += '<div style="margin-bottom:0.8rem;"><div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.35rem;">Recrutement — candidatures</div>';
+        candidatures.forEach(function(c){
+          var titre = (annoncesMap[c.annonce_id]||{}).titre || 'Annonce';
+          html += '<div style="font-size:0.78rem;color:var(--encre);margin-bottom:3px;">'+esc(titre)+' <span style="color:var(--gris);font-size:0.68rem;">('+esc(statutLbls[c.statut]||c.statut||'')+')</span></div>';
+        });
+        html += '</div>';
+      }
+      if(inscriptionsEv.length){
+        rien = false;
+        html += '<div style="margin-bottom:0.8rem;"><div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.35rem;">Événements inscrits</div>';
+        inscriptionsEv.forEach(function(e){
+          var ev = evenementsMap[e.evenement_id]||{};
+          var dateStr = ev.date_debut ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+          html += '<div style="font-size:0.78rem;color:var(--encre);margin-bottom:3px;">'+esc(ev.titre||'Événement')+(dateStr?' <span style="color:var(--gris);font-size:0.68rem;">('+dateStr+')</span>':'')+'</div>';
+        });
+        html += '</div>';
+      }
+      if(abonneGlobalCP || sourcesAbonnees.length || invitationsCP.length){
+        rien = false;
+        html += '<div style="margin-bottom:0.8rem;"><div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.35rem;">Communiqués de presse</div>';
+        if(abonneGlobalCP) html += '<div style="font-size:0.78rem;color:var(--encre);margin-bottom:3px;">Abonné·e à tous les CPs</div>';
+        sourcesAbonnees.forEach(function(a){
+          var c = contactsMap[a.contact_id]||{};
+          html += '<div style="font-size:0.78rem;color:var(--encre);margin-bottom:3px;">Source suivie : '+esc(c.nom||'?')+(c.organisation?' — '+esc(c.organisation):'')+'</div>';
+        });
+        if(invitationsCP.length) html += '<div style="font-size:0.78rem;color:var(--encre);margin-bottom:3px;">Disponible pour '+invitationsCP.length+' invitation(s) presse en cours</div>';
+        html += '</div>';
+      }
+      if(rien){
+        html = '<div style="font-size:0.78rem;color:var(--gris);text-align:center;padding:0.8rem 0;">Aucune inscription pour l\'instant.</div>';
+      }
+      zone.innerHTML = html;
+    });
+  }).catch(function(){
+    zone.innerHTML = '<div style="font-size:0.78rem;color:var(--rouge);text-align:center;padding:0.8rem 0;">Erreur de chargement.</div>';
+  });
 }
 
 function osGenererBilanAnnuel(membreId){
@@ -24630,9 +24728,8 @@ function osBenevolesChangerRole(membreId, nouveauRole){
   }).then(function(r){
     if(r.ok){
       notif('Rôle mis à jour : '+nouveauRole, 'succes');
-      var existing = document.getElementById('benv-fiche-overlay');
-      if(existing) document.body.removeChild(existing);
       osBenevolesDashRender();
+      setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur mise à jour rôle'); }
   }).catch(function(){ notif('Erreur réseau'); });
 }
@@ -24646,9 +24743,8 @@ function osBenvSuspendre(membreId){
   }).then(function(r){
     if(r.ok){
       notif('Membre suspendu', 'succes');
-      var existing = document.getElementById('benv-fiche-overlay');
-      if(existing) document.body.removeChild(existing);
       osBenevolesDashRender();
+      setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur suspension'); }
   }).catch(function(){ notif('Erreur réseau'); });
 }
@@ -24664,9 +24760,8 @@ function osBenevolesReactiver(membreId){
   }).then(function(r){
     if(r.ok){
       notif('Membre réactivé', 'succes');
-      var existing = document.getElementById('benv-fiche-overlay');
-      if(existing) document.body.removeChild(existing);
       osBenevolesDashRender();
+      setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur réactivation'); }
   }).catch(function(){ notif('Erreur réseau'); });
 }
@@ -27012,7 +27107,8 @@ function osCarnetBuildUI(wc){
   }
   html += '</div>';
 
-  // Liste contacts
+  // Liste contacts + fiche du contact sélectionné (intégrée directement, plus de popup)
+  html += '<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
   html += '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">';
   osCarnetRendreListe(html, wc, isAdmin, canEdit, uid);
   return;
@@ -27046,7 +27142,7 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
       var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
       var peutModifier = isAdmin || (uid && c.cree_par === uid);
 
-      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
+      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
 
       // Avatar
       html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
@@ -27077,7 +27173,11 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
     });
   }
 
-  html += '</div></div>'; // liste + flex
+  html += '</div>'; // fin #carnet-liste
+  html += '<div id="carnet-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
+    +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>'
+    +'</div>';
+  html += '</div></div>'; // fin ligne liste+fiche, fin zone-contenu
 
   var wc2 = wc || document.getElementById('wincontent-carnet');
   if(wc2){
@@ -27134,7 +27234,7 @@ function _rafraichirListeCarnet(){
       var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
       var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
       var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
-      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
+      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
       html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
       html += '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.88rem;color:var(--encre);margin-bottom:2px;">'+esc(c.nom||'')+'</div>';
       html += '<div style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
@@ -27155,12 +27255,15 @@ function osCarnetOuvrirFiche(id){
   var c = _carnetContacts.find(function(x){ return x.id === id; });
   if(!c) return;
 
-  var existing = document.getElementById('carnet-fiche-overlay');
-  if(existing) document.body.removeChild(existing);
+  var card = document.getElementById('carnet-detail-panel');
+  if(!card) return;
 
-  var overlay = document.createElement('div');
-  overlay.id = 'carnet-fiche-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  // Marquer l'item sélectionné dans la liste (fiche intégrée à droite, plus de popup)
+  document.querySelectorAll('.carnet-item').forEach(function(el){
+    var actif = el.dataset.contactId === id;
+    el.style.borderColor = actif ? 'var(--rouge)' : 'var(--gris-bord)';
+    el.style.background = actif ? 'rgba(234,91,28,0.05)' : 'white';
+  });
 
   var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
   var fid = parseInt(c.fiabilite)||2;
@@ -27170,13 +27273,10 @@ function osCarnetOuvrirFiche(id){
   var uid = getUserId();
   var peutModifier = isAdmin || (uid && c.cree_par === uid);
 
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
-
   var html = '';
 
   // Header
-  html += '<div style="background:var(--encre-fixe);padding:1.2rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;flex-shrink:0;">';
+  html += '<div style="background:var(--encre-fixe);padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">';
   html += '<div style="width:48px;height:48px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
   html += '<div style="flex:1;">';
   html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(c.nom||'')+'</div>';
@@ -27186,7 +27286,6 @@ function osCarnetOuvrirFiche(id){
   if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">✏️ Modifier</button>';
   if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">🗑️</button>';
   html += '<button onclick="tchapPartagerFiche(\'contact\',\''+esc(c.id)+'\')" style="background:rgba(15,110,86,0.3);border:none;color:#9FE1CB;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">💬 Tchap</button>';
-  html += '<button onclick="document.body.removeChild(document.getElementById(\'carnet-fiche-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;line-height:1;">×</button>';
   html += '</div></div>';
 
   // Corps
@@ -27234,9 +27333,6 @@ function osCarnetOuvrirFiche(id){
   html += '</div>'; // corps
 
   card.innerHTML = html;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
 
   // Charger l'historique et les CPs
   osCarnetChargerHistorique(c.id);
@@ -27396,9 +27492,6 @@ function osCarnetNouveauForm(){
 function osCarnetEditerDepuisFiche(id){
   var c = _carnetContacts.find(function(x){ return x.id === id; });
   _carnetEditId = id;
-  // Fermer la fiche
-  var fiche = document.getElementById('carnet-fiche-overlay');
-  if(fiche) document.body.removeChild(fiche);
   osCarnetOuvrirForm(c);
 }
 
@@ -27506,6 +27599,7 @@ function osCarnetSauver(){
     if(contact && contact.code){ notif('Erreur : '+(contact.message||contact.code)); return; }
 
     notif(isNew ? 'Contact créé !' : 'Contact mis à jour !');
+    var idEdite = _carnetEditId;
     var ol = document.getElementById('carnet-form-overlay');
     if(ol) document.body.removeChild(ol);
     _carnetEditId = null;
@@ -27515,10 +27609,12 @@ function osCarnetSauver(){
       _carnetContacts.push(contact || payload);
       _carnetContacts.sort(function(a,b){ return (a.nom||'').localeCompare(b.nom||''); });
     } else {
-      var idx = _carnetContacts.findIndex(function(c){ return c.id === (_carnetEditId||payload.id); });
+      var idx = _carnetContacts.findIndex(function(c){ return c.id === (idEdite||payload.id); });
       if(idx>=0) _carnetContacts[idx] = Object.assign(_carnetContacts[idx], payload);
     }
     _rafraichirListeCarnet();
+    // Si on modifiait un contact déjà affiché dans la fiche, la rafraîchir avec les nouvelles infos
+    if(!isNew && idEdite) osCarnetOuvrirFiche(idEdite);
   }).catch(function(){ notif('Erreur réseau'); });
 }
 
@@ -27532,8 +27628,8 @@ function osCarnetSupprimer(id){
   }).then(function(r){
     if(r.ok){
       notif('Contact supprimé');
-      var ol = document.getElementById('carnet-fiche-overlay');
-      if(ol) document.body.removeChild(ol);
+      var panel = document.getElementById('carnet-detail-panel');
+      if(panel) panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>';
       _carnetContacts = _carnetContacts.filter(function(c){ return c.id !== id; });
       _rafraichirListeCarnet();
     }
