@@ -383,24 +383,6 @@ body {
   flex-direction: column;
 }
 #os-desktop.visible { display: flex; }
-/* Ouverture façon "tube cathodique à l'envers" à la connexion : un rideau blanc qui
-   se rétracte en plein écran. Rendu par un calque décoratif SÉPARÉ (#os-power-curtain,
-   voir _osJouerAnimationOuverture), jamais en appliquant clip-path/filter directement
-   sur #os-desktop ou l'overlay du sélecteur de rédaction : ces propriétés font de
-   l'élément un bloc englobant pour ses descendants position:fixed (toutes les fenêtres
-   de l'OS !) pendant l'animation, ce qui décalait leur position et pouvait laisser une
-   zone invisible qui bloquait les clics. Le calque dédié a pointer-events:none et est
-   entièrement retiré du DOM une fois l'animation finie — aucun effet de bord possible. */
-#os-power-curtain {
-  position: fixed; inset: 0; z-index: 999999; pointer-events: none;
-  background: white;
-  animation: osPowerCurtain 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
-}
-@keyframes osPowerCurtain {
-  0%   { clip-path: inset(0%); opacity: 1; }
-  45%  { clip-path: inset(49.4% 0%); opacity: 0.85; }
-  100% { clip-path: inset(50%); opacity: 0; }
-}
 
 /* Background */
 #os-bg {
@@ -3381,47 +3363,6 @@ input:focus,select:focus,textarea:focus{
 </head>
 <body>
 
-<!-- CENTRE DE NOTIFICATIONS -->
-  <div id="nc-content">
-    <div class="nc-empty">Aucune notification</div>
-  </div>
-</div>
-
-<!-- MODALE BIENVENUE TUTOS -->
-<div id="modal-tutos-welcome">
-  <div class="tutos-welcome-card">
-    <div class="tutos-welcome-emoji">📖</div>
-    <div class="tutos-welcome-title">Découvre Compo OS !</div>
-    <div class="tutos-welcome-desc">
-      C est ta première connexion. Tu veux faire un tour guidé de l interface et des fonctionnalités ?
-      <br><br>
-      Le guide est accessible à tout moment depuis l icône 📖 sur le bureau.
-    </div>
-    <div class="tutos-welcome-btns">
-      <button class="tutos-welcome-btn-primary" onclick="osTutosWelcomeAccepter()">
-        🚀 Oui, montre-moi !
-      </button>
-      <button class="tutos-welcome-btn-secondary" onclick="osTutosWelcomeDecliner()">
-        Non merci, je connais déjà
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- BANNIÈRE HORS LIGNE -->
-<div id="os-offline-banner">
-  <div class="offline-banner-text">
-    <span class="offline-banner-icon">📡</span>
-    <div>
-      <strong>Mode hors ligne</strong> — Tu peux écrire de nouveaux articles.
-      Pour travailler sur un existant, utilise <strong>"Brouillon"</strong> pour le sauvegarder d'abord.
-      Les articles seront synchronisés automatiquement dès que tu retrouveras internet.
-    </div>
-  </div>
-  <button class="offline-banner-btn" onclick="document.getElementById('os-offline-banner').classList.remove('visible')">Compris ×</button>
-</div>
-
-<!-- SCREENSAVER -->
 <!-- CENTRE DE NOTIFICATIONS -->
   <div id="nc-content">
     <div class="nc-empty">Aucune notification</div>
@@ -10636,25 +10577,11 @@ function osRefreshSiNecessaire(){
   } catch(e){}
 }
 
-// Calque décoratif d'ouverture, jamais posé sur un élément interactif réel — voir le
-// commentaire près de #os-power-curtain dans le CSS.
-function _osJouerAnimationOuverture(){
-  var existing = document.getElementById('os-power-curtain');
-  if(existing && existing.parentNode) existing.parentNode.removeChild(existing);
-  var curtain = document.createElement('div');
-  curtain.id = 'os-power-curtain';
-  document.body.appendChild(curtain);
-  setTimeout(function(){ if(curtain.parentNode) curtain.parentNode.removeChild(curtain); }, 650);
-}
-
 function osLancer(){
   if(_osReady) return;
   _osReady = true;
   var desktop = document.getElementById('os-desktop');
-  if(desktop){
-    desktop.classList.add('visible');
-    _osJouerAnimationOuverture();
-  }
+  if(desktop) desktop.classList.add('visible');
   // NE PAS appeler osBuildDock ici — lancerCompo le fait après _chargerAppsUtilisateur
   osStartStatusBar();
   osBuildDesktopIcons();
@@ -21848,10 +21775,6 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
     var overlay = document.createElement('div');
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.55);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
-    // À la toute première ouverture après connexion, ce sélecteur s'affiche par-dessus
-    // le bureau avant même que celui-ci soit visible — c'est donc lui qui doit
-    // déclencher l'animation d'ouverture, sinon elle reste invisible derrière lui.
-    if(estOuvertureInitiale && typeof _osJouerAnimationOuverture === 'function') _osJouerAnimationOuverture();
 
     var card = document.createElement('div');
     card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:2.5rem;max-width:480px;width:100%;';
