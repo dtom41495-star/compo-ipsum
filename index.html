@@ -13714,6 +13714,16 @@ function osCloseWindowForce(pageId){
   _planifierMajBureauInactif();
 }
 
+// Force le compositeur à repeindre une fenêtre (backdrop-filter/isolation peuvent
+// laisser un rendu obsolète affiché quand le contenu change de hauteur en asynchrone)
+function _osForcerRepaint(el){
+  if(!el) return;
+  var t = el.style.transform;
+  el.style.transform = (t||'')+' translateZ(0.01px)';
+  void el.offsetHeight;
+  el.style.transform = t;
+}
+
 function osFocusWindow(pageId){
   _zCounter++;
   var win = _windows[pageId];
@@ -22127,8 +22137,8 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
     h += '</div>';
   }
   h += '</div>';
-  h += '<div id="redac-sujets-zone" style="min-height:100px;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '<div id="redac-articles-encours-zone" style="margin-top:1rem;"></div>';
+  h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  h += '<div id="redac-articles-encours-zone" style="margin-top:1rem;flex-shrink:0;"></div>';
   return h;
 }
 
@@ -22140,6 +22150,11 @@ function osRedacChargerSujets(zone, roleRedac, callback){
   if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
     sujets = (!sujets||sujets.code) ? [] : sujets;
+    var PRIO_ORDRE = {urgente:0, normale:1, faible:2};
+    function poidsPrio(p){ return PRIO_ORDRE.hasOwnProperty(p) ? PRIO_ORDRE[p] : 1; }
+    sujets.sort(function(a,b){
+      return poidsPrio(a.priorite) - poidsPrio(b.priorite);
+    });
     window._sujetsData = sujets;
     if(!sujets.length){
       zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
@@ -22175,12 +22190,16 @@ function osRedacChargerSujets(zone, roleRedac, callback){
           h += '<button data-sid="'+s.id+'" onclick="osRedacRedigerSujet(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;"><i class="ti ti-pencil" style="vertical-align:-2px;margin-right:3px;"></i>Rédiger</button>'
             +'<button data-sid="'+s.id+'" onclick="brfAbandonnerSujetDepuisRedac(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;">Abandonner</button>';
         }
+        if(isChefOuAdmin){
+          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>';
+        }
       } else {
         // Sujet libre — bouton Réserver
         h += '<div style="display:flex;gap:0.4rem;align-items:center;">';
         h += '<button data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Réserver</button>';
         if(isChefOuAdmin){
           h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirAssignation(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid #1A5276;border-radius:4px;background:white;color:#1A5276;cursor:pointer;"><i class="ti ti-user-plus" style="vertical-align:-2px;margin-right:3px;"></i>Attribuer</button>';
+          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>';
           h += '<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
         }
         h += '</div>';
@@ -22197,14 +22216,14 @@ function osRedacChargerSujets(zone, roleRedac, callback){
 }
 
 // Articles déjà commencés hors CP/sujet — écrits directement depuis l'app Rédaction
-function osRedacChargerArticlesEnCours(zone){
+function osRedacChargerArticlesEnCours(zone, callback){
   if(!zone) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var url = SB_URL+'/rest/v1/articles?statut=in.(brouillon,en-relecture,corrige)&cp_id=is.null&sujet_id=is.null&order=updated_at.desc&select=id,titre,auteur,statut,updated_at';
   if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(articles){
     articles = (!articles||articles.code) ? [] : articles;
-    if(!articles.length){ zone.innerHTML=''; return; }
+    if(!articles.length){ zone.innerHTML=''; if(callback) callback(); return; }
     var h = '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.4rem;">Articles déjà en écriture (hors sujets)</div>';
     h += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
     articles.forEach(function(a){
@@ -22216,7 +22235,8 @@ function osRedacChargerArticlesEnCours(zone){
     });
     h += '</div>';
     zone.innerHTML = h;
-  }).catch(function(){});
+    if(callback) callback();
+  }).catch(function(){ if(callback) callback(); });
 }
 
 function brfAbandonnerSujetDepuisRedac(sujetId){
@@ -23418,6 +23438,69 @@ function osCreerNouveauSujet(){
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
+// ── Modifier un sujet existant (chef/admin) — même formulaire que la création,
+// pré-rempli, en PATCH plutôt qu'en POST.
+function osSujetOuvrirModifier(sujetId){
+  var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
+  if(!sujet) return;
+  var existing = document.getElementById('modifier-sujet-overlay');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modifier-sujet-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.15s ease;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;';
+  card.innerHTML =
+    '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">✏️ Modifier le sujet</div>'
+    +'<button onclick="document.getElementById(\'modifier-sujet-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div class="form-grid" style="margin-bottom:1rem;">'
+    +'<div class="form-group full"><label>Titre *</label><input type="text" id="ms-titre" value="'+esc(sujet.titre||'')+'"></div>'
+    +'<div class="form-group"><label>Type</label><select id="ms-type">'
+      +['article','breve','reportage','interview'].map(function(t){ return '<option value="'+t+'"'+(sujet.type===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>'; }).join('')
+    +'</select></div>'
+    +'<div class="form-group"><label>Priorité</label><select id="ms-priorite">'
+      +['urgente','normale','faible'].map(function(p){ return '<option value="'+p+'"'+((sujet.priorite||'normale')===p?' selected':'')+'>'+p.charAt(0).toUpperCase()+p.slice(1)+'</option>'; }).join('')
+    +'</select></div>'
+    +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ms-rubrique" value="'+esc(sujet.rubrique||'')+'"></div>'
+    +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ms-note" style="min-height:70px;">'+esc(sujet.note||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="btn-row">'
+    +'<button class="btn" onclick="osModifierSujet(\''+sujetId+'\')">Enregistrer</button>'
+    +'</div>'
+    +'</div>';
+
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  setTimeout(function(){ var t=document.getElementById('ms-titre'); if(t) t.focus(); }, 50);
+}
+
+function osModifierSujet(sujetId){
+  var titre = ((document.getElementById('ms-titre')||{}).value||'').trim();
+  if(!titre){ notif('Le titre est obligatoire'); return; }
+  var type = (document.getElementById('ms-type')||{}).value||'article';
+  var priorite = (document.getElementById('ms-priorite')||{}).value||'normale';
+  var rubrique = ((document.getElementById('ms-rubrique')||{}).value||'').trim();
+  var note = ((document.getElementById('ms-note')||{}).value||'').trim();
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var payload = { titre:titre, type:type, priorite:priorite, rubrique:rubrique||null, note:note||null };
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{method:'PATCH',headers:authH,body:JSON.stringify(payload)})
+  .then(function(r){
+    if(r.ok){
+      notif('Sujet modifié ✓','succes');
+      var overlay = document.getElementById('modifier-sujet-overlay');
+      if(overlay) overlay.remove();
+      osRedactionsChangerOnglet('sujets');
+    } else notif('Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 // ── Attribuer un sujet à quelqu'un (chef/admin) — ex : une personne a contacté
 // la rédaction et veut écrire sur un sujet précis, pas besoin qu'elle le réserve elle-même
 var _sujetAssignMembres = [];
@@ -23815,12 +23898,14 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   if(_redacOnglet === 'sujets'){
     var zoneSujets = document.getElementById('redac-sujets-zone');
     var zoneArtEnCours = document.getElementById('redac-articles-encours-zone');
+    var finSujetsTab = function(){ _osForcerRepaint(document.getElementById('win-redactions')); };
     if(zoneSujets){
       osRedacChargerSujets(zoneSujets, roleRedac, function(){
-        if(zoneArtEnCours) osRedacChargerArticlesEnCours(zoneArtEnCours);
+        if(zoneArtEnCours) osRedacChargerArticlesEnCours(zoneArtEnCours, finSujetsTab);
+        else finSujetsTab();
       });
     } else if(zoneArtEnCours){
-      osRedacChargerArticlesEnCours(zoneArtEnCours);
+      osRedacChargerArticlesEnCours(zoneArtEnCours, finSujetsTab);
     }
     osSujetsChargerNotifEtat();
   }
