@@ -3989,7 +3989,7 @@ input:focus,select:focus,textarea:focus{
             <div id="r-cp-source-titre" style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
             <div id="r-cp-source-org" style="font-size:0.6rem;color:var(--gris);"></div>
           </div>
-          <button onclick="cpsOuvrirDetailParId(currentDoc&&currentDoc.cp_id)" style="background:none;border:0.5px solid var(--bleu);color:var(--bleu);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:2px 7px;">Lire</button>
+          <button onclick="rArticleOuvrirCpACote()" title="Ouvrir le communiqué à côté de l'article" style="background:none;border:0.5px solid var(--bleu);color:var(--bleu);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:2px 7px;"><i class="ti ti-layout-sidebar-right" style="vertical-align:-2px;margin-right:2px;"></i>Lire à côté</button>
           <button onclick="rArticleDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;">✕</button>
         </div>
       </div>
@@ -13335,7 +13335,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Drag & resize (desktop seulement)
   if(!isMobile){
-    osMakeDraggable(win, tb);
+    osMakeDraggable(win, tb, pageId);
     osMakeResizable(win);
   }
   // Focus au clic — seulement si la fenêtre n'est pas déjà active. Sinon, chaque
@@ -13840,6 +13840,53 @@ function osAUneMaximisee(){
   return Object.values(_windows).some(function(w){ return w.maximized; });
 }
 
+// Ancrage façon Windows/Ubuntu — occupe la moitié gauche ou droite du bureau.
+function osSnapWindow(pageId, side){
+  var win = _windows[pageId];
+  if(!win) return;
+  var el = win.el;
+  if(!win.snapSide && !win.maximized){
+    win.prevW = el.style.width;
+    win.prevH = el.style.height;
+    win.prevX = el.style.left;
+    win.prevY = el.style.top;
+  }
+  var ws = document.getElementById('os-workspace');
+  var wsW = ws ? ws.offsetWidth : window.innerWidth;
+  var wsH = ws ? ws.offsetHeight : window.innerHeight;
+  var marge = 8;
+  var largeur = Math.floor(wsW/2) - marge - Math.floor(marge/2);
+  el.style.width = largeur+'px';
+  el.style.height = (wsH - marge*2)+'px';
+  el.style.top = marge+'px';
+  el.style.left = (side==='left' ? marge : Math.floor(wsW/2)+Math.floor(marge/2))+'px';
+  win.maximized = false;
+  win.snapSide = side;
+  osFocusWindow(pageId);
+}
+
+function osAfficherApercuSnap(zone, wsRect){
+  var prev = document.getElementById('os-snap-preview');
+  if(!zone){ if(prev) prev.style.display='none'; return; }
+  if(!prev){
+    prev = document.createElement('div');
+    prev.id = 'os-snap-preview';
+    prev.style.cssText = 'position:fixed;z-index:99500;background:rgba(90,150,255,0.22);border:2px solid rgba(90,150,255,0.65);border-radius:8px;pointer-events:none;';
+    document.body.appendChild(prev);
+  }
+  var marge = 8;
+  var largeur = Math.floor(wsRect.width/2) - marge*1.5;
+  prev.style.top = (wsRect.top+marge)+'px';
+  prev.style.height = (wsRect.height-marge*2)+'px';
+  prev.style.width = largeur+'px';
+  prev.style.left = (zone==='left' ? wsRect.left+marge : wsRect.left+wsRect.width/2+marge/2)+'px';
+  prev.style.display = 'block';
+}
+function osMasquerApercuSnap(){
+  var prev = document.getElementById('os-snap-preview');
+  if(prev) prev.style.display = 'none';
+}
+
 function osVerifierDockVisibilite(){
   if(!osAUneMaximisee()){
     // Plus aucune fenêtre maximisée — remonter le dock
@@ -13885,8 +13932,8 @@ function osMakeResizable(win){
   document.addEventListener('mouseup', function(){ resizing = false; });
 }
 
-function osMakeDraggable(win, handle){
-  var dragging = false, startX, startY, startL, startT;
+function osMakeDraggable(win, handle, pageId){
+  var dragging = false, startX, startY, startL, startT, zoneSnap = null;
   handle.addEventListener('mousedown', function(e){
     if(e.target.classList.contains('os-btn-win')) return;
     dragging = true;
@@ -13901,9 +13948,28 @@ function osMakeDraggable(win, handle){
     var dy = e.clientY - startY;
     win.style.left = (startL + dx) + 'px';
     win.style.top = Math.max(0, startT + dy) + 'px';
+    if(pageId){
+      var ws = document.getElementById('os-workspace');
+      var wsRect = ws ? ws.getBoundingClientRect() : {left:0,top:0,width:window.innerWidth,height:window.innerHeight,right:window.innerWidth};
+      var seuil = 24;
+      var zone = null;
+      if(e.clientX <= wsRect.left+seuil) zone = 'left';
+      else if(e.clientX >= wsRect.right-seuil) zone = 'right';
+      zoneSnap = zone;
+      osAfficherApercuSnap(zone, wsRect);
+    }
   });
   document.addEventListener('mouseup', function(){
+    if(dragging && pageId){
+      if(zoneSnap){
+        osSnapWindow(pageId, zoneSnap);
+      } else if(_windows[pageId]){
+        _windows[pageId].snapSide = null;
+      }
+      osMasquerApercuSnap();
+    }
     dragging = false;
+    zoneSnap = null;
   });
 }
 
@@ -19933,6 +19999,9 @@ function osCpFenetreRender(winId){
   var isAdmin = getUserRole() === 'admin';
   var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
 
+  // Vider avant de reconstruire — cette fonction peut être rappelée pour rafraîchir
+  // la fiche (ex: après une action), sinon le contenu s'empilait en double.
+  wc.innerHTML = '';
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
 
   // Header coloré
@@ -28026,6 +28095,36 @@ function cpsOuvrirDetailParId(cpId){
     var cp = data && data[0];
     if(cp) cpsOuvrirDetail(cp);
     else notif('CP introuvable');
+  }).catch(function(){ notif('Erreur chargement CP'); });
+}
+
+// Ouvre le CP source à côté de l'éditeur — CP ancré à gauche, article ancré à
+// droite, façon Windows/Ubuntu (voir osSnapWindow).
+function rArticleOuvrirCpACote(){
+  var cpId = currentDoc && currentDoc.cp_id;
+  if(!cpId) return;
+  if(_windows['redaction']) osSnapWindow('redaction', 'right');
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var cp = data && data[0];
+    if(!cp){ notif('CP introuvable'); return; }
+    var winId = 'cp-'+cp.id;
+    if(_windows[winId]){
+      osSnapWindow(winId, 'left');
+      if(_windows['redaction']) osFocusWindow('redaction');
+      return;
+    }
+    cpsMarquerVu(cp.id);
+    window._cpEnAttente = window._cpEnAttente || {};
+    window._cpEnAttente[winId] = cp;
+    window._osTitlesOverride = window._osTitlesOverride || {};
+    window._osTitlesOverride[winId] = '📰 '+(cp.titre||cp.objet||'Communiqué').substring(0,45);
+    _osOpenWindowExecuter(winId);
+    setTimeout(function(){
+      osSnapWindow(winId, 'left');
+      if(_windows['redaction']) osFocusWindow('redaction');
+    }, 80);
   }).catch(function(){ notif('Erreur chargement CP'); });
 }
 
