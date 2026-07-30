@@ -23675,22 +23675,17 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   h += '<div>';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
-  var countShown = 0;
   membresRedac.forEach(function(mb){
-    if(countShown >= 5){ return; }
     var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
     var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
     var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
     h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+mb.id+'\',\''+redacId+'\')" title="'+esc(mb.prenom+' '+mb.nom)+'" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">';
     h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
     h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
-    h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc((mb.nom||'')[0]||'')+'.'+((mb.nom||'').length>1?'':'')+'</span>';
+    h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
     if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
     h += '</div>';
-    countShown++;
   });
-  var reste = membresRedac.length - countShown;
-  if(reste > 0) h += '<div style="display:flex;align-items:center;justify-content:center;background:var(--gris-clair);border-radius:20px;padding:3px 12px;font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">+'+reste+'</div>';
   if(!membresRedac.length) h += '<span style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
   h += '</div></div>';
   } // fin if(!isChef)
