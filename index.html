@@ -13200,8 +13200,9 @@ function _osOpenWindowExecuter(pageId){
       win.el.classList.remove('minimized');
     }
     osFocusWindow(pageId);
-    // Charger le contenu si nécessaire
-    osLoadPageContent(pageId, win.el);
+    // Charger le contenu si nécessaire — sauf pour la rédaction : la fenêtre garde
+    // l'article en cours d'écriture, la recharger l'effacerait (ex: après minimisation).
+    if(pageId !== 'redaction') osLoadPageContent(pageId, win.el);
     return;
   }
   
