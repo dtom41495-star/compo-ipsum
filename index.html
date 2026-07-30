@@ -383,17 +383,23 @@ body {
   flex-direction: column;
 }
 #os-desktop.visible { display: flex; }
-/* Ouverture façon "tube cathodique à l'envers" à la connexion : un trait lumineux
-   qui s'ouvre en plein écran, au lieu d'un simple apparition instantanée. Réutilisable
-   sur tout élément plein écran (bureau, mais aussi le sélecteur de rédaction qui peut
-   s'afficher par-dessus juste après la connexion et masquerait sinon l'animation). */
-.os-reveal-anim {
-  animation: osDesktopReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+/* Ouverture façon "tube cathodique à l'envers" à la connexion : un rideau blanc qui
+   se rétracte en plein écran. Rendu par un calque décoratif SÉPARÉ (#os-power-curtain,
+   voir _osJouerAnimationOuverture), jamais en appliquant clip-path/filter directement
+   sur #os-desktop ou l'overlay du sélecteur de rédaction : ces propriétés font de
+   l'élément un bloc englobant pour ses descendants position:fixed (toutes les fenêtres
+   de l'OS !) pendant l'animation, ce qui décalait leur position et pouvait laisser une
+   zone invisible qui bloquait les clics. Le calque dédié a pointer-events:none et est
+   entièrement retiré du DOM une fois l'animation finie — aucun effet de bord possible. */
+#os-power-curtain {
+  position: fixed; inset: 0; z-index: 999999; pointer-events: none;
+  background: white;
+  animation: osPowerCurtain 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
 }
-@keyframes osDesktopReveal {
-  0%   { clip-path: inset(50% 50% 50% 50%); filter: brightness(2.4); }
-  55%  { clip-path: inset(49.4% 0% 49.4% 0%); filter: brightness(1.6); }
-  100% { clip-path: inset(0% 0% 0% 0%); filter: brightness(1); }
+@keyframes osPowerCurtain {
+  0%   { clip-path: inset(0%); opacity: 1; }
+  45%  { clip-path: inset(49.4% 0%); opacity: 0.85; }
+  100% { clip-path: inset(50%); opacity: 0; }
 }
 
 /* Background */
@@ -10630,14 +10636,24 @@ function osRefreshSiNecessaire(){
   } catch(e){}
 }
 
+// Calque décoratif d'ouverture, jamais posé sur un élément interactif réel — voir le
+// commentaire près de #os-power-curtain dans le CSS.
+function _osJouerAnimationOuverture(){
+  var existing = document.getElementById('os-power-curtain');
+  if(existing && existing.parentNode) existing.parentNode.removeChild(existing);
+  var curtain = document.createElement('div');
+  curtain.id = 'os-power-curtain';
+  document.body.appendChild(curtain);
+  setTimeout(function(){ if(curtain.parentNode) curtain.parentNode.removeChild(curtain); }, 650);
+}
+
 function osLancer(){
   if(_osReady) return;
   _osReady = true;
   var desktop = document.getElementById('os-desktop');
   if(desktop){
     desktop.classList.add('visible');
-    desktop.classList.add('os-reveal-anim');
-    setTimeout(function(){ desktop.classList.remove('os-reveal-anim'); }, 650);
+    _osJouerAnimationOuverture();
   }
   // NE PAS appeler osBuildDock ici — lancerCompo le fait après _chargerAppsUtilisateur
   osStartStatusBar();
@@ -21833,12 +21849,9 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.55);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
     // À la toute première ouverture après connexion, ce sélecteur s'affiche par-dessus
-    // le bureau avant même que celui-ci soit visible — c'est donc lui qui doit porter
-    // l'animation d'ouverture, sinon elle reste invisible derrière lui.
-    if(estOuvertureInitiale){
-      overlay.classList.add('os-reveal-anim');
-      setTimeout(function(){ overlay.classList.remove('os-reveal-anim'); }, 650);
-    }
+    // le bureau avant même que celui-ci soit visible — c'est donc lui qui doit
+    // déclencher l'animation d'ouverture, sinon elle reste invisible derrière lui.
+    if(estOuvertureInitiale && typeof _osJouerAnimationOuverture === 'function') _osJouerAnimationOuverture();
 
     var card = document.createElement('div');
     card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:2.5rem;max-width:480px;width:100%;';
@@ -30349,9 +30362,23 @@ function osAgendaOuvrirFormulaire(ev){
     // Type + Organisateur
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
     +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Type</label>'
-    +'<select id="ag-type" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:Space Mono,monospace;font-size:0.75rem;box-sizing:border-box;">'+typeOpts+'</select></div>'
+    +'<select id="ag-type" onchange="osAgendaMajContactExterne()" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:Space Mono,monospace;font-size:0.75rem;box-sizing:border-box;">'+typeOpts+'</select></div>'
     +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Organisateur</label>'
     +'<input id="ag-organisateur" type="text" value="'+esc(ev?ev.organisateur||getUserNomComplet():getUserNomComplet())+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
+    +'</div>'
+
+    // Contact externe à prévenir (interview / appel) — visible seulement pour ce type,
+    // permet de renseigner son email pour qu'il soit automatiquement informé de
+    // l'interview/l'appel à la création de l'événement.
+    +'<div id="ag-contact-wrap" style="background:#FEF9F0;border:1px solid #FDEBD0;border-radius:8px;padding:0.8rem 1rem;display:'+(ev&&ev.type==='interview'?'block':'none')+';">'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:#856404;margin-bottom:0.5rem;">👤 Personne à prévenir (interview/appel)</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
+    +'<div><label style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);display:block;margin-bottom:3px;">Nom</label>'
+    +'<input id="ag-contact-nom" type="text" value="'+esc(ev?ev.contact_nom||'':'')+'" placeholder="Ex : Jean Dupont" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
+    +'<div><label style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);display:block;margin-bottom:3px;">Email *</label>'
+    +'<input id="ag-contact-email" type="email" value="'+esc(ev?ev.contact_email||'':'')+'" placeholder="jean.dupont@mail.fr" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
+    +'</div>'
+    +'<div style="font-size:0.68rem;color:#856404;margin-top:0.5rem;">'+(isEdit?'Modifier l\'email ne renvoie pas d\'email automatiquement.':'Cette personne recevra automatiquement un email avec la date, l\'heure, le lieu (ou le lien visio) à la création de l\'événement.')+'</div>'
     +'</div>'
 
     // Rédaction
@@ -30411,6 +30438,12 @@ function osAgendaOuvrirFormulaire(ev){
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
 }
 
+function osAgendaMajContactExterne(){
+  var type = (document.getElementById('ag-type')||{}).value;
+  var wrap = document.getElementById('ag-contact-wrap');
+  if(wrap) wrap.style.display = (type==='interview') ? 'block' : 'none';
+}
+
 function osAgendaSauvegarder(evId){
   var titre = (document.getElementById('ag-titre')||{}).value||'';
   var type  = (document.getElementById('ag-type')||{}).value||'reunion';
@@ -30423,9 +30456,14 @@ function osAgendaSauvegarder(evId){
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
   var organisateur = (document.getElementById('ag-organisateur')||{}).value||getUserNomComplet();
   var redactionId = (document.getElementById('ag-redaction')||{}).value||null;
+  var contactNom = (document.getElementById('ag-contact-nom')||{}).value||'';
+  var contactEmail = (document.getElementById('ag-contact-email')||{}).value||'';
 
   if(!titre.trim()){ notif('Ajoute un titre'); return; }
   if(!debut){ notif('Indique une date de début'); return; }
+  if(type==='interview' && contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())){
+    notif('Email du contact invalide'); return;
+  }
 
   var getChecked = function(name){
     return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;});
@@ -30444,7 +30482,9 @@ function osAgendaSauvegarder(evId){
     cible_roles:roles, cible_fonctions:fonctions,
     places_max:places?parseInt(places):null,
     validation_admin:validation,
-    statut:'publie'
+    statut:'publie',
+    contact_nom: type==='interview' ? (contactNom.trim()||null) : null,
+    contact_email: type==='interview' ? (contactEmail.trim()||null) : null
   };
 
   var isEdit = !!evId;
@@ -30462,8 +30502,38 @@ function osAgendaSauvegarder(evId){
     if(overlay) document.body.removeChild(overlay);
     osAgendaCharger();
     // Événement passé (saisi rétroactivement pour créditer des heures) — ne pas inviter à un événement déjà terminé
-    if(!isEdit && new Date(payload.date_debut) > new Date()) osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
+    if(!isEdit && new Date(payload.date_debut) > new Date()){
+      osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
+      if(payload.contact_email) osAgendaPrevenirContactExterne(evSauve);
+    }
   }).catch(function(){ notif('Erreur sauvegarde'); });
+}
+
+// Prévient automatiquement la personne externe concernée (interview, appel...) —
+// distinct des invitations internes : ce n'est pas un·e bénévole de l'appli, juste
+// un email de courtoisie avec les infos pratiques du rendez-vous.
+function osAgendaPrevenirContactExterne(ev){
+  var debut = new Date(ev.date_debut);
+  var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
+    +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">🎤 '+esc(ev.titre||'')+'</h1>'
+    +'<p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">Ipsum Média</p></div>'
+    +'<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">'
+    +'<p style="margin:0 0 0.8rem;">Bonjour'+(ev.contact_nom?' '+esc(ev.contact_nom):'')+',</p>'
+    +'<p style="margin:0 0 0.8rem;">'+esc(ev.organisateur||'Un membre d\'Ipsum Média')+' souhaite s\'entretenir avec vous. Voici les informations pratiques :</p>'
+    +'<p style="margin:0 0 0.5rem;"><strong>📅</strong> '+dateStr+'</p>'
+    +'<p style="margin:0 0 0.5rem;"><strong>🕐</strong> '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</p>'
+    +(ev.lieu?'<p style="margin:0 0 0.5rem;"><strong>📍</strong> '+esc(ev.lieu)+'</p>':'')
+    +(ev.lien_visio?'<p style="margin:0;"><strong>🔗</strong> <a href="'+esc(ev.lien_visio)+'">Lien de connexion</a></p>':'')
+    +'</div>'
+    +(ev.description?'<div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:0.88rem;color:#333;line-height:1.6;">'+esc(ev.description).replace(/\n/g,'<br>')+'</div>':'')
+    +'<div style="padding:1rem 1.5rem;font-size:0.8rem;color:#666;">Merci de nous prévenir en répondant à cet email en cas d\'empêchement.</div>'
+    +'</div>';
+  envoyerEmailResend(ev.contact_email, '[Ipsum Média] '+ev.titre, html, 'agenda').then(function(r){
+    if(r && r.ok) notif('Email envoyé à '+ev.contact_email);
+    else notif('Erreur envoi email au contact','erreur');
+  });
 }
 
 function osAgendaEnvoyerInvitations(ev, roles, fonctions){
