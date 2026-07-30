@@ -23536,16 +23536,12 @@ function osRedacReserverSujet(btn){
 }
 
 function osRedacRedigerSujet(sujetId){
-  var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
-  var draft = drafts.find(function(d){ return d._sujet_id === sujetId; });
-  if(draft){
-    reprendreBrouillon(draft.id);
-    return;
-  }
-  // Pas de brouillon local (déjà enregistré manuellement une fois, ce qui retire le
-  // brouillon local — voir la sauvegarde manuelle — ou cache vidé/autre appareil) :
-  // vérifier en base avant de repartir de zéro, sinon on donne l'impression que
-  // l'article déjà écrit a disparu alors qu'il est bien enregistré dans Mes Articles.
+  // La base est la source de vérité — elle est vérifiée EN PREMIER, avant tout
+  // brouillon local. Un brouillon local peut être un résidu vide (créé au moment de
+  // la réservation, jamais nettoyé si la sauvegarde a réussi côté serveur sans que le
+  // nettoyage côté client s'exécute) : le proposer en priorité donnait l'impression
+  // de "Brouillon repris" alors qu'il ne contenait rien, en écrasant l'accès au
+  // véritable article déjà écrit et enregistré.
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Un même bénévole peut avoir plusieurs comptes "membres" en doublon (même
   // prénom/nom, ids différents — cas déjà rencontré ailleurs dans l'appli, voir
@@ -23558,16 +23554,30 @@ function osRedacRedigerSujet(sujetId){
       if(autre.id !== moi.id && autre.prenom === moi.prenom && autre.nom === moi.nom) idsAuteur.push(autre.id);
     });
   }
+  function essayerBrouillonLocalOuNouveau(){
+    var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+    var draft = drafts.find(function(d){ return d._sujet_id === sujetId; });
+    if(draft){
+      reprendreBrouillon(draft.id);
+      return;
+    }
+    osRedacRedigerSujetNouveauBrouillon(sujetId);
+  }
   fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&auteur_id=in.('+idsAuteur.join(',')+')&select=id&order=updated_at.desc&limit=1', {headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var existant = data && data[0];
     if(existant && existant.id){
+      // Nettoyer les éventuels brouillons locaux périmés pour ce sujet, pour ne
+      // plus jamais les proposer à la place de l'article réel.
+      var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+      var reste = drafts.filter(function(d){ return d._sujet_id !== sujetId; });
+      if(reste.length !== drafts.length) localStorage.setItem('ipsum_drafts', JSON.stringify(reste));
       mesArticlesOuvrir(existant.id, 'edition');
       return;
     }
-    osRedacRedigerSujetNouveauBrouillon(sujetId);
-  }).catch(function(){ osRedacRedigerSujetNouveauBrouillon(sujetId); });
+    essayerBrouillonLocalOuNouveau();
+  }).catch(function(){ essayerBrouillonLocalOuNouveau(); });
 }
 
 function osRedacRedigerSujetNouveauBrouillon(sujetId){
