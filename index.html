@@ -8631,6 +8631,10 @@ function chargerDansRedaction(doc){
     if(titreEl){ titreEl.value = doc.titre||''; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
     document.getElementById('r-chapeau').value = doc.chapeau||'';
     osStartAutosave();
+    // Ce document vient de la base — il est bien enregistré, contrairement à un
+    // nouveau brouillon qui ne l'est pas encore (voir le défaut neutre à la création
+    // de la fenêtre).
+    if(typeof osSaveIndicateur === 'function') osSaveIndicateur('sauvegarde');
     document.getElementById('r-angle').value = doc.angle||'';
     document.getElementById('r-corps').value = doc.corps||'';
     // Mettre à jour le badge rédaction
@@ -13365,8 +13369,11 @@ function _osOpenWindowExecuter(pageId){
   if(pageId === 'redaction'){
     saveIndicator = document.createElement('div');
     saveIndicator.id = 'win-save-indicator';
-    saveIndicator.style.cssText = 'font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:8px;background:rgba(39,174,96,0.15);color:#27AE60;border:0.5px solid rgba(39,174,96,0.3);white-space:nowrap;flex-shrink:0;';
-    saveIndicator.textContent = '🟢 Sauvegardé';
+    saveIndicator.style.cssText = 'font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:8px;background:rgba(0,0,0,0.05);color:var(--gris);border:0.5px solid var(--gris-bord);white-space:nowrap;flex-shrink:0;';
+    // Neutre par défaut — il ne faut pas afficher "Sauvegardé" avant de savoir si le
+    // document chargé l'est réellement (un nouveau brouillon vide ne l'est pas encore) ;
+    // mesArticlesOuvrir passe explicitement à "sauvegardé" pour un article déjà en base.
+    saveIndicator.textContent = '⚪ Non enregistré';
     // Forcer le chargement des rédactions si cache vide
     if(!window._redactionsData || !window._redactionsData.length){
       var authHR = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
