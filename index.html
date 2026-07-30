@@ -3525,7 +3525,7 @@ input:focus,select:focus,textarea:focus{
 
       <!-- Titre -->
       <div style="margin-bottom:1.1rem;">
-        <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#1A1A2E;margin-bottom:4px;line-height:1.2;">Connexion</div>
+        <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#1A1A2E;margin-bottom:4px;line-height:1.2;">Bienvenue</div>
         <div style="font-size:.82rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Accède à ton espace rédaction</div>
       </div>
 
@@ -9328,7 +9328,7 @@ function brfExporterPDFVrai(){
 
   // Générer un PDF HTML simple via print
   var PRIO_COLORS={urgente:'#A32D2D',normale:'#856404',faible:'#155724'};
-  var html = '<html><head><style>'
+  var html = '<html><head><meta charset="UTF-8"><style>'
     +'body{font-family:sans-serif;max-width:700px;margin:2rem auto;color:#1A1A2E;}'
     +'h1{font-size:1.4rem;margin:0 0 0.3rem;}'
     +'.meta{font-size:0.85rem;color:#666;margin-bottom:1.5rem;}'
@@ -9342,7 +9342,8 @@ function brfExporterPDFVrai(){
   html += '<div class="meta">';
   if(edition) html += '<strong>Édition :</strong> '+edition+' &nbsp;';
   if(date) html += '<strong>Date :</strong> '+date+' &nbsp;';
-  html += '<strong>Sujets :</strong> '+sujets.length;
+  html += '<strong>Sujets :</strong> '+sujets.length+' &nbsp;';
+  html += '<strong>Valable :</strong> '+osPeriodeValiditeAssociative();
   html += '</div>';
   if(note) html += '<div style="background:#FFF3CD;padding:0.7rem 1rem;margin-bottom:1rem;border-left:3px solid #856404;font-size:0.85rem;"><strong>Note :</strong> '+note+'</div>';
   sujets.forEach(function(s,i){
@@ -25107,12 +25108,18 @@ function osGenererBilanAnnuel(membreId){
   }).catch(function(){ notif('Erreur g\u00e9n\u00e9ration bilan','erreur'); });
 }
 
+// Période de validité associative commune à tous les documents (carte, briefing...) —
+// de juin de l'année en cours à juin de l'année suivante.
+function osPeriodeValiditeAssociative(){
+  var annee = new Date().getFullYear();
+  return 'Juin '+annee+' – Juin '+(annee+1);
+}
+
 function osGenererCarteAdherent(m, s){
   var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice'};
   var roleLabel = ROLE_LABELS[m.role]||m.role||'Membre';
   var fonctionLabel = fonctionLong(m.fonction);
   var redacLabel = m.redaction ? 'Rédaction '+(m.redaction.charAt(0).toUpperCase()+m.redaction.slice(1)) : 'Rédaction Tarn';
-  var annee = new Date().getFullYear();
   var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
   var LOGO_B64 = "data:image/png;base64,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";
 
@@ -25182,7 +25189,7 @@ function osGenererCarteAdherent(m, s){
   +'</div>'
   +'</div>'
   +'<div class="card-footer">'
-  +'<div class="footer-left">Valable '+annee+'<br>ipsummedia.fr</div>'
+  +'<div class="footer-left">Valable '+osPeriodeValiditeAssociative()+'<br>ipsummedia.fr</div>'
   +'<div class="footer-right">MEMBRE</div>'
   +'</div></div>'
   +'<div class="print-btn">'
