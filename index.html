@@ -9720,16 +9720,27 @@ function reserverSujetModal(){
 function _reserverSujetConfirme(sujet, authH){
   fermerModalSujet();
 
-  // Passer en en_cours dans la base avec l'auth correcte
+  // Passer en en_cours dans la base avec l'auth correcte — on vérifie que l'écriture
+  // a bien abouti avant d'annoncer un succès : sinon (RLS, réseau...) l'utilisateur se
+  // retrouvait à rédiger un article pour un sujet resté "libre" en base, avec le bouton
+  // Réserver toujours cliquable au retour sur la liste.
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id), {
     method: 'PATCH',
     headers: authH,
     body: JSON.stringify({statut:'en_cours', responsable: getUserNomComplet()})
-  }).then(function(){
-    // Si Ma rédac' est ouverte, rafraîchir l'onglet sujets
+  }).then(function(r){
     if(_redacOnglet === 'sujets') osRedactionsChangerOnglet('sujets');
-  }).catch(function(){});
+    if(!r.ok){
+      notif('Erreur : impossible de réserver ce sujet','erreur');
+      return;
+    }
+    _reserverSujetCreerBrouillonEtOuvrir(sujet);
+  }).catch(function(){
+    notif('Erreur réseau — sujet non réservé','erreur');
+  });
+}
 
+function _reserverSujetCreerBrouillonEtOuvrir(sujet){
   // Créer un brouillon avec la vraie rédaction
   var redacNom = '';
   if(window._redacActiveId && window._redactionsData){
@@ -13837,7 +13848,7 @@ function osMasquerDockSilencieux(){
 }
 
 function osAUneMaximisee(){
-  return Object.values(_windows).some(function(w){ return w.maximized; });
+  return Object.values(_windows).some(function(w){ return w.maximized || w.snapSide; });
 }
 
 // Ancrage façon Windows/Ubuntu — occupe la moitié gauche ou droite du bureau.
@@ -13863,6 +13874,9 @@ function osSnapWindow(pageId, side){
   win.maximized = false;
   win.snapSide = side;
   osFocusWindow(pageId);
+  // Comme pour le plein écran, la barre des tâches n'a plus sa place une fois les
+  // fenêtres ancrées côte à côte.
+  osMasquerDock();
 }
 
 function osAfficherApercuSnap(zone, wsRect){
@@ -13963,8 +13977,9 @@ function osMakeDraggable(win, handle, pageId){
     if(dragging && pageId){
       if(zoneSnap){
         osSnapWindow(pageId, zoneSnap);
-      } else if(_windows[pageId]){
+      } else if(_windows[pageId] && _windows[pageId].snapSide){
         _windows[pageId].snapSide = null;
+        osVerifierDockVisibilite();
       }
       osMasquerApercuSnap();
     }
@@ -23389,7 +23404,24 @@ function osRedacRedigerSujet(sujetId){
     reprendreBrouillon(draft.id);
     return;
   }
-  // Pas de brouillon local retrouvé (autre appareil, cache vidé...) — repartir d'une rédaction pré-remplie avec les infos du sujet
+  // Pas de brouillon local (déjà enregistré manuellement une fois, ce qui retire le
+  // brouillon local — voir la sauvegarde manuelle — ou cache vidé/autre appareil) :
+  // vérifier en base avant de repartir de zéro, sinon on donne l'impression que
+  // l'article déjà écrit a disparu alors qu'il est bien enregistré dans Mes Articles.
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&auteur_id=eq.'+encodeURIComponent(getUserId())+'&select=id&order=updated_at.desc&limit=1', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var existant = data && data[0];
+    if(existant && existant.id){
+      mesArticlesOuvrir(existant.id, 'edition');
+      return;
+    }
+    osRedacRedigerSujetNouveauBrouillon(sujetId);
+  }).catch(function(){ osRedacRedigerSujetNouveauBrouillon(sujetId); });
+}
+
+function osRedacRedigerSujetNouveauBrouillon(sujetId){
   var sujet = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
   if(!sujet){ notif('Sujet introuvable','erreur'); return; }
   var redacNom = '';
@@ -23405,6 +23437,7 @@ function osRedacRedigerSujet(sujetId){
     cp_id: sujet.cp_id||null, cree_le:new Date().toISOString(), modifie_le:new Date().toISOString(),
     _sujet_id: sujetId, _sujet_titre: sujet.titre
   };
+  var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
   drafts.unshift(brouillon);
   localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
   go('redaction');
