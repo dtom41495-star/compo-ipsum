@@ -383,6 +383,18 @@ body {
   flex-direction: column;
 }
 #os-desktop.visible { display: flex; }
+/* Ouverture façon "tube cathodique à l'envers" à la connexion : un trait lumineux
+   qui s'ouvre en plein écran, au lieu d'un simple apparition instantanée. Réutilisable
+   sur tout élément plein écran (bureau, mais aussi le sélecteur de rédaction qui peut
+   s'afficher par-dessus juste après la connexion et masquerait sinon l'animation). */
+.os-reveal-anim {
+  animation: osDesktopReveal 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+@keyframes osDesktopReveal {
+  0%   { clip-path: inset(50% 50% 50% 50%); filter: brightness(2.4); }
+  55%  { clip-path: inset(49.4% 0% 49.4% 0%); filter: brightness(1.6); }
+  100% { clip-path: inset(0% 0% 0% 0%); filter: brightness(1); }
+}
 
 /* Background */
 #os-bg {
@@ -10618,7 +10630,11 @@ function osLancer(){
   if(_osReady) return;
   _osReady = true;
   var desktop = document.getElementById('os-desktop');
-  if(desktop) desktop.classList.add('visible');
+  if(desktop){
+    desktop.classList.add('visible');
+    desktop.classList.add('os-reveal-anim');
+    setTimeout(function(){ desktop.classList.remove('os-reveal-anim'); }, 650);
+  }
   // NE PAS appeler osBuildDock ici — lancerCompo le fait après _chargerAppsUtilisateur
   osStartStatusBar();
   osBuildDesktopIcons();
@@ -10738,9 +10754,9 @@ function osLancer(){
       .then(function(r){ return r.json(); })
       .then(function(redactions){
         window._redactionsData = redactions&&!redactions.code ? redactions : [];
-        _osAfficherSelecteurRedaction(liens);
+        _osAfficherSelecteurRedaction(liens, true);
       }).catch(function(){
-        _osAfficherSelecteurRedaction(liens);
+        _osAfficherSelecteurRedaction(liens, true);
       });
     }).catch(function(){
       osOpenWindow('redactions');
@@ -10869,11 +10885,16 @@ function osBoutiqueRender(){
     fetch(SB_URL+'/rest/v1/boutique_articles?actif=eq.true&order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&select=cout_heures,statut',{headers:authH}).then(function(r){return r.json();}),
-    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.en_attente&select=*,membres(prenom,nom)&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
+    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.en_attente&select=*,membres(prenom,nom)&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
+    // Pour la gestion admin, il faut voir aussi les articles désactivés — sinon un
+    // article désactivé disparaît du catalogue ET de cette liste, sans plus aucun
+    // moyen de le réactiver ou de le modifier depuis l'appli.
+    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_articles?order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
   ]).then(function(results){
     var articles = (!results[0]||results[0].code) ? [] : results[0];
     var heures   = (!results[1]||results[1].code) ? [] : results[1];
     var commandes= (!results[2]||results[2].code) ? [] : results[2];
+    var articlesAdmin = isAdmin && results[4] && !results[4].code ? results[4] : articles;
     var pending  = (!results[3]||results[3].code) ? [] : results[3];
 
     // Les sorties (agenda) ne comptent pas pour la boutique — seulement pour le suivi général des heures
@@ -11004,11 +11025,13 @@ function osBoutiqueRender(){
       // Bouton ajouter article
       h += '<div style="margin-top:1.2rem;border-top:1px solid var(--gris-bord);padding-top:1rem;">';
       h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Articles du catalogue</div>';
-      articles.forEach(function(art){
-        h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+      articlesAdmin.forEach(function(art){
+        h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);'+(art.actif?'':'opacity:0.5;')+'">';
         h += '<div style="flex:1;font-size:0.82rem;">'+esc(art.nom)+'</div>';
         h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:#7D3C98;font-weight:600;">'+art.cout_heures+'h</span>';
+        h += '<button onclick="osBoutiqueOuvrirEditionArticle(\''+art.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">✏️</button>';
         h += '<button onclick="osBoutiqueToggleActif(\''+art.id+'\','+art.actif+')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">'+(art.actif?'Désactiver':'Activer')+'</button>';
+        h += '<button onclick="osBoutiqueSupprimerArticle(\''+art.id+'\',\''+esc(art.nom).replace(/\'/g,"\\'")+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;cursor:pointer;background:white;color:#A32D2D;">🗑️</button>';
         h += '</div>';
       });
       h += '</div></div>';
@@ -11019,6 +11042,7 @@ function osBoutiqueRender(){
 
     // Stocker pour les fonctions
     window._boutiqueArticles = articles;
+    window._boutiqueArticlesAdmin = articlesAdmin;
     window._boutiqueSolde = soldeH;
   }).catch(function(e){
     wc.innerHTML = osErreurHtml('osTresorerieRender');
@@ -11145,6 +11169,71 @@ function osBoutiqueToggleActif(articleId, actif){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+articleId,{method:'PATCH',headers:authH,body:JSON.stringify({actif:!actif})})
   .then(function(r){ if(r.ok){ notif('Article mis à jour','succes'); osBoutiqueRender(); } });
+}
+
+function osBoutiqueSupprimerArticle(articleId, nom){
+  if(!confirm('Supprimer définitivement « '+nom+' » du catalogue ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+articleId,{method:'DELETE',headers:authH})
+  .then(function(r){
+    if(r.ok){ notif('Article supprimé','succes'); osBoutiqueRender(); }
+    else notif('Erreur suppression — des commandes y sont peut-être encore liées','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function osBoutiqueOuvrirEditionArticle(articleId){
+  var art = (window._boutiqueArticlesAdmin||[]).find(function(a){ return a.id===articleId; });
+  if(!art) return;
+  var existing = document.getElementById('boutique-edit-overlay');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'boutique-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(420px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
+  card.innerHTML =
+    '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">✏️ Modifier l\'article</div>'
+    +'<button onclick="document.getElementById(\'boutique-edit-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.5rem;">'
+    +'<div class="form-grid" style="margin-bottom:1rem;">'
+    +'<div class="form-group full"><label>Nom *</label><input type="text" id="be-nom" value="'+esc(art.nom||'')+'"></div>'
+    +'<div class="form-group"><label>Coût (heures) *</label><input type="number" min="0" id="be-cout" value="'+(art.cout_heures||0)+'"></div>'
+    +'<div class="form-group"><label>Stock (vide = illimité)</label><input type="number" min="0" id="be-stock" value="'+(art.stock===null||art.stock===undefined?'':art.stock)+'"></div>'
+    +'<div class="form-group full"><label>Description</label><textarea id="be-desc" style="min-height:60px;">'+esc(art.description||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="btn-row">'
+    +'<button class="btn" onclick="osBoutiqueEnregistrerEditionArticle(\''+articleId+'\')">Enregistrer</button>'
+    +'</div>'
+    +'</div>';
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function osBoutiqueEnregistrerEditionArticle(articleId){
+  var nom = ((document.getElementById('be-nom')||{}).value||'').trim();
+  if(!nom){ notif('Le nom est obligatoire'); return; }
+  var cout = parseInt((document.getElementById('be-cout')||{}).value, 10);
+  if(isNaN(cout) || cout < 0){ notif('Coût invalide'); return; }
+  var stockRaw = ((document.getElementById('be-stock')||{}).value||'').trim();
+  var stock = stockRaw==='' ? null : parseInt(stockRaw, 10);
+  var description = ((document.getElementById('be-desc')||{}).value||'').trim();
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+encodeURIComponent(articleId),{
+    method:'PATCH', headers:authH,
+    body:JSON.stringify({nom:nom, cout_heures:cout, stock:stock, description:description||null})
+  }).then(function(r){
+    if(r.ok){
+      notif('Article mis à jour ✓','succes');
+      var overlay = document.getElementById('boutique-edit-overlay');
+      if(overlay) overlay.remove();
+      osBoutiqueRender();
+    } else notif('Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 function osBoutiqueVoirCommandes(){
@@ -20895,7 +20984,9 @@ function osBenevolesDashRender(){
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
   ];
   if(isAdmin) fetches.push(fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}));
   Promise.all(fetches).then(function(results){
@@ -20903,7 +20994,16 @@ function osBenevolesDashRender(){
     var articles=(!results[1]||results[1].code)?[]:results[1];
     var membresRedacsRows=(!results[2]||results[2].code)?[]:results[2];
     var membresAvecRedac={}; membresRedacsRows.forEach(function(row){ membresAvecRedac[row.membre_id]=true; });
-    var demandes=isAdmin&&results[3]&&!results[3].code?results[3]:[];
+    var commandesValidees=(!results[3]||results[3].code)?[]:results[3];
+    var boutiqueArticles=(!results[4]||results[4].code)?[]:results[4];
+    var recompensesParMembre={};
+    commandesValidees.forEach(function(cmd){
+      var art=boutiqueArticles.find(function(a){return a.id===cmd.article_id;});
+      if(!art) return;
+      if(!recompensesParMembre[cmd.membre_id]) recompensesParMembre[cmd.membre_id]=[];
+      recompensesParMembre[cmd.membre_id].push(art.nom);
+    });
+    var demandes=isAdmin&&results[5]&&!results[5].code?results[5]:[];
     var artBloques=articles.filter(function(a){var age=(Date.now()-new Date(a.updated_at))/(1000*60*60*24);return(a.statut==='en-relecture'||a.statut==='corrige')&&age>5;});
     var artValides=articles.filter(function(a){return a.statut==='valide';});
     var artCorrection=articles.filter(function(a){return a.statut==='en-relecture'||a.statut==='corrige';});
@@ -20924,7 +21024,7 @@ function osBenevolesDashRender(){
       var dernierArticle=publisArts.length?new Date(Math.max.apply(null,publisArts.map(function(a){return new Date(a.updated_at);}))):null;
       var joursBreve=derniereBreve?Math.floor((Date.now()-derniereBreve)/(1000*60*60*24)):null;
       var joursArticle=dernierArticle?Math.floor((Date.now()-dernierArticle)/(1000*60*60*24)):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]};
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id],recompenses:recompensesParMembre[m.id]||[]};
     });
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
@@ -20991,6 +21091,7 @@ function osBenevolesDashRender(){
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
         +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.8rem;flex-shrink:0;">⚠️</span>':'')
         +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.8rem;flex-shrink:0;">❗</span>':'')
+        +(s.recompenses.length?'<span title="Récompense(s) : '+esc(s.recompenses.join(', '))+'" style="font-size:0.8rem;flex-shrink:0;">🏅</span>':'')
         +'</div>';
       sh+='</div>';
       sh+='<div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center;">';
@@ -21690,7 +21791,7 @@ function osRedactionsRenderSelecteur(wc, uid, liens){
   wc.innerHTML = h;
 }
 
-function _osAfficherSelecteurRedaction(liens){
+function _osAfficherSelecteurRedaction(liens, estOuvertureInitiale){
   // Supprimer un éventuel overlay existant
   var existing = document.getElementById('redac-select-overlay');
   if(existing) existing.remove();
@@ -21715,15 +21816,22 @@ function _osAfficherSelecteurRedaction(liens){
     var redactions = res[0];
     var effectifsParRedac = {};
     res[1].forEach(function(row){ effectifsParRedac[row.redaction_id] = (effectifsParRedac[row.redaction_id]||0) + 1; });
-    _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac);
+    _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac, estOuvertureInitiale);
   });
 }
 
-function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac){
+function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac, estOuvertureInitiale){
     effectifsParRedac = effectifsParRedac || {};
     var overlay = document.createElement('div');
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.55);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
+    // À la toute première ouverture après connexion, ce sélecteur s'affiche par-dessus
+    // le bureau avant même que celui-ci soit visible — c'est donc lui qui doit porter
+    // l'animation d'ouverture, sinon elle reste invisible derrière lui.
+    if(estOuvertureInitiale){
+      overlay.classList.add('os-reveal-anim');
+      setTimeout(function(){ overlay.classList.remove('os-reveal-anim'); }, 650);
+    }
 
     var card = document.createElement('div');
     card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:2.5rem;max-width:480px;width:100%;';
@@ -22131,7 +22239,37 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div id="redac-mes-activites"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   h += '</div>';
 
+  // Récompenses boutique validées — chargées en async, seulement affichées s'il y en a
+  h += '<div id="redac-profil-recompenses"></div>';
+
   return h;
+}
+
+function osChargerRecompensesProfil(uid){
+  var zone = document.getElementById('redac-profil-recompenses');
+  if(!zone || !uid) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.valide&select=article_id',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(results){
+    var commandes = (!results[0]||results[0].code) ? [] : results[0];
+    var articles  = (!results[1]||results[1].code) ? [] : results[1];
+    if(!commandes.length) return;
+    var noms = commandes.map(function(c){
+      var art = articles.find(function(a){return a.id===c.article_id;});
+      return art ? art.nom : null;
+    }).filter(Boolean);
+    if(!noms.length) return;
+    var h = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;">Récompenses obtenues</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
+    noms.forEach(function(nom){
+      h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;">🏅 '+esc(nom)+'</span>';
+    });
+    h += '</div></div>';
+    zone.innerHTML = h;
+  }).catch(function(){});
 }
 
 // Nettoyage manuel des sujets dont l'article lié est déjà publié — utile pour
@@ -23409,7 +23547,18 @@ function osRedacRedigerSujet(sujetId){
   // vérifier en base avant de repartir de zéro, sinon on donne l'impression que
   // l'article déjà écrit a disparu alors qu'il est bien enregistré dans Mes Articles.
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&auteur_id=eq.'+encodeURIComponent(getUserId())+'&select=id&order=updated_at.desc&limit=1', {headers:authH})
+  // Un même bénévole peut avoir plusieurs comptes "membres" en doublon (même
+  // prénom/nom, ids différents — cas déjà rencontré ailleurs dans l'appli, voir
+  // osRedactionsMembre_OngletRedac). Se limiter au seul id de la session en cours
+  // ratait l'article si celui-ci avait été sauvegardé depuis un compte doublon.
+  var idsAuteur = [getUserId()];
+  var moi = (_membresData||[]).find(function(m){ return m.id === getUserId(); });
+  if(moi){
+    (_membresData||[]).forEach(function(autre){
+      if(autre.id !== moi.id && autre.prenom === moi.prenom && autre.nom === moi.nom) idsAuteur.push(autre.id);
+    });
+  }
+  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&auteur_id=in.('+idsAuteur.join(',')+')&select=id&order=updated_at.desc&limit=1', {headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var existant = data && data[0];
@@ -23955,6 +24104,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
 
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
+    osChargerRecompensesProfil(uid);
     var btnCarte = document.getElementById('redac-carte-btn');
     if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, {total:mesArticles.length, publies:mesPublies.length}); });
     var btnBilan = document.getElementById('redac-bilan-btn');
@@ -24626,6 +24776,19 @@ function osBenevolesOuvrirFiche(membreId){
     });
   }
   html += '</div>';
+
+  // Récompenses boutique validées — pour que la personne (et l'admin) voie ce
+  // qu'elle a obtenu en échange de ses heures de bénévolat, pas seulement dans
+  // l'onglet "Mes commandes" de la Boutique.
+  if(s.recompenses && s.recompenses.length){
+    html += '<div style="padding:0 1.5rem 1rem;">';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Récompenses obtenues</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
+    s.recompenses.forEach(function(nom){
+      html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;">🏅 '+esc(nom)+'</span>';
+    });
+    html += '</div></div>';
+  }
 
   // S'inscrit à — utile pour la vie associative : commissions, recrutement,
   // événements, communiqués — chargé à part de façon asynchrone ci-dessous.
