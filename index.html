@@ -22132,7 +22132,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   return h;
 }
 
-function osRedacChargerSujets(zone, roleRedac){
+function osRedacChargerSujets(zone, roleRedac, callback){
   if(!zone) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Récupérer tous les sujets ouverts ET en cours — pas uniquement ouvert
@@ -22143,6 +22143,7 @@ function osRedacChargerSujets(zone, roleRedac){
     window._sujetsData = sujets;
     if(!sujets.length){
       zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
+      if(callback) callback();
       return;
     }
     var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
@@ -22188,8 +22189,10 @@ function osRedacChargerSujets(zone, roleRedac){
     });
     h += '</div>';
     zone.innerHTML = h;
+    if(callback) callback();
   }).catch(function(){
     zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:Space Mono,monospace;font-size:0.72rem;">Erreur</div>';
+    if(callback) callback();
   });
 }
 
@@ -23811,9 +23814,14 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   }
   if(_redacOnglet === 'sujets'){
     var zoneSujets = document.getElementById('redac-sujets-zone');
-    if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac);
     var zoneArtEnCours = document.getElementById('redac-articles-encours-zone');
-    if(zoneArtEnCours) osRedacChargerArticlesEnCours(zoneArtEnCours);
+    if(zoneSujets){
+      osRedacChargerSujets(zoneSujets, roleRedac, function(){
+        if(zoneArtEnCours) osRedacChargerArticlesEnCours(zoneArtEnCours);
+      });
+    } else if(zoneArtEnCours){
+      osRedacChargerArticlesEnCours(zoneArtEnCours);
+    }
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac'){
