@@ -3548,6 +3548,17 @@ input:focus,select:focus,textarea:focus{
         <span style="margin-left:6px;display:inline-block;transition:transform .2s;">→</span>
       </button>
 
+      <!-- Séparateur + connexion Google -->
+      <div style="display:flex;align-items:center;gap:8px;margin:.9rem 0;width:100%;">
+        <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
+        <span style="font-family:'DM Sans',sans-serif;font-size:.58rem;color:#D1D5DB;text-transform:uppercase;letter-spacing:.08em;">ou</span>
+        <div style="flex:1;height:1px;background:rgba(0,0,0,0.07);"></div>
+      </div>
+      <button onclick="osLoginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:.65rem 1rem;background:white;border:1.5px solid #C0B8B0;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;color:#1A1A2E;cursor:pointer;box-sizing:border-box;">
+        <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.6 34.9 26.9 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C39.9 37.5 44 31.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+        Continuer avec Google
+      </button>
+
       <!-- Erreur -->
       <div class="os-login-error" id="os-login-error"></div>
 
@@ -5012,9 +5023,9 @@ function exporterArticle(){
     }).catch(function(){ exporterFichier(doc,doc.id); notif('⚠️ Hors ligne - export JSON local'); });
   }
 
-  // Si une image a été choisie, l'uploader d'abord
+  // Si une image a été choisie, l'uploader d'abord (direct Drive — jamais Supabase Storage)
   if(imgFile){
-    uploadImageStorage(imgFile, doc.id).then(function(url){
+    uploadImageVersDrive(imgFile, doc.redaction_id, doc.titre).then(function(url){
       imgFile = null;
       sauvegarder(url);
     }).catch(function(){
@@ -8412,31 +8423,30 @@ function construireNav(){
 }
 
 
-// ===== SUPABASE STORAGE =====
-function uploadImageStorage(file, articleId){
+// ===== IMAGES D'ARTICLES : direct vers Drive (jamais Supabase Storage — quota 1 Go) =====
+function uploadImageVersDrive(file, redacId, titre){
   return new Promise(function(resolve, reject){
-    var ext = file.name.split('.').pop() || 'jpg';
-    var path = 'articles/' + articleId + '.' + ext;
+    var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
     var reader = new FileReader();
     reader.onload = function(e){
-      var arrayBuffer = e.target.result;
-      fetch(SB_URL + '/storage/v1/object/images-articles/' + path, {
-        method: 'POST',
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY),
-          'Content-Type': file.type || 'image/jpeg',
-          'x-upsert': 'true'
-        },
-        body: arrayBuffer
-      }).then(function(r){
-        if(!r.ok){ return r.text().then(function(t){ reject(new Error(t)); }); }
-        var publicUrl = SB_URL + '/storage/v1/object/public/images-articles/' + path;
-        resolve(publicUrl);
+      var base64 = e.target.result.split(',')[1];
+      fetch(SB_URL+'/functions/v1/image-article-vers-drive', {
+        method:'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+        body: JSON.stringify({
+          titre: titre || 'Image',
+          redactionNom: redac ? redac.nom : 'Sans rédaction',
+          contenuBase64: base64,
+          mimeType: file.type || 'image/jpeg'
+        })
+      }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+      .then(function(res){
+        if(!res.ok || !res.data || !res.data.lien){ reject(new Error((res.data&&res.data.error)||'Échec upload Drive')); return; }
+        resolve(res.data.lien);
       }).catch(reject);
     };
     reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -14297,6 +14307,38 @@ function osLoginValider(){
   });
 }
 
+function osLoginGoogle(){
+  var retour = location.origin + location.pathname;
+  location.href = SB_URL+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(retour)+'&hd=ipsummedia.fr';
+}
+
+// Retour de redirection Google : Supabase renvoie le jeton dans le fragment d'URL
+// (#access_token=...), sans l'objet user — il faut le récupérer séparément.
+// Retourne true si un retour Google est en cours de traitement (appelant doit s'arrêter là).
+function _osCheckRetourGoogle(){
+  if(location.hash.indexOf('access_token=') === -1) return false;
+  var params = new URLSearchParams(location.hash.slice(1));
+  var accessToken = params.get('access_token');
+  var refreshToken = params.get('refresh_token');
+  var expiresIn = parseInt(params.get('expires_in')||'3600', 10);
+  history.replaceState(null, '', location.pathname + location.search);
+  if(!accessToken) return true;
+
+  fetch(SB_URL+'/auth/v1/user', { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+accessToken } })
+  .then(function(r){ return r.json(); })
+  .then(function(user){
+    if(!user || !user.id){ notif('Connexion Google échouée','erreur'); return; }
+    _session = { access_token: accessToken, refresh_token: refreshToken, user: user, expires_at: Date.now()+(expiresIn*1000) };
+    localStorage.setItem('ipsum_session', JSON.stringify(_session));
+    SB_HEADERS['Authorization'] = 'Bearer '+accessToken;
+    var loginEl = document.getElementById('os-login');
+    if(loginEl) loginEl.style.display = 'none';
+    chargerProfilMembre(user.id);
+  })
+  .catch(function(){ notif('Connexion Google échouée — erreur réseau','erreur'); });
+  return true;
+}
+
 function osSeDeconnecter(){
   localStorage.removeItem('ipsum_session');
   _session=null;
@@ -16298,7 +16340,7 @@ function sauvegarderCloud(){
   
   if(imgFile){
     notif('Upload image...');
-    uploadImageStorage(imgFile, doc.id)
+    uploadImageVersDrive(imgFile, doc.redaction_id, doc.titre)
     .then(function(url){ doSave(url); })
     .catch(function(){ notif('Upload image echoue'); doSave(null); });
   } else {
@@ -20444,7 +20486,15 @@ function cpsAdminSauvegarder(statut){
     _cpEditId = null;
     _cpsPdfFile = null;
     cpsAdminCharger();
-    if(statut === 'publie' && cp && cp.id) { /* envoi manuel uniquement */ }
+    if(statut === 'publie' && cp && cp.id) {
+      fetch(SB_URL+'/functions/v1/communique-vers-drive', {
+        method:'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+        body: JSON.stringify({ cpId: cp.id })
+      }).then(function(r){
+        if(!r.ok) r.json().then(function(e){ console.error('communique-vers-drive:', e); notif('Publié, mais échec envoi Drive : '+(e.error||r.status),'erreur'); }).catch(function(){ notif('Publié, mais échec envoi Drive (statut '+r.status+')','erreur'); });
+      }).catch(function(e){ console.error('communique-vers-drive réseau:', e); notif('Publié, mais échec réseau vers Drive','erreur'); });
+    }
   })
   .catch(function(e){
     if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -20469,23 +20519,86 @@ function cpsAdminPublier(id){
       }),
       body: JSON.stringify({ statut:'publie', updated_at: new Date().toISOString() })
     }).then(function(r){
-      if(r.ok){ notif('CP publié !'); cpsAdminCharger(); }
+      if(r.ok){
+        // Envoi automatique sur le Drive (compte de service, indépendant de la session
+        // Google de qui publie) — voir la fonction Supabase communique-vers-drive.
+        // Déclenché AVANT notif()/cpsAdminCharger() : si l'un de ces deux plantait, il ne
+        // doit pas empêcher l'appel Drive de partir.
+        fetch(SB_URL+'/functions/v1/communique-vers-drive', {
+          method:'POST',
+          headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+          body: JSON.stringify({ cpId: id })
+        }).then(function(r){
+          if(!r.ok) r.json().then(function(e){ console.error('communique-vers-drive:', e); notif('Publié, mais échec envoi Drive : '+(e.error||r.status),'erreur'); }).catch(function(){ notif('Publié, mais échec envoi Drive (statut '+r.status+')','erreur'); });
+        }).catch(function(e){ console.error('communique-vers-drive réseau:', e); notif('Publié, mais échec réseau vers Drive','erreur'); });
+        notif('CP publié !');
+        cpsAdminCharger();
+      }
     });
   }).catch(function(){ notif('Erreur publication'); });
 }
 
 // ---- ADMIN : Supprimer ----
+// Supprimer un CP propose aussi ce qu'il faut faire du fichier envoyé sur le Drive
+// (s'il y en a un) — on ne veut pas systématiquement le supprimer, un CP peut valoir
+// la peine d'être archivé plutôt que perdu.
 function cpsAdminSupprimer(id){
-  if(!confirm('Supprimer ce communiqué ?')) return;
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id), {
-    method:'DELETE',
-    headers: Object.assign({}, SB_HEADERS, {
-      'Authorization':'Bearer '+(_session&&_session.access_token||'')
-    })
+  var existing = document.getElementById('cp-suppr-overlay');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cp-suppr-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:14px;width:min(420px,94vw);box-shadow:0 24px 60px rgba(0,0,0,0.3);padding:1.3rem 1.5rem;';
+  modal.innerHTML =
+    '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.8rem;">Supprimer ce communiqué ?</div>'
+    +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">S\'il a été envoyé sur le Drive, que veux-tu faire du fichier ?</div>'
+    +'<div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;">'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--encre);cursor:pointer;"><input type="radio" name="cp-suppr-choix" value="garder" checked style="accent-color:var(--rouge);">Laisser le fichier tel quel sur le Drive</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--encre);cursor:pointer;"><input type="radio" name="cp-suppr-choix" value="archiver" style="accent-color:var(--rouge);">Déplacer le fichier vers Communiqués / Archive</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--encre);cursor:pointer;"><input type="radio" name="cp-suppr-choix" value="supprimer" style="accent-color:var(--rouge);">Supprimer aussi le fichier du Drive</label>'
+    +'</div>'
+    +'<div style="display:flex;gap:0.5rem;justify-content:flex-end;">'
+    +'<button onclick="document.getElementById(\'cp-suppr-overlay\').remove()" style="font-family:Space Mono,monospace;font-size:0.75rem;padding:0.5rem 1rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--encre);cursor:pointer;">Annuler</button>'
+    +'<button onclick="_cpsAdminSupprimerConfirme(\''+id+'\')" style="font-family:Space Mono,monospace;font-size:0.75rem;padding:0.5rem 1rem;border:none;border-radius:6px;background:#A32D2D;color:white;cursor:pointer;">Supprimer le CP</button>'
+    +'</div>';
+  overlay.appendChild(modal);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function _cpsAdminSupprimerConfirme(id){
+  var choix = (document.querySelector('input[name="cp-suppr-choix"]:checked')||{}).value || 'garder';
+  var overlay = document.getElementById('cp-suppr-overlay');
+  if(overlay) overlay.remove();
+
+  function supprimerCpDansCompo(){
+    fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id), {
+      method:'DELETE',
+      headers: Object.assign({}, SB_HEADERS, {
+        'Authorization':'Bearer '+(_session&&_session.access_token||'')
+      })
+    }).then(function(r){
+      if(r.ok){ notif('CP supprimé'); cpsAdminCharger(); }
+      else { notif('Erreur suppression'); }
+    }).catch(function(){ notif('Erreur réseau'); });
+  }
+
+  if(choix === 'garder'){
+    supprimerCpDansCompo();
+    return;
+  }
+  // 'archiver' ou 'supprimer' : agir d'abord sur le Drive, puis supprimer le CP
+  fetch(SB_URL+'/functions/v1/communique-vers-drive', {
+    method:'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+    body: JSON.stringify({ cpId: id, action: choix==='archiver' ? 'archive' : 'delete' })
   }).then(function(r){
-    if(r.ok){ notif('CP supprimé'); cpsAdminCharger(); }
-    else { notif('Erreur suppression'); }
-  }).catch(function(){ notif('Erreur réseau'); });
+    if(!r.ok) console.error('communique-vers-drive ('+choix+'): statut '+r.status);
+  }).catch(function(e){ console.error('communique-vers-drive ('+choix+') réseau:', e); }).then(function(){
+    supprimerCpDansCompo();
+  });
 }
 
 // --- ABONNEMENT ---
@@ -25268,84 +25381,280 @@ function osUploadMediasRender(){
   var wc = document.getElementById('wincontent-upload-medias');
   if(!wc) return;
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
-  if(!osUploadTokenValide()){
-    wc.innerHTML = _osUploadEcranConnexion();
-    return;
-  }
+  // La liste des fichiers (uploads_medias) vient de Supabase, pas de Drive — elle est
+  // consultable sans compte Google. La connexion Google n'est nécessaire que pour
+  // envoyer ou supprimer un fichier réellement sur le Drive.
   _osUploadEcranPrincipal(wc);
 }
 
-function _osUploadEcranConnexion(){
-  return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;">'
-    +'<div style="font-size:2.5rem;">☁️</div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:var(--encre);">Upload rush &amp; vidéos</div>'
-    +'<div style="font-size:0.82rem;color:var(--gris);max-width:340px;">Connecte-toi avec ton compte Google Ipsum Média pour envoyer tes fichiers directement dans le Drive de la rédaction.</div>'
-    +'<button onclick="osUploadSeConnecter()" style="display:flex;align-items:center;gap:8px;padding:0.7rem 1.4rem;background:white;border:1px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:600;color:var(--encre);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">'
-    +'<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.6 34.9 26.9 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C39.9 37.5 44 31.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>'
-    +'Se connecter avec Google</button>'
-    +'</div>';
+var UPLOAD_TYPE_ICONS = {video:'🎬', image:'🖼️', document:'📄', autre:'📦'};
+
+function _uploadTypeDeFichier(mime){
+  mime = mime || '';
+  if(mime.indexOf('video/') === 0) return 'video';
+  if(mime.indexOf('image/') === 0) return 'image';
+  if(mime === 'application/pdf' || mime.indexOf('document') !== -1 || mime.indexOf('msword') !== -1 || mime.indexOf('officedocument') !== -1) return 'document';
+  return 'autre';
 }
 
+// ===== Explorateur (vue principale) — Rédaction > Année > Sujet > Fichiers =====
+var _uploadExplorerChemin = []; // [] | [redacId] | [redacId, annee] | [redacId, annee, sujetTitreOuVide]
+
 function _osUploadEcranPrincipal(wc){
+  var h = '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">☁️ Fichiers de la rédaction</div>';
+  h += '<button onclick="osUploadOuvrirEnvoi()" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Envoyer</button>';
+  h += osUploadTokenValide()
+    ? '<button onclick="osUploadSeDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:var(--gris);cursor:pointer;">Déconnexion</button>'
+    : '<button onclick="osUploadSeConnecter()" style="display:flex;align-items:center;gap:6px;font-family:DM Sans,sans-serif;font-size:0.7rem;font-weight:600;padding:5px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;color:var(--encre);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">'
+      +'<svg width="14" height="14" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.6 34.9 26.9 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C39.9 37.5 44 31.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>'
+      +'Se connecter avec Google</button>';
+  h += '</div>';
+
+  h += '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
+  h += '<div id="upl-fil-ariane" style="flex:1;min-width:0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>';
+  h += '<input id="upl-recherche" type="text" placeholder="🔎 Chercher..." oninput="osUploadRenderExplorer()" style="width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;">';
+  h += '</div>';
+
+  h += '<div id="upl-panneau-envoi" style="display:none;flex-shrink:0;background:var(--gris-clair);border-bottom:1px solid var(--gris-bord);padding:1rem 1.2rem;"></div>';
+
+  h += '<div id="upl-explorer-zone" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">'+osLoadingHtml()+'</div>';
+
+  wc.innerHTML = h;
+  _uploadExplorerChemin = [];
+  osUploadChargerExplorer();
+}
+
+function osUploadChargerExplorer(){
+  var zone = document.getElementById('upl-explorer-zone');
+  if(!zone) return;
+  zone.innerHTML = osLoadingHtml();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/uploads_medias?order=created_at.desc&limit=1000&select=*',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    _uploadSuiviRows = (!rows||rows.code) ? [] : rows;
+    osUploadRenderExplorer();
+  }).catch(function(){ zone.innerHTML = osErreurHtml('osUploadChargerExplorer'); });
+}
+
+function osUploadNaviguerVers(chemin){
+  _uploadExplorerChemin = chemin;
+  var rech = document.getElementById('upl-recherche');
+  if(rech) rech.value = '';
+  osUploadRenderExplorer();
+}
+
+function _osUploadFilAriane(){
+  var el = document.getElementById('upl-fil-ariane');
+  if(!el) return;
+  var chemin = _uploadExplorerChemin;
+  var parts = ['<a href="javascript:void(0)" onclick="osUploadNaviguerVers([])" style="color:var(--gris);text-decoration:none;">📁 Racine</a>'];
+  if(chemin[0]){
+    var redac = (window._redactionsData||[]).find(function(r){ return r.id===chemin[0]; });
+    parts.push('<a href="javascript:void(0)" onclick="osUploadNaviguerVers([\''+chemin[0]+'\'])" style="color:var(--gris);text-decoration:none;">'+esc(redac?redac.nom:'?')+'</a>');
+  }
+  if(chemin[1]){
+    parts.push('<a href="javascript:void(0)" onclick="osUploadNaviguerVers([\''+chemin[0]+'\',\''+chemin[1]+'\'])" style="color:var(--gris);text-decoration:none;">'+esc(chemin[1])+'</a>');
+  }
+  if(chemin.length>2){
+    parts.push('<span style="color:var(--encre);font-weight:600;">'+esc(chemin[2]||'Sans sujet')+'</span>');
+  }
+  el.innerHTML = parts.join(' <span style="opacity:0.4;">/</span> ');
+}
+
+function osUploadRenderExplorer(){
+  _osUploadFilAriane();
+  var zone = document.getElementById('upl-explorer-zone');
+  if(!zone) return;
+  var recherche = ((document.getElementById('upl-recherche')||{}).value||'').trim().toLowerCase();
+  if(recherche){ _osUploadRenderRecherche(zone, recherche); return; }
+
+  var chemin = _uploadExplorerChemin;
+  if(chemin.length === 0){ _osUploadRenderRedactions(zone); return; }
+  if(chemin.length === 1){ _osUploadRenderAnnees(zone, chemin[0]); return; }
+  if(chemin.length === 2){ _osUploadRenderSujets(zone, chemin[0], chemin[1]); return; }
+  _osUploadRenderFichiers(zone, chemin[0], chemin[1], chemin[2]);
+}
+
+function _osUploadCarteDossier(icon, label, sousLabel, onclick){
+  return '<div onclick="'+onclick+'" style="display:flex;align-items:center;gap:0.7rem;padding:0.8rem 1rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;cursor:pointer;margin-bottom:0.5rem;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'">'
+    +'<div style="font-size:1.3rem;">'+icon+'</div>'
+    +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(label)+'</div>'
+    +(sousLabel?'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(sousLabel)+'</div>':'')+'</div>'
+    +'<div style="color:var(--gris);">→</div></div>';
+}
+
+function _osUploadRenderRedactions(zone){
+  var redacs = window._redactionsData||[];
+  var h = '';
+  redacs.forEach(function(r){
+    var n = _uploadSuiviRows.filter(function(u){ return u.redaction_id===r.id; }).length;
+    h += _osUploadCarteDossier('🗂️', r.nom, n+' fichier'+(n>1?'s':''), 'osUploadNaviguerVers([\''+r.id+'\'])');
+  });
+  zone.innerHTML = h;
+}
+
+function _osUploadRenderAnnees(zone, redacId){
+  var rows = _uploadSuiviRows.filter(function(u){ return u.redaction_id===redacId; });
+  var annees = {};
+  rows.forEach(function(u){ var a = u.created_at ? new Date(u.created_at).getFullYear() : new Date().getFullYear(); annees[a] = (annees[a]||0)+1; });
+  var anneeCourante = String(new Date().getFullYear());
+  if(!annees[anneeCourante]) annees[anneeCourante] = 0;
+  var listeAnnees = Object.keys(annees).sort().reverse();
+  var h = '';
+  listeAnnees.forEach(function(a){
+    h += _osUploadCarteDossier('📅', a, annees[a]+' fichier'+(annees[a]>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+a+'\'])');
+  });
+  zone.innerHTML = h;
+}
+
+function _osUploadRenderSujets(zone, redacId, annee){
+  var rows = _uploadSuiviRows.filter(function(u){
+    if(u.redaction_id !== redacId) return false;
+    var a = u.created_at ? String(new Date(u.created_at).getFullYear()) : String(new Date().getFullYear());
+    return a === annee;
+  });
+  var sujets = {};
+  var sansSujet = 0;
+  rows.forEach(function(u){
+    if(u.sujet_titre){
+      if(!sujets[u.sujet_titre]) sujets[u.sujet_titre] = 0;
+      sujets[u.sujet_titre]++;
+    } else sansSujet++;
+  });
+  var h = '';
+  Object.keys(sujets).sort().forEach(function(titre){
+    h += _osUploadCarteDossier('📌', titre, sujets[titre]+' fichier'+(sujets[titre]>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+annee+'\',\''+titre.replace(/'/g,"\\'")+'\'])');
+  });
+  if(sansSujet > 0 || !Object.keys(sujets).length){
+    h += _osUploadCarteDossier('📦', 'Sans sujet', sansSujet+' fichier'+(sansSujet>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+annee+'\',\'\'])');
+  }
+  if(!h) h = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier pour cette année.</div>';
+  zone.innerHTML = h;
+}
+
+function _osUploadLigneFichier(u){
+  var uid = getUserId();
+  var isAdmin = getUserRole()==='admin';
+  var icon = UPLOAD_TYPE_ICONS[u.type]||UPLOAD_TYPE_ICONS.autre;
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id===u.redaction_id; });
+  var dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  var tailleMo = u.taille_octets ? (u.taille_octets/1048576).toFixed(1)+' Mo' : '';
+  // Les communiqués sont envoyés automatiquement à la publication (compte de service),
+  // pas manuellement — en lecture seule pour tout le monde, y compris les admins,
+  // pour rester cohérent avec l'endroit où ils sont réellement gérés (l'appli CP).
+  var peutSupprimer = (isAdmin || u.membre_id===uid) && u.type !== 'communique';
+  var h = '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:0.5px solid var(--gris-bord);">';
+  h += '<div style="font-size:1.1rem;">'+icon+'</div>';
+  h += '<div style="flex:1;min-width:0;">';
+  h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(u.nom_fichier||'')+'</div>';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(u.membre_nom||'')+' · '+dateStr+(tailleMo?' · '+tailleMo:'')+(redac?' · '+esc(redac.nom):'')+(u.sujet_titre?' · '+esc(u.sujet_titre):'')+'</div>';
+  h += '</div>';
+  if(u.drive_file_id) h += '<a href="https://drive.google.com/file/d/'+esc(u.drive_file_id)+'/view" target="_blank" style="font-family:Space Mono,monospace;font-size:0.65rem;color:#1A5276;text-decoration:none;white-space:nowrap;">Ouvrir →</a>';
+  if(peutSupprimer) h += '<button onclick="osUploadSupprimerFichier(\''+u.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Supprimer</button>';
+  h += '</div>';
+  return h;
+}
+
+function _osUploadRenderFichiers(zone, redacId, annee, sujetTitre){
+  var rows = _uploadSuiviRows.filter(function(u){
+    if(u.redaction_id !== redacId) return false;
+    var a = u.created_at ? String(new Date(u.created_at).getFullYear()) : String(new Date().getFullYear());
+    if(a !== annee) return false;
+    return (u.sujet_titre||'') === (sujetTitre||'');
+  });
+
+  var h = '';
+  if(!rows.length){
+    h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier ici pour le moment.</div>';
+  } else {
+    rows.forEach(function(u){ h += _osUploadLigneFichier(u); });
+  }
+  zone.innerHTML = h;
+}
+
+function _osUploadRenderRecherche(zone, recherche){
+  var rows = _uploadSuiviRows.filter(function(u){
+    if(u.type === 'communique') return false;
+    var cible = ((u.nom_fichier||'')+' '+(u.sujet_titre||'')+' '+(u.membre_nom||'')).toLowerCase();
+    return cible.indexOf(recherche) !== -1;
+  });
+  if(!rows.length){ zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier ne correspond.</div>'; return; }
+  var h = '';
+  rows.forEach(function(u){ h += _osUploadLigneFichier(u); });
+  zone.innerHTML = h;
+}
+
+function osUploadSupprimerFichier(uploadRowId){
+  var row = _uploadSuiviRows.find(function(u){ return u.id===uploadRowId; });
+  if(!row) return;
+  if(!confirm('Supprimer définitivement « '+row.nom_fichier+' » du Drive ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+
+  function supprimerLigne(){
+    fetch(SB_URL+'/rest/v1/uploads_medias?id=eq.'+encodeURIComponent(uploadRowId), {method:'DELETE', headers:authH})
+    .then(function(){
+      notif('Fichier supprimé','succes');
+      osUploadChargerExplorer();
+    }).catch(function(){ notif('Erreur suppression','erreur'); });
+  }
+
+  if(row.drive_file_id && osUploadTokenValide()){
+    _uploadDriveFetch('files/'+encodeURIComponent(row.drive_file_id), {method:'DELETE'})
+    .then(function(){ supprimerLigne(); })
+    .catch(function(){ supprimerLigne(); });
+  } else {
+    supprimerLigne();
+  }
+}
+
+// ===== Panneau d'envoi (secondaire, replié par défaut) =====
+function osUploadOuvrirEnvoi(){
+  var panneau = document.getElementById('upl-panneau-envoi');
+  if(!panneau) return;
+  if(panneau.style.display === 'block'){ panneau.style.display = 'none'; return; }
+  if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
+
   var uid = getUserId();
   var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
   var redacs = mesLiens.map(function(mr){
     return (window._redactionsData||[]).find(function(r){ return r.id===mr.redaction_id; });
   }).filter(Boolean);
 
-  var h = '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">☁️ Upload rush &amp; vidéos</div>';
-  h += '<button onclick="osUploadSeDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:var(--gris);cursor:pointer;">Déconnexion Google</button>';
-  h += '</div>';
-
-  h += '<div style="display:flex;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;">';
-  h += '<button onclick="osUploadOnglet(\'envoyer\')" id="upl-tab-envoyer" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;">📤 Envoyer</button>';
-  h += '<button onclick="osUploadOnglet(\'suivi\')" id="upl-tab-suivi" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">📋 Suivi</button>';
-  h += '</div>';
-
-  h += '<div id="upl-panel-envoyer" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">';
   if(!redacs.length){
-    h += '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Tu n\'es rattaché·e à aucune rédaction — impossible de choisir un dossier de destination.</div>';
-  } else {
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem;">';
-    h += '<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction</label>';
-    h += '<select id="upl-redaction" onchange="osUploadChargerSujets()" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;">';
-    redacs.forEach(function(r){ h += '<option value="'+r.id+'"'+(r.id===window._redacActiveId?' selected':'')+'>'+esc(r.nom)+'</option>'; });
-    h += '</select></div>';
-    h += '<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Sujet (optionnel)</label>';
-    h += '<select id="upl-sujet" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"><option value="">— Aucun (dossier de l\'année) —</option></select></div>';
-    h += '</div>';
-
-    h += '<div id="upl-dropzone" style="border:2px dashed var(--gris-bord);border-radius:12px;padding:2.5rem 1rem;text-align:center;cursor:pointer;background:var(--gris-clair);" '
-      +'ondragover="event.preventDefault();this.style.borderColor=\'var(--rouge)\';" '
-      +'ondragleave="this.style.borderColor=\'var(--gris-bord)\';" '
-      +'ondrop="osUploadDrop(event)" '
-      +'onclick="document.getElementById(\'upl-file-input\').click()">';
-    h += '<div style="font-size:1.8rem;margin-bottom:0.5rem;">📁</div>';
-    h += '<div style="font-family:DM Sans,sans-serif;font-size:0.85rem;color:var(--encre);font-weight:600;">Glisse tes fichiers ici, ou clique pour choisir</div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-top:4px;">Vidéos, rushs, tout format</div>';
-    h += '</div>';
-    h += '<input type="file" id="upl-file-input" multiple style="display:none;" onchange="osUploadChoisirFichiers(this.files)">';
-
-    h += '<div id="upl-liste-fichiers" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.6rem;"></div>';
+    panneau.innerHTML = '<div style="text-align:center;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Tu n\'es rattaché·e à aucune rédaction — impossible de choisir un dossier de destination.</div>';
+    panneau.style.display = 'block';
+    return;
   }
+
+  var redacPreselec = (_uploadExplorerChemin[0] && redacs.some(function(r){return r.id===_uploadExplorerChemin[0];})) ? _uploadExplorerChemin[0] : (window._redacActiveId || redacs[0].id);
+  if(_uploadExplorerChemin.length >= 3) window._uploadSujetAPreselectionner = _uploadExplorerChemin[2] || null;
+
+  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">';
+  h += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction</label>';
+  h += '<select id="upl-redaction" onchange="osUploadChargerSujets()" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.8rem;box-sizing:border-box;">';
+  redacs.forEach(function(r){ h += '<option value="'+r.id+'"'+(r.id===redacPreselec?' selected':'')+'>'+esc(r.nom)+'</option>'; });
+  h += '</select></div>';
+  h += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Sujet (optionnel)</label>';
+  h += '<select id="upl-sujet" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.8rem;box-sizing:border-box;"><option value="">— Aucun (dossier de l\'année) —</option></select></div>';
   h += '</div>';
 
-  h += '<div id="upl-panel-suivi" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:none;">'+osLoadingHtml()+'</div>';
+  h += '<div id="upl-dropzone" style="border:2px dashed var(--gris-bord);border-radius:10px;padding:1.4rem 1rem;text-align:center;cursor:pointer;background:white;" '
+    +'ondragover="event.preventDefault();this.style.borderColor=\'var(--rouge)\';" '
+    +'ondragleave="this.style.borderColor=\'var(--gris-bord)\';" '
+    +'ondrop="osUploadDrop(event)" '
+    +'onclick="document.getElementById(\'upl-file-input\').click()">';
+  h += '<div style="font-family:DM Sans,sans-serif;font-size:0.8rem;color:var(--encre);font-weight:600;">Glisse tes fichiers ici, ou clique pour choisir</div>';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">Vidéos, rushs, images, communiqués — tout format</div>';
+  h += '</div>';
+  h += '<input type="file" id="upl-file-input" multiple style="display:none;" onchange="osUploadChoisirFichiers(this.files)">';
+  h += '<div id="upl-liste-fichiers" style="margin-top:0.8rem;display:flex;flex-direction:column;gap:0.5rem;"></div>';
 
-  wc.innerHTML = h;
-  if(redacs.length) osUploadChargerSujets();
+  panneau.innerHTML = h;
+  panneau.style.display = 'block';
+  osUploadChargerSujets();
   osUploadRenderListeFichiers();
-}
-
-function osUploadOnglet(onglet){
-  var pE = document.getElementById('upl-panel-envoyer'), pS = document.getElementById('upl-panel-suivi');
-  var tE = document.getElementById('upl-tab-envoyer'), tS = document.getElementById('upl-tab-suivi');
-  if(pE) pE.style.display = onglet==='envoyer' ? 'block' : 'none';
-  if(pS) pS.style.display = onglet==='suivi' ? 'block' : 'none';
-  if(tE){ tE.style.borderBottomColor = onglet==='envoyer'?'var(--rouge)':'transparent'; tE.style.color = onglet==='envoyer'?'var(--encre)':'var(--gris)'; tE.style.fontWeight = onglet==='envoyer'?'600':'400'; }
-  if(tS){ tS.style.borderBottomColor = onglet==='suivi'?'var(--rouge)':'transparent'; tS.style.color = onglet==='suivi'?'var(--encre)':'var(--gris)'; tS.style.fontWeight = onglet==='suivi'?'600':'400'; }
-  if(onglet==='suivi') osUploadChargerSuivi();
 }
 
 function osUploadChargerSujets(){
@@ -25359,9 +25668,11 @@ function osUploadChargerSujets(){
   .then(function(sujets){
     sujets = (!sujets||sujets.code) ? [] : sujets;
     _uploadSujetsCache = sujets;
+    var aPreselectionner = window._uploadSujetAPreselectionner;
     var h = '<option value="">— Aucun (dossier de l\'année) —</option>';
-    sujets.forEach(function(s){ h += '<option value="'+s.id+'">'+esc(s.titre||'Sans titre')+'</option>'; });
+    sujets.forEach(function(s){ h += '<option value="'+s.id+'"'+(aPreselectionner && s.titre===aPreselectionner ? ' selected':'')+'>'+esc(s.titre||'Sans titre')+'</option>'; });
     sujetSel.innerHTML = h;
+    window._uploadSujetAPreselectionner = null;
   }).catch(function(){});
 }
 
@@ -25383,6 +25694,7 @@ function osUploadChoisirFichiers(fileList){
       id: 'upl-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
       file: file, redacNom: redac.nom, redacId: redacId,
       sujetTitre: sujet ? sujet.titre : null, sujetId: sujetId || null,
+      type: _uploadTypeDeFichier(file.type),
       progress: 0, statut: 'attente'
     };
     _uploadFichiers.unshift(item);
@@ -25399,14 +25711,15 @@ function osUploadRenderListeFichiers(){
   var h = '';
   _uploadFichiers.forEach(function(it){
     var sd = STAT[it.statut]||STAT.attente;
-    h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:8px;padding:0.7rem 0.9rem;">';
-    h += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem;">';
-    h += '<div style="flex:1;min-width:0;font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(it.file.name)+'</div>';
-    h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:'+sd.c+';white-space:nowrap;">'+sd.l+'</span>';
-    if(it.statut==='erreur') h += '<button onclick="osUploadReessayer(\''+it.id+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Réessayer</button>';
+    var icon = UPLOAD_TYPE_ICONS[it.type]||UPLOAD_TYPE_ICONS.autre;
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.8rem;">';
+    h += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">';
+    h += '<span>'+icon+'</span>';
+    h += '<div style="flex:1;min-width:0;font-size:0.8rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(it.file.name)+'</div>';
+    h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:'+sd.c+';white-space:nowrap;">'+sd.l+'</span>';
+    if(it.statut==='erreur') h += '<button onclick="osUploadReessayer(\''+it.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Réessayer</button>';
     h += '</div>';
-    h += '<div style="background:var(--gris-clair);border-radius:10px;height:5px;overflow:hidden;"><div style="background:'+(it.statut==='erreur'?'#A32D2D':'var(--rouge)')+';height:5px;width:'+it.progress+'%;transition:width 0.2s;"></div></div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:4px;">📁 '+esc(it.redacNom)+' / '+new Date().getFullYear()+(it.sujetTitre?' / '+esc(it.sujetTitre):'')+'</div>';
+    h += '<div style="background:var(--gris-clair);border-radius:10px;height:4px;overflow:hidden;"><div style="background:'+(it.statut==='erreur'?'#A32D2D':'var(--rouge)')+';height:4px;width:'+it.progress+'%;transition:width 0.2s;"></div></div>';
     h += '</div>';
   });
   zone.innerHTML = h;
@@ -25450,6 +25763,20 @@ function _uploadDriveFetch(path, options){
   return fetch('https://www.googleapis.com/drive/v3/'+path, Object.assign({}, options, {headers:headers}));
 }
 
+var GOOGLE_WORKSPACE_DOMAINE = 'ipsummedia.fr';
+
+// Un dossier créé via le Drive personnel d'un bénévole n'est vu par personne d'autre
+// par défaut. On le partage avec tout le domaine dès sa création, en lecture seule —
+// celui qui a créé le dossier (l'uploadeur) en reste propriétaire et garde tous les
+// droits dessus ; les autres peuvent seulement l'ouvrir/le consulter depuis Compo.
+function _osUploadPartagerAvecDomaine(dossierId){
+  _uploadDriveFetch('files/'+encodeURIComponent(dossierId)+'/permissions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ type:'domain', domain:GOOGLE_WORKSPACE_DOMAINE, role:'reader' })
+  }).catch(function(){});
+}
+
 // Cherche un sous-dossier par nom sous parentId (ou à la racine du Drive si absent),
 // le crée s'il n'existe pas encore — évite de dupliquer un dossier à chaque upload.
 function osUploadTrouverOuCreerDossier(nom, parentId){
@@ -25463,7 +25790,10 @@ function osUploadTrouverOuCreerDossier(nom, parentId){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(parentId ? {name:nom, mimeType:'application/vnd.google-apps.folder', parents:[parentId]} : {name:nom, mimeType:'application/vnd.google-apps.folder'})
-    }).then(function(r){ return r.json(); }).then(function(d){ return d.id; });
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(!parentId && d.id) _osUploadPartagerAvecDomaine(d.id);
+      return d.id;
+    });
   });
 }
 
@@ -25556,38 +25886,16 @@ function osUploadEnregistrerSuivi(item){
       sujet_titre: item.sujetTitre || null,
       nom_fichier: item.file.name,
       taille_octets: item.file.size,
+      type: item.type || 'autre',
       drive_file_id: item.driveFileId,
       statut: 'termine'
     })
+  }).then(function(){
+    osUploadChargerExplorer();
   }).catch(function(){});
 }
 
-function osUploadChargerSuivi(){
-  var zone = document.getElementById('upl-panel-suivi');
-  if(!zone) return;
-  zone.innerHTML = osLoadingHtml();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/uploads_medias?order=created_at.desc&limit=100&select=*',{headers:authH})
-  .then(function(r){ return r.json(); })
-  .then(function(rows){
-    rows = (!rows||rows.code) ? [] : rows;
-    if(!rows.length){ zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun envoi pour le moment.</div>'; return; }
-    var h = '';
-    rows.forEach(function(u){
-      var dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      var tailleMo = u.taille_octets ? (u.taille_octets/1048576).toFixed(1)+' Mo' : '';
-      h += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:0.5px solid var(--gris-bord);">';
-      h += '<div style="font-size:1.1rem;">🎬</div>';
-      h += '<div style="flex:1;min-width:0;">';
-      h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(u.nom_fichier||'')+'</div>';
-      h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(u.membre_nom||'')+' · '+dateStr+(tailleMo?' · '+tailleMo:'')+(u.sujet_titre?' · '+esc(u.sujet_titre):'')+'</div>';
-      h += '</div>';
-      if(u.drive_file_id) h += '<a href="https://drive.google.com/file/d/'+esc(u.drive_file_id)+'/view" target="_blank" style="font-family:Space Mono,monospace;font-size:0.65rem;color:#1A5276;text-decoration:none;white-space:nowrap;">Ouvrir →</a>';
-      h += '</div>';
-    });
-    zone.innerHTML = h;
-  }).catch(function(){ zone.innerHTML = osErreurHtml('osUploadChargerSuivi'); });
-}
+var _uploadSuiviRows = [];
 
 
 // Mettre à jour derniere_activite quand un bénévole fait une action
@@ -29049,6 +29357,8 @@ function oobeTerminer(){
   if(_osCheckRecoveryHash()) return;
   // Lien de signature de document reçu par email — accessible sans connexion
   if(_osCheckSignatureLien()) return;
+  // Retour de redirection "Continuer avec Google"
+  if(_osCheckRetourGoogle()) return;
 
   function loginClock(){
     var now = new Date();
