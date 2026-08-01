@@ -1156,17 +1156,21 @@ body {
   left: 50%;
   transform: translateX(-50%) translateY(10px);
   z-index: 9500;
-  background: rgba(18,18,30,0.95);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255,255,255,0.12);
+  /* Verre dépoli : le fond doit rester assez transparent pour que le bureau
+     transparaisse, sinon le backdrop-filter ne se voit pas (c'était le cas avant
+     avec un fond opaque à 95%). saturate() ravive les couleurs vues au travers,
+     et le liseré clair en haut simule la tranche éclairée de la vitre. */
+  background: rgba(18,18,30,0.55);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 24px 60px rgba(0,0,0,0.6);
   border-radius: 18px;
   padding: 1.1rem;
   width: min(560px, 92vw);
   max-height: 78vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;
@@ -1748,7 +1752,9 @@ body {
 }
 
 /* Menu démarrer, modales */
-:root.theme-dark #os-start-menu { background: rgba(15,15,28,0.98) !important; }
+/* Thème sombre : on garde le verre dépoli, juste un peu plus dense qu'en thème clair
+   (un fond quasi opaque annulerait complètement l'effet). */
+:root.theme-dark #os-start-menu { background: rgba(15,15,28,0.62) !important; }
 :root.theme-dark .start-menu-item { color: var(--encre) !important; }
 :root.theme-dark .start-menu-item:hover { background: rgba(255,255,255,0.07) !important; }
 
@@ -5199,37 +5205,6 @@ function reprendreBrouillon(id){
   },100);
 }
 
-// ===== CORRECTION =====
-let _statCorr='valide';
-function setStatCorr(v){_statCorr=v;document.querySelectorAll('#c-statrow .status-opt').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+v+"'")));}
-
-function loadCorrection(event){importerFichier(event.target.files[0],doc=>{currentDoc=doc;renderCorrection();});}
-
-function renderCorrection(){
-  const doc=currentDoc;
-  (osGetEl('corr-content')||document.getElementById('corr-content')).style.display='block';
-  (osGetEl('c-codeid')||document.getElementById('c-codeid')).innerHTML='<span class="code-id">'+doc.id+'</span>';
-  (osGetEl('c-statbadge')||document.getElementById('c-statbadge')).innerHTML=bStat(doc.statut);
-  (osGetEl('c-urgbadge')||document.getElementById('c-urgbadge')).innerHTML=doc.urgence?bUrg(doc.urgence):'';
-  (osGetEl('c-fraicheur')||document.getElementById('c-fraicheur')).innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le, doc.statut);
-  (osGetEl('c-auteur')||document.getElementById('c-auteur')).value=doc.auteur||'';
-  (osGetEl('c-titre-orig')||document.getElementById('c-titre-orig')).textContent=doc.titre||'';
-  (osGetEl('c-titre-new')||document.getElementById('c-titre-new')).value=doc.titre||'';
-  const hasCh=doc.type==='article'&&doc.chapeau;
-  (osGetEl('cg-ch')||document.getElementById('cg-ch')).style.display=hasCh?'flex':'none';
-  (osGetEl('cg-chn')||document.getElementById('cg-chn')).style.display=hasCh?'flex':'none';
-  if(hasCh){(osGetEl('c-ch-orig')||document.getElementById('c-ch-orig')).textContent=doc.chapeau;(osGetEl('c-ch-new')||document.getElementById('c-ch-new')).value=doc.chapeau;}
-  (osGetEl('c-corps-orig')||document.getElementById('c-corps-orig')).textContent=doc.corps||'';
-  (osGetEl('c-corps-new')||document.getElementById('c-corps-new')).value=doc.corps||'';
-  // Communiqués liés
-  if(doc.communiques&&doc.communiques.length){
-    (osGetEl('c-cpinfo')||document.getElementById('c-cpinfo')).innerHTML='<div class="cp-panel"><div class="cp-panel-title">Communiqués sources liés</div>'+doc.communiques.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - '+esc(cp.organisation)+'</span><div class="cp-actions"><button class="btn-lire" onclick="lireCP(\''+cp.id+'\')">Lire</button></div></div>').join('')+'</div>';
-    // override lireCP pour mode correction
-    window._corrCPs=doc.communiques;
-  }else (osGetEl('c-cpinfo')||document.getElementById('c-cpinfo')).innerHTML='';
-  renderHist('c-hist',doc.historique);
-}
-
 function osOuvrirRecrutement(annonceId){
   // Ouvrir Ma rédac' sur l'onglet recrutement
   osOpenWindow('redactions');
@@ -5320,26 +5295,6 @@ function osMontrerDiff(article){
     fetch(SB_URL+'/rest/v1/articles?id=eq.'+article.id,{method:'PATCH',headers:authH,body:JSON.stringify({titre_original:null,chapeau_original:null,corps_original:null})})
     .then(function(r){if(r.ok){notif('Modifications acceptées ✓','succes');ov.remove();}});
   };
-}
-
-function osAppCorrectionRender(){
-  var wc = document.getElementById('wincontent-app-correction');
-  if(wc && !wc.querySelector('#corr-tabs')){
-    var src = document.getElementById('page-correction');
-    if(src) wc.innerHTML = src.innerHTML;
-  }
-  // Si pas de rédac active, la charger d'abord
-  if(!window._redacActiveId){
-    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+getUserId()+'&select=redaction_id&limit=1',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(data){
-      if(data&&data[0]) window._redacActiveId = data[0].redaction_id;
-      osAppCorrectionCharger();
-    }).catch(function(){ osAppCorrectionCharger(); });
-  } else {
-    osAppCorrectionCharger();
-  }
 }
 
 function osAppCorrectionCharger(){
@@ -5506,72 +5461,6 @@ function osAppCorrectionConfirmerRenvoi(){
       osAppCorrectionCharger();
     } else notif('Erreur','erreur');
   });
-}
-
-function validerCorr(){
-  var corr = getUserNomComplet() || document.getElementById('c-correcteur').value.trim();
-  if(!corr){ notif('Impossible de determiner le correcteur'); return; }
-  var tN = document.getElementById('c-titre-new').value.trim();
-  var cN = document.getElementById('c-corps-new').value.trim();
-  var chN = document.getElementById('c-ch-new').value.trim();
-  var note = document.getElementById('c-note').value.trim();
-  if(note) currentDoc.note_correcteur = note;
-
-  // Afficher le diff
-  document.getElementById('c-titre-orig').innerHTML = diff(currentDoc.titre, tN);
-  document.getElementById('c-corps-orig').innerHTML = diff(currentDoc.corps, cN);
-  if(currentDoc.chapeau) document.getElementById('c-ch-orig').innerHTML = diff(currentDoc.chapeau, chN);
-
-  // Garder l'original avant correction
-  if(!currentDoc.titre_original) currentDoc.titre_original = currentDoc.titre;
-  if(!currentDoc.corps_original) currentDoc.corps_original = currentDoc.corps;
-  if(!currentDoc.chapeau_original && currentDoc.chapeau) currentDoc.chapeau_original = currentDoc.chapeau;
-
-  // Mettre a jour currentDoc
-  currentDoc.titre = tN;
-  currentDoc.corps = cN;
-  if(currentDoc.chapeau !== undefined) currentDoc.chapeau = chN;
-  currentDoc.statut = _statCorr;
-  currentDoc.correcteur = corr;
-  currentDoc.correcteur_id = getUserId();
-  currentDoc.modifie_le = new Date().toISOString();
-  if(!currentDoc.historique) currentDoc.historique = [];
-  currentDoc.historique.push({
-    action: 'correction',
-    auteur: corr,
-    date: new Date().toISOString(),
-    note: note || 'Correction'
-  });
-
-  document.getElementById('c-statbadge').innerHTML = bStat(currentDoc.statut);
-  if(currentDoc.historique) renderHist('c-hist', currentDoc.historique);
-
-  // Sauvegarder en base
-  notif('Sauvegarde en cours...');
-  db.sauvegarderArticle(currentDoc).then(function(){
-    benvMajActivite();
-    // Sauvegarder note dans historique Supabase
-    if(note || corr){
-      fetch(SB_URL+'/rest/v1/historique', {
-        method: 'POST',
-        headers: SB_HEADERS,
-        body: JSON.stringify({
-          article_id: currentDoc.id,
-          action: 'correction',
-          auteur: corr,
-          note: note || 'Correction effectuee'
-        })
-      }).catch(function(){});
-    }
-    notif('Correction sauvegardee en base !');
-  }).catch(function(){
-    notif('Sauvegarde locale uniquement (hors ligne)');
-  });
-}
-function exporterCorrige(){
-  if(!currentDoc) return;
-  exporterFichier(currentDoc, currentDoc.id+'-corrige');
-  notif('JSON exporte pour mise en page newsletter');
 }
 
 // ===== LECTURE =====
@@ -8568,13 +8457,14 @@ function osStartAutosave(){
     if(!titre.trim()) return; // jamais autosave sans titre
     var hash = _autosaveHash_calc();
     if(hash === _autosaveHash) return; // pas de changement
-    _autosaveHash = hash;
     // Autosave silencieux
     var doc = buildDoc();
     if(!doc.id) return;
     _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
       currentDoc = doc;
+      _autosaveHash = hash; // seulement une fois réellement enregistré (sinon un échec
+                            // réseau bloquait toute nouvelle tentative sur le même texte)
       osSaveIndicateur('sauvegarde');
       _autosaveClearLocalDraft(doc.id);
       // Indicateur discret
@@ -8582,6 +8472,7 @@ function osStartAutosave(){
       if(ind){ ind.textContent = '✓ Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
     }).catch(function(){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
+      osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
       if(ind){ ind.textContent = '⚠ Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
     }).finally(function(){ _autosaveInFlight = false; });
@@ -10564,7 +10455,7 @@ var DOCK_APPS = {
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
     { id:'stats-dashboard', icon:'📊', label:'Stats', color:'#0D0D1A' },
     { id:'benevoles', icon:'👥', label:'Bénévoles', color:'#0F6E56' },
-    { id:'gestion-apps', icon:'⚙️', label:'Apps', color:'#2C3E50' },
+    { id:'gestion-apps', icon:'⚙️', label:'Admin', color:'#2C3E50' },
     { id:'nettoyage', icon:'🧹', label:'Nettoyage', color:'#721C24' },
     { id:'log', icon:'📜', label:'Journal', color:'#2C3E50' },
   ],
@@ -11266,8 +11157,7 @@ function osErreurHtml(retryCb, message){
 
 
 // ===== TRÉSORERIE =====
-var TRES_TYPES    = ['Cotisations','Dons','Ventes','Autres revenus','Frais bancaires','Hébergement / Web','Note de frais','Communication','Fournitures','Matériel','Transport','Assurance','Taxes','Salaire','Charges sociales','Autre'];
-var TRES_MOYENS   = ['CB','Chèque','Virement','Prélèvement','HelloAsso','Paypal','Espèces'];
+// (les constantes TRES_TYPES / TRES_MOYENS sont déclarées plus bas, avec TRES_RECETTES)
 
 function osTresorerieRender(){
   var wc = document.getElementById('wincontent-tresorerie');
@@ -13125,17 +13015,20 @@ document.addEventListener('input', function(e){
     var titre = (document.getElementById('r-titre')||{}).value||'';
     var corps = (document.getElementById('r-corps')||{}).value||'';
     if(!titre.trim() && !corps.trim()) return; // rien à sauvegarder
-    _autoSaveLastHash = hash;
     // Sauvegarde silencieuse — pas de toast, juste l'indicateur
     var doc = buildDoc();
     _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
       currentDoc = doc; // Synchroniser — sinon la sauvegarde suivante crée un nouvel article
+      _autoSaveLastHash = hash; // seulement une fois réellement enregistré côté cloud
       osSaveIndicateur('sauvegarde');
       _autosaveClearLocalDraft(doc.id);
     }).catch(function(){
-      _autosaveFallbackLocal(doc); // Fallback local silencieux
-      osSaveIndicateur('sauvegarde');
+      // Échec cloud : copie locale de secours, mais surtout ne pas afficher « Sauvegardé »
+      // (l'article n'est PAS dans le cloud) — et laisser le hash inchangé pour que la
+      // prochaine tentative reparte, même si le texte n'a pas rebougé entre-temps.
+      _autosaveFallbackLocal(doc);
+      osSaveIndicateur('erreur');
     }).finally(function(){ _autosaveInFlight = false; });
   }, 30000); // 30 secondes après la dernière frappe
 });
@@ -13304,7 +13197,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Gestion des apps', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -13671,10 +13564,10 @@ function osChronoStop(type){
 }
 
 function osCloseWindow(pageId){
-  // Arrêter le chrono si c'est une fenêtre chronométrée
-  if(pageId === 'redaction') osChronoStop('redaction');
-  if(pageId === 'app-correction' || pageId === 'correction') osChronoStop('correction');
-  // Vérifier si l'article en cours a des modifications non sauvegardées
+  // Vérifier si l'article en cours a des modifications non sauvegardées.
+  // NB : le chrono de bénévolat est arrêté dans osCloseWindowForce(), pas ici — sinon
+  // il s'arrêtait dès le clic sur la croix, et le temps passé après un « Revenir à
+  // l'article » n'était plus compté.
   if(pageId === 'redaction' && osRedactionADesModifs()){
     osSavePrompt(pageId);
     return;
@@ -13794,6 +13687,11 @@ function osSavePrompt(pageId){
 function osCloseWindowForce(pageId){
   var win = _windows[pageId];
   if(!win) return;
+  // Arrêter le chrono ici — seul endroit par lequel passent TOUTES les fermetures
+  // réelles (croix, invite de sauvegarde, envoi en correction). osChronoStop est
+  // idempotent, donc un double appel ne compte pas le temps deux fois.
+  if(pageId === 'redaction') osChronoStop('redaction');
+  if(pageId === 'app-correction' || pageId === 'correction') osChronoStop('correction');
   if(pageId === 'snake') osSnakeCleanup();
   // Même effet de rebond que l'ouverture, mais à la fermeture
   var dockIcon = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
@@ -13878,14 +13776,19 @@ function osMaximizeWindow(pageId){
     el.style.left = win.prevX;
     el.style.top = win.prevY;
     win.maximized = false;
+    win.snapSide = null; // sinon osAUneMaximisee() reste vrai et le dock ne revient jamais
     // Vérifier si d'autres fenêtres sont encore maximisées
     osVerifierDockVisibilite();
   } else {
-    // Mémoriser et maximiser
-    win.prevW = el.style.width;
-    win.prevH = el.style.height;
-    win.prevX = el.style.left;
-    win.prevY = el.style.top;
+    // Mémoriser la géométrie d'origine — mais pas si la fenêtre est déjà ancrée,
+    // sinon on enregistrerait la demi-largeur d'ancrage comme "taille normale".
+    if(!win.snapSide){
+      win.prevW = el.style.width;
+      win.prevH = el.style.height;
+      win.prevX = el.style.left;
+      win.prevY = el.style.top;
+    }
+    win.snapSide = null; // une fenêtre plein écran n'est plus ancrée à un côté
     var ws = document.getElementById('os-workspace');
     el.style.width = (ws ? ws.offsetWidth : window.innerWidth) - 20 + 'px';
     el.style.height = (ws ? ws.offsetHeight : window.innerHeight) - 10 + 'px';
@@ -16839,12 +16742,6 @@ function osVerifierEtatConnexion(){
   }
 }
 
-
-// ===== APP CORRECTION (pour correcteurs) =====
-function osOuvrirAppCorrection(){
-  if(_windows['app-correction']){ osFocusWindow('app-correction'); }
-  else { osOpenWindow('app-correction'); }
-}
 
 
 
@@ -20313,7 +20210,7 @@ function osCpFenetreRender(winId){
         +(c.email?'<a href="mailto:'+esc(c.email)+'" style="color:#0C447C;">'+esc(c.email)+'</a>':'')
         +(c.telephone?' · '+esc(c.telephone):'')
         +'</div>'
-        +'<button onclick="cpsAbonnerSource(\''+cp.contact_id+'\')" style="font-size:0.65rem;padding:3px 8px;background:'+(estAbonne?'#C8DDF5':'#E6F1FB')+';border:1px solid #8AB4D6;border-radius:5px;cursor:pointer;color:#0C447C;">'
+        +'<button data-contact="'+esc(cp.contact_id)+'" data-abonne="'+(estAbonne?'1':'0')+'" onclick="cpsBasculeAbonnementSource(this.dataset.contact, this.dataset.abonne===\'1\', this)" style="font-size:0.65rem;padding:3px 8px;background:'+(estAbonne?'#C8DDF5':'#E6F1FB')+';border:1px solid #8AB4D6;border-radius:5px;cursor:pointer;color:#0C447C;">'
         +(estAbonne?'🔔 Abonné':'🔔 S\'abonner à cette source')+'</button>'
         +'</div>';
     }).catch(function(){});
@@ -20690,10 +20587,13 @@ function cpsAfficherAbonnement(){
 }
 
 
-function cpsBasculeAbonnementSource(contactId, estAbonne){
+// btnEl : le bouton cliqué. Plusieurs fenêtres CP peuvent être ouvertes en même temps,
+// donc on met à jour le bouton réellement cliqué plutôt qu'un id fixe (l'ancien id
+// 'cp-detail-abonne-btn' n'existe plus dans le HTML — repli conservé par sécurité).
+function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
   var uid = getUserId(); if(!uid) return;
   var headers = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
-  var btn = document.getElementById('cp-detail-abonne-btn');
+  var btn = btnEl || document.getElementById('cp-detail-abonne-btn');
 
   if(estAbonne){
     fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid+'&contact_id=eq.'+encodeURIComponent(contactId), {
@@ -20704,7 +20604,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne){
         if(btn){
           btn.textContent = '🔕 S\'abonner à cette source';
           btn.style.background = '#E6F1FB'; btn.style.color = '#0C447C'; btn.style.borderColor = '#0C447C';
-          btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, false); };
+          btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, false, btn); };
         }
       }
     });
@@ -20719,7 +20619,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne){
         if(btn){
           btn.textContent = '🔔 Abonné';
           btn.style.background = '#D4EDDA'; btn.style.color = '#155724'; btn.style.borderColor = '#155724';
-          btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, true); };
+          btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, true, btn); };
         }
       }
     });
@@ -21063,7 +20963,8 @@ function osDemandeApprouver(demandeId, membreId, appsDemandees){
   .then(function(r){
     if(r.ok){
       notif('Compte activé !');
-      osBenevolesDashRender();
+      window._gestionAppsOnglet = 'demandes';
+      osGestionAppsRender(); // les demandes vivent désormais dans l'appli Admin
     }
   }).catch(function(){ notif('Erreur activation'); });
 }
@@ -21078,7 +20979,7 @@ function osDemandeRefuser(demandeId){
     }),
     body: JSON.stringify({ statut: 'refuse' })
   }).then(function(r){
-    if(r.ok){ notif('Demande refusée.'); osBenevolesDashRender(); }
+    if(r.ok){ notif('Demande refusée.'); window._gestionAppsOnglet = 'demandes'; osGestionAppsRender(); }
   }).catch(function(){ notif('Erreur'); });
 }
 
@@ -21096,7 +20997,6 @@ function osBenevolesDashRender(){
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
   ];
-  if(isAdmin) fetches.push(fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}));
   Promise.all(fetches).then(function(results){
     var membres=(!results[0]||results[0].code)?[]:results[0];
     var articles=(!results[1]||results[1].code)?[]:results[1];
@@ -21111,7 +21011,6 @@ function osBenevolesDashRender(){
       if(!recompensesParMembre[cmd.membre_id]) recompensesParMembre[cmd.membre_id]=[];
       recompensesParMembre[cmd.membre_id].push(art.nom);
     });
-    var demandes=isAdmin&&results[5]&&!results[5].code?results[5]:[];
     var artBloques=articles.filter(function(a){var age=(Date.now()-new Date(a.updated_at))/(1000*60*60*24);return(a.statut==='en-relecture'||a.statut==='corrige')&&age>5;});
     var artValides=articles.filter(function(a){return a.statut==='valide';});
     var artCorrection=articles.filter(function(a){return a.statut==='en-relecture'||a.statut==='corrige';});
@@ -21137,27 +21036,35 @@ function osBenevolesDashRender(){
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
     var app=document.createElement('div');
-    app.style.cssText='display:flex;flex-direction:column;height:100%;';
-    var tabDefs=[{id:'equipe',label:'👥 Équipe'}];
-    if(isAdmin) tabDefs.push({id:'edito',label:'📋 Édito'});
-    tabDefs.push({id:'commissions',label:'🏛️ Commissions'},{id:'recrutement',label:'📢 Recrutement'});
-    if(isAdmin) tabDefs.push({id:'demandes',label:'🔔 Demandes'+(demandes.length?' ('+demandes.length+')':'')});
-    var tabBar=document.createElement('div');
-    tabBar.style.cssText='display:flex;border-bottom:2px solid var(--gris-bord);flex-shrink:0;background:white;';
+    // Rail vertical à gauche — même principe que Ma Rédac' et l'appli Admin.
+    app.style.cssText='display:flex;height:100%;overflow:hidden;';
+    var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'}];
+    if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
+    tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
+    // Les demandes d'accès sont de l'administration pure — elles vivent dans l'appli
+    // Admin, pas ici : cette appli est dédiée à la vie associative.
+    var rail=document.createElement('div');
+    rail.id='benv-sidebar-rail';
+    rail.style.cssText='width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
+    rail.innerHTML='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Vie associative</div>';
     var tabContents={};
+    // Zone de contenu : les onglets y sont empilés, un seul visible à la fois.
+    var contentWrap=document.createElement('div');
+    contentWrap.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;';
     tabDefs.forEach(function(t,i){
       var btn=document.createElement('button');
-      btn.style.cssText='flex:1;padding:0.7rem 0.5rem;border:none;background:transparent;font-size:0.78rem;font-family:DM Sans,sans-serif;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gris);transition:color 0.15s;';
-      btn.textContent=t.label;
-      if(i===0){btn.style.color='var(--rouge)';btn.style.borderBottomColor='var(--rouge)';btn.style.fontWeight='600';}
+      btn.setAttribute('data-onglet',t.id);
+      btn.style.cssText='display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(i===0?'var(--rouge)':'transparent')+';color:'+(i===0?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;';
+      btn.innerHTML='<span style="font-size:0.95rem;display:flex;flex-shrink:0;"><i class="ti '+t.icon+'"></i></span>'+t.label;
       btn.onclick=(function(tid,btnEl){return function(){
-        tabBar.querySelectorAll('button').forEach(function(b){b.style.color='var(--gris)';b.style.borderBottomColor='transparent';b.style.fontWeight='400';});
-        btnEl.style.color='var(--rouge)';btnEl.style.borderBottomColor='var(--rouge)';btnEl.style.fontWeight='600';
+        rail.querySelectorAll('button[data-onglet]').forEach(function(b){b.style.background='transparent';b.style.color='var(--encre)';});
+        btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
       };})(t.id,btn);
-      tabBar.appendChild(btn);
+      rail.appendChild(btn);
     });
-    app.appendChild(tabBar);
+    app.appendChild(rail);
+    app.appendChild(contentWrap);
     // ONGLET EQUIPE
     var equipeDiv=document.createElement('div');
     equipeDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:flex;';
@@ -21218,7 +21125,7 @@ function osBenevolesDashRender(){
       +'</div>';
     sh+='</div>'; // fin de la ligne liste + fiche
     equipeDiv.innerHTML=sh;
-    app.appendChild(equipeDiv);
+    contentWrap.appendChild(equipeDiv);
     // ONGLET EDITO (admin uniquement — la version par rédaction est dans Ma Rédac')
     if(isAdmin){
     var editoDiv=document.createElement('div');
@@ -21263,36 +21170,14 @@ function osBenevolesDashRender(){
     });
     eh+='</tbody></table></div>';
     editoDiv.innerHTML=eh;
-    app.appendChild(editoDiv);
-    }
-    // ONGLET DEMANDES
-    if(isAdmin){
-      var demandesDiv=document.createElement('div');
-      demandesDiv.style.cssText='flex:1;overflow-y:auto;padding:1rem 1.4rem;display:none;';
-      tabContents['demandes']=demandesDiv;
-      var membreMap={};membres.forEach(function(m){membreMap[m.id]=m;});
-      if(!demandes.length){demandesDiv.innerHTML='<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune demande en attente</div>';}
-      else{
-        demandes.forEach(function(d){
-          var m=membreMap[d.membre_id];
-          var nom=m?(m.prenom+' '+(m.nom||'')).trim():d.membre_id.slice(0,8)+'…';
-          var apps=(d.apps_demandees||[]).filter(function(a){return a!=='accueil';});
-          var dateStr=new Date(d.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-          var appsJson=encodeURIComponent(JSON.stringify(d.apps_demandees||[]));
-          var card=document.createElement('div');
-          card.style.cssText='display:flex;align-items:center;gap:0.8rem;background:white;border:0.5px solid #F9A825;border-radius:8px;padding:0.7rem 1rem;margin-bottom:0.5rem;flex-wrap:wrap;';
-          card.innerHTML='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(nom)+'</div><div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · '+esc(apps.join(', '))+'</div></div><div style="display:flex;gap:0.4rem;"><button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button><button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button></div>';
-          demandesDiv.appendChild(card);
-        });
-      }
-      app.appendChild(demandesDiv);
+    contentWrap.appendChild(editoDiv);
     }
     // ONGLET COMMISSIONS
     var commissionsDiv = document.createElement('div');
     commissionsDiv.style.cssText = 'flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1rem 1.4rem;';
     commissionsDiv.innerHTML = osLoadingHtml();
     tabContents['commissions'] = commissionsDiv;
-    app.appendChild(commissionsDiv);
+    contentWrap.appendChild(commissionsDiv);
     // Charger async
     (function(){
       var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -21355,7 +21240,7 @@ function osBenevolesDashRender(){
     recrutDiv.style.cssText = 'flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1rem 1.4rem;';
     recrutDiv.innerHTML = osLoadingHtml();
     tabContents['recrutement'] = recrutDiv;
-    app.appendChild(recrutDiv);
+    contentWrap.appendChild(recrutDiv);
     (function(){
       var authH3 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
       Promise.all([
@@ -27862,7 +27747,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'calendrier-edito', icon:'<i class="ti ti-calendar-event"></i>', label:'Calendrier édito', color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
   { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
-  { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
+  { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
@@ -28051,42 +27936,87 @@ function osGestionAppsRender(){
   // Onglet actif
   var _onglet = window._gestionAppsOnglet || 'apps';
 
+  var authHGA = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {headers:authHGA}).then(function(r){return r.json();})
   ]).then(function(results){
     var membres   = (!results[0]||results[0].code) ? [] : results[0];
     var appsData  = (!results[1]||results[1].code) ? [] : results[1];
     var redacs    = (!results[2]||results[2].code) ? [] : results[2];
+    var demandes  = (!results[3]||results[3].code) ? [] : results[3];
 
     wc.innerHTML = '';
 
-    // Header avec onglets
-    var hdr = document.createElement('div');
-    hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
-    hdr.innerHTML = '<div style="display:flex;align-items:center;gap:.5rem;padding:.8rem 1.2rem .4rem;">'
-      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.9rem;color:var(--encre);">Administration</div>'
-      +'<div style="flex:1;"></div>'
-      +'</div>'
-      +'<div style="display:flex;border-bottom:2px solid var(--gris-bord);padding:0 1.2rem;">'
-      +[['apps','⚙️ Apps'],['membres','👥 Membres']].map(function(t){
-        var a = _onglet===t[0];
-        return '<button onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="font-size:.72rem;padding:.5rem .8rem;border:none;background:transparent;cursor:pointer;border-bottom:2.5px solid '+(a?'var(--rouge)':'transparent')+';margin-bottom:-2px;color:'+(a?'var(--encre)':'var(--gris)')+';font-weight:'+(a?700:400)+';">'+t[1]+'</button>';
-      }).join('')
-      +'</div>';
-    wc.appendChild(hdr);
+    // Rail vertical à gauche — même principe que Ma Rédac' (icône + libellé toujours
+    // visibles, onglet actif en rouge), contenu à droite.
+    var layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;height:100%;overflow:hidden;';
+
+    var rail = document.createElement('div');
+    rail.id = 'admin-sidebar-rail';
+    rail.style.cssText = 'width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
+    rail.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Administration</div>'
+      + [['apps','ti-apps','Apps',''],
+         ['membres','ti-users','Membres',''],
+         ['demandes','ti-bell','Demandes', demandes.length ? String(demandes.length) : '']
+        ].map(function(t){
+          var a = _onglet === t[0];
+          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
+            +'<span style="font-size:0.95rem;display:flex;flex-shrink:0;"><i class="ti '+t[1]+'"></i></span>'+t[2]
+            +(t[3] ? '<span style="margin-left:auto;background:'+(a?'rgba(255,255,255,0.28)':'var(--rouge)')+';color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:10px;">'+t[3]+'</span>' : '')
+            +'</button>';
+        }).join('');
+    layout.appendChild(rail);
 
     var body = document.createElement('div');
-    body.style.cssText = 'flex:1;overflow-y:auto;';
-    wc.appendChild(body);
+    body.style.cssText = 'flex:1;overflow-y:auto;min-width:0;';
+    layout.appendChild(body);
+    wc.appendChild(layout);
 
     if(_onglet === 'membres'){
       _osGestionMembresRender(body, membres, redacs);
+    } else if(_onglet === 'demandes'){
+      _osGestionDemandesRender(body, membres, demandes);
     } else {
       _osGestionAppsBodyRender(body, membres, appsData);
     }
   }).catch(function(){ wc.innerHTML = osErreurHtml(osGestionAppsRender); });
+}
+
+// ── Onglet Demandes d'accès ─────────────────────────────────────────
+// Déplacé depuis l'appli Bénévoles : valider les accès relève de l'administration,
+// pas de la vie associative.
+function _osGestionDemandesRender(zone, membres, demandes){
+  zone.innerHTML = '';
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:1rem 1.2rem;';
+  if(!demandes.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune demande en attente</div>';
+    zone.appendChild(wrap);
+    return;
+  }
+  var membreMap = {};
+  membres.forEach(function(m){ membreMap[m.id] = m; });
+  demandes.forEach(function(d){
+    var m = membreMap[d.membre_id];
+    var nom = m ? ((m.prenom||'')+' '+(m.nom||'')).trim() : d.membre_id.slice(0,8)+'…';
+    var apps = (d.apps_demandees||[]).filter(function(a){ return a!=='accueil'; });
+    var dateStr = new Date(d.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+    var appsJson = encodeURIComponent(JSON.stringify(d.apps_demandees||[]));
+    var card = document.createElement('div');
+    card.style.cssText = 'display:flex;align-items:center;gap:0.8rem;background:white;border:0.5px solid #F9A825;border-radius:8px;padding:0.7rem 1rem;margin-bottom:0.5rem;flex-wrap:wrap;';
+    card.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(nom)+'</div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · '+esc(apps.join(', '))+'</div></div>'
+      +'<div style="display:flex;gap:0.4rem;">'
+      +'<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>'
+      +'<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button>'
+      +'</div>';
+    wrap.appendChild(card);
+  });
+  zone.appendChild(wrap);
 }
 
 // ── Onglet Membres ──────────────────────────────────────────────────
