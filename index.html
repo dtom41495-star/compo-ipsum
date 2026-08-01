@@ -5765,6 +5765,32 @@ function closeFS(){document.getElementById('fs-overlay').classList.remove('open'
 // ===== UTILS =====
 function genId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',n=new Date();let id='IPM-'+n.getFullYear().toString().slice(2)+pad(n.getMonth()+1)+'-';for(let i=0;i<4;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Quand plusieurs comptes Google sont connectés dans le même navigateur, un lien Drive
+// nu ne sait pas lequel utiliser et peut tomber sur le mauvais compte (demande d'accès
+// alors qu'on est bien connecté à Compo avec le bon compte). Le paramètre authuser=
+// force Drive à utiliser l'adresse déjà utilisée pour se connecter à Compo.
+function _driveLienAuthuser(lien){
+  if(!lien || String(lien).indexOf('drive.google.com')===-1) return lien;
+  var email = _session && _session.user && _session.user.email;
+  if(!email) return lien;
+  var sep = lien.indexOf('?')===-1 ? '?' : '&';
+  return lien + sep + 'authuser=' + encodeURIComponent(email);
+}
+// /view (page complète, avec l'interface Drive) n'est pas prévu pour être encadré dans
+// un <iframe> ; /preview l'est (chrome minimal, pensé pour l'embed).
+function _driveLienPourIframe(lien){
+  var l = (lien && String(lien).indexOf('drive.google.com')!==-1) ? String(lien).replace('/view','/preview') : lien;
+  return _driveLienAuthuser(l);
+}
+// Pour un <img src=...>, /view (page HTML) ne marche pas : il faut l'endpoint image
+// direct de Drive, dérivé de l'id de fichier contenu dans le lien /view stocké.
+function _driveImgSrc(lien){
+  if(!lien) return lien;
+  var m = String(lien).match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if(!m) return lien;
+  return 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1000';
+}
 function diff(a,b){
   if(a===b)return esc(a);
   const wa=a.split(/(\s+)/),wb=b.split(/(\s+)/);let r='';const mx=Math.max(wa.length,wb.length);
@@ -10508,18 +10534,18 @@ var DOCK_APPS = {
     { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
       { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
-    { id:'upload-medias', icon:'☁️', label:'Upload', color:'#1A5276' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
   correcteur: [
     { id:'app-correction', icon:'🔍', label:'Correction', color:'#1A5276' },
       { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
-    { id:'upload-medias', icon:'☁️', label:'Upload', color:'#1A5276' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
   admin: [
@@ -10528,11 +10554,11 @@ var DOCK_APPS = {
     { id:'app-correction', icon:'🔍', label:'Corrections', color:'#1A5276' },
       { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'cps-admin', icon:'📰', label:'CPs', color:'#4A235A' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
     { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
-    { id:'upload-medias', icon:'☁️', label:'Upload', color:'#1A5276' },
     { id:'stats-dashboard', icon:'📊', label:'Stats', color:'#0D0D1A' },
     { id:'benevoles', icon:'👥', label:'Bénévoles', color:'#0F6E56' },
     { id:'gestion-apps', icon:'⚙️', label:'Apps', color:'#2C3E50' },
@@ -10544,11 +10570,11 @@ var DOCK_APPS = {
     { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
     { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
     { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
     { id:'cps-admin', icon:'📋', label:'CPs', color:'#4A235A' },
     { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
     { id:'agenda', icon:'📅', label:'Agenda', color:'#1A5276' },
-    { id:'upload-medias', icon:'☁️', label:'Upload', color:'#1A5276' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ]
 };
@@ -13282,7 +13308,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
     snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'calendrier-edito':'🗓️ Calendrier éditorial', 'upload-medias':'☁️ Upload rush & vidéos'
+    'calendrier-edito':'🗓️ Calendrier éditorial', 'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -13493,6 +13519,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'upload-medias'){
     setTimeout(function(){ osUploadMediasRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'magneto'){
+    setTimeout(function(){ osMagnetoRender(); }, 50);
     return;
   }
 
@@ -14097,6 +14128,7 @@ function osBuildDesktopIcons(){
     { id:'comparaison', icon:'<i class="ti ti-scale"></i>', label:'Comparer', color:'#1A5276', legacy:true },
     { id:'lecture', icon:'<i class="ti ti-eye"></i>', label:'Lecture', color:'#117A65', offline:true, legacy:true },
   ];
+  allApps.push({ id:'upload-medias', icon:'<i class="ti ti-folder"></i>', label:'Fichiers', color:'#1A5276', forceBureau:true });
   if(role === 'admin' || role === 'correcteur'){
     allApps.push({ id:'newsletter', icon:'<i class="ti ti-mail"></i>', label:'Newsletter', color:'#155724' });
   }
@@ -15232,7 +15264,7 @@ function osAppComCharger(){
 
       // Image si disponible
       if(a.image){
-        h += '<img src="'+esc(a.image)+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />';
+        h += '<img src="'+esc(_driveImgSrc(a.image))+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />';
       }
 
       h += '<div style="flex:1;min-width:0;">';
@@ -15452,7 +15484,7 @@ function osNotifierComArticleValide(article){
       +'<li>Post Instagram (carré 1080×1080)</li>'
       +'<li>Story Instagram (1080×1920)</li>'
       +'</ul></div>'
-      +(article.image?'<div style="margin-top:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Image de l\'article</div><img src="'+article.image+'" style="max-width:100%;border-radius:6px;" alt="Image article"></div>':'')
+      +(article.image?'<div style="margin-top:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Image de l\'article</div><img src="'+esc(_driveImgSrc(article.image))+'" style="max-width:100%;border-radius:6px;" alt="Image article"></div>':'')
       +'<div style="margin-top:1.2rem;text-align:center;">'
       +'<a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS → Visuels</a>'
       +'</div></div></div>';
@@ -18525,7 +18557,7 @@ function osSubstackRender(){
       articles.forEach(function(a){
         var dateStr = ''; try{ dateStr = new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){}
         html += '<a href="'+esc(a.lien)+'" target="_blank" rel="noopener" style="display:flex;gap:0.9rem;align-items:stretch;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:0.7rem;text-decoration:none;">';
-        if(a.image) html += '<img src="'+esc(a.image)+'" loading="lazy" style="width:96px;height:96px;flex-shrink:0;object-fit:cover;border-radius:6px;background:var(--gris-clair);">';
+        if(a.image) html += '<img src="'+esc(_driveImgSrc(a.image))+'" loading="lazy" style="width:96px;height:96px;flex-shrink:0;object-fit:cover;border-radius:6px;background:var(--gris-clair);">';
         html += '<div style="flex:1;min-width:0;">';
         html += '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);margin-bottom:0.3rem;">'+esc(a.titre||'')+'</div>';
         if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.4rem;">'+dateStr+'</div>';
@@ -19944,7 +19976,7 @@ function cpsMakeCard(cp, isAdmin){
   var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
     +boutonSujet
     +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;"><i class="ti ti-pencil"></i> Créer un article</button>'
-    +(cp.fichier_pdf?'<button data-url="'+esc(cp.fichier_pdf)+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>':'')
+    +(cp.fichier_pdf?'<button data-url="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>':'')
     +'</div>';
 
   card.innerHTML =
@@ -20154,8 +20186,8 @@ function osCpFenetreRender(winId){
     var pdfWrap = document.createElement('div');
     pdfWrap.innerHTML =
       '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF</div>'
-      +'<iframe src="'+esc(cp.fichier_pdf)+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-      +'<a href="'+esc(cp.fichier_pdf)+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+      +'<iframe src="'+esc(_driveLienPourIframe(cp.fichier_pdf))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
+      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
     body.appendChild(pdfWrap);
   } else if(cp.fichier_b64){
     var embedWrap = document.createElement('div');
@@ -22213,7 +22245,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.62);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
   h += '</div>';
   h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
-  h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-id-badge" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
+  h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-credit-card" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
   h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
   h += '</div>';
   h += '<div style="text-align:center;flex-shrink:0;">';
@@ -25381,28 +25413,35 @@ function osUploadMediasRender(){
   var wc = document.getElementById('wincontent-upload-medias');
   if(!wc) return;
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
-  // La liste des fichiers (uploads_medias) vient de Supabase, pas de Drive — elle est
-  // consultable sans compte Google. La connexion Google n'est nécessaire que pour
-  // envoyer ou supprimer un fichier réellement sur le Drive.
+  // Communiqués/Images-articles : lus via le compte de service, consultables sans
+  // compte Google. Rédactions (rushs + enregistrements) : privés, connexion Google
+  // personnelle nécessaire pour voir/gérer ses propres fichiers.
   _osUploadEcranPrincipal(wc);
 }
 
-var UPLOAD_TYPE_ICONS = {video:'🎬', image:'🖼️', document:'📄', autre:'📦'};
+var UPLOAD_TYPE_ICONS = {video:'🎬', image:'🖼️', document:'📄', audio:'🎙️', autre:'📦'};
 
 function _uploadTypeDeFichier(mime){
   mime = mime || '';
   if(mime.indexOf('video/') === 0) return 'video';
   if(mime.indexOf('image/') === 0) return 'image';
+  if(mime.indexOf('audio/') === 0) return 'audio';
   if(mime === 'application/pdf' || mime.indexOf('document') !== -1 || mime.indexOf('msword') !== -1 || mime.indexOf('officedocument') !== -1) return 'document';
   return 'autre';
 }
 
-// ===== Explorateur (vue principale) — Rédaction > Année > Sujet > Fichiers =====
-var _uploadExplorerChemin = []; // [] | [redacId] | [redacId, annee] | [redacId, annee, sujetTitreOuVide]
+// ===== Explorateur (vue principale) — direct sur le Drive, plus de suivi Supabase =====
+// chemin[0] = 'communiques' | 'images-articles' | 'redac:<id>'
+// Les deux premiers : lus via le compte de service (drive-explorateur), visibles par
+// tous sans connexion Google. Le dernier : fichiers privés de chaque bénévole (rushs
+// ET enregistrements audio), lus en direct sur SON PROPRE Drive avec sa connexion
+// Google personnelle.
+var _uploadExplorerChemin = [];
+var _uploadVueCourante = { dossiers: [], fichiers: [] }; // dernier résultat chargé, pour le filtre de recherche local
 
 function _osUploadEcranPrincipal(wc){
   var h = '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">☁️ Fichiers de la rédaction</div>';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">📁 Fichiers de la rédaction</div>';
   h += '<button onclick="osUploadOuvrirEnvoi()" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Envoyer</button>';
   h += osUploadTokenValide()
     ? '<button onclick="osUploadSeDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:var(--gris);cursor:pointer;">Déconnexion</button>'
@@ -25413,7 +25452,7 @@ function _osUploadEcranPrincipal(wc){
 
   h += '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
   h += '<div id="upl-fil-ariane" style="flex:1;min-width:0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>';
-  h += '<input id="upl-recherche" type="text" placeholder="🔎 Chercher..." oninput="osUploadRenderExplorer()" style="width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;">';
+  h += '<input id="upl-recherche" type="text" placeholder="🔎 Filtrer ici..." oninput="_osUploadAppliquerFiltre()" style="width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;">';
   h += '</div>';
 
   h += '<div id="upl-panneau-envoi" style="display:none;flex-shrink:0;background:var(--gris-clair);border-bottom:1px solid var(--gris-bord);padding:1rem 1.2rem;"></div>';
@@ -25422,20 +25461,7 @@ function _osUploadEcranPrincipal(wc){
 
   wc.innerHTML = h;
   _uploadExplorerChemin = [];
-  osUploadChargerExplorer();
-}
-
-function osUploadChargerExplorer(){
-  var zone = document.getElementById('upl-explorer-zone');
-  if(!zone) return;
-  zone.innerHTML = osLoadingHtml();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/uploads_medias?order=created_at.desc&limit=1000&select=*',{headers:authH})
-  .then(function(r){ return r.json(); })
-  .then(function(rows){
-    _uploadSuiviRows = (!rows||rows.code) ? [] : rows;
-    osUploadRenderExplorer();
-  }).catch(function(){ zone.innerHTML = osErreurHtml('osUploadChargerExplorer'); });
+  osUploadRenderExplorer();
 }
 
 function osUploadNaviguerVers(chemin){
@@ -25445,168 +25471,222 @@ function osUploadNaviguerVers(chemin){
   osUploadRenderExplorer();
 }
 
+function _osUploadNomRacine(racine){
+  if(racine === 'communiques') return '📰 Communiqués';
+  if(racine === 'images-articles') return '🖼️ Images-articles';
+  if(racine && racine.indexOf('redac:') === 0){
+    var redac = (window._redactionsData||[]).find(function(r){ return r.id===racine.slice(6); });
+    return redac ? '🗂️ '+redac.nom : '🗂️ ?';
+  }
+  return racine;
+}
+
 function _osUploadFilAriane(){
   var el = document.getElementById('upl-fil-ariane');
   if(!el) return;
   var chemin = _uploadExplorerChemin;
   var parts = ['<a href="javascript:void(0)" onclick="osUploadNaviguerVers([])" style="color:var(--gris);text-decoration:none;">📁 Racine</a>'];
-  if(chemin[0]){
-    var redac = (window._redactionsData||[]).find(function(r){ return r.id===chemin[0]; });
-    parts.push('<a href="javascript:void(0)" onclick="osUploadNaviguerVers([\''+chemin[0]+'\'])" style="color:var(--gris);text-decoration:none;">'+esc(redac?redac.nom:'?')+'</a>');
-  }
-  if(chemin[1]){
-    parts.push('<a href="javascript:void(0)" onclick="osUploadNaviguerVers([\''+chemin[0]+'\',\''+chemin[1]+'\'])" style="color:var(--gris);text-decoration:none;">'+esc(chemin[1])+'</a>');
-  }
-  if(chemin.length>2){
-    parts.push('<span style="color:var(--encre);font-weight:600;">'+esc(chemin[2]||'Sans sujet')+'</span>');
+  for(var i=0; i<chemin.length; i++){
+    var sousChemin = chemin.slice(0, i+1);
+    var label = i===0 ? _osUploadNomRacine(chemin[0]) : esc(chemin[i]);
+    if(i === chemin.length-1){
+      parts.push('<span style="color:var(--encre);font-weight:600;">'+label+'</span>');
+    } else {
+      parts.push('<a href="javascript:void(0)" onclick="osUploadNaviguerVers('+_uploadCheminJs(sousChemin)+')" style="color:var(--gris);text-decoration:none;">'+label+'</a>');
+    }
   }
   el.innerHTML = parts.join(' <span style="opacity:0.4;">/</span> ');
+}
+
+function _osUploadAppliquerFiltre(){
+  var zone = document.getElementById('upl-explorer-zone');
+  if(!zone) return;
+  var recherche = ((document.getElementById('upl-recherche')||{}).value||'').trim().toLowerCase();
+  var vue = _uploadVueCourante;
+  if(!recherche){ _osUploadAfficherVue(zone, vue); return; }
+  _osUploadAfficherVue(zone, {
+    dossiers: vue.dossiers.filter(function(d){ return d.nom.toLowerCase().indexOf(recherche)!==-1; }),
+    fichiers: vue.fichiers.filter(function(f){ return (f.nom||'').toLowerCase().indexOf(recherche)!==-1; }),
+    peutGerer: vue.peutGerer
+  });
 }
 
 function osUploadRenderExplorer(){
   _osUploadFilAriane();
   var zone = document.getElementById('upl-explorer-zone');
   if(!zone) return;
-  var recherche = ((document.getElementById('upl-recherche')||{}).value||'').trim().toLowerCase();
-  if(recherche){ _osUploadRenderRecherche(zone, recherche); return; }
+  zone.innerHTML = osLoadingHtml();
 
   var chemin = _uploadExplorerChemin;
-  if(chemin.length === 0){ _osUploadRenderRedactions(zone); return; }
-  if(chemin.length === 1){ _osUploadRenderAnnees(zone, chemin[0]); return; }
-  if(chemin.length === 2){ _osUploadRenderSujets(zone, chemin[0], chemin[1]); return; }
-  _osUploadRenderFichiers(zone, chemin[0], chemin[1], chemin[2]);
-}
+  if(chemin.length === 0){ _osUploadRenderRacine(zone); return; }
 
-function _osUploadCarteDossier(icon, label, sousLabel, onclick){
-  return '<div onclick="'+onclick+'" style="display:flex;align-items:center;gap:0.7rem;padding:0.8rem 1rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;cursor:pointer;margin-bottom:0.5rem;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'">'
-    +'<div style="font-size:1.3rem;">'+icon+'</div>'
-    +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(label)+'</div>'
-    +(sousLabel?'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(sousLabel)+'</div>':'')+'</div>'
-    +'<div style="color:var(--gris);">→</div></div>';
-}
-
-function _osUploadRenderRedactions(zone){
-  var redacs = window._redactionsData||[];
-  var h = '';
-  redacs.forEach(function(r){
-    var n = _uploadSuiviRows.filter(function(u){ return u.redaction_id===r.id; }).length;
-    h += _osUploadCarteDossier('🗂️', r.nom, n+' fichier'+(n>1?'s':''), 'osUploadNaviguerVers([\''+r.id+'\'])');
-  });
-  zone.innerHTML = h;
-}
-
-function _osUploadRenderAnnees(zone, redacId){
-  var rows = _uploadSuiviRows.filter(function(u){ return u.redaction_id===redacId; });
-  var annees = {};
-  rows.forEach(function(u){ var a = u.created_at ? new Date(u.created_at).getFullYear() : new Date().getFullYear(); annees[a] = (annees[a]||0)+1; });
-  var anneeCourante = String(new Date().getFullYear());
-  if(!annees[anneeCourante]) annees[anneeCourante] = 0;
-  var listeAnnees = Object.keys(annees).sort().reverse();
-  var h = '';
-  listeAnnees.forEach(function(a){
-    h += _osUploadCarteDossier('📅', a, annees[a]+' fichier'+(annees[a]>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+a+'\'])');
-  });
-  zone.innerHTML = h;
-}
-
-function _osUploadRenderSujets(zone, redacId, annee){
-  var rows = _uploadSuiviRows.filter(function(u){
-    if(u.redaction_id !== redacId) return false;
-    var a = u.created_at ? String(new Date(u.created_at).getFullYear()) : String(new Date().getFullYear());
-    return a === annee;
-  });
-  var sujets = {};
-  var sansSujet = 0;
-  rows.forEach(function(u){
-    if(u.sujet_titre){
-      if(!sujets[u.sujet_titre]) sujets[u.sujet_titre] = 0;
-      sujets[u.sujet_titre]++;
-    } else sansSujet++;
-  });
-  var h = '';
-  Object.keys(sujets).sort().forEach(function(titre){
-    h += _osUploadCarteDossier('📌', titre, sujets[titre]+' fichier'+(sujets[titre]>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+annee+'\',\''+titre.replace(/'/g,"\\'")+'\'])');
-  });
-  if(sansSujet > 0 || !Object.keys(sujets).length){
-    h += _osUploadCarteDossier('📦', 'Sans sujet', sansSujet+' fichier'+(sansSujet>1?'s':''), 'osUploadNaviguerVers([\''+redacId+'\',\''+annee+'\',\'\'])');
+  var racine = chemin[0];
+  var sousChemin = chemin.slice(1);
+  if(racine === 'communiques' || racine === 'images-articles'){
+    _osUploadChargerViaService(zone, racine, sousChemin);
+  } else if(racine.indexOf('redac:') === 0){
+    var redac = (window._redactionsData||[]).find(function(r){ return r.id===racine.slice(6); });
+    _osUploadChargerPersonnel(zone, redac?redac.nom:'?', sousChemin);
   }
-  if(!h) h = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier pour cette année.</div>';
-  zone.innerHTML = h;
 }
 
-function _osUploadLigneFichier(u){
-  var uid = getUserId();
-  var isAdmin = getUserRole()==='admin';
-  var icon = UPLOAD_TYPE_ICONS[u.type]||UPLOAD_TYPE_ICONS.autre;
-  var redac = (window._redactionsData||[]).find(function(r){ return r.id===u.redaction_id; });
-  var dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-  var tailleMo = u.taille_octets ? (u.taille_octets/1048576).toFixed(1)+' Mo' : '';
-  // Les communiqués sont envoyés automatiquement à la publication (compte de service),
-  // pas manuellement — en lecture seule pour tout le monde, y compris les admins,
-  // pour rester cohérent avec l'endroit où ils sont réellement gérés (l'appli CP).
-  var peutSupprimer = (isAdmin || u.membre_id===uid) && u.type !== 'communique';
-  var h = '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:0.5px solid var(--gris-bord);">';
-  h += '<div style="font-size:1.1rem;">'+icon+'</div>';
-  h += '<div style="flex:1;min-width:0;">';
-  h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(u.nom_fichier||'')+'</div>';
-  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(u.membre_nom||'')+' · '+dateStr+(tailleMo?' · '+tailleMo:'')+(redac?' · '+esc(redac.nom):'')+(u.sujet_titre?' · '+esc(u.sujet_titre):'')+'</div>';
+// Construit un littéral de tableau JS sûr à injecter dans un attribut onclick="..."
+// (guillemets doubles) : chaînes en apostrophes, apostrophes internes échappées —
+// jamais de guillemet double généré, donc jamais de conflit avec l'attribut HTML.
+function _uploadCheminJs(arr){
+  return '['+arr.map(function(s){ return "'"+String(s).replace(/'/g,"\\'")+"'"; }).join(',')+']';
+}
+
+function _osUploadRenderRacine(zone){
+  var role = getUserRole();
+  var peutVoirDiffusion = (role === 'admin' || role === 'redac_chef');
+  var h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:0.4rem;">';
+  if(peutVoirDiffusion){
+    h += _osUploadTuile('📰', 'Communiqués', 'osUploadNaviguerVers('+_uploadCheminJs(['communiques'])+')');
+    h += _osUploadTuile('🖼️', 'Images-articles', 'osUploadNaviguerVers('+_uploadCheminJs(['images-articles'])+')');
+  }
+  (window._redactionsData||[]).forEach(function(r){
+    h += _osUploadTuile('🗂️', r.nom, 'osUploadNaviguerVers('+_uploadCheminJs(['redac:'+r.id])+')');
+  });
   h += '</div>';
-  if(u.drive_file_id) h += '<a href="https://drive.google.com/file/d/'+esc(u.drive_file_id)+'/view" target="_blank" style="font-family:Space Mono,monospace;font-size:0.65rem;color:#1A5276;text-decoration:none;white-space:nowrap;">Ouvrir →</a>';
-  if(peutSupprimer) h += '<button onclick="osUploadSupprimerFichier(\''+u.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Supprimer</button>';
+  zone.innerHTML = h;
+  _uploadVueCourante = { dossiers: [], fichiers: [] };
+}
+
+// Tuile de mosaïque (icône + libellé), pour dossiers ET fichiers — utilisée par
+// l'explorateur façon "grille d'icônes" plutôt qu'une liste de lignes.
+function _osUploadTuile(icon, label, onclick, actionsHtml){
+  return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:0.7rem 0.3rem;border-radius:10px;position:relative;'+(onclick?'cursor:pointer;':'')+'"'
+    +(onclick?' onclick="'+onclick+'"':'')
+    +' onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'transparent\'">'
+    +'<div style="font-size:2.2rem;line-height:1;">'+icon+'</div>'
+    +'<div title="'+esc(label)+'" style="font-size:0.68rem;font-weight:600;color:var(--encre);margin-top:0.4rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;">'+esc(label)+'</div>'
+    +(actionsHtml?'<div style="display:flex;gap:4px;margin-top:0.35rem;" onclick="event.stopPropagation()">'+actionsHtml+'</div>':'')
+    +'</div>';
+}
+
+// ---- Communiqués / Images-articles : lecture directe via le compte de service ----
+function _osUploadChargerViaService(zone, racine, sousChemin){
+  fetch(SB_URL+'/functions/v1/drive-explorateur', {
+    method:'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+    body: JSON.stringify({ racine: racine, chemin: sousChemin })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!data || data.error){ zone.innerHTML = osErreurHtml('drive-explorateur : '+(data&&data.error||'?')); return; }
+    _uploadVueCourante = { dossiers: data.dossiers||[], fichiers: data.fichiers||[], peutGerer:false };
+    _osUploadAfficherVue(zone, _uploadVueCourante);
+  })
+  .catch(function(){ zone.innerHTML = osErreurHtml('drive-explorateur réseau'); });
+}
+
+// ---- Rédaction (rushs + enregistrements audio) : fichiers privés, Drive personnel ----
+function _osUploadChargerPersonnel(zone, nomRacine, sousChemin){
+  if(!osUploadTokenValide()){
+    zone.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.8rem;">'
+      +'<div style="font-size:1.8rem;margin-bottom:0.6rem;">🔒</div>'
+      +'Ces fichiers sont privés — connecte-toi avec ton compte Google pour voir et gérer les tiens.'
+      +'<div style="margin-top:0.8rem;"><button onclick="osUploadSeConnecter()" style="font-family:DM Sans,sans-serif;font-size:0.78rem;font-weight:600;padding:6px 14px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Se connecter avec Google</button></div>'
+      +'</div>';
+    _uploadVueCourante = { dossiers: [], fichiers: [] };
+    return;
+  }
+  var noms = [nomRacine].concat(sousChemin);
+  _uploadDriveResoudreChemin(noms).then(function(dossierId){
+    if(!dossierId){
+      zone.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier ici pour le moment.</div>';
+      _uploadVueCourante = { dossiers: [], fichiers: [], peutGerer:true };
+      return;
+    }
+    _uploadDriveListerEnfants(dossierId).then(function(items){
+      var dossiers = [], fichiers = [];
+      items.forEach(function(f){
+        if(f.mimeType === 'application/vnd.google-apps.folder') dossiers.push({ nom:f.name, count:null });
+        else fichiers.push({ id:f.id, nom:f.name, mimeType:f.mimeType, taille:f.size?Number(f.size):null, modifie:f.modifiedTime, lien:f.webViewLink });
+      });
+      _uploadVueCourante = { dossiers: dossiers, fichiers: fichiers, peutGerer:true };
+      _osUploadAfficherVue(zone, _uploadVueCourante);
+    }).catch(function(){ zone.innerHTML = osErreurHtml('lecture Drive'); });
+  }).catch(function(){ zone.innerHTML = osErreurHtml('lecture Drive'); });
+}
+
+function _osUploadAfficherVue(zone, vue){
+  if(!vue.dossiers.length && !vue.fichiers.length){
+    zone.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun résultat.</div>';
+    return;
+  }
+  var h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:0.4rem;">';
+  vue.dossiers.forEach(function(d){
+    h += _osUploadTuile('📁', d.nom, 'osUploadNaviguerVers('+_uploadCheminJs(_uploadExplorerChemin.concat([d.nom]))+')');
+  });
+  vue.fichiers.forEach(function(f){ h += _osUploadTuileFichier(f, vue.peutGerer); });
   h += '</div>';
-  return h;
-}
-
-function _osUploadRenderFichiers(zone, redacId, annee, sujetTitre){
-  var rows = _uploadSuiviRows.filter(function(u){
-    if(u.redaction_id !== redacId) return false;
-    var a = u.created_at ? String(new Date(u.created_at).getFullYear()) : String(new Date().getFullYear());
-    if(a !== annee) return false;
-    return (u.sujet_titre||'') === (sujetTitre||'');
-  });
-
-  var h = '';
-  if(!rows.length){
-    h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier ici pour le moment.</div>';
-  } else {
-    rows.forEach(function(u){ h += _osUploadLigneFichier(u); });
-  }
   zone.innerHTML = h;
 }
 
-function _osUploadRenderRecherche(zone, recherche){
-  var rows = _uploadSuiviRows.filter(function(u){
-    if(u.type === 'communique') return false;
-    var cible = ((u.nom_fichier||'')+' '+(u.sujet_titre||'')+' '+(u.membre_nom||'')).toLowerCase();
-    return cible.indexOf(recherche) !== -1;
-  });
-  if(!rows.length){ zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun fichier ne correspond.</div>'; return; }
-  var h = '';
-  rows.forEach(function(u){ h += _osUploadLigneFichier(u); });
-  zone.innerHTML = h;
+var UPLOAD_TYPE_ICONS_MIME = [
+  { test:function(m){ return m.indexOf('video/')===0; }, icon:'🎬' },
+  { test:function(m){ return m.indexOf('image/')===0; }, icon:'🖼️' },
+  { test:function(m){ return m.indexOf('audio/')===0; }, icon:'🎙️' },
+  { test:function(m){ return m==='application/pdf'||m.indexOf('document')!==-1||m.indexOf('msword')!==-1||m.indexOf('officedocument')!==-1; }, icon:'📄' }
+];
+function _uploadIconePourMime(mime){
+  mime = mime||'';
+  for(var i=0;i<UPLOAD_TYPE_ICONS_MIME.length;i++){ if(UPLOAD_TYPE_ICONS_MIME[i].test(mime)) return UPLOAD_TYPE_ICONS_MIME[i].icon; }
+  return '📦';
 }
 
-function osUploadSupprimerFichier(uploadRowId){
-  var row = _uploadSuiviRows.find(function(u){ return u.id===uploadRowId; });
-  if(!row) return;
-  if(!confirm('Supprimer définitivement « '+row.nom_fichier+' » du Drive ?')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-
-  function supprimerLigne(){
-    fetch(SB_URL+'/rest/v1/uploads_medias?id=eq.'+encodeURIComponent(uploadRowId), {method:'DELETE', headers:authH})
-    .then(function(){
-      notif('Fichier supprimé','succes');
-      osUploadChargerExplorer();
-    }).catch(function(){ notif('Erreur suppression','erreur'); });
+function _osUploadTuileFichier(f, peutGerer){
+  var lienSur = f.lien ? _driveLienAuthuser(f.lien) : null;
+  var onclick = lienSur ? "window.open('"+lienSur.replace(/'/g,"\\'")+"','_blank')" : null;
+  var actions = '';
+  if(peutGerer){
+    actions += '<button title="Partager" onclick=\'_osUploadOuvrirPartage("'+f.id+'","'+esc(f.nom||'').replace(/"/g,'&quot;')+'")\' style="font-size:0.85rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">🔗</button>';
+    actions += '<button title="Supprimer" onclick="osUploadSupprimerFichier(\''+f.id+'\')" style="font-size:0.85rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
   }
+  return _osUploadTuile(_uploadIconePourMime(f.mimeType), f.nom||'', onclick, actions);
+}
 
-  if(row.drive_file_id && osUploadTokenValide()){
-    _uploadDriveFetch('files/'+encodeURIComponent(row.drive_file_id), {method:'DELETE'})
-    .then(function(){ supprimerLigne(); })
-    .catch(function(){ supprimerLigne(); });
-  } else {
-    supprimerLigne();
-  }
+function osUploadSupprimerFichier(fileId){
+  if(!confirm('Supprimer définitivement ce fichier du Drive ?')) return;
+  if(!osUploadTokenValide()){ notif('Connecte-toi avec Google d\'abord','erreur'); return; }
+  _uploadDriveFetch('files/'+encodeURIComponent(fileId), {method:'DELETE'})
+  .then(function(){
+    notif('Fichier supprimé','succes');
+    osUploadRenderExplorer();
+  }).catch(function(){ notif('Erreur suppression','erreur'); });
+}
+
+// ===== Partage ciblé d'un fichier avec un membre Compo précis =====
+function _osUploadOuvrirPartage(fileId, nomFichier){
+  var existing = document.getElementById('upl-partage-overlay');
+  if(existing) existing.remove();
+  var membres = (window._membresData||[]).filter(function(m){ return m.email; });
+  var options = membres.map(function(m){ return '<option value="'+esc(m.email)+'">'+esc((m.prenom||'')+' '+(m.nom||'')+' ('+m.email+')')+'</option>'; }).join('');
+  var overlay = document.createElement('div');
+  overlay.id = 'upl-partage-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:white;border-radius:12px;padding:1.4rem;width:min(360px,92vw);box-sizing:border-box;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.3rem;">Partager « '+esc(nomFichier)+' »</div>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">La personne choisie pourra ouvrir ce fichier depuis son propre compte Google.</div>'
+    +'<select id="upl-partage-membre" style="width:100%;padding:0.5rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.8rem;box-sizing:border-box;margin-bottom:1rem;"><option value="">— Choisir un membre —</option>'+options+'</select>'
+    +'<div style="display:flex;gap:0.6rem;justify-content:flex-end;">'
+    +'<button onclick="document.getElementById(\'upl-partage-overlay\').remove()" class="btn sec" style="font-size:0.78rem;padding:0.4rem 0.9rem;">Annuler</button>'
+    +'<button onclick="_osUploadConfirmerPartage(\''+fileId+'\')" class="btn" style="font-size:0.78rem;padding:0.4rem 0.9rem;">Partager</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function _osUploadConfirmerPartage(fileId){
+  var email = (document.getElementById('upl-partage-membre')||{}).value;
+  if(!email){ notif('Choisis un membre'); return; }
+  osUploadPartagerAvecPersonne(fileId, email).then(function(r){
+    var overlay = document.getElementById('upl-partage-overlay');
+    if(overlay) overlay.remove();
+    if(r.ok) notif('Partagé avec '+email,'succes');
+    else notif('Échec du partage — tu n\'es peut-être pas propriétaire de ce fichier','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 // ===== Panneau d'envoi (secondaire, replié par défaut) =====
@@ -25628,8 +25708,9 @@ function osUploadOuvrirEnvoi(){
     return;
   }
 
-  var redacPreselec = (_uploadExplorerChemin[0] && redacs.some(function(r){return r.id===_uploadExplorerChemin[0];})) ? _uploadExplorerChemin[0] : (window._redacActiveId || redacs[0].id);
-  if(_uploadExplorerChemin.length >= 3) window._uploadSujetAPreselectionner = _uploadExplorerChemin[2] || null;
+  var redacIdCourant = (_uploadExplorerChemin[0]||'').indexOf('redac:')===0 ? _uploadExplorerChemin[0].slice(6) : null;
+  var redacPreselec = (redacIdCourant && redacs.some(function(r){return r.id===redacIdCourant;})) ? redacIdCourant : (window._redacActiveId || redacs[0].id);
+  if(redacIdCourant && _uploadExplorerChemin.length >= 3) window._uploadSujetAPreselectionner = _uploadExplorerChemin[2] || null;
 
   var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">';
   h += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction</label>';
@@ -25729,6 +25810,183 @@ function osUploadMajLigne(){
   osUploadRenderListeFichiers();
 }
 
+// ===== Appli "Enregistrer" — magnétophone mobile, fenêtre séparée =====
+// Réutilise le même compte Google personnel et le même circuit d'envoi Drive que
+// l'appli Fichiers, mais avec sa propre interface (pensée pour un usage au téléphone,
+// sur le terrain) — les enregistrements se retrouvent dans Fichiers, rangés comme
+// des rushs (Rédaction > Année > Sujet).
+var _magnetoEnregistreur = { recorder:null, chunks:[], stream:null, debut:null, timerId:null };
+var _magnetoEnvoiEnCours = null; // dernier item en cours d'envoi, pour l'affichage de progression
+
+function osMagnetoRender(){
+  var wc = document.getElementById('wincontent-magneto');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--gris-clair);';
+
+  if(!osUploadTokenValide()){
+    wc.innerHTML = '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;padding:2rem;text-align:center;">'
+      +'<div style="font-size:2.6rem;">🎙️</div>'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:var(--encre);">Enregistrer un son</div>'
+      +'<div style="font-size:0.85rem;color:var(--gris);max-width:300px;">Connecte-toi avec ton compte Google pour envoyer tes enregistrements sur le Drive de ta rédaction.</div>'
+      +'<button onclick="osUploadSeConnecter()" style="display:flex;align-items:center;gap:8px;padding:0.9rem 1.6rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.9rem;font-weight:600;color:var(--encre);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">'
+      +'<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.6 34.9 26.9 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C39.9 37.5 44 31.5 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>'
+      +'Se connecter avec Google</button>'
+      +'</div>';
+    return;
+  }
+
+  var uid = getUserId();
+  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
+  var redacs = mesLiens.map(function(mr){
+    return (window._redactionsData||[]).find(function(r){ return r.id===mr.redaction_id; });
+  }).filter(Boolean);
+
+  if(!redacs.length){
+    wc.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;color:var(--gris);font-size:0.85rem;">Tu n\'es rattaché·e à aucune rédaction — impossible de choisir un dossier de destination.</div>';
+    return;
+  }
+
+  var h = '<div style="flex-shrink:0;padding:1rem 1.2rem 0.6rem;">';
+  h += '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
+  h += '<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:5px;">Rédaction</label>';
+  h += '<select id="mag-redaction" onchange="osMagnetoChargerSujets()" style="width:100%;padding:0.7rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:10px;font-size:0.9rem;box-sizing:border-box;background:white;">';
+  redacs.forEach(function(r){ h += '<option value="'+r.id+'">'+esc(r.nom)+'</option>'; });
+  h += '</select></div>';
+  h += '<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:5px;">Sujet (optionnel)</label>';
+  h += '<select id="mag-sujet" style="width:100%;padding:0.7rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:10px;font-size:0.9rem;box-sizing:border-box;background:white;"><option value="">— Aucun (dossier de l\'année) —</option></select></div>';
+  h += '</div></div>';
+
+  h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;padding:1.5rem;">';
+  h += '<div id="mag-bouton-zone"></div>';
+  h += '<div id="mag-statut" style="width:100%;max-width:340px;"></div>';
+  h += '</div>';
+
+  wc.innerHTML = h;
+  osMagnetoChargerSujets();
+  _osMagnetoAfficherBoutonEnregistrer();
+}
+
+function osMagnetoChargerSujets(){
+  var redacSel = document.getElementById('mag-redaction');
+  var sujetSel = document.getElementById('mag-sujet');
+  if(!redacSel || !sujetSel) return;
+  var redacId = redacSel.value;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=id,titre&order=titre.asc',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(sujets){
+    sujets = (!sujets||sujets.code) ? [] : sujets;
+    window._magnetoSujetsCache = sujets;
+    var h = '<option value="">— Aucun (dossier de l\'année) —</option>';
+    sujets.forEach(function(s){ h += '<option value="'+s.id+'">'+esc(s.titre||'Sans titre')+'</option>'; });
+    sujetSel.innerHTML = h;
+  }).catch(function(){});
+}
+
+function _osMagnetoAfficherBoutonEnregistrer(){
+  var zone = document.getElementById('mag-bouton-zone');
+  if(!zone) return;
+  zone.innerHTML = '<button onclick="osMagnetoDemarrer()" style="width:120px;height:120px;border-radius:50%;background:var(--rouge);border:none;box-shadow:0 6px 20px rgba(232,70,30,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:white;">🎙️</button>'
+    +'<div style="text-align:center;margin-top:0.8rem;font-family:DM Sans,sans-serif;font-size:0.8rem;color:var(--gris);">Appuie pour enregistrer</div>';
+}
+
+function _osMagnetoAfficherEnCours(){
+  var zone = document.getElementById('mag-bouton-zone');
+  if(!zone) return;
+  function maj(){
+    var secs = Math.floor((Date.now()-_magnetoEnregistreur.debut)/1000);
+    var m = String(Math.floor(secs/60)).padStart(2,'0'), s = String(secs%60).padStart(2,'0');
+    zone.innerHTML = '<button onclick="osMagnetoArreter()" style="width:120px;height:120px;border-radius:50%;background:#A32D2D;border:none;box-shadow:0 6px 20px rgba(163,45,45,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:white;">⏹️</button>'
+      +'<div style="text-align:center;margin-top:0.8rem;font-family:Space Mono,monospace;font-size:0.95rem;font-weight:700;color:#A32D2D;">'+m+':'+s+'</div>'
+      +'<div style="text-align:center;font-family:DM Sans,sans-serif;font-size:0.78rem;color:var(--gris);margin-top:2px;">Appuie pour arrêter</div>';
+  }
+  maj();
+  _magnetoEnregistreur.timerId = setInterval(maj, 1000);
+}
+
+function osMagnetoDemarrer(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined'){
+    notif('Enregistrement audio non supporté par ce navigateur','erreur');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio:true }).then(function(stream){
+    var recorder;
+    try{ recorder = new MediaRecorder(stream); }
+    catch(e){ notif('Enregistrement audio non supporté par ce navigateur','erreur'); stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+    _magnetoEnregistreur.stream = stream;
+    _magnetoEnregistreur.recorder = recorder;
+    _magnetoEnregistreur.chunks = [];
+    recorder.ondataavailable = function(e){ if(e.data && e.data.size) _magnetoEnregistreur.chunks.push(e.data); };
+    recorder.onstop = function(){
+      var mimeType = recorder.mimeType || 'audio/webm';
+      var blob = new Blob(_magnetoEnregistreur.chunks, { type:mimeType });
+      var ext = mimeType.indexOf('mp4')!==-1 ? 'm4a' : mimeType.indexOf('ogg')!==-1 ? 'ogg' : 'webm';
+      var horodatage = new Date().toISOString().replace(/[:.]/g,'-');
+      var fichier = new File([blob], 'Enregistrement-'+horodatage+'.'+ext, { type:mimeType });
+      _magnetoEnregistreur.stream.getTracks().forEach(function(t){ t.stop(); });
+      _osMagnetoAfficherBoutonEnregistrer();
+      osMagnetoEnvoyer(fichier);
+    };
+    recorder.start();
+    _magnetoEnregistreur.debut = Date.now();
+    _osMagnetoAfficherEnCours();
+  }).catch(function(){
+    notif('Micro refusé ou indisponible','erreur');
+  });
+}
+
+function osMagnetoArreter(){
+  if(_magnetoEnregistreur.recorder && _magnetoEnregistreur.recorder.state !== 'inactive'){
+    _magnetoEnregistreur.recorder.stop();
+  }
+  if(_magnetoEnregistreur.timerId){ clearInterval(_magnetoEnregistreur.timerId); _magnetoEnregistreur.timerId = null; }
+}
+
+function osMagnetoEnvoyer(fichier){
+  var redacSel = document.getElementById('mag-redaction');
+  var sujetSel = document.getElementById('mag-sujet');
+  var redacId = redacSel ? redacSel.value : null;
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  if(!redac){ notif('Choisis une rédaction'); return; }
+  var sujetId = sujetSel ? sujetSel.value : '';
+  var sujet = (window._magnetoSujetsCache||[]).find(function(s){ return s.id===sujetId; });
+
+  var item = {
+    id: 'mag-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    file: fichier, redacNom: redac.nom, redacId: redacId,
+    sujetTitre: sujet ? sujet.titre : null, sujetId: sujetId || null,
+    type: 'audio', progress: 0, statut: 'attente',
+    onMaj: _osMagnetoRenderStatut
+  };
+  _magnetoEnvoiEnCours = item;
+  _osMagnetoRenderStatut();
+  osUploadDemarrer(item);
+}
+
+function _osMagnetoRenderStatut(){
+  var zone = document.getElementById('mag-statut');
+  var item = _magnetoEnvoiEnCours;
+  if(!zone || !item) return;
+  var STAT = {attente:{l:'En attente',c:'var(--gris)'},dossier:{l:'Préparation du dossier...',c:'#1A5276'},encours:{l:'Envoi en cours…',c:'#1A5276'},termine:{l:'Envoyé ✓',c:'#155724'},erreur:{l:'Erreur d\'envoi',c:'#A32D2D'}};
+  var sd = STAT[item.statut]||STAT.attente;
+  var h = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;">';
+  h += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">';
+  h += '<div style="flex:1;min-width:0;font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(item.file.name)+'</div>';
+  h += '<span style="font-family:Space Mono,monospace;font-size:0.62rem;color:'+sd.c+';white-space:nowrap;">'+sd.l+'</span>';
+  h += '</div>';
+  h += '<div style="background:var(--gris-clair);border-radius:10px;height:5px;overflow:hidden;"><div style="background:'+(item.statut==='erreur'?'#A32D2D':'var(--rouge)')+';height:5px;width:'+item.progress+'%;transition:width 0.2s;"></div></div>';
+  if(item.statut==='erreur') h += '<button onclick="osMagnetoReessayer()" style="margin-top:0.5rem;width:100%;font-family:Space Mono,monospace;font-size:0.72rem;padding:6px;border:0.5px solid #A32D2D;border-radius:6px;background:white;color:#A32D2D;cursor:pointer;">Réessayer l\'envoi</button>';
+  h += '</div>';
+  zone.innerHTML = h;
+}
+
+function osMagnetoReessayer(){
+  var item = _magnetoEnvoiEnCours;
+  if(!item) return;
+  item.statut = 'attente'; item.progress = 0;
+  osUploadDemarrer(item);
+}
+
 function osUploadReessayer(itemId){
   var item = _uploadFichiers.find(function(it){ return it.id===itemId; });
   if(!item) return;
@@ -25738,9 +25996,10 @@ function osUploadReessayer(itemId){
 }
 
 function osUploadDemarrer(item){
-  if(!osUploadTokenValide()){ item.statut='erreur'; osUploadMajLigne(); notif('Session Google expirée — reconnecte-toi','erreur'); return; }
+  var maj = item.onMaj || osUploadMajLigne;
+  if(!osUploadTokenValide()){ item.statut='erreur'; maj(); notif('Session Google expirée — reconnecte-toi','erreur'); return; }
   item.statut = 'dossier';
-  osUploadMajLigne();
+  maj();
   var annee = String(new Date().getFullYear());
   osUploadTrouverOuCreerDossier(item.redacNom, null).then(function(redacFolderId){
     return osUploadTrouverOuCreerDossier(annee, redacFolderId).then(function(anneeFolderId){
@@ -25752,7 +26011,7 @@ function osUploadDemarrer(item){
     osUploadEnvoyerFichier(item);
   }).catch(function(){
     item.statut = 'erreur';
-    osUploadMajLigne();
+    maj();
     notif('Erreur : impossible de préparer le dossier Drive','erreur');
   });
 }
@@ -25763,18 +26022,15 @@ function _uploadDriveFetch(path, options){
   return fetch('https://www.googleapis.com/drive/v3/'+path, Object.assign({}, options, {headers:headers}));
 }
 
-var GOOGLE_WORKSPACE_DOMAINE = 'ipsummedia.fr';
-
-// Un dossier créé via le Drive personnel d'un bénévole n'est vu par personne d'autre
-// par défaut. On le partage avec tout le domaine dès sa création, en lecture seule —
-// celui qui a créé le dossier (l'uploadeur) en reste propriétaire et garde tous les
-// droits dessus ; les autres peuvent seulement l'ouvrir/le consulter depuis Compo.
-function _osUploadPartagerAvecDomaine(dossierId){
-  _uploadDriveFetch('files/'+encodeURIComponent(dossierId)+'/permissions', {
+// Les fichiers/dossiers d'un bénévole restent privés par défaut (sur son propre Drive).
+// Partage ciblé, à la demande uniquement : accorde l'accès à UNE personne précise
+// (jamais au domaine entier) — appelé depuis le bouton "Partager" de l'explorateur.
+function osUploadPartagerAvecPersonne(dossierId, email, role){
+  return _uploadDriveFetch('files/'+encodeURIComponent(dossierId)+'/permissions', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ type:'domain', domain:GOOGLE_WORKSPACE_DOMAINE, role:'reader' })
-  }).catch(function(){});
+    body: JSON.stringify({ type:'user', emailAddress: email, role: role||'reader' })
+  });
 }
 
 // Cherche un sous-dossier par nom sous parentId (ou à la racine du Drive si absent),
@@ -25790,11 +26046,36 @@ function osUploadTrouverOuCreerDossier(nom, parentId){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(parentId ? {name:nom, mimeType:'application/vnd.google-apps.folder', parents:[parentId]} : {name:nom, mimeType:'application/vnd.google-apps.folder'})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if(!parentId && d.id) _osUploadPartagerAvecDomaine(d.id);
-      return d.id;
-    });
+    }).then(function(r){ return r.json(); }).then(function(d){ return d.id; });
   });
+}
+
+// Cherche un sous-dossier par nom (lecture seule, ne crée rien) — pour l'explorateur.
+function _uploadDriveTrouverDossier(nom, parentId){
+  var nomEchappe = nom.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var q = "name='"+nomEchappe+"' and mimeType='application/vnd.google-apps.folder' and trashed=false and '"+(parentId||'root')+"' in parents";
+  return _uploadDriveFetch('files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive')
+  .then(function(r){ return r.json(); })
+  .then(function(data){ return (data.files && data.files.length) ? data.files[0].id : null; });
+}
+
+// Descend une suite de noms de dossiers depuis la racine du Drive personnel ; renvoie
+// null dès qu'un des niveaux n'existe pas (rien à afficher), sans rien créer.
+function _uploadDriveResoudreChemin(noms){
+  return noms.reduce(function(p, nom){
+    return p.then(function(parentId){
+      if(parentId === false) return false;
+      return _uploadDriveTrouverDossier(nom, parentId).then(function(id){ return id===null ? false : id; });
+    });
+  }, Promise.resolve(null)).then(function(res){ return res===false ? null : res; });
+}
+
+// Liste le contenu direct (fichiers + sous-dossiers) d'un dossier du Drive personnel.
+function _uploadDriveListerEnfants(parentId){
+  var q = "'"+parentId+"' in parents and trashed=false";
+  return _uploadDriveFetch('files?q='+encodeURIComponent(q)+'&fields=files(id,name,mimeType,size,modifiedTime,webViewLink)&pageSize=200&spaces=drive')
+  .then(function(r){ return r.json(); })
+  .then(function(data){ return data.files || []; });
 }
 
 // Upload "resumable" Drive : une seule requête d'envoi la plupart du temps, mais en
@@ -25802,9 +26083,13 @@ function osUploadTrouverOuCreerDossier(nom, parentId){
 // la session pour savoir combien d'octets sont déjà reçus et on reprend exactement
 // là où ça s'est arrêté, plutôt que de tout renvoyer depuis le début.
 function osUploadEnvoyerFichier(item){
+  // item.onMaj : callback de rafraîchissement optionnel, propre à l'appli appelante —
+  // par défaut osUploadMajLigne() (liste de l'appli Fichiers), mais l'appli Enregistrer
+  // (fenêtre séparée, pas les mêmes éléments à l'écran) passe la sienne.
+  var maj = item.onMaj || osUploadMajLigne;
   item.statut = 'encours';
   item.progress = 0;
-  osUploadMajLigne();
+  maj();
   fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
     method:'POST',
     headers: {
@@ -25820,18 +26105,19 @@ function osUploadEnvoyerFichier(item){
     _osUploadEnvoyerDepuis(item, 0);
   }).catch(function(){
     item.statut = 'erreur';
-    osUploadMajLigne();
+    maj();
   });
 }
 
 function _osUploadEnvoyerDepuis(item, offset){
+  var maj = item.onMaj || osUploadMajLigne;
   var xhr = new XMLHttpRequest();
   xhr.open('PUT', item.sessionUrl, true);
   xhr.setRequestHeader('Content-Range', 'bytes '+offset+'-'+(item.file.size-1)+'/'+item.file.size);
   xhr.upload.onprogress = function(e){
     var envoyes = offset + e.loaded;
     item.progress = Math.min(99, Math.round(envoyes / item.file.size * 100));
-    osUploadMajLigne();
+    maj();
   };
   xhr.onload = function(){
     if(xhr.status===200 || xhr.status===201){
@@ -25839,13 +26125,13 @@ function _osUploadEnvoyerDepuis(item, offset){
       item.driveFileId = data.id;
       item.statut = 'termine';
       item.progress = 100;
-      osUploadMajLigne();
-      osUploadEnregistrerSuivi(item);
+      maj();
+      osUploadRenderExplorer();
     } else if(xhr.status===308){
       _osUploadVerifierEtReprendre(item);
     } else {
       item.statut = 'erreur';
-      osUploadMajLigne();
+      maj();
     }
   };
   xhr.onerror = function(){ _osUploadVerifierEtReprendre(item); };
@@ -25853,6 +26139,7 @@ function _osUploadEnvoyerDepuis(item, offset){
 }
 
 function _osUploadVerifierEtReprendre(item){
+  var maj = item.onMaj || osUploadMajLigne;
   var xhr = new XMLHttpRequest();
   xhr.open('PUT', item.sessionUrl, true);
   xhr.setRequestHeader('Content-Range', 'bytes */'+item.file.size);
@@ -25860,42 +26147,20 @@ function _osUploadVerifierEtReprendre(item){
     if(xhr.status===200 || xhr.status===201){
       var data = JSON.parse(xhr.responseText);
       item.driveFileId = data.id; item.statut='termine'; item.progress=100;
-      osUploadMajLigne(); osUploadEnregistrerSuivi(item);
+      maj(); osUploadRenderExplorer();
     } else if(xhr.status===308){
       var range = xhr.getResponseHeader('Range');
       var envoyes = range ? parseInt(range.split('-')[1],10)+1 : 0;
       _osUploadEnvoyerDepuis(item, envoyes);
     } else {
       item.statut = 'erreur';
-      osUploadMajLigne();
+      maj();
     }
   };
-  xhr.onerror = function(){ item.statut='erreur'; osUploadMajLigne(); };
+  xhr.onerror = function(){ item.statut='erreur'; maj(); };
   xhr.send();
 }
 
-function osUploadEnregistrerSuivi(item){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/uploads_medias', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({
-      membre_id: getUserId(),
-      membre_nom: getUserNomComplet(),
-      redaction_id: item.redacId,
-      sujet_id: item.sujetId || null,
-      sujet_titre: item.sujetTitre || null,
-      nom_fichier: item.file.name,
-      taille_octets: item.file.size,
-      type: item.type || 'autre',
-      drive_file_id: item.driveFileId,
-      statut: 'termine'
-    })
-  }).then(function(){
-    osUploadChargerExplorer();
-  }).catch(function(){});
-}
-
-var _uploadSuiviRows = [];
 
 
 // Mettre à jour derniere_activite quand un bénévole fait une action
@@ -27582,7 +27847,8 @@ var ALL_APPS_CATALOGUE = [
   { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'calendrier-edito', icon:'<i class="ti ti-calendar-event"></i>', label:'Calendrier édito', color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
-  { id:'upload-medias',  icon:'<i class="ti ti-cloud-upload"></i>', label:'Upload',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Envoie tes vidéos et rushs directement sur le Drive de la rédaction, rangés par sujet.' },
+  { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
+  { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Apps',           color:'#2C3E50', roles:['admin'] },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
@@ -27833,7 +28099,7 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'</div>'
       +'<span style="font-size:.6rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+';font-weight:600;">'+esc(m.role||'')+'</span>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion">✉️</button>'
-      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer un lien de création de mot de passe">📨</button>'
+      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google">📨</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe">🔑</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat">⏱️</button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
@@ -27921,9 +28187,16 @@ function osInviterMembreValider(){
       if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
       return;
     }
+    envoyerEmailResend(
+      email,
+      'Ton compte Compo est prêt',
+      '<p>Bonjour '+prenom+',</p><p>Ton compte Compo (Ipsum Média) a été créé.</p>'
+        +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>',
+      'invitation'
+    );
     var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
     if(ov) ov.remove();
-    notif('Invitation envoyée à '+email+' !','succes');
+    notif('Compte créé pour '+email+' !','succes');
     window._gestionAppsOnglet = 'membres';
     osGestionAppsRender();
   })
@@ -27935,15 +28208,18 @@ function osInviterMembreValider(){
 
 function osRenvoyerInvitation(email, nom, btn){
   if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
-  if(!confirm('Renvoyer un lien de création de mot de passe à '+nom+' ('+email+') ?')) return;
+  if(!confirm('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?')) return;
   var texteOriginal = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
-  fetch(SB_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent('https://compo.ipsummedia.fr'), {
-    method: 'POST',
-    headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email })
-  }).then(function(){
-    notif('Invitation renvoyée à '+email+' !','succes');
+  var prenomSeul = (nom||'').split(' ')[0] || '';
+  envoyerEmailResend(
+    email,
+    'Ton compte Compo est prêt',
+    '<p>Bonjour '+prenomSeul+',</p><p>Ton compte Compo (Ipsum Média) est prêt.</p>'
+      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>',
+    'invitation'
+  ).then(function(r){
+    notif(r.ok ? 'Rappel renvoyé à '+email+' !' : 'Erreur envoi email', r.ok ? 'succes' : 'erreur');
   }).catch(function(){
     notif('Erreur réseau, réessaie.','erreur');
   }).finally(function(){
