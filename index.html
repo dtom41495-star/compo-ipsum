@@ -2607,6 +2607,34 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
     max-height: 92vh !important;
     border-radius: 16px 16px 0 0 !important;
   }
+
+  /* Menu démarrer : feuille pleine largeur depuis le bas (même traitement que les
+     autres modales mobile ci-dessus), au lieu du petit panneau flottant centré prévu
+     pour desktop — et surtout, la grille d'icônes s'adapte à la largeur de l'écran
+     au lieu de rester figée à 6 colonnes fixes (ce qui écrasait/débordait les icônes). */
+  #os-start-menu {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(var(--dock-h) + 6px) !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 70vh !important;
+    border-radius: 18px 18px 0 0 !important;
+    box-sizing: border-box !important;
+    transform: translateY(10px) !important;
+  }
+  #os-start-menu.visible {
+    transform: translateY(0) !important;
+  }
+  .sm-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
+    max-height: 42vh !important;
+  }
+  .sm-app-img {
+    width: 46px !important;
+    height: 46px !important;
+    font-size: 1.2rem !important;
+  }
 }
 
 /* ===== DESIGN UPGRADES - ajouts uniquement ===== */
@@ -25804,7 +25832,7 @@ function osMagnetoRender(){
 
   if(!osUploadTokenValide()){
     wc.innerHTML = '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;padding:2rem;text-align:center;">'
-      +'<div style="font-size:2.6rem;">🎙️</div>'
+      +'<div style="font-size:2.6rem;color:var(--encre);"><i class="ti ti-microphone"></i></div>'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:var(--encre);">Enregistrer un son</div>'
       +'<div style="font-size:0.85rem;color:var(--gris);max-width:300px;">Connecte-toi avec ton compte Google pour envoyer tes enregistrements sur le Drive de ta rédaction.</div>'
       +'<button onclick="osUploadSeConnecter()" style="display:flex;align-items:center;gap:8px;padding:0.9rem 1.6rem;background:white;border:1px solid var(--gris-bord);border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.9rem;font-weight:600;color:var(--encre);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">'
@@ -25865,7 +25893,7 @@ function osMagnetoChargerSujets(){
 function _osMagnetoAfficherBoutonEnregistrer(){
   var zone = document.getElementById('mag-bouton-zone');
   if(!zone) return;
-  zone.innerHTML = '<button onclick="osMagnetoDemarrer()" style="width:120px;height:120px;border-radius:50%;background:var(--rouge);border:none;box-shadow:0 6px 20px rgba(232,70,30,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:white;">🎙️</button>'
+  zone.innerHTML = '<button onclick="osMagnetoDemarrer()" style="width:120px;height:120px;border-radius:50%;background:var(--rouge);border:none;box-shadow:0 6px 20px rgba(232,70,30,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.8rem;color:white;"><i class="ti ti-microphone"></i></button>'
     +'<div style="text-align:center;margin-top:0.8rem;font-family:DM Sans,sans-serif;font-size:0.8rem;color:var(--gris);">Appuie pour enregistrer</div>';
 }
 
@@ -25875,7 +25903,7 @@ function _osMagnetoAfficherEnCours(){
   function maj(){
     var secs = Math.floor((Date.now()-_magnetoEnregistreur.debut)/1000);
     var m = String(Math.floor(secs/60)).padStart(2,'0'), s = String(secs%60).padStart(2,'0');
-    zone.innerHTML = '<button onclick="osMagnetoArreter()" style="width:120px;height:120px;border-radius:50%;background:#A32D2D;border:none;box-shadow:0 6px 20px rgba(163,45,45,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:white;">⏹️</button>'
+    zone.innerHTML = '<button onclick="osMagnetoArreter()" style="width:120px;height:120px;border-radius:50%;background:#A32D2D;border:none;box-shadow:0 6px 20px rgba(163,45,45,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.8rem;color:white;"><i class="ti ti-player-stop-filled"></i></button>'
       +'<div style="text-align:center;margin-top:0.8rem;font-family:Space Mono,monospace;font-size:0.95rem;font-weight:700;color:#A32D2D;">'+m+':'+s+'</div>'
       +'<div style="text-align:center;font-family:DM Sans,sans-serif;font-size:0.78rem;color:var(--gris);margin-top:2px;">Appuie pour arrêter</div>';
   }
@@ -25888,6 +25916,8 @@ function osMagnetoDemarrer(){
     notif('Enregistrement audio non supporté par ce navigateur','erreur');
     return;
   }
+  // Libère l'URL d'écoute du précédent enregistrement avant d'en démarrer un nouveau.
+  if(_magnetoEnvoiEnCours && _magnetoEnvoiEnCours.localUrl){ URL.revokeObjectURL(_magnetoEnvoiEnCours.localUrl); }
   navigator.mediaDevices.getUserMedia({ audio:true }).then(function(stream){
     var recorder;
     try{ recorder = new MediaRecorder(stream); }
@@ -25904,7 +25934,10 @@ function osMagnetoDemarrer(){
       var fichier = new File([blob], 'Enregistrement-'+horodatage+'.'+ext, { type:mimeType });
       _magnetoEnregistreur.stream.getTracks().forEach(function(t){ t.stop(); });
       _osMagnetoAfficherBoutonEnregistrer();
-      osMagnetoEnvoyer(fichier);
+      // URL locale (lecture immédiate, avant même l'envoi) — révoquée au prochain
+      // enregistrement pour ne pas accumuler de mémoire.
+      var urlEcoute = URL.createObjectURL(blob);
+      osMagnetoEnvoyer(fichier, urlEcoute);
     };
     recorder.start();
     _magnetoEnregistreur.debut = Date.now();
@@ -25921,7 +25954,7 @@ function osMagnetoArreter(){
   if(_magnetoEnregistreur.timerId){ clearInterval(_magnetoEnregistreur.timerId); _magnetoEnregistreur.timerId = null; }
 }
 
-function osMagnetoEnvoyer(fichier){
+function osMagnetoEnvoyer(fichier, localUrl){
   var redacSel = document.getElementById('mag-redaction');
   var sujetSel = document.getElementById('mag-sujet');
   var redacId = redacSel ? redacSel.value : null;
@@ -25934,7 +25967,7 @@ function osMagnetoEnvoyer(fichier){
     id: 'mag-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
     file: fichier, redacNom: redac.nom, redacId: redacId,
     sujetTitre: sujet ? sujet.titre : null, sujetId: sujetId || null,
-    type: 'audio', progress: 0, statut: 'attente',
+    type: 'audio', progress: 0, statut: 'attente', localUrl: localUrl || null,
     onMaj: _osMagnetoRenderStatut
   };
   _magnetoEnvoiEnCours = item;
@@ -25953,6 +25986,7 @@ function _osMagnetoRenderStatut(){
   h += '<div style="flex:1;min-width:0;font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(item.file.name)+'</div>';
   h += '<span style="font-family:Space Mono,monospace;font-size:0.62rem;color:'+sd.c+';white-space:nowrap;">'+sd.l+'</span>';
   h += '</div>';
+  if(item.localUrl) h += '<audio controls src="'+esc(item.localUrl)+'" style="width:100%;height:34px;margin-bottom:0.6rem;"></audio>';
   h += '<div style="background:var(--gris-clair);border-radius:10px;height:5px;overflow:hidden;"><div style="background:'+(item.statut==='erreur'?'#A32D2D':'var(--rouge)')+';height:5px;width:'+item.progress+'%;transition:width 0.2s;"></div></div>';
   if(item.statut==='erreur') h += '<button onclick="osMagnetoReessayer()" style="margin-top:0.5rem;width:100%;font-family:Space Mono,monospace;font-size:0.72rem;padding:6px;border:0.5px solid #A32D2D;border-radius:6px;background:white;color:#A32D2D;cursor:pointer;">Réessayer l\'envoi</button>';
   h += '</div>';
