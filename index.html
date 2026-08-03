@@ -24705,6 +24705,413 @@ function osBenevolesExporterPDF(){
   win.document.close();
 }
 
+// ===== RAPPORTS PDF DE L'ASSOCIATION =====
+// Le logo est repris de l'écran de connexion (toujours présent dans le DOM, simplement
+// masqué après connexion) : pas de copie du base64, et il reste synchronisé si le logo
+// change un jour.
+function _osLogoIpsum(){
+  var img = document.querySelector('#os-login img[alt="Ipsum Média"]');
+  return (img && img.src) ? img.src : '';
+}
+
+function _osRapportFenetre(){
+  var win = window.open('','_blank','width=880,height=1000');
+  if(!win){ notif('Autorise les popups pour générer le document','erreur'); return null; }
+  win.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Génération du document…</p>');
+  return win;
+}
+
+// Habillage commun à tous les rapports : logo, titre, pied de page, styles d'impression.
+function _osRapportHtml(titre, sousTitre, corps){
+  var logo = _osLogoIpsum();
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(titre)+' — Ipsum Média</title><style>'
+    +'*{margin:0;padding:0;box-sizing:border-box;}'
+    +'body{font-family:Arial,Helvetica,sans-serif;padding:34px;color:#1A1A2E;}'
+    +'header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:2px solid #EA5B1C;margin-bottom:22px;}'
+    +'header img{height:72px;width:auto;flex-shrink:0;}'
+    +'.asso{font-size:.62rem;color:#6B7280;text-transform:uppercase;letter-spacing:.13em;}'
+    +'h1{font-size:1.3rem;font-weight:800;margin:2px 0;}'
+    +'.sous{font-size:.76rem;color:#6B7280;}'
+    +'h2{font-size:.92rem;font-weight:700;border-left:3px solid #EA5B1C;padding-left:9px;margin:22px 0 8px;}'
+    +'.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}'
+    +'.kpi{border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;}'
+    +'.kpi-v{font-size:1.4rem;font-weight:800;}'
+    +'.kpi-l{font-size:.6rem;color:#6B7280;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;}'
+    +'table{width:100%;border-collapse:collapse;margin-top:6px;}'
+    +'td,th{padding:6px 9px;font-size:.74rem;border-bottom:1px solid #E5E7EB;text-align:left;vertical-align:top;}'
+    +'th{background:#F3F4F6;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;}'
+    +'.num{text-align:right;font-variant-numeric:tabular-nums;}'
+    +'.vide{font-size:.74rem;color:#9CA3AF;padding:8px 0;}'
+    +'section{page-break-inside:avoid;}'
+    +'footer{margin-top:28px;padding-top:10px;border-top:1px solid #E5E7EB;font-size:.6rem;color:#9CA3AF;display:flex;justify-content:space-between;}'
+    +'@media print{.noprint{display:none;}body{padding:14px;}}'
+    +'</style></head><body>'
+    +'<div class="noprint" style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">Imprimer / PDF</button></div>'
+    +'<header>'
+    +(logo?'<img src="'+logo+'" alt="Ipsum Média">':'')
+    +'<div><div class="asso">Association Ipsum Média</div><h1>'+esc(titre)+'</h1><div class="sous">'+esc(sousTitre||'')+'</div></div>'
+    +'</header>'
+    + corps
+    +'<footer><span>Ipsum Média · Association loi 1901 · contact@ipsummedia.fr</span><span>Généré le '+today+'</span></footer>'
+    +'</body></html>';
+}
+
+function _osRapportKpi(valeur, label){
+  return '<div class="kpi"><div class="kpi-v">'+esc(String(valeur))+'</div><div class="kpi-l">'+esc(label)+'</div></div>';
+}
+
+// Tableau "libellé / nombre" trié par nombre décroissant, à partir d'un objet {clé:nb}.
+function _osRapportTableauRepartition(map, enTete, total){
+  var cles = Object.keys(map).sort(function(a,b){ return map[b]-map[a]; });
+  if(!cles.length) return '<div class="vide">Aucune donnée sur la période.</div>';
+  var h = '<table><tr><th>'+esc(enTete)+'</th><th class="num">Nombre</th><th class="num">Part</th></tr>';
+  cles.forEach(function(k){
+    var pct = total ? Math.round(map[k]/total*100) : 0;
+    h += '<tr><td>'+esc(k)+'</td><td class="num">'+map[k]+'</td><td class="num">'+pct+'%</td></tr>';
+  });
+  return h+'</table>';
+}
+
+function _osRapportHeures(minutes){
+  var h = Math.floor(minutes/60), m = minutes%60;
+  return h ? (h+' h'+(m?' '+String(m).padStart(2,'0'):'')) : (m+' min');
+}
+
+function _osRapportAuthH(){
+  return Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+}
+function _osRapportGet(url){
+  return fetch(SB_URL+url,{headers:_osRapportAuthH()})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ return (!d||d.code) ? [] : d; })
+    .catch(function(){ return []; });
+}
+
+// ── 1. Rapport d'activité annuel de l'association ───────────────────
+function osRapportActiviteAnnuel(annee){
+  annee = parseInt(annee,10) || new Date().getFullYear();
+  var d1 = annee+'-01-01', d2 = (annee+1)+'-01-01';
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération du rapport d\'activité…');
+
+  Promise.all([
+    _osRapportGet('/rest/v1/articles?select=id,titre,statut,type,rubrique,redaction_id,auteur_id,publie_le,created_at,cp_id'),
+    _osRapportGet('/rest/v1/membres?select=id,prenom,nom,role,actif,marque_inactif,dnd'),
+    _osRapportGet('/rest/v1/heures_benevolat?created_at=gte.'+d1+'&created_at=lt.'+d2+'&select=membre_id,type,duree_minutes'),
+    _osRapportGet('/rest/v1/communiques?select=id,titre,statut,created_at,type'),
+    _osRapportGet('/rest/v1/agenda_evenements?date_debut=gte.'+d1+'&date_debut=lt.'+d2+'&select=id,titre,type,date_debut'),
+    _osRapportGet('/rest/v1/redactions?select=id,nom'),
+    _osRapportGet('/rest/v1/stats_mensuelles?select=*&order=created_at.asc'),
+    _osRapportGet('/rest/v1/briefing?select=id,titre,statut,redaction_id,created_at')
+  ]).then(function(r){
+    var articles=r[0], membres=r[1], heures=r[2], cps=r[3], events=r[4], redacs=r[5], stats=r[6], sujets=r[7];
+
+    function dansAnnee(v){ if(!v) return false; return String(v).substring(0,4) === String(annee); }
+    var artAnnee = articles.filter(function(a){ return dansAnnee(a.publie_le||a.created_at); });
+    var artPublies = artAnnee.filter(function(a){ return a.statut==='publie'; });
+    var cpAnnee = cps.filter(function(c){ return dansAnnee(c.created_at); });
+    var sujetsAnnee = sujets.filter(function(s){ return dansAnnee(s.created_at); });
+
+    var totalMin = heures.reduce(function(s,h){ return s+(h.duree_minutes||0); },0);
+    var benevolesActifs = {};
+    heures.forEach(function(h){ if(h.membre_id) benevolesActifs[h.membre_id]=true; });
+    artAnnee.forEach(function(a){ if(a.auteur_id) benevolesActifs[a.auteur_id]=true; });
+
+    var statsAnnee = stats.filter(function(s){ return (s.mois||'').indexOf(String(annee))!==-1 || dansAnnee(s.created_at); });
+    var audience = statsAnnee.reduce(function(t,s){
+      return t + (s.vues_newsletter||0)+(s.vues_articles||0)+(s.vues_youtube||0)+(s.vues_threads||0)
+               + (s.vues_facebook||0)+(s.vues_tiktok||0)+(s.vues_instagram||0);
+    },0);
+
+    var parRedac={}, parRubrique={}, parType={}, parHeureType={};
+    var nomRedac={}; redacs.forEach(function(x){ nomRedac[x.id]=x.nom; });
+    artPublies.forEach(function(a){
+      var rn = nomRedac[a.redaction_id]||'Sans rédaction';
+      parRedac[rn]=(parRedac[rn]||0)+1;
+      var ru = a.rubrique||'Non renseignée';
+      parRubrique[ru]=(parRubrique[ru]||0)+1;
+      var t = a.type==='breve'?'Brève':'Article';
+      parType[t]=(parType[t]||0)+1;
+    });
+    var LBL_H={redaction:'Rédaction',correction:'Correction',reunion:'Réunion',evenement:'Événement',autre:'Autre'};
+    heures.forEach(function(h){
+      var t=LBL_H[h.type]||h.type||'Autre';
+      parHeureType[t]=(parHeureType[t]||0)+(h.duree_minutes||0);
+    });
+
+    var corps = '<section><h2>Chiffres clés</h2><div class="kpis">'
+      + _osRapportKpi(artPublies.length, 'Publications')
+      + _osRapportKpi(Object.keys(benevolesActifs).length, 'Bénévoles ayant contribué')
+      + _osRapportKpi(_osRapportHeures(totalMin), 'Heures de bénévolat')
+      + _osRapportKpi(cpAnnee.length, 'Communiqués reçus')
+      + _osRapportKpi(events.length, 'Événements')
+      + _osRapportKpi(audience ? statsFormatNum(audience) : '—', 'Vues cumulées')
+      + '</div></section>';
+
+    corps += '<section><h2>Publications par rédaction</h2>'
+      + _osRapportTableauRepartition(parRedac, 'Rédaction', artPublies.length) + '</section>';
+    corps += '<section><h2>Publications par rubrique</h2>'
+      + _osRapportTableauRepartition(parRubrique, 'Rubrique', artPublies.length) + '</section>';
+    corps += '<section><h2>Formats publiés</h2>'
+      + _osRapportTableauRepartition(parType, 'Format', artPublies.length) + '</section>';
+
+    var hTot = Object.keys(parHeureType).reduce(function(s,k){ return s+parHeureType[k]; },0);
+    var hRows = Object.keys(parHeureType).sort(function(a,b){ return parHeureType[b]-parHeureType[a]; });
+    corps += '<section><h2>Répartition du bénévolat</h2>';
+    corps += hRows.length
+      ? '<table><tr><th>Type d\'activité</th><th class="num">Temps</th><th class="num">Part</th></tr>'
+        + hRows.map(function(k){
+            return '<tr><td>'+esc(k)+'</td><td class="num">'+_osRapportHeures(parHeureType[k])
+              +'</td><td class="num">'+(hTot?Math.round(parHeureType[k]/hTot*100):0)+'%</td></tr>';
+          }).join('') + '</table>'
+      : '<div class="vide">Aucune heure enregistrée sur la période.</div>';
+    corps += '</section>';
+
+    corps += '<section><h2>Activité éditoriale</h2><table>'
+      +'<tr><th>Indicateur</th><th class="num">Valeur</th></tr>'
+      +'<tr><td>Sujets ouverts dans l\'année</td><td class="num">'+sujetsAnnee.length+'</td></tr>'
+      +'<tr><td>Articles publiés</td><td class="num">'+artPublies.length+'</td></tr>'
+      +'<tr><td>Articles encore en cours au 31/12</td><td class="num">'+(artAnnee.length-artPublies.length)+'</td></tr>'
+      +'<tr><td>Invitations presse reçues</td><td class="num">'+cpAnnee.filter(function(c){return c.type==='invitation_presse';}).length+'</td></tr>'
+      +'<tr><td>Membres inscrits à l\'association</td><td class="num">'+membres.filter(function(m){return m.actif!==false;}).length+'</td></tr>'
+      +'</table></section>';
+
+    win.document.open();
+    win.document.write(_osRapportHtml('Rapport d\'activité '+annee, 'Bilan de l\'année civile '+annee+' — document destiné à l\'assemblée générale et aux demandes de subvention', corps));
+    win.document.close();
+  });
+}
+
+// ── 2. Rapport par rédaction ────────────────────────────────────────
+function osRapportRedaction(redactionId, annee){
+  annee = parseInt(annee,10) || new Date().getFullYear();
+  if(!redactionId){ notif('Choisis une rédaction'); return; }
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération du rapport de rédaction…');
+
+  Promise.all([
+    _osRapportGet('/rest/v1/redactions?id=eq.'+encodeURIComponent(redactionId)+'&select=id,nom'),
+    _osRapportGet('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,type,rubrique,auteur_id,publie_le,created_at'),
+    _osRapportGet('/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=membre_id,role_redac'),
+    _osRapportGet('/rest/v1/membres?select=id,prenom,nom,role,fonction,marque_inactif,dnd'),
+    _osRapportGet('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,responsable,created_at')
+  ]).then(function(r){
+    var redac=r[0][0], articles=r[1], liens=r[2], membres=r[3], sujets=r[4];
+    var nomRedac = redac ? redac.nom : 'Rédaction';
+    function dansAnnee(v){ return v && String(v).substring(0,4)===String(annee); }
+
+    var artAnnee = articles.filter(function(a){ return dansAnnee(a.publie_le||a.created_at); });
+    var artPublies = artAnnee.filter(function(a){ return a.statut==='publie'; });
+    var sujetsAnnee = sujets.filter(function(s){ return dansAnnee(s.created_at); });
+    var mapMembre={}; membres.forEach(function(m){ mapMembre[m.id]=m; });
+
+    var parRubrique={}, parAuteur={};
+    artPublies.forEach(function(a){
+      var ru=a.rubrique||'Non renseignée'; parRubrique[ru]=(parRubrique[ru]||0)+1;
+      var m=mapMembre[a.auteur_id];
+      var nm=m?((m.prenom||'')+' '+(m.nom||'')).trim():'Auteur inconnu';
+      parAuteur[nm]=(parAuteur[nm]||0)+1;
+    });
+
+    var corps = '<section><h2>Chiffres clés</h2><div class="kpis">'
+      + _osRapportKpi(artPublies.length,'Publications')
+      + _osRapportKpi(liens.length,'Membres rattachés')
+      + _osRapportKpi(sujetsAnnee.length,'Sujets ouverts')
+      + '</div></section>';
+
+    var ROLES={redac_chef:'Rédac en chef',redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice'};
+    corps += '<section><h2>Équipe</h2>';
+    if(liens.length){
+      corps += '<table><tr><th>Membre</th><th>Rôle dans la rédaction</th><th>Fonction associative</th><th>Statut</th></tr>';
+      liens.map(function(l){ return {lien:l, m:mapMembre[l.membre_id]}; })
+        .filter(function(x){ return x.m; })
+        .sort(function(a,b){ return ((a.m.prenom||'')+a.m.nom).localeCompare((b.m.prenom||'')+b.m.nom,'fr'); })
+        .forEach(function(x){
+          var statut = x.m.marque_inactif ? 'Inactif (vie asso)' : (x.m.dnd ? 'Indisponible' : 'Actif');
+          corps += '<tr><td><strong>'+esc(((x.m.prenom||'')+' '+(x.m.nom||'')).trim())+'</strong></td>'
+            +'<td>'+esc(ROLES[x.lien.role_redac]||x.lien.role_redac||'—')+'</td>'
+            +'<td>'+esc(fonctionShort(x.m.fonction)||'—')+'</td>'
+            +'<td>'+esc(statut)+'</td></tr>';
+        });
+      corps += '</table>';
+    } else corps += '<div class="vide">Aucun membre rattaché à cette rédaction.</div>';
+    corps += '</section>';
+
+    corps += '<section><h2>Publications par auteur</h2>'
+      + _osRapportTableauRepartition(parAuteur,'Auteur·rice',artPublies.length)+'</section>';
+    corps += '<section><h2>Publications par rubrique</h2>'
+      + _osRapportTableauRepartition(parRubrique,'Rubrique',artPublies.length)+'</section>';
+
+    corps += '<section><h2>Sujets ouverts dans l\'année</h2>';
+    if(sujetsAnnee.length){
+      corps += '<table><tr><th>Sujet</th><th>Statut</th><th>Responsable</th></tr>';
+      sujetsAnnee.forEach(function(s){
+        corps += '<tr><td>'+esc(s.titre||'Sans titre')+'</td><td>'+esc(s.statut||'—')+'</td><td>'+esc(s.responsable||'—')+'</td></tr>';
+      });
+      corps += '</table>';
+    } else corps += '<div class="vide">Aucun sujet ouvert sur la période.</div>';
+    corps += '</section>';
+
+    win.document.open();
+    win.document.write(_osRapportHtml('Rédaction '+nomRedac, 'Activité de la rédaction sur l\'année '+annee, corps));
+    win.document.close();
+  });
+}
+
+// ── 3. Suivi des communiqués : que deviennent-ils ? ─────────────────
+function osRapportCommuniques(annee){
+  annee = parseInt(annee,10) || new Date().getFullYear();
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération du suivi des communiqués…');
+
+  Promise.all([
+    _osRapportGet('/rest/v1/communiques?select=id,titre,source,organisation,contact_id,statut,type,created_at'),
+    _osRapportGet('/rest/v1/contacts_sources?select=id,nom,organisation'),
+    _osRapportGet('/rest/v1/articles?select=id,cp_id,statut'),
+    _osRapportGet('/rest/v1/briefing?select=id,cp_id,statut')
+  ]).then(function(r){
+    var cps=r[0], contacts=r[1], articles=r[2], sujets=r[3];
+    var cpAnnee = cps.filter(function(c){ return c.created_at && String(c.created_at).substring(0,4)===String(annee); });
+
+    var mapContact={}; contacts.forEach(function(c){ mapContact[c.id]=c; });
+    // Un CP est "exploité" s'il a donné un sujet ou un article.
+    var cpAvecSujet={}, cpAvecArticle={}, cpAvecPublication={};
+    sujets.forEach(function(s){ if(s.cp_id) cpAvecSujet[s.cp_id]=true; });
+    articles.forEach(function(a){
+      if(!a.cp_id) return;
+      cpAvecArticle[a.cp_id]=true;
+      if(a.statut==='publie') cpAvecPublication[a.cp_id]=true;
+    });
+
+    function nomSource(c){
+      var ct = c.contact_id ? mapContact[c.contact_id] : null;
+      return (ct && (ct.organisation||ct.nom)) || c.organisation || c.source || 'Source non renseignée';
+    }
+    var parSource={};
+    cpAnnee.forEach(function(c){
+      var s = nomSource(c);
+      if(!parSource[s]) parSource[s]={recus:0,sujets:0,articles:0,publies:0};
+      parSource[s].recus++;
+      if(cpAvecSujet[c.id])       parSource[s].sujets++;
+      if(cpAvecArticle[c.id])     parSource[s].articles++;
+      if(cpAvecPublication[c.id]) parSource[s].publies++;
+    });
+
+    var totRecus=cpAnnee.length;
+    var totPublies=cpAnnee.filter(function(c){ return cpAvecPublication[c.id]; }).length;
+    var totSujets=cpAnnee.filter(function(c){ return cpAvecSujet[c.id]; }).length;
+
+    var corps = '<section><h2>Chiffres clés</h2><div class="kpis">'
+      + _osRapportKpi(totRecus,'Communiqués reçus')
+      + _osRapportKpi(totSujets,'Transformés en sujet')
+      + _osRapportKpi(totPublies,'Ayant donné un article publié')
+      + '</div>'
+      + '<p style="font-size:.72rem;color:#6B7280;margin-top:8px;">Taux de transformation global : <strong>'
+      + (totRecus?Math.round(totPublies/totRecus*100):0)+' %</strong> des communiqués reçus ont abouti à une publication.</p>'
+      + '</section>';
+
+    var sources = Object.keys(parSource).sort(function(a,b){ return parSource[b].recus-parSource[a].recus; });
+    corps += '<section><h2>Détail par source</h2>';
+    if(sources.length){
+      corps += '<table><tr><th>Source</th><th class="num">Reçus</th><th class="num">Sujets</th><th class="num">Publiés</th><th class="num">Taux</th></tr>';
+      sources.forEach(function(s){
+        var d=parSource[s];
+        corps += '<tr><td>'+esc(s)+'</td><td class="num">'+d.recus+'</td><td class="num">'+d.sujets
+          +'</td><td class="num">'+d.publies+'</td><td class="num">'+(d.recus?Math.round(d.publies/d.recus*100):0)+'%</td></tr>';
+      });
+      corps += '</table>';
+      corps += '<p style="font-size:.68rem;color:#9CA3AF;margin-top:8px;">Une source à fort volume et faible taux envoie beaucoup de communiqués peu exploitables ; à l\'inverse, un taux élevé signale une source à privilégier.</p>';
+    } else corps += '<div class="vide">Aucun communiqué reçu sur la période.</div>';
+    corps += '</section>';
+
+    var nonExploites = cpAnnee.filter(function(c){ return !cpAvecSujet[c.id] && !cpAvecArticle[c.id]; });
+    corps += '<section><h2>Communiqués sans suite ('+nonExploites.length+')</h2>';
+    if(nonExploites.length){
+      corps += '<table><tr><th>Communiqué</th><th>Source</th><th>Reçu le</th></tr>';
+      nonExploites.slice(0,60).forEach(function(c){
+        corps += '<tr><td>'+esc(c.titre||'Sans titre')+'</td><td>'+esc(nomSource(c))+'</td><td>'
+          +esc(c.created_at?new Date(c.created_at).toLocaleDateString('fr-FR'):'—')+'</td></tr>';
+      });
+      corps += '</table>';
+      if(nonExploites.length>60) corps += '<p style="font-size:.68rem;color:#9CA3AF;margin-top:6px;">Seuls les 60 premiers sont listés.</p>';
+    } else corps += '<div class="vide">Tous les communiqués reçus ont été exploités.</div>';
+    corps += '</section>';
+
+    win.document.open();
+    win.document.write(_osRapportHtml('Suivi des communiqués '+annee, 'Ce que sont devenus les communiqués reçus en '+annee, corps));
+    win.document.close();
+  });
+}
+
+// ── 4. Attestation de bénévolat ─────────────────────────────────────
+function osRapportAttestationBenevolat(membreId, annee){
+  annee = parseInt(annee,10) || new Date().getFullYear();
+  var uid = membreId || getUserId();
+  if(!uid){ notif('Choisis un membre'); return; }
+  var d1 = annee+'-01-01', d2 = (annee+1)+'-01-01';
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération de l\'attestation…');
+
+  Promise.all([
+    _osRapportGet('/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,created_at'),
+    _osRapportGet('/rest/v1/heures_benevolat?membre_id=eq.'+encodeURIComponent(uid)+'&created_at=gte.'+d1+'&created_at=lt.'+d2+'&select=type,duree_minutes,created_at'),
+    _osRapportGet('/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,statut,publie_le,created_at')
+  ]).then(function(r){
+    var m=r[0][0], heures=r[1], articles=r[2];
+    if(!m){ notif('Membre introuvable','erreur'); win.close(); return; }
+    var nom = ((m.prenom||'')+' '+(m.nom||'')).trim();
+    var totalMin = heures.reduce(function(s,h){ return s+(h.duree_minutes||0); },0);
+    var publies = articles.filter(function(a){
+      return a.statut==='publie' && String(a.publie_le||a.created_at).substring(0,4)===String(annee);
+    }).length;
+
+    var LBL={redaction:'Rédaction d\'articles',correction:'Relecture et correction',reunion:'Réunions',evenement:'Couverture d\'événements',autre:'Autres missions'};
+    var parType={};
+    heures.forEach(function(h){ var t=LBL[h.type]||h.type||'Autres missions'; parType[t]=(parType[t]||0)+(h.duree_minutes||0); });
+    var types=Object.keys(parType).sort(function(a,b){ return parType[b]-parType[a]; });
+
+    var ROLES={redacteur:'rédacteur·rice',correcteur:'correcteur·rice',admin:'administrateur·rice',redac_chef:'rédacteur·rice en chef'};
+    var fonctions = fonctionShort(m.fonction);
+
+    var corps = '<section>'
+      +'<p style="font-size:.82rem;line-height:1.8;margin-bottom:14px;">'
+      +'Je soussigné·e, représentant l\'association <strong>Ipsum Média</strong>, association loi 1901, '
+      +'atteste que <strong>'+esc(nom)+'</strong> a exercé une activité bénévole au sein de l\'association '
+      +'au cours de l\'année '+annee+', en qualité de <strong>'+esc(ROLES[m.role]||m.role||'bénévole')+'</strong>'
+      +(fonctions?', avec la ou les fonctions suivantes : <strong>'+esc(fonctions)+'</strong>':'')+'.'
+      +'</p>'
+      +'<div class="kpis">'
+      + _osRapportKpi(_osRapportHeures(totalMin),'Heures de bénévolat')
+      + _osRapportKpi(publies,'Publications signées')
+      + _osRapportKpi(heures.length,'Missions enregistrées')
+      +'</div></section>';
+
+    corps += '<section><h2>Détail des heures par mission</h2>';
+    corps += types.length
+      ? '<table><tr><th>Nature de la mission</th><th class="num">Temps consacré</th></tr>'
+        + types.map(function(t){ return '<tr><td>'+esc(t)+'</td><td class="num">'+_osRapportHeures(parType[t])+'</td></tr>'; }).join('')
+        + '<tr><td><strong>Total</strong></td><td class="num"><strong>'+_osRapportHeures(totalMin)+'</strong></td></tr></table>'
+      : '<div class="vide">Aucune heure enregistrée pour cette année.</div>';
+    corps += '</section>';
+
+    corps += '<section><p style="font-size:.72rem;color:#6B7280;line-height:1.7;margin-top:14px;">'
+      +'Cette attestation est délivrée à l\'intéressé·e pour servir et valoir ce que de droit. '
+      +'Les heures indiquées correspondent aux activités enregistrées dans l\'outil interne de l\'association.'
+      +'</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:34px;gap:30px;">'
+      +'<div style="flex:1;"><div style="font-size:.68rem;color:#6B7280;margin-bottom:44px;">Fait à Albi, le '
+      + new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div></div>'
+      +'<div style="flex:1;border-top:1px solid #9CA3AF;padding-top:6px;font-size:.68rem;color:#6B7280;">'
+      +'Signature et cachet de l\'association</div>'
+      +'</div></section>';
+
+    win.document.open();
+    win.document.write(_osRapportHtml('Attestation de bénévolat', 'Année '+annee+' — '+nom, corps));
+    win.document.close();
+  });
+}
+
 function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
   var texteConfirm = nouvelEtat ? 'Marquer '+nomMembre+' comme inactif ?' : 'Réactiver '+nomMembre+' ?';
   if(!confirm(texteConfirm)) return;
@@ -24975,6 +25382,7 @@ function osBenevolesOuvrirFiche(membreId){
   // Bouton carte d'adhérent — toujours visible (self ou admin)
   html += '<button id="benv-btn-carte" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--encre-fixe);border-radius:6px;background:var(--encre-fixe);color:white;cursor:pointer;">🪪 Carte d\'adhérent</button>';
   html += '<button id="benv-btn-bilan" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #EA5B1C;border-radius:6px;background:#FFF5F2;color:#EA5B1C;cursor:pointer;">📋 Bilan annuel</button>';
+  html += '<button id="benv-btn-attestation" data-membre-id="'+esc(m.id)+'" title="Attestation d\'heures de bénévolat, à signer" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;">📜 Attestation</button>';
   if(m.email){
     html += '<button id="benv-btn-relancer" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">✉️ Relancer</button>';
     html += '<a href="mailto:'+esc(m.email)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);text-decoration:none;">📧 Email direct</a>';
@@ -25069,6 +25477,8 @@ function osBenevolesOuvrirFiche(membreId){
   if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(m, s); });
   var btnBilan = card.querySelector('#benv-btn-bilan');
   if(btnBilan) btnBilan.addEventListener('click', function(){ osGenererBilanAnnuel(m.id); });
+  var btnAttest = card.querySelector('#benv-btn-attestation');
+  if(btnAttest) btnAttest.addEventListener('click', function(){ osRapportAttestationBenevolat(m.id); });
   var btnSuspendre = card.querySelector('#benv-btn-suspendre');
   if(btnSuspendre) btnSuspendre.addEventListener('click', function(){ osBenvSuspendre(this.dataset.membreId); });
   var btnReactiver = card.querySelector('#benv-btn-reactiver');
@@ -28091,7 +28501,8 @@ function osGestionAppsRender(){
     rail.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Administration</div>'
       + [['apps','ti-apps','Apps',''],
          ['membres','ti-users','Membres',''],
-         ['demandes','ti-bell','Demandes', demandes.length ? String(demandes.length) : '']
+         ['demandes','ti-bell','Demandes', demandes.length ? String(demandes.length) : ''],
+         ['rapports','ti-file-text','Rapports','']
         ].map(function(t){
           var a = _onglet === t[0];
           return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
@@ -28110,10 +28521,66 @@ function osGestionAppsRender(){
       _osGestionMembresRender(body, membres, redacs);
     } else if(_onglet === 'demandes'){
       _osGestionDemandesRender(body, membres, demandes);
+    } else if(_onglet === 'rapports'){
+      _osGestionRapportsRender(body, membres, redacs);
     } else {
       _osGestionAppsBodyRender(body, membres, appsData);
     }
   }).catch(function(){ wc.innerHTML = osErreurHtml(osGestionAppsRender); });
+}
+
+// ── Onglet Rapports ─────────────────────────────────────────────────
+function _osGestionRapportsRender(zone, membres, redacs){
+  var anneeCourante = new Date().getFullYear();
+  var annees = [];
+  for(var a = anneeCourante; a >= anneeCourante-4; a--) annees.push(a);
+  function selAnnee(id){
+    return '<select id="'+id+'" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;">'
+      + annees.map(function(y){ return '<option value="'+y+'">'+y+'</option>'; }).join('') + '</select>';
+  }
+  function carte(icone, titre, desc, controles, bouton){
+    return '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:.9rem 1rem;margin-bottom:.7rem;box-shadow:0 1px 2px rgba(0,0,0,0.04);">'
+      +'<div style="display:flex;align-items:baseline;gap:7px;margin-bottom:3px;">'
+      +'<span style="color:var(--rouge);font-size:.95rem;"><i class="ti '+icone+'"></i></span>'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.86rem;color:var(--encre);">'+esc(titre)+'</div></div>'
+      +'<div style="font-size:.74rem;color:var(--gris);line-height:1.5;margin-bottom:.7rem;">'+esc(desc)+'</div>'
+      +'<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">'+controles+bouton+'</div></div>';
+  }
+  function btn(onclick, libelle){
+    return '<button onclick="'+onclick+'" style="padding:.42rem .9rem;background:var(--rouge);color:white;border:none;border-radius:7px;font-size:.76rem;font-weight:600;cursor:pointer;">'+libelle+'</button>';
+  }
+
+  var h = '<div style="padding:1rem 1.2rem;max-width:720px;">';
+  h += '<div style="font-size:.74rem;color:var(--gris);margin-bottom:1rem;line-height:1.5;">Chaque rapport s\'ouvre dans un nouvel onglet, prêt à imprimer ou à enregistrer en PDF.</div>';
+
+  h += carte('ti-report','Rapport d\'activité annuel',
+    'Bilan complet de l\'association : publications, bénévolat, communiqués, événements et audience. C\'est le document à joindre à une demande de subvention ou à présenter en assemblée générale.',
+    selAnnee('rap-annee-activite'),
+    btn('osRapportActiviteAnnuel(document.getElementById(\'rap-annee-activite\').value)','Générer'));
+
+  var optsRedac = (redacs||[]).map(function(r){ return '<option value="'+esc(r.id)+'">'+esc(r.nom)+'</option>'; }).join('');
+  h += carte('ti-users-group','Rapport par rédaction',
+    'Activité d\'une rédaction locale : son équipe, ses publications par auteur et par rubrique, ses sujets ouverts.',
+    '<select id="rap-redac" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;">'+(optsRedac||'<option value="">Aucune rédaction</option>')+'</select> '+selAnnee('rap-annee-redac'),
+    btn('osRapportRedaction(document.getElementById(\'rap-redac\').value, document.getElementById(\'rap-annee-redac\').value)','Générer'));
+
+  h += carte('ti-news','Suivi des communiqués',
+    'Ce que deviennent les communiqués reçus, source par source : combien aboutissent à un sujet, puis à un article publié. Utile pour repérer les sources productives.',
+    selAnnee('rap-annee-cp'),
+    btn('osRapportCommuniques(document.getElementById(\'rap-annee-cp\').value)','Générer'));
+
+  var optsMembres = (membres||[]).slice().sort(function(a,b){
+      return ((a.prenom||'')+' '+(a.nom||'')).localeCompare((b.prenom||'')+' '+(b.nom||''),'fr');
+    }).map(function(m){
+      return '<option value="'+esc(m.id)+'">'+esc(((m.prenom||'')+' '+(m.nom||'')).trim()||m.email||m.id)+'</option>';
+    }).join('');
+  h += carte('ti-certificate','Attestation de bénévolat',
+    'Document nominatif attestant des heures de bénévolat effectuées sur l\'année, avec emplacement pour signature et cachet. À remettre au bénévole qui en fait la demande.',
+    '<select id="rap-membre" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;max-width:220px;">'+(optsMembres||'<option value="">Aucun membre</option>')+'</select> '+selAnnee('rap-annee-attest'),
+    btn('osRapportAttestationBenevolat(document.getElementById(\'rap-membre\').value, document.getElementById(\'rap-annee-attest\').value)','Générer'));
+
+  h += '</div>';
+  zone.innerHTML = h;
 }
 
 // ── Onglet Demandes d'accès ─────────────────────────────────────────
