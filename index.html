@@ -21048,7 +21048,11 @@ function osBenevolesDashRender(){
       var delais=arts.filter(function(a){return a.statut==='publie'&&a.created_at&&a.updated_at;}).map(function(a){return Math.round((new Date(a.updated_at)-new Date(a.created_at))/(1000*60*60*24));});
       var delai=delais.length?Math.round(delais.reduce(function(s,v){return s+v;},0)/delais.length):null;
       var dernAct=m.derniere_activite?new Date(m.derniere_activite):null;
-      var inactif=!dernAct||(Date.now()-dernAct)/(1000*60*60*24)>14;
+      // L'inactivité est purement déclarative : soit le membre s'est signalé
+      // indisponible (dnd), soit la vie associative l'a marqué inactif (marque_inactif).
+      // Plus de détection automatique sur l'ancienneté de la dernière action — personne
+      // ne doit être étiqueté « inactif » sans que quelqu'un l'ait décidé.
+      var inactif=!!(m.marque_inactif||m.dnd);
       // Fraîcheur de publication — pour la vie associative : brève (7j) / article (30j)
       var publisBreves=publis.filter(function(a){return a.type==='breve';});
       var publisArts=publis.filter(function(a){return a.type!=='breve';});
@@ -21058,6 +21062,7 @@ function osBenevolesDashRender(){
       var joursArticle=dernierArticle?Math.floor((Date.now()-dernierArticle)/(1000*60*60*24)):null;
       return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id],recompenses:recompensesParMembre[m.id]||[]};
     });
+    window._benevolesStats = statsMembres; // utilisé par l'export PDF de l'équipe
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
     var app=document.createElement('div');
@@ -21098,7 +21103,7 @@ function osBenevolesDashRender(){
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
     var nouveauxCeMois = membres.filter(function(m){ return m.created_at && new Date(m.created_at) >= debutMoisBenv; }).length;
     var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
-    sh+=statCard(actifCount,'Actifs ce mois','#0F6E56');
+    sh+=statCard(actifCount,'Disponibles','#0F6E56');
     sh+=statCard(artDuMois.length,'Articles touchés','var(--encre)');
     sh+=statCard(artCorrection.length,'En correction','#1A5276');
     sh+=statCard(artPublies.length,'Publiés total','var(--rouge)');
@@ -21106,7 +21111,8 @@ function osBenevolesDashRender(){
     sh+='</div></div>';
     sh+='<div style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
-    sh+='<div style="margin-left:auto;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
+    sh+='<button onclick="osBenevolesExporterPDF()" title="Document PDF listant l\'équipe, inactifs en tête" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Exporter PDF</button>';
+    sh+='<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
     // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
     // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
     sh+='<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
@@ -21122,9 +21128,10 @@ function osBenevolesDashRender(){
       var roleColors={redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
       var rc=(roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var nomAff=(m.prenom||'').trim()||(m.nom||'').trim()?esc(m.prenom||'')+' '+esc(m.nom||''):'<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
-      var estInactif=s.inactif||m.marque_inactif;
+      var estInactif=s.inactif;
       var statBg=estInactif?'#FCEBEB':'#EAF3DE',statCo=estInactif?'#A32D2D':'#27500A';
-      var statLbl=m.marque_inactif?'Inactif (manuel)':(s.inactif?'Inactif':'Actif');
+      // On distingue qui a déclaré l'inactivité : la vie asso, ou le membre lui-même.
+      var statLbl=m.marque_inactif?'Inactif (vie asso)':(m.dnd?'Indisponible':'Actif');
       sh+='<div class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'#ea5b1c\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'var(--gris-bord)\'" style="background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 0.8rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:0.55rem;">';
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;"><div style="width:32px;height:32px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
@@ -24609,6 +24616,95 @@ function osBenevolesRelancer(membreId){
     .catch(function(){ notif('Erreur envoi email'); });
 }
 
+// Deux façons de devenir inactif, volontairement distinguées dans l'export :
+//  - le membre le signale lui-même (bouton dispo/indispo -> colonne dnd)
+//  - la vie associative le décide (osBenevolesToggleInactif -> colonne marque_inactif)
+// Le 3e cas (plus de 14 jours sans activité) n'est PAS une déclaration mais une simple
+// détection : il a donc sa propre section, plus bas dans le document.
+function _benvMotifsInactivite(s){
+  var m = s.membre, motifs = [];
+  if(m.marque_inactif) motifs.push('Déclaré par la vie associative');
+  if(m.dnd)            motifs.push('Indisponibilité signalée par le membre');
+  return motifs;
+}
+
+function osBenevolesExporterPDF(){
+  var stats = window._benevolesStats || [];
+  if(!stats.length){ notif('Aucun membre à exporter'); return; }
+
+  var declares = [], actifs = [];
+  stats.forEach(function(s){
+    if(_benvMotifsInactivite(s).length) declares.push(s);
+    else actifs.push(s);
+  });
+  function parNom(a,b){
+    return ((a.membre.prenom||'')+' '+(a.membre.nom||'')).localeCompare((b.membre.prenom||'')+' '+(b.membre.nom||''), 'fr');
+  }
+  declares.sort(parNom); actifs.sort(parNom);
+
+  var win = window.open('','_blank','width=860,height=1000');
+  if(!win){ notif('Autorise les popups pour générer le document'); return; }
+
+  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Correcteur·rice', admin:'Admin', redac_chef:'Rédac en chef'};
+  function ligne(s, motifs){
+    var m = s.membre;
+    var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';
+    var derniere = s.derniereAct
+      ? new Date(s.derniereAct).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
+      : 'Jamais';
+    return '<tr>'
+      +'<td><strong>'+esc(nom)+'</strong></td>'
+      +'<td>'+esc(ROLES[m.role]||m.role||'—')+'</td>'
+      +'<td>'+esc(fonctionShort(m.fonction)||'—')+'</td>'
+      +'<td>'+esc(derniere)+'</td>'
+      +'<td>'+(motifs && motifs.length ? esc(motifs.join(' + ')) : '—')+'</td>'
+      +'</tr>';
+  }
+  function section(titre, sousTitre, liste, couleur, avecMotif){
+    if(!liste.length) return '';
+    var h = '<div class="sect">'
+      +'<div class="sect-t" style="border-left-color:'+couleur+';">'
+      +'<span style="color:'+couleur+';">'+esc(titre)+'</span> <span class="cnt">'+liste.length+'</span>'
+      +'<div class="sect-s">'+esc(sousTitre)+'</div></div>'
+      +'<table><tr><th>Membre</th><th>Rôle</th><th>Fonction</th><th>Dernière activité</th><th>Motif</th></tr>';
+    liste.forEach(function(s){ h += ligne(s, avecMotif ? _benvMotifsInactivite(s) : null); });
+    return h + '</table></div>';
+  }
+
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>État de l\'équipe — Ipsum Média</title><style>'
+    +'*{margin:0;padding:0;box-sizing:border-box;}'
+    +'body{font-family:Arial,sans-serif;padding:34px;color:#1A1A2E;}'
+    +'h1{font-size:1.25rem;font-weight:800;margin-bottom:3px;}'
+    +'table{width:100%;border-collapse:collapse;margin-top:8px;}'
+    +'td,th{padding:6px 9px;font-size:.74rem;border-bottom:1px solid #E5E7EB;text-align:left;vertical-align:top;}'
+    +'th{background:#F3F4F6;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;}'
+    +'.sect{margin-bottom:26px;page-break-inside:avoid;}'
+    +'.sect-t{font-size:.92rem;font-weight:700;border-left:3px solid;padding-left:9px;margin-bottom:2px;}'
+    +'.sect-s{font-size:.66rem;color:#6B7280;font-weight:400;margin-top:2px;}'
+    +'.cnt{font-size:.68rem;color:#6B7280;font-weight:400;}'
+    +'@media print{button{display:none;}body{padding:14px;}}'
+    +'</style></head><body>'
+    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">Imprimer / PDF</button></div>'
+    +'<div style="text-align:center;margin-bottom:22px;">'
+    +'<div style="font-size:.66rem;color:#6B7280;text-transform:uppercase;letter-spacing:.12em;">Association Ipsum Média</div>'
+    +'<h1>État de l\'équipe</h1>'
+    +'<div style="font-size:.72rem;color:#6B7280;margin-top:3px;">'
+      +stats.length+' membre(s) · '+declares.length+' inactif(s) · '+actifs.length+' actif(s)</div>'
+    +'<div style="font-size:.63rem;color:#9CA3AF;margin-top:2px;">Généré le '+today+' · '+esc(osPeriodeValiditeAssociative())+'</div>'
+    +'</div>';
+
+  html += section('Membres inactifs', 'Inactivité déclarée — par le membre lui-même ou par la vie associative.', declares, '#A32D2D', true);
+  html += section('Membres actifs', 'Aucune inactivité déclarée.', actifs, '#0F6E56', false);
+
+  html += '<div style="margin-top:24px;padding-top:10px;border-top:1px solid #E5E7EB;font-size:.6rem;color:#9CA3AF;display:flex;justify-content:space-between;">'
+    +'<span>Ipsum Média · contact@ipsummedia.fr</span><span>Document interne</span></div>'
+    +'</body></html>';
+
+  win.document.write(html);
+  win.document.close();
+}
+
 function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
   var texteConfirm = nouvelEtat ? 'Marquer '+nomMembre+' comme inactif ?' : 'Réactiver '+nomMembre+' ?';
   if(!confirm(texteConfirm)) return;
@@ -24769,7 +24865,7 @@ function osBenevolesOuvrirFiche(membreId){
   // Infos
   html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
   html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:'+rc[0]+';color:'+rc[1]+';">'+esc(m.role||'')+'</span>';
-  html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:'+(s.inactif?'#FCEBEB':'#EAF3DE')+';color:'+(s.inactif?'#A32D2D':'#27500A')+';">'+(s.inactif?'Inactif':'Actif ce mois')+'</span>';
+  html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:'+(s.inactif?'#FCEBEB':'#EAF3DE')+';color:'+(s.inactif?'#A32D2D':'#27500A')+';">'+(m.marque_inactif?'Inactif (vie asso)':(m.dnd?'Indisponible':'Actif'))+'</span>';
   if(s.derniereAct) html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:var(--gris-clair);color:var(--gris);">Dernière action : '+_benvFormatDate(s.derniereAct)+'</span>';
   html += '</div>';
 
