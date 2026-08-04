@@ -4170,10 +4170,13 @@ input:focus,select:focus,textarea:focus{
 <!-- LECTURE -->
 <div class="page" id="page-lecture">
   <div class="page-title">Lire un article</div>
-  <div class="page-sub">Ouvre un article pour le prévisualiser ou l'exporter vers Substack</div>
-  <div class="import-zone" onclick="document.getElementById('lect-file').click()">
-    <div class="iz-icon">↑</div><p>Ouvre l'article à lire</p>
-    <input type="file" id="lect-file" accept="*/*" style="display:none" onchange="loadLecture(event)">
+  <div class="page-sub">Prévisualise un article et prépare-le pour Substack</div>
+  <!-- Écran d'attente : cette page n'est plus alimentée par un import de fichier JSON
+       (reliquat de la v1), mais par un clic sur « Lire » depuis Mes Articles. -->
+  <div id="lect-vide" style="padding:2.5rem 1rem;text-align:center;color:var(--gris);">
+    <div style="font-size:2rem;margin-bottom:0.6rem;color:var(--gris-bord);"><i class="ti ti-eye"></i></div>
+    <div style="font-size:0.85rem;">Aucun article ouvert.</div>
+    <div style="font-size:0.78rem;margin-top:4px;">Ouvre-en un depuis <strong>Mes Articles</strong>, bouton « Lire ».</div>
   </div>
   <div id="lect-content" style="display:none">
     <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
@@ -5476,11 +5479,18 @@ function osAppCorrectionConfirmerRenvoi(){
 }
 
 // ===== LECTURE =====
-function loadLecture(event){importerFichier(event.target.files[0],doc=>{currentDoc=doc;renderLecture();});}
+// Masque l'écran d'attente et révèle le contenu — partagé par renderLecture et
+// renderDiffLecture, qui alimentent tous deux cette page.
+function _lectAfficherContenu(){
+  var vide = document.getElementById('lect-vide');
+  if(vide) vide.style.display = 'none';
+  var cont = document.getElementById('lect-content');
+  if(cont) cont.style.display = 'block';
+}
 
 function renderLecture(){
   const doc=currentDoc;
-  document.getElementById('lect-content').style.display='block';
+  _lectAfficherContenu();
   document.getElementById('l-codeid').innerHTML='<span class="code-id">'+doc.id+'</span>';
   document.getElementById('l-statbadge').innerHTML=bStat(doc.statut);
   document.getElementById('l-urgbadge').innerHTML=doc.urgence?bUrg(doc.urgence):'';
@@ -7069,6 +7079,41 @@ var db = {
         }).then(function(){ return data; });
       }
       return data;
+    })
+    .then(function(data){
+      // Création automatique du sujet correspondant.
+      // Un article écrit directement depuis Rédaction (sans partir d'un sujet existant
+      // ni d'un communiqué) doit malgré tout exister comme sujet : il apparaît alors
+      // dans la liste publique, au titre de l'article, marqué comme pris par son
+      // auteur — au lieu de vivre dans une liste « articles hors sujets » à part.
+      if(!estUneCreation || payload.sujet_id || payload.cp_id) return data;
+      var titreSujet = (payload.titre||'').trim();
+      if(!titreSujet) return data;
+      var sujetId = 'BRF-'+Date.now();
+      var hMin = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+      return fetch(SB_URL+'/rest/v1/briefing', {
+        method:'POST', headers:hMin,
+        body: JSON.stringify({
+          id: sujetId,
+          titre: titreSujet,
+          type: 'article',
+          priorite: 'normale',
+          statut: 'en_cours', // déjà pris : c'est son auteur qui l'écrit
+          responsable: payload.auteur || getUserNomComplet(),
+          redaction_id: payload.redaction_id || null,
+          created_by: payload.auteur_id || getUserId()
+        })
+      }).then(function(r){
+        if(!r.ok) return data;
+        return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
+          method:'PATCH', headers:hMin, body: JSON.stringify({ sujet_id: sujetId })
+        }).then(function(){
+          if(data[0]) data[0].sujet_id = sujetId;
+          if(currentDoc && currentDoc.id === articleId) currentDoc.sujet_id = sujetId;
+          return data;
+        });
+      // Un échec ici ne doit jamais faire échouer la sauvegarde de l'article lui-même.
+      }).catch(function(){ return data; });
     })
     .then(function(data){
       // Garantit que l'indicateur sort toujours de l'état "en cours" (animé), même
@@ -9037,6 +9082,7 @@ function skeletonCards(n){
 function renderDiffLecture(doc){
   var el = document.getElementById('lect-content');
   if(!el) return;
+  _lectAfficherContenu();
 
   var aOriginal = doc.corps_original || doc.corps;
   var aCorrige = doc.corps;
@@ -22379,7 +22425,8 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   }
   h += '</div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '<div id="redac-articles-encours-zone" style="margin-top:1rem;flex-shrink:0;"></div>';
+  // Plus de liste « articles hors sujets » : un article écrit directement crée
+  // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
   return h;
 }
 
@@ -22402,12 +22449,27 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       if(callback) callback();
       return;
     }
+    // Article rattaché à chaque sujet, s'il en existe un — un sujet doit toujours
+    // pouvoir mener à son article (créé automatiquement, réservé puis rédigé, ou
+    // issu d'un communiqué).
+    var idsSujets = sujets.map(function(s){ return s.id; });
+    fetch(SB_URL+'/rest/v1/articles?sujet_id=in.('+idsSujets.join(',')+')&select=id,titre,statut,sujet_id',{headers:authH})
+      .then(function(r){ return r.json(); })
+      .then(function(arts){
+        var parSujet = {};
+        (Array.isArray(arts)?arts:[]).forEach(function(a){ if(a.sujet_id) parSujet[a.sujet_id] = a; });
+        _rendreSujets(parSujet);
+      })
+      .catch(function(){ _rendreSujets({}); });
+
+    function _rendreSujets(articleParSujet){
     var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
     var nomMoi = getUserNomComplet();
     var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
     var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
     var h = '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
     sujets.forEach(function(s){
+      var artLie = articleParSujet[s.id];
       var prio = s.priorite||'normale';
       var isPris = s.statut==='en_cours' && s.responsable;
       var estMoi = s.responsable && s.responsable.trim()===nomMoi.trim();
@@ -22445,39 +22507,22 @@ function osRedacChargerSujets(zone, roleRedac, callback){
         }
         h += '</div>';
       }
-      h += '</div></div>';
+      h += '</div>';
+      if(artLie){
+        h += '<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:0.5px solid var(--gris-bord);">'
+          +'<button data-aid="'+esc(artLie.id)+'" onclick="mesArticlesOuvrir(this.dataset.aid,\'lecture\')" style="display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:#1A5276;cursor:pointer;">'
+          +'<i class="ti ti-file-text"></i>Voir l\'article'+(artLie.statut?' · '+esc(artLie.statut):'')+'</button></div>';
+      }
+      h += '</div>';
     });
     h += '</div>';
     zone.innerHTML = h;
     if(callback) callback();
+    } // fin _rendreSujets
   }).catch(function(){
     zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:Space Mono,monospace;font-size:0.72rem;">Erreur</div>';
     if(callback) callback();
   });
-}
-
-// Articles déjà commencés hors CP/sujet — écrits directement depuis l'app Rédaction
-function osRedacChargerArticlesEnCours(zone, callback){
-  if(!zone) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var url = SB_URL+'/rest/v1/articles?statut=in.(brouillon,en-relecture,corrige)&cp_id=is.null&sujet_id=is.null&order=updated_at.desc&select=id,titre,auteur,statut,updated_at';
-  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
-  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(articles){
-    articles = (!articles||articles.code) ? [] : articles;
-    if(!articles.length){ zone.innerHTML=''; if(callback) callback(); return; }
-    var h = '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.4rem;">Articles déjà en écriture (hors sujets)</div>';
-    h += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
-    articles.forEach(function(a){
-      h += '<div style="display:flex;align-items:center;gap:0.5rem;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.5rem 0.8rem;">'
-        +'<i class="ti ti-pencil" style="color:var(--gris);font-size:0.85rem;flex-shrink:0;"></i>'
-        +'<div style="flex:1;min-width:0;font-size:0.78rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(a.titre||'Sans titre')+'</div>'
-        +'<span style="font-size:0.68rem;color:var(--gris);flex-shrink:0;">'+esc(a.auteur||'—')+'</span>'
-        +'</div>';
-    });
-    h += '</div>';
-    zone.innerHTML = h;
-    if(callback) callback();
-  }).catch(function(){ if(callback) callback(); });
 }
 
 function brfAbandonnerSujetDepuisRedac(sujetId){
@@ -24182,16 +24227,8 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   }
   if(_redacOnglet === 'sujets'){
     var zoneSujets = document.getElementById('redac-sujets-zone');
-    var zoneArtEnCours = document.getElementById('redac-articles-encours-zone');
     var finSujetsTab = function(){ _osForcerRepaint(document.getElementById('win-redactions')); };
-    if(zoneSujets){
-      osRedacChargerSujets(zoneSujets, roleRedac, function(){
-        if(zoneArtEnCours) osRedacChargerArticlesEnCours(zoneArtEnCours, finSujetsTab);
-        else finSujetsTab();
-      });
-    } else if(zoneArtEnCours){
-      osRedacChargerArticlesEnCours(zoneArtEnCours, finSujetsTab);
-    }
+    if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac, finSujetsTab);
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac'){
@@ -29905,7 +29942,10 @@ function rLectureAfficherCpSource(doc, container){
       +(cp.source||cp.organisation ? '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+esc(cp.source||cp.organisation||'')+(dateStr?' · '+dateStr:'')+'</div>' : '')
       +'</div>'
       +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--rouge);flex-shrink:0;">Lire →</span>';
-    bloc.onclick = function(){ cpsOuvrirDetail(cp); };
+    // On recharge le CP complet plutôt que de passer l'objet ci-dessus : celui-ci n'a
+    // que les colonnes de l'encart (titre, source, date). cpsOuvrirDetail attend le CP
+    // entier — corps, fichier_pdf, contact_id — sinon la fenêtre s'ouvre vide.
+    bloc.onclick = function(){ cpsOuvrirDetailParId(cp.id); };
     if(container) container.appendChild(bloc);
   }).catch(function(){});
 }
