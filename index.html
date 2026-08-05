@@ -13184,6 +13184,20 @@ function osOpenWindow(pageId){
   }
   // Apps externes
   var appDef = (ALL_APPS_CATALOGUE||[]).find(function(a){return a.id===pageId;});
+  if(pageId === 'mail'){
+    // mail.google.com/a/ipsummedia.fr (l'ancien lien "Google Apps") est ignoré par
+    // Gmail moderne, qui retombe alors sur le compte Google actif du navigateur —
+    // le compte perso du bénévole, pas sa boîte @ipsummedia.fr. authuser=<email>
+    // cible le compte précis déjà connu de Compo (connexion restreinte au domaine
+    // ipsummedia.fr) : Gmail bascule dessus s'il est déjà connecté dans ce
+    // navigateur, ou propose sa connexion si non — jamais un compte au hasard.
+    var monEmail = getUserEmail();
+    var urlMail = monEmail
+      ? 'https://mail.google.com/mail/u/0/?authuser='+encodeURIComponent(monEmail)
+      : (appDef && appDef.external) || 'https://mail.google.com/a/ipsummedia.fr';
+    window.open(urlMail,'_blank');
+    return;
+  }
   if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
   if(pageId === 'visuels-pro' && !osVisuelsVerifierAcces()) return;
   if(pageId === 'redaction') osChronoStart('redaction');
@@ -24916,9 +24930,12 @@ function osBenevolesExporterPDF(){
   }
 
   var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var logo = _osLogoIpsum();
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>État de l\'équipe — Ipsum Média</title><style>'
     +'*{margin:0;padding:0;box-sizing:border-box;}'
     +'body{font-family:Arial,sans-serif;padding:34px;color:#1A1A2E;}'
+    +'header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:2px solid #EA5B1C;margin-bottom:22px;}'
+    +'header img{height:72px;width:auto;flex-shrink:0;}'
     +'h1{font-size:1.25rem;font-weight:800;margin-bottom:3px;}'
     +'table{width:100%;border-collapse:collapse;margin-top:8px;}'
     +'td,th{padding:6px 9px;font-size:.74rem;border-bottom:1px solid #E5E7EB;text-align:left;vertical-align:top;}'
@@ -24930,13 +24947,14 @@ function osBenevolesExporterPDF(){
     +'@media print{button{display:none;}body{padding:14px;}}'
     +'</style></head><body>'
     +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">Imprimer / PDF</button></div>'
-    +'<div style="text-align:center;margin-bottom:22px;">'
-    +'<div style="font-size:.66rem;color:#6B7280;text-transform:uppercase;letter-spacing:.12em;">Association Ipsum Média</div>'
+    +'<header>'
+    +(logo?'<img src="'+logo+'" alt="Ipsum Média">':'')
+    +'<div><div style="font-size:.66rem;color:#6B7280;text-transform:uppercase;letter-spacing:.12em;">Association Ipsum Média</div>'
     +'<h1>État de l\'équipe</h1>'
     +'<div style="font-size:.72rem;color:#6B7280;margin-top:3px;">'
       +stats.length+' membre(s) · '+declares.length+' inactif(s) · '+actifs.length+' actif(s)</div>'
     +'<div style="font-size:.63rem;color:#9CA3AF;margin-top:2px;">Généré le '+today+' · '+esc(osPeriodeValiditeAssociative())+'</div>'
-    +'</div>';
+    +'</div></header>';
 
   html += section('Membres inactifs', 'Inactivité déclarée — par le membre lui-même ou par la vie associative.', declares, '#A32D2D', true);
   html += section('Membres actifs', 'Aucune inactivité déclarée.', actifs, '#0F6E56', false);
@@ -24950,12 +24968,15 @@ function osBenevolesExporterPDF(){
 }
 
 // ===== RAPPORTS PDF DE L'ASSOCIATION =====
-// Le logo est repris de l'écran de connexion (toujours présent dans le DOM, simplement
-// masqué après connexion) : pas de copie du base64, et il reste synchronisé si le logo
-// change un jour.
+// Logo intégré une fois pour toutes, partagé par tous les documents (rapports admin,
+// carte d'adhérent, État de l'équipe...). Avant, chaque document allait le chercher à
+// sa façon (lookup DOM sur l'écran de connexion, ou sa propre copie locale) — fragile
+// et jamais garanti présent au moment où un document se génère. Ici, aucune dépendance
+// à un autre élément de la page : il fonctionne toujours, où que ce soit appelé.
+var LOGO_IPSUM_B64 = "data:image/png;base64,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";
+
 function _osLogoIpsum(){
-  var img = document.querySelector('#os-login img[alt="Ipsum Média"]');
-  return (img && img.src) ? img.src : '';
+  return LOGO_IPSUM_B64;
 }
 
 function _osRapportFenetre(){
