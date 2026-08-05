@@ -10656,7 +10656,14 @@ function osLancer(){
           var changed = JSON.stringify(newFonctions) !== JSON.stringify(window._membreCourantFonction||[]);
           window._membreCourantFonction = newFonctions;
           if(m.role) localStorage.setItem('ipsum_user_role', m.role);
-          if(changed){ osBuildDock(); osBuildDesktopIcons(); }
+          // Une app comme Bénévoles n'apparaît que si la fonction associative requise
+          // est présente (voir appAccessible dans _chargerAppsUtilisateur) — mais
+          // window._userApps/_userAppsAll ne sont calculés qu'une fois, à la connexion.
+          // Rebâtir juste l'UI (osBuildDock/osBuildDesktopIcons) avec ces variables
+          // périmées ne suffit pas : une fonction ajoutée en cours de session restait
+          // invisible jusqu'à une reconnexion complète. Il faut recalculer la liste
+          // d'apps elle-même avant de redessiner.
+          if(changed) _chargerAppsUtilisateur(uidRefresh, function(){ osBuildDock(); osBuildDesktopIcons(); }, m.role);
         }).catch(function(){});
       }, 300000);
 
