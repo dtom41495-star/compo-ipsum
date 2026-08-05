@@ -3985,6 +3985,10 @@ input:focus,select:focus,textarea:focus{
         </div>
       </div>
 
+      <!-- Sujet lié — permet de corriger le lien si l'article a été rattaché au
+           mauvais sujet (créé automatiquement, ou choisi par erreur). -->
+      <div id="r-sujet-lie-zone" style="margin-top:0.6rem;"></div>
+
       <!-- Image -->
       <div class="form-group">
         <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Image d'illustration</label>
@@ -5146,6 +5150,12 @@ function resetRedaction(){
   var btn = document.getElementById('r-cp-source-btn');
   if(aff) aff.style.display = 'none';
   if(btn) btn.style.display = 'block';
+  // Réinitialiser le sujet lié (un article vraiment neuf n'a encore aucun sujet —
+  // celui-ci sera créé automatiquement à la première sauvegarde)
+  var zoneSujetLie = document.getElementById('r-sujet-lie-zone');
+  if(zoneSujetLie) zoneSujetLie.innerHTML = '';
+  var abandonBtnReset = document.getElementById('r-abandon-sujet');
+  if(abandonBtnReset){ abandonBtnReset.style.display='none'; abandonBtnReset.dataset.sujetId=''; }
   document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>';
   setUrg('normal');updateStats();
   osStartAutosave(); // Démarrer aussi pour les nouveaux articles (pas seulement les reprises)
@@ -8632,6 +8642,14 @@ function chargerDansRedaction(doc){
     // Afficher le CP source si lié
     if(doc.cp_id) rArticleAfficherCpSourceExistant(doc.cp_id);
     else { var aff2 = document.getElementById('r-cp-source-affichage'); if(aff2) aff2.style.display='none'; }
+    // Afficher le sujet lié — permet de corriger le lien s'il est faux.
+    rArticleAfficherSujetLie(doc.sujet_id||null);
+    // La bannière "Sujet réservé" appartient au brouillon local pas-encore-sauvegardé
+    // qui l'a affichée (voir osRedacRedigerSujetNouveauBrouillon) — si on charge ici un
+    // article existant différent, elle doit disparaître : sinon son bouton "Abandonner"
+    // agirait sur le sujet de l'ANCIEN brouillon, pas sur celui de l'article affiché.
+    var abandonBtn2 = document.getElementById('r-abandon-sujet');
+    if(abandonBtn2){ abandonBtn2.style.display='none'; abandonBtn2.dataset.sujetId=''; }
     // Afficher le lien de partage si l'article a déjà un ID en base
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
@@ -23677,6 +23695,10 @@ function osRedacRedigerSujetNouveauBrouillon(sujetId){
       abandonBtn.dataset.sujetId = sujetId;
       abandonBtn.dataset.sujetTitre = sujet.titre||'';
     }
+    // Ce brouillon n'existe pas encore en base — rien à afficher dans le bloc "Sujet
+    // lié" (qui lit doc.sujet_id, un champ persisté). La bannière ci-dessus suffit.
+    var zoneSujetLie = document.getElementById('r-sujet-lie-zone');
+    if(zoneSujetLie) zoneSujetLie.innerHTML = '';
     currentDoc = brouillon;
     osStartAutosave();
   }, 100);
@@ -29920,6 +29942,134 @@ function rArticleAfficherCpSourceExistant(cpId){
     var cp = data && data[0];
     if(cp) rArticleSetCpSource(cp);
   }).catch(function(){});
+}
+
+// ===== LIAISON SUJET — RÉDACTION =====
+// Un article devrait toujours être relié à un sujet (voir db.sauvegarderArticle, qui en
+// crée un automatiquement à la création s'il n'y en a pas), mais le lien peut être faux :
+// mauvais sujet choisi par erreur, article antérieur à l'auto-création, etc. Ce bloc
+// permet de corriger le lien directement depuis l'éditeur.
+function rArticleAfficherSujetLie(sujetId){
+  var zone = document.getElementById('r-sujet-lie-zone');
+  if(!zone) return;
+  if(!sujetId){
+    zone.innerHTML = '<div class="import-zone" onclick="rArticleOuvrirChangerSujet()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-bulb"></i> Lier un sujet</p></div>';
+    return;
+  }
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var s = data && data[0];
+    zone.innerHTML = '<div style="display:flex;align-items:center;gap:0.7rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;">'
+      +'<span style="font-size:0.9rem;"><i class="ti ti-bulb"></i></span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">Sujet lié</div>'
+      +'<div style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(s?esc(s.titre||sujetId):'Sujet introuvable')+'</div>'
+      +'</div>'
+      +'<button onclick="rArticleOuvrirChangerSujet()" style="background:none;border:0.5px solid var(--gris-bord);color:var(--encre);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:3px 8px;">Changer</button>'
+      +'</div>';
+  }).catch(function(){});
+}
+
+function rArticleOuvrirChangerSujet(){
+  if(!currentDoc || !currentDoc.id){ notif('Enregistre d\'abord l\'article avant de changer son sujet'); return; }
+  var existing = document.getElementById('changer-sujet-overlay');
+  if(existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'changer-sujet-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.15s ease;';
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(460px,94vw);max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;';
+  card.innerHTML =
+    '<div style="padding:1.1rem 1.3rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);">Relier à un autre sujet</div>'
+    +'<button onclick="document.getElementById(\'changer-sujet-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div>'
+    +'<div style="padding:0.8rem 1.3rem;border-bottom:1px solid #E5E7EB;flex-shrink:0;">'
+    +'<input type="text" id="cs-filtre" placeholder="Filtrer les sujets..." oninput="rArticleFiltrerSujets(this.value)" style="width:100%;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:7px;font-size:0.78rem;box-sizing:border-box;">'
+    +'</div>'
+    +'<div id="cs-liste" style="overflow-y:auto;padding:0.6rem 1.3rem;flex:1;"><div style="text-align:center;padding:1.5rem;color:var(--gris);font-size:0.78rem;">Chargement…</div></div>';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=id,titre,statut,responsable';
+  var redacId = currentDoc.redaction_id || window._redacActiveId;
+  if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
+  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
+    var idActuel = currentDoc.sujet_id;
+    window._csListeSujets = (!sujets||sujets.code) ? [] : sujets.filter(function(s){ return s.id !== idActuel; });
+    rArticleFiltrerSujets('');
+  }).catch(function(){
+    var l=document.getElementById('cs-liste'); if(l) l.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--rouge);font-size:0.78rem;">Erreur de chargement</div>';
+  });
+}
+
+function rArticleFiltrerSujets(filtre){
+  var liste = document.getElementById('cs-liste');
+  if(!liste) return;
+  var f = (filtre||'').trim().toLowerCase();
+  var items = (window._csListeSujets||[]).filter(function(s){ return !f || (s.titre||'').toLowerCase().indexOf(f)!==-1; });
+  if(!items.length){ liste.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--gris);font-size:0.78rem;">Aucun sujet ne correspond.</div>'; return; }
+  liste.innerHTML = items.map(function(s){
+    var pris = s.statut==='en_cours' && s.responsable;
+    return '<div data-sid="'+esc(s.id)+'" onclick="rArticleChoisirSujet(this.dataset.sid)" style="padding:0.55rem 0.6rem;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:0.6rem;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'transparent\'">'
+      +'<span style="font-size:0.8rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.titre||'Sans titre')+'</span>'
+      +(pris?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);flex-shrink:0;">pris par '+esc(s.responsable)+'</span>':'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:#155724;flex-shrink:0;">libre</span>')
+      +'</div>';
+  }).join('');
+}
+
+function rArticleChoisirSujet(nouveauSujetId){
+  var articleId = currentDoc && currentDoc.id;
+  if(!articleId) return;
+  var ancienSujetId = currentDoc.sujet_id || null;
+  var overlay = document.getElementById('changer-sujet-overlay');
+  if(overlay) overlay.remove();
+  notif('Mise à jour du sujet…');
+
+  var authHRepr = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+  var authHMin  = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet  = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var auteur = currentDoc.auteur || getUserNomComplet();
+
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
+    method:'PATCH', headers:authHRepr, body: JSON.stringify({sujet_id:nouveauSujetId})
+  })
+  .then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+  .then(function(res){
+    // Un PATCH avec Prefer:return=representation renvoie un tableau vide (pas une
+    // erreur HTTP) si le WHERE ne matche aucune ligne visible pour ce rôle — sans
+    // cette vérification on croirait la liaison faite alors que rien n'a changé.
+    if(!res.ok || !Array.isArray(res.data) || !res.data.length){
+      notif('Erreur — l\'article n\'a pas pu être relié (droits ?)','erreur');
+      return;
+    }
+    currentDoc.sujet_id = nouveauSujetId;
+    rArticleAfficherSujetLie(nouveauSujetId);
+    notif('Sujet mis à jour ✓','succes');
+
+    // Réclamer le nouveau sujet pour l'auteur de l'article.
+    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId), {
+      method:'PATCH', headers:authHMin, body: JSON.stringify({statut:'en_cours', responsable:auteur})
+    }).catch(function(){});
+
+    // Libérer l'ancien sujet, mais seulement si plus aucun article ne le référence —
+    // l'article courant vient d'en changer, mais un AUTRE article pourrait encore
+    // pointer dessus légitimement.
+    if(ancienSujetId && ancienSujetId !== nouveauSujetId){
+      fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(ancienSujetId)+'&select=id', {headers:authHGet})
+      .then(function(r){ return r.json(); })
+      .then(function(restants){
+        if(Array.isArray(restants) && !restants.length){
+          fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(ancienSujetId), {
+            method:'PATCH', headers:authHMin, body: JSON.stringify({statut:'ouvert', responsable:null})
+          }).catch(function(){});
+        }
+      }).catch(function(){});
+    }
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 // ===== LIAISON CP SOURCE — LECTURE =====
