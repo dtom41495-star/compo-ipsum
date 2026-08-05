@@ -10650,9 +10650,7 @@ function osLancer(){
         .then(function(data){
           var m = data&&!data.code&&data[0];
           if(!m) return;
-          var f = m.fonction;
-          if(typeof f==='string'){ try{f=JSON.parse(f);}catch(e){f=[];} }
-          var newFonctions = Array.isArray(f)?f:[];
+          var newFonctions = fonctionArray(m.fonction);
           var changed = JSON.stringify(newFonctions) !== JSON.stringify(window._membreCourantFonction||[]);
           window._membreCourantFonction = newFonctions;
           if(m.role) localStorage.setItem('ipsum_user_role', m.role);
@@ -10673,11 +10671,11 @@ function osLancer(){
     .then(function(data){
       var m = data&&!data.code&&data[0];
       if(m){
-        var fonctionBrute = m.fonction;
-        if(typeof fonctionBrute === 'string'){
-          try { fonctionBrute = JSON.parse(fonctionBrute); } catch(e){ fonctionBrute = []; }
-        }
-        window._membreCourantFonction = Array.isArray(fonctionBrute) ? fonctionBrute : [];
+        // fonctionArray() tolère une valeur forcée directement en base sans les
+        // crochets JSON (ex: "vie_asso" au lieu de ["vie_asso"]) — un JSON.parse brut
+        // échoue silencieusement sur ce format et effaçait la fonction, alors qu'elle
+        // s'affichait correctement partout ailleurs dans l'appli (fiche, grille admin).
+        window._membreCourantFonction = fonctionArray(m.fonction);
         // Mettre à jour le rôle depuis la base (source de vérité)
         if(m.role) localStorage.setItem('ipsum_user_role', m.role);
         // Reconstruire le dock si fonction trésorier
@@ -12794,9 +12792,7 @@ function osBuildDock(){
     .then(function(data){
       var m = data&&!data.code&&data[0];
       if(m){
-        var f = m.fonction;
-        if(typeof f==='string'){ try{f=JSON.parse(f);}catch(e){f=[];} }
-        window._membreCourantFonction = Array.isArray(f)?f:[];
+        window._membreCourantFonction = fonctionArray(m.fonction);
       } else { window._membreCourantFonction = []; }
       osBuildDock();
     }).catch(function(){ window._membreCourantFonction = []; osBuildDock(); });
