@@ -4738,6 +4738,53 @@ var SB_HEADERS = {
   'Prefer': 'return=representation'
 }
 
+// ===== SESSION EXPIRÉE : détection globale =====
+// Beaucoup d'appels fetch() dans l'appli n'ont pas de gestion d'erreur — un token
+// mort se traduisait avant par des écrans qui restent vides ou des boutons qui ne
+// répondent plus, sans qu'aucun message n'explique pourquoi. On intercepte ici tous
+// les 401 renvoyés par Supabase (hors tentatives de login/refresh elles-mêmes, qui
+// gèrent déjà leur propre échec) pour proposer un rechargement propre.
+var _sessionExpireeAffichee = false;
+function osAfficherSessionExpiree(){
+  if(_sessionExpireeAffichee || document.getElementById('session-expiree-overlay')) return;
+  _sessionExpireeAffichee = true;
+  var overlay = document.createElement('div');
+  overlay.id = 'session-expiree-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:16px;width:min(400px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;font-family:DM Sans,sans-serif;">'
+    +'<div style="background:#FCEBEB;padding:1.4rem 1.6rem;border-bottom:3px solid rgba(163,45,45,.2);">'
+    +'<div style="font-size:1.6rem;color:#A32D2D;margin-bottom:.4rem;"><i class="ti ti-lock-access-off"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.98rem;color:#A32D2D;">Connexion expirée</div>'
+    +'</div>'
+    +'<div style="padding:1.2rem 1.6rem;">'
+    +'<div style="font-size:.82rem;color:#6B7280;line-height:1.6;">Ta session Compo a expiré. Relance l\'application pour te reconnecter — tes brouillons sont sauvegardés automatiquement, rien n\'est perdu.</div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.6rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;">'
+    +'<button onclick="location.reload()" style="padding:.55rem 1.4rem;background:#A32D2D;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">Relancer Compo</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+(function(){
+  var _fetchNatif = window.fetch.bind(window);
+  window.fetch = function(url, opts){
+    return _fetchNatif(url, opts).then(function(r){
+      if(r.status === 401){
+        var u = String(url);
+        // /auth/v1/token (login, refresh) et /auth/v1/recover gèrent déjà eux-mêmes
+        // un 401 (mauvais mot de passe, refresh token expiré) — ne pas les court-
+        // circuiter avec ce message, qui ne s'applique qu'à une session censée
+        // être valide qui ne l'est plus.
+        if(u.indexOf(SB_URL) === 0 && u.indexOf('/auth/v1/token') === -1 && u.indexOf('/auth/v1/recover') === -1){
+          osAfficherSessionExpiree();
+        }
+      }
+      return r;
+    });
+  };
+})();
+
 // Retourne toujours les headers avec le token de session courant
 function getSBHeaders(extra){
   var sess = null;
@@ -21312,6 +21359,15 @@ function osBenevolesDashRender(){
             h += '<div><div style="font-size:0.9rem;font-weight:700;color:var(--encre);">'+esc(c.nom)+'</div>';
             if(c.description) h += '<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">'+esc(c.description)+'</div>';
             if(resp&&resp.membres) h += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:3px;">👑 '+esc(resp.membres.prenom+' '+resp.membres.nom)+'</div>';
+            if(c.fonction_liee||c.redaction_id){
+              h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">';
+              if(c.fonction_liee) h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:rgba(234,91,28,0.1);color:var(--rouge);"><i class="ti ti-key"></i> '+esc(FONCTIONS_LABELS[c.fonction_liee]||c.fonction_liee)+'</span>';
+              if(c.redaction_id){
+                var redacComm = (window._redactionsData||[]).find(function(r){return r.id===c.redaction_id;});
+                h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:var(--gris-clair);color:var(--gris);"><i class="ti ti-map-pin"></i> '+esc(redacComm?redacComm.nom:'Rédaction')+'</span>';
+              }
+              h += '</div>';
+            }
             h += '</div>';
             h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.4rem;color:'+(c.couleur||'var(--rouge)')+';">'+mbrs.length+'</div>';
             h += '</div>';
@@ -21431,6 +21487,16 @@ function osBenvCommissionAjouter(){
       +'<div><label style="font-size:0.65rem;color:var(--gris);">Couleur</label><input id="benv-comm-couleur" type="color" value="#E8461E" style="width:100%;height:34px;padding:2px;border:1.5px solid var(--gris-bord);border-radius:6px;margin-top:2px;cursor:pointer;"></div>'
       +'</div>'
       +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Description</label><input id="benv-comm-desc" type="text" placeholder="Optionnel" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem;">'
+      +'<div><label style="font-size:0.65rem;color:var(--gris);">Fonction liée</label><select id="benv-comm-fonction" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;background:white;">'
+      +'<option value="">Aucune</option>'
+      +(FONCTIONS_LIST_GLOBAL||[]).map(function(f){return '<option value="'+f.id+'">'+esc(f.label)+'</option>';}).join('')
+      +'</select><div style="font-size:0.6rem;color:var(--gris);margin-top:2px;">Rejoindre la commission donne cette fonction automatiquement</div></div>'
+      +'<div><label style="font-size:0.65rem;color:var(--gris);">Rédaction</label><select id="benv-comm-redaction" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;background:white;">'
+      +'<option value="">Toute l\'association</option>'
+      +(window._redactionsData||[]).map(function(r){return '<option value="'+r.id+'">'+esc(r.nom)+'</option>';}).join('')
+      +'</select><div style="font-size:0.6rem;color:var(--gris);margin-top:2px;">Laisse "Toute l\'association" pour une commission transversale</div></div>'
+      +'</div>'
       +'<div style="display:flex;gap:0.5rem;">'
       +'<button onclick="osBenvCommissionSauvegarder()" style="padding:0.4rem 1rem;background:var(--rouge);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;">Créer</button>'
       +'<button onclick="document.getElementById(\'benv-comm-form-zone\').style.display=\'none\'" style="padding:0.4rem 0.8rem;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;font-size:0.72rem;cursor:pointer;color:var(--gris);">Annuler</button>'
@@ -21443,9 +21509,13 @@ function osBenvCommissionSauvegarder(){
   var nom = (document.getElementById('benv-comm-nom')||{}).value||'';
   var desc = (document.getElementById('benv-comm-desc')||{}).value||'';
   var couleur = (document.getElementById('benv-comm-couleur')||{}).value||'#E8461E';
+  var fonctionLiee = (document.getElementById('benv-comm-fonction')||{}).value||null;
+  var redactionId = (document.getElementById('benv-comm-redaction')||{}).value||null;
   if(!nom.trim()){ notif('Le nom est obligatoire'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commissions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom.trim(),description:desc.trim()||null,couleur:couleur})})
+  fetch(SB_URL+'/rest/v1/commissions',{method:'POST',headers:authH,body:JSON.stringify({
+    nom:nom.trim(),description:desc.trim()||null,couleur:couleur,fonction_liee:fonctionLiee,redaction_id:redactionId
+  })})
   .then(function(r){ if(r.ok){ notif('Commission créée ✓','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
 }
 
@@ -21468,6 +21538,21 @@ function osBenvCommissionGerer(id){
     +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);">🏛️ '+esc(comm.nom)+'</div>'
     +'<button onclick="document.getElementById(\'benv-comm-gerer-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gris);">✕</button>'
     +'</div>';
+  // Fonction liée + rédaction — modifiables après coup, avec synchronisation
+  // rétroactive des membres déjà présents (voir osBenvCommissionSauverReglages)
+  h += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">'
+    +'<div><label style="font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Fonction liée</label>'
+    +'<select id="benv-comm-gerer-fonction" style="width:100%;padding:0.3rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.76rem;margin-top:2px;background:white;">'
+    +'<option value="">Aucune</option>'
+    +(FONCTIONS_LIST_GLOBAL||[]).map(function(f){return '<option value="'+f.id+'"'+(comm.fonction_liee===f.id?' selected':'')+'>'+esc(f.label)+'</option>';}).join('')
+    +'</select></div>'
+    +'<div><label style="font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rédaction</label>'
+    +'<select id="benv-comm-gerer-redaction" style="width:100%;padding:0.3rem 0.5rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.76rem;margin-top:2px;background:white;">'
+    +'<option value="">Toute l\'association</option>'
+    +(window._redactionsData||[]).map(function(r){return '<option value="'+r.id+'"'+(comm.redaction_id===r.id?' selected':'')+'>'+esc(r.nom)+'</option>';}).join('')
+    +'</select></div>'
+    +'<button data-cid="'+id+'" onclick="osBenvCommissionSauverReglages(this.dataset.cid)" style="grid-column:1 / -1;padding:0.35rem 0.8rem;background:var(--encre-fixe);color:white;border:none;border-radius:6px;font-size:0.68rem;font-weight:600;cursor:pointer;">Enregistrer ces réglages</button>'
+    +'</div>';
   // Membres actuels
   h += '<div style="font-size:0.65rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;">Membres ('+liens.length+')</div>';
   if(liens.length){
@@ -21481,7 +21566,7 @@ function osBenvCommissionGerer(id){
         +'<option value="membre"'+(l.role_commission==='membre'?' selected':'')+'>Membre</option>'
         +'<option value="responsable"'+(l.role_commission==='responsable'?' selected':'')+'>Responsable</option>'
         +'</select>'
-        +'<button data-lid="'+l.id+'" data-cid="'+id+'" onclick="osBenvCommissionRetirerMembre(this.dataset.cid,this.dataset.lid)" style="font-size:0.7rem;background:none;border:none;cursor:pointer;color:#A32D2D;" title="Retirer">✕</button>'
+        +'<button data-lid="'+l.id+'" data-cid="'+id+'" data-mid="'+m.id+'" onclick="osBenvCommissionRetirerMembre(this.dataset.cid,this.dataset.lid,this.dataset.mid)" style="font-size:0.7rem;background:none;border:none;cursor:pointer;color:#A32D2D;" title="Retirer">✕</button>'
         +'</div>';
     });
   } else {
@@ -21502,21 +21587,108 @@ function osBenvCommissionGerer(id){
   document.body.appendChild(modal);
 }
 
+// Une commission peut être liée à une fonction (ex: la commission "Trésorerie" donne
+// la fonction tresorier) : rejoindre la commission donne la fonction automatiquement,
+// la quitter la retire — mais seulement si aucune AUTRE commission du membre ne donne
+// la même fonction (ex: membre à la fois de "Trésorerie" et d'une commission qui
+// donnerait aussi tresorier — cas rare mais on protège contre le retrait à tort).
+function _benvSyncFonctionCommission(commissionId, membreId, rejoint){
+  var comm = (window._benvCommissions||[]).find(function(c){ return c.id===commissionId; });
+  if(!comm || !comm.fonction_liee) return;
+  var fonctionCle = comm.fonction_liee;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  function appliquer(nouvelleListe){
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
+      method:'PATCH', headers:authH, body: JSON.stringify({ fonction: nouvelleListe.length ? nouvelleListe : null })
+    }).catch(function(){});
+  }
+
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&select=fonction', {headers:authHGet})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var m = data && data[0];
+    var fonctions = fonctionArray(m&&m.fonction);
+    if(rejoint){
+      if(fonctions.indexOf(fonctionCle)===-1){ fonctions.push(fonctionCle); appliquer(fonctions); }
+      return;
+    }
+    // Quitte la commission : ne retirer la fonction que si aucune autre commission
+    // de ce membre ne donne la même fonction.
+    fetch(SB_URL+'/rest/v1/commission_membres?membre_id=eq.'+encodeURIComponent(membreId)+'&select=commission_id', {headers:authHGet})
+    .then(function(r){ return r.json(); })
+    .then(function(liens){
+      var autresCommissionsIds = (Array.isArray(liens)?liens:[]).map(function(l){return l.commission_id;}).filter(function(id){return id!==commissionId;});
+      var encoreDonnee = autresCommissionsIds.some(function(id){
+        var c = (window._benvCommissions||[]).find(function(cc){ return cc.id===id; });
+        return c && c.fonction_liee === fonctionCle;
+      });
+      if(!encoreDonnee && fonctions.indexOf(fonctionCle)!==-1){
+        appliquer(fonctions.filter(function(f){ return f!==fonctionCle; }));
+      }
+    }).catch(function(){});
+  }).catch(function(){});
+}
+
+function osBenvCommissionSauverReglages(id){
+  var fonctionEl = document.getElementById('benv-comm-gerer-fonction');
+  var redacEl = document.getElementById('benv-comm-gerer-redaction');
+  if(!fonctionEl || !redacEl) return;
+  var nouvelleFonction = fonctionEl.value || null;
+  var nouvelleRedaction = redacEl.value || null;
+  var comm = (window._benvCommissions||[]).find(function(c){ return c.id===id; });
+  var ancienneFonction = comm ? comm.fonction_liee : null;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/commissions?id=eq.'+encodeURIComponent(id), {
+    method:'PATCH', headers:authH, body: JSON.stringify({fonction_liee:nouvelleFonction, redaction_id:nouvelleRedaction})
+  }).then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    notif('Réglages enregistrés ✓','succes');
+    var liens = (window._benvCommLiens||[]).filter(function(l){ return l.commission_id===id; });
+    // Si la fonction liée change, la retirer d'abord aux membres actuels (avec le
+    // garde-fou habituel : seulement si aucune autre commission ne la donne aussi),
+    // puis appliquer la nouvelle — pour que les membres déjà présents suivent le
+    // changement, pas seulement les futurs arrivants.
+    if(comm && ancienneFonction && ancienneFonction!==nouvelleFonction){
+      comm.fonction_liee = ancienneFonction;
+      liens.forEach(function(l){ if(l.membres&&l.membres.id) _benvSyncFonctionCommission(id, l.membres.id, false); });
+    }
+    if(comm) comm.fonction_liee = nouvelleFonction;
+    if(nouvelleFonction){
+      liens.forEach(function(l){ if(l.membres&&l.membres.id) _benvSyncFonctionCommission(id, l.membres.id, true); });
+    }
+    var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove();
+    osBenevolesDashRender();
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function osBenvCommissionAjouterMembre(commId){
   var select = document.getElementById('benv-comm-select-membre');
   if(!select||!select.value) return;
+  var membreId = select.value;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commission_membres',{method:'POST',headers:authH,body:JSON.stringify({commission_id:commId,membre_id:select.value})})
+  fetch(SB_URL+'/rest/v1/commission_membres',{method:'POST',headers:authH,body:JSON.stringify({commission_id:commId,membre_id:membreId})})
   .then(function(r){
-    if(r.ok){ notif('Membre ajouté ✓','succes'); var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove(); osBenevolesDashRender(); }
+    if(r.ok){
+      notif('Membre ajouté ✓','succes');
+      _benvSyncFonctionCommission(commId, membreId, true);
+      var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove(); osBenevolesDashRender();
+    }
     else notif('Déjà membre ou erreur','erreur');
   });
 }
 
-function osBenvCommissionRetirerMembre(commId, lienId){
+function osBenvCommissionRetirerMembre(commId, lienId, membreId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/commission_membres?id=eq.'+lienId,{method:'DELETE',headers:authH})
-  .then(function(r){ if(r.ok){ notif('Membre retiré'); var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove(); osBenevolesDashRender(); } });
+  .then(function(r){
+    if(r.ok){
+      notif('Membre retiré');
+      if(membreId) _benvSyncFonctionCommission(commId, membreId, false);
+      var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove(); osBenevolesDashRender();
+    }
+  });
 }
 
 function osBenvCommissionChangerRole(select){
