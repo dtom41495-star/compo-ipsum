@@ -29054,10 +29054,20 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
       appsDisponibles.forEach(function(app){
         if(app.legacy) return; // traitées séparément en bas
         var checked = membreApps.has(app.id);
-        html += '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;background:'+(checked?'var(--gris-clair)':'white')+';transition:background 0.1s;" id="gapp-label-'+m.id+'-'+app.id+'">';
+        // Certaines apps exigent en plus une fonction associative (ex: Bénévoles ->
+        // vie_asso) — cochées ici, elles resteront pourtant invisibles pour le membre
+        // tant que cette fonction ne lui est pas assignée sur sa fiche. On le signale
+        // directement ici : c'est le seul endroit où admin et membre se retrouvent
+        // désynchronisés sans qu'aucune erreur ne s'affiche nulle part.
+        var fonctionManquante = (app.fonctions_requises && app.fonctions_requises.length && m.role !== 'admin'
+          && !app.fonctions_requises.some(function(f){ return membreFonctions.indexOf(f)!==-1; }))
+          ? app.fonctions_requises.map(function(f){ return FONCTIONS_LABELS[f]||f; }).join(' ou ')
+          : null;
+        html += '<label title="'+(fonctionManquante?'Nécessite aussi la fonction : '+esc(fonctionManquante)+' (fiche du membre)':'')+'" style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border:0.5px solid '+(fonctionManquante?'#E8C468':'var(--gris-bord)')+';border-radius:6px;cursor:pointer;background:'+(checked?(fonctionManquante?'#FFF8E7':'var(--gris-clair)'):'white')+';transition:background 0.1s;" id="gapp-label-'+m.id+'-'+app.id+'">';
         html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="osGestionAppsToggleApp(\''+m.id+'\',\''+app.id+'\',this.checked)" style="accent-color:var(--rouge);width:14px;height:14px;flex-shrink:0;">';
         html += '<span style="font-size:0.82rem;">'+app.icon+'</span>';
-        html += '<span style="font-size:0.72rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(app.label)+'</span>';
+        html += '<span style="font-size:0.72rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">'+esc(app.label)+'</span>';
+        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;">⚠</span>';
         html += '</label>';
       });
 
@@ -29128,7 +29138,19 @@ function osGestionAppsToggleApp(membreId, appId, activer){
     }).then(function(r){
       if(r.ok){
         if(label) label.style.background = 'var(--gris-clair)';
-        notif('App activée');
+        // Certaines apps restent invisibles pour le membre tant qu'une fonction
+        // associative ne lui est pas aussi assignée — le prévenir ici évite de croire
+        // l'app activée alors qu'elle n'apparaîtra pas côté membre.
+        var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id===appId; });
+        var membre = (window._gappMembres||[]).find(function(x){ return x.id===membreId; });
+        var mesFonctions = membre ? fonctionArray(membre.fonction) : [];
+        if(app && app.fonctions_requises && app.fonctions_requises.length && membre && membre.role!=='admin'
+           && !app.fonctions_requises.some(function(f){ return mesFonctions.indexOf(f)!==-1; })){
+          var nomFonction = app.fonctions_requises.map(function(f){ return FONCTIONS_LABELS[f]||f; }).join(' ou ');
+          notif('App activée — mais elle restera invisible tant que la fonction "'+nomFonction+'" n\'est pas aussi cochée sur sa fiche', 'alerte');
+        } else {
+          notif('App activée');
+        }
       } else { notif('Erreur activation'); }
     });
   } else {
