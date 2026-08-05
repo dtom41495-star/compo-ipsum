@@ -28378,9 +28378,23 @@ window._userApps = null;
 function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
   if(!userId || userId === 'undefined'){ if(callback)callback(); return; }
   var authHApps = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:authHApps })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
+  // La fonction du membre (vie_asso, tresorier...) est récupérée ICI, en direct, plutôt
+  // que via getUserFonction()/window._membreCourantFonction : à la toute première
+  // connexion, cette variable globale n'est peuplée que plus tard, dans lancerCompo()
+  // — qui est justement le CALLBACK de cette fonction (voir "NE PAS appeler osBuildDock
+  // ici" dans osLancer). Lire l'ancienne valeur ici la trouvait donc systématiquement
+  // vide, et une app conditionnée à une fonction (Bénévoles, Trésorerie...) restait
+  // invisible après une connexion fraîche, même fonction correctement enregistrée en
+  // base — jusqu'au prochain recalcul (rafraîchissement périodique des fonctions, 5 min).
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:authHApps }).then(function(r){ return r.json(); }),
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(userId)+'&select=fonction', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ])
+  .then(function(resultats){
+    var data = resultats[0];
+    var fonctionRow = resultats[1] && !resultats[1].code && resultats[1][0];
+    var fonctionFraiche = fonctionRow ? fonctionArray(fonctionRow.fonction) : null;
+    if(fonctionFraiche) window._membreCourantFonction = fonctionFraiche;
     if(!data || data.code){
       // Erreur API (ex: token pas encore synchronisé) — retenter avant de conclure à un compte non configuré
       _retryCount = _retryCount || 0;
@@ -28424,7 +28438,9 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
         }).catch(function(){});
       }
 
-      var fonctionsEffectives = getUserFonction();
+      // fonctionFraiche (chargée juste au-dessus) prime sur l'ancienne valeur globale,
+      // qui peut ne pas encore exister à ce stade — voir le commentaire plus haut.
+      var fonctionsEffectives = fonctionFraiche || getUserFonction();
 
       // Trésorier : garantir tresorerie toujours présent si fonction tresorier
       if(fonctionsEffectives.indexOf('tresorier') !== -1 && !allIds.includes('tresorerie')){
