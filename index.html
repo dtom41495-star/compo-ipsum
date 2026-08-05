@@ -10615,6 +10615,7 @@ function osLancer(){
   setTimeout(osShowAppsMovedTooltip, 8500);
 
   setTimeout(function(){
+    benvMajDerniereConnexion();
     osChargerNotifsDemarrage();
     osInitSujets();
     osVerifierPremiereLancement();
@@ -21083,7 +21084,7 @@ function osBenevolesDashRender(){
   wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
@@ -21127,7 +21128,11 @@ function osBenevolesDashRender(){
       var dernierArticle=publisArts.length?new Date(Math.max.apply(null,publisArts.map(function(a){return new Date(a.updated_at);}))):null;
       var joursBreve=derniereBreve?Math.floor((Date.now()-derniereBreve)/(1000*60*60*24)):null;
       var joursArticle=dernierArticle?Math.floor((Date.now()-dernierArticle)/(1000*60*60*24)):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id],recompenses:recompensesParMembre[m.id]||[]};
+      var derniereConnexion=m.derniere_connexion?new Date(m.derniere_connexion):null;
+      // Le dernier article OU brève publié, quel que soit le type — pour le rapport
+      // d'équipe : ce que la personne a produit en dernier, pas seulement quand.
+      var dernierPublie=publis.length?publis.reduce(function(a,b){return new Date(a.updated_at)>new Date(b.updated_at)?a:b;}):null;
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id],recompenses:recompensesParMembre[m.id]||[]};
     });
     window._benevolesStats = statsMembres; // utilisé par l'export PDF de l'équipe
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
@@ -24711,14 +24716,19 @@ function osBenevolesExporterPDF(){
   function ligne(s, motifs){
     var m = s.membre;
     var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';
-    var derniere = s.derniereAct
-      ? new Date(s.derniereAct).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
+    var connexion = s.derniereConnexion
+      ? new Date(s.derniereConnexion).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
       : 'Jamais';
+    var dp = s.dernierPublie;
+    var publieTxt = dp
+      ? esc(new Date(dp.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}))
+      : '—';
     return '<tr>'
       +'<td><strong>'+esc(nom)+'</strong></td>'
       +'<td>'+esc(ROLES[m.role]||m.role||'—')+'</td>'
       +'<td>'+esc(fonctionShort(m.fonction)||'—')+'</td>'
-      +'<td>'+esc(derniere)+'</td>'
+      +'<td>'+esc(connexion)+'</td>'
+      +'<td>'+publieTxt+'</td>'
       +'<td>'+(motifs && motifs.length ? esc(motifs.join(' + ')) : '—')+'</td>'
       +'</tr>';
   }
@@ -24728,7 +24738,7 @@ function osBenevolesExporterPDF(){
       +'<div class="sect-t" style="border-left-color:'+couleur+';">'
       +'<span style="color:'+couleur+';">'+esc(titre)+'</span> <span class="cnt">'+liste.length+'</span>'
       +'<div class="sect-s">'+esc(sousTitre)+'</div></div>'
-      +'<table><tr><th>Membre</th><th>Rôle</th><th>Fonction</th><th>Dernière activité</th><th>Motif</th></tr>';
+      +'<table><tr><th>Membre</th><th>Rôle</th><th>Fonction</th><th>Dernière connexion</th><th>Dernier article/brève</th><th>Motif</th></tr>';
     liste.forEach(function(s){ h += ligne(s, avecMotif ? _benvMotifsInactivite(s) : null); });
     return h + '</table></div>';
   }
@@ -26721,6 +26731,23 @@ function osBenevolesReactiver(membreId){
       setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur réactivation'); }
   }).catch(function(){ notif('Erreur réseau'); });
+}
+
+// Distincte de benvMajActivite() : celle-ci marque une action éditoriale (sauvegarde,
+// envoi en correction, publication), pas une connexion. Certains membres se connectent
+// sans écrire (relecture, vie associative...) — la date de connexion seule sert à
+// repérer qui n'ouvre plus Compo du tout, indépendamment de son activité éditoriale.
+function benvMajDerniereConnexion(){
+  var userId = getUserId();
+  if(!userId || !_session) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(userId), {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization': 'Bearer '+(_session.access_token||''),
+      'Prefer': 'return=minimal'
+    }),
+    body: JSON.stringify({ derniere_connexion: new Date().toISOString() })
+  }).catch(function(){});
 }
 
 function benvMajActivite(){
