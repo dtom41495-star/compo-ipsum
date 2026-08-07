@@ -4102,8 +4102,9 @@ input:focus,select:focus,textarea:focus{
           <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer au rédacteur</button>
         </div>
         <div id="r-actions-chef" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button onclick="rWorkflowAvancer('valide')" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
-          <button onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
+          <button id="r-btn-valider" onclick="rWorkflowAvancer('valide')" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
+          <button id="r-btn-valider-central" onclick="rWorkflowAvancer('valide_central')" style="background:#0B3D91;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-shield-check"></i> Valider (rédaction centrale)</button>
+          <button id="r-btn-publier" onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
           <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>
         </div>
         <div style="flex:1;"></div>
@@ -7553,6 +7554,7 @@ function maFiltrerListe(){
   var uid  = getUserId();
   var nom  = getUserNomComplet();
   var role = getUserRole();
+  var redacCentraleMA = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
 
   arts.forEach(function(doc){
     var s = doc.statut||'brouillon';
@@ -7565,13 +7567,15 @@ function maFiltrerListe(){
     card.dataset.statut = s;
 
     // ── Pipeline ──
+    var articleEstCentralMA = !redacCentraleMA || doc.redaction_id === redacCentraleMA.id;
     var ETAPES = [
       {id:'brouillon',     l:'Brouillon',     icon:'<i class="ti ti-pencil"></i>'},
       {id:'en-relecture',  l:'Relecture',      icon:'<i class="ti ti-search"></i>'},
       {id:'corrige',       l:'Corrigé',        icon:'<i class="ti ti-circle-check"></i>'},
       {id:'valide',        l:'Validé',         icon:'<i class="ti ti-star"></i>'},
-      {id:'publie',        l:'Publié',         icon:'<i class="ti ti-speakerphone"></i>'},
     ];
+    if(!articleEstCentralMA) ETAPES.push({id:'valide_central', l:'Réd. centrale', icon:'<i class="ti ti-shield-check"></i>'});
+    ETAPES.push({id:'publie', l:'Publié', icon:'<i class="ti ti-speakerphone"></i>'});
     var idxActuel = ETAPES.findIndex(function(e){ return e.id===s; });
     // Refusé = brouillon avec note_interne
     var estRefuse = s==='brouillon' && doc.note_interne;
@@ -7612,6 +7616,16 @@ function maFiltrerListe(){
       auteurHtml = '<div style="font-size:.62rem;color:var(--gris);margin-top:2px;">Par '+esc(doc.auteur)+'</div>';
     }
 
+    // Qui corrige/a corrigé — même donnée (doc.correcteur), libellé adapté à l'étape
+    // actuelle. Pas de champ "validé par" distinct en base : dans le flux de l'appli
+    // c'est la même personne qui corrige puis valide, donc réutiliser correcteur pour
+    // les deux plutôt que de fabriquer une identité de validateur qui n'existe pas.
+    var correcteurHtml = '';
+    if(doc.correcteur && (s==='en-relecture'||s==='corrige'||s==='valide'||s==='valide_central'||s==='publie')){
+      var libelleCorr = s==='en-relecture' ? 'En correction chez ' : (s==='corrige' ? 'Corrigé par ' : 'Validé par ');
+      correcteurHtml = '<div style="display:flex;align-items:center;gap:4px;font-size:.62rem;color:var(--gris);margin-top:2px;"><i class="ti ti-user-check"></i> '+esc(libelleCorr)+esc(doc.correcteur)+'</div>';
+    }
+
     // Actions
     var actionsHtml = '<div class="ma-v2-actions">';
 
@@ -7643,7 +7657,7 @@ function maFiltrerListe(){
 
     actionsHtml += '</div>';
 
-    card.innerHTML = pipeline + noteHtml + titreHtml + auteurHtml + metaHtml + actionsHtml;
+    card.innerHTML = pipeline + noteHtml + titreHtml + auteurHtml + correcteurHtml + metaHtml + actionsHtml;
     list.appendChild(card);
   });
 }
@@ -7859,7 +7873,7 @@ function chargerProfilMembre(userId){
       if(snEl) snEl.textContent = membre.prenom + ' ' + membre.nom;
       var srEl = document.getElementById('start-menu-role');
       if(srEl){
-        var roleLabelsInit = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+        var roleLabelsInit = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
         srEl.textContent = roleLabelsInit[membre.role] || membre.role;
       }
     } else {
@@ -8224,6 +8238,7 @@ function ouvrirAssignation(){
     var nomAuteur = getUserNomComplet();
     membres.filter(function(m){
       return (m.role === 'correcteur' || m.role === 'admin') &&
+             !m.marque_inactif && !m.dnd &&
              (m.prenom + ' ' + m.nom) !== nomAuteur;
     }).forEach(function(m){
       var el = document.createElement('div');
@@ -8525,7 +8540,7 @@ function ouvrirAssignationDepuisDoc(doc){
     list.innerHTML='';
     var nomAuteur = getUserNomComplet();
     membres.filter(function(m){
-      return (m.role==='correcteur'||m.role==='admin') && (m.prenom+' '+m.nom)!==nomAuteur;
+      return (m.role==='correcteur'||m.role==='admin') && !m.marque_inactif && !m.dnd && (m.prenom+' '+m.nom)!==nomAuteur;
     }).forEach(function(m){
       var el=document.createElement('div');
       el.className='assign-membre';
@@ -8707,6 +8722,17 @@ function chargerDansRedaction(doc){
   }, 100);
 }
 
+// Rédac chef de la rédaction centrale (ou admin) : peut effectuer la validation centrale
+// obligatoire, même sur une rédaction dont il/elle n'est pas membre (accès par lien direct).
+function estValidateurCentral(){
+  if(getUserRole()==='admin') return true;
+  var redacCentrale = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0];
+  if(!redacCentrale) return false;
+  var uid = getUserId();
+  var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===redacCentrale.id; });
+  return !!(lien && lien.role_redac==='redac_chef');
+}
+
 function rWorkflowMajInterface(doc){
   if(!doc) return;
   var role     = getUserRole();
@@ -8722,10 +8748,18 @@ function rWorkflowMajInterface(doc){
   var statut    = doc.statut||'brouillon';
   var estAuteur = doc.auteur_id === uid;
 
+  // Rédaction centrale : sa validation est obligatoire avant publication pour les articles
+  // des AUTRES rédactions (pas les siens — la validation locale suffit pour ses propres articles).
+  var redacCentrale     = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
+  var articleEstCentral = !redacCentrale || doc.redaction_id === redacCentrale.id;
+  var attenteCentrale   = !!redacCentrale && !articleEstCentral;
+  var estValCentral     = estValidateurCentral();
+
   var STATUTS   = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},
                    'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},
                    corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},
-                   valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},
+                   valide:{l:(attenteCentrale?'Validé — attente centrale':'Validé'),bg:'#D4EDDA',c:'#155724'},
+                   valide_central:{l:'Validé (centrale)',bg:'#D4EDDA',c:'#0B3D91'},
                    publie:{l:'Publié',bg:'#D4EDDA',c:'#155724'}};
   var cfg = STATUTS[statut]||{l:statut,bg:'#eee',c:'#555'};
 
@@ -8748,11 +8782,13 @@ function rWorkflowMajInterface(doc){
   if(zCorr)  zCorr.style.display='none';
   if(zChef)  zChef.style.display='none';
 
-  if(isChef && !isCorrecteurDesigne && (statut==='corrige'||statut==='valide'||statut==='en-relecture')){
-    // Chef/admin qui valide — PAS le correcteur désigné
+  // Zone chef : le chef local (statuts habituels) OU le validateur central (uniquement
+  // quand une validation centrale est effectivement en attente sur cet article).
+  var zoneChefIsChef  = isChef && !isCorrecteurDesigne && (statut==='corrige'||statut==='valide'||statut==='valide_central'||statut==='en-relecture');
+  var zoneChefCentral = estValCentral && !isCorrecteurDesigne && attenteCentrale && (statut==='valide'||statut==='valide_central');
+
+  if(zoneChefIsChef || zoneChefCentral){
     if(zChef) zChef.style.display='flex';
-    var btnVal = zChef&&zChef.querySelector('button');
-    if(btnVal) btnVal.style.display = (statut==='valide') ? 'none' : '';
   } else if(isCorr && (statut==='en-relecture'||statut==='corrige')){
     // Correcteur désigné
     if(zCorr) zCorr.style.display='flex';
@@ -8767,8 +8803,18 @@ function rWorkflowMajInterface(doc){
   // pour quelqu'un d'autre depuis un gdoc externe), même depuis un brouillon.
   if(isChef && !isCorrecteurDesigne && statut!=='publie' && zChef && zChef.style.display!=='flex'){
     zChef.style.display='flex';
-    var btnValAdm = zChef.querySelector('button');
-    if(btnValAdm) btnValAdm.style.display = (statut==='valide') ? 'none' : '';
+  }
+
+  // Dans la zone chef : quel(s) bouton(s) exactement — qui valide quoi dépend du rôle ET du statut.
+  if(zChef && zChef.style.display==='flex'){
+    var idxAvantValide = ['brouillon','en-relecture','corrige'].indexOf(statut);
+    var btnValider    = document.getElementById('r-btn-valider');
+    var btnValCentral = document.getElementById('r-btn-valider-central');
+    var btnPublier    = document.getElementById('r-btn-publier');
+    if(btnValider)    btnValider.style.display    = (isChef && idxAvantValide>=0) ? '' : 'none';
+    if(btnValCentral) btnValCentral.style.display = (estValCentral && attenteCentrale && statut==='valide') ? '' : 'none';
+    var peutPublier = articleEstCentral || (attenteCentrale && statut==='valide_central');
+    if(btnPublier)    btnPublier.style.display    = peutPublier ? '' : 'none';
   }
 }
 
@@ -8783,6 +8829,8 @@ function rWorkflowAvancer(nouveauStatut){
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide' && currentDoc.type !== 'breve') osNotifierComArticleValide(currentDoc);
+    if(nouveauStatut==='valide') osNotifierValidateursCentraux(currentDoc);
+    if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
     // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").
     // Même logique que publierArticle(), qui gère le cas "publication depuis une liste".
@@ -8806,6 +8854,8 @@ var STATUT_ARTICLE_CONFIGS = {
     msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:true, pourAuteur:true },
   valide:{ icon:'⭐', titre:'Article validé !',
     msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true, pourAuteur:true },
+  valide_central:{ icon:'🛡️', titre:'Validé par la rédaction centrale',
+    msg:'La rédaction centrale a validé l\'article. Il peut maintenant être publié.', couleur:'#0B3D91', bg:'#D4EDDA', email:false, pourAuteur:true },
   publie:{ icon:'📢', titre:'Article publié !',
     msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true, pourAuteur:true },
   refuse:{ icon:'🔴', titre:'Article renvoyé au rédacteur',
@@ -9221,8 +9271,31 @@ function renderDiffLecture(doc){
 }
 
 
+// Un article publiable directement, ou bloqué en attente de la validation centrale
+// obligatoire (cf. rWorkflowMajInterface) — même règle, réutilisée ici pour les boutons
+// "Publier" rapides des tableaux de bord rédaction (hors éditeur d'article).
+function _osArticlePubliable(article){
+  var redacCentrale = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
+  if(!redacCentrale || article.redaction_id === redacCentrale.id) return true;
+  return article.statut === 'valide_central';
+}
+
 function publierArticle(id){
   if(!confirm('Marquer cet article comme publie sur Substack ?')) return;
+  var authHChk = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id', {headers:authHChk})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var art = data && data[0];
+    if(art && art.statut!=='publie' && !_osArticlePubliable(art)){
+      notif('La validation de la rédaction centrale est requise avant de publier cet article.', 'erreur');
+      return;
+    }
+    _publierArticleReel(id);
+  }).catch(function(){ _publierArticleReel(id); });
+}
+
+function _publierArticleReel(id){
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
     headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
@@ -9972,7 +10045,30 @@ document.addEventListener('visibilitychange', function(){
   }
 });
 
+// Garde-fou centralisé, à cet unique endroit plutôt que dans chacun des ~40 envois
+// d'email de l'appli : un membre marqué inactif (marque_inactif, décidé par la vie
+// associative) ou indisponible (dnd, auto-déclaré) ne doit recevoir aucun email de
+// Compo, quel que soit le motif de l'envoi. On vérifie son état juste avant d'envoyer
+// — pas au moment de construire la liste des destinataires, qui peut dater de
+// plusieurs secondes — et on renvoie {ok:true, skipped:true} plutôt que ok:false pour
+// ne pas faire croire à un échec d'envoi aux appelants qui affichent une erreur sur
+// !r.ok : ici il n'y a pas d'échec, l'envoi a été volontairement retenu.
 function envoyerEmailResend(to, subject, html, type){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/membres?email=eq.'+encodeURIComponent(to)+'&select=marque_inactif,dnd', {headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var m = data && !data.code && data[0];
+      if(m && (m.marque_inactif || m.dnd)) return { ok:true, skipped:true };
+      return _envoyerEmailResendReel(to, subject, html, type);
+    })
+    // Si la vérification elle-même échoue (session pas encore prête, souci réseau
+    // ponctuel), on envoie quand même : mieux vaut un email potentiellement superflu
+    // qu'un vrai email jamais envoyé à cause d'un aléa sur cette seule vérification.
+    .catch(function(){ return _envoyerEmailResendReel(to, subject, html, type); });
+}
+
+function _envoyerEmailResendReel(to, subject, html, type){
   fetch(SB_URL+'/rest/v1/emails_log', {
     method:'POST',
     headers: Object.assign({}, SB_HEADERS, {
@@ -10603,6 +10699,16 @@ var DOCK_APPS = {
     { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
     { id:'agenda', icon:'📅', label:'Agenda', color:'#1A5276' },
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
+  ],
+  // Bénévoles qui ne font pas de rédaction — uniquement de la communication.
+  // Volontairement sans redaction/mes-articles/redactions/cps* : ni articles à
+  // écrire, ni communiqués de presse à recevoir (ça ne les concerne pas).
+  communicant: [
+    { id:'app-com', icon:'📣', label:'Com', color:'#7D3C98' },
+    { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
+    { id:'tchap', icon:'💬', label:'Tchap', color:'#1A5276' },
+    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
   ]
 };
 
@@ -10791,7 +10897,7 @@ function osAfficherUserWatermark(){
   if(!nomEl || !roleEl) return;
   var nom = (getUserPrenom()+' '+getUserNom()).trim();
   if(!nom) return;
-  var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+  var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
   nomEl.textContent = nom;
   roleEl.textContent = roleLabels[getUserRole()] || getUserRole() || '';
 }
@@ -14150,7 +14256,7 @@ function osStartStatusBar(){
   tick();
   var userEl = document.getElementById('status-user');
   if(userEl){
-    var roleLabel = {admin:'admin',redacteur:'rédacteur',correcteur:'correcteur',redac_chef:'rédac en chef'}[getUserRole()]||getUserRole();
+    var roleLabel = {admin:'admin',redacteur:'rédacteur',correcteur:'correcteur',redac_chef:'rédac en chef',communicant:'communicant'}[getUserRole()]||getUserRole();
     userEl.innerHTML = getUserPrenom()+' <span style="background:rgba(255,255,255,0.2);padding:1px 6px;border-radius:3px;font-size:0.55rem;letter-spacing:.06em;text-transform:uppercase;">'+roleLabel+'</span>';
   }
 }
@@ -14510,7 +14616,7 @@ function osToggleStartMenu(){
     var roleEl = document.getElementById('start-menu-role');
     if(nameEl) nameEl.textContent = getUserPrenom() + ' ' + getUserNom();
     if(roleEl){
-      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef'};
+      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
       roleEl.textContent = roleLabels[getUserRole()] || getUserRole();
     }
     var search = document.getElementById('sm-search');
@@ -15556,6 +15662,87 @@ function osNotifierComArticleValide(article){
   }).catch(function(){});
 }
 
+// Prévient les validateurs de la rédaction centrale (son rédac chef + tous les admins)
+// qu'un article d'une AUTRE rédaction est validé localement et attend la validation
+// centrale obligatoire avant de pouvoir être publié.
+function osNotifierValidateursCentraux(article){
+  if(!article || !article.id) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/redactions?est_centrale=eq.true&select=id,nom&limit=1',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(redacs){
+    var redacCentrale = redacs && !redacs.code && redacs[0];
+    // Pas de rédaction centrale configurée, ou l'article en fait déjà partie : rien à faire.
+    if(!redacCentrale || redacCentrale.id===article.redaction_id) return;
+
+    return Promise.all([
+      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,nom,email',{headers:authH}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacCentrale.id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,nom,email,actif)',{headers:authH}).then(function(r){return r.json();})
+    ]).then(function(res){
+      var admins = (res[0]&&!res[0].code) ? res[0] : [];
+      var chefs  = ((res[1]&&!res[1].code) ? res[1] : []).map(function(l){ return l.membres; }).filter(function(m){ return m && m.actif; });
+      var vus = {};
+      var destinataires = admins.concat(chefs).filter(function(m){
+        if(!m || !m.email || vus[m.id]) return false;
+        vus[m.id] = true;
+        return true;
+      });
+      if(!destinataires.length) return;
+
+      var titre  = article.titre||'Sans titre';
+      var auteur = article.auteur||'';
+      var lien   = genererLien(article.id);
+      var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
+        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
+        +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
+        +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">🛡️ Validation centrale requise</div>'
+        +'</div>'
+        +'<div style="background:#F7F8FA;padding:1.5rem;">'
+        +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #0B3D91;">'
+        +'<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Article validé localement, en attente de la rédaction centrale</div>'
+        +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
+        +(auteur?'<div style="font-size:0.7rem;color:#6B7280;margin-top:2px;">Par '+esc(auteur)+'</div>':'')
+        +'</div>'
+        +'<div style="margin-top:1.2rem;text-align:center;">'
+        +'<a href="'+esc(lien)+'" style="background:#0B3D91;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir l\'article</a>'
+        +'</div></div></div>';
+
+      destinataires.forEach(function(m){
+        envoyerEmailResend(m.email, '🛡️ Validation centrale requise : '+titre, emailHtml, 'valide-central');
+      });
+    });
+  }).catch(function(){});
+}
+
+// Prévient le(s) rédac chef(s) de la rédaction d'origine de l'article que la validation
+// centrale est passée : l'article peut maintenant être publié.
+function osNotifierValidationCentraleOK(article){
+  if(!article || !article.id || !article.redaction_id) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(article.redaction_id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,nom,email,actif)',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(liens){
+    var chefs = ((liens&&!liens.code)?liens:[]).map(function(l){return l.membres;}).filter(function(m){return m && m.actif && m.email;});
+    if(!chefs.length) return;
+    var titre = article.titre||'Sans titre';
+    var lien  = genererLien(article.id);
+    var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
+      +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
+      +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
+      +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">✅ Validation centrale obtenue</div>'
+      +'</div>'
+      +'<div style="background:#F7F8FA;padding:1.5rem;">'
+      +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #155724;">'
+      +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
+      +'<div style="font-size:0.78rem;color:#6B7280;margin-top:6px;">La rédaction centrale a validé cet article. Il peut maintenant être publié.</div>'
+      +'</div>'
+      +'<div style="margin-top:1.2rem;text-align:center;">'
+      +'<a href="'+esc(lien)+'" style="background:#155724;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir l\'article</a>'
+      +'</div></div></div>';
+    chefs.forEach(function(m){ envoyerEmailResend(m.email, '✅ Validation centrale obtenue : '+titre, emailHtml, 'valide-central-ok'); });
+  }).catch(function(){});
+}
+
 function osGenererBriefZip(article, checklist){
   var titre   = (article.titre||'Sans titre').replace(/[^a-zA-Z0-9\u00C0-\u017F\s]/g,'').trim().substring(0,40);
   var nom     = titre.replace(/\s+/g,'_');
@@ -16560,7 +16747,7 @@ function osParamsRenderSection(section, container){
     rowRole.innerHTML = '<div><div class="params-label">Demander un changement de role</div><div class="params-label-sub">Envoie une demande a l admin</div></div>';
     var roleSelect = document.createElement('select');
     roleSelect.style.cssText = 'padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:Space Mono,monospace;';
-    var roles = ['redacteur','correcteur'];
+    var roles = ['redacteur','correcteur','communicant'];
     roles.forEach(function(r){
       var opt = document.createElement('option');
       opt.value = r; opt.textContent = r;
@@ -18014,6 +18201,7 @@ function osMesArticlesRender(){
   var onglets = [{ id:'mes', label:'📰 Mes articles' }];
   if(role === 'correcteur' || role === 'admin') onglets.push({ id:'corriger', label:'🔍 À corriger' });
   if(role === 'admin') onglets.push({ id:'tous', label:'📋 Tous' });
+  if(estValidateurCentral()) onglets.push({ id:'validation-centrale', label:'🛡️ Validation centrale' });
   if(!onglets.find(function(o){ return o.id===_maOnglet; })) _maOnglet = 'mes';
 
   // ── HEADER ──
@@ -18063,8 +18251,8 @@ function osMesArticlesRender(){
   // Ligne 3 : filtres statut
   var l3 = document.createElement('div');
   l3.style.cssText = 'display:flex;gap:.3rem;flex-wrap:wrap;padding:.45rem 1rem;';
-  ['tous','brouillon','en-relecture','corrige','valide','publie'].forEach(function(f){
-    var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',publie:'Publié'};
+  ['tous','brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(f){
+    var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Val. centrale',publie:'Publié'};
     var btn = document.createElement('button');
     btn.className = 'ma-os-ftab'+(f==='tous'?' active':'');
     btn.dataset.f = f;
@@ -18114,6 +18302,11 @@ function osMesArticlesCharger(){
     q = role === 'admin'
       ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast'
       : SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast';
+  } else if(_maOnglet === 'validation-centrale'){
+    // Articles des AUTRES rédactions en attente (ou déjà passés) de validation centrale —
+    // toutes rédactions confondues, filtré ensuite côté client (la rédaction centrale elle-même
+    // n'a pas besoin de cette étape, cf. estValidateurCentral()/rWorkflowMajInterface).
+    q = SB_URL+'/rest/v1/articles?statut=in.(valide,valide_central)&select=*&order=updated_at.desc.nullslast';
   } else {
     q = uid
       ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=*&order=updated_at.desc.nullslast'
@@ -18123,7 +18316,12 @@ function osMesArticlesCharger(){
   fetch(q,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    _maCache = (!arts||arts.code) ? [] : arts;
+    arts = (!arts||arts.code) ? [] : arts;
+    if(_maOnglet === 'validation-centrale'){
+      var redacCentraleMC = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
+      arts = redacCentraleMC ? arts.filter(function(a){ return a.redaction_id !== redacCentraleMC.id; }) : [];
+    }
+    _maCache = arts;
     maOsFiltre();
   })
   .catch(function(){
@@ -18186,13 +18384,16 @@ function maOsMakeCard(doc, uid, role){
   card.onclick=function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
 
   // ── PIPELINE (barre de progression striée) ──
+  var redacCentraleMOC = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
+  var articleEstCentralMOC = !redacCentraleMOC || doc.redaction_id === redacCentraleMOC.id;
   var ETAPES=[
     {id:'brouillon',l:'Brouillon',c1:'#F59E0B',c2:'#FCD34D'},
     {id:'en-relecture',l:'En relecture',c1:'#2E86C1',c2:'#85C1E9'},
     {id:'corrige',l:'Corrigé',c1:'#0C9C8D',c2:'#58D6C4'},
     {id:'valide',l:'Validé',c1:'#E8461E',c2:'#F5B041'},
-    {id:'publie',l:'Publié',c1:'#059669',c2:'#34D399'},
   ];
+  if(!articleEstCentralMOC) ETAPES.push({id:'valide_central',l:'Réd. centrale',c1:'#0B3D91',c2:'#5B7CD9'});
+  ETAPES.push({id:'publie',l:'Publié',c1:'#059669',c2:'#34D399'});
   var idx=ETAPES.findIndex(function(e){return e.id===s;});
   if(idx<0) idx=0;
   var etapeActuelle=ETAPES[idx];
@@ -19716,7 +19917,7 @@ function cpsCharger(){
 function cpsRendreListe(liste, cps){
   var filtreType   = window._cpsFiltreActif  || 'tous';
   var filtreDate   = window._cpsFiltreDateActif || 'tous';
-  var filtreVue    = window._cpsVueActif || 'cartes';
+  var filtreVue    = window._cpsVueActif || 'liste';
   var rechercheVal = (window._cpsRecherche || '').toLowerCase();
   var vus = (function(){ try{ return JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]'); }catch(e){return[];} })();
 
@@ -21258,7 +21459,7 @@ function osBenevolesDashRender(){
     statsMembres.forEach(function(s){
       var m=s.membre;
       var initiales=(m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-      var roleColors={redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+      var roleColors={redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
       var rc=(roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var nomAff=(m.prenom||'').trim()||(m.nom||'').trim()?esc(m.prenom||'')+' '+esc(m.nom||''):'<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
       var estInactif=s.inactif;
@@ -21296,12 +21497,12 @@ function osBenevolesDashRender(){
     var editoDiv=document.createElement('div');
     editoDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:none;';
     tabContents['edito']=editoDiv;
-    var statDef={brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},publie:{l:'Publié',bg:'#E8E8F0',c:'#1A1A2E'}};
+    var statDef={brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},valide_central:{l:'Réd. centrale',bg:'#D4EDDA',c:'#0B3D91'},publie:{l:'Publié',bg:'#E8E8F0',c:'#1A1A2E'}};
     var urgBg={normal:'#D4EDDA',moyen:'#FFF3CD',urgent:'#FCEBEB'},urgC={normal:'#155724',moyen:'#856404',urgent:'#A32D2D'};
     var eh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
     eh+='<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">';
     eh+='<div style="flex:1;display:flex;gap:0.4rem;flex-wrap:wrap;">';
-    ['brouillon','en-relecture','corrige','valide','publie'].forEach(function(s){var n=articles.filter(function(a){return a.statut===s;}).length;var sd=statDef[s];eh+='<div style="background:'+sd.bg+';color:'+sd.c+';font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\''+s+'\')">'+sd.l+' <strong>'+n+'</strong></div>';});
+    ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(s){var n=articles.filter(function(a){return a.statut===s;}).length;var sd=statDef[s];eh+='<div style="background:'+sd.bg+';color:'+sd.c+';font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\''+s+'\')">'+sd.l+' <strong>'+n+'</strong></div>';});
     eh+='<div style="background:var(--gris-clair);color:var(--gris);font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\'tous\')">Tous <strong>'+articles.length+'</strong></div>';
     eh+='</div>';
     eh+='</div>';
@@ -21330,7 +21531,7 @@ function osBenevolesDashRender(){
       eh+='<td style="padding:0.5rem 0.9rem;font-size:0.75rem;color:var(--gris);white-space:nowrap;">'+ageLbl+'</td>';
       eh+='<td style="padding:0.5rem 0.9rem;white-space:nowrap;">';
       eh+='<button onclick="benvOuvrirArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #185FA5;border-radius:4px;background:white;color:#185FA5;cursor:pointer;margin-right:3px;">Ouvrir</button>';
-      if(a.statut==='valide') eh+='<button onclick="publierArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;border-radius:4px;background:#D4EDDA;color:#155724;cursor:pointer;">Publier</button>';
+      if((a.statut==='valide'||a.statut==='valide_central') && _osArticlePubliable(a)) eh+='<button onclick="publierArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;border-radius:4px;background:#D4EDDA;color:#155724;cursor:pointer;">Publier</button>';
       eh+='</td></tr>';
     });
     eh+='</tbody></table></div>';
@@ -22404,7 +22605,7 @@ function osRedactionsChangerOnglet(onglet){
 }
 
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
-  var rc = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[membre.role]||'#D3D1C7,#444441').split(',');
+  var rc = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'}[membre.role]||'#D3D1C7,#444441').split(',');
   var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var h = '';
 
@@ -23187,6 +23388,9 @@ function _osRedacActionsRapides(role, roleRedac){
       {icon:'<i class="ti ti-search"></i>', titre:'Corrections', desc:'En attente', page:'app-correction'},
       {icon:'<i class="ti ti-mail"></i>', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter'},
       {icon:'<i class="ti ti-users"></i>', titre:'Bénévoles', desc:'Gérer l\'équipe', page:'benevoles'},
+    ],
+    communicant: [
+      {icon:'<i class="ti ti-speakerphone"></i>', titre:'Com', desc:'Communication', page:'app-com'},
     ]
   };
   var liste = actions[role] || actions.redacteur;
@@ -23390,7 +23594,7 @@ function osRedacChefEdito(zone, redacId){
 
   fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(articles){
     articles = (!articles||articles.code) ? [] : articles;
-    var statDef={brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},publie:{l:'Publié',bg:'#E8E8F0',c:'#1A1A2E'}};
+    var statDef={brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},valide_central:{l:'Réd. centrale',bg:'#D4EDDA',c:'#0B3D91'},publie:{l:'Publié',bg:'#E8E8F0',c:'#1A1A2E'}};
     var urgBg={normal:'#D4EDDA',moyen:'#FFF3CD',urgent:'#FCEBEB'};
     var urgC={normal:'#155724',moyen:'#856404',urgent:'#A32D2D'};
 
@@ -23405,7 +23609,7 @@ function osRedacChefEdito(zone, redacId){
 
     // Filtres statut
     h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
-    ['brouillon','en-relecture','corrige','valide','publie'].forEach(function(s){
+    ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(s){
       var n = articles.filter(function(a){return a.statut===s;}).length;
       if(!n) return;
       var sd = statDef[s];
@@ -23435,7 +23639,7 @@ function osRedacChefEdito(zone, redacId){
       h += '<td style="padding:0.45rem 0.8rem;font-size:0.75rem;color:var(--gris);white-space:nowrap;">'+ageLbl+'</td>';
       h += '<td style="padding:0.45rem 0.8rem;white-space:nowrap;">';
       h += '<button onclick="benvOuvrirArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #185FA5;border-radius:4px;background:white;color:#185FA5;cursor:pointer;margin-right:3px;">Ouvrir</button>';
-      if(a.statut==='valide') h += '<button onclick="publierArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;border-radius:4px;background:#D4EDDA;color:#155724;cursor:pointer;">Publier</button>';
+      if((a.statut==='valide'||a.statut==='valide_central') && _osArticlePubliable(a)) h += '<button onclick="publierArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;border-radius:4px;background:#D4EDDA;color:#155724;cursor:pointer;">Publier</button>';
       h += '</td></tr>';
     });
     h += '</tbody></table></div>';
@@ -23483,7 +23687,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
     var heures = (!results[3]||results[3].code) ? [] : results[3];
 
     var ini = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
     var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
     var totalH = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
     var hStr = Math.floor(totalH/60)+'h'+(totalH%60?totalH%60+'m':'');
@@ -24140,7 +24344,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
   var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
   var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'};
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
 
   var h = '';
   // Header rédac
@@ -24578,7 +24782,8 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
     // Header rédac
     h += '<div style="background:'+couleur+';padding:1rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">';
-    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">'+esc(redac.nom)+'</div>';
+    h += '<div><div style="display:flex;align-items:center;gap:6px;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">'+esc(redac.nom)+'</div>'
+      +(redac.est_centrale?'<span title="Valide les articles des autres rédactions avant publication" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.25);color:white;text-transform:uppercase;letter-spacing:.05em;"><i class="ti ti-star-filled"></i> Centrale</span>':'')+'</div>';
     if(redac.departement) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.65);margin-top:2px;">'+esc(redac.departement)+'</div>';
     h += '</div>';
     h += '<div style="display:flex;gap:0.4rem;">';
@@ -24607,7 +24812,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
       if(!mb) return; // Membre absent du cache — skip
       var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-      var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A'}[mb.role]||'#D3D1C7,#444441').split(',');
+      var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'}[mb.role]||'#D3D1C7,#444441').split(',');
       // Compter les articles depuis tousArts (fetch direct déjà fait)
       var arts = tousArts.filter(function(a){
         return a.auteur_id === mb.id && a.redaction_id === redac.id;
@@ -24740,6 +24945,11 @@ function osRedactionEditerModal(redacId){
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-edit-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-edit-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-edit-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +'<label style="display:flex;align-items:flex-start;gap:8px;padding:10px;background:var(--gris-clair);border-radius:8px;cursor:pointer;">'
+    +'<input id="redac-edit-centrale" type="checkbox" '+(redac.est_centrale?'checked':'')+' style="margin-top:2px;accent-color:var(--rouge);">'
+    +'<span><div style="font-family:Space Mono,monospace;font-size:0.68rem;font-weight:700;color:var(--encre);">Rédaction centrale</div>'
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Son rédac chef (+ les admins) valide les articles des autres rédactions avant publication. Une seule rédaction centrale à la fois — en cocher une autre décoche celle-ci.</div></span>'
+    +'</label>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-edit-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Enregistrer</button>'
@@ -24752,10 +24962,18 @@ function osRedactionEditerModal(redacId){
     var dept = modal.querySelector('#redac-edit-dept').value.trim();
     var couleur = modal.querySelector('#redac-edit-couleur').value;
     var substack = modal.querySelector('#redac-edit-substack').value.trim();
+    var centrale = modal.querySelector('#redac-edit-centrale').checked;
     if(!nom){ notif('Nom requis'); return; }
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null})})
-    .then(function(r){
+    // Une seule rédaction centrale à la fois : si on coche celle-ci, décocher toutes
+    // les autres d'abord (sinon appAccessible pour la validation centrale devrait
+    // gérer plusieurs rédactions centrales, ce qui n'a pas de sens organisationnel).
+    var etape1 = centrale
+      ? fetch(SB_URL+'/rest/v1/redactions?id=neq.'+encodeURIComponent(redacId), {method:'PATCH',headers:authH,body:JSON.stringify({est_centrale:false})})
+      : Promise.resolve();
+    etape1.then(function(){
+      return fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null,est_centrale:centrale})});
+    }).then(function(r){
       if(r.ok){ notif('Rédaction mise à jour ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
     }).catch(function(){ notif('Erreur réseau'); });
@@ -24898,7 +25116,7 @@ function osBenevolesExporterPDF(){
   var win = window.open('','_blank','width=860,height=1000');
   if(!win){ notif('Autorise les popups pour générer le document'); return; }
 
-  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Correcteur·rice', admin:'Admin', redac_chef:'Rédac en chef'};
+  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Correcteur·rice', admin:'Admin', redac_chef:'Rédac en chef', communicant:'Communicant·e'};
   function ligne(s, motifs){
     var m = s.membre;
     var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';
@@ -25336,7 +25554,7 @@ function osRapportAttestationBenevolat(membreId, annee){
     heures.forEach(function(h){ var t=LBL[h.type]||h.type||'Autres missions'; parType[t]=(parType[t]||0)+(h.duree_minutes||0); });
     var types=Object.keys(parType).sort(function(a,b){ return parType[b]-parType[a]; });
 
-    var ROLES={redacteur:'rédacteur·rice',correcteur:'correcteur·rice',admin:'administrateur·rice',redac_chef:'rédacteur·rice en chef'};
+    var ROLES={redacteur:'rédacteur·rice',correcteur:'correcteur·rice',admin:'administrateur·rice',redac_chef:'rédacteur·rice en chef',communicant:'communicant·e'};
     var fonctions = fonctionShort(m.fonction);
 
     var corps = '<section>'
@@ -25503,7 +25721,7 @@ function osBenevolesOuvrirFiche(membreId){
   });
 
   var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
 
   var html = '';
@@ -25635,10 +25853,10 @@ function osBenevolesOuvrirFiche(membreId){
       // !isSelf, donc n'importe quel rôle voyait et pouvait cliquer ces boutons)
       html += '<div id="benv-role-btns" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0;">Rôle :</span>';
-      ['redacteur','correcteur','admin'].forEach(function(r){
+      ['redacteur','correcteur','communicant','admin'].forEach(function(r){
         var active = m.role === r;
         var btnStyle = 'font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;border:0.5px solid '+(active?'var(--rouge)':'var(--gris-bord)')+';background:'+(active?'var(--rouge)':'white')+';color:'+(active?'white':'var(--gris)')+(active?';font-weight:600;':';');
-        html += '<button data-role="'+r+'" data-membre-id="'+esc(m.id)+'" class="benv-role-btn" style="'+btnStyle+'">'+(r==='redacteur'?'Rédacteur':r==='correcteur'?'Correcteur':'Admin')+'</button>';
+        html += '<button data-role="'+r+'" data-membre-id="'+esc(m.id)+'" class="benv-role-btn" style="'+btnStyle+'">'+(r==='redacteur'?'Rédacteur':r==='correcteur'?'Correcteur':r==='communicant'?'Communicant':'Admin')+'</button>';
       });
       html += '</div>';
     }
@@ -25877,7 +26095,7 @@ function osGenererBilanAnnuel(membreId){
     .then(function(sujets){
       sujets = (!sujets||sujets.code)?[]:sujets;
     var prenom = membre.prenom||''; var nom = membre.nom||'';
-    var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice'};
+    var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice',communicant:'Communicant·e'};
     var roleLabel = ROLE_LABELS[membre.role]||membre.role||'Membre';
     var totalMin = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
     var totalH = Math.floor(totalMin/60); var totalM = totalMin%60;
@@ -25963,7 +26181,7 @@ function osPeriodeValiditeAssociative(){
 }
 
 function osGenererCarteAdherent(m, s){
-  var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice'};
+  var ROLE_LABELS = {redacteur:'Rédacteur·rice',correcteur:'Correcteur·rice',admin:'Administrateur·rice',communicant:'Communicant·e'};
   var roleLabel = ROLE_LABELS[m.role]||m.role||'Membre';
   var fonctionLabel = fonctionLong(m.fonction);
   var redacLabel = m.redaction ? 'Rédaction '+(m.redaction.charAt(0).toUpperCase()+m.redaction.slice(1)) : 'Rédaction Tarn';
@@ -26878,6 +27096,8 @@ function osBenevolesChangerFonction(membreId, fonction){
   }).catch(function(e){ console.error('Fonction réseau:', e); notif('Erreur réseau'); });
 }
 
+var FONCTIONS_COM = ['communication','responsable_com','com_externe','com_interne'];
+
 function osBenevolesChangerRole(membreId, nouveauRole){
   if(getUserRole() !== 'admin'){ notif('Seul un admin peut changer le rôle d\'un membre','erreur'); return; }
   if(!confirm('Changer le rôle en "'+nouveauRole+'" ?')) return;
@@ -26888,10 +27108,32 @@ function osBenevolesChangerRole(membreId, nouveauRole){
   }).then(function(r){
     if(r.ok){
       notif('Rôle mis à jour : '+nouveauRole, 'succes');
+      // L'appli Com exige à la fois le rôle ET une fonction communication (ex:
+      // 'communication') — sans ça, quelqu'un tout juste passé "communicant" se
+      // retrouverait avec le rôle mais sans accès à sa propre appli. On complète la
+      // fonction automatiquement si elle n'y est pas déjà, plutôt que de laisser un
+      // admin découvrir ce détail à la main sur une autre fiche.
+      if(nouveauRole === 'communicant') _osGarantirFonctionCom(membreId);
       osBenevolesDashRender();
       setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur mise à jour rôle'); }
   }).catch(function(){ notif('Erreur réseau'); });
+}
+
+function _osGarantirFonctionCom(membreId){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&select=fonction', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var m = data && data[0];
+    var fonctions = fonctionArray(m && m.fonction);
+    if(fonctions.some(function(f){ return FONCTIONS_COM.indexOf(f)!==-1; })) return; // déjà une fonction com
+    fonctions.push('communication');
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
+      method:'PATCH', headers: Object.assign({}, authH, {'Prefer':'return=minimal'}),
+      body: JSON.stringify({ fonction: fonctions })
+    }).catch(function(){});
+  }).catch(function(){});
 }
 
 function osBenvSuspendre(membreId){
@@ -28556,7 +28798,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
   { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
-  { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
+  { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef','communicant'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
   { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['secretaire','president','vice_president'] },
   { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
   { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
@@ -28591,6 +28833,9 @@ var PROFILS_PREDEFINIS = {
   correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures'],
   redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
   admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
+  // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
+  // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
+  communicant: ['app-com','carnet','notes','tchap','compo-store','boutique','mail','signatures'],
 };
 
 window._userApps = null;
@@ -28926,7 +29171,7 @@ function _osGestionMembresRender(zone, membres, redacs){
 
   // Liste membres
   membres.forEach(function(m){
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
     var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
     var initiales = ((m.prenom||'')[0]||'?').toUpperCase()+((m.nom||'')[0]||'?').toUpperCase();
     html += '<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem .9rem;background:white;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:.5rem;">'
@@ -28967,6 +29212,7 @@ function osInviterMembreModal(){
     +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rôle *</label><select id="inv-role" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
     +'<option value="redacteur">Rédacteur</option>'
     +'<option value="correcteur">Correcteur</option>'
+    +'<option value="communicant">Communicant</option>'
     +'<option value="admin">Admin</option>'
     +'</select></div>'
     +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rédaction</label><select id="inv-redac" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
@@ -29258,7 +29504,7 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
         ? (esc(m.prenom||'')+' '+esc(m.nom||'')).trim()
         : '<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
       var initiales = (m.prenom||m.email||'?')[0].toUpperCase() + (m.nom ? m.nom[0].toUpperCase() : (m.email||'?')[1]||'?').toUpperCase();
-      var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+      var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
       var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var membreApps = appsParMembre[m.id] || new Set();
 
@@ -33249,7 +33495,7 @@ function tchapRendreConvListe(convMap, membres, uid){
   var list = document.getElementById('tchap-conv-list');
   if(!list) return;
   list.innerHTML = '';
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
 
   // Entrée spéciale Emails envoyés (lecture seule)
   var emailItem = document.createElement('div');
@@ -33589,7 +33835,7 @@ function tchapFiltrerMembres(q){
 function tchapRendreMembres(q){
   var list = document.getElementById('tchap-member-list');
   if(!list) return;
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   var filtered = _tchapMembers.filter(function(m){
     if(!q) return true;
     var full = ((m.prenom||'')+' '+(m.nom||'')).toLowerCase();
@@ -33651,7 +33897,7 @@ function tchapOuvrirConv(membre){
   right.innerHTML = '';
   right.style.cssText = (isMobile ? 'width:100%;' : 'flex:1;')+'display:flex;flex-direction:column;';
 
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
   var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var fonctionLabel = fonctionShort(membre.fonction);
@@ -33933,7 +34179,7 @@ function tchapPartagerFiche(type, id, destinataireOverride){
       +'<input id="tchap-share-search" type="text" placeholder="Rechercher un membre…" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;box-sizing:border-box;outline:none;">';
     var list = document.createElement('div');
     list.style.cssText = 'flex:1;overflow-y:auto;';
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
     function renderMembres(q){
       list.innerHTML = '';
       (membres||[]).filter(function(m){ return !q||((m.prenom||'')+' '+(m.nom||'')).toLowerCase().includes(q.toLowerCase()); }).forEach(function(m){
@@ -34160,7 +34406,7 @@ function tchapChargerPopup(body){
       return;
     }
 
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A'};
+    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
 
     Object.keys(parExp).forEach(function(expId){
       var expMsgs = parExp[expId];
