@@ -8826,7 +8826,7 @@ function rWorkflowMajInterface(doc){
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
       if(lpOuvrir) lpOuvrir.style.display = doc.lien_publication ? '' : 'none';
       var lpDub = document.getElementById('r-lien-publication-dub');
-      if(lpDub) lpDub.style.display = (role==='admin' || window._membreCourantDubActif) ? '' : 'none';
+      if(lpDub) lpDub.style.display = (role==='admin' || (window._userAppsAll||[]).some(function(a){return a.id==='app-dub';})) ? '' : 'none';
       var lpClics = document.getElementById('r-lien-publication-clics');
       if(lpClics){
         if(doc.dub_link_id){ lpClics.style.display=''; _osChargerClicsDub(doc.dub_link_id, doc.id); }
@@ -8967,19 +8967,111 @@ function _osChargerClicsDub(linkId, articleId){
 
 // Quota Dub restant — affiché dans la fiche bénévole, à côté du bouton qui
 // accorde l'accès, pour décider en connaissance de cause.
-function _osChargerQuotaDub(){
-  var el = document.getElementById('benv-dub-quota');
+function _osChargerQuotaDub(elId){
+  elId = elId || 'benv-dub-quota';
+  var el = document.getElementById(elId);
   if(!el) return;
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
   fetch(SB_URL+'/functions/v1/dub-raccourcir', {
     method:'POST', headers:authH, body:JSON.stringify({ action:'quota' })
   }).then(function(r){ return r.json(); })
   .then(function(data){
-    var elActuel = document.getElementById('benv-dub-quota');
+    var elActuel = document.getElementById(elId);
     if(!elActuel) return;
     if(!data || data.linksUsage==null || data.linksLimit==null){ elActuel.textContent=''; return; }
     elActuel.textContent = data.linksUsage+'/'+data.linksLimit+' liens utilisés ce mois-ci';
   }).catch(function(){});
+}
+
+// ===== APP RACCOURCISSEUR (Dub) =====
+// App à part entière (dock), pas un simple bouton dans l'éditeur — accès accordé
+// au cas par cas via membres_apps (voir osBenevolesToggleDub), quota mensuel limité.
+function osAppDubRender(){
+  var wc = document.getElementById('wincontent-app-dub');
+  if(!wc) return;
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:#F7F8FA;';
+
+  wc.innerHTML =
+    '<div style="padding:1rem 1.4rem;border-bottom:1px solid var(--gris-bord);background:white;flex-shrink:0;">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-scissors"></i> Raccourcisseur Dub</div>'
+    +'<span id="dub-app-quota" style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);"></span>'
+    +'</div>'
+    +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">'
+    +'<input id="dub-app-input" type="url" placeholder="https://... — colle un lien à raccourcir" style="flex:1;min-width:220px;font-size:0.85rem;padding:0.55rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;outline:none;font-family:inherit;">'
+    +'<button id="dub-app-btn" class="btn" style="font-size:0.78rem;padding:0.55rem 1.1rem;" onclick="osAppDubRaccourcir()">Raccourcir</button>'
+    +'</div>'
+    +'<div id="dub-app-resultat" style="display:none;margin-top:0.7rem;padding:0.7rem 0.9rem;background:#EAF3DE;border:1.5px solid #A9CC7D;border-radius:8px;align-items:center;gap:0.6rem;"></div>'
+    +'</div>'
+    +'<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.6rem;">Derniers liens</div>'
+    +'<div id="dub-app-liste">'+osLoadingHtml()+'</div>'
+    +'</div>';
+
+  _osChargerQuotaDub('dub-app-quota');
+  osAppDubChargerListe();
+}
+
+function osAppDubChargerListe(){
+  var zone = document.getElementById('dub-app-liste');
+  if(!zone) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+    method:'POST', headers:authH, body:JSON.stringify({ action:'list' })
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    var zoneActuelle = document.getElementById('dub-app-liste');
+    if(!zoneActuelle) return;
+    var liens = (data && data.liens) || [];
+    if(!liens.length){ zoneActuelle.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Aucun lien créé pour le moment.</div>'; return; }
+    var h = '';
+    liens.forEach(function(l){
+      h += '<div style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0;border-bottom:1px solid var(--gris-bord);">';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:0.8rem;font-weight:600;color:var(--rouge);">'+esc(l.shortLink)+'</div>';
+      h += '<div style="font-size:0.7rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(l.url)+'</div>';
+      h += '</div>';
+      h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:2px 8px;border-radius:10px;background:var(--gris-clair);color:var(--gris);white-space:nowrap;"><i class="ti ti-cursor-text"></i> '+l.clicks+'</span>';
+      h += '<button onclick="navigator.clipboard.writeText(\''+esc(l.shortLink)+'\').then(function(){notif(\'Lien copié\')})" title="Copier" style="background:none;border:1px solid var(--gris-bord);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--gris);"><i class="ti ti-copy"></i></button>';
+      h += '</div>';
+    });
+    zoneActuelle.innerHTML = h;
+  }).catch(function(){
+    var zoneErr = document.getElementById('dub-app-liste');
+    if(zoneErr) zoneErr.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--rouge);font-size:0.82rem;">Erreur de chargement — la fonction Dub est-elle déployée ?</div>';
+  });
+}
+
+function osAppDubRaccourcir(){
+  var input = document.getElementById('dub-app-input');
+  var val = input ? input.value.trim() : '';
+  if(!val){ notif('Colle un lien à raccourcir'); return; }
+  var btn = document.getElementById('dub-app-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
+
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+    method:'POST', headers:authH, body:JSON.stringify({ action:'raccourcir', url: val })
+  }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+  .then(function(res){
+    if(btn){ btn.disabled = false; btn.textContent = 'Raccourcir'; }
+    if(!res.ok || !res.data.shortLink){
+      notif('Erreur Dub : '+(res.data&&res.data.error||'inconnue'), 'erreur');
+      return;
+    }
+    var resultat = document.getElementById('dub-app-resultat');
+    if(resultat){
+      resultat.style.display = 'flex';
+      resultat.innerHTML = '<code style="flex:1;font-size:0.8rem;color:#27500A;word-break:break-all;">'+esc(res.data.shortLink)+'</code>'
+        +'<button class="btn sec" style="font-size:0.68rem;padding:0.3rem 0.7rem;flex-shrink:0;" onclick="navigator.clipboard.writeText(\''+esc(res.data.shortLink)+'\').then(function(){notif(\'Lien copié\')})">Copier</button>';
+    }
+    input.value = '';
+    osAppDubChargerListe();
+    _osChargerQuotaDub('dub-app-quota');
+  }).catch(function(){
+    if(btn){ btn.disabled = false; btn.textContent = 'Raccourcir'; }
+    notif('Erreur réseau — la fonction Dub est-elle déployée ?', 'erreur');
+  });
 }
 
 function rWorkflowAvancer(nouveauStatut){
@@ -10984,7 +11076,7 @@ function osLancer(){
       }, 300000);
 
       // Charger les données complètes du membre (dont fonction) au démarrage
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif,dub_actif',{headers:authH})
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       var m = data&&!data.code&&data[0];
@@ -10994,7 +11086,6 @@ function osLancer(){
         // échoue silencieusement sur ce format et effaçait la fonction, alors qu'elle
         // s'affichait correctement partout ailleurs dans l'appli (fiche, grille admin).
         window._membreCourantFonction = fonctionArray(m.fonction);
-        window._membreCourantDubActif = !!m.dub_actif;
         // Mettre à jour le rôle depuis la base (source de vérité)
         if(m.role) localStorage.setItem('ipsum_user_role', m.role);
         // Reconstruire le dock si fonction trésorier
@@ -13942,7 +14033,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
     snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'calendrier-edito':'🗓️ Calendrier éditorial', 'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer'
+    'calendrier-edito':'🗓️ Calendrier éditorial', 'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'app-dub':'✂️ Raccourcisseur'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -14153,6 +14244,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'upload-medias'){
     setTimeout(function(){ osUploadMediasRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'app-dub'){
+    setTimeout(function(){ osAppDubRender(); }, 50);
     return;
   }
 
@@ -26212,14 +26308,22 @@ function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
 
 // Accès au raccourcisseur Dub — désactivé par défaut, activé au cas par cas par
 // un admin (voir osBenevolesOuvrirFiche) pour ne pas griller le quota mensuel.
+// Active/désactive l'accès à l'app Raccourcisseur pour ce membre — accordé au cas
+// par cas (pas de rôle/fonction associée) donc géré directement via membres_apps,
+// plutôt qu'une colonne à part qui aurait fait doublon avec le système d'apps existant.
 function osBenevolesToggleDub(membreId, actif){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId),{
-    method:'PATCH', headers:authH,
-    body:JSON.stringify({dub_actif:actif})
-  }).then(function(r){
+  var req = actif
+    ? fetch(SB_URL+'/rest/v1/membres_apps', {
+        method:'POST', headers:Object.assign({},authH,{'Prefer':'return=minimal,resolution=merge-duplicates'}),
+        body:JSON.stringify({membre_id:membreId, app_id:'app-dub', epingle:true})
+      })
+    : fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(membreId)+'&app_id=eq.app-dub', {
+        method:'DELETE', headers:authH
+      });
+  req.then(function(r){
     if(r.ok) notif(actif ? 'Accès Dub activé ✓' : 'Accès Dub désactivé', 'succes');
-    else notif('Erreur — as-tu bien ajouté la colonne dub_actif dans Supabase ?', 'erreur');
+    else notif('Erreur', 'erreur');
   }).catch(function(){ notif('Erreur réseau'); });
 }
 
@@ -26475,7 +26579,7 @@ function osBenevolesOuvrirFiche(membreId){
     if(isAdmin){
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<label style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;cursor:pointer;">';
-      html += '<input type="checkbox" id="benv-dub-actif" data-membre-id="'+esc(m.id)+'" '+(m.dub_actif?'checked':'')+' style="accent-color:var(--rouge);cursor:pointer;">';
+      html += '<input type="checkbox" id="benv-dub-actif" data-membre-id="'+esc(m.id)+'" style="accent-color:var(--rouge);cursor:pointer;">';
       html += 'Accès raccourcisseur Dub';
       html += '</label>';
       html += '<span id="benv-dub-quota" style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);"></span>';
@@ -26515,6 +26619,13 @@ function osBenevolesOuvrirFiche(membreId){
     chkDub.addEventListener('change', function(){
       osBenevolesToggleDub(this.dataset.membreId, this.checked);
     });
+    var authHDub = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(m.id)+'&app_id=eq.app-dub&select=app_id',{headers:authHDub})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      var chkActuel = card.querySelector('#benv-dub-actif');
+      if(chkActuel) chkActuel.checked = !!(rows && rows.length);
+    }).catch(function(){});
   }
   if(card.querySelector('#benv-dub-quota')) _osChargerQuotaDub();
   var btnFonctionSave = card.querySelector('#benv-btn-fonction-save');
@@ -29446,6 +29557,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'calendrier-edito', icon:'<i class="ti ti-calendar-event"></i>', label:'Calendrier édito', color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
+  { id:'app-dub',        icon:'<i class="ti ti-scissors"></i>', label:'Raccourcisseur', color:'#993C1D', desc:'Raccourcit un lien avec Dub. Accès accordé au cas par cas depuis la fiche bénévole (quota mensuel limité).' },
   { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
