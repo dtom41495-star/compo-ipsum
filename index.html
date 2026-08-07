@@ -877,14 +877,14 @@ body {
     radial-gradient(ellipse at 20% 100%, rgba(234,91,28,0.07) 0%, transparent 55%);
   pointer-events: none;
 }
-/* Image de fond floutée à faible opacité */
+/* Image de fond, assombrie pour garder la carte et le texte clair lisibles */
 #os-login::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png") center/cover no-repeat;
-  opacity: 0.06;
-  filter: blur(2px);
+  background:
+    linear-gradient(rgba(26,26,46,0.55), rgba(26,26,46,0.55)),
+    url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png") center/cover no-repeat;
   pointer-events: none;
 }
 /* Colonne centrale (logo + carte + stats) */
@@ -917,7 +917,9 @@ body {
 .os-login-date { display: none; }
 /* Carte de connexion */
 .os-login-card {
-  background: #FDFAF9;
+  background: rgba(253,250,249,0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   /* Filet de couleur en haut de la carte — code visuel classique des portails internes */
   border-top: 3px solid #EA5B1C;
   border-radius: 12px;
@@ -934,7 +936,7 @@ body {
 .os-login-contact {
   font-family: 'DM Sans', sans-serif;
   font-size: .68rem;
-  color: #9CA3AF;
+  color: #6B7280;
   text-align: center;
   margin-top: .9rem;
 }
@@ -3569,13 +3571,13 @@ input:focus,select:focus,textarea:focus{
       <!-- Identification du service -->
       <div style="display:flex;align-items:baseline;gap:7px;margin-bottom:1.1rem;padding-bottom:.9rem;border-bottom:1px solid rgba(0,0,0,0.07);">
         <div style="font-family:'Poppins',sans-serif;font-size:.95rem;font-weight:700;color:#1A1A2E;line-height:1.1;">Compo OS</div>
-        <div style="font-size:.62rem;color:#9CA3AF;font-family:'DM Sans',sans-serif;">Espace de travail interne</div>
+        <div style="font-size:.62rem;color:#6B7280;font-family:'DM Sans',sans-serif;">Espace de travail interne</div>
       </div>
 
       <!-- Titre -->
       <div style="margin-bottom:1.2rem;">
         <div style="font-family:'Poppins',sans-serif;font-size:1.15rem;font-weight:700;color:#1A1A2E;margin-bottom:5px;line-height:1.25;">Connexion</div>
-        <div style="font-size:.8rem;color:#6B7280;font-family:'DM Sans',sans-serif;line-height:1.5;">Identifie-toi avec ton compte Google <strong style="font-weight:600;color:#1A1A2E;">@ipsummedia.fr</strong> pour accéder à ton espace.</div>
+        <div style="font-size:.8rem;color:#4B5563;font-family:'DM Sans',sans-serif;line-height:1.5;">Identifie-toi avec ton compte Google <strong style="font-weight:600;color:#1A1A2E;">@ipsummedia.fr</strong> pour accéder à ton espace.</div>
       </div>
 
       <button onclick="osLoginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:.85rem 1rem;background:white;border:1.5px solid #C0B8B0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;color:#1A1A2E;cursor:pointer;box-sizing:border-box;">
@@ -8354,7 +8356,7 @@ function assignValider(){
       .then(function(r){ return r.json(); })
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
-        if(membre && membre.email){
+        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')){
           var html = '<h2>Un article t\'attend en correction 🔍</h2>'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
@@ -8769,6 +8771,16 @@ function estValidateurCentral(){
   var uid = getUserId();
   var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===redacCentrale.id; });
   return !!(lien && lien.role_redac==='redac_chef');
+}
+
+// Un rédac chef peut désactiver certains mails automatiques de sa rédaction (ex: il préfère
+// prévenir son équipe en personne plutôt que par mail — voir Ma rédaction > Réglages).
+// Les colonnes sont par défaut à true, et une valeur absente/null (rédaction créée avant la
+// migration SQL) se comporte comme avant : tout reste activé.
+function _osRedacNotifActive(redacId, cle){
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  if(!redac) return true;
+  return redac[cle] !== false;
 }
 
 function rWorkflowMajInterface(doc){
@@ -9217,6 +9229,7 @@ function _osEmailStatutArticle(doc, statut, cfg){
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
+    if(!_osRedacNotifActive(doc.redaction_id, 'notif_statut_article')) return;
     var sujets = { corrige:'✅ Ton article a été corrigé — ', valide:'⭐ Ton article a été validé — ', publie:'📢 Ton article est publié — ' };
     var intros = {
       corrige:'Ton article a été relu et corrigé. Il est maintenant entre les mains du rédacteur en chef pour validation avant publication.',
@@ -9264,6 +9277,7 @@ function _osEmailRefusArticle(doc, note){
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
+    if(!_osRedacNotifActive(doc.redaction_id, 'notif_refus_article')) return;
     var extrait = ''; var lignes = [];
     if(doc.corps){
       lignes = doc.corps.split('\n').filter(function(l){ return l.trim(); });
@@ -9568,7 +9582,7 @@ function _publierArticleReel(id){
       }).catch(function(){});
 
       // Email au rédacteur via auteur_id
-      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=titre,auteur,auteur_id,sujet_id', {
+      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=titre,auteur,auteur_id,sujet_id,redaction_id', {
         headers: SB_HEADERS
       })
       .then(function(r){ return r.json(); })
@@ -9616,7 +9630,7 @@ function _publierArticleReel(id){
             });
           }
           
-          if(membre && membre.email){
+          if(membre && membre.email && _osRedacNotifActive(article.redaction_id, 'notif_statut_article')){
             var html = '<h2>Ton article a ete publie !</h2>'+
               '<p>Bonjour '+membre.prenom+',</p>'+
               '<p>Ton article <strong>"'+article.titre+'"</strong> a ete valide et publie sur Substack par la redaction en chef.</p>'+
@@ -13851,6 +13865,13 @@ function osConstruireRattrapage(callback){
     }
 
     items = items.filter(function(it){ return !vu(it.cle); });
+    // Nouveau membre / indisponibilité : requêtes sans filtre de date (contrairement
+    // aux autres sections), donc elles renverraient le même constat à l'infini tant
+    // qu'on n'a pas coché chaque ligne une à une. Ce sont des constats ponctuels, pas
+    // des tâches — on les auto-marque lus dès qu'ils ont été montrés une fois.
+    items.forEach(function(it){
+      if(it.cle.indexOf('nouveau-membre:')===0 || it.cle.indexOf('inactif:')===0) _osDigestMarquerLu(it.cle);
+    });
     if(!items.length){ callback(null); return; }
 
     items.sort(function(a,b){ return a.priorite-b.priorite; });
@@ -16083,6 +16104,7 @@ function osInitDND(){
 }
 
 function osToggleDND(){
+  if(!_dndActif && !confirm('Te marquer indisponible ? La vie associative en sera informée par email.')) return;
   _dndActif = !_dndActif;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+getUserId(),{
@@ -16301,6 +16323,7 @@ function osNotifierValidationCentraleOK(article){
   .then(function(liens){
     var chefs = ((liens&&!liens.code)?liens:[]).map(function(l){return l.membres;}).filter(function(m){return m && m.actif && m.email;});
     if(!chefs.length) return;
+    if(!_osRedacNotifActive(article.redaction_id, 'notif_validation_centrale_ok')) return;
     var titre = article.titre||'Sans titre';
     var lien  = genererLien(article.id);
     var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
@@ -21808,7 +21831,11 @@ function _osCpEmailCarte(cp){
   var h = '<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #E8461E;">';
   if(estInvitation) h += '<div style="display:inline-block;font-size:0.6rem;text-transform:uppercase;letter-spacing:.06em;color:#7D3C98;background:#F3E8FA;padding:2px 8px;border-radius:10px;margin-bottom:6px;">📅 Invitation presse</div><br>';
   h += '<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(cp.titre||'Sans titre')+'</div>';
-  if(cp.organisation) h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">'+esc(cp.organisation)+'</div>';
+  // cp.source est le champ réellement rempli au formulaire ("Mairie de Castres,
+  // Préfecture...") — cp.organisation existe aussi en base mais n'est peuplé que
+  // pour certains CPs liés à un contact, source en repli sinon.
+  var entite = cp.source || cp.organisation;
+  if(entite) h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">'+esc(entite)+'</div>';
   if(estInvitation){
     if(cp.date_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:6px;">🗓️ '+esc(new Date(cp.date_evenement).toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'}))+'</div>';
     if(cp.lieu_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:2px;">📍 '+esc(cp.lieu_evenement)+'</div>';
@@ -25046,19 +25073,40 @@ function osSujetAssigner(sujetId, membreId){
     if(m.email){
       var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
       var titreSujet = sujet ? sujet.titre : '';
-      var html = '<div style="font-family:sans-serif;max-width:500px;">'
-        +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">📌 Un sujet t\'a été attribué</h2></div>'
-        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
-        +'<p>On t\'a confié le sujet <strong>'+esc(titreSujet||'')+'</strong> sur Compo.</p>'
-        +(sujet && sujet.note ? '<p style="color:#666;font-size:0.85rem;">'+esc(sujet.note)+'</p>' : '')
-        +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Ouvrir Compo</a>'
-        +'</div></div>';
-      envoyerEmailResend(m.email, '📌 Sujet attribué : '+(titreSujet||''), html, 'sujet-attribue');
+      if(_osRedacNotifActive(sujet && sujet.redaction_id, 'notif_sujet_attribue')){
+        var html = '<div style="font-family:sans-serif;max-width:500px;">'
+          +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">📌 Un sujet t\'a été attribué</h2></div>'
+          +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
+          +'<p>On t\'a confié le sujet <strong>'+esc(titreSujet||'')+'</strong> sur Compo.</p>'
+          +(sujet && sujet.note ? '<p style="color:#666;font-size:0.85rem;">'+esc(sujet.note)+'</p>' : '')
+          +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Ouvrir Compo</a>'
+          +'</div></div>';
+        envoyerEmailResend(m.email, '📌 Sujet attribué : '+(titreSujet||''), html, 'sujet-attribue');
+      }
     }
     var overlay = document.getElementById('sujet-assign-overlay');
     if(overlay) overlay.remove();
     osRedactionsChangerOnglet(_redacOnglet);
   }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+// Sous-onglet actif dans "Ma rédaction" pour le chef/admin — la page mélangeait
+// stats + tableau membres + suivi éditorial + articles récents en un seul long
+// scroll, découpé ici en un petit sous-menu. Les membres simples gardent l'ancienne
+// vue directe (déjà courte pour eux, pas besoin d'un sous-menu).
+var _redacSousOnglet = 'vue';
+
+function osRedacChangerSousOngletRedac(id){
+  _redacSousOnglet = id;
+  var ctx = window._redacCtx || {};
+  var membre = _membresData.find(function(m){ return m.id === ctx.uid; });
+  var zone = document.getElementById('redac-onglet-redac-contenu');
+  if(!zone) return;
+  zone.innerHTML = osRedactionsMembre_OngletRedac(ctx.uid, ctx.redacId, ctx.roleRedac, membre);
+  if(id === 'edito'){
+    var zoneEdito = document.getElementById('redac-chef-edito-zone');
+    if(zoneEdito) osRedacChefEdito(zoneEdito, ctx.redacId);
+  }
 }
 
 function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
@@ -25089,25 +25137,72 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   h += '<span style="font-family:Space Mono,monospace;font-size:0.62rem;color:rgba(255,255,255,0.7);">'+membresRedac.length+' membres</span>';
   h += '</div>';
 
-  // Stats rédac
-  var isChef = roleRedac === 'redac_chef';
-  if(isChef){
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
-    function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
-    h += sc2(membresRedac.length,'Membres',null,null);
-    h += sc2(artsPublies.length,'Publiés','#27AE60','redac-stat-pub');
-    h += sc2(artsMois.length,'Ce mois','#EA5B1C','redac-stat-mois');
+  var isChef = roleRedac === 'redac_chef' || getUserRole()==='admin';
+
+  if(!isChef){
+    // Vue membre simple — inchangée : stats + collègues + articles récents, pas de sous-menu
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
+    function sc3(n,l,c,last){return '<div style="padding:0.8rem;text-align:center;'+(last?'':'border-right:0.5px solid var(--gris-bord);')+'"><div style="font-size:1.2rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;color:var(--gris);text-transform:uppercase;">'+l+'</div></div>';}
+    h += sc3(membresRedac.length,'Membres');
+    h += sc3(artsPublies.length,'Publiés','#27AE60');
+    h += sc3(artsMois.length,'Ce mois','#EA5B1C');
+    h += sc3(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',true);
     h += '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
-    h += sc2(artsRedac.filter(function(a){return a.statut!=='publie';}).length,'En cours','#1A5276','redac-stat-encours');
-    h += sc2(participationsRedac.length,'Participations','#7D3C98',null);
-    h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',null);
-    h += '</div>';
-    // Tableau membres
+
+    h += '<div>';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+    membresRedac.forEach(function(mb){
+      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
+      var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
+      var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
+      h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+mb.id+'\',\''+redacId+'\')" title="'+esc(mb.prenom+' '+mb.nom)+'" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">';
+      h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
+      h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
+      h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
+      if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
+      h += '</div>';
+    });
+    if(!membresRedac.length) h += '<span style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
+    h += '</div></div>';
+
+    var artsRecentsM = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
+    if(artsRecentsM.length){
+      h += '<div>';
+      h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Articles récents</div>';
+      artsRecentsM.forEach(function(a,i){
+        var auteur = _membresData.find(function(m){return m.id===a.auteur_id;});
+        h += '<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.4rem 0;'+(i<artsRecentsM.length-1?'border-bottom:0.5px solid var(--gris-bord);':'')+'">';
+        h += '<div style="width:8px;height:8px;border-radius:50%;background:#1A1A2E;flex-shrink:0;margin-top:3px;"></div>';
+        h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+(auteur?' <span style="color:var(--gris);font-size:0.72rem;">— '+esc(auteur.prenom||'')+'</span>':'')+'</div>';
+        h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:#1A1A2E;color:white;border-radius:10px;flex-shrink:0;">Publié</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+    return h;
+  }
+
+  // ---- Chef/admin : sous-menu ----
+  var sousOnglets = [
+    {id:'vue',      label:'Vue d’ensemble',  icon:'<i class="ti ti-layout-dashboard"></i>'},
+    {id:'membres',  label:'Membres',          icon:'<i class="ti ti-users"></i>'},
+    {id:'edito',    label:'Suivi éditorial',  icon:'<i class="ti ti-clipboard-list"></i>'},
+    {id:'reglages', label:'Réglages',         icon:'<i class="ti ti-settings"></i>'}
+  ];
+  h += '<div id="redac-onglet-redac-contenu">';
+  h += '<div style="display:flex;gap:0.4rem;margin:0.9rem 0 0.2rem;flex-wrap:wrap;">';
+  sousOnglets.forEach(function(so){
+    var actif = _redacSousOnglet===so.id;
+    h += '<button onclick="osRedacChangerSousOngletRedac(\''+so.id+'\')" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid '+(actif?'var(--rouge)':'var(--gris-bord)')+';background:'+(actif?'var(--rouge)':'white')+';color:'+(actif?'white':'var(--gris)')+';font-size:0.7rem;font-family:DM Sans,sans-serif;cursor:pointer;">'+so.icon+' '+so.label+'</button>';
+  });
+  h += '</div>';
+
+  if(_redacSousOnglet==='membres'){
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;">';
     h += '<div style="padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;">Membres</span>';
-    h += '<button onclick="osRedacChefAjouterMembre(\"'+redacId+'\")" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Ajouter</button>';
+    h += '<button onclick="osRedacChefAjouterMembre(\''+redacId+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Ajouter</button>';
     h += '</div>';
     h += '<table style="width:100%;border-collapse:collapse;">';
     h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.9rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th></th></tr></thead><tbody>';
@@ -25116,7 +25211,6 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       var rr = lien ? lien.role_redac : 'redacteur';
       var rcMb = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-      // Chercher tous les auteur_ids possibles pour ce membre (doublons de compte)
       var tousIdsM = [m.id];
       (_membresData||[]).forEach(function(autre){
         if(autre.id !== m.id && autre.prenom === m.prenom && autre.nom === m.nom) tousIdsM.push(autre.id);
@@ -25133,59 +25227,115 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       h += '</tr>';
     });
     h += '</tbody></table></div>';
-    // Zone Édito — chargée en async
-    h += '<div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin:0.5rem 0;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Suivi éditorial</div>';
+  }
+  else if(_redacSousOnglet==='edito'){
     h += '<div id="redac-chef-edito-zone">'+osLoadingHtml()+'</div>';
-    h += '</div>';
-  } else {
-    // Vue membre simple : stats rédac + collègues
-    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
-    function sc3(n,l,c,last){return '<div style="padding:0.8rem;text-align:center;'+(last?'':'border-right:0.5px solid var(--gris-bord);')+'"><div style="font-size:1.2rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;color:var(--gris);text-transform:uppercase;">'+l+'</div></div>';}
-    h += sc3(membresRedac.length,'Membres');
-    h += sc3(artsPublies.length,'Publiés','#27AE60');
-    h += sc3(artsMois.length,'Ce mois','#EA5B1C');
-    h += sc3(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',true);
-    h += '</div>';
   }
-
-  // Membres de la rédaction — style flat (seulement pour les non-chefs)
-  if(!isChef){
-  h += '<div>';
-  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
-  h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
-  membresRedac.forEach(function(mb){
-    var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-    var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
-    var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
-    h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+mb.id+'\',\''+redacId+'\')" title="'+esc(mb.prenom+' '+mb.nom)+'" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">';
-    h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
-    h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
-    h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
-    if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
+  else if(_redacSousOnglet==='reglages'){
+    h += osRedacReglagesForm(redac);
+  }
+  else {
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
+    h += sc2(membresRedac.length,'Membres',null,null);
+    h += sc2(artsPublies.length,'Publiés','#27AE60','redac-stat-pub');
+    h += sc2(artsMois.length,'Ce mois','#EA5B1C','redac-stat-mois');
     h += '</div>';
-  });
-  if(!membresRedac.length) h += '<span style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
-  h += '</div></div>';
-  } // fin if(!isChef)
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += sc2(artsRedac.filter(function(a){return a.statut!=='publie';}).length,'En cours','#1A5276','redac-stat-encours');
+    h += sc2(participationsRedac.length,'Participations','#7D3C98',null);
+    h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',null);
+    h += '</div>';
 
-  // Articles récents — style flat
-  var artsRecents = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
-  if(artsRecents.length){
-    h += '<div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Articles récents</div>';
-    artsRecents.forEach(function(a,i){
-      var auteur = _membresData.find(function(m){return m.id===a.auteur_id;});
-      h += '<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.4rem 0;'+(i<artsRecents.length-1?'border-bottom:0.5px solid var(--gris-bord);':'')+'">';
-      h += '<div style="width:8px;height:8px;border-radius:50%;background:#1A1A2E;flex-shrink:0;margin-top:3px;"></div>';
-      h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+(auteur?' <span style="color:var(--gris);font-size:0.72rem;">— '+esc(auteur.prenom||'')+'</span>':'')+'</div>';
-      h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:#1A1A2E;color:white;border-radius:10px;flex-shrink:0;">Publié</span>';
+    var artsRecents = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
+    if(artsRecents.length){
+      h += '<div>';
+      h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Articles récents</div>';
+      artsRecents.forEach(function(a,i){
+        var auteur = _membresData.find(function(m){return m.id===a.auteur_id;});
+        h += '<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.4rem 0;'+(i<artsRecents.length-1?'border-bottom:0.5px solid var(--gris-bord);':'')+'">';
+        h += '<div style="width:8px;height:8px;border-radius:50%;background:#1A1A2E;flex-shrink:0;margin-top:3px;"></div>';
+        h += '<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+(auteur?' <span style="color:var(--gris);font-size:0.72rem;">— '+esc(auteur.prenom||'')+'</span>':'')+'</div>';
+        h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:#1A1A2E;color:white;border-radius:10px;flex-shrink:0;">Publié</span>';
+        h += '</div>';
+      });
       h += '</div>';
-    });
-    h += '</div>';
+    }
   }
 
+  h += '</div>';
   return h;
+}
+
+// Réglages self-service pour le rédac chef (+ admin) — nom/département/couleur/lien
+// Substack de SA rédaction, sans passer par un admin. est_centrale reste volontairement
+// hors de ce formulaire : ça affecte les autres rédactions (validation obligatoire),
+// donc ça reste dans Gestion rédactions, admin uniquement.
+function osRedacReglagesForm(redac){
+  var h = '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;padding:1.2rem;display:flex;flex-direction:column;gap:0.9rem;max-width:420px;">';
+  h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-reg-nom" type="text" value="'+esc(redac.nom)+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
+  h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-reg-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
+  h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-reg-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>';
+  h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-reg-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
+
+  h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Notifications automatiques</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Décoche celles que tu préfères annoncer toi-même plutôt que par mail automatique.</div>';
+  var notifOptions = [
+    {cle:'notif_statut_article', titre:'Changement de statut d\'article', desc:'corrigé, validé, publié — à l\'auteur'},
+    {cle:'notif_refus_article', titre:'Article renvoyé pour modifications', desc:'à l\'auteur'},
+    {cle:'notif_correction', titre:'Correcteur assigné', desc:'au correcteur'},
+    {cle:'notif_sujet_attribue', titre:'Sujet attribué', desc:'au membre assigné'},
+    {cle:'notif_validation_centrale_ok', titre:'Validation centrale obtenue', desc:'aux chefs de la rédaction'}
+  ];
+  h += '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
+  notifOptions.forEach(function(o){
+    var coche = redac[o.cle] !== false;
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">';
+    h += '<input type="checkbox" id="redac-reg-'+o.cle+'" '+(coche?'checked':'')+' style="margin-top:3px;flex-shrink:0;">';
+    h += '<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">'+o.titre+'</span><span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+o.desc+'</span></span>';
+    h += '</label>';
+  });
+  h += '</div></div>';
+
+  if(redac.est_centrale){
+    h += '<div style="font-size:0.7rem;color:#0B3D91;background:#E6F1FB;padding:8px 10px;border-radius:6px;"><i class="ti ti-shield-check"></i> Rédaction centrale — seul un admin peut changer ce statut, depuis Gestion rédactions.</div>';
+  }
+  h += '<button id="redac-reg-submit" onclick="osRedacChefEnregistrerReglages(\''+redac.id+'\')" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✓ Enregistrer</button>';
+  h += '</div>';
+  return h;
+}
+
+function osRedacChefEnregistrerReglages(redacId){
+  var nom = ((document.getElementById('redac-reg-nom')||{}).value||'').trim();
+  var dept = ((document.getElementById('redac-reg-dept')||{}).value||'').trim();
+  var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
+  var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
+  if(!nom){ notif('Nom requis'); return; }
+  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok'];
+  var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
+  notifCles.forEach(function(cle){
+    var el = document.getElementById('redac-reg-'+cle);
+    if(el) payload[cle] = !!el.checked;
+  });
+  var btn = document.getElementById('redac-reg-submit');
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{
+    method:'PATCH', headers:authH,
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(btn){ btn.disabled = false; btn.textContent = '✓ Enregistrer'; }
+    if(r.ok){
+      notif('Rédaction mise à jour ✓','succes');
+      var redacLocal = _redactionsData.find(function(x){ return x.id===redacId; });
+      if(redacLocal) Object.assign(redacLocal, payload);
+      osRedacChangerSousOngletRedac('reglages');
+    } else notif('Erreur lors de l\'enregistrement','erreur');
+  }).catch(function(){
+    if(btn){ btn.disabled = false; btn.textContent = '✓ Enregistrer'; }
+    notif('Erreur réseau','erreur');
+  });
 }
 
 function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
