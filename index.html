@@ -388,7 +388,7 @@ body {
 #os-bg {
   position: absolute;
   inset: 0;
-  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png") center/cover no-repeat;
+  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png") center/cover no-repeat;
   z-index: 0;
 }
 #os-bg::before {
@@ -17569,7 +17569,7 @@ function osParamsRenderSection(section, container){
     wpGrid.className = 'wallpaper-grid';
     
     var WPS = [
-      { id:'default', url:"https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png", label:'Ipsum Original' },
+      { id:'default', url:"https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png", label:'Ipsum Original' },
       { id:'dark', url:'', label:'Sombre uni', color:'linear-gradient(135deg,#0D0D1A,#1A1A2E)' },
       { id:'rouge', url:'', label:'Rouge Ipsum', color:'linear-gradient(135deg,#E8461E,#C73A18)' },
     ];
@@ -17695,7 +17695,7 @@ function osAppliquerWallpaper(id, url, color){
 
 function osAppliquerWallpaperAuDemarrage(){
   var id = localStorage.getItem('compo_os_wallpaper') || 'default';
-  var DEFAULT_WP = "https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu.png";
+  var DEFAULT_WP = "https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png";
   if(id === 'custom'){
     var custom = localStorage.getItem('compo_os_wallpaper_custom');
     if(custom) osAppliquerWallpaper('custom', custom, null);
