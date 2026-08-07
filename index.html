@@ -4062,12 +4062,14 @@ input:focus,select:focus,textarea:focus{
         <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#27500A;margin-bottom:0.4rem;">Lien de publication</div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">
           <input id="r-lien-publication-input" type="url" placeholder="https://..." style="flex:1;min-width:180px;font-size:0.78rem;padding:0.4rem 0.6rem;border:1px solid var(--gris-bord);border-radius:6px;outline:none;font-family:inherit;">
+          <button id="r-lien-publication-dub" onclick="rRaccourcirAvecDub()" title="Raccourcir avec Dub" style="display:none;padding:0.3rem 0.6rem;font-size:0.65rem;border:1px solid #A9CC7D;background:white;color:#27500A;border-radius:6px;cursor:pointer;"><i class="ti ti-scissors"></i></button>
           <button id="r-lien-publication-ouvrir" onclick="window.open(document.getElementById('r-lien-publication-input').value,'_blank')" style="display:none;padding:0.3rem 0.6rem;font-size:0.65rem;border:1px solid #A9CC7D;background:white;color:#27500A;border-radius:6px;cursor:pointer;"><i class="ti ti-external-link"></i></button>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
           <label for="r-lien-publication-vues" style="font-size:0.7rem;color:#27500A;white-space:nowrap;"><i class="ti ti-eye"></i> Vues</label>
           <input id="r-lien-publication-vues" type="number" min="0" placeholder="—" style="width:100px;font-size:0.78rem;padding:0.4rem 0.6rem;border:1px solid var(--gris-bord);border-radius:6px;outline:none;font-family:inherit;">
           <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="rEnregistrerLienPublication()">Enregistrer</button>
+          <span id="r-lien-publication-clics" style="display:none;font-size:0.68rem;color:#27500A;white-space:nowrap;"><i class="ti ti-cursor-text"></i> — clics</span>
         </div>
       </div>
 
@@ -8823,6 +8825,13 @@ function rWorkflowMajInterface(doc){
       if(lpVues && document.activeElement!==lpVues) lpVues.value = (doc.vues_substack!=null ? doc.vues_substack : '');
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
       if(lpOuvrir) lpOuvrir.style.display = doc.lien_publication ? '' : 'none';
+      var lpDub = document.getElementById('r-lien-publication-dub');
+      if(lpDub) lpDub.style.display = (role==='admin' || window._membreCourantDubActif) ? '' : 'none';
+      var lpClics = document.getElementById('r-lien-publication-clics');
+      if(lpClics){
+        if(doc.dub_link_id){ lpClics.style.display=''; _osChargerClicsDub(doc.dub_link_id, doc.id); }
+        else lpClics.style.display='none';
+      }
     } else {
       zLien.style.display='none';
     }
@@ -8876,7 +8885,7 @@ function rWorkflowMajInterface(doc){
 // depuis la boîte affichée dans l'éditeur une fois l'article publié — une alternative
 // rapide à l'import PDF de l'appli Stats (qui reste utile pour un chiffre officiel précis,
 // les deux écrivent dans les mêmes colonnes donc restent synchronisés).
-function rEnregistrerLienPublication(){
+function rEnregistrerLienPublication(dubLinkId){
   if(!currentDoc || !currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var input = document.getElementById('r-lien-publication-input');
   var vuesInput = document.getElementById('r-lien-publication-vues');
@@ -8887,6 +8896,14 @@ function rEnregistrerLienPublication(){
   // quand seul le lien change (pas les vues) — on l'horodate systématiquement ici.
   var payload = { lien_publication: val||null, vues_substack_maj: new Date().toISOString() };
   if(vuesVal!==null && !isNaN(vuesVal)) payload.vues_substack = vuesVal;
+  if(dubLinkId){
+    payload.dub_link_id = dubLinkId;
+  } else if(val !== (currentDoc.lien_publication||'')){
+    // Le lien a changé à la main (pas via le bouton Dub) — l'ancien dub_link_id
+    // référence un lien différent, on l'efface pour ne pas afficher des clics
+    // qui ne correspondent plus à rien.
+    payload.dub_link_id = null;
+  }
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(currentDoc.id), {
@@ -8895,11 +8912,74 @@ function rEnregistrerLienPublication(){
     if(r.ok){
       currentDoc.lien_publication = val||null;
       if(payload.vues_substack!=null) currentDoc.vues_substack = payload.vues_substack;
+      if('dub_link_id' in payload) currentDoc.dub_link_id = payload.dub_link_id;
       notif('Enregistré ✓','succes');
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
       if(lpOuvrir) lpOuvrir.style.display = val ? '' : 'none';
+      rWorkflowMajInterface(currentDoc);
     } else notif('Erreur lors de l\'enregistrement','erreur');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+// Raccourcit le lien de publication via Dub (passe par une Edge Function — la clé
+// Dub ne doit jamais vivre côté client) puis enregistre directement le résultat.
+function rRaccourcirAvecDub(){
+  var input = document.getElementById('r-lien-publication-input');
+  var val = input ? input.value.trim() : '';
+  if(!val){ notif('Renseigne d\'abord le lien de publication'); return; }
+  var btn = document.getElementById('r-lien-publication-dub');
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i>'; }
+
+  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'}),
+    body: JSON.stringify({ action:'raccourcir', url: val })
+  }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+  .then(function(res){
+    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-scissors"></i>'; }
+    if(!res.ok || !res.data.shortLink){
+      notif('Erreur Dub : '+(res.data&&res.data.error||'inconnue'), 'erreur');
+      return;
+    }
+    input.value = res.data.shortLink;
+    rEnregistrerLienPublication(res.data.linkId||null);
+  }).catch(function(){
+    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-scissors"></i>'; }
+    notif('Erreur réseau — la fonction Dub est-elle déployée ?', 'erreur');
+  });
+}
+
+// Nombre de clics du lien raccourci — appel en lecture, ne consomme pas le quota
+// de création de liens. articleId sert de garde-fou si l'utilisateur a changé
+// d'article pendant que la requête était en vol.
+function _osChargerClicsDub(linkId, articleId){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+    method:'POST', headers:authH, body:JSON.stringify({ action:'stats', linkId:linkId })
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!currentDoc || currentDoc.id!==articleId) return;
+    var el = document.getElementById('r-lien-publication-clics');
+    if(!el) return;
+    if(data && data.clicks!=null) el.innerHTML = '<i class="ti ti-cursor-text"></i> '+data.clicks+' clic'+(data.clicks>1?'s':'');
+  }).catch(function(){});
+}
+
+// Quota Dub restant — affiché dans la fiche bénévole, à côté du bouton qui
+// accorde l'accès, pour décider en connaissance de cause.
+function _osChargerQuotaDub(){
+  var el = document.getElementById('benv-dub-quota');
+  if(!el) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+    method:'POST', headers:authH, body:JSON.stringify({ action:'quota' })
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    var elActuel = document.getElementById('benv-dub-quota');
+    if(!elActuel) return;
+    if(!data || data.linksUsage==null || data.linksLimit==null){ elActuel.textContent=''; return; }
+    elActuel.textContent = data.linksUsage+'/'+data.linksLimit+' liens utilisés ce mois-ci';
+  }).catch(function(){});
 }
 
 function rWorkflowAvancer(nouveauStatut){
@@ -10904,7 +10984,7 @@ function osLancer(){
       }, 300000);
 
       // Charger les données complètes du membre (dont fonction) au démarrage
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif',{headers:authH})
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=id,prenom,nom,role,fonction,actif,dub_actif',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       var m = data&&!data.code&&data[0];
@@ -10914,6 +10994,7 @@ function osLancer(){
         // échoue silencieusement sur ce format et effaçait la fonction, alors qu'elle
         // s'affichait correctement partout ailleurs dans l'appli (fiche, grille admin).
         window._membreCourantFonction = fonctionArray(m.fonction);
+        window._membreCourantDubActif = !!m.dub_actif;
         // Mettre à jour le rôle depuis la base (source de vérité)
         if(m.role) localStorage.setItem('ipsum_user_role', m.role);
         // Reconstruire le dock si fonction trésorier
@@ -19879,14 +19960,24 @@ function _sigOuvrirPadSignature(){
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#1A1A2E';
   var dessine = false, aDessine = false;
+  // Zone réellement dessinée (coordonnées CSS, pas pixels canvas) — le pad occupe tout
+  // l'écran mais une signature n'en couvre qu'une petite partie, surtout sur mobile
+  // (écran haut et étroit) : sans ce recadrage, exporter tout le canvas revient à
+  // rétrécir le trait lui-même une fois mis à l'échelle dans la petite zone du PDF.
+  var bbox = null;
 
   function pos(e){
     var rect = canvas.getBoundingClientRect();
     var p = e.touches ? e.touches[0] : e;
     return { x:p.clientX-rect.left, y:p.clientY-rect.top };
   }
-  function debut(e){ e.preventDefault(); dessine = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-  function trace(e){ if(!dessine) return; e.preventDefault(); var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); aDessine = true; }
+  function majBBox(p){
+    if(!bbox){ bbox = {minX:p.x,minY:p.y,maxX:p.x,maxY:p.y}; return; }
+    bbox.minX = Math.min(bbox.minX,p.x); bbox.minY = Math.min(bbox.minY,p.y);
+    bbox.maxX = Math.max(bbox.maxX,p.x); bbox.maxY = Math.max(bbox.maxY,p.y);
+  }
+  function debut(e){ e.preventDefault(); dessine = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); majBBox(p); }
+  function trace(e){ if(!dessine) return; e.preventDefault(); var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); aDessine = true; majBBox(p); }
   function fin(){ dessine = false; }
 
   canvas.addEventListener('mousedown', debut);
@@ -19897,15 +19988,26 @@ function _sigOuvrirPadSignature(){
   canvas.addEventListener('touchend', fin);
 
   window._sigPadADessine = function(){ return aDessine; };
-  window._sigPadReset = function(){ aDessine = false; ctx.clearRect(0,0,canvas.width,canvas.height); };
+  window._sigPadReset = function(){ aDessine = false; bbox = null; ctx.clearRect(0,0,canvas.width,canvas.height); };
+  window._sigPadExporter = function(){
+    if(!bbox) return canvas.toDataURL('image/png');
+    var marge = 14;
+    var x0 = Math.max(0, bbox.minX-marge), y0 = Math.max(0, bbox.minY-marge);
+    var x1 = Math.min(canvas.clientWidth, bbox.maxX+marge), y1 = Math.min(canvas.clientHeight, bbox.maxY+marge);
+    var w = Math.max(1, x1-x0), h = Math.max(1, y1-y0);
+    var r = window.devicePixelRatio || 1;
+    var tmp = document.createElement('canvas');
+    tmp.width = w*r; tmp.height = h*r;
+    tmp.getContext('2d').drawImage(canvas, x0*r, y0*r, w*r, h*r, 0, 0, w*r, h*r);
+    return tmp.toDataURL('image/png');
+  };
 }
 
 function _sigPadEffacer(){ if(window._sigPadReset) window._sigPadReset(); }
 
 function _sigPadValider(){
   if(!window._sigPadADessine || !window._sigPadADessine()){ notif('Dessine ta signature avant de valider'); return; }
-  var canvas = document.getElementById('sig-pad-canvas');
-  var dataUrl = canvas.toDataURL('image/png');
+  var dataUrl = window._sigPadExporter ? window._sigPadExporter() : document.getElementById('sig-pad-canvas').toDataURL('image/png');
   var mentionInput = document.getElementById('sig-mention-input');
   var mention = mentionInput ? mentionInput.value.trim() : '';
   notif('Enregistrement de ta signature...');
@@ -26108,6 +26210,19 @@ function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
   }).catch(function(){ notif('Erreur réseau'); });
 }
 
+// Accès au raccourcisseur Dub — désactivé par défaut, activé au cas par cas par
+// un admin (voir osBenevolesOuvrirFiche) pour ne pas griller le quota mensuel.
+function osBenevolesToggleDub(membreId, actif){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId),{
+    method:'PATCH', headers:authH,
+    body:JSON.stringify({dub_actif:actif})
+  }).then(function(r){
+    if(r.ok) notif(actif ? 'Accès Dub activé ✓' : 'Accès Dub désactivé', 'succes');
+    else notif('Erreur — as-tu bien ajouté la colonne dub_actif dans Supabase ?', 'erreur');
+  }).catch(function(){ notif('Erreur réseau'); });
+}
+
 // Prévient le bénévole lui-même quand il est marqué inactif (peu importe qui a fait
 // l'action — admin, vie asso ou rédac chef) : vérifié au démarrage + périodiquement,
 // avec un état "vu" en localStorage pour ne montrer la popup qu'au vrai changement.
@@ -26355,6 +26470,17 @@ function osBenevolesOuvrirFiche(membreId){
       });
       html += '</div>';
     }
+    // Accès Dub — désactivé par défaut pour tout le monde (quota mensuel serré),
+    // activé au cas par cas par un admin.
+    if(isAdmin){
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      html += '<label style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;cursor:pointer;">';
+      html += '<input type="checkbox" id="benv-dub-actif" data-membre-id="'+esc(m.id)+'" '+(m.dub_actif?'checked':'')+' style="accent-color:var(--rouge);cursor:pointer;">';
+      html += 'Accès raccourcisseur Dub';
+      html += '</label>';
+      html += '<span id="benv-dub-quota" style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);"></span>';
+      html += '</div>';
+    }
   }
   html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
   // Bouton carte d'adhérent — toujours visible (self ou admin)
@@ -26384,6 +26510,13 @@ function osBenevolesOuvrirFiche(membreId){
       osBenevolesChangerRole(this.dataset.membreId, this.dataset.role);
     });
   });
+  var chkDub = card.querySelector('#benv-dub-actif');
+  if(chkDub){
+    chkDub.addEventListener('change', function(){
+      osBenevolesToggleDub(this.dataset.membreId, this.checked);
+    });
+  }
+  if(card.querySelector('#benv-dub-quota')) _osChargerQuotaDub();
   var btnFonctionSave = card.querySelector('#benv-btn-fonction-save');
   if(btnFonctionSave){
     var _membreIdFonction = m.id;
