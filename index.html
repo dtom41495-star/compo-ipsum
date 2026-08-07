@@ -792,8 +792,8 @@ body {
   pointer-events: none;
 }
 @keyframes osPulseUrgent {
-  0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-  50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.07); }
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
 @keyframes osRattrapageOuverture {
   0% { transform: scaleY(0.04) scaleX(0.85); opacity: 0; }
@@ -16617,7 +16617,15 @@ function osToastUrgent(kind, titre, desc, action){
   _osJouerSon(kind);
 
   var card = document.createElement('div');
-  card.style.cssText = 'background:rgba(15,15,25,.97);border-radius:14px;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.5);border:1px solid '+st.ring+'55;min-width:300px;max-width:380px;overflow:hidden;pointer-events:all;transform:translateX(120%) scale(.95);opacity:0;transition:transform .38s cubic-bezier(.34,1.3,.64,1),opacity .28s ease;animation:osPulseUrgent 1.8s ease-in-out .4s infinite;';
+  card.style.cssText = 'position:relative;background:rgba(15,15,25,.97);border-radius:14px;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.5);border:1px solid '+st.ring+'55;min-width:300px;max-width:380px;overflow:hidden;pointer-events:all;transform:translateX(120%) scale(.95);opacity:0;transition:transform .38s cubic-bezier(.34,1.3,.64,1),opacity .28s ease;';
+
+  // Halo qui pulse tant que la notif n'est pas traitée — reste affichée potentiellement
+  // des heures, donc on anime uniquement l'opacité (compositor, pas de repaint en continu)
+  // plutôt que le box-shadow comme un premier essai le faisait, qui devenait coûteux
+  // en s'accumulant sur plusieurs notifs empilées en même temps.
+  var halo = document.createElement('div');
+  halo.style.cssText = 'position:absolute;inset:-1px;border-radius:15px;border:1.5px solid '+st.ring+';pointer-events:none;animation:osPulseUrgent 1.8s ease-in-out .4s infinite;';
+  card.appendChild(halo);
 
   var body = document.createElement('div');
   body.style.cssText = 'display:flex;gap:.7rem;align-items:flex-start;padding:.75rem 1rem;';
@@ -20036,7 +20044,7 @@ function _sigOuvrirPadSignature(){
   overlay.innerHTML =
     '<div style="padding:0.9rem 1rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;">Dessine ta signature</div>'
-    +'<button onclick="document.getElementById(\'sig-pad-overlay\').remove()" style="background:transparent;border:none;font-size:1.1rem;cursor:pointer;color:var(--gris);">×</button>'
+    +'<button onclick="_sigPadFermer()" style="background:transparent;border:none;font-size:1.1rem;cursor:pointer;color:var(--gris);">×</button>'
     +'</div>'
     +'<div style="flex:1;position:relative;touch-action:none;"><canvas id="sig-pad-canvas" style="width:100%;height:100%;display:block;background:#FAFAF8;"></canvas>'
     +'<div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);pointer-events:none;">Signe avec le doigt ou la souris</div></div>'
@@ -20083,6 +20091,15 @@ function _sigOuvrirPadSignature(){
   canvas.addEventListener('touchmove', trace, {passive:false});
   canvas.addEventListener('touchend', fin);
 
+  // Le listener mouseup est sur window (pour capter un relâchement même hors du
+  // canvas) — sans ce retrait explicite à la fermeture, il s'accumulait à chaque
+  // ouverture du pad, gardant en mémoire tout le scope (canvas, ctx...) à chaque fois.
+  window._sigPadFermer = function(){
+    window.removeEventListener('mouseup', fin);
+    var ov = document.getElementById('sig-pad-overlay');
+    if(ov) ov.remove();
+  };
+
   window._sigPadADessine = function(){ return aDessine; };
   window._sigPadReset = function(){ aDessine = false; bbox = null; ctx.clearRect(0,0,canvas.width,canvas.height); };
   window._sigPadExporter = function(){
@@ -20112,8 +20129,7 @@ function _sigPadValider(){
     body: JSON.stringify({ statut:'signe', signature_data:dataUrl, mention:mention||null, signed_at:new Date().toISOString() })
   }).then(function(r){
     if(!r.ok) throw new Error();
-    var overlayPad = document.getElementById('sig-pad-overlay');
-    if(overlayPad) overlayPad.remove();
+    if(window._sigPadFermer) window._sigPadFermer();
     var screen = document.getElementById('signature-screen');
     if(screen) screen.innerHTML = _sigEcranMessage('Signature enregistrée', 'Merci, ta signature a bien été prise en compte.', true);
     _sigVerifierDocumentComplet(_sigCourantSignataire.document_id);
@@ -21770,6 +21786,42 @@ function cpsAdminCharger(){
   });
 }
 
+// Coquille commune des emails CP — bandeau sombre + corps clair, même langage visuel
+// que les autres emails plus récents de l'appli (validation centrale, visuels...).
+function _osCpEmailShell(titreInterne, corpsHtml){
+  return '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
+    +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
+    +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
+    +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">'+titreInterne+'</div>'
+    +'</div>'
+    +'<div style="background:#F7F8FA;padding:1.5rem;border-radius:0 0 8px 8px;">'
+    +corpsHtml
+    +'</div></div>';
+}
+
+// Carte HTML d'un CP pour les emails — une invitation presse (date/lieu/réponse
+// requise) n'a pas les mêmes infos utiles qu'un communiqué classique, donc rendu
+// différent selon cp.type. Ajoute aussi le lien PDF quand le CP en a un.
+function _osCpEmailCarte(cp){
+  var estInvitation = cp.type === 'invitation_presse';
+  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  var h = '<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #E8461E;">';
+  if(estInvitation) h += '<div style="display:inline-block;font-size:0.6rem;text-transform:uppercase;letter-spacing:.06em;color:#7D3C98;background:#F3E8FA;padding:2px 8px;border-radius:10px;margin-bottom:6px;">📅 Invitation presse</div><br>';
+  h += '<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(cp.titre||'Sans titre')+'</div>';
+  if(cp.organisation) h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">'+esc(cp.organisation)+'</div>';
+  if(estInvitation){
+    if(cp.date_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:6px;">🗓️ '+esc(new Date(cp.date_evenement).toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'}))+'</div>';
+    if(cp.lieu_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:2px;">📍 '+esc(cp.lieu_evenement)+'</div>';
+    if(cp.reponse_requise) h += '<div style="font-size:0.78rem;color:#991B1B;background:#FEE2E2;padding:4px 8px;border-radius:6px;margin-top:6px;display:inline-block;">Réponse requise'+(cp.date_reponse?' avant le '+esc(new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})):'')+'</div>';
+  } else if(dateStr){
+    h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">📅 '+dateStr+'</div>';
+  }
+  if(cp.corps) h += '<p style="font-size:0.85rem;color:#374151;margin:0.6rem 0 0;white-space:pre-wrap;">'+esc(cp.corps).substring(0,300)+(cp.corps.length>300?'…':'')+'</p>';
+  if(cp.fichier_pdf) h += '<div style="margin-top:0.6rem;"><a href="'+esc(cp.fichier_pdf)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 Voir le PDF</a></div>';
+  h += '</div>';
+  return h;
+}
+
 function cpsEnvoyerNotifsManuelles(){
   var btn = document.getElementById('btn-envoyer-cps');
   if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
@@ -21819,15 +21871,7 @@ function cpsEnvoyerNotifsManuelles(){
         }
 
         // Construire le récap HTML des CPs
-        var cpHtml = cps.map(function(cp){
-          var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
-          return '<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
-            +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(cp.titre||'')+'</h3>'
-            +(cp.source?'<div style="color:#666;font-size:0.85rem;">📍 '+esc(cp.source)+'</div>':'')
-            +(dateStr?'<div style="color:#666;font-size:0.85rem;">📅 '+dateStr+'</div>':'')
-            +(cp.corps?'<p style="margin:0.5rem 0 0;font-size:0.9rem;white-space:pre-wrap;">'+esc(cp.corps).substring(0,300)+(cp.corps.length>300?'...':'')+'</p>':'')
-            +'</div>';
-        }).join('');
+        var cpHtml = cps.map(_osCpEmailCarte).join('');
 
         var cpIds = cps.map(function(cp){return cp.id;});
 
@@ -21848,12 +21892,11 @@ function cpsEnvoyerNotifsManuelles(){
             return;
           }
           var m = destinataires[idx];
-          var html = '<h2 style="color:#E8461E;">📰 Récapitulatif des communiqués de presse</h2>'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>'+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
+          var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', '+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
             +cpHtml
-            +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'
-            +'<hr><p style="color:#999;font-size:0.8rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo, ou parce que ta rédaction est concernée par au moins un de ces communiqués.</p>';
+            +'<div style="margin-top:1.2rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>'
+            +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo, ou parce que ta rédaction est concernée par au moins un de ces communiqués.</p>';
+          var html = _osCpEmailShell('📰 '+cps.length+' nouveau(x) communiqué(s)', corps);
           envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
           .then(function(r){
             if(r && r.ok !== false) nb++;
@@ -21888,22 +21931,20 @@ function cpsEnvoyerAuxAbonnes(cp){
     .then(function(r){return r.json();})
     .then(function(membres){
       if(!membres||!membres.length) return;
-      var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+      var carte = _osCpEmailCarte(cp);
+      var lienCp = genererLienCP(cp.id);
+      var titreInterne = cp.type==='invitation_presse' ? '📅 Nouvelle invitation presse' : '📰 Nouveau communiqué de presse';
       var nb = 0;
       membres.forEach(function(m){
         if(!m.email) return;
         var estGlobal = globaux.includes(m.id);
         var raison = estGlobal ? 'Tu reçois cet email car tu es abonné à tous les CPs sur Compo.' : 'Tu reçois cet email car tu es abonné aux CPs de cette source sur Compo.';
-        var html = '<h2 style="color:#E8461E;">📰 Nouveau communiqué de presse</h2><p>Bonjour '+esc(m.prenom||'')+'</p><p>Un nouveau communiqué a été publié :</p>'
-          +'<div style="background:#F8F9FA;border-left:4px solid #E8461E;padding:1rem;margin:1rem 0;">'
-          +'<h3 style="margin:0 0 0.5rem;">'+esc(cp.titre)+'</h3>'
-          +(cp.source?'<p style="margin:0.3rem 0;color:#666;font-size:0.9rem;">📍 '+esc(cp.source)+'</p>':'')
-          +(dateStr?'<p style="margin:0.3rem 0;color:#666;font-size:0.9rem;">📅 '+dateStr+'</p>':'')
-          +(cp.corps?'<p style="margin:1rem 0 0;white-space:pre-wrap;">'+esc(cp.corps).substring(0,500)+(cp.corps.length>500?'...':'')+'</p>':'')
-          +'</div>'
-          +'<p><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Consulter sur Compo</a></p>'
-          +'<hr><p style="color:#999;font-size:0.8rem;">'+raison+' Gere tes abonnements depuis l\'appli CPs.</p>';
-        envoyerEmailResend(m.email, '[Compo] CP : '+cp.titre, html, 'cp');
+        var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', un nouveau'+(cp.type==='invitation_presse'?'e invitation a été publiée':' communiqué a été publié')+' :</p>'
+          +carte
+          +'<div style="margin-top:1.2rem;text-align:center;"><a href="'+esc(lienCp)+'" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir le communiqué →</a></div>'
+          +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">'+raison+' Gère tes abonnements depuis l\'appli CPs.</p>';
+        var html = _osCpEmailShell(titreInterne, corps);
+        envoyerEmailResend(m.email, '[Compo] CP : '+(cp.titre||'Sans titre'), html, 'cp');
         nb++;
       });
       notif(nb+' email(s) envoyé(s)');
