@@ -22103,11 +22103,32 @@ function osDemandeRefuser(demandeId){
 // en dessous, reliés par de simples traits CSS), plus un bloc pour les membres actifs
 // qui ne sont liés à aucune rédaction. Pas d'édition manuelle — reflète juste
 // membres_redactions/role_redac tels qu'ils sont au moment de l'ouverture.
+// Un "étage" d'organigramme = un trait vertical depuis l'étage au-dessus, une barre
+// horizontale, et un petit trait individuel vers chaque carte. Partagé entre
+// l'organigramme de rédaction et l'organigramme administratif : ne prend que du HTML
+// de carte déjà construit, agnostique de ce que représente chaque carte.
+function _osOrgEtageHTML(cartesHtml){
+  var hh = '<div style="width:2px;height:18px;background:var(--gris-bord);margin:0 auto;"></div>';
+  hh += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1rem 0.4rem;border-top:2px solid var(--gris-bord);padding-top:18px;">';
+  cartesHtml.forEach(function(carteHtml){
+    hh += '<div style="position:relative;padding:0 6px;">';
+    hh += '<div style="position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--gris-bord);"></div>';
+    hh += carteHtml;
+    hh += '</div>';
+  });
+  hh += '</div>';
+  return hh;
+}
+
 function _osBenvOrganigrammeHTML(membres){
   var redactions = window._redactionsData || [];
   var liens = window._membresRedactionsData || [];
   var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-  var roleLabels = {redacteur:'Rédacteur',correcteur:'Correcteur',admin:'Admin',communicant:'Communicant'};
+  // "redacteur" est juste le rôle par défaut donné à la création de compte (le choix
+  // est admin / correcteur / rédacteur) — ça ne garantit pas que la personne écrit
+  // effectivement des articles, donc on évite de lui coller "Rédacteur" comme un
+  // poste confirmé. "Membre" reste correct pour tout le monde.
+  var roleLabels = {redacteur:'Membre',correcteur:'Correcteur',admin:'Admin',communicant:'Communicant'};
 
   function carteMembre(m, estChef){
     var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
@@ -22133,7 +22154,10 @@ function _osBenvOrganigrammeHTML(membres){
       var lien = liens.find(function(l){ return l.membre_id===m.id && l.redaction_id===redac.id; });
       return lien && lien.role_redac==='redac_chef';
     });
-    var reste = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1; });
+    // Le correcteur encadre le travail des rédacteurs avant le chef — il a son propre
+    // étage entre le chef et le reste de l'équipe plutôt que d'être mélangé avec eux.
+    var correcteurs = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && m.role==='correcteur'; });
+    var autres = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && m.role!=='correcteur'; });
 
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.4rem 1rem 1.6rem;">';
     h += '<div style="text-align:center;margin-bottom:1.1rem;">';
@@ -22149,17 +22173,9 @@ function _osBenvOrganigrammeHTML(membres){
     }
     h += '</div>';
 
-    if(reste.length){
-      h += '<div style="width:2px;height:18px;background:var(--gris-bord);margin:0 auto;"></div>';
-      h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1rem 0.4rem;border-top:2px solid var(--gris-bord);padding-top:18px;">';
-      reste.forEach(function(m){
-        h += '<div style="position:relative;padding:0 6px;">';
-        h += '<div style="position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--gris-bord);"></div>';
-        h += carteMembre(m, false);
-        h += '</div>';
-      });
-      h += '</div>';
-    } else if(!chefs.length){
+    if(correcteurs.length) h += _osOrgEtageHTML(correcteurs.map(function(m){ return carteMembre(m, false); }));
+    if(autres.length) h += _osOrgEtageHTML(autres.map(function(m){ return carteMembre(m, false); }));
+    if(!chefs.length && !correcteurs.length && !autres.length){
       h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.6rem;">Aucun membre</div>';
     }
 
@@ -22177,6 +22193,51 @@ function _osBenvOrganigrammeHTML(membres){
     h += '</div></div>';
   }
 
+  h += '</div>';
+  return h;
+}
+
+// Organigramme du bureau associatif, basé sur membres.fonction — indépendant du rôle
+// Compo (admin/correcteur/rédacteur) et de la rédaction. Trois étages usuels d'une
+// association loi 1901 : président·e, puis le reste du bureau (vice-président·e,
+// trésorier·ère, secrétaire), puis les autres responsabilités (com, vie associative).
+// Une personne peut cumuler plusieurs fonctions ; elle n'apparaît qu'une fois, à
+// l'étage le plus élevé qu'elle occupe, avec toutes ses fonctions sur son étiquette.
+function _osBenvOrganigrammeAdminHTML(membres){
+  function aUneDe(m, liste){
+    var f = fonctionArray(m.fonction);
+    return liste.some(function(id){ return f.indexOf(id)!==-1; });
+  }
+  var avecFonction = membres.filter(function(m){ return fonctionArray(m.fonction).length; });
+  var tier1 = avecFonction.filter(function(m){ return aUneDe(m,['president']); });
+  var tier2 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && aUneDe(m,['vice_president','tresorier','secretaire']); });
+  var tier3 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && tier2.indexOf(m)===-1 && aUneDe(m,['responsable_com','communication','com_externe','com_interne','vie_asso']); });
+
+  function carteFonction(m, estTop){
+    var rc = ['#E8D9F5','#4A235A']; // même famille que "communicant" ailleurs dans l'app — neutre pour le bureau
+    var taille = estTop?52:40;
+    var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
+    return '<div style="display:flex;flex-direction:column;align-items:center;width:112px;">'
+      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
+      +'<div style="font-size:'+(estTop?'0.74rem':'0.68rem')+';font-weight:'+(estTop?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:112px;">'+esc(m.prenom||'')+'</div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';padding:1px 6px;border-radius:8px;margin-top:2px;text-align:center;max-width:112px;line-height:1.4;">'+esc(fonctionShort(m.fonction))+'</div>'
+      +'</div>';
+  }
+
+  var h = '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.4rem 1rem 1.6rem;">';
+  if(!avecFonction.length){
+    h += '<div style="text-align:center;padding:1.5rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune fonction associative attribuée pour le moment.</div>';
+  } else {
+    if(tier1.length){
+      h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1.2rem;">';
+      tier1.forEach(function(m){ h += carteFonction(m, true); });
+      h += '</div>';
+    } else {
+      h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.4rem;">Pas de président·e désigné·e</div>';
+    }
+    if(tier2.length) h += _osOrgEtageHTML(tier2.map(function(m){ return carteFonction(m, false); }));
+    if(tier3.length) h += _osOrgEtageHTML(tier3.map(function(m){ return carteFonction(m, false); }));
+  }
   h += '</div>';
   return h;
 }
@@ -22339,7 +22400,11 @@ function osBenevolesDashRender(){
     // vers les rédactions), pas de fetch supplémentaire, pas d'édition manuelle.
     var organigrammeDiv=document.createElement('div');
     organigrammeDiv.style.cssText='flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1.2rem 1.4rem;';
-    organigrammeDiv.innerHTML=_osBenvOrganigrammeHTML(membres);
+    organigrammeDiv.innerHTML=
+      '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin-bottom:0.8rem;">Rédaction</div>'
+      +_osBenvOrganigrammeHTML(membres)
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.8rem 0 0.8rem;">Bureau associatif</div>'
+      +_osBenvOrganigrammeAdminHTML(membres);
     tabContents['organigramme']=organigrammeDiv;
     contentWrap.appendChild(organigrammeDiv);
     // ONGLET EDITO (admin uniquement — la version par rédaction est dans Ma Rédac')
