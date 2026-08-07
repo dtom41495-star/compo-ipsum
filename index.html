@@ -3652,7 +3652,7 @@ input:focus,select:focus,textarea:focus{
     <div id="os-desktop-icons"></div>
 
     <!-- WIDGET HORLOGE + MEMBRES EN LIGNE -->
-    <div id="os-clock-widget" style="position:absolute;bottom:90px;right:24px;pointer-events:none;user-select:none;">
+    <div id="os-clock-widget" style="position:absolute;bottom:90px;left:24px;pointer-events:none;user-select:none;">
       <div style="background:rgba(0,0,0,0.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,0.25);display:flex;align-items:center;gap:14px;">
         <!-- Horloge analogique -->
         <div style="text-align:center;flex-shrink:0;">
@@ -22099,6 +22099,88 @@ function osDemandeRefuser(demandeId){
   }).catch(function(){ notif('Erreur'); });
 }
 
+// Organigramme auto-généré : un bloc par rédaction (chef en haut, reste de l'équipe
+// en dessous, reliés par de simples traits CSS), plus un bloc pour les membres actifs
+// qui ne sont liés à aucune rédaction. Pas d'édition manuelle — reflète juste
+// membres_redactions/role_redac tels qu'ils sont au moment de l'ouverture.
+function _osBenvOrganigrammeHTML(membres){
+  var redactions = window._redactionsData || [];
+  var liens = window._membresRedactionsData || [];
+  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
+  var roleLabels = {redacteur:'Rédacteur',correcteur:'Correcteur',admin:'Admin',communicant:'Communicant'};
+
+  function carteMembre(m, estChef){
+    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+    var taille = estChef?52:40;
+    var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
+    return '<div style="display:flex;flex-direction:column;align-items:center;width:86px;">'
+      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
+      +'<div style="font-size:'+(estChef?'0.74rem':'0.68rem')+';font-weight:'+(estChef?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">'+esc(m.prenom||'')+'</div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';padding:1px 6px;border-radius:8px;margin-top:2px;white-space:nowrap;">'+(estChef?'Chef':(roleLabels[m.role]||m.role||''))+'</div>'
+      +'</div>';
+  }
+
+  var h = '<div style="display:flex;flex-direction:column;gap:1.4rem;">';
+
+  if(!redactions.length){
+    h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune rédaction.</div>';
+  }
+
+  redactions.forEach(function(redac){
+    var idsRedac = liens.filter(function(l){ return l.redaction_id===redac.id; }).map(function(l){ return l.membre_id; });
+    var membresRedac = membres.filter(function(m){ return idsRedac.indexOf(m.id)!==-1; });
+    var chefs = membresRedac.filter(function(m){
+      var lien = liens.find(function(l){ return l.membre_id===m.id && l.redaction_id===redac.id; });
+      return lien && lien.role_redac==='redac_chef';
+    });
+    var reste = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1; });
+
+    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.4rem 1rem 1.6rem;">';
+    h += '<div style="text-align:center;margin-bottom:1.1rem;">';
+    h += '<span style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:'+(redac.couleur||'#EA5B1C')+';">'+esc(redac.nom)+'</span>';
+    h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:8px;">'+membresRedac.length+' membre'+(membresRedac.length>1?'s':'')+'</span>';
+    h += '</div>';
+
+    h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1.2rem;">';
+    if(chefs.length){
+      chefs.forEach(function(c){ h += carteMembre(c, true); });
+    } else {
+      h += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.6rem;">Pas de chef assigné</div>';
+    }
+    h += '</div>';
+
+    if(reste.length){
+      h += '<div style="width:2px;height:18px;background:var(--gris-bord);margin:0 auto;"></div>';
+      h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1rem 0.4rem;border-top:2px solid var(--gris-bord);padding-top:18px;">';
+      reste.forEach(function(m){
+        h += '<div style="position:relative;padding:0 6px;">';
+        h += '<div style="position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--gris-bord);"></div>';
+        h += carteMembre(m, false);
+        h += '</div>';
+      });
+      h += '</div>';
+    } else if(!chefs.length){
+      h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.6rem;">Aucun membre</div>';
+    }
+
+    h += '</div>';
+  });
+
+  var idsAvecRedac = {};
+  liens.forEach(function(l){ idsAvecRedac[l.membre_id]=true; });
+  var sansRedac = membres.filter(function(m){ return !idsAvecRedac[m.id]; });
+  if(sansRedac.length){
+    h += '<div style="background:var(--gris-clair);border-radius:14px;padding:1rem 1.2rem;">';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.8rem;">Sans rédaction assignée</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:0.8rem;">';
+    sansRedac.forEach(function(m){ h += carteMembre(m, false); });
+    h += '</div></div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
 function osBenevolesDashRender(){
   var wc = document.getElementById('wincontent-benevoles');
   if(!wc) return;
@@ -22163,7 +22245,7 @@ function osBenevolesDashRender(){
     var app=document.createElement('div');
     // Rail vertical à gauche — même principe que Ma Rédac' et l'appli Admin.
     app.style.cssText='display:flex;height:100%;overflow:hidden;';
-    var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'}];
+    var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'},{id:'organigramme',icon:'ti-sitemap',label:'Organigramme'}];
     if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
     // Les demandes d'accès sont de l'administration pure — elles vivent dans l'appli
@@ -22253,6 +22335,13 @@ function osBenevolesDashRender(){
     sh+='</div>'; // fin de la ligne liste + fiche
     equipeDiv.innerHTML=sh;
     contentWrap.appendChild(equipeDiv);
+    // ONGLET ORGANIGRAMME — généré depuis les données déjà chargées (membres + liens
+    // vers les rédactions), pas de fetch supplémentaire, pas d'édition manuelle.
+    var organigrammeDiv=document.createElement('div');
+    organigrammeDiv.style.cssText='flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1.2rem 1.4rem;';
+    organigrammeDiv.innerHTML=_osBenvOrganigrammeHTML(membres);
+    tabContents['organigramme']=organigrammeDiv;
+    contentWrap.appendChild(organigrammeDiv);
     // ONGLET EDITO (admin uniquement — la version par rédaction est dans Ma Rédac')
     if(isAdmin){
     var editoDiv=document.createElement('div');
@@ -25100,9 +25189,11 @@ function osRedacChangerSousOngletRedac(id){
   _redacSousOnglet = id;
   var ctx = window._redacCtx || {};
   var membre = _membresData.find(function(m){ return m.id === ctx.uid; });
-  var zone = document.getElementById('redac-onglet-redac-contenu');
-  if(!zone) return;
-  zone.innerHTML = osRedactionsMembre_OngletRedac(ctx.uid, ctx.redacId, ctx.roleRedac, membre);
+  // Repasse par le rendu complet de l'onglet (léger : données déjà en cache, aucun
+  // fetch) plutôt que de remplacer #redac-onglet-redac-contenu par lui-même — cette
+  // div fait partie du HTML retourné par osRedactionsMembre_OngletRedac, donc la
+  // cibler directement dupliquait le bandeau d'en-tête à chaque clic sur un sous-onglet.
+  _osRedacRenderContenu(ctx.uid, ctx.redacId, ctx.roleRedac, membre);
   if(id === 'edito'){
     var zoneEdito = document.getElementById('redac-chef-edito-zone');
     if(zoneEdito) osRedacChefEdito(zoneEdito, ctx.redacId);
