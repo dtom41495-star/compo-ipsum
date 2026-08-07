@@ -8218,6 +8218,10 @@ function lancerCompo(){
       chargerAlertTickets();
       chargerDepuisURL();
       ssInit();
+      // Le Rattrapage — déclenché ici (pas sur un minuteur fixe dans osLancer) car
+      // _redactionsData/_membresRedactionsData ne sont garantis peuplés qu'à ce stade,
+      // une fois le Promise.all des données de lancement résolu.
+      setTimeout(osAfficherRattrapage, 1500);
     }, 300);
 
   }).catch(function(){
@@ -10869,8 +10873,6 @@ function osLancer(){
     setInterval(osVerifierNouvelleVersion, 5*60*1000);
     // Créditer automatiquement les heures des événements passés
     setTimeout(osAgendaCreditHeuresAuto, 5000);
-    // Le Rattrapage — rapport "pendant ton absence", seulement s'il y a du nouveau
-    setTimeout(osAfficherRattrapage, 7000);
     // Horloge bureau
     osClockInit();
     // Refresh périodique des fonctions membre (toutes les 5 min)
