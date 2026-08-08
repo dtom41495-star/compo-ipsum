@@ -4676,14 +4676,15 @@ input:focus,select:focus,textarea:focus{
         <div class="modal-action-icon">📰</div>
         <div><div class="modal-action-label">Lire l'article</div><div class="modal-action-desc">Prévisualiser le contenu et exporter vers Substack</div></div>
       </button>
-      <button class="modal-action-btn" onclick="modalActionChoisir('correction')">
+      <button class="modal-action-btn" id="modal-action-btn-correction" onclick="modalActionChoisir('correction')">
         <div class="modal-action-icon">🔍</div>
         <div><div class="modal-action-label">Corriger l'article</div><div class="modal-action-desc">Mode SR — annoter et valider les modifications</div></div>
       </button>
-      <button class="modal-action-btn" onclick="modalActionChoisir('edition')">
+      <button class="modal-action-btn" id="modal-action-btn-edition" onclick="modalActionChoisir('edition')">
         <div class="modal-action-icon">✏️</div>
         <div><div class="modal-action-label">Modifier l'article</div><div class="modal-action-desc">Édition libre du contenu</div></div>
       </button>
+      <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Correction et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, correcteur·rice, rédac chef, admin).</div>
       <button class="modal-action-btn" onclick="modalActionFermer()" style="margin-top:0.4rem;border-color:transparent;">
         <div class="modal-action-icon">✕</div>
         <div><div class="modal-action-label" style="color:var(--gris);">Annuler</div></div>
@@ -7301,6 +7302,22 @@ function copierLien(id, type){
 var _docFromURL = null;
 var _cpFromURL = null;
 
+// Un lien d'article partagé n'ouvre pas les portes à tout le monde : correction réservée
+// aux correcteur·rices/admin, édition réservée à l'auteur·rice, au rédac chef de la
+// rédaction de l'article, ou à un·e admin. Centralisé ici pour que l'affichage des
+// boutons (chargerDepuisURL) et la vérification au clic (modalActionChoisir) ne
+// puissent pas diverger.
+function _osPermissionsModalAction(doc){
+  var role = getUserRole();
+  var estChefRedac = (window._membresRedactionsData||[]).some(function(l){
+    return l.membre_id===getUserId() && l.redaction_id===doc.redaction_id && l.role_redac==='redac_chef';
+  });
+  return {
+    peutCorriger: role==='admin' || role==='correcteur',
+    peutModifier: role==='admin' || doc.auteur_id===getUserId() || estChefRedac
+  };
+}
+
 function chargerDepuisURL(){
   var params = new URLSearchParams(window.location.search);
   var articleId = params.get('article');
@@ -7310,15 +7327,13 @@ function chargerDepuisURL(){
   if(articleId){
     db.getArticle(articleId).then(function(doc){
       if(!doc){ notif('Article introuvable'); return; }
-      var docCompo = {
-        id: doc.id, type: doc.type, statut: doc.statut, urgence: doc.urgence,
-        auteur: doc.auteur, redaction: doc.redaction, titre: doc.titre,
-        chapeau: doc.chapeau, angle: doc.angle, rubrique: doc.rubrique,
-        corps: doc.corps, tags: doc.tags||[], sources: doc.sources||[],
-        image: doc.image, image_legende: doc.image_legende,
-        date_publication: doc.date_publication,
+      // Repartir de la ligne complète (pas d'un sous-ensemble de champs) — sinon auteur_id,
+      // redaction_id etc. se perdent silencieusement, et ils sont nécessaires ci-dessous
+      // pour savoir qui a le droit de corriger/modifier cet article précis.
+      var docCompo = Object.assign({}, doc, {
+        tags: doc.tags||[], sources: doc.sources||[],
         cree_le: doc.created_at, modifie_le: doc.updated_at
-      };
+      });
       _docFromURL = docCompo;
       currentDoc = docCompo;
       // Afficher la modale de choix
@@ -7326,6 +7341,14 @@ function chargerDepuisURL(){
       var m = document.getElementById('modal-action-meta');
       if(t) t.textContent = doc.titre || 'Sans titre';
       if(m) m.textContent = (doc.auteur||'?') + ' · ' + (doc.redaction||'') + ' · ' + bStat(doc.statut).replace(/<[^>]+>/g,'');
+      var perm = _osPermissionsModalAction(docCompo);
+      var peutCorriger = perm.peutCorriger, peutModifier = perm.peutModifier;
+      var btnC = document.getElementById('modal-action-btn-correction');
+      var btnE = document.getElementById('modal-action-btn-edition');
+      var noteRestreint = document.getElementById('modal-action-restreint');
+      if(btnC) btnC.style.display = peutCorriger ? '' : 'none';
+      if(btnE) btnE.style.display = peutModifier ? '' : 'none';
+      if(noteRestreint) noteRestreint.style.display = (!peutCorriger || !peutModifier) ? 'block' : 'none';
       document.getElementById('modal-action').classList.add('visible');
     }).catch(function(){ notif('Erreur chargement article'); });
   }
@@ -7371,6 +7394,15 @@ function chargerDepuisURL(){
 function modalActionChoisir(action){
   document.getElementById('modal-action').classList.remove('visible');
   if(!_docFromURL) return;
+  // Re-vérifié ici (pas seulement à l'affichage des boutons) au cas où cette fonction
+  // serait déclenchée autrement qu'en cliquant sur le bouton correspondant.
+  var perm = _osPermissionsModalAction(_docFromURL);
+  if(action === 'correction' && !perm.peutCorriger){
+    notif('Réservé aux correcteur·rices', 'erreur'); return;
+  }
+  if(action === 'edition' && !perm.peutModifier){
+    notif('Réservé à l\'auteur·rice, au rédac chef ou à un·e admin', 'erreur'); return;
+  }
   if(action === 'lecture'){
     go('lecture');
     setTimeout(function(){ renderLecture(_docFromURL); }, 100);
@@ -8225,7 +8257,10 @@ function lancerCompo(){
       // Le Rattrapage — déclenché ici (pas sur un minuteur fixe dans osLancer) car
       // _redactionsData/_membresRedactionsData ne sont garantis peuplés qu'à ce stade,
       // une fois le Promise.all des données de lancement résolu.
-      setTimeout(osAfficherRattrapage, 1500);
+      // Désactivé temporairement à la demande de Tom (2026-08-08) — remettre la ligne
+      // ci-dessous pour réactiver, le reste du système (digest, marquage lu, etc.) est
+      // laissé intact.
+      // setTimeout(osAfficherRattrapage, 1500);
     }, 300);
 
   }).catch(function(){
