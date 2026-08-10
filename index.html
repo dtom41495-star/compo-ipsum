@@ -4590,6 +4590,11 @@ input:focus,select:focus,textarea:focus{
       <input type="text" id="nl-titre" placeholder="Newsletter du jeudi - Tarn">
     </div>
     <div class="form-group full">
+      <label>Date d'envoi</label>
+      <input type="date" id="nl-date-envoi">
+      <div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Aujourd'hui par défaut — change-la pour rattraper un envoi déjà parti avant (par exemple, à la main, avant cette mise à jour).</div>
+    </div>
+    <div class="form-group full">
       <label>Mot de la rédaction (optionnel)</label>
       <textarea id="nl-edito" style="min-height:90px;" placeholder="Quelques mots pour cette édition..."></textarea>
     </div>
@@ -6047,11 +6052,15 @@ function nlMarquerEnvoyee(){
 
   var titreEl = document.getElementById('nl-titre');
   var titre = (titreEl && titreEl.value.trim()) || ('Newsletter — '+new Date().toLocaleDateString('fr-FR'));
+  // Aujourd'hui par défaut, mais modifiable — pour rattraper un envoi déjà parti avant
+  // (à la main, avant que cette table existe) avec sa vraie date, pas la date du clic.
+  var dateEl = document.getElementById('nl-date-envoi');
+  var dateEnvoi = (dateEl && dateEl.value) ? new Date(dateEl.value+'T12:00:00').toISOString() : new Date().toISOString();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
 
   fetch(SB_URL+'/rest/v1/newsletters', {
     method:'POST', headers:authH,
-    body: JSON.stringify({ redaction_id:_nlRedactionActive, titre:titre, date_envoi:new Date().toISOString(), envoye_par:getUserId() })
+    body: JSON.stringify({ redaction_id:_nlRedactionActive, titre:titre, date_envoi:dateEnvoi, envoye_par:getUserId() })
   })
   .then(function(r){ return r.json(); })
   .then(function(rows){
@@ -20597,6 +20606,9 @@ function nlChargerDepuisBase(redactionIdChoisi){
   var zone = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
   if(!zone) return;
   zone.innerHTML = osLoadingHtml();
+
+  var dateEl = document.getElementById('nl-date-envoi');
+  if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
 
   var uid = getUserId();
   var mesLiens = (_membresRedactionsData||[]).filter(function(mr){ return mr.membre_id === uid; });
