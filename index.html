@@ -8390,7 +8390,8 @@ function assignValider(){
       .then(function(r){ return r.json(); })
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
-        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')){
+        // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
+        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignCorrecteurId)){
           var html = '<h2>Un article t\'attend en correction 🔍</h2>'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
@@ -16414,6 +16415,9 @@ function osNotifierValidateursCentraux(article){
         +'</div></div></div>';
 
       destinataires.forEach(function(m){
+        // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
+        // moment-là — inutile de doubler avec un email pour cette personne précise.
+        if(osEstEnLigne(m.id)) return;
         envoyerEmailResend(m.email, '🛡️ Validation centrale requise : '+titre, emailHtml, 'valide-central');
       });
     });
@@ -19102,10 +19106,12 @@ function osMesArticlesCharger(){
 
   var q;
   if(_maOnglet === 'tous' && role === 'admin'){
-    // Admin — tous les articles de la rédaction active
-    q = window._redacActiveId
-      ? SB_URL+'/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(window._redacActiveId)+'&select=*&order=updated_at.desc.nullslast'
-      : SB_URL+'/rest/v1/articles?select=*&order=updated_at.desc.nullslast';
+    // Admin — vraiment tous les articles, toutes rédactions confondues. Ne PAS scoper
+    // sur window._redacActiveId ici : ce n'est pas ce que "Tous" veut dire pour un
+    // admin qui supervise l'ensemble, et ça créait un piège silencieux (changer de
+    // rédaction active ailleurs dans Compo faisait disparaître des articles de cette
+    // liste sans aucun indice visuel de pourquoi).
+    q = SB_URL+'/rest/v1/articles?select=*&order=updated_at.desc.nullslast';
   } else if(_maOnglet === 'corriger'){
     q = role === 'admin'
       ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast'
@@ -22026,6 +22032,10 @@ function cpsEnvoyerNotifsManuelles(){
             return;
           }
           var m = destinataires[idx];
+          // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
+          // moment-là — inutile de doubler avec un email pour cette personne précise.
+          // Ni un envoi ni un échec : on passe simplement au destinataire suivant.
+          if(osEstEnLigne(m.id)){ setTimeout(function(){ envoyerProchain(idx+1); }, 0); return; }
           var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', '+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
             +cpHtml
             +'<div style="margin-top:1.2rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>'
@@ -22071,6 +22081,9 @@ function cpsEnvoyerAuxAbonnes(cp){
       var nb = 0;
       membres.forEach(function(m){
         if(!m.email) return;
+        // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
+        // moment-là — inutile de doubler avec un email pour cette personne précise.
+        if(osEstEnLigne(m.id)) return;
         var estGlobal = globaux.includes(m.id);
         var raison = estGlobal ? 'Tu reçois cet email car tu es abonné à tous les CPs sur Compo.' : 'Tu reçois cet email car tu es abonné aux CPs de cette source sur Compo.';
         var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', un nouveau'+(cp.type==='invitation_presse'?'e invitation a été publiée':' communiqué a été publié')+' :</p>'
