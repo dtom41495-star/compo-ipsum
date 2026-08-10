@@ -17754,11 +17754,15 @@ function osParamsRenderSection(section, container){
     
     var rowCache = document.createElement('div');
     rowCache.className = 'params-row';
+    // Alignement en haut plutôt qu'au centre : le sous-texte tient sur 2 lignes, donc
+    // un centrage vertical classique décale le bouton loin du titre de la ligne.
+    rowCache.style.alignItems = 'flex-start';
     rowCache.innerHTML = '<div><div class="params-label">Réinitialiser le cache</div><div class="params-label-sub">Si Compo semble bloqué ou affiche des infos anciennes. Ne te déconnecte pas, ne touche pas à tes brouillons en cours.</div></div>';
     var btnCache = document.createElement('button');
     btnCache.className = 'btn sec';
     btnCache.textContent = 'Réinitialiser';
     btnCache.style.fontSize = '0.72rem';
+    btnCache.style.marginTop = '2px';
     btnCache.onclick = osReinitialiserCache;
     rowCache.appendChild(btnCache);
     container.appendChild(rowCache);
@@ -29415,7 +29419,11 @@ function osNotesBuildUI(wc){
 
   // Colonne — liste des notes
   var notesFiltrees = _notesFiltreCouleur === 'Toutes' ? _notesData : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
-  html += '<div id="notes-sidebar" style="'+(isMobile && _noteSelectionnee ? 'display:none;' : '')+'width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);display:flex;flex-direction:column;background:var(--gris-clair);">';
+  // display: une seule fois — un style="display:none;...;display:flex;..." avec les deux
+  // déclarations dans le même attribut se résout toujours en flex (la dernière gagne),
+  // ce qui annulait silencieusement le masquage mobile.
+  var sidebarCachee = isMobile && _noteSelectionnee;
+  html += '<div id="notes-sidebar" style="display:'+(sidebarCachee?'none':'flex')+';width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);flex-direction:column;background:var(--gris-clair);">';
   html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
   html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
   html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:Space Mono,monospace;cursor:pointer;">+ Nouvelle</button>';
@@ -29438,8 +29446,9 @@ function osNotesBuildUI(wc){
 
   html += '</div></div>'; // liste + sidebar
 
-  // Zone d'édition
-  html += '<div style="'+(isMobile && !_noteSelectionnee ? 'display:none;' : '')+'flex:1;display:flex;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
+  // Zone d'édition — même piège que notes-sidebar plus haut : un seul display:, jamais deux.
+  var editeurCache = isMobile && !_noteSelectionnee;
+  html += '<div style="display:'+(editeurCache?'none':'flex')+';flex:1;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
 
   if(_noteSelectionnee){
     var note = _notesData.find(function(n){ return n.id === _noteSelectionnee; });
