@@ -4578,8 +4578,12 @@ input:focus,select:focus,textarea:focus{
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div class="panel-title">Préparer la newsletter</div>
+  <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Préparer la newsletter</span>
+    <span onclick="nlToggleHistorique()" style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--rouge);cursor:pointer;">📜 Historique</span>
+  </div>
   <div class="panel-subtitle">Importe les articles validés, ordonne-les et génère la newsletter pour Substack</div>
+  <div id="nl-historique" style="display:none;margin-bottom:1rem;border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem 0.9rem;background:var(--gris-clair);"></div>
   <div class="form-grid" style="margin-bottom:1rem;">
     <div class="form-group full">
       <label>Titre de l'édition</label>
@@ -4603,6 +4607,7 @@ input:focus,select:focus,textarea:focus{
     <div class="btn-row">
       <button class="btn" onclick="nlCopier()">Copier pour Substack</button>
       <button class="btn secondary" onclick="nlExporter()">Télécharger Markdown</button>
+      <button class="btn secondary" id="nl-btn-envoyee" onclick="nlMarquerEnvoyee()">✓ Marquer comme envoyée</button>
     </div>
   </div>
 </div>
@@ -5868,6 +5873,65 @@ function resetLectCP(){
 
 // Newsletter
 var nlArticles = [], nlDragIdx = null;
+
+// ===== NEWSLETTER — sélection automatique par rédaction =====
+// "Depuis quand" une newsletter part du dernier envoi RÉELLEMENT enregistré pour cette
+// rédaction (table newsletters), pas d'un calcul de jour de semaine — plus juste si un
+// envoi a sauté une semaine ou est parti en retard. Repli sur 7 jours glissants si
+// aucun envoi n'est encore enregistré (même idiome que le filtre "cette semaine" des
+// CPs, voir cpsRendreListe).
+function nlCalculerDepuis(dernierEnvoi, now){
+  now = now || new Date();
+  if(dernierEnvoi){
+    return { since: new Date(dernierEnvoi), isFallback: false };
+  }
+  var sept = new Date(now);
+  sept.setDate(sept.getDate() - 7);
+  return { since: sept, isFallback: true };
+}
+
+// Purement pour l'affichage (badge "prévu pour la newsletter du...") — le vrai
+// déclencheur reste l'ouverture de l'appli, pas cette date. Donne aujourd'hui si on
+// est déjà jeudi, sinon le jeudi qui vient.
+function nlProchainJeudi(from){
+  from = from || new Date();
+  var jour = from.getDay(); // 0=dim..4=jeu..6=sam
+  var diff = (4 - jour + 7) % 7;
+  var d = new Date(from);
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function nlDernierEnvoi(redactionId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,date_envoi&order=date_envoi.desc&limit=1',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(rows){ return (rows && !rows.code && rows.length) ? rows[0] : null; })
+    .catch(function(){ return null; });
+}
+
+// Articles/brèves publiés (ou validés, pour ce qui n'est pas encore parti sur Substack)
+// depuis le dernier envoi. publie_le n'est pas toujours à jour par rapport à updated_at
+// (_publierArticleReel écrit publie_le mais pas updated_at) — on élargit donc le filtre
+// côté serveur sur les deux colonnes, puis on affine avec le même repli déjà utilisé
+// ailleurs dans l'appli (a.publie_le||a.created_at).
+function nlRecupererCandidats(redactionId){
+  return nlDernierEnvoi(redactionId).then(function(dernier){
+    var fenetre = nlCalculerDepuis(dernier && dernier.date_envoi, new Date());
+    var depuisISO = fenetre.since.toISOString();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&redaction_id=eq.'+encodeURIComponent(redactionId)
+      +'&or=(publie_le.gte.'+encodeURIComponent(depuisISO)+',updated_at.gte.'+encodeURIComponent(depuisISO)+')'
+      +'&order=updated_at.desc&select=id,titre,chapeau,type,auteur,rubrique,statut,updated_at,publie_le,redaction_id,corps&limit=100';
+    return fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(arts){
+      arts = (arts && !arts.code) ? arts : [];
+      var candidats = arts.filter(function(a){
+        return new Date(a.publie_le || a.updated_at) >= fenetre.since;
+      });
+      return { candidats: candidats, isFallback: fenetre.isFallback };
+    });
+  }).catch(function(){ return { candidats: [], isFallback: true }; });
+}
 function nlImporter(event){
   var files = Array.from(event.target.files);
   files.forEach(function(f){
@@ -5966,6 +6030,93 @@ function nlExporter(){
   a.click();
   URL.revokeObjectURL(url);
   notif('Fichier Markdown telecharge');
+}
+
+// Enregistre l'envoi (date + contenus inclus) — c'est ce qui permet de savoir plus tard
+// "cet article est passé dans quelle newsletter", et sert de point de départ pour le
+// prochain cycle (nlDernierEnvoi). Un clic déliberé, séparé de nlGenerer/nlCopier —
+// générer un aperçu ne veut pas dire que l'envoi a eu lieu.
+function nlMarquerEnvoyee(){
+  var md = document.getElementById('nl-apercu').textContent;
+  if(!md){ notif('Génère d\'abord la newsletter'); return; }
+  if(!_nlRedactionActive){ notif('Aucune rédaction active'); return; }
+  if(!nlArticles.length){ notif('Aucun contenu à enregistrer'); return; }
+
+  var btn = document.getElementById('nl-btn-envoyee');
+  if(btn){ btn.disabled = true; btn.textContent = '...'; }
+
+  var titreEl = document.getElementById('nl-titre');
+  var titre = (titreEl && titreEl.value.trim()) || ('Newsletter — '+new Date().toLocaleDateString('fr-FR'));
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+
+  fetch(SB_URL+'/rest/v1/newsletters', {
+    method:'POST', headers:authH,
+    body: JSON.stringify({ redaction_id:_nlRedactionActive, titre:titre, date_envoi:new Date().toISOString(), envoye_par:getUserId() })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var newsletterId = rows && rows[0] && rows[0].id;
+    if(!newsletterId) throw new Error('creation_echouee');
+    var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    return fetch(SB_URL+'/rest/v1/newsletter_articles', {
+      method:'POST', headers:authHPost,
+      body: JSON.stringify(nlArticles.map(function(a,i){ return { newsletter_id:newsletterId, article_id:a.id, position:i }; }))
+    });
+  })
+  .then(function(){
+    notif('Newsletter marquée comme envoyée ✓','succes');
+    // Si l'historique est ouvert, le rafraîchir pour montrer l'envoi tout juste fait
+    var hist = document.getElementById('nl-historique');
+    if(hist && hist.style.display !== 'none') nlChargerHistorique();
+  })
+  .catch(function(){
+    notif('Erreur — la newsletter n\'a pas pu être enregistrée','erreur');
+  })
+  .finally(function(){
+    if(btn){ btn.disabled = false; btn.textContent = '✓ Marquer comme envoyée'; }
+  });
+}
+
+function nlToggleHistorique(){
+  var hist = document.getElementById('nl-historique');
+  if(!hist) return;
+  var ouvrir = hist.style.display === 'none';
+  hist.style.display = ouvrir ? 'block' : 'none';
+  if(ouvrir) nlChargerHistorique();
+}
+
+// Liste des newsletters déjà envoyées pour la rédaction active — même portée que le
+// composeur (_nlRedactionActive, posé par nlChargerDepuisBase).
+function nlChargerHistorique(){
+  var hist = document.getElementById('nl-historique');
+  if(!hist) return;
+  var redactionId = _nlRedactionActive || window._redacActiveId;
+  if(!redactionId){
+    hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune rédaction active.</div>';
+    return;
+  }
+  hist.innerHTML = osLoadingHtml();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&order=date_envoi.desc&limit=30&select=id,titre,date_envoi,newsletter_articles(count)',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    rows = (rows && !rows.code) ? rows : [];
+    if(!rows.length){
+      hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune newsletter envoyée pour l\'instant.</div>';
+      return;
+    }
+    var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.5rem;">Newsletters envoyées</div>';
+    rows.forEach(function(n){
+      var nb = (n.newsletter_articles && n.newsletter_articles[0] && n.newsletter_articles[0].count) || 0;
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--gris-bord);">'
+        +'<span style="font-size:0.8rem;color:var(--encre);">'+esc(n.titre||'Sans titre')+'</span>'
+        +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+new Date(n.date_envoi).toLocaleDateString('fr-FR')+' · '+nb+' contenu(s)</span>'
+        +'</div>';
+    });
+    hist.innerHTML = h;
+  }).catch(function(){
+    hist.innerHTML = '<div style="color:var(--rouge);font-size:0.72rem;">Erreur de chargement</div>';
+  });
 }
 
 
@@ -10775,14 +10926,28 @@ var _SS_SLIDE = 8000;
 var _ssBrouillons = [];
 var _ssBrouillonsCharges = false;
 
+// "En train d'écrire" doit vouloir dire là, maintenant — pas un brouillon laissé de
+// côté depuis des jours (ex. en attente du prochain envoi de newsletter, un jeudi sur
+// deux). Plutôt que de deviner à partir de la date de modif d'un brouillon, on part des
+// sujets réservés (briefing.statut='en_cours', responsable renseigné — voir
+// brfPartirRedaction) : un sujet pris est un engagement explicite, pas un brouillon
+// oublié. On va ensuite chercher le brouillon correspondant (même titre, même auteur —
+// brfPartirRedaction crée l'article avec exactement le titre du sujet) juste pour le
+// chapô/corps ; s'il n'est pas encore là, le sujet s'affiche quand même, juste sans extrait.
 function ssChargerBrouillons(){
   if(_ssBrouillonsCharges) return;
   _ssBrouillonsCharges = true;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/articles?statut=eq.brouillon&order=updated_at.desc&select=titre,auteur,chapeau,corps,updated_at&limit=10',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(arts){
-    if(arts&&!arts.code&&arts.length) _ssBrouillons = arts.filter(function(a){return a.titre&&a.auteur;});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.en_cours&select=titre,responsable&order=id.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.brouillon&select=titre,auteur,chapeau,corps&order=updated_at.desc&limit=50',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    var sujets = (res[0]&&!res[0].code) ? res[0].filter(function(s){return s.titre&&s.responsable;}) : [];
+    var arts = (res[1]&&!res[1].code) ? res[1] : [];
+    _ssBrouillons = sujets.map(function(s){
+      var art = arts.find(function(a){ return a.titre===s.titre && a.auteur===s.responsable; });
+      return { titre:s.titre, auteur:s.responsable, chapeau:art?(art.chapeau||''):'', corps:art?(art.corps||''):'' };
+    });
   }).catch(function(){});
 }
 
@@ -13171,7 +13336,8 @@ var _appRefreshMap = {
   'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
   'notes':          function(){ osNotesRender&&osNotesRender(); },
   'boutique':       function(){ osBoutiqueRender(); },
-  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) osStatsAppRender(); }
+  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) osStatsAppRender(); },
+  'newsletter':     function(){ var wc=document.getElementById('wincontent-newsletter'); if(wc) nlChargerDepuisBase(); }
 };
 
 var _dockContextMenu = null;
@@ -19130,12 +19296,31 @@ function osMesArticlesCharger(){
       arts = redacCentraleMC ? arts.filter(function(a){ return a.redaction_id !== redacCentraleMC.id; }) : [];
     }
     _maCache = arts;
-    maOsFiltre();
+    maOsChargerNewsletters(arts).then(maOsFiltre);
   })
   .catch(function(){
     var list=document.getElementById('ma-os-list');
     if(list) list.innerHTML='<div style="padding:2rem;text-align:center;color:#DC2626;font-size:.78rem;">Erreur de chargement.</div>';
   });
+}
+
+// Une seule requête groupée pour toute la liste (pas une par carte) — construit
+// article_id → {titre, date_envoi} pour le badge "envoyée dans la newsletter du..."
+// affiché par maOsMakeCard.
+var _maNewsletterMap = {};
+function maOsChargerNewsletters(arts){
+  _maNewsletterMap = {};
+  var ids = arts.map(function(a){ return a.id; }).filter(Boolean);
+  if(!ids.length) return Promise.resolve();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/newsletter_articles?article_id=in.('+ids.join(',')+')&select=article_id,newsletters(titre,date_envoi)',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      (rows&&!rows.code?rows:[]).forEach(function(row){
+        if(row.newsletters) _maNewsletterMap[row.article_id] = row.newsletters;
+      });
+    })
+    .catch(function(){});
 }
 
 function maOsSetFiltre(btn){
@@ -19233,6 +19418,11 @@ function maOsMakeCard(doc, uid, role){
     +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
     +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
     +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
+    +(_maNewsletterMap[doc.id]
+        ?'<span title="'+esc(_maNewsletterMap[doc.id].titre||'')+'" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-mail"></i>Envoyée le '+new Date(_maNewsletterMap[doc.id].date_envoi).toLocaleDateString('fr-FR')+'</span>'
+        :(doc.redaction_id&&(s==='valide'||s==='publie')
+          ?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FFF9C4;color:#7A6A00;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+'</span>'
+          :''))
     +age+'</div>';
 
   // Actions
@@ -20399,23 +20589,60 @@ function pnToggle(section){
 // ===== NEWSLETTER - Chargement depuis la base =====
 var _nlArticlesBase = []; // Articles disponibles en base
 var _nlSelectionnes = []; // Articles sélectionnés pour la NL
+var _nlRedactionActive = null; // Rédaction de la newsletter en cours de préparation (nlMarquerEnvoyee en a besoin)
 
-function nlChargerDepuisBase(){
+// redactionIdChoisi permet au sélecteur de rédaction (si la personne en a plusieurs)
+// de rappeler cette fonction sur une autre rédaction sans dupliquer la logique.
+function nlChargerDepuisBase(redactionIdChoisi){
   var zone = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
   if(!zone) return;
   zone.innerHTML = osLoadingHtml();
 
-  fetch(SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,chapeau,type,auteur,statut,updated_at,corps&limit=30', {
-    headers: SB_HEADERS
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(articles){
-    _nlArticlesBase = (articles && !articles.code) ? articles : [];
+  var uid = getUserId();
+  var mesLiens = (_membresRedactionsData||[]).filter(function(mr){ return mr.membre_id === uid; });
+  var redactionId = redactionIdChoisi || window._redacActiveId || (mesLiens[0] && mesLiens[0].redaction_id) || null;
+
+  if(!redactionId){
+    zone.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Aucune rédaction associée à ton compte.</div>';
+    return;
+  }
+
+  _nlRedactionActive = redactionId;
+  // "Marquer comme envoyée" écrit dans newsletters/newsletter_articles (RLS réservée
+  // admin + rédac chef de CETTE rédaction) — masqué pour les autres plutôt que de
+  // laisser cliquer sur un bouton qui échouera silencieusement côté serveur.
+  var monLienIci = mesLiens.find(function(mr){ return mr.redaction_id===redactionId; });
+  var peutEnvoyer = getUserRole()==='admin' || (monLienIci && monLienIci.role_redac==='redac_chef');
+  var btnEnvoyee = document.getElementById('nl-btn-envoyee');
+  if(btnEnvoyee) btnEnvoyee.style.display = peutEnvoyer ? '' : 'none';
+
+  nlRecupererCandidats(redactionId).then(function(res){
+    _nlArticlesBase = res.candidats;
+    // Tout est coché par défaut — pré-rempli automatiquement, mais toujours décochable :
+    // jamais une boîte noire, juste un point de départ pour gagner du temps.
+    _nlSelectionnes = _nlArticlesBase.slice();
+
+    var entete = '';
+    if(mesLiens.length > 1){
+      entete += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
+      entete += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;">Rédaction</span>';
+      entete += '<select onchange="nlChargerDepuisBase(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:3px 7px;border:1px solid var(--gris-bord);border-radius:5px;">';
+      mesLiens.forEach(function(mr){
+        var r = (_redactionsData||[]).find(function(x){ return x.id===mr.redaction_id; });
+        entete += '<option value="'+mr.redaction_id+'"'+(mr.redaction_id===redactionId?' selected':'')+'>'+esc(r?r.nom:mr.redaction_id)+'</option>';
+      });
+      entete += '</select></div>';
+    }
+    if(res.isFallback){
+      entete += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);background:#F0EEE9;border-radius:6px;padding:0.5rem 0.7rem;margin-bottom:0.6rem;">Aucun envoi précédent enregistré pour cette rédaction — affichage des 7 derniers jours.</div>';
+    }
+
     if(!_nlArticlesBase.length){
-      zone.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Aucun article validé ou publié en base.</div>';
+      zone.innerHTML = entete+'<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Rien de nouveau depuis le dernier envoi.</div>';
       return;
     }
-    nlAfficherArticlesBase(zone);
+    zone.innerHTML = entete+'<div id="nl-base-liste"></div>';
+    nlAfficherArticlesBase(document.getElementById('nl-base-liste'));
   }).catch(function(){
     zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur de chargement</div>';
   });
@@ -20426,7 +20653,7 @@ function nlAfficherArticlesBase(zone){
 
   var label = document.createElement('div');
   label.style.cssText = 'font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
-  label.textContent = _nlArticlesBase.length+' articles disponibles — coche ceux à inclure';
+  label.textContent = _nlArticlesBase.length+' contenu(s) depuis le dernier envoi — décoche ce que tu ne veux pas inclure';
   zone.appendChild(label);
 
   var STATUT = { valide:'#155724', publie:'#0C5460' };
@@ -20509,7 +20736,7 @@ function nlAfficherArticlesBase(zone){
       });
     });
     _nlSelectionnes = [];
-    nlRenderListe();
+    nlRenderList();
     // Masquer la zone de sélection
     var z = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
     if(z) z.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;">✓ '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
@@ -30066,7 +30293,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
   { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef','communicant'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
   { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['secretaire','president','vice_president'] },
-  { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin'] },
+  { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin','redac_chef'] },
   { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'mail',           icon:'<i class="ti ti-mail"></i>', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
   { id:'tresorerie',     icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie',     color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'] },
@@ -30098,7 +30325,7 @@ var ALL_APPS_CATALOGUE = [
 var PROFILS_PREDEFINIS = {
   redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
   correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures'],
-  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','tutos','tchap','projets','agenda','boutique','mail','signatures'],
+  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','tchap','projets','agenda','boutique','mail','signatures'],
   admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
