@@ -17752,6 +17752,17 @@ function osParamsRenderSection(section, container){
     rowInfo.innerHTML = '<div><div class="params-label">'+getUserPrenom()+' '+getUserNom()+'</div><div class="params-label-sub">Rôle : '+getUserRole()+'</div></div>';
     container.appendChild(rowInfo);
     
+    var rowCache = document.createElement('div');
+    rowCache.className = 'params-row';
+    rowCache.innerHTML = '<div><div class="params-label">Réinitialiser le cache</div><div class="params-label-sub">Si Compo semble bloqué ou affiche des infos anciennes. Ne te déconnecte pas, ne touche pas à tes brouillons en cours.</div></div>';
+    var btnCache = document.createElement('button');
+    btnCache.className = 'btn sec';
+    btnCache.textContent = 'Réinitialiser';
+    btnCache.style.fontSize = '0.72rem';
+    btnCache.onclick = osReinitialiserCache;
+    rowCache.appendChild(btnCache);
+    container.appendChild(rowCache);
+
     var rowDeconnect = document.createElement('div');
     rowDeconnect.className = 'params-row';
     rowDeconnect.innerHTML = '<div><div class="params-label">Se deconnecter</div><div class="params-label-sub">Quitte Compo OS</div></div>';
@@ -17835,6 +17846,23 @@ function osNettoyerServiceWorker(){
       keys.forEach(function(k){ caches.delete(k); });
     }).catch(function(){});
   }
+}
+
+// Bouton "Réinitialiser le cache" de Paramètres > Compte — un filet de rattrapage
+// pour un·e bénévole à qui Compo semble bloqué (badge coincé, affichage pas à jour...)
+// sans lui faire vider le cache du navigateur à la main. Volontairement limité aux
+// compteurs "vu/pas vu" + un éventuel reliquat de service worker : on ne touche pas à
+// la session (pas de déconnexion), ni à la file d'articles hors-ligne, ni aux
+// brouillons enregistrés localement (IndexedDB) — les effacer causerait une vraie
+// perte de travail, pas juste un badge qui reste allumé un peu plus longtemps.
+function osReinitialiserCache(){
+  if(!confirm('Réinitialiser le cache de Compo ?\n\nÇa ne te déconnecte pas et ne touche pas à tes brouillons en cours.')) return;
+  ['compo_os_sujets_vus','compo_os_recrutement_vus','compo_workflow_vus_ids'].forEach(function(k){
+    try{ localStorage.removeItem(k); }catch(e){}
+  });
+  osNettoyerServiceWorker();
+  notif('Cache réinitialisé, Compo va se recharger…');
+  setTimeout(function(){ location.reload(); }, 600);
 }
 
 // File d'attente offline pour les articles
@@ -20548,6 +20576,20 @@ function cpsMarquerVu(cpId){
   cpsChargerBadge();
 }
 
+// Marque tous les CPs actuellement chargés comme lus d'un coup (bouton dans la barre
+// de filtres — voir cpsRendreListe) — sans ça, il fallait ouvrir chaque CP un par un
+// pour faire disparaître le badge.
+function cpsToutMarquerLu(){
+  var vus = [];
+  try{ vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]'); }catch(e){}
+  var ids = (window._cpsData||[]).map(function(c){ return c.id; });
+  var newVus = vus.concat(ids.filter(function(id){ return vus.indexOf(id)===-1; }));
+  localStorage.setItem('ipsum_cps_vus', JSON.stringify(newVus));
+  cpsChargerBadge();
+  var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
+  if(liste) cpsRendreListe(liste, window._cpsData||[]);
+}
+
 function cpsChargerBadge(){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id', {headers: authH})
@@ -20835,6 +20877,13 @@ function cpsRendreListe(liste, cps){
     btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     barreType.appendChild(btn);
   });
+  if(nonLus.length > 0){
+    var btnToutLu = document.createElement('button');
+    btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
+    btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
+    btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
+    barreType.appendChild(btnToutLu);
+  }
   liste.appendChild(barreType);
 
   // ── Filtres date + vue
@@ -23603,8 +23652,6 @@ function osRedacCandidater(annonceId, annonceTitre){
 }
 
 
-  // Si on clique sur sujets, marquer tous les sujets comme vus
-
 // Le rail n'est reconstruit qu'une fois (voir osRedactionsChangerOnglet) — pour qu'un badge
 // apparaisse ou disparaisse sans attendre un re-rendu complet du rail, on le met à jour
 // directement dans le DOM du bouton concerné.
@@ -23618,29 +23665,33 @@ function _osRedacMajBadgeRail(ongletId, count){
   else btn.insertAdjacentHTML('beforeend', html);
 }
 
+// Extraites de osRedactionsChangerOnglet pour être réutilisables depuis le bouton
+// "Tout marquer comme lu" (osRedacToutMarquerLu) sans dupliquer la logique.
+function _osRedacMarquerSujetsLus(){
+  try{
+    var allIds = (_sujetsData||[]).map(function(s){return s.id;});
+    var seen = [];
+    try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
+    var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
+    localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
+    _osRedacMajBadgeRail('sujets', 0);
+  }catch(e){}
+}
+function _osRedacMarquerRecrutementLu(){
+  try{
+    var allIdsR = (window._recrutementAnnonces||[]).map(function(a){return a.id;});
+    var seenR2 = [];
+    try{ seenR2 = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+    var newSeenR = seenR2.concat(allIdsR.filter(function(id){ return seenR2.indexOf(id)===-1; }));
+    localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeenR));
+    _osRedacMajBadgeRail('recrutement', 0);
+  }catch(e){}
+}
 function osRedactionsChangerOnglet(onglet){
   // Marquer les sujets comme vus si on quitte l'onglet sujets
-  if(_redacOnglet === 'sujets'){
-    try{
-      var allIds = (_sujetsData||[]).map(function(s){return s.id;});
-      var seen = [];
-      try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
-      var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
-      localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
-      _osRedacMajBadgeRail('sujets', 0);
-    }catch(e){}
-  }
+  if(_redacOnglet === 'sujets') _osRedacMarquerSujetsLus();
   // Marquer les annonces de recrutement comme vues si on quitte l'onglet recrutement
-  if(_redacOnglet === 'recrutement'){
-    try{
-      var allIdsR = (window._recrutementAnnonces||[]).map(function(a){return a.id;});
-      var seenR2 = [];
-      try{ seenR2 = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
-      var newSeenR = seenR2.concat(allIdsR.filter(function(id){ return seenR2.indexOf(id)===-1; }));
-      localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeenR));
-      _osRedacMajBadgeRail('recrutement', 0);
-    }catch(e){}
-  }
+  if(_redacOnglet === 'recrutement') _osRedacMarquerRecrutementLu();
   _redacOnglet = onglet;
   var wc = document.getElementById('wincontent-redactions');
   if(!wc) return;
