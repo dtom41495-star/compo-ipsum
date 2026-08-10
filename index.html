@@ -10352,19 +10352,20 @@ document.addEventListener('visibilitychange', function(){
 
 // Garde-fou centralisé, à cet unique endroit plutôt que dans chacun des ~40 envois
 // d'email de l'appli : un membre marqué inactif (marque_inactif, décidé par la vie
-// associative) ou indisponible (dnd, auto-déclaré) ne doit recevoir aucun email de
-// Compo, quel que soit le motif de l'envoi. On vérifie son état juste avant d'envoyer
-// — pas au moment de construire la liste des destinataires, qui peut dater de
-// plusieurs secondes — et on renvoie {ok:true, skipped:true} plutôt que ok:false pour
-// ne pas faire croire à un échec d'envoi aux appelants qui affichent une erreur sur
-// !r.ok : ici il n'y a pas d'échec, l'envoi a été volontairement retenu.
+// associative), indisponible (dnd, auto-déclaré) ou dont le compte est restreint
+// (role 'interdit') ne doit recevoir aucun email de Compo, quel que soit le motif de
+// l'envoi. On vérifie son état juste avant d'envoyer — pas au moment de construire la
+// liste des destinataires, qui peut dater de plusieurs secondes — et on renvoie
+// {ok:true, skipped:true} plutôt que ok:false pour ne pas faire croire à un échec
+// d'envoi aux appelants qui affichent une erreur sur !r.ok : ici il n'y a pas
+// d'échec, l'envoi a été volontairement retenu.
 function envoyerEmailResend(to, subject, html, type){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  return fetch(SB_URL+'/rest/v1/membres?email=eq.'+encodeURIComponent(to)+'&select=marque_inactif,dnd', {headers:authH})
+  return fetch(SB_URL+'/rest/v1/membres?email=eq.'+encodeURIComponent(to)+'&select=marque_inactif,dnd,role', {headers:authH})
     .then(function(r){ return r.json(); })
     .then(function(data){
       var m = data && !data.code && data[0];
-      if(m && (m.marque_inactif || m.dnd)) return { ok:true, skipped:true };
+      if(m && (m.marque_inactif || m.dnd || m.role==='interdit')) return { ok:true, skipped:true };
       return _envoyerEmailResendReel(to, subject, html, type);
     })
     // Si la vérification elle-même échoue (session pas encore prête, souci réseau
