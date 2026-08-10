@@ -16021,14 +16021,14 @@ function osAppComCharger(){
   if(_comOnglet==='encours') filtreCom = '&statut_com=eq.en_cours';
   if(_comOnglet==='fait')    filtreCom = '&statut_com=eq.fait';
 
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,statut_com';
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,statut_com,redaction_id';
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
     if(!arts||arts.code){
       // statut_com n'existe pas encore — afficher tous les validés/publiés
-      var url2 = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image';
+      var url2 = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,redaction_id';
       return fetch(url2,{headers:authH}).then(function(r2){return r2.json();});
     }
     return arts;
@@ -16088,6 +16088,8 @@ function osAppComCharger(){
       // Actions
       h += '<div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap;">';
       h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.68rem;padding:4px 12px;background:#7C3AED;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">📄 Télécharger le brief</button>';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.68rem;padding:4px 12px;background:#1A5276;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">📤 Envoyer le visuel</button>';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.68rem;padding:4px 12px;border:1px solid #1A5276;border-radius:6px;background:transparent;color:#1A5276;cursor:pointer;">🖼️ Voir les visuels</button>';
       if(_comOnglet!=='encours') h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'en_cours\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;">⏳ En cours</button>';
       if(_comOnglet!=='fait')    h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'fait\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid #155724;border-radius:6px;background:transparent;color:#155724;cursor:pointer;">✅ Visuels faits</button>';
       if(_comOnglet!=='afaire')  h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'a_faire\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">↩ Remettre</button>';
@@ -16120,6 +16122,70 @@ function osAppComBrief(id, titre){
     if(!a){ notif('Article introuvable','erreur'); return; }
     osGenererBriefZip(a, '[ ] Post Instagram (1080x1080)\n[ ] Story Instagram (1080x1920)');
   });
+}
+
+// ===== VISUELS RÉSEAUX — remise au rédac chef via Drive =====
+// Réutilise le moteur d'envoi de l'appli Fichiers (osUploadTrouverOuCreerDossier /
+// osUploadEnvoyerFichier), avec sa propre arborescence : [Rédaction] › Visuels
+// réseaux › [titre de l'article]. Les envois atterrissent sur le Drive personnel de
+// la personne qui envoie (comme partout ailleurs dans Compo) — on partage donc le
+// dossier avec le ou les rédac chef(s) de la rédaction dès l'envoi, pour que la
+// remise soit automatique et pas une étape manuelle en plus pour le communicant.
+function _osComNomDossierArticle(titre){
+  return (titre||'Sans titre').replace(/[\/\\:*?"<>|]/g,'-').trim().substring(0,80) || 'Sans titre';
+}
+function _osComResoudreDossierVisuel(redacId, titreArticle){
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  var redacNom = redac ? redac.nom : 'Sans rédaction';
+  var nomDossierArticle = _osComNomDossierArticle(titreArticle);
+  return osUploadTrouverOuCreerDossier(redacNom, null).then(function(redacFolderId){
+    return osUploadTrouverOuCreerDossier('Visuels réseaux', redacFolderId);
+  }).then(function(visuelsFolderId){
+    return osUploadTrouverOuCreerDossier(nomDossierArticle, visuelsFolderId);
+  });
+}
+// Emails des rédac chef(s) de la rédaction — pour le partage automatique du dossier.
+function _osComEmailsChefs(redacId){
+  var chefIds = (window._membresRedactionsData||[]).filter(function(l){
+    return l.redaction_id===redacId && l.role_redac==='redac_chef';
+  }).map(function(l){ return l.membre_id; });
+  return chefIds.map(function(id){
+    var m = (window._membresData||[]).find(function(mb){ return mb.id===id; });
+    return m ? m.email : null;
+  }).filter(Boolean);
+}
+function osAppComEnvoyerVisuel(titreArticle, redacId){
+  if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
+  if(!redacId){ notif('Rédaction inconnue pour cet article','erreur'); return; }
+  var input = document.createElement('input');
+  input.type = 'file'; input.multiple = true; input.accept = 'image/*,video/*';
+  input.onchange = function(){
+    var fichiers = Array.prototype.slice.call(input.files||[]);
+    if(!fichiers.length) return;
+    notif('Préparation du dossier…');
+    _osComResoudreDossierVisuel(redacId, titreArticle).then(function(folderId){
+      _osComEmailsChefs(redacId).forEach(function(email){
+        osUploadPartagerAvecPersonne(folderId, email, 'reader').catch(function(){});
+      });
+      fichiers.forEach(function(fichier){
+        osUploadEnvoyerFichier({
+          id: 'com-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+          file: fichier, folderId: folderId, statut:'attente', progress:0,
+          onMaj: function(){}
+        });
+      });
+      notif(fichiers.length+' visuel(s) envoyé(s), partagé avec le/la rédac chef ✓','succes');
+    }).catch(function(){ notif('Erreur : impossible de préparer le dossier Drive','erreur'); });
+  };
+  input.click();
+}
+function osAppComVoirVisuels(titreArticle, redacId){
+  if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
+  if(!redacId){ notif('Rédaction inconnue pour cet article','erreur'); return; }
+  notif('Ouverture du dossier…');
+  _osComResoudreDossierVisuel(redacId, titreArticle).then(function(folderId){
+    window.open('https://drive.google.com/drive/folders/'+folderId, '_blank');
+  }).catch(function(){ notif('Erreur : dossier introuvable','erreur'); });
 }
 
 
