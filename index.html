@@ -6,7 +6,7 @@
 <title>Compo · Ipsum Média</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
 <style>
 
@@ -3364,53 +3364,23 @@ input:focus,select:focus,textarea:focus{
 .ticket-reponse-label { font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;text-transform:uppercase;margin-bottom:0.3rem; }
 
 
-/* SCREENSAVER */
+/* SCREENSAVER — dégradé sombre neutre always-on, montre qui écrit en ce moment */
 #screensaver {
   position: fixed; inset: 0; z-index: 99999;
-  background: #0D0D1A;
   display: none;
   align-items: center; justify-content: center;
   cursor: none;
   flex-direction: column;
-  gap: 1rem;
+  gap: 2.5rem;
+  background: linear-gradient(135deg, #08090d, #14161d, #1c1f28, #101218, #060709);
+  background-size: 300% 300%;
+  animation: ss-gradient-move 26s ease-in-out infinite;
 }
 #screensaver.visible { display: flex; }
-.ss-clock {
-  font-family: Arial,sans-serif;
-  font-size: clamp(4rem, 15vw, 9rem);
-  font-weight: 300;
-  color: white;
-  letter-spacing: -0.02em;
-  animation: ss-float 8s ease-in-out infinite;
-  text-align: center;
-}
-.ss-date {
-  font-family: Arial,sans-serif;
-  font-size: clamp(0.8rem, 2.5vw, 1.1rem);
-  color: rgba(255,255,255,0.35);
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  text-align: center;
-}
-.ss-logo {
-  font-family: 'Poppins', sans-serif;
-  font-size: 0.75rem;
-  color: rgba(255,255,255,0.15);
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  margin-top: 3rem;
-}
-.ss-hint {
-  font-family: Arial,sans-serif;
-  font-size: 0.6rem;
-  color: rgba(255,255,255,0.12);
-  letter-spacing: 0.1em;
-  position: absolute;
-  bottom: 2rem;
-}
-@keyframes ss-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
+@keyframes ss-gradient-move {
+  0%   { background-position: 0% 30%; }
+  50%  { background-position: 100% 70%; }
+  100% { background-position: 0% 30%; }
 }
 
 
@@ -3460,30 +3430,29 @@ input:focus,select:focus,textarea:focus{
 </div>
 
 <!-- SCREENSAVER -->
-<div id="screensaver" style="position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;cursor:none;overflow:hidden;">
-  <!-- Photo plein écran -->
-  <div id="ss-bg" style="position:absolute;inset:0;background:#0D0D1A;background-size:cover;background-position:center;transition:opacity 1.5s ease;"></div>
-  <!-- Overlay dégradé -->
-  <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.15) 100%);"></div>
-  <!-- Contenu bas gauche -->
-  <div id="ss-content" style="position:absolute;bottom:0;left:0;right:0;padding:2.5rem 3rem;transition:opacity 0.8s ease;">
-    <!-- Rubrique -->
-    <div id="ss-rubrique" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.18em;color:#E8461E;font-weight:600;margin-bottom:0.6rem;display:none;"></div>
-    <!-- Titre article -->
-    <div id="ss-message" style="font-family:Georgia,serif;font-size:clamp(1.4rem,4vw,2.6rem);color:white;font-weight:700;line-height:1.2;max-width:700px;display:none;margin-bottom:0.5rem;text-shadow:0 2px 20px rgba(0,0,0,0.5);"></div>
-    <!-- Auteur / date -->
-    <div id="ss-message-sub" style="font-size:0.78rem;color:rgba(255,255,255,0.5);letter-spacing:.04em;display:none;"></div>
-    <!-- Horloge (toujours visible) -->
-    <div style="display:flex;align-items:baseline;gap:1rem;margin-top:1.2rem;">
-      <div id="ss-clock" style="font-family:Georgia,serif;font-size:clamp(3rem,8vw,5.5rem);font-weight:300;color:white;letter-spacing:-0.03em;line-height:1;text-shadow:0 2px 30px rgba(0,0,0,0.4);">00:00</div>
-      <div>
-        <div id="ss-date" style="font-size:0.75rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.15em;"></div>
-        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;">Ipsum Média</div>
-      </div>
+<div id="screensaver" style="position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;cursor:none;overflow:hidden;flex-direction:column;gap:2.5rem;">
+  <!-- Logo -->
+  <img id="ss-logo" src="" alt="Ipsum Média" style="height:34px;opacity:.5;">
+
+  <!-- Qui écrit en ce moment (effet de roulement à chaque changement) -->
+  <div id="ss-writer" style="text-align:center;max-width:640px;padding:0 2rem;box-sizing:border-box;display:none;transition:transform .7s cubic-bezier(.22,1,.36,1), opacity .7s ease;">
+    <div style="font-family:'Montserrat',sans-serif;font-weight:500;font-size:1.05rem;color:rgba(255,255,255,.6);margin-bottom:.7rem;">
+      <span id="ss-writer-prenom"></span> est en train d'écrire…
     </div>
+    <div id="ss-writer-titre" style="font-family:'Montserrat',sans-serif;font-size:clamp(1.5rem,3.2vw,2.3rem);font-weight:700;color:#fff;line-height:1.3;margin-bottom:.9rem;"></div>
+    <div id="ss-writer-snippet" style="font-family:'Montserrat',sans-serif;font-weight:400;font-size:.92rem;line-height:1.7;color:rgba(255,255,255,.45);"></div>
   </div>
-  <!-- Hint -->
-  <div style="position:absolute;bottom:1.2rem;right:2rem;font-size:0.55rem;color:rgba(255,255,255,0.12);letter-spacing:.1em;text-transform:uppercase;">Bouge la souris pour revenir</div>
+
+  <!-- Horloge -->
+  <div style="display:flex;align-items:baseline;gap:1rem;">
+    <div id="ss-clock" style="font-family:'Montserrat',sans-serif;font-size:clamp(2.2rem,5vw,3.4rem);font-weight:300;color:rgba(255,255,255,.85);letter-spacing:-.02em;">00:00</div>
+    <div id="ss-date" style="font-family:'Montserrat',sans-serif;font-size:.7rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.15em;"></div>
+  </div>
+
+  <!-- Bas -->
+  <div style="position:absolute;bottom:2rem;left:0;right:0;text-align:center;font-family:'Montserrat',sans-serif;font-size:.68rem;color:rgba(255,255,255,.3);letter-spacing:.08em;">
+    Mode veille activé — appuie n'importe où pour en sortir
+  </div>
 </div>
 
 
@@ -10800,34 +10769,39 @@ var _ssClockInterval = null;
 var _SS_DELAY = 5 * 60 * 1000;
 var _SS_SLIDE = 8000;
 
-var SS_MESSAGES = [
-  { msg: "Rien a voir ici.", sub: "Sauf si tu cherches un media qui dechire dans le Tarn 👀" },
-  { msg: "Rejoins l equipe !", sub: "contact@ipsummedia.fr" },
-  { msg: "Tu regardes l ecran de quelqu un d autre.", sub: "Ecris pour Ipsum Media plutot !" },
-  { msg: "Circule, y a rien a voir !", sub: "... Sauf si tu veux ecrire pour Ipsum Media" }
-];
+// Montre qui écrit en ce moment plutôt que les articles déjà publiés — la rédaction
+// vivante plutôt qu'une vitrine. _ssExtrait() préfère le chapô (déjà écrit avec soin) et
+// ne retombe sur le début du corps que s'il n'y a pas encore de chapô.
+var _ssBrouillons = [];
+var _ssBrouillonsCharges = false;
 
-var _ssArticles = [];
-var _ssArticlesChargés = false;
-
-function ssChargerArticles(){
-  if(_ssArticlesChargés) return;
-  _ssArticlesChargés = true;
+function ssChargerBrouillons(){
+  if(_ssBrouillonsCharges) return;
+  _ssBrouillonsCharges = true;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&order=publie_le.desc&select=titre,auteur,rubrique,image&limit=10',{headers:authH})
+  fetch(SB_URL+'/rest/v1/articles?statut=eq.brouillon&order=updated_at.desc&select=titre,auteur,chapeau,corps,updated_at&limit=10',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
-    if(arts&&!arts.code&&arts.length) _ssArticles = arts.filter(function(a){return a.titre;});
+    if(arts&&!arts.code&&arts.length) _ssBrouillons = arts.filter(function(a){return a.titre&&a.auteur;});
   }).catch(function(){});
+}
+
+function _ssExtrait(art){
+  if(art.chapeau && art.chapeau.trim()) return art.chapeau.trim();
+  var corps = (art.corps||'').trim();
+  if(!corps) return '';
+  var lignes = corps.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
+  return lignes.slice(0,5).join(' ').slice(0,320);
 }
 
 function ssAfficherSlide(){
   if(!_ssActive) return;
-  var cnt = document.getElementById('ss-content');
-  if(!cnt){ return; }
+  var writer = document.getElementById('ss-writer');
+  if(!writer){ return; }
 
-  cnt.style.transition = 'opacity 0.8s ease';
-  cnt.style.opacity = '0';
+  // Effet de roulement : sort vers le haut en s'estompant, puis rentre pareil avec le contenu suivant
+  writer.style.transform = 'translateY(-18px)';
+  writer.style.opacity = '0';
 
   setTimeout(function(){
     if(!_ssActive) return;
@@ -10843,51 +10817,38 @@ function ssAfficherSlide(){
     if(clockEl) clockEl.textContent = hh+':'+mm;
     if(dateEl)  dateEl.textContent = jours[now.getDay()]+' '+now.getDate()+' '+mois[now.getMonth()];
 
-    // Article en fond si disponible
-    var art = _ssArticles.length ? _ssArticles[_ssSlide % _ssArticles.length] : null;
-    var bg = document.getElementById('ss-bg');
-    var msgEl = document.getElementById('ss-message');
-    var subEl = document.getElementById('ss-message-sub');
-    var rubEl = document.getElementById('ss-rubrique');
+    var art = _ssBrouillons.length ? _ssBrouillons[_ssSlide % _ssBrouillons.length] : null;
+    var prenomEl = document.getElementById('ss-writer-prenom');
+    var titreEl  = document.getElementById('ss-writer-titre');
+    var snipEl   = document.getElementById('ss-writer-snippet');
 
     if(art){
-      // Photo plein écran si image disponible
-      if(bg){
-        if(art.image && art.image.length > 10){
-          bg.style.backgroundImage = 'url('+art.image+')';
-          bg.style.background = '#0D0D1A';
-        } else {
-          bg.style.backgroundImage = 'none';
-          bg.style.background = '#0D0D1A';
-        }
-      }
-      if(rubEl){ rubEl.textContent = art.rubrique||''; rubEl.style.display = art.rubrique?'block':'none'; }
-      if(msgEl){ msgEl.textContent = art.titre||''; msgEl.style.display = 'block'; }
-      if(subEl){
-        var txt = art.auteur||'';
-        if(art.publie_le){ var d=new Date(art.publie_le); txt += (txt?' · ':'')+d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}); }
-        subEl.textContent = txt;
-        subEl.style.display = txt?'block':'none';
-      }
+      writer.style.display = 'block';
+      if(prenomEl) prenomEl.textContent = (art.auteur||'').trim().split(' ')[0] || 'Quelqu\'un';
+      if(titreEl)  titreEl.textContent = art.titre||'';
+      if(snipEl)   snipEl.textContent = _ssExtrait(art);
+      _ssSlide++;
     } else {
-      // Pas d'article — fond noir, juste l'horloge
-      if(bg){ bg.style.backgroundImage='none'; bg.style.background='#0D0D1A'; }
-      if(rubEl) rubEl.style.display='none';
-      if(msgEl) msgEl.style.display='none';
-      if(subEl) subEl.style.display='none';
+      writer.style.display = 'none';
     }
 
-    cnt.style.opacity = '1';
-    _ssSlide++;
+    // Rentre depuis le bas — le mouvement de sortie et d'entrée se fait dans le même sens, effet de roulement continu
+    writer.style.transform = 'translateY(18px)';
+    requestAnimationFrame(function(){
+      writer.style.transform = 'translateY(0)';
+      writer.style.opacity = '1';
+    });
     _ssSlideTimer = setTimeout(ssAfficherSlide, _SS_SLIDE);
-  }, 800);
+  }, 700);
 }
 
 function ssAfficher(){
   if(_ssActive) return;
   _ssActive = true;
   _ssSlide = 0;
-  ssChargerArticles();
+  ssChargerBrouillons();
+  var logoEl = document.getElementById('ss-logo');
+  if(logoEl && !logoEl.getAttribute('src')){ logoEl.src = (typeof _osLogoIpsum==='function' && _osLogoIpsum())||''; }
   var el = document.getElementById('screensaver');
   if(el){ el.style.display='flex'; }
   // Mettre à jour l'horloge toutes les secondes pendant la veille
