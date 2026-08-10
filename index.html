@@ -4219,7 +4219,6 @@ input:focus,select:focus,textarea:focus{
       <button class="btn" onclick="genMd('lect')">Préparer pour Substack</button>
       <button class="btn sec" onclick="genererVisuelsDepuisLecture()">🎨 Générer les visuels</button>
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
-      <button class="btn sec" onclick="ouvrirFS('lect')">Relecture plein écran</button>
       <button class="btn sec" onclick="if(currentDoc && currentDoc.statut==='publie' && getUserRole()!=='admin'){ notif('Article publie - contacte un admin pour le modifier'); } else { chargerDansRedaction(currentDoc); }">Modifier</button>
     </div>
     <div class="md-out" id="md-lect"></div>
@@ -16085,14 +16084,21 @@ function osAppComCharger(){
       });
       h += '</div></div>';
 
-      // Actions
-      h += '<div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap;">';
-      h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.68rem;padding:4px 12px;background:#7C3AED;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">📄 Télécharger le brief</button>';
-      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.68rem;padding:4px 12px;background:#1A5276;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">📤 Envoyer le visuel</button>';
-      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.68rem;padding:4px 12px;border:1px solid #1A5276;border-radius:6px;background:transparent;color:#1A5276;cursor:pointer;">🖼️ Voir les visuels</button>';
-      if(_comOnglet!=='encours') h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'en_cours\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;">⏳ En cours</button>';
-      if(_comOnglet!=='fait')    h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'fait\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid #155724;border-radius:6px;background:transparent;color:#155724;cursor:pointer;">✅ Visuels faits</button>';
-      if(_comOnglet!=='afaire')  h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'a_faire\')" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">↩ Remettre</button>';
+      // Actions — une hiérarchie claire plutôt que 5 boutons à égalité : l'envoi du
+      // visuel est LE geste principal de cette carte (rempli, en avant), le brief et
+      // la consultation sont des à-côtés (discrets), et le statut est une catégorie à
+      // part, séparée visuellement plutôt que mêlée aux actions de contenu.
+      h += '<div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap;align-items:center;">';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.7rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;">📤 Envoyer le visuel</button>';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">🖼️ Voir les visuels</button>';
+      h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">📄 Brief</button>';
+      h += '</div>';
+
+      h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;padding-top:0.55rem;border-top:1px dashed var(--gris-bord);align-items:center;flex-wrap:wrap;">';
+      h += '<span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-right:2px;">Statut</span>';
+      if(_comOnglet!=='encours') h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'en_cours\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid #856404;border-radius:10px;background:transparent;color:#856404;cursor:pointer;">⏳ En cours</button>';
+      if(_comOnglet!=='fait')    h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'fait\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid #155724;border-radius:10px;background:transparent;color:#155724;cursor:pointer;">✅ Visuels faits</button>';
+      if(_comOnglet!=='afaire')  h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'a_faire\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid var(--gris-bord);border-radius:10px;background:transparent;color:var(--gris);cursor:pointer;">↩ Remettre</button>';
       h += '</div>';
 
       h += '</div>';
