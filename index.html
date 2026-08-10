@@ -22243,6 +22243,7 @@ function _osOrgEtageHTML(cartesHtml){
 function _osBenvOrganigrammeHTML(membres){
   var redactions = window._redactionsData || [];
   var liens = window._membresRedactionsData || [];
+  var redacCentrale = redactions.filter(function(r){ return r.est_centrale; })[0] || null;
   var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   // "redacteur" est juste le rôle par défaut donné à la création de compte (le choix
   // est admin / correcteur / rédacteur) — ça ne garantit pas que la personne écrit
@@ -22252,16 +22253,38 @@ function _osBenvOrganigrammeHTML(membres){
 
   function carteMembre(m, estChef){
     var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+    var estCorrecteur = !estChef && m.role==='correcteur';
     var taille = estChef?52:40;
     var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
+    // Le rôle Compo (admin/correcteur/...) garde toujours sa couleur habituelle —
+    // celle qu'on retrouve partout ailleurs dans l'app (Tchap, listes de membres...).
+    // "Chef" est une position sur CETTE rédaction (role_redac), pas un rôle : on la
+    // signale par un liseré corail additif plutôt qu'en recolorant l'avatar, pour ne
+    // pas désynchroniser ce badge du reste de l'app (un chef qui est aussi admin doit
+    // rester vert partout, juste avec cet anneau en plus ici). Le·la correcteur·rice
+    // reçoit à l'inverse un anneau EN POINTILLÉ : il/elle n'appartient pas à cette
+    // rédaction en particulier, le pool est partagé entre toutes (voir plus haut).
+    var ring = estChef ? 'box-shadow:0 0 0 2px var(--rouge);' : '';
+    var tagBorder = estChef ? '1px solid var(--rouge)' : (estCorrecteur ? '1px dashed var(--bleu)' : '1px solid transparent');
+    var avatar = '<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';'+ring+'display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>';
+    if(estCorrecteur){
+      avatar = '<div style="width:'+(taille+8)+'px;height:'+(taille+8)+'px;border-radius:50%;border:1.5px dashed var(--bleu);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+avatar+'</div>';
+    }
     return '<div style="display:flex;flex-direction:column;align-items:center;width:86px;">'
-      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
+      +avatar
       +'<div style="font-size:'+(estChef?'0.74rem':'0.68rem')+';font-weight:'+(estChef?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">'+esc(m.prenom||'')+'</div>'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';padding:1px 6px;border-radius:8px;margin-top:2px;white-space:nowrap;">'+(estChef?'Chef':(roleLabels[m.role]||m.role||''))+'</div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';border:'+tagBorder+';padding:1px 6px;border-radius:8px;margin-top:2px;white-space:nowrap;">'+(estChef?'Chef':(roleLabels[m.role]||m.role||''))+'</div>'
       +'</div>';
   }
 
+  var aUnCorrecteur = membres.some(function(m){ return m.role==='correcteur'; });
   var h = '<div style="display:flex;flex-direction:column;gap:1.4rem;">';
+
+  if(aUnCorrecteur){
+    h += '<div style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'
+      +'<span style="width:14px;height:14px;border-radius:50%;border:1.5px dashed var(--bleu);flex-shrink:0;"></span>'
+      +'correcteur·rice : pool partagé entre toutes les rédactions, pas propre à celle-ci</div>';
+  }
 
   if(!redactions.length){
     h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune rédaction.</div>';
@@ -22281,8 +22304,12 @@ function _osBenvOrganigrammeHTML(membres){
 
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.4rem 1rem 1.6rem;">';
     h += '<div style="text-align:center;margin-bottom:1.1rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:'+(redac.couleur||'#EA5B1C')+';">'+esc(redac.nom)+'</span>';
-    h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:8px;">'+membresRedac.length+' membre'+(membresRedac.length>1?'s':'')+'</span>';
+    if(redac.est_centrale) h += '<span title="Valide les articles des autres rédactions avant publication" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 7px;border-radius:10px;background:'+(redac.couleur||'#EA5B1C')+';color:white;text-transform:uppercase;letter-spacing:.05em;"><i class="ti ti-star-filled"></i> Centrale</span>';
+    h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+membresRedac.length+' membre'+(membresRedac.length>1?'s':'')+'</span>';
+    h += '</div>';
+    if(!redac.est_centrale && redacCentrale) h += '<div title="Étape de validation ajoutée avant publication, en plus de la validation habituelle" style="font-family:Space Mono,monospace;font-size:0.56rem;color:var(--gris);margin-top:4px;">articles validés par <b style="color:var(--encre);">'+esc(redacCentrale.nom)+'</b> avant publication</div>';
     h += '</div>';
 
     h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1.2rem;">';
@@ -22334,11 +22361,14 @@ function _osBenvOrganigrammeAdminHTML(membres){
   var tier3 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && tier2.indexOf(m)===-1 && aUneDe(m,['responsable_com','communication','com_externe','com_interne','vie_asso']); });
 
   function carteFonction(m, estTop){
-    var rc = ['#E8D9F5','#4A235A']; // même famille que "communicant" ailleurs dans l'app — neutre pour le bureau
+    // Président·e devient le nœud focal du bureau (corail, comme le "chef" de
+    // rédaction juste au-dessus) ; le reste du bureau garde la teinte neutre existante.
+    var rc = estTop ? ['var(--rouge-clair)','var(--rouge)'] : ['#E8D9F5','#4A235A']; // même famille que "communicant" ailleurs dans l'app — neutre pour le bureau
+    var ring = estTop ? 'box-shadow:0 0 0 2px var(--rouge);' : '';
     var taille = estTop?52:40;
     var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
     return '<div style="display:flex;flex-direction:column;align-items:center;width:112px;">'
-      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
+      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';'+ring+'display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
       +'<div style="font-size:'+(estTop?'0.74rem':'0.68rem')+';font-weight:'+(estTop?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:112px;">'+esc(m.prenom||'')+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';padding:1px 6px;border-radius:8px;margin-top:2px;text-align:center;max-width:112px;line-height:1.4;">'+esc(fonctionShort(m.fonction))+'</div>'
       +'</div>';
