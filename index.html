@@ -6216,9 +6216,11 @@ function exporterPDF(){
   html += '<span class="badge '+badgeCls+'">'+escHtml(statut)+'</span>';
   html += '</div>';
 
-  // Image
+  // Image — un lien Drive /view brut ne s'affiche pas dans un <img>, il faut
+  // l'endpoint image direct (_driveImgSrc, déjà utilisé partout ailleurs où une image
+  // d'article est affichée — c'était seulement oublié ici, à l'export PDF).
   if(image){
-    html += '<img src="'+image+'" alt="'+escHtml(imageLegende)+'">';
+    html += '<img src="'+escHtml(_driveImgSrc(image))+'" alt="'+escHtml(imageLegende)+'">';
     if(imageLegende) html += '<div class="legende">'+escHtml(imageLegende)+'</div>';
   }
 
