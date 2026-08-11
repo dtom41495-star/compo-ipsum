@@ -6106,26 +6106,52 @@ function nlChargerHistorique(){
   }
   hist.innerHTML = osLoadingHtml();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&order=date_envoi.desc&limit=30&select=id,titre,date_envoi,newsletter_articles(count)',{headers:authH})
+  // Tout en une requête (dont le titre de chaque contenu) — les archives ne sont pas
+  // assez volumineuses pour justifier un aller-retour réseau par carte ouverte.
+  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&order=date_envoi.desc&limit=30&select=id,titre,date_envoi,newsletter_articles(position,articles(titre,auteur))',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(rows){
     rows = (rows && !rows.code) ? rows : [];
     if(!rows.length){
-      hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune newsletter envoyée pour l\'instant.</div>';
+      hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune newsletter envoyée pour l\'instant — c\'est normal si Compo vient de commencer à les enregistrer.</div>';
       return;
     }
-    var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.5rem;">Newsletters envoyées</div>';
-    rows.forEach(function(n){
-      var nb = (n.newsletter_articles && n.newsletter_articles[0] && n.newsletter_articles[0].count) || 0;
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--gris-bord);">'
-        +'<span style="font-size:0.8rem;color:var(--encre);">'+esc(n.titre||'Sans titre')+'</span>'
-        +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+new Date(n.date_envoi).toLocaleDateString('fr-FR')+' · '+nb+' contenu(s)</span>'
+    var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.6rem;">Archive des newsletters</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.7rem;">';
+    rows.forEach(function(n, i){
+      var contenus = (n.newsletter_articles||[]).slice().sort(function(a,b){ return (a.position||0)-(b.position||0); });
+      var nb = contenus.length;
+      var cardId = 'nl-hist-card-'+i;
+      h += '<div id="'+cardId+'" style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:0.8rem 0.9rem;cursor:pointer;transition:box-shadow .15s,border-color .15s;" '
+        +'onmouseover="this.style.borderColor=\'rgba(232,70,30,.35)\';this.style.boxShadow=\'0 3px 12px rgba(232,70,30,.08)\';" '
+        +'onmouseout="this.style.borderColor=\'#E5E7EB\';this.style.boxShadow=\'\';" '
+        +'onclick="nlToggleCarteHistorique(\''+cardId+'\')">'
+        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin-bottom:0.2rem;">'+esc(n.titre||'Sans titre')+'</div>'
+        +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-bottom:0.5rem;">'+new Date(n.date_envoi).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+nb+' contenu'+(nb>1?'s':'')+'</div>'
+        +'<ul class="nl-hist-sujets" style="display:none;list-style:none;font-size:0.72rem;color:var(--encre);border-top:1px solid var(--gris-bord);padding-top:0.5rem;margin-top:0.3rem;">'
+        +(contenus.length
+            ? contenus.map(function(c){ return c.articles ? '<li style="margin-bottom:0.3rem;">'+esc(c.articles.titre||'Sans titre')+(c.articles.auteur?' <span style="color:var(--gris);">— '+esc(c.articles.auteur)+'</span>':'')+'</li>' : ''; }).join('')
+            : '<li style="color:var(--gris);">Aucun contenu enregistré</li>')
+        +'</ul>'
+        +'<div class="nl-hist-hint" style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--rouge);margin-top:0.3rem;">Voir les sujets ↓</div>'
         +'</div>';
     });
+    h += '</div>';
     hist.innerHTML = h;
   }).catch(function(){
     hist.innerHTML = '<div style="color:var(--rouge);font-size:0.72rem;">Erreur de chargement</div>';
   });
+}
+
+function nlToggleCarteHistorique(cardId){
+  var card = document.getElementById(cardId);
+  if(!card) return;
+  var ul = card.querySelector('.nl-hist-sujets');
+  var hint = card.querySelector('.nl-hist-hint');
+  if(!ul) return;
+  var ouvrir = ul.style.display === 'none';
+  ul.style.display = ouvrir ? 'block' : 'none';
+  if(hint) hint.textContent = ouvrir ? 'Masquer les sujets ↑' : 'Voir les sujets ↓';
 }
 
 
@@ -20800,12 +20826,16 @@ function cpsChargerBadge(){
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(!data || data.code) return;
+    // Sert aussi au point du rail Ma Rédac' (_osRedacOngletsListe) tant que l'onglet
+    // Communiqués n'a pas été ouvert pour de vrai — juste des id, mais ça suffit ici.
+    if(!window._cpsData || !window._cpsData.length) window._cpsData = data;
     var vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]');
     var nonLus = data.filter(function(cp){ return vus.indexOf(cp.id) === -1; }).length;
     var role = getUserRole();
     var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId(); });
     var appId = (role === 'admin' || (monLien && monLien.role_redac === 'redac_chef')) ? 'cps-admin' : 'cps';
     osMajBadge(appId, nonLus);
+    _osRedacMajDotRail('cps', nonLus>0);
   }).catch(function(){});
 }
 
@@ -23704,9 +23734,15 @@ function osRedacChargerRecrutement(zone, uid){
     var mesCandidsIds = mesCandids.map(function(c){return c.annonce_id;});
     var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
     var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
+    var seenRec = [];
+    try{ seenRec = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+    var recNonVues = ouvertes.filter(function(a){ return seenRec.indexOf(a.id)===-1; });
     var h = '';
+    if(recNonVues.length){
+      h += '<button onclick="_osRedacMarquerRecrutementLu();this.style.display=\'none\';" style="font-family:Space Mono,monospace;font-size:0.66rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
+    }
     if(!annonces.length){
-      h = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Aucune annonce de recrutement pour le moment.</div>';
+      h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Aucune annonce de recrutement pour le moment.</div>';
       zone.innerHTML = h; return;
     }
     function renderAnn(a){
@@ -24158,6 +24194,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
     h += '</div>';
   }
   h += '</div>';
+  h += '<button id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';" style="display:none;font-family:Space Mono,monospace;font-size:0.66rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
@@ -24178,6 +24215,10 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       return poidsPrio(a.priorite) - poidsPrio(b.priorite);
     });
     window._sujetsData = sujets;
+    var seenSJ = [];
+    try{ seenSJ = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
+    var btnSujetsToutLu = document.getElementById('btn-sujets-tout-lu');
+    if(btnSujetsToutLu) btnSujetsToutLu.style.display = sujets.some(function(s){ return seenSJ.indexOf(s.id)===-1; }) ? '' : 'none';
     if(!sujets.length){
       zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       if(callback) callback();
@@ -25951,6 +25992,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   h += '</div>';
   wc.innerHTML = h;
   osDNDMajUI(); // synchronise l'état réel du bouton dispo/indispo qu'on vient d'ajouter au rail
+  cpsChargerBadge(); // point Communiqués du rail — sujets/recrutement sont déjà à jour via _osRedacRenderContenu
 
   _osRedacRenderContenu(uid, redacId, roleRedac, membre);
 }
@@ -25958,6 +26000,19 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
 function _railBadgeNombre(n){
   if(!n) return '';
   return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#FF5F57;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
+}
+
+// Simple point, pas un nombre — pour Communiqués, où "il y en a un à lire" suffit
+// (contrairement à Sujets/Recrutement, où le compte aide à décider si ça vaut le détour).
+function _railDot(){
+  return '<span class="rail-dot" style="width:8px;height:8px;border-radius:50%;background:var(--rouge);display:inline-block;flex-shrink:0;margin-left:auto;"></span>';
+}
+function _osRedacMajDotRail(ongletId, aDesNonLus){
+  var btn = document.querySelector('#redac-sidebar-rail button[data-onglet="'+ongletId+'"]');
+  if(!btn) return;
+  var existant = btn.querySelector('.rail-dot');
+  if(!aDesNonLus){ if(existant) existant.remove(); return; }
+  if(!existant) btn.insertAdjacentHTML('beforeend', _railDot());
 }
 
 function _osRedacOngletsListe(){
@@ -25990,6 +26045,16 @@ function _osRedacOngletsListe(){
       try{ seenR = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
       var nouvellesAnn = annonces.filter(function(a){ return a.statut==='ouvert' && seenR.indexOf(a.id) === -1; });
       o.badge = _railBadgeNombre(nouvellesAnn.length);
+    }
+    if(o.id === 'cps'){
+      // Point plutôt que nombre — window._cpsData n'est chargé qu'une fois l'onglet
+      // Communiqués ouvert au moins une fois ; cpsChargerBadge() (déclenché au rendu du
+      // rail, voir osRedactionsRenderAvecOnglets) le met à jour dès que possible sinon.
+      var cps = window._cpsData || [];
+      var seenCps = [];
+      try{ seenCps = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]'); }catch(e){}
+      var aDesCpsNonLus = cps.some(function(c){ return seenCps.indexOf(c.id) === -1; });
+      o.badge = aDesCpsNonLus ? _railDot() : '';
     }
   });
   return onglets;
