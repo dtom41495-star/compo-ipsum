@@ -2976,8 +2976,8 @@ input:focus,select:focus,textarea:focus{
 
 
 /* MODALE ACTION ARTICLE */
-#modal-action,#modal-action-cp{position:fixed;inset:0;z-index:9990;background:rgba(26,26,46,0.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:1rem;}
-#modal-action.visible,#modal-action-cp.visible{display:flex;}
+#modal-action{position:fixed;inset:0;z-index:9990;background:rgba(26,26,46,0.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:1rem;}
+#modal-action.visible{display:flex;}
 .modal-action-card{background:white;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:bvnIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;}
 .modal-action-header{background:var(--encre-fixe);padding:1.2rem 1.5rem;}
 .modal-action-titre{font-family:'Poppins',sans-serif;font-weight:800;font-size:1rem;color:white;margin-bottom:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -7456,7 +7456,6 @@ function copierLien(id, type){
 
 // Charger article/communique depuis URL au démarrage
 var _docFromURL = null;
-var _cpFromURL = null;
 
 // Un lien d'article partagé n'ouvre pas les portes à tout le monde : correction réservée
 // aux correcteur·rices/admin, édition réservée à l'auteur·rice, au rédac chef de la
@@ -7512,20 +7511,7 @@ function chargerDepuisURL(){
   if(communiqueId){
     db.getCommunique(communiqueId).then(function(cp){
       if(!cp){ notif('Communiqué introuvable'); return; }
-      var cpCompo = {
-        id: cp.id, type: 'communique', objet: cp.objet,
-        organisation: cp.organisation, type_actu: cp.type_actu,
-        contact: {nom: cp.contact_nom, email: cp.contact_email, tel: cp.contact_tel},
-        embargo: cp.embargo, date_reception: cp.date_reception,
-        fichier_b64: cp.fichier_b64, cree_le: cp.created_at
-      };
-      _cpFromURL = cpCompo;
-      // Afficher la modale de choix
-      var t = document.getElementById('modal-cp-action-titre');
-      var m = document.getElementById('modal-cp-action-meta');
-      if(t) t.textContent = cp.objet || 'Sans titre';
-      if(m) m.textContent = (cp.organisation||'') + (cp.embargo ? ' · Embargo : '+cp.embargo : '');
-      document.getElementById('modal-action-cp').classList.add('visible');
+      cpsOuvrirDetail(cp);
     }).catch(function(){ notif('Erreur chargement communiqué'); });
   }
 
@@ -7577,32 +7563,6 @@ function modalActionFermer(){
 
 
 // Charger statut depuis Supabase
-// Modale communiqué depuis lien
-function modalCPChoisir(action){
-  document.getElementById('modal-action-cp').classList.remove('visible');
-  if(!_cpFromURL) return;
-  if(action === 'lire'){
-    go('lire-cp');
-    setTimeout(function(){
-      document.getElementById('lect-cp-content').style.display = 'block';
-      afficherCPDansLecteur(_cpFromURL);
-    }, 150);
-  } else if(action === 'rediger'){
-    go('redaction');
-    setTimeout(function(){
-      // Attacher le CP et pré-remplir
-      cpLies = [_cpFromURL];
-      renderCpLies();
-      notif('Communiqué attaché - tu peux rédiger ton article');
-    }, 150);
-  }
-}
-
-function modalCPFermer(){
-  document.getElementById('modal-action-cp').classList.remove('visible');
-  _cpFromURL = null;
-}
-
 function afficherCPDansLecteur(cp){
   var el = document.getElementById('lcp-id');
   var badge = document.getElementById('lcp-type-badge');
@@ -21541,6 +21501,7 @@ function osCpFenetreRender(winId){
     +'</div>'
     +'<div style="display:flex;gap:0.4rem;margin-top:0.6rem;">'
     +'<button onclick="tchapPartagerFiche(\'cp\',\''+esc(cp.id)+'\')" style="background:rgba(15,110,86,0.3);border:none;color:#9FE1CB;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-message-circle"></i> Tchap</button>'
+    +'<button onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-link"></i> Copier le lien</button>'
     +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-send"></i> Publier</button>':'')
     +(isAdmin?'<button onclick="cpsAdminEditer(\''+cp.id+'\')" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.65rem;"><i class="ti ti-pencil"></i> Modifier</button>':'')
     +'</div>';
