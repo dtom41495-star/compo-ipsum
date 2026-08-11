@@ -19439,8 +19439,11 @@ function maOsMakeCard(doc, uid, role){
     actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="db.getArticle(this.dataset.id).then(osMontrerDiff)">🔎 Diff</button>';
   // Lire
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
-  // Supprimer — admin sur tout, auteur sur son propre brouillon (pas envoyé)
-  if(role==='admin' || (estAuteur && s==='brouillon'))
+  // Supprimer — admin sur tout ; auteur sur son article tant qu'il n'est pas encore
+  // validé (brouillon, en-relecture, corrigé) — dès l'étape validé et jusqu'à publié,
+  // seul l'admin peut encore le supprimer.
+  var STATUTS_SUPPRIMABLES_AUTEUR = ['brouillon','en-relecture','corrige'];
+  if(role==='admin' || (estAuteur && STATUTS_SUPPRIMABLES_AUTEUR.indexOf(s)!==-1))
     actHtml+='<button style="'+_maBtn('danger')+'" data-id="'+doc.id+'" onclick="maOsSupprimer(this.dataset.id)">🗑️</button>';
   actHtml+='</div>';
 
