@@ -1776,6 +1776,17 @@ body {
 :root.theme-dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15) !important; }
 :root.theme-dark ::-webkit-scrollbar-track { background: transparent !important; }
 
+/* ===== MODE ALLÉGÉ (Paramètres > Apparence) =====
+   Le flou "glassmorphism" (backdrop-filter) est ce qui coûte le plus cher à recomposer
+   pour un GPU modeste — désactiver tous les backdrop-filter d'un coup (60 endroits dans
+   l'appli, dock/fenêtres/popups/modales compris) suffit à alléger nettement l'appli sans
+   avoir à toucher chaque effet un par un. Un seul !important en cascade plutôt que de
+   modifier 60 styles inline dispersés dans le JS. */
+:root.mode-leger * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* ===== OOBE ===== */
 #oobe-screen {
   position: fixed; inset: 0; z-index: 99997;
@@ -11190,6 +11201,7 @@ function osLancer(){
   osBuildDesktopIcons();
   osAppliquerThemeAuDemarrage();
   osAppliquerWallpaperAuDemarrage();
+  osAppliquerModeLegerAuDemarrage();
   osAfficherRedactionLabel();
   osAfficherUserWatermark();
   setTimeout(osRequestFullscreen, 500);
@@ -13547,8 +13559,6 @@ function _creerIconeDock(app, isPinned){
   // Clic gauche
   if(app.id === 'tchap'){
     icon.onclick = function(e){ e.stopPropagation(); icon.classList.add('bouncing'); setTimeout(function(){icon.classList.remove('bouncing');},500); tchapTogglePopup(icon); };
-  } else if(app.id === 'redactions'){
-    icon.onclick = function(e){ e.stopPropagation(); icon.classList.add('bouncing'); setTimeout(function(){icon.classList.remove('bouncing');},500); redacTogglePopup(icon); };
   } else {
     icon.onclick = function(e){
       e.stopPropagation();
@@ -17759,6 +17769,41 @@ function osParamsRenderSection(section, container){
     rowTheme.appendChild(themeAction);
     container.appendChild(rowTheme);
 
+    // Mode allégé — désactive les flous/glassmorphism pour soulager les PC modestes
+    var rowLeger = document.createElement('div');
+    rowLeger.className = 'params-row';
+    var modeLegerActif = localStorage.getItem('compo_os_mode_leger') === '1';
+    rowLeger.innerHTML = '<div><div class="params-label">Mode allégé</div><div class="params-label-sub">Désactive les flous et effets de transparence — utile sur un PC moins puissant</div></div>';
+
+    var legerAction = document.createElement('div');
+    legerAction.style.cssText = 'display:flex;gap:0.4rem;';
+    var legerStyleActif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
+    var legerStyleInactif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
+
+    var btnNormal = document.createElement('button');
+    btnNormal.style.cssText = !modeLegerActif ? legerStyleActif : legerStyleInactif;
+    btnNormal.textContent = 'Normal';
+
+    var btnLeger = document.createElement('button');
+    btnLeger.style.cssText = modeLegerActif ? legerStyleActif : legerStyleInactif;
+    btnLeger.textContent = '⚡ Allégé';
+
+    btnNormal.onclick = function(){
+      osAppliquerModeLeger(false);
+      btnNormal.style.cssText = legerStyleActif;
+      btnLeger.style.cssText = legerStyleInactif;
+    };
+    btnLeger.onclick = function(){
+      osAppliquerModeLeger(true);
+      btnLeger.style.cssText = legerStyleActif;
+      btnNormal.style.cssText = legerStyleInactif;
+    };
+
+    legerAction.appendChild(btnNormal);
+    legerAction.appendChild(btnLeger);
+    rowLeger.appendChild(legerAction);
+    container.appendChild(rowLeger);
+
     // Position des icônes de la barre des tâches
     var rowDockAlign = document.createElement('div');
     rowDockAlign.className = 'params-row';
@@ -17925,6 +17970,22 @@ function osToggleTheme(isDark){
 function osAppliquerThemeAuDemarrage(){
   var theme = localStorage.getItem('compo_os_theme') || 'light';
   osToggleTheme(theme === 'dark');
+}
+
+// ===== MODE ALLÉGÉ (désactive les flous/glassmorphism pour les PC modestes) =====
+function osAppliquerModeLeger(actif){
+  var root = document.documentElement;
+  if(actif){
+    localStorage.setItem('compo_os_mode_leger', '1');
+    root.classList.add('mode-leger');
+  } else {
+    localStorage.removeItem('compo_os_mode_leger');
+    root.classList.remove('mode-leger');
+  }
+}
+
+function osAppliquerModeLegerAuDemarrage(){
+  osAppliquerModeLeger(localStorage.getItem('compo_os_mode_leger') === '1');
 }
 
 // ===== WALLPAPER =====
@@ -35788,90 +35849,6 @@ function tchapJouerSon(){
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime+0.4);
   } catch(e){}
-}
-
-function redacTogglePopup(iconEl){
-  var existing = document.getElementById('redac-dock-popup');
-  if(existing){ existing.parentNode.removeChild(existing); return; }
-
-  var popup = document.createElement('div');
-  popup.id = 'redac-dock-popup';
-  var rect = iconEl.getBoundingClientRect();
-  popup.style.cssText = 'position:fixed;left:'+Math.max(8,rect.left-160)+'px;bottom:'+(window.innerHeight-rect.top+12)+'px;width:320px;max-height:480px;background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.25);z-index:99998;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--gris-bord);';
-
-  var hdr = document.createElement('div');
-  hdr.style.cssText = 'padding:0.8rem 1rem;background:var(--rouge);display:flex;align-items:center;gap:0.6rem;flex-shrink:0;';
-  hdr.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:white;flex:1;">🗞️ Ma rédac\'</div>'
-    +'<button id="redac-popup-open" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;cursor:pointer;">Ouvrir</button>';
-  popup.appendChild(hdr);
-
-  var body = document.createElement('div');
-  body.style.cssText = 'flex:1;overflow-y:auto;';
-  body.innerHTML = osLoadingHtml();
-  popup.appendChild(body);
-
-  document.body.appendChild(popup);
-
-  popup.querySelector('#redac-popup-open').onclick = function(){
-    if(popup.parentNode) popup.parentNode.removeChild(popup);
-    if(_windows['redactions']) osFocusWindow('redactions'); else osOpenWindow('redactions');
-  };
-
-  // Fermer en cliquant ailleurs
-  setTimeout(function(){
-    document.addEventListener('click', function fermer(e){
-      var p = document.getElementById('redac-dock-popup');
-      if(p && !p.contains(e.target) && !iconEl.contains(e.target)){
-        p.parentNode && p.parentNode.removeChild(p);
-        document.removeEventListener('click', fermer);
-      }
-    });
-  }, 50);
-
-  redacChargerPopup(body);
-}
-
-function redacChargerPopup(body){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=*&limit=8';
-  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
-  fetch(url, {headers:authH}).then(function(r){return r.json();}).then(function(sujets){
-    sujets = (!sujets||sujets.code) ? [] : sujets;
-    body.innerHTML = '';
-    if(!sujets.length){
-      body.innerHTML = '<div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucun sujet en attente ✓</div>';
-      return;
-    }
-    var PRIO_BG = {urgente:'#F8D7DA', normale:'#FFF3CD', faible:'#D4EDDA'};
-    var PRIO_C  = {urgente:'#721C24', normale:'#856404', faible:'#155724'};
-    sujets.forEach(function(s){
-      var prio = s.priorite || 'normale';
-      var isPris = s.statut === 'en_cours' && s.responsable;
-      var item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;cursor:pointer;border-bottom:0.5px solid var(--gris-bord);transition:background 0.1s;';
-      item.onmouseover = function(){ this.style.background = 'var(--gris-clair)'; };
-      item.onmouseout  = function(){ this.style.background = ''; };
-      item.innerHTML =
-        '<div style="width:8px;height:8px;border-radius:50%;background:'+PRIO_C[prio]+';flex-shrink:0;"></div>'
-        +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.titre||'')+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+(isPris ? ('✍️ '+esc(s.responsable)) : 'Libre — à réserver')+'</div>'
-        +'</div>'
-        +'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:10px;flex-shrink:0;">'+prio+'</span>';
-      item.onclick = function(){
-        var popup = document.getElementById('redac-dock-popup');
-        if(popup && popup.parentNode) popup.parentNode.removeChild(popup);
-        window._sujetsData = sujets;
-        _redacOnglet = 'sujets';
-        if(_windows['redactions']){ osFocusWindow('redactions'); osRedactionsChangerOnglet('sujets'); }
-        else osOpenWindow('redactions');
-        setTimeout(function(){ ouvrirModalSujet(s); }, 400);
-      };
-      body.appendChild(item);
-    });
-  }).catch(function(){
-    body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--rouge);font-size:0.78rem;">Erreur chargement</div>';
-  });
 }
 
 function tchapTogglePopup(iconEl){
