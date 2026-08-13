@@ -8322,7 +8322,7 @@ function lancerCompo(){
   var fetches = {
     redactions:       fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     membresRedacs:    fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
-    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
+    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
     mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
     annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
     cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
@@ -8381,6 +8381,7 @@ function lancerCompo(){
       chargerAlertTickets();
       chargerDepuisURL();
       ssInit();
+      osVerifierPromptCP();
       // Le Rattrapage — déclenché ici (pas sur un minuteur fixe dans osLancer) car
       // _redactionsData/_membresRedactionsData ne sont garantis peuplés qu'à ce stade,
       // une fois le Promise.all des données de lancement résolu.
@@ -13785,6 +13786,25 @@ var _cpVusIds = (function(){ try{ return JSON.parse(localStorage.getItem('compo_
 
 function osCheckNouveauxCPs(){
   if(!_session || !getUserId()) return;
+  var uid = getUserId();
+  // Un rédacteur qui a aussi une fonction bureau (trésorier, secrétaire...) a pu répondre
+  // "non" à la fenêtre "Tu reçois les communiqués de presse" (osVerifierPromptCP) — dans
+  // ce cas précis (et seulement celui-là) on vérifie l'abonnement avant de notifier, pour
+  // ne jamais changer le comportement des rédacteur·rices "normaux" qui n'ont jamais vu
+  // cette fenêtre.
+  var moi = (window._membresData||[]).find(function(m){ return m.id===uid; });
+  if(moi && moi.role==='redacteur' && moi.cp_prompt_repondu && fonctionArray(moi.fonction).length){
+    var authHAbo = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+uid+'&select=id',{headers:authHAbo})
+    .then(function(r){return r.json();})
+    .then(function(rows){ if(rows && rows.length) _osVerifierNouveauxCPsSuite(); })
+    .catch(function(){ _osVerifierNouveauxCPsSuite(); });
+    return;
+  }
+  _osVerifierNouveauxCPsSuite();
+}
+
+function _osVerifierNouveauxCPsSuite(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Tout premier lancement sur ce navigateur (clé jamais créée) — ne pas notifier
   // tous les CPs déjà publiés d'un coup, juste mémoriser l'état actuel comme "déjà vu".
@@ -13815,6 +13835,69 @@ function osCheckNouveauxCPs(){
     _cpLastVu = new Date().toISOString();
     try{ localStorage.setItem('compo_cp_last_vu', _cpLastVu); }catch(e){}
   }).catch(function(){});
+}
+
+// Fenêtre "Tu reçois les communiqués de presse" — proposée une seule fois (flag serveur
+// cp_prompt_repondu sur membres, pas localStorage : ne doit pas réapparaître après un
+// changement d'appareil ou un "Réinitialiser le cache") aux rédacteur·rices qui ont AUSSI
+// une fonction bureau (trésorier·ère, secrétaire...) et ne font donc pas forcément du
+// journalisme. Réutilise cpsToggleAbonnementGlobal (même mécanisme que Ma rédac' > Mes
+// abonnements) pour que "réactivable dans Mes abonnements" (dit à l'écran) soit vrai.
+function osVerifierPromptCP(){
+  var uid = getUserId();
+  if(!uid) return;
+  var moi = (window._membresData||[]).find(function(m){ return m.id===uid; });
+  if(!moi || moi.role !== 'redacteur' || moi.cp_prompt_repondu) return;
+  var fonctions = fonctionArray(moi.fonction);
+  if(!fonctions.length) return;
+  setTimeout(function(){ osAfficherPromptCP(fonctions); }, 1500); // laisse le bureau finir de s'afficher
+}
+
+function osAfficherPromptCP(fonctions){
+  if(document.getElementById('cp-prompt-overlay')) return;
+  var labels = fonctions.map(function(f){ return FONCTIONS_LABELS[f]||f; }).join(', ');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cp-prompt-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.15s ease;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;padding:1.4rem 1.5rem;';
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">'
+    +'<div style="width:36px;height:36px;border-radius:50%;background:#E6F1FB;color:#0C447C;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;"><i class="ti ti-news"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Tu reçois les communiqués de presse</div>'
+    +'</div>'
+    +'<div style="font-size:0.82rem;color:var(--gris);line-height:1.5;margin-bottom:1.2rem;">Tu es enregistré·e comme rédacteur·rice sur Compo (et aussi '+esc(labels)+'). À ce titre, tu es notifié·e à chaque communiqué de presse — même si ce n\'est pas ton rôle principal. Tu veux continuer à les recevoir ?</div>'
+    +'<div style="display:flex;gap:0.5rem;justify-content:flex-end;">'
+    +'<button id="cp-prompt-non" class="btn sec" style="font-size:0.78rem;padding:0.5rem 1rem;">Non</button>'
+    +'<button id="cp-prompt-oui" style="font-size:0.78rem;padding:0.5rem 1.2rem;border:none;border-radius:7px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">Oui</button>'
+    +'</div>'
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:0.8rem;">Tu peux changer d\'avis à tout moment dans Ma rédac\' > Mes abonnements.</div>';
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  document.getElementById('cp-prompt-oui').onclick = function(){ _osRepondrePromptCP(true); };
+  document.getElementById('cp-prompt-non').onclick = function(){ _osRepondrePromptCP(false); };
+}
+
+function _osRepondrePromptCP(veut){
+  var overlay = document.getElementById('cp-prompt-overlay');
+  if(overlay) overlay.remove();
+  var uid = getUserId();
+  if(!uid) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid, {
+    method:'PATCH', headers:authH, body:JSON.stringify({cp_prompt_repondu:true})
+  }).then(function(){
+    var moi = (window._membresData||[]).find(function(m){ return m.id===uid; });
+    if(moi) moi.cp_prompt_repondu = true;
+    // cpsToggleAbonnementGlobal bascule selon l'état ACTUEL passé en argument
+    // (true → désabonne, false → abonne) : on simule exactement le bouton de
+    // Ma rédac' > Mes abonnements plutôt que de dupliquer sa logique ici.
+    cpsToggleAbonnementGlobal(!veut);
+  }).catch(function(){ notif('Erreur, réessaie plus tard','erreur'); });
 }
 
 // Vérifier au démarrage (après 5s) puis toutes les 5 minutes
@@ -18349,7 +18432,10 @@ function osStatsAppRender(){
 
   var isAdmin = getUserRole() === 'admin';
   var onglets = [{id:'vue', icon:'ti-chart-bar', label:'Vue d\'ensemble'}];
-  if(isAdmin) onglets.push({id:'editeur', icon:'ti-pencil', label:'Éditeur'});
+  if(isAdmin){
+    onglets.push({id:'liens', icon:'ti-link', label:'Liens raccourcis'});
+    onglets.push({id:'editeur', icon:'ti-pencil', label:'Éditeur'});
+  }
 
   if(isAdmin){
     var rail = document.createElement('div');
@@ -18372,7 +18458,74 @@ function osStatsAppRender(){
   wc.appendChild(outer);
 
   if(!isAdmin || _statsOnglet === 'vue') _statsRenderVueEnsemble(contentOuter);
+  else if(_statsOnglet === 'liens') _statsRenderLiensRaccourcis(contentOuter);
   else osStatsEditeurRender(contentOuter);
+}
+
+// ===== ONGLET LIENS RACCOURCIS (clics Dub par article) =====
+function _statsRenderLiensRaccourcis(zone){
+  zone.innerHTML = osLoadingHtml();
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?dub_link_id=not.is.null&select=id,titre,lien_publication,dub_link_id,redaction_id,publie_le&order=publie_le.desc.nullslast', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(arts){
+    arts = (!arts||arts.code) ? [] : arts;
+    if(!arts.length){
+      zone.innerHTML = '<div style="padding:2rem;color:var(--gris);text-align:center;font-family:Space Mono,monospace;font-size:0.78rem;">Aucun lien raccourci pour l\'instant.</div>';
+      return;
+    }
+    // Récupérer le nombre de clics de chaque lien en parallèle (même fonction que
+    // le compteur affiché dans l'éditeur — _osChargerClicsDub — mais pour tous les
+    // articles d'un coup plutôt qu'un seul).
+    var authH2 = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+    Promise.all(arts.map(function(a){
+      return fetch(SB_URL+'/functions/v1/dub-raccourcir', {
+        method:'POST', headers:authH2, body:JSON.stringify({ action:'stats', linkId:a.dub_link_id })
+      }).then(function(r){ return r.json(); }).then(function(d){ return d && d.clicks!=null ? d.clicks : 0; }).catch(function(){ return 0; });
+    })).then(function(clicsParArt){
+      arts.forEach(function(a,i){ a._clics = clicsParArt[i]; });
+      arts.sort(function(a,b){ return (b._clics||0)-(a._clics||0); });
+      _statsAfficherLiensRaccourcis(zone, arts);
+    });
+  }).catch(function(){
+    zone.innerHTML = '<div style="padding:2rem;color:var(--rouge);text-align:center;font-family:Space Mono,monospace;font-size:0.78rem;">Erreur de chargement.</div>';
+  });
+}
+
+function _statsAfficherLiensRaccourcis(zone, arts){
+  var total = arts.reduce(function(s,a){ return s+(a._clics||0); }, 0);
+  var redacMap = {};
+  (window._redactionsData||[]).forEach(function(r){ redacMap[r.id]=r.nom; });
+
+  var app = document.createElement('div');
+  app.style.cssText = 'padding:1.2rem;';
+
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;border-top:2px solid #E8461E;padding:0.8rem 1rem;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-bottom:1rem;max-width:220px;';
+  hdr.innerHTML = '<div style="font-family:Arial,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.3rem;">Total clics</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:700;color:var(--encre);">'+statsFormatNum(total)+'</div>'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">sur '+arts.length+' lien'+(arts.length>1?'s':'')+' raccourci'+(arts.length>1?'s':'')+'</div>';
+  app.appendChild(hdr);
+
+  var liste = document.createElement('div');
+  liste.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.04);overflow:hidden;';
+  arts.forEach(function(a, i){
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;'+(i<arts.length-1?'border-bottom:0.5px solid var(--gris-bord);':'');
+    row.innerHTML =
+      '<div style="flex:1;min-width:0;">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.8rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
+      +'<div style="display:flex;gap:0.5rem;align-items:center;margin-top:2px;">'
+      +(a.lien_publication?'<a href="'+esc(a.lien_publication)+'" target="_blank" rel="noopener" style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--bleu);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;">'+esc(a.lien_publication)+'</a>':'')
+      +(redacMap[a.redaction_id]?'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">· '+esc(redacMap[a.redaction_id])+'</span>':'')
+      +'</div></div>'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:#E8461E;flex-shrink:0;">'+statsFormatNum(a._clics||0)+'</div>';
+    liste.appendChild(row);
+  });
+  app.appendChild(liste);
+
+  zone.innerHTML = '';
+  zone.appendChild(app);
 }
 
 function osStatsEditeurRender(zone){
