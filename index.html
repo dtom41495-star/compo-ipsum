@@ -3396,7 +3396,7 @@ input:focus,select:focus,textarea:focus{
 
 
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -8507,6 +8507,12 @@ function assignValider(){
         chapeau_original: _assignDoc.chapeau || null,
         corps_original:   _assignDoc.corps   || null
       })
+    }).then(function(r){
+      // Ne pas continuer (toast succès, vidage du brouillon local, fermeture de
+      // l'éditeur, email au correcteur) comme si de rien n'était si ce PATCH a
+      // en réalité échoué — sans ce contrôle, on perdait le brouillon local tout
+      // en croyant l'article correctement envoyé en correction.
+      if(!r.ok) throw new Error('PATCH statut/correcteur échoué (HTTP '+r.status+')');
     });
   }).then(function(){
     // Retirer le brouillon local
@@ -8532,6 +8538,7 @@ function assignValider(){
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
             +'<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+esc(_assignDoc2.titre||'Sans titre')+'</p>'
+            +'<p style="font-family:monospace;font-size:0.72rem;color:#888;">ID : '+esc(docId)+'</p>'
             +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'
             +'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article.</p>';
           envoyerEmailResend(membre.email, '[Compo] Article à corriger : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
