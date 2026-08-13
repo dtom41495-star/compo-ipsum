@@ -7268,6 +7268,13 @@ var db = {
 
     // Ne pas écraser l'image avec null si on ne change pas l'image
     if(payload.image === null) delete payload.image;
+    // Ne pas écraser sujet_id avec null : la création automatique du sujet (plus bas,
+    // après le POST initial) et une sauvegarde concurrente (autosave qui retombe pendant
+    // ce court laps de temps) peuvent se chevaucher — sans cette garde, le deuxième
+    // enregistrement reconstruit son payload depuis un currentDoc qui n'a pas encore
+    // le lien fraîchement posé, et l'efface aussitôt. Le détachement volontaire d'un
+    // sujet a son propre appel PATCH dédié ailleurs, pas celui-ci.
+    if(payload.sujet_id === null) delete payload.sujet_id;
     var authHeaders = Object.assign({}, SB_HEADERS, {
       'Authorization': 'Bearer '+(_session&&_session.access_token||''),
       'Prefer': 'return=representation'
@@ -24300,12 +24307,27 @@ function osNettoyerSujetsPublies(){
     fetch(SB_URL+'/rest/v1/briefing?statut=eq.publie&select=id,titre',{headers:authH}).then(function(r){return r.json();}),
     // Articles publiés qui pointent vers un sujet — pour retrouver les sujets
     // "anciens" jamais marqués, restés ouverts/en cours malgré un article publié
-    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&sujet_id=not.is.null&select=sujet_id',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&sujet_id=not.is.null&select=sujet_id',{headers:authH}).then(function(r){return r.json();}),
+    // Sujets encore ouverts/en cours sans lien du tout (sujet_id perdu par la course
+    // de sauvegardes corrigée le 2026-08-13 dans db.sauvegarderArticle — ceux créés
+    // avant le correctif restent orphelins pour toujours, sujet_id ne peut plus être
+    // retrouvé). Dernier repli : ces sujets auto-créés reprennent le titre de l'article
+    // au mot près à la création, donc une égalité exacte de titre (pas une correspondance
+    // approximative) suffit à les rapprocher d'un article publié.
+    fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&select=id,titre',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&select=titre',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     var sujetsDejaMarques = (!res[0]||res[0].code) ? [] : res[0];
     var idsDepuisArticles = (!res[1]||res[1].code) ? [] : res[1].map(function(a){return a.sujet_id;}).filter(Boolean);
     var idsDejaMarques = sujetsDejaMarques.map(function(s){return s.id;});
     var idsManquants = Array.from(new Set(idsDepuisArticles)).filter(function(id){ return idsDejaMarques.indexOf(id) === -1; });
+
+    var sujetsOuverts = (!res[2]||res[2].code) ? [] : res[2];
+    var titresPublies = (!res[3]||res[3].code) ? [] : res[3].map(function(a){ return (a.titre||'').trim().toLowerCase(); }).filter(Boolean);
+    var titresPublieSet = new Set(titresPublies);
+    var sujetsParTitre = sujetsOuverts.filter(function(s){
+      return s.titre && titresPublieSet.has(s.titre.trim().toLowerCase());
+    });
 
     function terminerAvecListe(sujets){
       if(!sujets.length){
@@ -24337,13 +24359,21 @@ function osNettoyerSujetsPublies(){
       });
     }
 
+    function fusionnerSansDoublon(listes){
+      var vus = {}, resultat = [];
+      listes.forEach(function(liste){
+        liste.forEach(function(s){ if(!vus[s.id]){ vus[s.id]=true; resultat.push(s); } });
+      });
+      return resultat;
+    }
+
     if(!idsManquants.length){
-      terminerAvecListe(sujetsDejaMarques);
+      terminerAvecListe(fusionnerSansDoublon([sujetsDejaMarques, sujetsParTitre]));
     } else {
       fetch(SB_URL+'/rest/v1/briefing?id=in.('+idsManquants.join(',')+')&select=id,titre',{headers:authH}).then(function(r){return r.json();})
       .then(function(sujetsManquants){
-        terminerAvecListe(sujetsDejaMarques.concat((!sujetsManquants||sujetsManquants.code)?[]:sujetsManquants));
-      }).catch(function(){ terminerAvecListe(sujetsDejaMarques); });
+        terminerAvecListe(fusionnerSansDoublon([sujetsDejaMarques, (!sujetsManquants||sujetsManquants.code)?[]:sujetsManquants, sujetsParTitre]));
+      }).catch(function(){ terminerAvecListe(fusionnerSansDoublon([sujetsDejaMarques, sujetsParTitre])); });
     }
   }).catch(function(){
     notif('Erreur réseau','erreur');
@@ -24449,7 +24479,8 @@ function osRedacChargerSujets(zone, roleRedac, callback){
             +'<button data-sid="'+s.id+'" onclick="brfAbandonnerSujetDepuisRedac(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;">Abandonner</button>';
         }
         if(isChefOuAdmin){
-          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>';
+          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>'
+            +'<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
         }
       } else {
         // Sujet libre — bouton Réserver
