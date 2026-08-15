@@ -284,7 +284,7 @@ hr, [class*="-sep"]:not(.dock-sep) {
 }
 
 /* ── Onglets ── */
-.com-tab, .corr-tab, .vue-btn, .filter-chip {
+.corr-tab, .vue-btn, .filter-chip {
   border-radius: var(--md-shape-full) !important;
   font-family: 'DM Sans', sans-serif !important;
   font-size: 0.7rem !important;
@@ -4126,15 +4126,15 @@ input:focus,select:focus,textarea:focus{
 <div class="page" id="page-app-com" style="padding:0!important;max-width:none!important;margin:0!important;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#F7F8FA;">
   <div id="com-header" style="background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
     <div>
-      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">📣 Espace Communication</div>
+      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-speakerphone"></i> Espace Communication</div>
       <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="com-subtitle">Chargement...</div>
     </div>
-    <button onclick="osAppComCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">↺ Actualiser</button>
+    <button onclick="osAppComCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>
   </div>
   <div style="display:flex;border-bottom:1px solid var(--gris-bord);background:white;padding:0 0.8rem;overflow-x:auto;">
-    <button class="com-tab active" data-t="afaire" onclick="osAppComOnglet('afaire',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--rouge);color:var(--rouge);font-weight:700;white-space:nowrap;margin-bottom:-1px;">🎨 À faire</button>
-    <button class="com-tab" data-t="encours" onclick="osAppComOnglet('encours',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--gris);white-space:nowrap;margin-bottom:-1px;">⏳ En cours</button>
-    <button class="com-tab" data-t="fait" onclick="osAppComOnglet('fait',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--gris);white-space:nowrap;margin-bottom:-1px;">✅ Traités</button>
+    <button class="com-tab active" data-t="afaire" onclick="osAppComOnglet('afaire',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--rouge);color:var(--rouge);font-weight:700;white-space:nowrap;margin-bottom:-1px;"><i class="ti ti-palette"></i> À faire</button>
+    <button class="com-tab" data-t="encours" onclick="osAppComOnglet('encours',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--gris);white-space:nowrap;margin-bottom:-1px;"><i class="ti ti-hourglass"></i> En cours</button>
+    <button class="com-tab" data-t="fait" onclick="osAppComOnglet('fait',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--gris);white-space:nowrap;margin-bottom:-1px;"><i class="ti ti-check"></i> Traités</button>
   </div>
   <div id="com-contenu" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">
     <div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Chargement...</div>
@@ -16366,31 +16366,25 @@ function osAppComCharger(){
       h += '</div>';
       h += '</div>';
 
-      // Checklist visuels
-      h += '<div style="background:#F5F3FF;border-radius:8px;padding:0.6rem 0.8rem;margin-top:0.7rem;">';
-      h += '<div style="font-size:0.62rem;font-weight:700;color:#7C3AED;margin-bottom:5px;">🎨 Visuels à créer</div>';
-      h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
-      var visuels = ['Post Instagram','Story Instagram'];
-      visuels.forEach(function(v){
-        h += '<span style="font-size:0.65rem;padding:2px 8px;border-radius:10px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;">'+v+'</span>';
-      });
-      h += '</div></div>';
-
-      // Actions — une hiérarchie claire plutôt que 5 boutons à égalité : l'envoi du
-      // visuel est LE geste principal de cette carte (rempli, en avant), le brief et
-      // la consultation sont des à-côtés (discrets), et le statut est une catégorie à
-      // part, séparée visuellement plutôt que mêlée aux actions de contenu.
-      h += '<div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap;align-items:center;">';
-      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.7rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;">📤 Envoyer le visuel</button>';
-      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">🖼️ Voir les visuels</button>';
-      h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;">📄 Brief</button>';
+      // Visuels attendus — une ligne discrète plutôt qu'un bloc coloré à part.
+      h += '<div style="font-size:0.68rem;color:#7C3AED;margin-top:0.6rem;display:flex;align-items:center;gap:5px;">';
+      h += '<i class="ti ti-palette"></i> Post Instagram · Story Instagram';
       h += '</div>';
 
-      h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;padding-top:0.55rem;border-top:1px dashed var(--gris-bord);align-items:center;flex-wrap:wrap;">';
-      h += '<span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-right:2px;">Statut</span>';
-      if(_comOnglet!=='encours') h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'en_cours\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid #856404;border-radius:10px;background:transparent;color:#856404;cursor:pointer;">⏳ En cours</button>';
-      if(_comOnglet!=='fait')    h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'fait\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid #155724;border-radius:10px;background:transparent;color:#155724;cursor:pointer;">✅ Visuels faits</button>';
-      if(_comOnglet!=='afaire')  h += '<button data-id="'+a.id+'" onclick="osAppComStatut(this.dataset.id,\'a_faire\')" style="font-size:0.62rem;padding:2px 9px;border:1px solid var(--gris-bord);border-radius:10px;background:transparent;color:var(--gris);cursor:pointer;">↩ Remettre</button>';
+      // Actions + statut sur une seule ligne : l'envoi du visuel reste LE geste
+      // principal (rempli, en avant), Voir les visuels / Brief sont des à-côtés
+      // discrets, et le statut — plutôt que 2-3 boutons à cocher — est un menu
+      // déroulant unique, poussé à droite, pour ne pas ajouter une rangée en plus.
+      var statutCom = a.statut_com || 'a_faire';
+      h += '<div style="display:flex;gap:0.5rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--gris-bord);align-items:center;flex-wrap:wrap;">';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.7rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;"><i class="ti ti-cloud-upload"></i> Envoyer le visuel</button>';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-photo"></i> Voir les visuels</button>';
+      h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Brief</button>';
+      h += '<select data-id="'+a.id+'" onchange="osAppComStatut(this.dataset.id,this.value)" style="margin-left:auto;font-size:0.68rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:6px;background:white;color:var(--encre);cursor:pointer;">';
+      h += '<option value="a_faire"'+(statutCom==='a_faire'?' selected':'')+'>À faire</option>';
+      h += '<option value="en_cours"'+(statutCom==='en_cours'?' selected':'')+'>En cours</option>';
+      h += '<option value="fait"'+(statutCom==='fait'?' selected':'')+'>Visuels faits</option>';
+      h += '</select>';
       h += '</div>';
 
       h += '</div>';
