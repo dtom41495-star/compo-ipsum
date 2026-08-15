@@ -19761,7 +19761,7 @@ function maOsMakeCard(doc, uid, role){
   var estRefuse     = s==='brouillon' && doc.note_interne;
 
   var card = document.createElement('div');
-  card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:12px;padding:.9rem 1rem;margin-bottom:.6rem;transition:box-shadow .15s,border-color .15s;cursor:pointer;';
+  card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:10px;padding:.55rem .8rem;margin-bottom:.4rem;transition:box-shadow .15s,border-color .15s;cursor:pointer;';
   card.onmouseover=function(){this.style.borderColor='rgba(232,70,30,.35)';this.style.boxShadow='0 3px 12px rgba(232,70,30,.08)';};
   card.onmouseout =function(){this.style.borderColor='#E5E7EB';this.style.boxShadow='';};
   // Clic sur la carte (hors boutons d'action) = ouvrir l'article, en édition si
@@ -19769,7 +19769,8 @@ function maOsMakeCard(doc, uid, role){
   var actionParDefaut = (estAuteur && s==='brouillon') ? 'edition' : 'lecture';
   card.onclick=function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
 
-  // ── PIPELINE (barre de progression striée) ──
+  // ── PIPELINE — réduit à une petite barre alignée à droite (avant : bandeau pleine
+  // largeur avec libellé + "prochaine étape", qui prenait 3 lignes à lui seul) ──
   var redacCentraleMOC = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
   var articleEstCentralMOC = !redacCentraleMOC || doc.redaction_id === redacCentraleMOC.id;
   var ETAPES=[
@@ -19783,19 +19784,14 @@ function maOsMakeCard(doc, uid, role){
   var idx=ETAPES.findIndex(function(e){return e.id===s;});
   if(idx<0) idx=0;
   var etapeActuelle=ETAPES[idx];
-  var etapeSuivante=ETAPES[idx+1];
   var pct=Math.round(((idx+1)/ETAPES.length)*100);
   var gc1=estRefuse?'#DC2626':etapeActuelle.c1, gc2=estRefuse?'#F87171':etapeActuelle.c2;
-  var pip='<div style="margin-bottom:.65rem;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;background:linear-gradient(90deg,'+gc1+','+gc2+');-webkit-background-clip:text;background-clip:text;color:transparent;">'
-      +(estRefuse?'Refusé — à corriger':esc(etapeActuelle.l))+'</div>'
-    +(etapeSuivante
-        ?'<div style="font-size:.6rem;color:var(--gris);margin:1px 0 5px;">Prochaine étape : '+esc(etapeSuivante.l)+'</div>'
-        :'<div style="font-size:.6rem;color:#059669;margin:1px 0 5px;">🎉 Dernière étape</div>')
-    +'<div style="width:100%;height:8px;border-radius:5px;background:#EEF0F2;overflow:hidden;">'
-    +'<div class="pip-strie-fill" style="width:'+pct+'%;height:100%;border-radius:5px;background-image:linear-gradient(90deg,'+gc1+','+gc2+'),repeating-linear-gradient(135deg,rgba(255,255,255,.4) 0px,rgba(255,255,255,.4) 6px,transparent 6px,transparent 12px);background-size:100% 100%,24px 24px;"></div>'
-    +'</div>'
-    +'</div>';
+  var statutHtml='<div style="flex-shrink:0;text-align:right;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.6rem;white-space:nowrap;background:linear-gradient(90deg,'+gc1+','+gc2+');-webkit-background-clip:text;background-clip:text;color:transparent;">'
+      +(estRefuse?'Refusé':esc(etapeActuelle.l))+'</div>'
+    +'<div style="width:38px;height:5px;border-radius:3px;background:#EEF0F2;overflow:hidden;margin:3px 0 0 auto;">'
+    +'<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,'+gc1+','+gc2+');"></div>'
+    +'</div></div>';
 
   // Note refus
   var noteHtml='';
@@ -19803,11 +19799,10 @@ function maOsMakeCard(doc, uid, role){
     noteHtml='<div style="font-size:.7rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 9px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;">💬 '+esc(doc.note_interne)+'</div>';
   }
 
-  // Titre + meta
+  // Titre + tags, dans le prolongement l'un de l'autre (avant : deux lignes séparées) —
+  // et le statut réduit ci-dessus, aligné à droite sur cette même ligne.
   var age=badgeFraicheur(doc.updated_at||doc.created_at, s);
-  var titreHtml='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);margin-bottom:.2rem;">'+esc(doc.titre||'Sans titre')+'</div>';
-  var metaHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-bottom:.55rem;">'
-    +(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
+  var tagsHtml=(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
     +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
     +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
     +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
@@ -19816,7 +19811,14 @@ function maOsMakeCard(doc, uid, role){
         :(doc.redaction_id&&(s==='valide'||s==='publie')
           ?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FFF9C4;color:#7A6A00;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+'</span>'
           :''))
-    +age+'</div>';
+    +age;
+  var ligneHtml='<div style="display:flex;align-items:flex-start;gap:.6rem;margin-bottom:.4rem;">'
+    +'<div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;">'
+      +'<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">'+esc(doc.titre||'Sans titre')+'</span>'
+      +tagsHtml
+    +'</div>'
+    +statutHtml
+    +'</div>';
 
   // Actions — Supprimer ne vit plus ici : déplacé dans la page de lecture de l'article
   // (renderLecture), pour qu'il faille d'abord ouvrir/relire l'article avant de pouvoir
@@ -19839,7 +19841,7 @@ function maOsMakeCard(doc, uid, role){
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
   actHtml+='</div>';
 
-  card.innerHTML = pip + noteHtml + titreHtml + metaHtml + actHtml;
+  card.innerHTML = noteHtml + ligneHtml + actHtml;
   return card;
 }
 
