@@ -3081,10 +3081,6 @@ input:focus,select:focus,textarea:focus{
 .ma-v2-btn-red:hover{background:#FEE2E2!important;}
 .ma-note-refuse{font-size:.72rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 10px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;}
 
-/* ── Filtres statut "Mes articles" (pilules) ── */
-.ma-os-ftab{font-family:'DM Sans',sans-serif;font-size:.68rem;font-weight:600;padding:5px 13px;border:1.5px solid #E5E7EB;border-radius:20px;background:white;color:var(--gris);cursor:pointer;transition:all .15s;white-space:nowrap;}
-.ma-os-ftab:hover{border-color:var(--rouge);color:var(--rouge);}
-.ma-os-ftab.active{background:var(--rouge);border-color:var(--rouge);color:white;box-shadow:0 2px 8px rgba(232,70,30,.3);}
 
 /* ── Pipeline workflow ── */
 .ma-pipeline{display:flex;align-items:center;}
@@ -19497,12 +19493,10 @@ function _maRailRender(){
   }
   rail.innerHTML = h;
 
-  // Synchronisé ici plutôt que dans chaque appelant : titre de la vue et pertinence du
-  // filtre par statut découlent directement de la vue active.
+  // Synchronisé ici plutôt que dans chaque appelant : le titre de la vue découle
+  // directement de la vue active.
   var titre = document.getElementById('ma-os-titre');
   if(titre && MA_VUES[_maOnglet]) titre.textContent = MA_VUES[_maOnglet].label;
-  var filtres = document.getElementById('ma-os-filtres');
-  if(filtres) filtres.style.display = (_maOnglet==='secours' || _maOnglet==='brouillons') ? 'none' : 'flex';
 }
 
 function osMesArticlesRender(){
@@ -19533,29 +19527,9 @@ function osMesArticlesRender(){
   l1.innerHTML = '<div id="ma-os-titre" style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">Articles</div>'
     +'<span id="ma-os-count" style="font-size:.62rem;color:var(--gris);"></span>'
     +'<div style="flex:1;"></div>'
-    +'<input id="ma-os-search" type="text" placeholder="Rechercher..." oninput="maOsFiltre()" style="font-size:.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;width:140px;outline:none;">'
-    +'<select id="ma-os-tri" onchange="maOsFiltre()" style="font-size:.68rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:20px;background:white;">'
-    +'<option value="date_desc">Plus récent</option><option value="date_asc">Plus ancien</option><option value="titre_asc">Titre A→Z</option>'
-    +'</select>'
     +'<button onclick="osMesArticlesCharger()" title="Rafraîchir" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-refresh"></i></button>'
     +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;"><i class="ti ti-plus" style="vertical-align:-1px;"></i> Nouveau</button>';
   hdr.appendChild(l1);
-
-  // Ligne 2 : filtres statut — masquée dans les vues où le statut n'a pas de sens
-  // (brouillons locaux) ou est déjà unique (Mes brouillons).
-  var l3 = document.createElement('div');
-  l3.id = 'ma-os-filtres';
-  l3.style.cssText = 'display:flex;gap:.3rem;flex-wrap:wrap;padding:0 1rem .5rem;';
-  ['tous','brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(f){
-    var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Val. centrale',publie:'Publié'};
-    var btn = document.createElement('button');
-    btn.className = 'ma-os-ftab'+(f==='tous'?' active':'');
-    btn.dataset.f = f;
-    btn.textContent = labels[f];
-    btn.onclick = function(){ maOsSetFiltre(this); };
-    l3.appendChild(btn);
-  });
-  hdr.appendChild(l3);
   main.appendChild(hdr);
 
   var list = document.createElement('div');
@@ -19573,7 +19547,7 @@ function osMesArticlesChangerOnglet(id){
   // Ne touche que la liste et l'état actif du rail — garde le champ recherche/tri
   // intact (ne perd plus sa valeur/focus à chaque changement de vue).
   _maOnglet = id;
-  _maRailRender(); // met aussi à jour le titre et la visibilité des filtres de statut
+  _maRailRender(); // met aussi à jour le titre de la vue
   osMesArticlesCharger();
 }
 
@@ -19646,12 +19620,6 @@ function maOsChargerNewsletters(arts){
     .catch(function(){});
 }
 
-function maOsSetFiltre(btn){
-  document.querySelectorAll('.ma-os-ftab').forEach(function(b){b.classList.remove('active');});
-  btn.classList.add('active');
-  maOsFiltre();
-}
-
 var MA_STATUTS_ORDRE  = ['brouillon','en-relecture','corrige','valide','valide_central','publie'];
 var MA_STATUTS_LABELS = {brouillon:'Brouillon','en-relecture':'En relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Validé (rédaction centrale)',publie:'Publié'};
 
@@ -19659,35 +19627,26 @@ function maOsFiltre(){
   var list   = document.getElementById('ma-os-list');
   var count  = document.getElementById('ma-os-count');
   if(!list) return;
-  var search = (document.getElementById('ma-os-search')||{}).value||'';
-  var tri    = (document.getElementById('ma-os-tri')||{}).value||'date_desc';
-  var fBtn   = document.querySelector('.ma-os-ftab.active');
-  var filtre = fBtn ? fBtn.dataset.f : 'tous';
   var uid    = getUserId();
   var role   = getUserRole();
 
-  if(_maOnglet === 'secours'){ _maRenderBrouillonsLocaux(list, count, search); return; }
+  if(_maOnglet === 'secours'){ _maRenderBrouillonsLocaux(list, count); return; }
 
   var arts = _maCache.slice();
   // Mes brouillons / Mes articles partagent la même requête (mes articles + ceux que je
   // corrige) et se distinguent ici : les brouillons dont je suis l'auteur·rice d'un côté,
-  // tout le reste du parcours éditorial de l'autre.
+  // tout le reste du parcours éditorial de l'autre. Le statut lui-même se lit désormais
+  // dans le regroupement de la vue "Tous les articles" plutôt que via un filtre à part —
+  // c'était tout l'intérêt du rail.
   if(_maOnglet === 'brouillons'){
     arts = arts.filter(function(a){ return (a.statut||'brouillon')==='brouillon' && a.auteur_id===uid; });
   } else if(_maOnglet === 'mes'){
     arts = arts.filter(function(a){ return !((a.statut||'brouillon')==='brouillon' && a.auteur_id===uid); });
   }
 
-  if(filtre!=='tous') arts=arts.filter(function(a){return a.statut===filtre;});
-  if(search.trim()){
-    var q=search.trim().toLowerCase();
-    arts=arts.filter(function(a){return (a.titre||'').toLowerCase().includes(q)||(a.rubrique||'').toLowerCase().includes(q);});
-  }
-  arts.sort(function(a,b){
-    if(tri==='date_asc') return (a.updated_at||'')<(b.updated_at||'')?-1:1;
-    if(tri==='titre_asc') return (a.titre||'').localeCompare(b.titre||'');
-    return (b.updated_at||'')>(a.updated_at||'')?1:-1;
-  });
+  // Tri fixe, du plus récent au plus ancien — plus de case de tri manuelle, l'ordre
+  // chronologique (et le regroupement ci-dessous) suffit.
+  arts.sort(function(a,b){ return (b.updated_at||'')>(a.updated_at||'')?1:-1; });
 
   if(count) count.textContent = arts.length ? arts.length+' article'+(arts.length>1?'s':'') : '';
   if(!arts.length){
@@ -19712,18 +19671,33 @@ function maOsFiltre(){
     return;
   }
 
-  arts.forEach(function(doc){ list.appendChild(maOsMakeCard(doc,uid,role)); });
+  // Ailleurs (Mes articles, Mes brouillons, À corriger, Validation centrale) : regroupé
+  // mois par mois, du mois en cours vers les plus anciens — arts est déjà trié du plus
+  // récent au plus ancien, donc un simple suivi du dernier mois rencontré suffit.
+  var moisEnCours = null;
+  arts.forEach(function(doc){
+    var cle = (doc.updated_at||'').slice(0,7); // "YYYY-MM"
+    if(cle !== moisEnCours){
+      moisEnCours = cle;
+      var titreGroupe = document.createElement('div');
+      titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
+      titreGroupe.textContent = doc.updated_at ? _maLabelMois(doc.updated_at) : 'Date inconnue';
+      list.appendChild(titreGroupe);
+    }
+    list.appendChild(maOsMakeCard(doc,uid,role));
+  });
+}
+
+function _maLabelMois(dateStr){
+  var s = new Date(dateStr).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  return s.charAt(0).toUpperCase()+s.slice(1);
 }
 
 // Vue « Non sauvegardés » — ces brouillons n'existent que dans ce navigateur : pas de
 // statut, pas d'historique, aucune copie ailleurs. D'où l'avertissement en tête et les
 // deux seules actions qui ont du sens ici (reprendre pour enregistrer, ou jeter).
-function _maRenderBrouillonsLocaux(list, count, search){
+function _maRenderBrouillonsLocaux(list, count){
   var drafts = _maBrouillonsLocaux();
-  if(search.trim()){
-    var q = search.trim().toLowerCase();
-    drafts = drafts.filter(function(d){ return (d.titre||'').toLowerCase().includes(q); });
-  }
   if(count) count.textContent = drafts.length ? drafts.length+' brouillon'+(drafts.length>1?'s':'') : '';
   if(!drafts.length){
     list.innerHTML = '<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun brouillon en attente sur cet appareil.</div>';
@@ -19828,7 +19802,7 @@ function maOsMakeCard(doc, uid, role){
           :''))
     +age+'</div>';
 
-  // Actions
+  // Actions — rangée principale
   var actHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">';
   // Modifier si auteur + brouillon
   if(estAuteur&&(s==='brouillon'))
@@ -19845,13 +19819,19 @@ function maOsMakeCard(doc, uid, role){
     actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="db.getArticle(this.dataset.id).then(osMontrerDiff)">🔎 Diff</button>';
   // Lire
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
-  // Supprimer — admin sur tout ; auteur sur son article tant qu'il n'est pas encore
-  // validé (brouillon, en-relecture, corrigé) — dès l'étape validé et jusqu'à publié,
-  // seul l'admin peut encore le supprimer.
-  var STATUTS_SUPPRIMABLES_AUTEUR = ['brouillon','en-relecture','corrige'];
-  if(role==='admin' || (estAuteur && STATUTS_SUPPRIMABLES_AUTEUR.indexOf(s)!==-1))
-    actHtml+='<button style="'+_maBtn('danger')+'" data-id="'+doc.id+'" onclick="maOsSupprimer(this.dataset.id)">🗑️</button>';
   actHtml+='</div>';
+
+  // Supprimer — sur sa propre ligne, sous les autres actions plutôt qu'à côté (juste
+  // à côté de "Lire" un clic malheureux supprimait facilement au lieu d'ouvrir).
+  // Admin sur tout ; auteur sur son article tant qu'il n'est pas encore validé (brouillon,
+  // en-relecture, corrigé) — dès l'étape validé et jusqu'à publié, seul l'admin peut
+  // encore le supprimer.
+  var STATUTS_SUPPRIMABLES_AUTEUR = ['brouillon','en-relecture','corrige'];
+  if(role==='admin' || (estAuteur && STATUTS_SUPPRIMABLES_AUTEUR.indexOf(s)!==-1)){
+    actHtml+='<div style="margin-top:.35rem;">'
+      +'<button style="'+_maBtn('danger')+'" data-id="'+doc.id+'" onclick="maOsSupprimer(this.dataset.id)">🗑️ Supprimer</button>'
+      +'</div>';
+  }
 
   card.innerHTML = pip + noteHtml + titreHtml + metaHtml + actHtml;
   return card;
