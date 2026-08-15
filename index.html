@@ -4197,6 +4197,10 @@ input:focus,select:focus,textarea:focus{
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
       <button class="btn sec" onclick="if(currentDoc && currentDoc.statut==='publie' && getUserRole()!=='admin'){ notif('Article publie - contacte un admin pour le modifier'); } else { chargerDansRedaction(currentDoc); }">Modifier</button>
     </div>
+    <!-- Sur sa propre ligne, sous la rangée principale — jamais collé aux autres
+         boutons, pour éviter un clic malheureux. Rempli par renderLecture, visible
+         seulement une fois l'article ouvert (pas de suppression "à l'aveugle"). -->
+    <div id="lect-suppr-zone" style="margin-top:0.6rem;"></div>
     <div class="md-out" id="md-lect"></div>
   </div>
 </div>
@@ -5601,6 +5605,18 @@ function renderLecture(){
   document.getElementById('l-statbadge').innerHTML=bStat(doc.statut);
   document.getElementById('l-urgbadge').innerHTML=doc.urgence?bUrg(doc.urgence):'';
   document.getElementById('l-fraicheur').innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le, doc.statut);
+  // Supprimer — admin sur tout ; auteur sur son article tant qu'il n'est pas encore
+  // validé (brouillon, en-relecture, corrigé) — même règle que partout ailleurs dans
+  // Compo pour cette action. Visible seulement une fois l'article ouvert en lecture.
+  var zoneSuppr = document.getElementById('lect-suppr-zone');
+  if(zoneSuppr){
+    var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
+    var statutsSupprimablesAuteur = ['brouillon','en-relecture','corrige'];
+    var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && statutsSupprimablesAuteur.indexOf(doc.statut||'brouillon')!==-1);
+    zoneSuppr.innerHTML = peutSupprimerLect
+      ? '<button class="btn sec" style="color:#A32D2D;border-color:#A32D2D;" onclick="maOsSupprimer(\''+doc.id+'\')"><i class="ti ti-trash"></i> Supprimer</button>'
+      : '';
+  }
   let h='<div class="art-titre">'+esc(doc.titre)+'</div>';
   if(doc.chapeau)h+='<div class="art-chapeau">'+esc(doc.chapeau)+'</div>';
   if(doc.image)h+='<img class="art-img" src="'+doc.image+'" alt="'+(doc.image_legende||'')+'">'+(doc.image_legende?'<div style="font-family:\'Arial\',monospace;font-size:0.68rem;color:var(--gris);margin-bottom:1rem;">'+esc(doc.image_legende)+'</div>':'');
@@ -19802,7 +19818,9 @@ function maOsMakeCard(doc, uid, role){
           :''))
     +age+'</div>';
 
-  // Actions — rangée principale
+  // Actions — Supprimer ne vit plus ici : déplacé dans la page de lecture de l'article
+  // (renderLecture), pour qu'il faille d'abord ouvrir/relire l'article avant de pouvoir
+  // le supprimer, plutôt qu'un clic rapide et malheureux depuis la liste.
   var actHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">';
   // Modifier si auteur + brouillon
   if(estAuteur&&(s==='brouillon'))
@@ -19820,18 +19838,6 @@ function maOsMakeCard(doc, uid, role){
   // Lire
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
   actHtml+='</div>';
-
-  // Supprimer — sur sa propre ligne, sous les autres actions plutôt qu'à côté (juste
-  // à côté de "Lire" un clic malheureux supprimait facilement au lieu d'ouvrir).
-  // Admin sur tout ; auteur sur son article tant qu'il n'est pas encore validé (brouillon,
-  // en-relecture, corrigé) — dès l'étape validé et jusqu'à publié, seul l'admin peut
-  // encore le supprimer.
-  var STATUTS_SUPPRIMABLES_AUTEUR = ['brouillon','en-relecture','corrige'];
-  if(role==='admin' || (estAuteur && STATUTS_SUPPRIMABLES_AUTEUR.indexOf(s)!==-1)){
-    actHtml+='<div style="margin-top:.35rem;">'
-      +'<button style="'+_maBtn('danger')+'" data-id="'+doc.id+'" onclick="maOsSupprimer(this.dataset.id)">🗑️ Supprimer</button>'
-      +'</div>';
-  }
 
   card.innerHTML = pip + noteHtml + titreHtml + metaHtml + actHtml;
   return card;
