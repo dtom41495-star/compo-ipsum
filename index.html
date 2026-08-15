@@ -23318,75 +23318,15 @@ function osBenevolesDashRender(){
 
     // ONGLET RECRUTEMENT
     var recrutDiv = document.createElement('div');
+    recrutDiv.id = 'benv-recrutement-zone';
     recrutDiv.style.cssText = 'flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1rem 1.4rem;';
     recrutDiv.innerHTML = osLoadingHtml();
     tabContents['recrutement'] = recrutDiv;
     contentWrap.appendChild(recrutDiv);
-    (function(){
-      var authH3 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-      Promise.all([
-        fetch(SB_URL+'/rest/v1/recrutement_annonces?order=created_at.desc&select=*,commissions(nom)',{headers:authH3}).then(function(r){return r.json();}),
-        fetch(SB_URL+'/rest/v1/recrutement_candidatures?membre_id=eq.'+getUserId()+'&select=annonce_id,statut',{headers:authH3}).then(function(r){return r.json();})
-      ]).then(function(res){
-        var annonces = (!res[0]||res[0].code)?[]:res[0];
-        var mesCandidatures = (!res[1]||res[1].code)?[]:res[1];
-        var mesCandidaturesIds = mesCandidatures.map(function(c){return c.annonce_id;});
-        var h = '';
-        if(isVieAsso){
-          h += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.8rem;">';
-          h += '<button onclick="osBenvAnnonceNouvelle()" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;">+ Nouvelle annonce</button>';
-          h += '</div>';
-          h += '<div id="benv-annonce-form-zone" style="display:none;"></div>';
-        }
-        var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
-        var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
-        function renderAnnonce(a){
-          var dejaCandid = mesCandidaturesIds.indexOf(a.id) !== -1;
-          var statCandid = dejaCandid ? mesCandidatures.find(function(c){return c.annonce_id===a.id;}).statut : null;
-          var dateStr = a.created_at?new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-          var r = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.5rem;">';
-          r += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
-          r += '<div style="flex:1;">';
-          r += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+esc(a.titre)+'</div>';
-          if(a.commissions) r += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:2px;">'+esc(a.commissions.nom)+'</div>';
-          if(a.description) r += '<div style="font-size:0.75rem;color:var(--gris);margin-top:4px;line-height:1.5;">'+esc(a.description)+'</div>';
-          r += '<div style="font-size:0.62rem;color:var(--gris);margin-top:5px;">'+dateStr+'</div>';
-          r += '</div>';
-          r += '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;">';
-          r += '<span style="font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(a.statut==='ouvert'?'#D4EDDA':'#F5F5F5')+';color:'+(a.statut==='ouvert'?'#155724':'#6c757d')+';">'+(a.statut==='ouvert'?'Ouvert':'Fermé')+'</span>';
-          if(a.statut==='ouvert'){
-            if(!dejaCandid){
-              r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osBenvCandidater(this.dataset.aid,this.dataset.atit)" style="font-size:0.65rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✋ Candidater</button>';
-            } else {
-              var statLabel = {en_attente:'En attente',accepte:'✓ Accepté',refuse:'✗ Refusé'}[statCandid]||statCandid;
-              r += '<span style="font-size:0.62rem;padding:3px 8px;border-radius:6px;background:#EAF3DE;color:#155724;">'+statLabel+'</span>';
-            }
-          }
-          if(isVieAsso){
-            r += '<div style="display:flex;gap:4px;">';
-            r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceToggle(this.dataset.aid,\''+a.statut+'\')" style="font-size:0.62rem;padding:2px 8px;border:1px solid var(--gris-bord);border-radius:5px;background:transparent;cursor:pointer;color:var(--gris);">'+(a.statut==='ouvert'?'Fermer':'Rouvrir')+'</button>';
-            r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceVoirCandidatures(this.dataset.aid)" style="font-size:0.62rem;padding:2px 8px;border:1px solid #1A5276;border-radius:5px;background:transparent;cursor:pointer;color:#1A5276;">Candidatures</button>';
-            r += '</div>';
-          }
-          r += '</div></div></div>';
-          return r;
-        }
-        if(!annonces.length){
-          h += '<div style="text-align:center;padding:2rem;color:var(--gris);">Aucune annonce de recrutement.'+(isVieAsso?' Crée la première !':'')+'</div>';
-        } else {
-          if(ouvertes.length){
-            h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;">Postes ouverts ('+ouvertes.length+')</div>';
-            ouvertes.forEach(function(a){ h += renderAnnonce(a); });
-          }
-          if(fermees.length){
-            h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin:0.8rem 0 0.5rem;">Fermés ('+fermees.length+')</div>';
-            fermees.forEach(function(a){ h += renderAnnonce(a); });
-          }
-        }
-        recrutDiv.innerHTML = h;
-        window._benvAnnonces = annonces;
-      }).catch(function(){ recrutDiv.innerHTML = osErreurHtml(); });
-    })();
+    // Référence passée directement : à cet instant, recrutDiv est construit en mémoire
+    // mais pas encore attaché au document (ça n'arrive qu'à la toute fin de cette
+    // fonction, avec wc.appendChild(app)) — document.getElementById ne le trouverait pas.
+    osBenvChargerRecrutement(recrutDiv);
 
     wc.innerHTML='';
     wc.appendChild(app);
@@ -23394,6 +23334,93 @@ function osBenevolesDashRender(){
   }).catch(function(){wc.innerHTML='<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';});
 }
 
+
+// Recharge uniquement l'onglet Recrutement — pas tout le tableau de bord Bénévoles —
+// pour rester léger après chaque décision sur une candidature (accepter/refuser),
+// où recharger équipe/commissions/stats n'apporte rien.
+function osBenvChargerRecrutement(elForce){
+  var recrutDiv = elForce || document.getElementById('benv-recrutement-zone');
+  if(!recrutDiv) return;
+  var isVieAsso = getUserRole()==='admin' || getUserHasFonction('vie_asso');
+  var authH3 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/recrutement_annonces?order=created_at.desc&select=*,commissions(nom)',{headers:authH3}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/recrutement_candidatures?membre_id=eq.'+getUserId()+'&select=annonce_id,statut',{headers:authH3}).then(function(r){return r.json();}),
+    // Comptes par annonce — utile seulement à la vie associative, qui traite les candidatures.
+    isVieAsso
+      ? fetch(SB_URL+'/rest/v1/recrutement_candidatures?select=annonce_id,statut',{headers:authH3}).then(function(r){return r.json();})
+      : Promise.resolve([])
+  ]).then(function(res){
+    var annonces = (!res[0]||res[0].code)?[]:res[0];
+    var mesCandidatures = (!res[1]||res[1].code)?[]:res[1];
+    var mesCandidaturesIds = mesCandidatures.map(function(c){return c.annonce_id;});
+    var toutesCandidatures = (!res[2]||res[2].code)?[]:res[2];
+    var compteParAnnonce = {};
+    toutesCandidatures.forEach(function(c){
+      if(!compteParAnnonce[c.annonce_id]) compteParAnnonce[c.annonce_id] = {total:0, enAttente:0};
+      compteParAnnonce[c.annonce_id].total++;
+      if(c.statut==='en_attente') compteParAnnonce[c.annonce_id].enAttente++;
+    });
+    var h = '';
+    if(isVieAsso){
+      h += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.8rem;">';
+      h += '<button onclick="osBenvAnnonceNouvelle()" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;">+ Nouvelle annonce</button>';
+      h += '</div>';
+      h += '<div id="benv-annonce-form-zone" style="display:none;"></div>';
+    }
+    var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
+    var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
+    function renderAnnonce(a){
+      var dejaCandid = mesCandidaturesIds.indexOf(a.id) !== -1;
+      var statCandid = dejaCandid ? mesCandidatures.find(function(c){return c.annonce_id===a.id;}).statut : null;
+      var dateStr = a.created_at?new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+      var r = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.5rem;">';
+      r += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
+      r += '<div style="flex:1;">';
+      r += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+esc(a.titre)+'</div>';
+      if(a.commissions) r += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:2px;">'+esc(a.commissions.nom)+'</div>';
+      if(a.description) r += '<div style="font-size:0.75rem;color:var(--gris);margin-top:4px;line-height:1.5;">'+esc(a.description)+'</div>';
+      r += '<div style="font-size:0.62rem;color:var(--gris);margin-top:5px;">'+dateStr+'</div>';
+      r += '</div>';
+      r += '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;">';
+      r += '<span style="font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(a.statut==='ouvert'?'#D4EDDA':'#F5F5F5')+';color:'+(a.statut==='ouvert'?'#155724':'#6c757d')+';">'+(a.statut==='ouvert'?'Ouvert':'Fermé')+'</span>';
+      if(a.statut==='ouvert'){
+        if(!dejaCandid){
+          r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osBenvCandidater(this.dataset.aid,this.dataset.atit)" style="font-size:0.65rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✋ Candidater</button>';
+        } else {
+          var statLabel = {en_attente:'En attente',accepte:'✓ Accepté',refuse:'✗ Refusé'}[statCandid]||statCandid;
+          r += '<span style="font-size:0.62rem;padding:3px 8px;border-radius:6px;background:#EAF3DE;color:#155724;">'+statLabel+'</span>';
+        }
+      }
+      if(isVieAsso){
+        var compte = compteParAnnonce[a.id] || {total:0, enAttente:0};
+        r += '<div style="display:flex;gap:4px;align-items:center;">';
+        if(compte.total){
+          r += '<span title="'+compte.total+' candidature'+(compte.total>1?'s':'')+' au total, '+compte.enAttente+' en attente" style="font-size:0.6rem;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;background:'+(compte.enAttente?'#FFF3CD':'#F5F5F5')+';color:'+(compte.enAttente?'#856404':'#6c757d')+';">'+compte.total+(compte.enAttente?' · '+compte.enAttente+' en attente':'')+'</span>';
+        }
+        r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceToggle(this.dataset.aid,\''+a.statut+'\')" style="font-size:0.62rem;padding:2px 8px;border:1px solid var(--gris-bord);border-radius:5px;background:transparent;cursor:pointer;color:var(--gris);">'+(a.statut==='ouvert'?'Fermer':'Rouvrir')+'</button>';
+        r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceVoirCandidatures(this.dataset.aid)" style="font-size:0.62rem;padding:2px 8px;border:1px solid #1A5276;border-radius:5px;background:transparent;cursor:pointer;color:#1A5276;">Candidatures</button>';
+        r += '</div>';
+      }
+      r += '</div></div></div>';
+      return r;
+    }
+    if(!annonces.length){
+      h += '<div style="text-align:center;padding:2rem;color:var(--gris);">Aucune annonce de recrutement.'+(isVieAsso?' Crée la première !':'')+'</div>';
+    } else {
+      if(ouvertes.length){
+        h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;">Postes ouverts ('+ouvertes.length+')</div>';
+        ouvertes.forEach(function(a){ h += renderAnnonce(a); });
+      }
+      if(fermees.length){
+        h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin:0.8rem 0 0.5rem;">Fermés ('+fermees.length+')</div>';
+        fermees.forEach(function(a){ h += renderAnnonce(a); });
+      }
+    }
+    recrutDiv.innerHTML = h;
+    window._benvAnnonces = annonces;
+  }).catch(function(){ recrutDiv.innerHTML = osErreurHtml(); });
+}
 
 function osBenvCommissionAjouter(){
   // Formulaire inline dans commissionsDiv
@@ -23707,50 +23734,56 @@ function osBenvAnnonceVoirCandidatures(annonceId){
   .then(function(candids){
     candids = (!candids||candids.code)?[]:candids;
     if(!candids.length){ notif('Aucune candidature pour le moment'); return; }
-    var wc = document.getElementById('wincontent-benevoles');
     var modal = document.createElement('div');
+    modal.id = 'benv-candid-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
     var box = document.createElement('div');
+    box.id = 'benv-candid-box';
     box.style.cssText = 'background:white;border-radius:12px;padding:1.5rem;width:min(560px,90vw);max-height:80vh;overflow-y:auto;';
-    var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">';
-    h += '<div style="font-weight:700;font-size:0.9rem;">Candidatures ('+candids.length+')</div>';
-    h += '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);">✕</button>';
-    h += '</div>';
-    candids.forEach(function(c){
-      var m = c.membres||{};
-      var d = c.created_at?new Date(c.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-      var statCfg = {en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},accepte:{l:'Accepté',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Refusé',bg:'#F8D7DA',c:'#721C24'}};
-      var cfg = statCfg[c.statut]||{l:c.statut,bg:'#eee',c:'#555'};
-      h += '<div style="border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
-      h += '<div><div style="font-weight:600;font-size:0.85rem;">'+esc(m.prenom+' '+m.nom)+'</div>';
-      h += '<div style="font-size:0.62rem;color:var(--gris);">'+esc(m.email||'')+' · '+d+'</div></div>';
-      h += '<span style="font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+cfg.bg+';color:'+cfg.c+';">'+cfg.l+'</span>';
-      h += '</div>';
-      if(c.message) h += '<div style="font-size:0.75rem;color:var(--gris);margin-top:6px;font-style:italic;">'+esc(c.message)+'</div>';
-      if(c.statut==='en_attente'){
-        h += '<div style="display:flex;gap:6px;margin-top:8px;">';
-        h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'accepte\',this.dataset.email,this.dataset.prenom)" style="flex:1;font-size:0.68rem;padding:4px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✓ Accepter</button>';
-        h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'refuse\',this.dataset.email,this.dataset.prenom)" style="flex:1;font-size:0.68rem;padding:4px;background:#721C24;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✕ Refuser</button>';
-        h += '</div>';
-      }
-      h += '</div>';
-    });
-    box.innerHTML = h;
     modal.appendChild(box);
     document.body.appendChild(modal);
+    _osBenvRenderCandidBox(box, annonceId, candids);
   }).catch(function(){ notif('Erreur chargement','erreur'); });
 }
 
-function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, prenom){
+// Remplit/rafraîchit le contenu de la fenêtre de candidatures — séparé de l'ouverture
+// pour pouvoir la remettre à jour sur place après chaque décision (accepter/refuser),
+// plutôt que de fermer la fenêtre et devoir la rouvrir pour traiter le dossier suivant.
+function _osBenvRenderCandidBox(box, annonceId, candids){
+  var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">';
+  h += '<div style="font-weight:700;font-size:0.9rem;">Candidatures ('+candids.length+')</div>';
+  h += '<button onclick="document.getElementById(\'benv-candid-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);">✕</button>';
+  h += '</div>';
+  candids.forEach(function(c){
+    var m = c.membres||{};
+    var d = c.created_at?new Date(c.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+    var statCfg = {en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},accepte:{l:'Accepté',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Refusé',bg:'#F8D7DA',c:'#721C24'}};
+    var cfg = statCfg[c.statut]||{l:c.statut,bg:'#eee',c:'#555'};
+    h += '<div style="border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+    h += '<div><div style="font-weight:600;font-size:0.85rem;">'+esc(m.prenom+' '+m.nom)+'</div>';
+    h += '<div style="font-size:0.62rem;color:var(--gris);">'+esc(m.email||'')+' · '+d+'</div></div>';
+    h += '<span style="font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+cfg.bg+';color:'+cfg.c+';">'+cfg.l+'</span>';
+    h += '</div>';
+    if(c.message) h += '<div style="font-size:0.75rem;color:var(--gris);margin-top:6px;font-style:italic;">'+esc(c.message)+'</div>';
+    if(c.statut==='en_attente'){
+      h += '<div style="display:flex;gap:6px;margin-top:8px;">';
+      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'accepte\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✓ Accepter</button>';
+      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'refuse\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#721C24;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✕ Refuser</button>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  box.innerHTML = h;
+}
+
+function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, prenom, annonceId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_candidatures?id=eq.'+candidatureId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:decision})})
   .then(function(r){
     if(r.ok){
       notif(decision==='accepte'?'Candidature acceptée ✓':'Candidature refusée','succes');
-      // Fermer modal
-      var modal = document.querySelector('[style*="position:fixed"][style*="z-index:9999"]');
-      if(modal) modal.remove();
       // Email au candidat
       if(email){
         var sujet = decision==='accepte'?'✓ Ta candidature a été acceptée — Ipsum Média':'Ta candidature chez Ipsum Média';
@@ -23766,7 +23799,20 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
           +'</div></div>';
         envoyerEmailResend(email, sujet, corps);
       }
-      osBenevolesDashRender();
+      // La fenêtre reste ouverte : on la remet juste à jour sur place, pour pouvoir
+      // enchaîner sur le dossier suivant sans devoir rouvrir "Candidatures".
+      var box = document.getElementById('benv-candid-box');
+      if(box && annonceId){
+        fetch(SB_URL+'/rest/v1/recrutement_candidatures?annonce_id=eq.'+annonceId+'&select=id,statut,message,created_at,membres(id,prenom,nom,email)',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})})
+        .then(function(r){return r.json();})
+        .then(function(candids){
+          candids = (!candids||candids.code)?[]:candids;
+          _osBenvRenderCandidBox(box, annonceId, candids);
+        });
+      }
+      // Rafraîchit juste le badge de compteur sur la liste des annonces en arrière-plan
+      // (pas tout le tableau de bord — équipe/commissions/stats n'ont pas à recharger ici).
+      osBenvChargerRecrutement();
     } else notif('Erreur','erreur');
   });
 }
