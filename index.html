@@ -4196,7 +4196,7 @@ input:focus,select:focus,textarea:focus{
     </div>
     <div class="art-preview" id="art-preview"></div>
     <div class="btn-row">
-      <button class="btn" onclick="genMd('lect')">Préparer pour Substack</button>
+      <button class="btn" onclick="genMd('lect')">Copier le texte</button>
       <button class="btn sec" onclick="genererVisuelsDepuisLecture()">🎨 Générer les visuels</button>
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
       <button class="btn sec" onclick="if(currentDoc && currentDoc.statut==='publie' && getUserRole()!=='admin'){ notif('Article publie - contacte un admin pour le modifier'); } else { chargerDansRedaction(currentDoc); }">Modifier</button>
@@ -4243,7 +4243,7 @@ input:focus,select:focus,textarea:focus{
     <div class="btn-row">
       <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
       <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)">📄 Exporter en JSON</button>
-      <button class="btn sec" onclick="genMd('edit')">Préparer pour Substack</button>
+      <button class="btn sec" onclick="genMd('edit')">Copier le texte</button>
     </div>
     <div class="md-out" id="md-edit"></div>
   </div>
@@ -4945,18 +4945,53 @@ function updateStats(){
 }
 
 // ===== IMAGE =====
+// Redimensionne/recompresse une image côté client avant upload (couverture d'article
+// ou image insérée dans le corps) — l'objectif est de gagner de la place (Drive, Storage)
+// sans dégrader visiblement le rendu : 1920px de large max (déjà plus que ce qu'affiche
+// n'importe quel écran ou carte d'article), qualité JPEG 0.82 (quasi indolore à l'œil sur
+// une photo). Le GIF n'est jamais touché (perdrait son animation). Si la version compressée
+// ne fait pas gagner de place (petite image déjà optimisée, PNG avec transparence simple...),
+// on garde l'original tel quel plutôt que de forcer une conversion inutile.
+function _compresserImage(file, maxDim, qualite){
+  maxDim = maxDim || 1920;
+  qualite = qualite==null ? 0.82 : qualite;
+  return new Promise(function(resolve){
+    if(!file || file.type === 'image/gif'){ resolve(file); return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      URL.revokeObjectURL(url);
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if(!w || !h){ resolve(file); return; }
+      var echelle = Math.min(1, maxDim / Math.max(w, h));
+      var cw = Math.max(1, Math.round(w*echelle)), ch = Math.max(1, Math.round(h*echelle));
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      canvas.toBlob(function(blob){
+        resolve(blob && blob.size < file.size ? blob : file);
+      }, 'image/jpeg', qualite);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 function loadImg(event){
   const f=event.target.files[0];if(!f)return;
-  imgFile = f; // Stocker le fichier pour upload Storage
-  const r=new FileReader();
-  r.onload=e=>{
-    imgB64=e.target.result;
-    document.getElementById('r-img-prev').src=imgB64;
-    document.getElementById('r-img-prev').style.display='block';
-    var rem = document.getElementById('r-img-rem');
-    if(rem) rem.style.display='inline-block';
-  };
-  r.readAsDataURL(f);
+  _compresserImage(f).then(function(fichier){
+    imgFile = fichier; // Stocker le fichier (compressé si possible) pour upload Storage
+    const r=new FileReader();
+    r.onload=e=>{
+      imgB64=e.target.result;
+      document.getElementById('r-img-prev').src=imgB64;
+      document.getElementById('r-img-prev').style.display='block';
+      var rem = document.getElementById('r-img-rem');
+      if(rem) rem.style.display='inline-block';
+    };
+    r.readAsDataURL(fichier);
+  });
 }
 function removeImg(){imgB64=null;['r-img-prev','r-img-rem','r-img-leg'].forEach(id=>{const el=document.getElementById(id);el.style.display='none';if(el.tagName==='INPUT')el.value='';});document.getElementById('r-img').value='';}
 
@@ -9558,7 +9593,9 @@ function rFormat(type){
 function mdVersHtml(md){
   if(!md) return '';
   var html = esc(md);
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">');
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url){
+    return '<img src="'+_driveImgSrc(url)+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">';
+  });
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
@@ -9592,8 +9629,9 @@ function rBasculerApercu(){
   }
 }
 
-// Upload direct vers Supabase Storage (chemin unique par image) — pas de base64 en base,
-// contrairement à l'image d'illustration historique.
+// Upload vers Drive (même Edge Function que l'image de couverture) — pour que toutes
+// les images d'un article vivent au même endroit, plutôt que d'éparpiller certaines
+// sur Supabase Storage.
 function rInsererImageInline(event){
   var file = event.target.files[0];
   event.target.value = '';
@@ -9602,34 +9640,20 @@ function rInsererImageInline(event){
   if(!ta) return;
   var start = ta.selectionStart, end = ta.selectionEnd;
   notif('Envoi de l\'image...');
-  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  var path = 'articles/inline-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
-  var reader = new FileReader();
-  reader.onload = function(e){
-    fetch(SB_URL + '/storage/v1/object/images-articles/' + path, {
-      method: 'POST',
-      headers: {
-        'apikey': SB_KEY,
-        'Authorization': 'Bearer ' + (_session ? _session.access_token : SB_KEY),
-        'Content-Type': file.type || 'image/jpeg',
-        'x-upsert': 'true'
-      },
-      body: e.target.result
-    }).then(function(r){
-      if(!r.ok) throw new Error('upload échoué');
-      var url = SB_URL + '/storage/v1/object/public/images-articles/' + path;
-      var before = ta.value.substring(0, start);
-      var after = ta.value.substring(end);
-      var insertion = '\n![Légende de l\'image]('+url+')\n';
-      ta.value = before + insertion + after;
-      ta.focus();
-      ta.selectionStart = ta.selectionEnd = start + insertion.length;
-      updateStats();
-      notif('Image ajoutée à l\'article','succes');
-    }).catch(function(){ notif('Erreur envoi image','erreur'); });
-  };
-  reader.onerror = function(){ notif('Erreur lecture du fichier','erreur'); };
-  reader.readAsArrayBuffer(file);
+  var redacId = currentDoc && currentDoc.redaction_id;
+  var titre = (currentDoc && currentDoc.titre) || (document.getElementById('r-titre')||{}).value || 'Image';
+  _compresserImage(file).then(function(fichier){
+    return uploadImageVersDrive(fichier, redacId, titre);
+  }).then(function(url){
+    var before = ta.value.substring(0, start);
+    var after = ta.value.substring(end);
+    var insertion = '\n![Légende de l\'image]('+url+')\n';
+    ta.value = before + insertion + after;
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = start + insertion.length;
+    updateStats();
+    notif('Image ajoutée à l\'article','succes');
+  }).catch(function(){ notif('Erreur envoi image','erreur'); });
 }
 
 
@@ -13662,7 +13686,14 @@ function osDepinglerApp(appId){
 }
 
 // ===== ÉTAT DE SAUVEGARDE =====
+function _osMajBoutonCpACote(){
+  var btn = document.getElementById('win-cp-acote-btn');
+  if(!btn) return;
+  btn.style.display = (currentDoc && currentDoc.cp_id) ? '' : 'none';
+}
+
 function osSaveIndicateur(etat){
+  _osMajBoutonCpACote();
   var el = document.getElementById('win-save-indicator');
   if(!el) return;
   if(etat === 'modifie'){
@@ -14391,8 +14422,24 @@ function _osOpenWindowExecuter(pageId){
     }
   }
   
+  // Accès rapide au CP source à côté de l'article — même fenêtre snap que le bouton
+  // dans le formulaire (rArticleOuvrirCpACote), mais toujours visible sans avoir à
+  // remonter/dérouler jusqu'à la zone "CP source lié". Masqué tant qu'aucun CP n'est
+  // rattaché — la visibilité est resynchronisée à chaque appel de osSaveIndicateur,
+  // qui se déclenche déjà à tous les moments où currentDoc.cp_id peut changer.
+  var btnCpACote = null;
+  if(pageId === 'redaction'){
+    btnCpACote = document.createElement('button');
+    btnCpACote.id = 'win-cp-acote-btn';
+    btnCpACote.title = 'Ouvrir le communiqué à côté de l\'article';
+    btnCpACote.onclick = function(e){ e.stopPropagation(); rArticleOuvrirCpACote(); };
+    btnCpACote.style.cssText = 'display:none;font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:6px;background:none;border:0.5px solid var(--bleu);color:var(--bleu);cursor:pointer;white-space:nowrap;flex-shrink:0;';
+    btnCpACote.innerHTML = '<i class="ti ti-layout-sidebar-right" style="vertical-align:-2px;margin-right:2px;"></i>Lire à côté';
+  }
+
   tb.appendChild(titleEl);
   if(saveIndicator) tb.appendChild(saveIndicator);
+  if(btnCpACote) tb.appendChild(btnCpACote);
   tb.appendChild(traffic);
   
   // Contenu
@@ -19384,70 +19431,121 @@ var _maCache  = [];
 var _maSearch = '';
 var _maTri    = 'date_desc';
 
+// Brouillons restés uniquement dans le navigateur (filet de secours de l'autosave) —
+// ils n'existent nulle part côté serveur, donc c'est la seule copie qui subsiste.
+// Un poste partagé peut contenir les brouillons de quelqu'un d'autre : on ne montre
+// que les siens (un brouillon sans auteur_id est traité comme sien, il vient forcément
+// d'une session sur ce navigateur).
+function _maBrouillonsLocaux(){
+  var uid = getUserId();
+  var drafts = [];
+  try{ drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]'); }catch(e){ return []; }
+  if(!Array.isArray(drafts)) return [];
+  return drafts.filter(function(d){ return d && (!d.auteur_id || d.auteur_id === uid); });
+}
+
+var MA_VUES = {
+  mes:                  { icon:'ti-file-text',    label:'Mes articles' },
+  brouillons:           { icon:'ti-notebook',     label:'Mes brouillons' },
+  secours:              { icon:'ti-device-floppy',label:'Non sauvegardés' },
+  corriger:             { icon:'ti-search',       label:'À corriger' },
+  tous:                 { icon:'ti-list-details', label:'Tous les articles' },
+  'validation-centrale':{ icon:'ti-shield-check', label:'Validation centrale' }
+};
+
+// Vues autorisées pour la personne connectée. Tout le monde est rédacteur·rice avant
+// tout (y compris correcteur·rices et admins) : la section personnelle est donc toujours
+// là, la section « rôle » ne s'ajoute qu'en dessous.
+function _maVuesAutorisees(){
+  var role = getUserRole();
+  var ids = ['mes','brouillons'];
+  if(_maBrouillonsLocaux().length) ids.push('secours');
+  if(role === 'correcteur' || role === 'admin') ids.push('corriger');
+  if(role === 'admin') ids.push('tous');
+  if(estValidateurCentral()) ids.push('validation-centrale');
+  return ids;
+}
+
+function _maRailRender(){
+  var rail = document.getElementById('ma-rail');
+  if(!rail) return;
+  var autorisees = _maVuesAutorisees();
+  if(autorisees.indexOf(_maOnglet) === -1) _maOnglet = 'mes';
+
+  function bouton(id, estSousItem){
+    var v = MA_VUES[id];
+    var actif = _maOnglet === id;
+    var taille = estSousItem ? '0.72rem' : '0.76rem';
+    return '<button data-vue="'+id+'" onclick="osMesArticlesChangerOnglet(this.dataset.vue)" '
+      +'style="display:flex;align-items:center;gap:8px;width:100%;padding:'+(estSousItem?'6px 10px':'8px 10px')+';'
+      +'border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';'
+      +'color:'+(actif?'white':(estSousItem?'var(--gris)':'var(--encre)'))+';'
+      +'font-size:'+taille+';font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;">'
+      +'<i class="ti '+v.icon+'" style="font-size:'+(estSousItem?'0.85rem':'0.95rem')+';display:flex;flex-shrink:0;"></i>'+v.label+'</button>';
+  }
+
+  var h = bouton('mes') + bouton('brouillons');
+  // « Non sauvegardés » est un sous-élément de Mes brouillons — masqué tant qu'il n'y a
+  // rien en local, pour ne pas afficher une entrée vide en permanence.
+  if(autorisees.indexOf('secours') !== -1){
+    h += '<div style="padding-left:18px;">'+bouton('secours', true)+'</div>';
+  }
+  var vuesRole = autorisees.filter(function(id){ return ['corriger','tous','validation-centrale'].indexOf(id) !== -1; });
+  if(vuesRole.length){
+    h += '<div style="height:0.5px;background:var(--gris-bord);margin:8px 4px;"></div>';
+    vuesRole.forEach(function(id){ h += bouton(id); });
+  }
+  rail.innerHTML = h;
+
+  // Synchronisé ici plutôt que dans chaque appelant : titre de la vue et pertinence du
+  // filtre par statut découlent directement de la vue active.
+  var titre = document.getElementById('ma-os-titre');
+  if(titre && MA_VUES[_maOnglet]) titre.textContent = MA_VUES[_maOnglet].label;
+  var filtres = document.getElementById('ma-os-filtres');
+  if(filtres) filtres.style.display = (_maOnglet==='secours' || _maOnglet==='brouillons') ? 'none' : 'flex';
+}
+
 function osMesArticlesRender(){
   var wc = document.getElementById('wincontent-mes-articles')
         || document.getElementById('wincontent-brouillons')
         || document.getElementById('wincontent-app-correction');
   if(!wc){ setTimeout(osMesArticlesRender, 200); return; }
   wc.innerHTML = '';
-  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:#F7F8FA;';
+  wc.style.cssText = 'display:flex;height:100%;overflow:hidden;background:#F7F8FA;';
 
-  var role = getUserRole();
+  // ── RAIL (gauche) ──
+  var rail = document.createElement('div');
+  rail.id = 'ma-rail';
+  rail.style.cssText = 'width:178px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);'
+    +'display:flex;flex-direction:column;padding:10px 8px;gap:2px;box-sizing:border-box;overflow-y:auto;';
+  wc.appendChild(rail);
 
-  // Onglets selon le rôle
-  var onglets = [{ id:'mes', label:'📰 Mes articles' }];
-  if(role === 'correcteur' || role === 'admin') onglets.push({ id:'corriger', label:'🔍 À corriger' });
-  if(role === 'admin') onglets.push({ id:'tous', label:'📋 Tous' });
-  if(estValidateurCentral()) onglets.push({ id:'validation-centrale', label:'🛡️ Validation centrale' });
-  if(!onglets.find(function(o){ return o.id===_maOnglet; })) _maOnglet = 'mes';
+  // ── ZONE PRINCIPALE (droite) ──
+  var main = document.createElement('div');
+  main.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;';
 
-  // ── HEADER ──
   var hdr = document.createElement('div');
   hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
 
-  // Ligne 1 : titre + contrôles
+  // Ligne 1 : titre de la vue + contrôles
   var l1 = document.createElement('div');
-  l1.style.cssText = 'display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.7rem 1rem .4rem;';
-  l1.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">Articles</div>'
+  l1.style.cssText = 'display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.7rem 1rem .5rem;';
+  l1.innerHTML = '<div id="ma-os-titre" style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">Articles</div>'
     +'<span id="ma-os-count" style="font-size:.62rem;color:var(--gris);"></span>'
     +'<div style="flex:1;"></div>'
-    +'<input id="ma-os-search" type="text" placeholder="🔍 Rechercher..." oninput="maOsFiltre()" style="font-size:.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;width:140px;outline:none;">'
+    +'<input id="ma-os-search" type="text" placeholder="Rechercher..." oninput="maOsFiltre()" style="font-size:.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;width:140px;outline:none;">'
     +'<select id="ma-os-tri" onchange="maOsFiltre()" style="font-size:.68rem;padding:4px 8px;border:1px solid var(--gris-bord);border-radius:20px;background:white;">'
     +'<option value="date_desc">Plus récent</option><option value="date_asc">Plus ancien</option><option value="titre_asc">Titre A→Z</option>'
     +'</select>'
-    +'<button onclick="osMesArticlesCharger()" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">↺</button>';
+    +'<button onclick="osMesArticlesCharger()" title="Rafraîchir" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-refresh"></i></button>'
+    +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;"><i class="ti ti-plus" style="vertical-align:-1px;"></i> Nouveau</button>';
   hdr.appendChild(l1);
 
-  // Ligne 2 : onglets rôle (à gauche) + bouton Nouveau (aligné à droite, même ligne)
-  var l2 = document.createElement('div');
-  l2.style.cssText = 'display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gris-bord);padding:0 1rem;';
-  var ongletsWrap = document.createElement('div');
-  ongletsWrap.style.cssText = 'display:flex;';
-  if(onglets.length > 1){
-    onglets.forEach(function(o){
-      var btn = document.createElement('button');
-      var actif = _maOnglet === o.id;
-      btn.style.cssText = 'font-size:.72rem;padding:.5rem .8rem;border:none;background:transparent;cursor:pointer;'
-        +'border-bottom:2.5px solid '+(actif?'var(--rouge)':'transparent')+';margin-bottom:-2px;'
-        +'color:'+(actif?'var(--encre)':'var(--gris)')+';font-weight:'+(actif?'700':'400')+';';
-      btn.textContent = o.label;
-      btn.dataset.onglet = o.id;
-      btn.onclick = (function(id){ return function(){ osMesArticlesChangerOnglet(id); }; })(o.id);
-      ongletsWrap.appendChild(btn);
-    });
-  }
-  l2.id = 'ma-os-onglets';
-  l2.appendChild(ongletsWrap);
-  var btnNouveau = document.createElement('button');
-  btnNouveau.textContent = '+ Nouveau';
-  btnNouveau.style.cssText = 'font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;margin:.35rem 0;';
-  btnNouveau.onclick = osOuvrirNouvelArticle;
-  l2.appendChild(btnNouveau);
-  hdr.appendChild(l2);
-
-  // Ligne 3 : filtres statut
+  // Ligne 2 : filtres statut — masquée dans les vues où le statut n'a pas de sens
+  // (brouillons locaux) ou est déjà unique (Mes brouillons).
   var l3 = document.createElement('div');
-  l3.style.cssText = 'display:flex;gap:.3rem;flex-wrap:wrap;padding:.45rem 1rem;';
+  l3.id = 'ma-os-filtres';
+  l3.style.cssText = 'display:flex;gap:.3rem;flex-wrap:wrap;padding:0 1rem .5rem;';
   ['tous','brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(f){
     var labels={tous:'Tous',brouillon:'Brouillon','en-relecture':'Relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Val. centrale',publie:'Publié'};
     var btn = document.createElement('button');
@@ -19458,28 +19556,24 @@ function osMesArticlesRender(){
     l3.appendChild(btn);
   });
   hdr.appendChild(l3);
-  wc.appendChild(hdr);
+  main.appendChild(hdr);
 
-  // ── LISTE ──
   var list = document.createElement('div');
   list.id = 'ma-os-list';
   list.style.cssText = 'flex:1;overflow-y:auto;padding:.7rem .9rem;';
   list.innerHTML = '<div style="text-align:center;padding:2rem;font-size:.78rem;color:var(--gris);">Chargement...</div>';
-  wc.appendChild(list);
+  main.appendChild(list);
+  wc.appendChild(main);
 
+  _maRailRender();
   osMesArticlesCharger();
 }
 
 function osMesArticlesChangerOnglet(id){
-  // Ne touche que la liste et l'état actif des onglets — garde le champ recherche/tri
-  // intact (ne perd plus sa valeur/focus à chaque changement d'onglet).
+  // Ne touche que la liste et l'état actif du rail — garde le champ recherche/tri
+  // intact (ne perd plus sa valeur/focus à chaque changement de vue).
   _maOnglet = id;
-  document.querySelectorAll('#ma-os-onglets button[data-onglet]').forEach(function(btn){
-    var actif = btn.dataset.onglet === id;
-    btn.style.borderBottomColor = actif ? 'var(--rouge)' : 'transparent';
-    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
-    btn.style.fontWeight = actif ? '700' : '400';
-  });
+  _maRailRender(); // met aussi à jour le titre et la visibilité des filtres de statut
   osMesArticlesCharger();
 }
 
@@ -19488,6 +19582,10 @@ function osMesArticlesCharger(){
   var nom   = getUserNomComplet();
   var role  = getUserRole();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+
+  // Brouillons locaux : rien à demander au serveur, ils n'y sont pas (c'est tout
+  // l'intérêt de cette vue).
+  if(_maOnglet === 'secours'){ _maCache = []; maOsFiltre(); return; }
 
   var q;
   if(_maOnglet === 'tous' && role === 'admin'){
@@ -19554,6 +19652,9 @@ function maOsSetFiltre(btn){
   maOsFiltre();
 }
 
+var MA_STATUTS_ORDRE  = ['brouillon','en-relecture','corrige','valide','valide_central','publie'];
+var MA_STATUTS_LABELS = {brouillon:'Brouillon','en-relecture':'En relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Validé (rédaction centrale)',publie:'Publié'};
+
 function maOsFiltre(){
   var list   = document.getElementById('ma-os-list');
   var count  = document.getElementById('ma-os-count');
@@ -19565,7 +19666,18 @@ function maOsFiltre(){
   var uid    = getUserId();
   var role   = getUserRole();
 
+  if(_maOnglet === 'secours'){ _maRenderBrouillonsLocaux(list, count, search); return; }
+
   var arts = _maCache.slice();
+  // Mes brouillons / Mes articles partagent la même requête (mes articles + ceux que je
+  // corrige) et se distinguent ici : les brouillons dont je suis l'auteur·rice d'un côté,
+  // tout le reste du parcours éditorial de l'autre.
+  if(_maOnglet === 'brouillons'){
+    arts = arts.filter(function(a){ return (a.statut||'brouillon')==='brouillon' && a.auteur_id===uid; });
+  } else if(_maOnglet === 'mes'){
+    arts = arts.filter(function(a){ return !((a.statut||'brouillon')==='brouillon' && a.auteur_id===uid); });
+  }
+
   if(filtre!=='tous') arts=arts.filter(function(a){return a.statut===filtre;});
   if(search.trim()){
     var q=search.trim().toLowerCase();
@@ -19583,7 +19695,73 @@ function maOsFiltre(){
     return;
   }
   list.innerHTML='';
+
+  // « Tous les articles » (admin) : regroupé par statut plutôt qu'en liste plate — sur
+  // un volume qui couvre toutes les rédactions, savoir où en est chaque article compte
+  // plus que l'ordre chronologique brut.
+  if(_maOnglet === 'tous'){
+    MA_STATUTS_ORDRE.forEach(function(st){
+      var groupe = arts.filter(function(a){ return (a.statut||'brouillon')===st; });
+      if(!groupe.length) return;
+      var titreGroupe = document.createElement('div');
+      titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
+      titreGroupe.textContent = (MA_STATUTS_LABELS[st]||st)+' · '+groupe.length;
+      list.appendChild(titreGroupe);
+      groupe.forEach(function(doc){ list.appendChild(maOsMakeCard(doc,uid,role)); });
+    });
+    return;
+  }
+
   arts.forEach(function(doc){ list.appendChild(maOsMakeCard(doc,uid,role)); });
+}
+
+// Vue « Non sauvegardés » — ces brouillons n'existent que dans ce navigateur : pas de
+// statut, pas d'historique, aucune copie ailleurs. D'où l'avertissement en tête et les
+// deux seules actions qui ont du sens ici (reprendre pour enregistrer, ou jeter).
+function _maRenderBrouillonsLocaux(list, count, search){
+  var drafts = _maBrouillonsLocaux();
+  if(search.trim()){
+    var q = search.trim().toLowerCase();
+    drafts = drafts.filter(function(d){ return (d.titre||'').toLowerCase().includes(q); });
+  }
+  if(count) count.textContent = drafts.length ? drafts.length+' brouillon'+(drafts.length>1?'s':'') : '';
+  if(!drafts.length){
+    list.innerHTML = '<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun brouillon en attente sur cet appareil.</div>';
+    return;
+  }
+  list.innerHTML = '<div style="background:#FFF3CD;border:1px solid #F0D68A;border-radius:8px;padding:.6rem .8rem;margin-bottom:.7rem;font-size:.75rem;color:#856404;line-height:1.5;">'
+    +'<i class="ti ti-alert-triangle" style="vertical-align:-2px;margin-right:4px;"></i>'
+    +'Ces brouillons ne sont enregistrés que sur cet appareil, dans ce navigateur. Reprends-les pour les enregistrer dans Compo — sinon ils disparaîtront en cas de vidage du cache.</div>';
+
+  drafts.forEach(function(d){
+    var card = document.createElement('div');
+    card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:12px;padding:.9rem 1rem;margin-bottom:.6rem;';
+    var date = d.modifie_le || d.cree_le;
+    card.innerHTML =
+      '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);margin-bottom:.2rem;">'+esc(d.titre||'Sans titre')+'</div>'
+      +'<div style="font-size:.62rem;color:var(--gris);margin-bottom:.55rem;">'
+      +(date ? 'Modifié le '+new Date(date).toLocaleString('fr-FR') : 'Date inconnue')
+      +(d.corps ? ' · '+d.corps.trim().split(/\s+/).length+' mots' : ' · vide')+'</div>'
+      +'<div style="display:flex;gap:.35rem;">'
+      +'<button style="'+_maBtn('rouge')+'" data-id="'+esc(d.id)+'" onclick="reprendreBrouillon(this.dataset.id)"><i class="ti ti-pencil" style="vertical-align:-1px;"></i> Reprendre</button>'
+      +'<button style="'+_maBtn('danger')+'" data-id="'+esc(d.id)+'" onclick="maOsSupprimerBrouillonLocal(this.dataset.id)"><i class="ti ti-trash"></i></button>'
+      +'</div>';
+    list.appendChild(card);
+  });
+}
+
+function maOsSupprimerBrouillonLocal(id){
+  if(!confirm('Supprimer définitivement ce brouillon ?\n\nIl n\'existe que sur cet appareil — il ne sera récupérable nulle part ailleurs.')) return;
+  var drafts = [];
+  try{ drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]'); }catch(e){ drafts = []; }
+  var reste = drafts.filter(function(d){ return !d || d.id !== id; });
+  try{ localStorage.setItem('ipsum_drafts', JSON.stringify(reste)); }catch(e){}
+  notif('Brouillon supprimé','succes');
+  // Le rail doit suivre : plus aucun brouillon local = l'entrée disparaît, et on
+  // bascule alors sur Mes brouillons plutôt que de rester sur une vue devenue vide.
+  if(!_maBrouillonsLocaux().length){ osMesArticlesChangerOnglet('brouillons'); return; }
+  _maRailRender();
+  maOsFiltre();
 }
 
 function maOsMakeCard(doc, uid, role){
@@ -21497,11 +21675,10 @@ function cpsMakeCard(cp, isAdmin){
     ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> PDF</span>'
     : '';
 
-  var uid = getUserId();
-  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === uid; });
-  var isChef = monLien && monLien.role_redac === 'redac_chef';
-  var peutSupprimer = isAdmin || (isChef && cp.created_by === uid);
-  var peutEditer = isAdmin || isChef;
+  // Modifier/Supprimer réservés à l'appli Communiqués admin (isAdmin=true) — jamais
+  // dans les vues de Ma Rédac' (cartes, fil de veille), même pour un rédac chef.
+  var peutSupprimer = isAdmin;
+  var peutEditer = isAdmin;
 
   var adminBtns = peutEditer ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
     '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-pencil"></i> Modifier</button>' +
