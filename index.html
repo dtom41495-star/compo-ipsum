@@ -4129,7 +4129,10 @@ input:focus,select:focus,textarea:focus{
       <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-speakerphone"></i> Espace Communication</div>
       <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="com-subtitle">Chargement...</div>
     </div>
-    <button onclick="osAppComCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+      <button onclick="osAppComNouveauVisuel()" style="font-size:0.68rem;padding:4px 12px;border:1px solid #7C3AED;border-radius:6px;background:#F5F3FF;color:#7C3AED;cursor:pointer;font-weight:600;"><i class="ti ti-external-link"></i> Nouveau visuel</button>
+      <button onclick="osAppComCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>
+    </div>
   </div>
   <div style="display:flex;border-bottom:1px solid var(--gris-bord);background:white;padding:0 0.8rem;overflow-x:auto;">
     <button class="com-tab active" data-t="afaire" onclick="osAppComOnglet('afaire',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--rouge);color:var(--rouge);font-weight:700;white-space:nowrap;margin-bottom:-1px;"><i class="ti ti-palette"></i> À faire</button>
@@ -16414,6 +16417,12 @@ function osAppComBrief(id, titre){
     if(!a){ notif('Article introuvable','erreur'); return; }
     osGenererBriefZip(a, '[ ] Post Instagram (1080x1080)\n[ ] Story Instagram (1080x1920)');
   });
+}
+
+// Modèle Canva partagé de l'équipe — sert de base à tous les visuels réseaux.
+var COM_CANVA_MODELE_URL = 'https://canva.link/e4z7gx31vjcgm0g';
+function osAppComNouveauVisuel(){
+  window.open(COM_CANVA_MODELE_URL, '_blank');
 }
 
 // ===== VISUELS RÉSEAUX — remise au rédac chef via Drive =====
