@@ -2390,6 +2390,18 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .art-img{width:100%;max-height:320px;object-fit:cover;margin-bottom:1.3rem;}
 .art-meta{font-family:Arial,sans-serif;font-size:0.68rem;color:var(--gris);margin-bottom:1.3rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;}
 .art-corps{font-size:0.96rem;line-height:1.85;white-space:pre-wrap;}
+.art-corps h2{font-family:'Poppins',sans-serif;font-size:1.35rem;font-weight:700;margin:1.4rem 0 0.6rem;line-height:1.3;}
+.art-corps h3{font-family:'Poppins',sans-serif;font-size:1.12rem;font-weight:700;margin:1.2rem 0 0.5rem;line-height:1.3;}
+.art-corps blockquote{border-left:3px solid var(--rouge);padding-left:1rem;margin:1rem 0;color:var(--gris);font-style:italic;}
+.art-corps ul{margin:0.8rem 0;padding-left:1.4rem;}
+.art-corps li{margin-bottom:0.3rem;}
+.art-corps p{margin:0 0 1rem;}
+.art-corps img{max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;}
+/* Éditeur en direct (#r-corps-live) : placeholder par ::before, piloté par .r-vide plutôt
+   que :empty — un contenteditable vide garde un <br> de remplissage pour rester cliquable,
+   ce qui invaliderait :empty. */
+#r-corps-live{position:relative;}
+#r-corps-live.r-vide:before{content:attr(data-placeholder);color:var(--gris);pointer-events:none;position:absolute;left:0;top:0;}
 .art-sources{margin-top:1.6rem;padding-top:0.9rem;border-top:1px solid var(--gris-bord);font-family:Arial,sans-serif;font-size:0.68rem;color:var(--gris);}
 .art-cp-block{margin-top:0.8rem;padding:0.75rem 1rem;background:var(--bleu-clair);border-left:3px solid var(--bleu);font-family:Arial,sans-serif;font-size:0.7rem;color:var(--bleu);}
 
@@ -4076,13 +4088,26 @@ input:focus,select:focus,textarea:focus{
         <button onclick="rFormat('h3')" title="Sous-sous-titre" style="padding:0 8px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.65rem;font-weight:700;">H3</button>
         <button onclick="rFormat('ul')" title="Liste" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;">•</button>
         <div style="width:1px;background:var(--gris-bord);margin:2px 2px;"></div>
-        <button id="r-btn-apercu" onclick="rBasculerApercu()" title="Aperçu" style="padding:0 10px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.68rem;"><i class="ti ti-eye"></i> Aperçu</button>
+        <button id="r-btn-commenter" onclick="rAjouterCommentaire()" title="Commenter ce paragraphe"
+          style="display:none;width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;color:#0C5460;"><i class="ti ti-message-circle"></i></button>
+      </div>
+
+      <!-- Commentaires de correction déjà posés — panneau FRÈRE de r-corps-live, jamais un
+           enfant : ce dernier est intégralement resérialisé en markdown à chaque frappe
+           (htmlVersMd), un nœud de décoration à l'intérieur polluerait l'article sauvegardé.
+           Visible seulement pour qui corrige l'article de quelqu'un d'autre (rCommentairesInit). -->
+      <div id="r-commentaires-panel" style="display:none;background:#FFF8E6;border:1px solid #F0D999;border-radius:8px;padding:0.7rem 0.9rem;margin-bottom:1rem;">
+        <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;"><i class="ti ti-message-circle"></i> Commentaires sur cet article</div>
+        <div id="r-commentaires-liste" style="display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">Chargement…</div>
       </div>
 
       <!-- Corps -->
       <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()" spellcheck="true" lang="fr"
-        style="width:100%;min-height:440px;font-size:1.02rem;font-family:'DM Sans',sans-serif;line-height:1.85;color:var(--encre);border:none;background:transparent;outline:none;resize:vertical;padding:0;display:block;margin-bottom:0.5rem;"></textarea>
-      <div id="r-corps-preview" style="display:none;width:100%;min-height:440px;font-size:1.02rem;font-family:'DM Sans',sans-serif;line-height:1.85;color:var(--encre);padding:0;margin-bottom:0.5rem;"></div>
+        style="display:none;"></textarea>
+      <div id="r-corps-live" class="art-corps r-vide" contenteditable="true" spellcheck="true" lang="fr"
+        data-placeholder="Écris ton article ici..." role="textbox" aria-multiline="true" aria-label="Corps de l'article"
+        oninput="rCorpsOnInput(event)" onkeydown="rCorpsOnKeydown(event)" onpaste="rCorpsOnPaste(event)"
+        style="width:100%;min-height:440px;border:none;background:transparent;outline:none;padding:0;display:block;margin-bottom:0.5rem;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-top:1px solid var(--gris-bord);margin-bottom:1.2rem;">
         <div class="stats-bar" id="stats-bar" style="margin:0;"></div>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -4915,6 +4940,7 @@ function setType(t){
   var tbB=document.getElementById('tb-breve'); if(tbB) tbB.classList.toggle('active',t==='breve');
   ['rg-chapeau','rg-angle','rg-sources'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display=t==='article'?'flex':'none'; });
   var corps=document.getElementById('r-corps'); if(corps) corps.placeholder=t==='breve'?'Ecris ta breve ici (400 caracteres max)...':'Ecris ton article ici...';
+  var corpsLive=document.getElementById('r-corps-live'); if(corpsLive) corpsLive.dataset.placeholder=t==='breve'?'Ecris ta breve ici (400 caracteres max)...':'Ecris ton article ici...';
   updateStats();
 }
 
@@ -5230,6 +5256,7 @@ function resetRedaction(){
   osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  rCorpsSetValeur('');
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
   // Pré-remplir la rédaction depuis la rédaction active du membre
   // Mettre à jour le badge rédaction
@@ -5305,7 +5332,7 @@ function reprendreBrouillon(id){
     var tEl=document.getElementById('r-titre'); if(tEl){ tEl.value=doc.titre||''; tEl.style.height='auto'; tEl.style.height=tEl.scrollHeight+'px'; }
     document.getElementById('r-chapeau').value=doc.chapeau||'';
     document.getElementById('r-angle').value=doc.angle||'';
-    document.getElementById('r-corps').value=doc.corps||'';
+    rCorpsSetValeur(doc.corps||'');
     document.getElementById('r-redaction').value=doc.redaction||'Rédaction Tarn';
     document.getElementById('r-rubrique').value=doc.rubrique||'';
     document.getElementById('r-datepub').value=doc.date_publication||'';
@@ -5795,7 +5822,7 @@ function ouvrirFS(src){
   else{if(!currentDoc)return;titre=currentDoc.titre;chapeau=currentDoc.chapeau;corps=currentDoc.corps;}
   let h='<h1>'+esc(titre)+'</h1>';
   if(chapeau)h+='<div class="fs-chapeau">'+esc(chapeau)+'</div>';
-  h+='<div style="white-space:pre-wrap">'+esc(corps)+'</div>';
+  h+='<div class="art-corps">'+mdVersHtml(corps)+'</div>';
   document.getElementById('fs-body').innerHTML=h;
   document.getElementById('fs-overlay').classList.add('open');
 }
@@ -5841,9 +5868,30 @@ function _driveImgSrc(lien){
   return 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1000';
 }
 function diff(a,b){
+  a = a||''; b = b||'';
   if(a===b)return esc(a);
-  const wa=a.split(/(\s+)/),wb=b.split(/(\s+)/);let r='';const mx=Math.max(wa.length,wb.length);
-  for(let i=0;i<mx;i++){const o=wa[i]||'',n=wb[i]||'';if(o===n)r+=esc(o);else{if(o)r+='<span class="del">'+esc(o)+'</span>';if(n)r+='<span class="ins">'+esc(n)+'</span>';}}
+  // Alignement par plus longue sous-séquence commune (LCS) — indispensable dès qu'un
+  // mot est ajouté/retiré : une comparaison position par position décale tout ce qui
+  // suit et le marque à tort comme "supprimé + rajouté" alors que rien n'a changé.
+  const wa=a.split(/(\s+)/),wb=b.split(/(\s+)/);
+  const m=wa.length,n=wb.length;
+  const dp=[];
+  for(let i=0;i<=m;i++){ dp[i]=new Array(n+1).fill(0); }
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) dp[i][j] = wa[i-1]===wb[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j],dp[i][j-1]);
+  const ops=[]; let i=m,j=n;
+  while(i>0&&j>0){
+    if(wa[i-1]===wb[j-1]){ ops.unshift({t:'=',v:wa[i-1]}); i--; j--; }
+    else if(dp[i-1][j]>=dp[i][j-1]){ ops.unshift({t:'-',v:wa[i-1]}); i--; }
+    else { ops.unshift({t:'+',v:wb[j-1]}); j--; }
+  }
+  while(i>0){ ops.unshift({t:'-',v:wa[i-1]}); i--; }
+  while(j>0){ ops.unshift({t:'+',v:wb[j-1]}); j--; }
+  let r='';
+  ops.forEach(function(op){
+    if(op.t==='=') r+=esc(op.v);
+    else if(op.t==='-') r+='<span class="del">'+esc(op.v)+'</span>';
+    else r+='<span class="ins">'+esc(op.v)+'</span>';
+  });
   return r;
 }
 function bStat(s){const l={brouillon:'Brouillon','en-relecture':'En relecture',corrige:'Corrigé',valide:'Validé ✓',publie:'Publié'};return '<span class="badge b-'+s+'">'+(l[s]||s)+'</span>';}
@@ -8920,7 +8968,7 @@ function chargerDansRedaction(doc){
     // de la fenêtre).
     if(typeof osSaveIndicateur === 'function') osSaveIndicateur('sauvegarde');
     document.getElementById('r-angle').value = doc.angle||'';
-    document.getElementById('r-corps').value = doc.corps||'';
+    rCorpsSetValeur(doc.corps||'');
     // Mettre à jour le badge rédaction
     var nomEl = document.getElementById('r-redaction-nom');
     var hiddenEl = document.getElementById('r-redaction');
@@ -8987,6 +9035,7 @@ function chargerDansRedaction(doc){
     notif('Article chargé : '+(doc.titre||'Sans titre'));
     // Mettre à jour le workflow
     rWorkflowMajInterface(doc);
+    rCommentairesInit(doc);
   }, 100);
 }
 
@@ -9579,28 +9628,31 @@ function rWorkflowRenvoyer(){
   };
 }
 
+// Barre d'outils de l'éditeur en direct (#r-corps-live). Gras/italique/lien passent par
+// execCommand (les 3 cas où son comportement est stable partout) ; citation/titres/liste
+// passent par _rSetBlockType/_rToggleList (partagées avec les raccourcis tapés au clavier,
+// voir plus bas), car execCommand('formatBlock') est trop inconsistant selon les navigateurs.
 function rFormat(type){
-  var ta = document.getElementById('r-corps');
-  if(!ta) return;
-  var start = ta.selectionStart, end = ta.selectionEnd;
-  var sel = ta.value.substring(start, end);
-  var before = ta.value.substring(0, start);
-  var after = ta.value.substring(end);
-  var replacement = '';
+  var live = document.getElementById('r-corps-live');
+  if(!live) return;
+  live.focus();
   switch(type){
-    case 'bold':    replacement = '**'+(sel||'texte en gras')+'**'; break;
-    case 'italic':  replacement = '_'+(sel||'texte en italique')+'_'; break;
-    case 'quote':   replacement = '\n> '+(sel||'Citation')+'\n'; break;
-    case 'link':    var url=prompt('URL du lien :','https://'); if(!url) return; replacement='['+(sel||'texte du lien')+']('+url+')'; break;
-    case 'h2':      replacement = '\n## '+(sel||'Sous-titre')+'\n'; break;
-    case 'h3':      replacement = '\n### '+(sel||'Sous-sous-titre')+'\n'; break;
-    case 'ul':      replacement = '\n- '+(sel||'élément de liste')+'\n'; break;
+    case 'bold':   document.execCommand('bold');   break;
+    case 'italic': document.execCommand('italic'); break;
+    case 'quote':  _rSetBlockType('BLOCKQUOTE'); return; // sync déjà fait dans _rSetBlockType
+    case 'h2':     _rSetBlockType('H2');         return;
+    case 'h3':     _rSetBlockType('H3');         return;
+    case 'ul':     _rToggleList();               return;
+    case 'link':
+      var texteSelectionne = window.getSelection().toString();
+      var url = prompt('URL du lien :', 'https://');
+      if(!url) return;
+      if(texteSelectionne) document.execCommand('createLink', false, url);
+      else document.execCommand('insertHTML', false, '<a href="'+esc(url)+'" target="_blank" rel="noopener">texte du lien</a>');
+      break;
     default: return;
   }
-  ta.value = before + replacement + after;
-  ta.focus();
-  ta.selectionStart = ta.selectionEnd = start + replacement.length;
-  updateStats();
+  _rCorpsSync();
 }
 
 // Convertit le Markdown produit par la barre de formatage (gras, italique, citation,
@@ -9609,7 +9661,7 @@ function mdVersHtml(md){
   if(!md) return '';
   var html = esc(md);
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url){
-    return '<img src="'+_driveImgSrc(url)+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">';
+    return '<img src="'+_driveImgSrc(url)+'" data-md-url="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">';
   });
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
@@ -9626,23 +9678,294 @@ function mdVersHtml(md){
   return html;
 }
 
-function rBasculerApercu(){
-  var ta = document.getElementById('r-corps');
-  var prev = document.getElementById('r-corps-preview');
-  var btn = document.getElementById('r-btn-apercu');
-  if(!ta || !prev) return;
-  var enApercu = prev.style.display !== 'none';
-  if(enApercu){
-    prev.style.display = 'none';
-    ta.style.display = 'block';
-    if(btn) btn.innerHTML = '<i class="ti ti-eye"></i> Aperçu';
-  } else {
-    prev.innerHTML = mdVersHtml(ta.value) || '<span style="color:var(--gris);">Rien à prévisualiser pour le moment.</span>';
-    prev.style.display = 'block';
-    ta.style.display = 'none';
-    if(btn) btn.innerHTML = '<i class="ti ti-pencil"></i> Édition';
+// Inverse de mdVersHtml() : DOM de #r-corps-live -> markdown texte. Ne connaît que les
+// balises que cet éditeur produit lui-même (h2,h3,blockquote,ul>li,p,strong,em,a,img,br) ;
+// tout autre tag rencontré (copié-collé échappé au filtre paste) est "déshabillé", seul
+// son texte est gardé. Listes imbriquées et texte de lien/image contenant "]" : non gérés,
+// limite acceptée (le dialecte markdown existant ne les a jamais gérés non plus).
+function htmlVersMd(root){
+  if(!root) return '';
+  var blocs = [];
+  Array.prototype.forEach.call(root.childNodes, function(node){
+    var m = _rBlocVersMd(node);
+    if(m !== null && m !== '') blocs.push(m);
+  });
+  // U+200B : espace de largeur nulle posé par _rEssaiDeclencheurLigne pour ancrer le
+  // curseur juste après un gras/italique auto-converti — jamais destiné à être enregistré.
+  return blocs.join('\n\n').split(String.fromCharCode(8203)).join('');
+}
+function _rBlocVersMd(node){
+  if(node.nodeType === 3){ var t = node.textContent; return t.trim() ? t : null; }
+  if(node.nodeType !== 1) return null;
+  switch(node.tagName){
+    case 'H2': return '## ' + _rInlineVersMd(node).trim();
+    case 'H3': return '### ' + _rInlineVersMd(node).trim();
+    case 'BLOCKQUOTE':
+      return _rInlineVersMd(node).split('\n').map(function(l){ return l.trim() ? '> '+l.trim() : ''; })
+        .filter(function(l){ return l!==''; }).join('\n');
+    case 'UL': case 'OL':
+      return Array.prototype.map.call(node.querySelectorAll(':scope > li'), function(li){
+        return '- ' + _rInlineVersMd(li).trim();
+      }).join('\n');
+    case 'P': case 'DIV':
+      return _rInlineVersMd(node).trim();
+    case 'IMG': return _rImgVersMd(node);
+    case 'BR': return null;
+    default: return _rInlineVersMd(node).trim() || null;
   }
 }
+function _rInlineVersMd(node){
+  var out = '';
+  Array.prototype.forEach.call(node.childNodes, function(child){
+    if(child.nodeType === 3){ out += child.textContent; return; }
+    if(child.nodeType !== 1) return;
+    switch(child.tagName){
+      case 'STRONG': case 'B': out += '**'+_rInlineVersMd(child)+'**'; break;
+      case 'EM': case 'I':     out += '_'+_rInlineVersMd(child)+'_'; break;
+      case 'A':  out += '['+_rInlineVersMd(child)+']('+(child.getAttribute('href')||'')+')'; break;
+      case 'IMG': out += _rImgVersMd(child); break;
+      case 'BR': out += '\n'; break;
+      default: out += _rInlineVersMd(child); // dépouille le tag inconnu
+    }
+  });
+  return out;
+}
+function _rImgVersMd(img){
+  // mdVersHtml réécrit les liens Drive en URL de miniature pour l'affichage (_driveImgSrc) —
+  // si on lisait img.src ici, l'article sauvegardé perdrait le vrai lien Drive au profit
+  // d'une URL de miniature. data-md-url porte la valeur d'origine, posée à l'insertion.
+  var url = img.getAttribute('data-md-url') || img.getAttribute('src') || '';
+  var alt = img.getAttribute('alt') || 'image';
+  return '!['+alt+']('+url+')';
+}
+
+// ===== Synchronisation éditeur en direct <-> textarea fantôme (#r-corps, display:none) =====
+// #r-corps reste la source de vérité lue par tout le reste du fichier (autosave x2,
+// updateStats, buildDoc, validations, reprise de brouillon...) — voir le plan pour
+// l'inventaire complet. _rCorpsSync garde cette valeur à jour à chaque frappe/action réelle.
+function _rCorpsSync(){
+  var ta = document.getElementById('r-corps');
+  var live = document.getElementById('r-corps-live');
+  if(!ta || !live) return;
+  ta.value = htmlVersMd(live);
+  ta.dispatchEvent(new Event('input', {bubbles:true})); // .value= seul ne déclenche rien nativement
+  live.classList.toggle('r-vide', live.textContent.trim()==='');
+}
+// Chargement (nouvel article, reprise de brouillon, préremplissage CP, reset) : PAS de
+// dispatch d'événement ici, sinon l'autosave crierait "modifications non enregistrées"
+// dès l'ouverture d'un article qui vient d'être chargé tel quel.
+function rCorpsSetValeur(md){
+  var ta = document.getElementById('r-corps');
+  var live = document.getElementById('r-corps-live');
+  if(ta) ta.value = md || '';
+  if(live){
+    live.innerHTML = md ? mdVersHtml(md) : '<p><br></p>';
+    live.classList.toggle('r-vide', !md);
+  }
+}
+
+// ===== Manipulation de blocs (partagée entre la barre d'outils et les raccourcis tapés) =====
+function _rBlocCourant(){
+  var live = document.getElementById('r-corps-live');
+  var sel = window.getSelection();
+  if(!live || !sel.rangeCount) return null;
+  var node = sel.getRangeAt(0).startContainer;
+  while(node && node !== live && node.parentNode !== live) node = node.parentNode;
+  return (node && node !== live) ? node : null;
+}
+
+// ===== Commentaires de correction, ancrés par paragraphe =====
+// Bascule bouton "Commenter" + panneau de commentaires selon qui regarde l'article —
+// réutilise (inversé) l'idiome isAuteur déjà établi dans sauvegarderCloud. Un rédacteur
+// sur son propre brouillon ne voit ni l'un ni l'autre (rien à s'auto-commenter, et il
+// verra les commentaires via Diff une fois l'article corrigé) ; quiconque corrige
+// l'article de quelqu'un d'autre (correcteur global ou admin) voit les deux.
+function rCommentairesInit(doc){
+  var isAuteur = !doc || !doc.auteur_id || doc.auteur_id === getUserId();
+  var btn = document.getElementById('r-btn-commenter');
+  var panel = document.getElementById('r-commentaires-panel');
+  if(btn) btn.style.display = isAuteur ? 'none' : '';
+  if(panel) panel.style.display = (!isAuteur && doc && doc.id) ? 'block' : 'none';
+  if(!isAuteur && doc && doc.id) rChargerCommentaires(doc.id);
+}
+// Charge et affiche les commentaires déjà posés sur cet article, dans le panneau frère
+// (jamais injecté dans #r-corps-live).
+function rChargerCommentaires(articleId){
+  var liste = document.getElementById('r-commentaires-liste');
+  if(!liste) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(articleId)
+    +'&select=id,bloc_index,texte,created_at,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    rows = (rows && !rows.code) ? rows : [];
+    if(!rows.length){ liste.innerHTML = '<div style="font-size:0.75rem;color:var(--gris);">Aucun commentaire pour l\'instant.</div>'; return; }
+    liste.innerHTML = rows.map(function(c){
+      var auteurNom = c.membres ? ((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim() : '';
+      return '<div style="font-size:0.8rem;color:#5a3e00;background:white;border:1px solid #F0D999;border-radius:6px;padding:0.5rem 0.7rem;">'
+        +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:#856404;margin-bottom:2px;">Paragraphe '+(c.bloc_index+1)+(auteurNom?' · '+esc(auteurNom):'')+'</div>'
+        +esc(c.texte)+'</div>';
+    }).join('');
+  }).catch(function(){});
+}
+// Ajoute un commentaire ancré au paragraphe sous le curseur — même découpage que
+// htmlVersMd/corps.split(/\n{2,}/), donc stable tant que la structure de paragraphes ne
+// bouge pas après coup (dérive possible si des paragraphes sont ajoutés/retirés ensuite,
+// limite acceptée plutôt que réparée).
+function rAjouterCommentaire(){
+  if(!currentDoc || !currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
+  var live = document.getElementById('r-corps-live');
+  var bloc = _rBlocCourant();
+  if(!live || !bloc){ notif('Place le curseur dans le paragraphe à commenter'); return; }
+  var idx = Array.prototype.indexOf.call(live.children, bloc);
+  if(idx < 0) return;
+  var texte = prompt('Ton commentaire sur ce paragraphe :');
+  if(!texte || !texte.trim()) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/commentaires_articles', {
+    method:'POST', headers:authH,
+    body: JSON.stringify({ article_id:currentDoc.id, bloc_index:idx, texte:texte.trim(), auteur_id:getUserId() })
+  }).then(function(r){
+    if(r.ok){ notif('Commentaire ajouté','succes'); rChargerCommentaires(currentDoc.id); }
+    else notif('Erreur — vérifie les droits','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function _rPlacerCurseurDans(el){
+  var range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(true);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+function _rSetBlockType(tag){
+  var bloc = _rBlocCourant();
+  var live = document.getElementById('r-corps-live');
+  if(!bloc || !live) return;
+  var neuf = document.createElement(tag);
+  while(bloc.firstChild) neuf.appendChild(bloc.firstChild);
+  if(!neuf.firstChild) neuf.innerHTML = '<br>';
+  live.replaceChild(neuf, bloc);
+  _rPlacerCurseurDans(neuf);
+  _rCorpsSync();
+}
+function _rToggleList(){
+  var bloc = _rBlocCourant();
+  var live = document.getElementById('r-corps-live');
+  if(!bloc || !live) return;
+  if(bloc.tagName === 'LI'){
+    var ul = bloc.parentNode;
+    var p = document.createElement('P');
+    while(bloc.firstChild) p.appendChild(bloc.firstChild);
+    if(!p.firstChild) p.innerHTML = '<br>';
+    ul.parentNode.insertBefore(p, ul);
+    ul.removeChild(bloc);
+    if(!ul.firstChild) ul.parentNode.removeChild(ul);
+    _rPlacerCurseurDans(p);
+  } else {
+    var newUl = document.createElement('UL');
+    var li = document.createElement('LI');
+    while(bloc.firstChild) li.appendChild(bloc.firstChild);
+    if(!li.firstChild) li.innerHTML = '<br>';
+    newUl.appendChild(li);
+    live.replaceChild(newUl, bloc);
+    _rPlacerCurseurDans(li);
+  }
+  _rCorpsSync();
+}
+
+// ===== Raccourcis markdown tapés en direct (façon Notion) =====
+// Déclencheurs de bloc : le bloc courant est EXACTEMENT "## "/"### "/"> "/"- " -> conversion
+// immédiate. Liens volontairement exclus des déclencheurs en ligne (le ")" de fermeture
+// arrive constamment dans du texte normal) : restent boutons/dialogue uniquement.
+function _rEssaiDeclencheurBloc(){
+  var bloc = _rBlocCourant();
+  if(!bloc || bloc.nodeType !== 1) return false;
+  var texte = bloc.textContent;
+  var map = {'## ':'H2', '### ':'H3', '> ':'BLOCKQUOTE'};
+  if(map[texte]){ bloc.textContent = ''; _rSetBlockType(map[texte]); return true; }
+  if(texte === '- '){ bloc.textContent = ''; _rToggleList(); return true; }
+  return false;
+}
+function _rEssaiDeclencheurLigne(){
+  var sel = window.getSelection();
+  if(!sel.rangeCount || !sel.isCollapsed) return false;
+  var range = sel.getRangeAt(0);
+  var node = range.startContainer;
+  if(node.nodeType !== 3) return false;
+  var offset = range.startOffset;
+  var avant = node.textContent.slice(0, offset);
+  var apres = node.textContent.slice(offset);
+  var tag = null, m = null, longueur = 0, contenu = '';
+  var mg = avant.match(/\*\*([^*]+)\*\*$/);
+  if(mg){ tag='STRONG'; m=mg; longueur=mg[0].length; contenu=mg[1]; }
+  else {
+    var mi = avant.match(/(^|[^_])_([^_]+)_$/);
+    if(mi && mi[2]){ tag='EM'; m=mi; longueur = mi[0].length - (mi[1]?1:0); contenu=mi[2]; }
+  }
+  if(!tag) return false;
+  var prefixeGarde = avant.slice(0, avant.length - longueur);
+  var elFormat = document.createElement(tag);
+  elFormat.textContent = contenu;
+  var parent = node.parentNode;
+  var texteAvant = document.createTextNode(prefixeGarde);
+  parent.insertBefore(texteAvant, node);
+  parent.insertBefore(elFormat, node);
+  // Ancrer le curseur juste après l'élément formaté avec un espace de largeur nulle
+  // (U+200B, retiré à la sérialisation dans htmlVersMd) plutôt qu'à la frontière brute
+  // de l'élément : sans ça, la frappe suivante "hérite" du gras/italique qu'on vient de
+  // fermer (comportement natif de continuation de style des navigateurs) au lieu d'en
+  // sortir — un nœud texte réellement non vide, hors de l'élément, évite ce piège.
+  // node reste juste après elFormat (on n'a inséré que des nœuds AVANT lui plus haut).
+  node.textContent = String.fromCharCode(8203) + apres; // U+200B, espace de largeur nulle
+  var range2 = document.createRange();
+  range2.setStart(node, 1);
+  range2.collapse(true);
+  var sel2 = window.getSelection();
+  sel2.removeAllRanges();
+  sel2.addRange(range2);
+  return true;
+}
+function rCorpsOnInput(e){
+  if(e && e.isComposing) return; // ne pas casser la saisie IME
+  if(!_rEssaiDeclencheurBloc()) _rEssaiDeclencheurLigne();
+  _rCorpsSync();
+}
+// Titre/citation reviennent toujours à un paragraphe normal sur Entrée (comme l'ancien
+// dialecte où rFormat('h2') produisait toujours une ligne isolée) ; Entrée sur une puce
+// vide sort de la liste (convention standard "double Entrée pour sortir").
+function rCorpsOnKeydown(e){
+  if(e.key !== 'Enter') return;
+  var bloc = _rBlocCourant();
+  var live = document.getElementById('r-corps-live');
+  if(!bloc || !live) return;
+  if(bloc.tagName==='H2' || bloc.tagName==='H3' || bloc.tagName==='BLOCKQUOTE'){
+    e.preventDefault();
+    var p = document.createElement('P'); p.innerHTML = '<br>';
+    live.insertBefore(p, bloc.nextSibling);
+    _rPlacerCurseurDans(p);
+    _rCorpsSync();
+  } else if(bloc.tagName==='LI' && bloc.textContent.trim()===''){
+    e.preventDefault();
+    var ul = bloc.parentNode;
+    var p2 = document.createElement('P'); p2.innerHTML = '<br>';
+    ul.parentNode.insertBefore(p2, ul.nextSibling);
+    ul.removeChild(bloc);
+    if(!ul.firstChild) ul.parentNode.removeChild(ul);
+    _rPlacerCurseurDans(p2);
+    _rCorpsSync();
+  }
+}
+// Empêche tout collage (Word/Google Docs/Substack...) d'apporter du HTML étranger dans
+// l'éditeur — seul le texte brut passe, retapé/reformaté ensuite à la main si besoin.
+function rCorpsOnPaste(e){
+  e.preventDefault();
+  var texte = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, texte);
+  _rCorpsSync();
+}
+try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
 
 // Upload vers Drive (même Edge Function que l'image de couverture) — pour que toutes
 // les images d'un article vivent au même endroit, plutôt que d'éparpiller certaines
@@ -9651,22 +9974,31 @@ function rInsererImageInline(event){
   var file = event.target.files[0];
   event.target.value = '';
   if(!file) return;
-  var ta = document.getElementById('r-corps');
-  if(!ta) return;
-  var start = ta.selectionStart, end = ta.selectionEnd;
+  var live = document.getElementById('r-corps-live');
+  if(!live) return;
+  var blocCible = _rBlocCourant() || live.lastElementChild; // capturé avant l'upload async
   notif('Envoi de l\'image...');
   var redacId = currentDoc && currentDoc.redaction_id;
   var titre = (currentDoc && currentDoc.titre) || (document.getElementById('r-titre')||{}).value || 'Image';
   _compresserImage(file).then(function(fichier){
     return uploadImageVersDrive(fichier, redacId, titre);
   }).then(function(url){
-    var before = ta.value.substring(0, start);
-    var after = ta.value.substring(end);
-    var insertion = '\n![Légende de l\'image]('+url+')\n';
-    ta.value = before + insertion + after;
-    ta.focus();
-    ta.selectionStart = ta.selectionEnd = start + insertion.length;
-    updateStats();
+    var img = document.createElement('img');
+    img.src = _driveImgSrc(url);
+    img.setAttribute('data-md-url', url);
+    img.alt = 'Légende de l\'image';
+    img.style.cssText = 'max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;';
+    var p = document.createElement('p'); p.appendChild(img);
+    var pVide = document.createElement('p'); pVide.innerHTML = '<br>';
+    if(blocCible && blocCible.parentNode === live){
+      live.insertBefore(p, blocCible.nextSibling);
+      live.insertBefore(pVide, p.nextSibling);
+    } else {
+      live.appendChild(p); live.appendChild(pVide);
+    }
+    _rPlacerCurseurDans(pVide);
+    live.focus();
+    _rCorpsSync();
     notif('Image ajoutée à l\'article','succes');
   }).catch(function(){ notif('Erreur envoi image','erreur'); });
 }
@@ -9704,10 +10036,10 @@ function renderDiffLecture(doc){
   if(doc.correcteur) html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);">Corrige par ' + esc(doc.correcteur) + '</span>';
 
   // Note du correcteur
-  if(doc.note_correcteur){
+  if(doc.note_interne){
     html += '<div style="margin-top:1rem;padding:0.8rem 1rem;background:#EAF3DE;border-left:3px solid #27500A;">';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:#27500A;margin-bottom:0.3rem;">Note du correcteur</div>';
-    html += '<div style="font-size:0.88rem;">' + esc(doc.note_correcteur) + '</div>';
+    html += '<div style="font-size:0.88rem;">' + esc(doc.note_interne) + '</div>';
     html += '</div>';
   }
   html += '</div>';
@@ -9755,6 +10087,41 @@ function renderDiffLecture(doc){
   // Mettre a jour le titre de la page lecture
   var titreEl = document.getElementById('lect-titre');
   if(titreEl) titreEl.textContent = doc.titre || 'Sans titre';
+
+  rDiffAfficherCommentaires(doc, el);
+}
+
+// Commentaires du correcteur, ancrés par paragraphe — chargés après le rendu synchrone du
+// diff (même schéma que rLectureAfficherCpSource pour le CP source), puis ajoutés en fin
+// de conteneur. Le numéro de paragraphe + un extrait de son texte ACTUEL (doc.corps)
+// donnent le contexte ; si des paragraphes ont été ajoutés/retirés depuis la pose du
+// commentaire, l'ancrage peut avoir glissé (limite connue, non réparée en v1).
+function rDiffAfficherCommentaires(doc, container){
+  if(!doc || !doc.id || !container) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(doc.id)
+    +'&select=id,bloc_index,texte,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    rows = (rows && !rows.code) ? rows : [];
+    if(!rows.length) return;
+    var paragraphes = (doc.corps||'').split(/\n{2,}/);
+    var bloc = document.createElement('div');
+    bloc.style.cssText = 'margin-top:1.5rem;';
+    bloc.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;"><i class="ti ti-message-circle"></i> Commentaires du correcteur</div>';
+    rows.forEach(function(c){
+      var auteurNom = c.membres ? ((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim() : '';
+      var extrait = (paragraphes[c.bloc_index]||'').trim();
+      if(extrait.length > 160) extrait = extrait.slice(0,160)+'…';
+      var item = document.createElement('div');
+      item.style.cssText = 'margin-bottom:0.8rem;padding:0.8rem 1rem;background:#EAF3DE;border-left:3px solid #27500A;';
+      item.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:#27500A;margin-bottom:0.3rem;">Paragraphe '+(c.bloc_index+1)+(auteurNom?' · '+esc(auteurNom):'')+'</div>'
+        +(extrait ? '<div style="font-size:0.78rem;color:#555;font-style:italic;border-left:2px solid #C9DDB0;padding-left:0.6rem;margin-bottom:0.4rem;">« '+esc(extrait)+' »</div>' : '')
+        +'<div style="font-size:0.88rem;">'+esc(c.texte)+'</div>';
+      bloc.appendChild(item);
+    });
+    container.appendChild(bloc);
+  }).catch(function(){});
 }
 
 
@@ -19612,7 +19979,7 @@ function osMesArticlesCharger(){
       arts = redacCentraleMC ? arts.filter(function(a){ return a.redaction_id !== redacCentraleMC.id; }) : [];
     }
     _maCache = arts;
-    maOsChargerNewsletters(arts).then(maOsFiltre);
+    Promise.all([maOsChargerNewsletters(arts), maOsChargerCommentaires(arts)]).then(maOsFiltre);
   })
   .catch(function(){
     var list=document.getElementById('ma-os-list');
@@ -19634,6 +20001,24 @@ function maOsChargerNewsletters(arts){
     .then(function(rows){
       (rows&&!rows.code?rows:[]).forEach(function(row){
         if(row.newsletters) _maNewsletterMap[row.article_id] = row.newsletters;
+      });
+    })
+    .catch(function(){});
+}
+
+// Une seule requête groupée (même motif que maOsChargerNewsletters) — construit
+// article_id → nombre de commentaires, pour le badge sur le bouton Diff.
+var _maCommentairesCountMap = {};
+function maOsChargerCommentaires(arts){
+  _maCommentairesCountMap = {};
+  var ids = arts.map(function(a){ return a.id; }).filter(Boolean);
+  if(!ids.length) return Promise.resolve();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=in.('+ids.join(',')+')&select=article_id',{headers:authH})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      (rows&&!rows.code?rows:[]).forEach(function(row){
+        _maCommentairesCountMap[row.article_id] = (_maCommentairesCountMap[row.article_id]||0) + 1;
       });
     })
     .catch(function(){});
@@ -19838,8 +20223,11 @@ function maOsMakeCard(doc, uid, role){
     actHtml+='<button style="'+_maBtn('red-out')+'" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)">✕ Refuser</button>';
   }
   // Voir diff
-  if((doc.titre_original||doc.corps_original)&&estAuteur)
-    actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="db.getArticle(this.dataset.id).then(osMontrerDiff)">🔎 Diff</button>';
+  if((doc.titre_original||doc.corps_original)&&estAuteur){
+    var nbCommentaires = _maCommentairesCountMap[doc.id]||0;
+    actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-search"></i> Diff'
+      +(nbCommentaires?' · '+nbCommentaires+' <i class="ti ti-message-circle"></i>':'')+'</button>';
+  }
   // Lire
   actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
   actHtml+='</div>';
@@ -21841,8 +22229,7 @@ function cpsCréerArticle(cpId){
     osPopulerSelectRedaction();
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = cp.titre||cp.objet||''; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
-    var corpsEl = document.getElementById('r-corps');
-    if(corpsEl) corpsEl.value = (cp.corps||'').substring(0,1500);
+    rCorpsSetValeur((cp.corps||'').substring(0,1500));
     // Lier le CP et le sujet créé
     window.currentDoc = window.currentDoc||{};
     if(cp.id){ window.currentDoc.cp_id = cp.id; rArticleSetCpSource(cp); }
