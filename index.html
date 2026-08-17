@@ -2258,20 +2258,8 @@ body {
 body{font-family:'DM Sans',sans-serif;background:var(--blanc);color:var(--encre);min-height:100vh;}
 
 /* NAV */
-nav{border-bottom:2px solid var(--encre);padding:0.85rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--blanc);z-index:100;flex-wrap:wrap;gap:0.5rem;}
 .logo{font-family:'Poppins',sans-serif;font-size:1.3rem;font-weight:700;cursor:pointer;}
 .logo span{color:var(--rouge);}
-.nav-menu{display:flex;gap:0;flex-wrap:wrap;}
-.nav-group{position:relative;}
-.nav-btn{padding:0.4rem 1rem;font-family:Arial,sans-serif;font-size:0.66rem;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:var(--gris);border-right:1.5px solid var(--encre);border-top:1.5px solid var(--encre);border-bottom:1.5px solid var(--encre);transition:all 0.15s;}
-.nav-btn:first-child{border-left:1.5px solid var(--encre);}
-.nav-btn:hover,.nav-btn.active{background:var(--encre-fixe);color:var(--blanc);}
-.nav-btn.has-sub::after{content:'▾';margin-left:0.3rem;font-size:0.6rem;}
-.dropdown{display:none;position:absolute;top:100%;left:0;background:var(--blanc);border:1.5px solid var(--encre);z-index:200;min-width:160px;flex-direction:column;}
-.dropdown.open{display:flex;}
-.dropdown-item{padding:0.5rem 1rem;font-family:Arial,sans-serif;font-size:0.65rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;cursor:pointer;border:none;background:transparent;color:var(--gris);text-align:left;border-bottom:1px solid var(--gris-bord);}
-.dropdown-item:last-child{border-bottom:none;}
-.dropdown-item:hover{background:var(--encre-fixe);color:var(--blanc);}
 
 /* PAGES */
 .page{display:none;max-width:940px;margin:0 auto;padding:2.2rem 2rem;}
@@ -2397,6 +2385,11 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .art-corps li{margin-bottom:0.3rem;}
 .art-corps p{margin:0 0 1rem;}
 .art-corps img{max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;}
+/* Encart de commentaire de correction, ancré juste après son paragraphe — partagé entre
+   l'éditeur, la lecture (auteur uniquement) et le diff. */
+.r-comment-marker{display:block;margin:0.5rem 0 1rem;padding:0.6rem 0.9rem;background:#FFF8E6;border:1px solid #F0D999;border-left:3px solid #856404;border-radius:0 6px 6px 0;font-size:0.8rem;color:#5a3e00;white-space:normal;}
+.r-comment-marker i{color:#856404;margin-right:4px;}
+.r-comment-marker b{color:#5a3e00;}
 /* Éditeur en direct (#r-corps-live) : placeholder par ::before, piloté par .r-vide plutôt
    que :empty — un contenteditable vide garde un <br> de remplissage pour rester cliquable,
    ce qui invaliderait :empty. */
@@ -2684,34 +2677,6 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 }
 
 /* ===== DESIGN UPGRADES - ajouts uniquement ===== */
-
-/* Nav dark */
-nav{
-  background:var(--encre-fixe) !important;
-  border-bottom:none !important;
-  box-shadow:0 2px 12px rgba(0,0,0,0.2);
-}
-.nav-btn{
-  color:rgba(255,255,255,0.92) !important;
-  border-color:rgba(255,255,255,0.2) !important;
-  font-weight:600 !important;
-}
-.nav-btn:hover,.nav-btn.active{
-  background:var(--rouge) !important;
-  color:white !important;
-  border-color:var(--rouge) !important;
-}
-.dropdown{
-  background:var(--encre-fixe) !important;
-  border-color:rgba(255,255,255,0.15) !important;
-  box-shadow:0 8px 24px rgba(0,0,0,0.3);
-}
-.dropdown-item{
-  color:rgba(255,255,255,0.9) !important;
-  border-color:rgba(255,255,255,0.1) !important;
-  font-weight:500 !important;
-}
-.dropdown-item:hover{background:var(--rouge) !important;color:white !important;}
 
 /* Fond léger */
 body{background:#F0EEE9 !important;}
@@ -4072,15 +4037,6 @@ input:focus,select:focus,textarea:focus{
           style="display:none;width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;color:#0C5460;"><i class="ti ti-message-circle"></i></button>
       </div>
 
-      <!-- Commentaires de correction déjà posés — panneau FRÈRE de r-corps-live, jamais un
-           enfant : ce dernier est intégralement resérialisé en markdown à chaque frappe
-           (htmlVersMd), un nœud de décoration à l'intérieur polluerait l'article sauvegardé.
-           Visible seulement pour qui corrige l'article de quelqu'un d'autre (rCommentairesInit). -->
-      <div id="r-commentaires-panel" style="display:none;background:#FFF8E6;border:1px solid #F0D999;border-radius:8px;padding:0.7rem 0.9rem;margin-bottom:1rem;">
-        <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;"><i class="ti ti-message-circle"></i> Commentaires sur cet article</div>
-        <div id="r-commentaires-liste" style="display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">Chargement…</div>
-      </div>
-
       <!-- Corps -->
       <textarea id="r-corps" placeholder="Écris ton article ici..." oninput="updateStats()" spellcheck="true" lang="fr"
         style="display:none;"></textarea>
@@ -4844,15 +4800,6 @@ function clearLog(){
   if(confirm('Vider tout le journal ?')){localStorage.removeItem('ipsum_log');renderLog();}
 }
 
-// ===== NAVIGATION =====
-
-function toggleDD(id){
-  document.querySelectorAll('.dropdown').forEach(d=>{if(d.id!==id)d.classList.remove('open');});
-  document.getElementById(id).classList.toggle('open');
-}
-function closeDD(){document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open'));}
-document.addEventListener('click',e=>{if(!e.target.closest('.nav-group'))closeDD();});
-
 // ===== HORLOGE =====
 function majH(){
   const n=new Date();
@@ -5572,9 +5519,9 @@ function renderLecture(){
   // Supprimer — admin sur tout ; auteur sur son article tant qu'il n'est pas encore
   // validé (brouillon, en-relecture, corrigé) — même règle que partout ailleurs dans
   // Compo pour cette action. Visible seulement une fois l'article ouvert en lecture.
+  var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
   var zoneSuppr = document.getElementById('lect-suppr-zone');
   if(zoneSuppr){
-    var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
     var statutsSupprimablesAuteur = ['brouillon','en-relecture','corrige'];
     var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && statutsSupprimablesAuteur.indexOf(doc.statut||'brouillon')!==-1);
     zoneSuppr.innerHTML = peutSupprimerLect
@@ -5597,6 +5544,20 @@ function renderLecture(){
     var preview = document.getElementById('art-preview');
     if(preview) rLectureAfficherCpSource(doc, preview);
   }
+  // Commentaires du correcteur, en encart après chaque paragraphe — uniquement pour
+  // l'auteur (filtré côté client, même logique que le bouton Supprimer ci-dessus ; la
+  // lecture de commentaires_articles est ouverte à tout membre authentifié côté RLS).
+  if(estAuteurLect && doc.id) rLectureAfficherCommentaires(doc);
+}
+function rLectureAfficherCommentaires(doc){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(doc.id)
+    +'&select=id,bloc_index,texte,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var corpsEl = document.querySelector('#art-preview .art-corps');
+    _rInsererMarqueursCommentaires(corpsEl, (rows&&!rows.code)?rows:[], false);
+  }).catch(function(){});
 }
 
 // ===== ÉDITION =====
@@ -6622,7 +6583,6 @@ function bvnValider(){
   document.getElementById('bienvenue').classList.remove('visible');
   // Si le rôle a changé, reconstruire nav
   if(role !== ancienRole){
-    construireNav();
     chargerAlertTickets();
     notif('Profil mis a jour - interface actualisee');
   } else {
@@ -6630,14 +6590,6 @@ function bvnValider(){
   }
 }
 
-function appliquerRole(){
-  var role = getUserRole();
-  // Masquer/afficher les sections selon le rôle
-  var navCorr = document.getElementById('nav-group-corr');
-  var navRedac = document.getElementById('nav-group-redac');
-  // Rédacteur : voit rédacteur mais pas correcteur dans le nav
-  if(navCorr) navCorr.style.display = (role==='correcteur'||role==='admin') ? '' : 'none';
-}
 function bvnModifier(){
   var role = getUserRole();
   // Rédacteur ne peut pas modifier son profil
@@ -8089,7 +8041,6 @@ function chargerProfilMembre(userId){
       garantieAdmin.then(function(){
         var ls = document.getElementById('login-screen');
         if(ls) ls.classList.remove('visible');
-        construireNav();
 
         // OOBE si première connexion
         if(oobeVerifier(userId, membre)){
@@ -8119,7 +8070,6 @@ function chargerProfilMembre(userId){
       if(!localStorage.getItem('ipsum_user_role')) localStorage.setItem('ipsum_user_role', 'redacteur');
       var ls2 = document.getElementById('login-screen');
       if(ls2) ls2.classList.remove('visible');
-      construireNav();
       // Toujours déclencher l'OOBE pour les nouveaux comptes
       if(!localStorage.getItem('compo_oobe_done_'+userId)){
         var loginEl2 = document.getElementById('os-login');
@@ -8406,10 +8356,8 @@ function lancerCompo(){
     _loadStep('Démarrage...', 95);
 
     // Construire l'interface
-    appliquerRole();
     osBuildDock();
     osBuildDesktopIcons();
-    construireNav();
 
     _loadStep('', 100);
 
@@ -8433,10 +8381,8 @@ function lancerCompo(){
   }).catch(function(){
     // Fallback si le preload échoue - lancer quand même
     _loadDone();
-    appliquerRole();
     osBuildDock();
     osBuildDesktopIcons();
-    construireNav();
     chargerDepuisURL();
   });
 }
@@ -8627,95 +8573,6 @@ function syncProfilBase(prenom, nom, role){
 function getUserId(){
   var user = getSessionUser();
   return user ? user.id : null;
-}
-
-
-// NAV DYNAMIQUE SELON ROLE
-function construireNav(){
-  var role = getUserRole();
-  var menu = document.getElementById('nav-menu');
-  if(!menu) return;
-  menu.innerHTML = '';
-
-  function btn(label, page){
-    var b = document.createElement('button');
-    b.className = 'nav-btn';
-    b.textContent = label;
-    b.onclick = function(){ go(page); };
-    return b;
-  }
-
-  function groupe(label, ddId, items){
-    var grp = document.createElement('div');
-    grp.className = 'nav-group';
-    var b = document.createElement('button');
-    b.className = 'nav-btn has-sub';
-    b.textContent = label;
-    b.onclick = (function(id){ return function(){ toggleDD(id); }; })(ddId);
-    var dd = document.createElement('div');
-    dd.className = 'dropdown';
-    dd.id = ddId;
-    items.forEach(function(item){
-      var it = document.createElement('button');
-      it.className = 'dropdown-item';
-      it.textContent = item[0];
-      // Badge optionnel (item[2] = true ou id string)
-      if(item[2]){
-        var badge = document.createElement('span');
-        badge.id = item[2] === true ? 'nav-correction-badge' : (item[2] === 'pub' ? 'nav-publication-badge' : (item[2] === 'tkt' ? 'nav-tickets-badge' : 'nav-badge-'+item[2]));
-        badge.className = 'correction-badge';
-        badge.style.cssText = 'display:none;' + (item[2] !== true ? 'background:#155724;' : '');
-        badge.textContent = '0';
-        it.appendChild(badge);
-      }
-      it.onclick = (function(p){ return function(){ go(p); closeDD(); }; })(item[1]);
-      dd.appendChild(it);
-    });
-    grp.appendChild(b);
-    grp.appendChild(dd);
-    return grp;
-  }
-
-  if(role === 'redacteur' || role === 'admin'){
-    menu.appendChild(groupe('Redacteur', 'dd-redac', [
-      ['Rediger un article', 'redaction'],
-      ['Mes brouillons', 'brouillons'],
-      ['Visuels Instagram', 'visuels'],
-      ['Visuels avance', 'visuels-pro'],
-      ['Briefing', 'briefing'],
-      ['Lire un communique', 'lire-cp']
-    ]));
-  }
-
-  if(role === 'correcteur' || role === 'admin'){
-    menu.appendChild(groupe('Correcteur', 'dd-corr', [
-      ['Articles en correction', 'brouillons', true],
-      ['Corriger un article', 'correction'],
-      ['Modifier un article', 'edition'],
-      ['Comparer deux versions', 'comparaison'],
-      ['Newsletter', 'newsletter']
-    ]));
-  }
-
-  if(role === 'admin'){
-    menu.appendChild(groupe('Admin', 'dd-admin', [
-      ['Communiques de presse', 'communique'],
-      ['Statut de l edition',  'pub'],
-      ['Assistance 🚨', 'tickets', 'tkt']
-    ]));
-  }
-
-  if(role === 'admin'){
-    menu.appendChild(btn('Journal', 'log'));
-  }
-
-  // Bouton Assistance visible pour tous
-  var bAssist = document.createElement('button');
-  bAssist.className = 'nav-btn';
-  bAssist.textContent = 'Assistance';
-  bAssist.style.cssText = 'background:#E8461E;color:white;font-weight:700;margin-left:0.3rem;border-color:#E8461E;';
-  bAssist.onclick = function(){ go('tickets'); closeDD(); };
-  menu.appendChild(bAssist);
 }
 
 
@@ -9620,6 +9477,8 @@ function htmlVersMd(root){
 function _rBlocVersMd(node){
   if(node.nodeType === 3){ var t = node.textContent; return t.trim() ? t : null; }
   if(node.nodeType !== 1) return null;
+  // Encart de commentaire (contenteditable="false") — jamais sauvegardé dans l'article.
+  if(node.classList && node.classList.contains('r-comment-marker')) return null;
   switch(node.tagName){
     case 'H2': return '## ' + _rInlineVersMd(node).trim();
     case 'H3': return '### ' + _rInlineVersMd(node).trim();
@@ -9698,38 +9557,108 @@ function _rBlocCourant(){
 }
 
 // ===== Commentaires de correction, ancrés par paragraphe =====
-// Bascule bouton "Commenter" + panneau de commentaires selon qui regarde l'article —
-// réutilise (inversé) l'idiome isAuteur déjà établi dans sauvegarderCloud. Un rédacteur
-// sur son propre brouillon ne voit ni l'un ni l'autre (rien à s'auto-commenter, et il
-// verra les commentaires via Diff une fois l'article corrigé) ; quiconque corrige
-// l'article de quelqu'un d'autre (correcteur global ou admin) voit les deux.
+// Insère un encart de commentaire juste après le bloc de paragraphe visé (par index) —
+// partagé entre l'éditeur (#r-corps-live), la lecture (#art-preview .art-corps) et le
+// diff (.r-diff-corps), qui ont tous des enfants directs alignés 1:1 sur
+// corps.split(/\n{2,}/). editable=true ajoute contenteditable="false" (nécessaire
+// uniquement dans l'éditeur, pour que l'encart reste un îlot non modifiable au milieu du
+// texte tapé — technique standard des éditeurs riches pour les mentions/puces non
+// éditables).
+function _rInsererMarqueursCommentaires(root, rows, editable){
+  if(!root) return;
+  root.querySelectorAll('.r-comment-marker').forEach(function(m){ m.remove(); });
+  if(!rows || !rows.length) return;
+  var blocs = Array.prototype.filter.call(root.children, function(el){
+    return !el.classList.contains('r-comment-marker');
+  });
+  rows.forEach(function(c){
+    var cible = blocs[c.bloc_index];
+    if(!cible) return;
+    var auteurNom = c.membres ? ((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim() : '';
+    // Modifier/supprimer réservés à qui a écrit CE commentaire, et seulement dans
+    // l'éditeur (editable) — pas dans la vue lecture de l'auteur de l'article, qui n'est
+    // pas forcément le même que l'auteur du commentaire.
+    var peutGerer = editable && c.auteur_id === getUserId();
+    var marker = document.createElement('div');
+    marker.className = 'r-comment-marker';
+    marker.dataset.commentId = c.id;
+    marker.dataset.texte = c.texte;
+    if(editable) marker.contentEditable = 'false';
+    marker.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
+      +'<div style="flex:1;min-width:0;"><i class="ti ti-message-circle"></i> '+(auteurNom?'<b>'+esc(auteurNom)+'</b> — ':'')+esc(c.texte)+'</div>'
+      +(peutGerer
+        ? '<div style="display:flex;gap:2px;flex-shrink:0;">'
+          +'<button type="button" onclick="rModifierCommentaire(\''+c.id+'\')" title="Modifier" style="background:none;border:none;cursor:pointer;color:#856404;padding:2px 4px;"><i class="ti ti-pencil"></i></button>'
+          +'<button type="button" onclick="rSupprimerCommentaire(\''+c.id+'\')" title="Supprimer" style="background:none;border:none;cursor:pointer;color:#A32D2D;padding:2px 4px;"><i class="ti ti-trash"></i></button>'
+          +'</div>'
+        : '')
+      +'</div>';
+    cible.insertAdjacentElement('afterend', marker);
+  });
+}
+// Modifie le texte d'un commentaire qu'on a soi-même écrit — pour rattraper une faute de
+// frappe ou reformuler. Déplacer un commentaire vers un autre paragraphe n'est pas géré :
+// plus simple de le supprimer et d'en reposer un au bon endroit (le bouton Commenter reste
+// à portée de clic).
+function rModifierCommentaire(id){
+  var marker = document.querySelector('.r-comment-marker[data-comment-id="'+id+'"]');
+  var texteActuel = marker ? marker.dataset.texte : '';
+  var nouveauTexte = prompt('Modifier le commentaire :', texteActuel);
+  if(nouveauTexte===null || !nouveauTexte.trim()) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
+    method:'PATCH', headers:authH, body:JSON.stringify({texte:nouveauTexte.trim()})
+  }).then(function(r){
+    if(r.ok){ notif('Commentaire modifié','succes'); rChargerCommentaires(currentDoc.id); }
+    else notif('Erreur — vérifie les droits','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+// Supprime un commentaire qu'on a soi-même écrit — récupère aussi le cas "je me suis
+// trompé de paragraphe" : on supprime puis on repose le commentaire au bon endroit.
+function rSupprimerCommentaire(id){
+  if(!confirm('Supprimer ce commentaire ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
+    method:'DELETE', headers:authH
+  }).then(function(r){
+    if(r.ok){ notif('Commentaire supprimé','succes'); rChargerCommentaires(currentDoc.id); }
+    else notif('Erreur — vérifie les droits','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+// Position réelle d'un bloc parmi les enfants d'un conteneur, en ignorant les encarts de
+// commentaires déjà insérés (sinon leur présence fausserait l'index des paragraphes
+// suivants).
+function _rIndexDuBlocReel(root, bloc){
+  var reels = Array.prototype.filter.call(root.children, function(el){
+    return !el.classList.contains('r-comment-marker');
+  });
+  return reels.indexOf(bloc);
+}
+
+// Bascule bouton "Commenter" selon qui regarde l'article. Réservé aux admins et aux
+// correcteurs quand ils corrigent l'article de quelqu'un d'autre — pas juste "n'importe
+// qui d'autre que l'auteur" (un rôle intermédiaire ouvrant plus tard une porte
+// d'édition sur l'article d'un tiers ne devrait pas hériter du bouton sans qu'on le
+// décide explicitement).
 function rCommentairesInit(doc){
   var isAuteur = !doc || !doc.auteur_id || doc.auteur_id === getUserId();
+  var role = getUserRole();
+  var peutCommenter = !isAuteur && (role==='correcteur' || role==='admin');
   var btn = document.getElementById('r-btn-commenter');
-  var panel = document.getElementById('r-commentaires-panel');
-  if(btn) btn.style.display = isAuteur ? 'none' : '';
-  if(panel) panel.style.display = (!isAuteur && doc && doc.id) ? 'block' : 'none';
-  if(!isAuteur && doc && doc.id) rChargerCommentaires(doc.id);
+  if(btn) btn.style.display = peutCommenter ? '' : 'none';
+  if(peutCommenter && doc && doc.id) rChargerCommentaires(doc.id);
 }
-// Charge et affiche les commentaires déjà posés sur cet article, dans le panneau frère
-// (jamais injecté dans #r-corps-live).
+// Charge et affiche les commentaires déjà posés sur cet article, en encart juste après
+// chaque paragraphe concerné dans #r-corps-live (jamais dans une liste à part).
 function rChargerCommentaires(articleId){
-  var liste = document.getElementById('r-commentaires-liste');
-  if(!liste) return;
+  var live = document.getElementById('r-corps-live');
+  if(!live) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(articleId)
-    +'&select=id,bloc_index,texte,created_at,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
+    +'&select=id,bloc_index,texte,auteur_id,created_at,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
   .then(function(r){ return r.json(); })
-  .then(function(rows){
-    rows = (rows && !rows.code) ? rows : [];
-    if(!rows.length){ liste.innerHTML = '<div style="font-size:0.75rem;color:var(--gris);">Aucun commentaire pour l\'instant.</div>'; return; }
-    liste.innerHTML = rows.map(function(c){
-      var auteurNom = c.membres ? ((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim() : '';
-      return '<div style="font-size:0.8rem;color:#5a3e00;background:white;border:1px solid #F0D999;border-radius:6px;padding:0.5rem 0.7rem;">'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:#856404;margin-bottom:2px;">Paragraphe '+(c.bloc_index+1)+(auteurNom?' · '+esc(auteurNom):'')+'</div>'
-        +esc(c.texte)+'</div>';
-    }).join('');
-  }).catch(function(){});
+  .then(function(rows){ _rInsererMarqueursCommentaires(live, (rows&&!rows.code)?rows:[], true); })
+  .catch(function(){});
 }
 // Ajoute un commentaire ancré au paragraphe sous le curseur — même découpage que
 // htmlVersMd/corps.split(/\n{2,}/), donc stable tant que la structure de paragraphes ne
@@ -9740,7 +9669,7 @@ function rAjouterCommentaire(){
   var live = document.getElementById('r-corps-live');
   var bloc = _rBlocCourant();
   if(!live || !bloc){ notif('Place le curseur dans le paragraphe à commenter'); return; }
-  var idx = Array.prototype.indexOf.call(live.children, bloc);
+  var idx = _rIndexDuBlocReel(live, bloc);
   if(idx < 0) return;
   var texte = prompt('Ton commentaire sur ce paragraphe :');
   if(!texte || !texte.trim()) return;
@@ -9989,17 +9918,17 @@ function renderDiffLecture(doc){
     html += '</div>';
   }
 
-  // Corps
+  // Corps — un <div> par paragraphe quand l'alignement le permet (voir _rDiffCorpsHtml),
+  // pour que les commentaires puissent s'accrocher au bon paragraphe juste en dessous.
   html += '<div>';
   html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;">Corps de l article</div>';
+  html += '<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">' + _rDiffCorpsHtml(aOriginal, aCorrige) + '</div>';
   if(aModifie){
-    html += '<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">' + diff(aOriginal, aCorrige) + '</div>';
     html += '<div style="margin-top:1rem;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);">';
     html += '<span style="background:#D4EDDA;color:#155724;padding:1px 6px;margin-right:0.5rem;">Texte ajoute</span>';
     html += '<span style="background:#F8D7DA;color:#721C24;padding:1px 6px;text-decoration:line-through;">Texte supprime</span>';
     html += '</div>';
   } else {
-    html += '<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">' + esc(aCorrige) + '</div>';
     html += '<div style="margin-top:0.8rem;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);">Aucune modification du corps.</div>';
   }
   html += '</div>';
@@ -10014,11 +9943,28 @@ function renderDiffLecture(doc){
   rDiffAfficherCommentaires(doc, el);
 }
 
-// Commentaires du correcteur, ancrés par paragraphe — chargés après le rendu synchrone du
-// diff (même schéma que rLectureAfficherCpSource pour le CP source), puis ajoutés en fin
-// de conteneur. Le numéro de paragraphe + un extrait de son texte ACTUEL (doc.corps)
-// donnent le contexte ; si des paragraphes ont été ajoutés/retirés depuis la pose du
-// commentaire, l'ancrage peut avoir glissé (limite connue, non réparée en v1).
+// Découpe le corps par paragraphe pour le diff quand c'est fiable de le faire — un <div>
+// par paragraphe (aligné sur corps.split(/\n{2,}/)), chacun pouvant accrocher son propre
+// commentaire juste en dessous. Si le nombre de paragraphes diffère entre l'original et
+// la version corrigée (ajout/suppression), l'alignement paragraphe par paragraphe n'est
+// plus fiable : repli sur l'ancien diff global en un seul bloc.
+function _rDiffCorpsHtml(aOriginal, aCorrige){
+  var parasOriginal = (aOriginal||'').split(/\n{2,}/);
+  var parasCorrige = (aCorrige||'').split(/\n{2,}/);
+  if(parasOriginal.length === parasCorrige.length){
+    return '<div class="r-diff-corps">' + parasCorrige.map(function(p, i){
+      var orig = parasOriginal[i];
+      return '<div>' + (orig===p ? esc(p) : diff(orig,p)) + '</div>';
+    }).join('') + '</div>';
+  }
+  return '<div class="r-diff-corps-fallback">' + (aOriginal===aCorrige ? esc(aCorrige) : diff(aOriginal,aCorrige)) + '</div>';
+}
+
+// Commentaires du correcteur — en encart juste après le bon paragraphe quand
+// _rDiffCorpsHtml a pu découper proprement (.r-diff-corps) ; sinon (paragraphes
+// désalignés, .r-diff-corps-fallback) on ne sait pas où accrocher chaque commentaire de
+// façon fiable, et on retombe sur l'ancienne liste "Commentaires du correcteur" en bas de
+// page comme filet de sécurité — jamais invisible, juste moins précis dans ce cas rare.
 function rDiffAfficherCommentaires(doc, container){
   if(!doc || !doc.id || !container) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -10028,6 +9974,10 @@ function rDiffAfficherCommentaires(doc, container){
   .then(function(rows){
     rows = (rows && !rows.code) ? rows : [];
     if(!rows.length) return;
+    var corpsAligne = container.querySelector('.r-diff-corps');
+    if(corpsAligne){ _rInsererMarqueursCommentaires(corpsAligne, rows, false); return; }
+
+    // Repli : liste en bas de page.
     var paragraphes = (doc.corps||'').split(/\n{2,}/);
     var bloc = document.createElement('div');
     bloc.style.cssText = 'margin-top:1.5rem;';
@@ -15706,7 +15656,7 @@ function osLoginValider(){
         var loginEl=document.getElementById('os-login');
         if(loginEl){loginEl.style.opacity='0';loginEl.style.transition='opacity 0.5s';setTimeout(function(){loginEl.style.display='none';},500);}
         _chargerAppsUtilisateur(data.user.id, function(){
-          osLancer(); appliquerRole();
+          osLancer();
           setTimeout(afficherPatchNote,1200);
           setTimeout(tableauVerifierNonVus, 1800);
         });
