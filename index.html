@@ -6078,6 +6078,7 @@ function nlMarquerEnvoyee(){
   })
   .then(function(){
     notif('Newsletter marquée comme envoyée ✓','succes');
+    nlPublierArticlesSelectionnes();
     // Si l'historique est ouvert, le rafraîchir pour montrer l'envoi tout juste fait
     var hist = document.getElementById('nl-historique');
     if(hist && hist.style.display !== 'none') nlChargerHistorique();
@@ -6088,6 +6089,36 @@ function nlMarquerEnvoyee(){
   .finally(function(){
     if(btn){ btn.disabled = false; btn.textContent = '✓ Marquer comme envoyée'; }
   });
+}
+
+// Publie automatiquement tous les articles de la newsletter qui ne le sont pas déjà — pour
+// ne pas avoir à rouvrir chaque article et cliquer sur Publier un par un. nlArticles ne
+// porte pas le statut (voir le bouton "Ajouter la sélection"), et un article a pu être
+// publié entre-temps par ailleurs : on relit le statut à l'instant T plutôt que de se fier
+// à une valeur mise en cache. Réutilise _publierArticleReel — mêmes effets de bord que le
+// bouton Publier habituel (historique, email à l'auteur, fermeture du sujet lié) plutôt
+// qu'un simple PATCH de statut. Respecte la même règle de validation centrale que
+// publierArticle : un article qui l'exige et ne l'a pas encore n'est pas publié de force,
+// juste signalé à la fin.
+function nlPublierArticlesSelectionnes(){
+  if(!nlArticles.length) return;
+  var ids = nlArticles.map(function(a){ return a.id; });
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?id=in.('+ids.join(',')+')&select=id,titre,statut,redaction_id', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    rows = (rows && !rows.code) ? rows : [];
+    var aPublier = rows.filter(function(a){ return a.statut !== 'publie'; });
+    var bloques = aPublier.filter(function(a){ return !_osArticlePubliable(a); });
+    var publiables = aPublier.filter(function(a){ return _osArticlePubliable(a); });
+    publiables.forEach(function(a){ _publierArticleReel(a.id); });
+    if(publiables.length){
+      notif(publiables.length+' article'+(publiables.length>1?'s':'')+' passé'+(publiables.length>1?'s':'')+' en publié ✓','succes');
+    }
+    if(bloques.length){
+      notif(bloques.length+' article'+(bloques.length>1?'s':'')+' pas publié'+(bloques.length>1?'s':'')+' (validation rédaction centrale requise) : '+bloques.map(function(a){return a.titre;}).join(', '), 'alerte');
+    }
+  }).catch(function(){});
 }
 
 function nlToggleHistorique(){
