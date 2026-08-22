@@ -20653,9 +20653,15 @@ function osSignaturesRenderListe(wc){
         html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:20px;background:'+(ok?'#EAF3DE':'var(--gris-clair)')+';color:'+(ok?'#27500A':'var(--gris)')+';"><i class="ti ti-'+(ok?'circle-check':'clock')+'"></i> '+esc(s.nom)+'</span>';
       });
       html += '</div>';
-      html += '<div style="display:flex;gap:0.9rem;">';
+      html += '<div style="display:flex;gap:0.9rem;align-items:center;flex-wrap:wrap;">';
       html += '<a href="'+esc(d.pdf_original_url)+'" target="_blank" rel="noopener" style="font-size:0.68rem;color:var(--bleu);text-decoration:none;">Voir l\'original</a>';
       if(d.pdf_final_url) html += '<a href="'+esc(d.pdf_final_url)+'" target="_blank" rel="noopener" style="font-size:0.68rem;color:#27500A;text-decoration:none;font-weight:600;">Télécharger le PDF final</a>';
+      // Rattrapage : tout le monde a signé (vert) mais le document n'est jamais passé
+      // "complet" — arrivait quand plusieurs signatures s'enchaînaient trop vite (bug
+      // corrigé), reste utile en filet de sécurité si ça se reproduit un jour.
+      if(!complet && total > 0 && signes === total){
+        html += '<button data-id="'+d.id+'" onclick="osSignatureReverifier(this.dataset.id,this)" style="font-size:0.66rem;padding:3px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;"><i class="ti ti-refresh"></i> Revérifier</button>';
+      }
       html += '</div>';
       html += '</div>';
     });
@@ -21131,8 +21137,17 @@ function _sigPadValider(){
   var dataUrl = window._sigPadExporter ? window._sigPadExporter() : document.getElementById('sig-pad-canvas').toDataURL('image/png');
   var mentionInput = document.getElementById('sig-mention-input');
   var mention = mentionInput ? mentionInput.value.trim() : '';
+  // Capturés maintenant, jamais relus après l'attente réseau : _sigCourantSignataire est
+  // une variable globale partagée par tous les écrans de signature. Si la personne enchaîne
+  // sur le document suivant avant que ce PATCH ne revienne, la variable aura déjà changé —
+  // sans cette capture, la vérification de complétude ci-dessous portait sur le document
+  // qu'on vient d'ouvrir, pas sur celui qu'on vient réellement de signer (bug constaté avec
+  // plusieurs documents signés à la chaîne : certains restaient bloqués "vert" sans jamais
+  // passer "complet", ni générer le PDF final ni envoyer le mail).
+  var signataireId = _sigCourantSignataire.id;
+  var documentId = _sigCourantSignataire.document_id;
   notif('Enregistrement de ta signature...');
-  fetch(SB_URL+'/rest/v1/signature_signataires?id=eq.'+_sigCourantSignataire.id, {
+  fetch(SB_URL+'/rest/v1/signature_signataires?id=eq.'+signataireId, {
     method:'PATCH', headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
     body: JSON.stringify({ statut:'signe', signature_data:dataUrl, mention:mention||null, signed_at:new Date().toISOString() })
   }).then(function(r){
@@ -21140,7 +21155,7 @@ function _sigPadValider(){
     if(window._sigPadFermer) window._sigPadFermer();
     var screen = document.getElementById('signature-screen');
     if(screen) screen.innerHTML = _sigEcranMessage('Signature enregistrée', 'Merci, ta signature a bien été prise en compte.', true);
-    _sigVerifierDocumentComplet(_sigCourantSignataire.document_id);
+    _sigVerifierDocumentComplet(documentId);
   }).catch(function(){
     notif('Erreur — la signature n\'a pas pu être enregistrée','erreur');
   });
@@ -21154,6 +21169,34 @@ function _sigVerifierDocumentComplet(documentId){
     var complet = rows.every(function(r){ return r.statut === 'signe'; });
     if(complet) _osGenererPdfFinal(documentId);
   }).catch(function(){});
+}
+
+// Bouton de rattrapage admin (liste des signatures) — relance la vérification pour un
+// document resté bloqué "vert" (tous les signataires ont signé) sans jamais être passé
+// "complet" : c'était le symptôme du bug corrigé plus haut dans _sigPadValider (deux
+// signatures enchaînées trop vite, la vérification de la première tombait sur le mauvais
+// document). Reste utile en filet de sécurité si ça se reproduit malgré tout.
+function osSignatureReverifier(documentId, btn){
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Vérification...'; }
+  fetch(SB_URL+'/rest/v1/signature_signataires?document_id=eq.'+documentId+'&select=statut', {headers:SB_HEADERS})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var tousSignes = rows && rows.length && rows.every(function(r){ return r.statut === 'signe'; });
+    if(!tousSignes){
+      notif('Tous les signataires n\'ont pas encore signé.', 'alerte');
+      if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Revérifier'; }
+      return;
+    }
+    notif('Génération du PDF final...');
+    _osGenererPdfFinal(documentId);
+    // _osGenererPdfFinal ne renvoie pas de promesse exploitable (chaîne interne silencieuse,
+    // partagée avec le déclenchement normal à la signature) — on laisse le temps à
+    // l'assemblage + l'upload du PDF de se terminer avant de rafraîchir la liste.
+    setTimeout(function(){ osSignaturesRender(); }, 3500);
+  }).catch(function(){
+    notif('Erreur réseau — réessaie.', 'erreur');
+    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Revérifier'; }
+  });
 }
 
 function _osGenererPdfFinal(documentId){
