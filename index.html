@@ -3352,6 +3352,99 @@ input:focus,select:focus,textarea:focus{
 </head>
 <body>
 
+<!-- AVATARS ILLUSTRÉS — sprite SVG caché, référencé partout via <use href="#avatar-X">.
+     Voir renderAvatarHTML() / AVATARS_DISPONIBLES pour la liste des clés valides. -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="avatar-renard" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FCEADF"/>
+    <polygon points="16,14 28,30 8,30" fill="#E8461E"/>
+    <polygon points="48,14 56,30 36,30" fill="#E8461E"/>
+    <polygon points="32,20 52,44 32,58 12,44" fill="#E8461E"/>
+    <polygon points="32,38 44,50 32,58 20,50" fill="#FFFFFF"/>
+    <circle cx="24" cy="38" r="3" fill="#1A1A2E"/>
+    <circle cx="40" cy="38" r="3" fill="#1A1A2E"/>
+    <circle cx="32" cy="50" r="2" fill="#1A1A2E"/>
+  </symbol>
+  <symbol id="avatar-hibou" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#E3EFFA"/>
+    <polygon points="14,18 22,10 26,22" fill="#B5D4F4"/>
+    <polygon points="50,18 42,10 38,22" fill="#B5D4F4"/>
+    <ellipse cx="32" cy="36" rx="20" ry="20" fill="#B5D4F4"/>
+    <circle cx="24" cy="34" r="8" fill="#FFFFFF"/>
+    <circle cx="40" cy="34" r="8" fill="#FFFFFF"/>
+    <circle cx="24" cy="34" r="3.6" fill="#0C447C"/>
+    <circle cx="40" cy="34" r="3.6" fill="#0C447C"/>
+    <polygon points="32,40 28,46 36,46" fill="#E8461E"/>
+  </symbol>
+  <symbol id="avatar-montagne" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FDE9D8"/>
+    <circle cx="44" cy="18" r="7" fill="#E8461E"/>
+    <polygon points="6,52 24,20 34,38 30,52" fill="#27500A"/>
+    <polygon points="24,52 40,16 58,52" fill="#0C447C"/>
+    <polygon points="40,16 46,28 34,28" fill="#FFFFFF"/>
+    <polygon points="24,20 29,29 19,29" fill="#FFFFFF"/>
+  </symbol>
+  <symbol id="avatar-comete" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#F1EBFB"/>
+    <polygon points="26,22 8,32 16,24" fill="#4A235A"/>
+    <polygon points="30,26 6,42 20,30" fill="#C9AEE8"/>
+    <polygon points="34,30 10,52 26,36" fill="#E8D9F5"/>
+    <circle cx="40" cy="24" r="9" fill="#E8461E"/>
+  </symbol>
+  <symbol id="avatar-vague" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#EAF3FB"/>
+    <path d="M4 24 Q16 14 28 24 T52 24 T60 24" stroke="#0C447C" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M4 36 Q16 26 28 36 T52 36 T60 36" stroke="#B5D4F4" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M4 48 Q16 38 28 48 T52 48 T60 48" stroke="#0C447C" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  </symbol>
+  <symbol id="avatar-trefle" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#EFF7E4"/>
+    <circle cx="24" cy="24" r="10" fill="#C0DD97"/>
+    <circle cx="40" cy="24" r="10" fill="#C0DD97"/>
+    <circle cx="24" cy="40" r="10" fill="#C0DD97"/>
+    <circle cx="40" cy="40" r="10" fill="#C0DD97"/>
+    <rect x="30" y="40" width="4" height="16" rx="2" fill="#27500A"/>
+    <circle cx="32" cy="32" r="4" fill="#27500A"/>
+  </symbol>
+  <symbol id="avatar-soleil" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FDEFDA"/>
+    <g fill="#E8461E">
+      <circle cx="32" cy="32" r="13"/>
+      <rect x="29" y="4" width="6" height="12" rx="3"/>
+      <rect x="29" y="48" width="6" height="12" rx="3"/>
+      <rect x="4" y="29" width="12" height="6" rx="3"/>
+      <rect x="48" y="29" width="12" height="6" rx="3"/>
+      <rect x="10" y="10" width="6" height="12" rx="3" transform="rotate(45 13 16)"/>
+      <rect x="48" y="10" width="6" height="12" rx="3" transform="rotate(-45 51 16)"/>
+      <rect x="10" y="42" width="6" height="12" rx="3" transform="rotate(-45 13 48)"/>
+      <rect x="48" y="42" width="6" height="12" rx="3" transform="rotate(45 51 48)"/>
+    </g>
+  </symbol>
+  <symbol id="avatar-lune" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#1A1A2E"/>
+    <path d="M40 14 A18 18 0 1 0 40 50 A14 14 0 1 1 40 14 Z" fill="#F5C4B3"/>
+    <circle cx="18" cy="44" r="2.2" fill="#FFFFFF"/>
+    <circle cx="46" cy="20" r="1.6" fill="#FFFFFF"/>
+    <circle cx="14" cy="20" r="1.4" fill="#FFFFFF"/>
+  </symbol>
+  <symbol id="avatar-plume" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#F3ECFA"/>
+    <path d="M32 6 C46 14 46 40 32 58 C18 40 18 14 32 6 Z" fill="#E8D9F5"/>
+    <line x1="32" y1="10" x2="32" y2="54" stroke="#4A235A" stroke-width="2.4"/>
+    <line x1="32" y1="20" x2="22" y2="14" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="28" x2="20" y2="24" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="36" x2="20" y2="34" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="20" x2="42" y2="14" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="28" x2="44" y2="24" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="36" x2="44" y2="34" stroke="#4A235A" stroke-width="2"/>
+  </symbol>
+  <symbol id="avatar-goutte" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#E4F3EF"/>
+    <path d="M32 10 C42 26 48 36 48 44 A16 16 0 1 1 16 44 C16 36 22 26 32 10 Z" fill="#0C447C"/>
+    <ellipse cx="26" cy="40" rx="4" ry="6" fill="#B5D4F4" opacity="0.8"/>
+  </symbol>
+</svg>
+
 <!-- CENTRE DE NOTIFICATIONS -->
   <div id="nc-content">
     <div class="nc-empty">Aucune notification</div>
@@ -4672,6 +4765,111 @@ var SB_HEADERS = {
   'Authorization': 'Bearer ' + SB_KEY,
   'Content-Type': 'application/json',
   'Prefer': 'return=representation'
+}
+
+// ===== AVATARS =====
+// Rôles → [fond, texte] — source unique, remplace les ~13 copies locales de
+// "roleColors" trouvées dans le code (dont 11 sans clé redac_chef, qui retombaient
+// silencieusement sur le gris générique par défaut plutôt que le vert attendu).
+var ROLE_COLORS = {
+  redacteur:   ['#F5C4B3','#712B13'],
+  correcteur:  ['#B5D4F4','#0C447C'],
+  admin:       ['#C0DD97','#27500A'],
+  redac_chef:  ['#C0DD97','#27500A'],
+  communicant: ['#E8D9F5','#4A235A']
+};
+var ROLE_COLOR_DEFAUT = ['#D3D1C7','#444441'];
+
+// Avatars illustrés disponibles (voir le sprite <symbol id="avatar-X"> juste après
+// <body>) — clé + libellé pour le sélecteur dans Réglages > Mon profil.
+var AVATARS_DISPONIBLES = [
+  {id:'renard',   label:'Renard'},
+  {id:'hibou',    label:'Hibou'},
+  {id:'montagne', label:'Montagne'},
+  {id:'comete',   label:'Comète'},
+  {id:'vague',    label:'Vague'},
+  {id:'trefle',   label:'Trèfle'},
+  {id:'soleil',   label:'Soleil'},
+  {id:'lune',     label:'Lune'},
+  {id:'plume',    label:'Plume'},
+  {id:'goutte',   label:'Goutte'}
+];
+
+// Rendu partagé d'un avatar membre — utilisé partout où un membre est représenté par
+// un rond (Tchap, organigramme, listes admin, fiche bénévole...). Si le membre a choisi
+// un avatar illustré (membre.avatar_id), on l'affiche ; sinon on retombe sur le rond
+// couleur de rôle + initiales habituel, donc zéro changement visuel pour qui n'a rien
+// choisi. opts permet de préserver les variantes déjà existantes site par site :
+//   - opts.ring       : style CSS additionnel sur le rond (ex: anneau "chef")
+//   - opts.rc         : [fond, texte] à la place de la couleur de rôle (ex: cartes du
+//                        bureau, qui ne sont pas colorées par rôle)
+//   - opts.bord       : style "border:..." additionnel (ex: en-tête "Mon profil")
+//   - opts.styleExtra : style CSS ajouté tel quel sur le conteneur
+function renderAvatarHTML(membre, taille, opts){
+  opts = opts || {};
+  var rc = opts.rc || ROLE_COLORS[membre && membre.role] || ROLE_COLOR_DEFAUT;
+  var ini = (((membre&&membre.prenom)||'?')[0]||'?').toUpperCase()+(((membre&&membre.nom)||'?')[0]||'?').toUpperCase();
+  var avatarId = membre && membre.avatar_id;
+  var estIllustre = !!(avatarId && AVATARS_DISPONIBLES.some(function(a){ return a.id===avatarId; }));
+  var inner = estIllustre
+    ? '<svg viewBox="0 0 64 64" width="100%" height="100%"><use href="#avatar-'+avatarId+'"></use></svg>'
+    : '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;color:'+rc[1]+';">'+esc(ini)+'</span>';
+  var fond = estIllustre ? 'transparent' : rc[0];
+  return '<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+fond+';overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(opts.ring||'')+(opts.bord||'')+(opts.styleExtra||'')+'">'+inner+'</div>';
+}
+
+// Ouvre Réglages directement sur "Mon profil", pour choisir/changer son avatar — appelé
+// depuis l'avatar cliquable de l'en-tête "Mon profil" dans Ma Rédac'.
+function osOuvrirSelecteurAvatar(){
+  _paramsSection = 'profil';
+  osOuvrirParams();
+}
+
+function _osChargerAvatarActuelEtRenderGrille(grid){
+  var uid = getUserId();
+  if(!uid){ _osRenderGrilleAvatars(grid, null); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=avatar_id', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var actuel = rows && rows[0] ? rows[0].avatar_id : null;
+    _osRenderGrilleAvatars(grid, actuel);
+  }).catch(function(){ _osRenderGrilleAvatars(grid, null); });
+}
+
+function _osRenderGrilleAvatars(grid, actuel){
+  if(!grid) return;
+  var carte = function(idOuVide, labelHtml, contenuHtml){
+    var estActif = idOuVide === (actuel||'');
+    return '<div data-avatar-id="'+idOuVide+'" onclick="osChoisirAvatar(this.dataset.avatarId)" title="'+esc(labelHtml)+'" '
+      +'style="cursor:pointer;border-radius:10px;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid '+(estActif?'var(--rouge)':'transparent')+';background:'+(estActif?'rgba(232,70,30,0.06)':'transparent')+';">'
+      +contenuHtml
+      +'<span style="font-size:0.6rem;color:var(--gris);white-space:nowrap;">'+esc(labelHtml)+'</span>'
+      +'</div>';
+  };
+  var html = AVATARS_DISPONIBLES.map(function(a){
+    return carte(a.id, a.label, '<svg viewBox="0 0 64 64" width="44" height="44"><use href="#avatar-'+a.id+'"></use></svg>');
+  }).join('');
+  html += carte('', 'Aucun', '<div style="width:44px;height:44px;border-radius:50%;background:var(--gris-clair);display:flex;align-items:center;justify-content:center;color:var(--gris);font-size:1.2rem;">✕</div>');
+  grid.innerHTML = html;
+}
+
+// Enregistre le choix d'avatar du membre connecté (avatarId vide = repli sur les
+// initiales+couleur de rôle habituelles).
+function osChoisirAvatar(avatarId){
+  var uid = getUserId();
+  if(!uid) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid), {
+    method:'PATCH', headers:authH,
+    body: JSON.stringify({avatar_id: avatarId || null})
+  }).then(function(r){
+    if(r.ok){
+      notif(avatarId ? 'Avatar mis à jour !' : 'Avatar réinitialisé', 'succes');
+      var grid = document.getElementById('params-avatar-grid');
+      if(grid) _osRenderGrilleAvatars(grid, avatarId || null);
+    } else notif('Erreur mise à jour avatar', 'erreur');
+  }).catch(function(){ notif('Erreur réseau', 'erreur'); });
 }
 
 // ===== SESSION EXPIRÉE : détection globale =====
@@ -18073,6 +18271,20 @@ function osParamsRenderSection(section, container){
       + '<div class="params-action" style="font-family:\'DM Sans\',sans-serif;font-size:0.82rem;color:var(--encre);">'+esc(emailActuel)+'</div>';
     container.appendChild(rowEmail);
 
+    // Choisir mon avatar
+    var rowAvatar = document.createElement('div');
+    rowAvatar.className = 'params-row';
+    rowAvatar.style.flexDirection = 'column';
+    rowAvatar.style.alignItems = 'flex-start';
+    rowAvatar.innerHTML = '<div style="margin-bottom:0.6rem;"><div class="params-label">Choisir mon avatar</div><div class="params-label-sub">Visible partout où tu apparais dans Compo (Tchap, organigramme…)</div></div>';
+    var avatarGrid = document.createElement('div');
+    avatarGrid.id = 'params-avatar-grid';
+    avatarGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:10px;max-width:380px;';
+    avatarGrid.innerHTML = '<div style="grid-column:1/-1;font-size:0.75rem;color:var(--gris);">Chargement…</div>';
+    rowAvatar.appendChild(avatarGrid);
+    container.appendChild(rowAvatar);
+    _osChargerAvatarActuelEtRenderGrille(avatarGrid);
+
     // Changer mon mot de passe
     var rowPass = document.createElement('div');
     rowPass.className = 'params-row';
@@ -23332,7 +23544,6 @@ function _osBenvOrganigrammeHTML(membres){
   var redactions = window._redactionsData || [];
   var liens = window._membresRedactionsData || [];
   var redacCentrale = redactions.filter(function(r){ return r.est_centrale; })[0] || null;
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   // "redacteur" est juste le rôle par défaut donné à la création de compte (le choix
   // est admin / correcteur / rédacteur) — ça ne garantit pas que la personne écrit
   // effectivement des articles, donc on évite de lui coller "Rédacteur" comme un
@@ -23340,10 +23551,9 @@ function _osBenvOrganigrammeHTML(membres){
   var roleLabels = {redacteur:'Membre',correcteur:'Correcteur',admin:'Admin',communicant:'Communicant'};
 
   function carteMembre(m, estChef){
-    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+    var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
     var estCorrecteur = !estChef && m.role==='correcteur';
     var taille = estChef?52:40;
-    var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
     // Le rôle Compo (admin/correcteur/...) garde toujours sa couleur habituelle —
     // celle qu'on retrouve partout ailleurs dans l'app (Tchap, listes de membres...).
     // "Chef" est une position sur CETTE rédaction (role_redac), pas un rôle : on la
@@ -23354,7 +23564,7 @@ function _osBenvOrganigrammeHTML(membres){
     // rédaction en particulier, le pool est partagé entre toutes (voir plus haut).
     var ring = estChef ? 'box-shadow:0 0 0 2px var(--rouge);' : '';
     var tagBorder = estChef ? '1px solid var(--rouge)' : (estCorrecteur ? '1px dashed var(--bleu)' : '1px solid transparent');
-    var avatar = '<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';'+ring+'display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>';
+    var avatar = renderAvatarHTML(m, taille, {ring: ring});
     if(estCorrecteur){
       avatar = '<div style="width:'+(taille+8)+'px;height:'+(taille+8)+'px;border-radius:50%;border:1.5px dashed var(--bleu);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+avatar+'</div>';
     }
@@ -23454,9 +23664,8 @@ function _osBenvOrganigrammeAdminHTML(membres){
     var rc = estTop ? ['var(--rouge-clair)','var(--rouge)'] : ['#E8D9F5','#4A235A']; // même famille que "communicant" ailleurs dans l'app — neutre pour le bureau
     var ring = estTop ? 'box-shadow:0 0 0 2px var(--rouge);' : '';
     var taille = estTop?52:40;
-    var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
     return '<div style="display:flex;flex-direction:column;align-items:center;width:112px;">'
-      +'<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+rc[0]+';color:'+rc[1]+';'+ring+'display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;flex-shrink:0;">'+ini+'</div>'
+      +renderAvatarHTML(m, taille, {ring: ring, rc: rc})
       +'<div style="font-size:'+(estTop?'0.74rem':'0.68rem')+';font-weight:'+(estTop?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:112px;">'+esc(m.prenom||'')+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';padding:1px 6px;border-radius:8px;margin-top:2px;text-align:center;max-width:112px;line-height:1.4;">'+esc(fonctionShort(m.fonction))+'</div>'
       +'</div>';
@@ -23600,9 +23809,7 @@ function osBenevolesDashRender(){
     sh+='<div id="benv-cartes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0.6rem;">';
     statsMembres.forEach(function(s){
       var m=s.membre;
-      var initiales=(m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-      var roleColors={redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-      var rc=(roleColors[m.role]||'#D3D1C7,#444441').split(',');
+      var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
       var nomAff=(m.prenom||'').trim()||(m.nom||'').trim()?esc(m.prenom||'')+' '+esc(m.nom||''):'<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
       var estInactif=s.inactif;
       var statBg=estInactif?'#FCEBEB':'#EAF3DE',statCo=estInactif?'#A32D2D':'#27500A';
@@ -23610,7 +23817,7 @@ function osBenevolesDashRender(){
       var statLbl=m.marque_inactif?'Inactif (vie asso)':(m.dnd?'Indisponible':'Actif');
       sh+='<div class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'#ea5b1c\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'var(--gris-bord)\'" style="background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 0.8rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:0.55rem;">';
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
-      sh+='<div style="position:relative;flex-shrink:0;"><div style="width:32px;height:32px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
+      sh+='<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m,32,{})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
         +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.8rem;flex-shrink:0;">⚠️</span>':'')
         +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.8rem;flex-shrink:0;">❗</span>':'')
@@ -24812,8 +25019,6 @@ function osRedactionsChangerOnglet(onglet){
 }
 
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
-  var rc = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'}[membre.role]||'#D3D1C7,#444441').split(',');
-  var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var h = '';
 
   // Header profil — teinté à la couleur de la rédaction active
@@ -24822,8 +25027,8 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     : 'var(--encre-fixe)';
   h += '<div style="background:'+fondHeader+';border-radius:14px;padding:1rem 1.2rem;">';
   h += '<div style="display:flex;align-items:center;gap:0.9rem;">';
-  h += '<div style="position:relative;flex-shrink:0;">';
-  h += '<div style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,0.16);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:white;">'+initiales+'</div>';
+  h += '<div style="position:relative;flex-shrink:0;cursor:pointer;" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
+  h += renderAvatarHTML(membre, 46, {rc:['rgba(255,255,255,0.16)','white'], bord:'border:1.5px solid rgba(255,255,255,0.3);'});
   h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span>';
   h += '</div>';
   h += '<div style="flex:1;min-width:0;">';
@@ -25922,9 +26127,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
     var inscriptions = (!results[2]||results[2].code) ? [] : results[2];
     var heures = (!results[3]||results[3].code) ? [] : results[3];
 
-    var ini = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-    var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
+    var rc = ROLE_COLORS[membre.role] || ROLE_COLOR_DEFAUT;
     var totalH = heures.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
     var hStr = Math.floor(totalH/60)+'h'+(totalH%60?totalH%60+'m':'');
     var publis = arts.filter(function(a){return a.statut==='publie';}).length;
@@ -25940,7 +26143,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       // Header
       h += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
       h += '<div style="position:relative;flex-shrink:0;">';
-      h += '<div style="width:50px;height:50px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:'+rc[1]+';">'+ini+'</div>';
+      h += renderAvatarHTML(membre, 50, {});
       h += '<span style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(membreId)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);"></span>';
       h += '</div>';
       h += '<div style="flex:1;">';
@@ -26603,7 +26806,6 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   var artsMois = artsRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
   var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
   var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
 
   var h = '';
   // Header rédac
@@ -26630,11 +26832,9 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
     membresRedac.forEach(function(mb){
-      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-      var rcMb = (roleColors[mb.role]||'#D3D1C7,#444441').split(',');
       var lienMb = membresLiens.find(function(mr){return mr.membre_id===mb.id;});
       h += '<div style="display:flex;align-items:center;gap:5px;background:var(--gris-clair);border-radius:20px;padding:3px 10px 3px 4px;cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+mb.id+'\',\''+redacId+'\')" title="'+esc(mb.prenom+' '+mb.nom)+'" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">';
-      h += '<div style="position:relative;"><div style="width:24px;height:24px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div>';
+      h += '<div style="position:relative;">'+renderAvatarHTML(mb, 24, {});
       h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
       h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
       if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
@@ -26686,8 +26886,6 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     membresRedac.forEach(function(m){
       var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
       var rr = lien ? lien.role_redac : 'redacteur';
-      var rcMb = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
-      var ini = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
       var tousIdsM = [m.id];
       (_membresData||[]).forEach(function(autre){
         if(autre.id !== m.id && autre.prenom === m.prenom && autre.nom === m.nom) tousIdsM.push(autre.id);
@@ -26696,7 +26894,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
         return tousIdsM.indexOf(a.auteur_id) !== -1 && a.redaction_id === redacId;
       });
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
-      h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
+      h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(m, 26, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
@@ -27196,8 +27394,6 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
     membresLiensActifs.forEach(function(mr){
       var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
       if(!mb) return; // Membre absent du cache — skip
-      var ini = (mb.prenom||'?')[0].toUpperCase()+(mb.nom||'?')[0].toUpperCase();
-      var rcMb = ({redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',redac_chef:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'}[mb.role]||'#D3D1C7,#444441').split(',');
       // Compter les articles depuis tousArts (fetch direct déjà fait)
       var arts = tousArts.filter(function(a){
         return a.auteur_id === mb.id && a.redaction_id === redac.id;
@@ -27210,7 +27406,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       ligne.onclick = function(){ osRedacOuvrirFicheMembre(mb.id, redac.id); };
       var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
-      h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;"><div style="width:26px;height:26px;border-radius:50%;background:'+rcMb[0]+';display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:'+rcMb[1]+';">'+ini+'</div><span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
+      h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(mb, 26, {})+'<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select onchange="osRedacChefChangerRole(\''+mb.id+'\',\''+redac.id+'\',this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
         +'</select></td>';
@@ -28126,15 +28322,13 @@ function osBenevolesOuvrirFiche(membreId){
     carte.style.borderColor = actif ? 'var(--rouge)' : 'var(--gris-bord)';
   });
 
-  var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-  var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
+  var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
 
   var html = '';
 
   // Header
   html += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
-  html += '<div style="position:relative;flex-shrink:0;"><div style="width:48px;height:48px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div><span data-presence-id="'+m.id+'" style="position:absolute;bottom:0;right:0;display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
+  html += '<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m, 48, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:0;right:0;display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
   html += '<div style="flex:1;">';
   html += '<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+(osEstEnLigne(m.id)?'rgba(39,174,96,0.2)':'rgba(255,255,255,0.08)')+';color:'+(osEstEnLigne(m.id)?'#5DCA8A':'rgba(255,255,255,0.4)')+';">'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'</span></div>';
   html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+esc(m.email||'')+'</div>';
@@ -31616,11 +31810,9 @@ function _osGestionMembresRender(zone, membres, redacs){
 
   // Liste membres
   membres.forEach(function(m){
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
-    var initiales = ((m.prenom||'')[0]||'?').toUpperCase()+((m.nom||'')[0]||'?').toUpperCase();
+    var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
     html += '<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem .9rem;background:white;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:.5rem;">'
-      +'<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+esc(initiales)+'</div>'
+      +renderAvatarHTML(m, 36, {})
       +'<div style="flex:1;">'
       +'<div style="font-weight:600;font-size:.85rem;color:var(--encre);">'+esc((m.prenom||'')+' '+(m.nom||''))+'</div>'
       +'<div style="font-size:.62rem;color:var(--gris);">'+esc(m.email||'')+'</div>'
@@ -31948,9 +32140,6 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
       var nomAffiche = (m.prenom||'').trim() || (m.nom||'').trim()
         ? (esc(m.prenom||'')+' '+esc(m.nom||'')).trim()
         : '<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
-      var initiales = (m.prenom||m.email||'?')[0].toUpperCase() + (m.nom ? m.nom[0].toUpperCase() : (m.email||'?')[1]||'?').toUpperCase();
-      var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-      var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var membreApps = appsParMembre[m.id] || new Set();
 
       // Apps disponibles pour ce rôle + fonctions
@@ -31969,7 +32158,7 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
 
       // En-tête membre (cliquable pour déplier)
       html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.9rem 1.4rem;cursor:pointer;user-select:none;" onclick="osGestionAppsToggle(\''+m.id+'\')">';
-      html += '<div style="width:34px;height:34px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+esc(initiales)+'</div>';
+      html += renderAvatarHTML(m, 34, {});
       html += '<div style="flex:1;">';
       html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+nomAffiche+'</div>';
       html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(m.role||'')+' · '+membreApps.size+' app(s) activée(s)</div>';
@@ -35941,7 +36130,6 @@ function tchapRendreConvListe(convMap, membres, uid){
   var list = document.getElementById('tchap-conv-list');
   if(!list) return;
   list.innerHTML = '';
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
 
   // Entrée spéciale Emails envoyés (lecture seule)
   var emailItem = document.createElement('div');
@@ -35993,8 +36181,6 @@ function tchapRendreConvListe(convMap, membres, uid){
     if(!m) return;
     var conv = convMap[autreId];
     var isActive = _tchapConvActive === autreId;
-    var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
     var fonctionLabel = fonctionShort(m.fonction) || (m.role||'');
     var redacLabel = m.redaction ? m.redaction.charAt(0).toUpperCase()+m.redaction.slice(1) : '';
     var item = document.createElement('div');
@@ -36003,7 +36189,7 @@ function tchapRendreConvListe(convMap, membres, uid){
     item.onmouseout  = function(){if(!isActive)this.style.background='transparent';};
     item.innerHTML =
       '<div style="position:relative;flex-shrink:0;">'
-      +'<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div>'
+      +renderAvatarHTML(m, 36, {})
       +(conv.nonLus?'<div style="position:absolute;top:-3px;right:-3px;background:#FF5F57;color:white;border-radius:10px;font-size:0.5rem;font-weight:700;font-family:Space Mono,monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid var(--gris-clair);">'+conv.nonLus+'</div>':'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span>')
       +'</div>'
       +'<div style="flex:1;min-width:0;">'
@@ -36281,7 +36467,6 @@ function tchapFiltrerMembres(q){
 function tchapRendreMembres(q){
   var list = document.getElementById('tchap-member-list');
   if(!list) return;
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
   var filtered = _tchapMembers.filter(function(m){
     if(!q) return true;
     var full = ((m.prenom||'')+' '+(m.nom||'')).toLowerCase();
@@ -36293,8 +36478,6 @@ function tchapRendreMembres(q){
     return;
   }
   filtered.forEach(function(m){
-    var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-    var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
     var fonctionLabel = fonctionShort(m.fonction);
     var redacLabel = m.redaction ? 'Rédac '+m.redaction.charAt(0).toUpperCase()+m.redaction.slice(1) : '';
     var sousTitre = fonctionLabel ? fonctionLabel+(redacLabel?' · '+redacLabel:'') : (redacLabel||m.role||'');
@@ -36304,7 +36487,7 @@ function tchapRendreMembres(q){
     item.onmouseover = function(){this.style.background='var(--gris-clair)';};
     item.onmouseout  = function(){this.style.background='';};
     item.innerHTML =
-      '<div style="width:40px;height:40px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+initiales+'</div>'
+      renderAvatarHTML(m, 40, {})
       +'<div style="flex:1;">'
       +'<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+esc(sousTitre)+'</div>'
@@ -36343,9 +36526,6 @@ function tchapOuvrirConv(membre){
   right.innerHTML = '';
   right.style.cssText = (isMobile ? 'width:100%;' : 'flex:1;')+'display:flex;flex-direction:column;';
 
-  var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-  var rc = (roleColors[membre.role]||'#D3D1C7,#444441').split(',');
-  var initiales = (membre.prenom||'?')[0].toUpperCase()+(membre.nom||'?')[0].toUpperCase();
   var fonctionLabel = fonctionShort(membre.fonction);
   var redacLabel = membre.redaction ? membre.redaction.charAt(0).toUpperCase()+membre.redaction.slice(1) : '';
   var sousTitre = fonctionLabel ? fonctionLabel+(redacLabel?' · Rédac '+redacLabel:'') : (redacLabel?'Rédac '+redacLabel:membre.role||'');
@@ -36354,7 +36534,7 @@ function tchapOuvrirConv(membre){
   header.style.cssText = 'padding:0.7rem 1.2rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.7rem;flex-shrink:0;background:white;';
   header.innerHTML =
     (isMobile ? '<button onclick="tchapRetourListe()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:0;color:var(--encre);flex-shrink:0;">←</button>' : '')
-    +'<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+initiales+'</div>'
+    +renderAvatarHTML(membre, 36, {})
     +'<div style="flex:1;"><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>'
     +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(sousTitre)+'</div></div>';
   right.appendChild(header);
@@ -36625,18 +36805,15 @@ function tchapPartagerFiche(type, id, destinataireOverride){
       +'<input id="tchap-share-search" type="text" placeholder="Rechercher un membre…" style="width:100%;padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;box-sizing:border-box;outline:none;">';
     var list = document.createElement('div');
     list.style.cssText = 'flex:1;overflow-y:auto;';
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
     function renderMembres(q){
       list.innerHTML = '';
       (membres||[]).filter(function(m){ return !q||((m.prenom||'')+' '+(m.nom||'')).toLowerCase().includes(q.toLowerCase()); }).forEach(function(m){
-        var initiales=(m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-        var rc=(roleColors[m.role]||'#D3D1C7,#444441').split(',');
         var fonctionLabel=fonctionShort(m.fonction)||(m.role||'');
         var item=document.createElement('div');
         item.style.cssText='display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1.2rem;cursor:pointer;border-bottom:0.5px solid var(--gris-bord);transition:background 0.1s;';
         item.onmouseover=function(){this.style.background='var(--gris-clair)';};
         item.onmouseout=function(){this.style.background='';};
-        item.innerHTML='<div style="width:36px;height:36px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:'+rc[1]+';flex-shrink:0;">'+initiales+'</div>'
+        item.innerHTML=renderAvatarHTML(m, 36, {})
           +'<div><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</div>'
           +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(fonctionLabel)+'</div></div>';
         item.onclick=function(){ document.body.removeChild(overlay); tchapEnvoyerFiche(type,id,m); };
@@ -36768,14 +36945,10 @@ function tchapChargerPopup(body){
       return;
     }
 
-    var roleColors = {redacteur:'#F5C4B3,#712B13',correcteur:'#B5D4F4,#0C447C',admin:'#C0DD97,#27500A',communicant:'#E8D9F5,#4A235A'};
-
     Object.keys(parExp).forEach(function(expId){
       var expMsgs = parExp[expId];
       var m = membres.find(function(x){return x.id===expId;});
       if(!m) return;
-      var initiales = (m.prenom||'?')[0].toUpperCase()+(m.nom||'?')[0].toUpperCase();
-      var rc = (roleColors[m.role]||'#D3D1C7,#444441').split(',');
       var fonctionLabel = fonctionShort(m.fonction) || (m.role||'');
       var dernierMsg = expMsgs[0];
       var contenu = dernierMsg.contenu||'';
@@ -36788,7 +36961,7 @@ function tchapChargerPopup(body){
       item.onmouseout  = function(){this.style.background='';};
       item.innerHTML =
         '<div style="position:relative;flex-shrink:0;">'
-        +'<div style="width:38px;height:38px;border-radius:50%;background:'+rc[0]+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+rc[1]+';">'+initiales+'</div>'
+        +renderAvatarHTML(m, 38, {})
         +'<div style="position:absolute;top:-2px;right:-2px;background:#FF5F57;color:white;border-radius:10px;font-size:0.5rem;font-weight:700;font-family:Space Mono,monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid white;">'+expMsgs.length+'</div>'
         +'</div>'
         +'<div style="flex:1;min-width:0;">'
