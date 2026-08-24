@@ -4938,6 +4938,32 @@ function osChoisirAvatar(avatarId){
   }).catch(function(){ notif('Erreur réseau', 'erreur'); });
 }
 
+// ===== CANAL DE NOTIFICATIONS PERSONNELLES (email / Google Chat) =====
+function _osChargerCanalNotifActuel(){
+  var uid = getUserId();
+  var toggle = document.getElementById('params-canal-notif');
+  if(!uid || !toggle) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=canal_notif', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var actuel = rows && rows[0] ? (rows[0].canal_notif||'email') : 'email';
+    toggle.checked = (actuel === 'chat');
+  }).catch(function(){});
+}
+function osChoisirCanalNotif(canal){
+  var uid = getUserId();
+  if(!uid) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid), {
+    method:'PATCH', headers:authH,
+    body: JSON.stringify({canal_notif: canal})
+  }).then(function(r){
+    if(r.ok) notif(canal==='chat' ? 'Notifications personnelles envoyées sur Google Chat' : 'Notifications personnelles envoyées par email', 'succes');
+    else notif('Erreur mise à jour', 'erreur');
+  }).catch(function(){ notif('Erreur réseau', 'erreur'); });
+}
+
 // ===== SESSION EXPIRÉE : détection globale =====
 // Beaucoup d'appels fetch() dans l'appli n'ont pas de gestion d'erreur — un token
 // mort se traduisait avant par des écrans qui restent vides ou des boutons qui ne
@@ -8805,16 +8831,22 @@ function assignValider(){
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
 
-    // Email au correcteur — _assignDoc2 (capturé au clic), pas les variables globales
+    // Notifier le correcteur — _assignDoc2 (capturé au clic), pas les variables globales
     // _assignCorrecteur/_assignCorrecteurId : même raison que le PATCH plus haut, ce
     // bloc s'exécute après plusieurs allers-retours réseau.
     if(_assignDoc2.correcteur_id){
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignDoc2.correcteur_id+'&select=email,prenom', {headers:SB_HEADERS})
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignDoc2.correcteur_id+'&select=email,prenom,canal_notif', {headers:SB_HEADERS})
       .then(function(r){ return r.json(); })
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
-        // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
-        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignDoc2.correcteur_id)){
+        if(!membre) return;
+        if(membre.canal_notif === 'chat'){
+          // Canal choisi par la personne : part systématiquement, même connectée à
+          // Compo — ce n'est pas un filet de secours comme l'email ci-dessous.
+          var messageChat = '🔍 Un article t\'attend en correction : "'+(_assignDoc2.titre||'Sans titre')+'" (assigné par '+(_assignDoc2.auteur||'un·e rédacteur·rice')+'). https://compo.ipsummedia.fr';
+          notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
+        } else if(membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignDoc2.correcteur_id)){
+          // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
           var html = '<h2>Un article t\'attend en correction 🔍</h2>'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
@@ -11103,6 +11135,20 @@ function envoyerEmailResend(to, subject, html, type){
     // ponctuel), on envoie quand même : mieux vaut un email potentiellement superflu
     // qu'un vrai email jamais envoyé à cause d'un aléa sur cette seule vérification.
     .catch(function(){ return _envoyerEmailResendReel(to, subject, html, type); });
+}
+
+// Notification personnelle par Google Chat DM — canal choisi par la personne
+// (membres.canal_notif==='chat', voir Réglages > Mon profil). Contrairement à
+// envoyerEmailResend, part toujours, même si la personne est connectée à Compo : ce
+// n'est pas un filet de secours comme l'email, c'est le canal qu'elle a choisi.
+function notifierChatDM(membreId, message, type){
+  if(!membreId) return Promise.resolve({ok:false});
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/functions/v1/envoyer-chat-dm', {
+    method:'POST', headers:authH,
+    body: JSON.stringify({membreId:membreId, message:message, type:type||'autre'})
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+    .catch(function(e){ console.warn('notifierChatDM:', e); return {ok:false}; });
 }
 
 function _envoyerEmailResendReel(to, subject, html, type){
@@ -18364,6 +18410,20 @@ function osParamsRenderSection(section, container){
     rowAvatar.appendChild(avatarGrid);
     container.appendChild(rowAvatar);
     _osChargerAvatarActuelEtRenderGrille(avatarGrid);
+
+    // Canal de notifications personnelles — email par défaut, ou Google Chat (part
+    // systématiquement, même connecté à Compo, contrairement à l'email qui saute
+    // certains envois si la notification in-app suffit déjà).
+    var rowCanal = document.createElement('div');
+    rowCanal.className = 'params-row';
+    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles</div><div class="params-label-sub">Comment tu veux recevoir "tu es assigné à ceci", "ton article est publié"...</div></div>'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+      + '<span id="canal-notif-label-off" style="font-size:0.72rem;color:var(--gris);">Email</span>'
+      + '<label class="compo-toggle"><input type="checkbox" id="params-canal-notif" onchange="osChoisirCanalNotif(this.checked?\'chat\':\'email\')"><span class="track"></span><span class="thumb"></span></label>'
+      + '<span id="canal-notif-label-on" style="font-size:0.72rem;color:var(--gris);">Google Chat</span>'
+      + '</div>';
+    container.appendChild(rowCanal);
+    _osChargerCanalNotifActuel();
 
     // Changer mon mot de passe
     var rowPass = document.createElement('div');
