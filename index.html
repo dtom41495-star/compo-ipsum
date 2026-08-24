@@ -20409,6 +20409,9 @@ function maOsMakeCard(doc, uid, role){
     +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
     +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
     +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
+    +(_maOnglet==='corriger'
+        ?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;display:inline-flex;align-items:center;gap:3px;background:'+(doc.correcteur?'#E8F4F8':'#FEE2E2')+';color:'+(doc.correcteur?'#0C5460':'#991B1B')+';"><i class="ti ti-user-search"></i>'+(doc.correcteur?esc(doc.correcteur):'Aucun correcteur')+'</span>'
+        :'')
     +(_maNewsletterMap[doc.id]
         ?'<span title="'+esc(_maNewsletterMap[doc.id].titre||'')+'" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-mail"></i>Envoyée le '+new Date(_maNewsletterMap[doc.id].date_envoi).toLocaleDateString('fr-FR')+'</span>'
         :(doc.redaction_id&&(s==='valide'||s==='publie')
