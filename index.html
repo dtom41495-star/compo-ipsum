@@ -4815,8 +4815,61 @@ function renderAvatarHTML(membre, taille, opts){
     ? '<svg viewBox="0 0 64 64" width="100%" height="100%"><use href="#avatar-'+avatarId+'"></use></svg>'
     : '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;color:'+rc[1]+';">'+esc(ini)+'</span>';
   var fond = estIllustre ? 'transparent' : rc[0];
-  return '<div style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+fond+';overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(opts.ring||'')+(opts.bord||'')+(opts.styleExtra||'')+'">'+inner+'</div>';
+  return '<div data-membre-id="'+esc((membre&&membre.id)||'')+'" style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+fond+';overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(opts.ring||'')+(opts.bord||'')+(opts.styleExtra||'')+'">'+inner+'</div>';
 }
+
+// ===== MODE DEV =====
+// Révèle les identifiants déjà posés en attribut data-* sur d'innombrables éléments de
+// l'app (data-id, data-membre-id, data-cpid, data-redac-id, data-rid...) au survol — sans
+// ça, retrouver l'id exact de quelque chose oblige à passer par une requête SQL. Préférence
+// locale au navigateur (localStorage), pas un réglage de compte partagé entre appareils.
+var DEV_MODE_KEY = 'compo_dev_mode';
+function osDevModeActif(){ return localStorage.getItem(DEV_MODE_KEY) === '1'; }
+var _devModeObserver = null;
+var _devModeScanTimer = null;
+function osDevModeToggle(actif){
+  localStorage.setItem(DEV_MODE_KEY, actif ? '1' : '0');
+  osDevModeAppliquer();
+}
+function osDevModeAppliquer(){
+  if(osDevModeActif()){
+    document.body.classList.add('dev-mode-actif');
+    osDevModeScanner();
+    if(!_devModeObserver){
+      _devModeObserver = new MutationObserver(function(){
+        // L'app re-rend des listes entières très souvent (Tchap, Ma Rédac'...) — on
+        // regroupe les rebalayages plutôt que d'en lancer un par mutation.
+        clearTimeout(_devModeScanTimer);
+        _devModeScanTimer = setTimeout(osDevModeScanner, 200);
+      });
+      _devModeObserver.observe(document.body, {childList:true, subtree:true});
+    }
+  } else {
+    document.body.classList.remove('dev-mode-actif');
+    if(_devModeObserver){ _devModeObserver.disconnect(); _devModeObserver = null; }
+    document.querySelectorAll('[data-dev-tagged]').forEach(function(el){
+      el.removeAttribute('data-dev-tagged');
+      el.style.outline = '';
+    });
+  }
+}
+function osDevModeScanner(){
+  if(!osDevModeActif()) return;
+  document.querySelectorAll('*').forEach(function(el){
+    if(el.dataset.devTagged) return;
+    var parts = [];
+    Object.keys(el.dataset).forEach(function(k){
+      if(k!=='devTagged' && /id$/i.test(k)) parts.push(k+' = '+el.dataset[k]);
+    });
+    if(!parts.length) return;
+    el.title = parts.join('\n') + (el.title ? '\n\n'+el.title : '');
+    el.dataset.devTagged = '1';
+    el.style.outline = '1px dashed rgba(232,70,30,0.4)';
+    el.style.outlineOffset = '1px';
+  });
+}
+// Appliqué au démarrage (après login) si la préférence était déjà activée sur cet appareil.
+setTimeout(function(){ if(osDevModeActif()) osDevModeAppliquer(); }, 1500);
 
 // Ouvre Réglages directement sur "Mon profil", pour choisir/changer son avatar — appelé
 // depuis l'avatar cliquable de l'en-tête "Mon profil" dans Ma Rédac'.
@@ -8707,8 +8760,14 @@ function assignValider(){
       headers: authH,
       body: JSON.stringify({
         statut: 'en-relecture',
-        correcteur: _assignCorrecteur,
-        correcteur_id: _assignCorrecteurId || null,
+        // _assignDoc2 (capturé au clic, avant l'aller-retour réseau ci-dessus) plutôt que
+        // les variables globales _assignCorrecteur/_assignCorrecteurId : si ces globales
+        // changent pendant l'attente (nouvelle assignation ouverte, modale refermée...),
+        // le PATCH écrivait silencieusement le correcteur du moment au lieu de celui
+        // réellement choisi — c'est ce qui a laissé un article en 'en-relecture' avec
+        // correcteur/correcteur_id vides alors que le mail était bien parti au bon endroit.
+        correcteur: _assignDoc2.correcteur,
+        correcteur_id: _assignDoc2.correcteur_id || null,
         // Sauvegarder le texte original pour le diff
         titre_original:   _assignDoc.titre   || null,
         chapeau_original: _assignDoc.chapeau || null,
@@ -8728,19 +8787,21 @@ function assignValider(){
     if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
 
     assignFermer();
-    notif('Envoyé en correction à ' + _assignCorrecteur + ' ✓', 'succes');
+    notif('Envoyé en correction à ' + _assignDoc2.correcteur + ' ✓', 'succes');
     osClearAutosave();
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
 
-    // Email au correcteur
-    if(_assignCorrecteurId){
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignCorrecteurId+'&select=email,prenom', {headers:SB_HEADERS})
+    // Email au correcteur — _assignDoc2 (capturé au clic), pas les variables globales
+    // _assignCorrecteur/_assignCorrecteurId : même raison que le PATCH plus haut, ce
+    // bloc s'exécute après plusieurs allers-retours réseau.
+    if(_assignDoc2.correcteur_id){
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignDoc2.correcteur_id+'&select=email,prenom', {headers:SB_HEADERS})
       .then(function(r){ return r.json(); })
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
         // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
-        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignCorrecteurId)){
+        if(membre && membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignDoc2.correcteur_id)){
           var html = '<h2>Un article t\'attend en correction 🔍</h2>'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
@@ -9073,8 +9134,14 @@ function rWorkflowMajInterface(doc){
   if(!doc) return;
   var role     = getUserRole();
   var uid      = getUserId();
+  // Portée sur la rédaction RÉELLE de l'article (doc.redaction_id), pas sur la rédaction
+  // actuellement sélectionnée dans l'espace de travail (window._redacActiveId) — sinon un
+  // chef de la rédaction A qui ouvre un article de la rédaction B (via Mes Articles ou un
+  // lien partagé) se retrouvait traité comme chef de B. Repli sur _redacActiveId seulement
+  // si l'article n'a pas de redaction_id (vieil article), même pattern que
+  // osProjetsOuvrirProjet ailleurs dans le fichier.
   var roleRedac = (function(){
-    var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===window._redacActiveId; });
+    var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===(doc.redaction_id||window._redacActiveId); });
     return lien ? lien.role_redac : null;
   })();
   var isChef    = roleRedac==='redac_chef' || role==='admin';
@@ -14829,7 +14896,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 Mes Corrections', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 À corriger', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
     correction:'Correction', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison', briefing:'Briefing', visuels:'Visuels Instagram',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
@@ -17020,7 +17087,7 @@ function _osComMembreIds(membres){
 function osVerifierDispoVisuels(){
   // Vérifier si au moins un membre de la com est disponible (dnd=false)
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
@@ -17079,7 +17146,7 @@ function osVisuelsVerifierAcces(){
 function osNotifierComArticleValide(article){
   // Trouver les membres de la com disponibles
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
@@ -17145,7 +17212,7 @@ function osNotifierValidateursCentraux(article){
     if(!redacCentrale || redacCentrale.id===article.redaction_id) return;
 
     return Promise.all([
-      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,nom,email',{headers:authH}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,nom,email,avatar_id',{headers:authH}).then(function(r){return r.json();}),
       fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacCentrale.id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,nom,email,actif)',{headers:authH}).then(function(r){return r.json();})
     ]).then(function(res){
       var admins = (res[0]&&!res[0].code) ? res[0] : [];
@@ -18561,7 +18628,16 @@ function osParamsRenderSection(section, container){
     rowInfo.className = 'params-row';
     rowInfo.innerHTML = '<div><div class="params-label">'+getUserPrenom()+' '+getUserNom()+'</div><div class="params-label-sub">Rôle : '+getUserRole()+'</div></div>';
     container.appendChild(rowInfo);
-    
+
+    // Mode dev : révèle les identifiants (membres, articles, CPs, rédactions...) déjà
+    // présents dans les data-* de la page (data-id, data-membre-id, data-cpid...) au
+    // survol, sans avoir à demander/chercher l'id de chaque chose une par une.
+    var rowDev = document.createElement('div');
+    rowDev.className = 'params-row';
+    rowDev.innerHTML = '<div><div class="params-label">Mode dev</div><div class="params-label-sub">Affiche les identifiants (membres, articles, CPs...) au survol de chaque élément</div></div>'
+      + '<label class="compo-toggle"><input type="checkbox" id="params-dev-mode" onchange="osDevModeToggle(this.checked)"'+(osDevModeActif()?' checked':'')+'><span class="track"></span><span class="thumb"></span></label>';
+    container.appendChild(rowDev);
+
     var rowCache = document.createElement('div');
     rowCache.className = 'params-row';
     // Alignement en haut plutôt qu'au centre : le sous-texte tient sur 2 lignes, donc
@@ -19953,11 +20029,16 @@ var MA_VUES = {
 // Vues autorisées pour la personne connectée. Tout le monde est rédacteur·rice avant
 // tout (y compris correcteur·rices et admins) : la section personnelle est donc toujours
 // là, la section « rôle » ne s'ajoute qu'en dessous.
+// "À corriger" : role==='correcteur' couvre le cas courant, mais l'assignation réelle
+// (articles.correcteur_id) est indépendante du rôle — un membre assigné sur un article
+// précis avant que son rôle ne change (ex: passé rédacteur/communicant depuis) doit
+// quand même pouvoir retrouver l'onglet. window._aDesCorrectionsAssignees est vérifié
+// et mis à jour par osMesArticlesRender() avant le premier rendu du rail.
 function _maVuesAutorisees(){
   var role = getUserRole();
   var ids = ['mes','brouillons'];
   if(_maBrouillonsLocaux().length) ids.push('secours');
-  if(role === 'correcteur' || role === 'admin') ids.push('corriger');
+  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees) ids.push('corriger');
   if(role === 'admin') ids.push('tous');
   if(estValidateurCentral()) ids.push('validation-centrale');
   return ids;
@@ -20040,8 +20121,27 @@ function osMesArticlesRender(){
   main.appendChild(list);
   wc.appendChild(main);
 
-  _maRailRender();
-  osMesArticlesCharger();
+  var suite = function(){
+    _maRailRender();
+    osMesArticlesCharger();
+  };
+  var role = getUserRole();
+  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees){
+    suite();
+  } else {
+    // Rôle qui ne donne pas l'onglet "À corriger" d'office — une dernière vérification
+    // avant de le masquer : peut-être une correction lui a été assignée individuellement
+    // malgré tout (voir _maVuesAutorisees). Coût minime (un seul id, limit=1), et mis en
+    // cache pour le reste de la session une fois vérifié.
+    var uid = getUserId();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige)&select=id&limit=1',{headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      window._aDesCorrectionsAssignees = !!(rows && rows.length);
+      suite();
+    }).catch(function(){ suite(); });
+  }
 }
 
 function osMesArticlesChangerOnglet(id){
@@ -23697,7 +23797,7 @@ function osBenevolesDashRender(){
   wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
@@ -24597,7 +24697,7 @@ function osRedactionsRender(){
   Promise.all([
     fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,role,email,fonction,redaction,created_at&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,role,email,fonction,redaction,created_at,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
     (function(){ var u=SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=1000'; return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
     (function(){ var u=SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc'; if(window._redacActiveId) u+='&redaction_id=eq.'+encodeURIComponent(window._redacActiveId); return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.confirme&select=membre_id,evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
@@ -27291,7 +27391,7 @@ function osRedactionsRenderAdmin(wc, uid){
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,statut,auteur_id,redaction_id,updated_at',{headers:authH}).then(function(r){
       return r.json();
     }).then(function(d){ return d; }),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,created_at&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,created_at,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     var arts = (!res[0]||res[0].code) ? [] : res[0];
     var tousMembresSansFiltre = (!res[1]||res[1].code) ? _membresData : res[1];
@@ -28262,7 +28362,7 @@ function _osAfficherPopupInactif(){
 // (auto-signalement via le bouton dispo/indispo, ou marquage manuel côté vie asso)
 function _osNotifierVieAssoIndisponibilite(nomMembre, raison){
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,fonction',{headers:authHGet})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,fonction,avatar_id',{headers:authHGet})
   .then(function(r){return r.json();})
   .then(function(membres){
     var cibles = (membres||[]).filter(function(m){ return fonctionArray(m.fonction).indexOf('vie_asso') !== -1; });
@@ -31660,7 +31760,7 @@ function osGestionAppsRender(){
 
   var authHGA = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   Promise.all([
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {headers:authHGA}).then(function(r){return r.json();})
@@ -34228,7 +34328,7 @@ function osAgendaOuvrirDetail(ev){
   // Charger les inscriptions
   Promise.all([
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+ev.id+'&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,avatar_id',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var inscriptions = (!results[0]||results[0].code)?[]:results[0];
     var membres = (!results[1]||results[1].code)?[]:results[1];
@@ -35316,7 +35416,7 @@ function osAgendaPrevenirContactExterne(ev){
 
 function osAgendaEnvoyerInvitations(ev, roles, fonctions){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     if(!membres||membres.code) return;
@@ -35479,7 +35579,7 @@ function osProjetsOuvrirProjet(projet){
 
   Promise.all([
     fetch(SB_URL+'/rest/v1/projets_taches?projet_id=eq.'+projet.id+'&order=created_at.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var taches  = (!results[0]||results[0].code)?[]:results[0];
     var membres = (!results[1]||results[1].code)?[]:results[1];
@@ -35852,7 +35952,7 @@ function osProjetsMesTaches(body){
   Promise.all([
     fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+uid+'}&order=updated_at.desc&select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/projets?select=id,titre',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,avatar_id',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var taches  = (!results[0]||results[0].code)?[]:results[0];
     var projets = (!results[1]||results[1].code)?[]:results[1];
@@ -36086,7 +36186,7 @@ function tchapChargerConversations(){
   // Charger tous les messages envoyés ou reçus pour trouver les interlocuteurs
   Promise.all([
     fetch(SB_URL+'/rest/v1/tchap_messages?or=(expediteur_id.eq.'+uid+',destinataire_id.eq.'+uid+')&select=expediteur_id,destinataire_id,contenu,created_at,lu&order=created_at.desc&limit=200',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,redaction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,redaction,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var msgs = (!results[0]||results[0].code)?[]:results[0];
     var membres = (!results[1]||results[1].code)?[]:results[1];
@@ -36787,7 +36887,7 @@ function tchapPartagerFiche(type, id, destinataireOverride){
   // Avec id
   var fetchMembres = (destinataireOverride || (_tchapMembers && _tchapMembers.length))
     ? Promise.resolve(destinataireOverride ? null : _tchapMembers)
-    : fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,redaction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}).then(function(d){_tchapMembers=(!d||d.code)?[]:d.filter(function(m){return m.id!==uid;});return _tchapMembers;});
+    : fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,redaction,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}).then(function(d){_tchapMembers=(!d||d.code)?[]:d.filter(function(m){return m.id!==uid;});return _tchapMembers;});
 
   fetchMembres.then(function(membres){
     if(destinataireOverride){
@@ -36927,7 +37027,7 @@ function tchapChargerPopup(body){
 
   Promise.all([
     fetch(SB_URL+'/rest/v1/tchap_messages?destinataire_id=eq.'+uid+'&lu=eq.false&select=*&order=created_at.desc&limit=50',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var msgs = (!results[0]||results[0].code)?[]:results[0];
     var membres = (!results[1]||results[1].code)?[]:results[1];
