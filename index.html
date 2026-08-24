@@ -25172,20 +25172,12 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '</div>';
   h += '</div>';
 
-  // Sujets à rédiger — remonté juste sous l'identité : c'est l'actionnable, la priorité n°1
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-  h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
-  h += '<button onclick="osOuvrirSujets()" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
-  h += '</div>';
-  h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '</div>';
-
-  // Actions rapides
+  // Actions rapides — remontées au-dessus des sujets à rédiger : ce sont les portes
+  // d'entrée vers le reste de l'app, avant même l'actionnable du dessous.
   var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
   if(actionsRedac.length){
-    h += '<div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Actions rapides</div>';
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.5rem;"><i class="ti ti-bolt" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Actions rapides</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.5rem;">';
     actionsRedac.forEach(function(a){
       var onclickAttr = a.action || ("osOpenWindow('"+a.page+"')");
@@ -25217,6 +25209,15 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     }
   }
 
+  // Sujets à rédiger
+  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+  h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
+  h += '<button onclick="osOuvrirSujets()" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
+  h += '</div>';
+  h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  h += '</div>';
+
   // Stats — condensées en une bande fine, secondaires par rapport à l'actionnable au-dessus
   h += '<div style="display:flex;align-items:stretch;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
   function statBrin(id, l, c){ return '<div style="flex:1;padding:0.55rem 0.4rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div id="'+id+'" style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:'+(c||'var(--encre)')+'">—</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
@@ -25227,18 +25228,18 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '</div>';
 
   // Mes derniers articles
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
+  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-  h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);">Mes derniers articles</span>';
+  h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-notes" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes derniers articles</span>';
   h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
   h += '</div>';
   h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   h += '</div>';
 
   // Mes activités agenda
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
+  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-  h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);">Mes activités</span>';
+  h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes activités</span>';
   h += '<button onclick="osOpenWindow(\'agenda\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir l\'agenda →</button>';
   h += '</div>';
   h += '<div id="redac-mes-activites"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
@@ -25266,8 +25267,8 @@ function osChargerRecompensesProfil(uid){
       return art ? art.nom : null;
     }).filter(Boolean);
     if(!noms.length) return;
-    var h = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;">Récompenses obtenues</div>';
+    var h = '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.6rem;"><i class="ti ti-medal" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Récompenses obtenues</div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
     noms.forEach(function(nom){
       h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;">🏅 '+esc(nom)+'</span>';
