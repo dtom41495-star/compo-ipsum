@@ -2334,7 +2334,10 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .cp-meta-inline strong{color:var(--rouge);}
 
 /* STATS */
-.stats-bar{display:flex;gap:1rem;flex-wrap:wrap;font-family:Arial,sans-serif;font-size:0.68rem;color:var(--gris);margin-top:0.3rem;}
+.stats-bar{display:flex;gap:0;flex-wrap:wrap;font-family:Arial,sans-serif;font-size:0.68rem;color:var(--gris);margin-top:0.3rem;}
+.stat-item{padding:0 0.7rem;border-right:1px solid var(--gris-bord);}
+.stat-item:first-child{padding-left:0;}
+.stat-item:last-child{border-right:none;padding-right:0;}
 .lisib-bar{height:3px;background:var(--gris-bord);margin-top:0.35rem;}
 .lisib-fill{height:100%;transition:width 0.3s,background 0.3s;}
 .lisib-label{font-family:Arial,sans-serif;font-size:0.63rem;color:var(--gris);margin-top:0.18rem;}
@@ -2735,10 +2738,6 @@ input:focus,select:focus,textarea:focus{
 /* CP items */
 .cp-item{transition:border-color 0.12s;}
 .cp-item:hover{border-color:var(--rouge);}
-
-/* Stats bar rédaction */
-.stats-bar{background:var(--encre-fixe);border-radius:2px;}
-
 
 
 /* ===== HERO ===== */
@@ -3820,11 +3819,12 @@ input:focus,select:focus,textarea:focus{
         </select>
       </div>
       <div class="form-group full">
-        <label>PDF du communiqué</label>
+        <label>Fichiers joints (PDF, images)</label>
         <div id="cps-pdf-zone" style="border:1.5px dashed var(--gris-bord);border-radius:6px;padding:0.8rem 1rem;cursor:pointer;font-size:0.82rem;color:var(--gris);" onclick="document.getElementById('cps-pdf-input').click()">
-          <span id="cps-pdf-label">📎 Cliquer pour ajouter un PDF</span>
+          <span id="cps-pdf-label"><i class="ti ti-paperclip"></i> Cliquer pour ajouter un ou plusieurs fichiers</span>
         </div>
-        <input type="file" id="cps-pdf-input" accept=".pdf" style="display:none;" onchange="cpsPdfSelectionne(this)">
+        <input type="file" id="cps-pdf-input" multiple accept=".pdf,image/*" style="display:none;" onchange="cpsFichiersSelectionnes(this)">
+        <div id="cps-fichiers-liste" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>
       </div>
       <div class="form-group full">
         <label>Contenu</label>
@@ -3834,7 +3834,7 @@ input:focus,select:focus,textarea:focus{
     <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">
       <button class="btn" onclick="cpsAdminSauvegarder('brouillon')" style="font-size:0.8rem;">💾 Sauvegarder brouillon</button>
       <button class="btn" onclick="cpsAdminSauvegarder('publie')" style="font-size:0.8rem;background:linear-gradient(135deg,#155724,#1E7E34);">📤 Publier</button>
-      <button class="btn sec" onclick="document.getElementById('cps-form').style.display='none';window._cpsPdfFile=null;" style="font-size:0.8rem;">Annuler</button>
+      <button class="btn sec" onclick="document.getElementById('cps-form').style.display='none';_cpsFichiersSelectionnes=[];_cpsFichiersExistants=[];_cpsFichierPdfLegacy=null;" style="font-size:0.8rem;">Annuler</button>
     </div>
   </div>
 
@@ -4820,8 +4820,8 @@ function setType(t){
   var tbA=document.getElementById('tb-article'); if(tbA) tbA.classList.toggle('active',t==='article');
   var tbB=document.getElementById('tb-breve'); if(tbB) tbB.classList.toggle('active',t==='breve');
   ['rg-chapeau','rg-angle','rg-sources'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display=t==='article'?'flex':'none'; });
-  var corps=document.getElementById('r-corps'); if(corps) corps.placeholder=t==='breve'?'Ecris ta breve ici (400 caracteres max)...':'Ecris ton article ici...';
-  var corpsLive=document.getElementById('r-corps-live'); if(corpsLive) corpsLive.dataset.placeholder=t==='breve'?'Ecris ta breve ici (400 caracteres max)...':'Ecris ton article ici...';
+  var corps=document.getElementById('r-corps'); if(corps) corps.placeholder=t==='breve'?'Ecris ta breve ici (500 signes max)...':'Ecris ton article ici...';
+  var corpsLive=document.getElementById('r-corps-live'); if(corpsLive) corpsLive.dataset.placeholder=t==='breve'?'Ecris ta breve ici (500 signes max)...':'Ecris ton article ici...';
   updateStats();
 }
 
@@ -4848,7 +4848,7 @@ function updateStats(){
   const lec=Math.max(1,Math.round(mo/200)),ph=v.split(/[.!?]+/).filter(x=>x.trim()).length;
   const avg=ph>0?Math.round(mo/ph):0;
   const bar=document.getElementById('stats-bar');
-  bar.innerHTML='<span class="stat-item" style="color:'+(currentType==='breve'&&s>400?'#FF6B6B':currentType==='breve'&&s>380?'#FFC107':'rgba(255,255,255,0.95)')+'"><strong>'+(s+(currentType==='breve'?' / 400':''))+' car.</strong></span><span class="stat-item"><strong>'+mo+'</strong> mots</span><span class="stat-item"><strong>~'+lec+' min</strong></span><span class="stat-item"><strong>'+ph+'</strong> phrases</span>';
+  bar.innerHTML='<span class="stat-item" style="color:'+(currentType==='breve'&&s>500?'#A32D2D':currentType==='breve'&&s>475?'#856404':'var(--encre)')+'"><strong>'+(s+(currentType==='breve'?' / 500':''))+' signes</strong></span><span class="stat-item"><strong>'+mo+'</strong> mots</span><span class="stat-item"><strong>~'+lec+' min</strong></span><span class="stat-item"><strong>'+ph+'</strong> phrases</span>';
   let sc=100;if(avg>30)sc=40;else if(avg>20)sc=65;else if(avg>15)sc=80;
   document.getElementById('lisib-fill').style.cssText='width:'+sc+'%;background:'+(sc>=75?'#27AE60':sc>=55?'#E67E22':'#C0392B');
   document.getElementById('lisib-label').textContent='Lisibilité - '+(sc>=75?'Bonne':sc>=55?'Correcte (phrases un peu longues)':'Difficile (phrases trop longues)');
@@ -5040,7 +5040,7 @@ function exporterArticle(){
   var titre=document.getElementById('r-titre').value.trim();
   var corps=document.getElementById('r-corps').value.trim();
   if(!auteur||!titre||!corps){notif('Prenom, titre et texte requis');return;}
-  if(currentType==='breve'&&corps.length>400){notif('Breve trop longue (max 400 caracteres)');return;}
+  if(currentType==='breve'&&corps.length>500){notif('Breve trop longue (max 500 signes)');return;}
   var doc=buildDoc();
   notif('Sauvegarde en cours...');
 
@@ -5805,7 +5805,7 @@ function lireCP(id){
   if(!cp){
     // Essayer depuis la base
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-    fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*',{headers:authH})
+    fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*,communique_fichiers(*)',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       if(data&&data[0]) osCpOuvrirFenetre(data[0]);
@@ -21604,7 +21604,7 @@ function cpsInvitationRetirerDisponibilite(dispId, cpId){
       // rafraîchissait donc jamais rien visuellement.
       var winId = 'cp-'+cpId;
       var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-      fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*',{headers:authHGet})
+      fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*,communique_fichiers(*)',{headers:authHGet})
       .then(function(r){return r.json();})
       .then(function(data){
         var cp = data&&data[0];
@@ -21719,7 +21719,7 @@ function cpsCharger(){
   cpsAfficherAbonnement();
 
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*', {headers:authH})
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*,communique_fichiers(*)', {headers:authH})
   .then(function(r){return r.json();})
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;
@@ -21883,7 +21883,7 @@ function cpsvListe(liste, cps, vus){
     row.innerHTML = (nonLu?'<span style="width:7px;height:7px;border-radius:50%;background:#7D3C98;flex-shrink:0;display:inline-block;"></span>':'<span style="width:7px;height:7px;flex-shrink:0;display:inline-block;"></span>')
       +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:'+(nonLu?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
       +'<div style="font-size:0.62rem;color:var(--gris);">'+esc(cp.organisation||cp.source||'')+(d?' · '+d:'')+'</div></div>'
-      +(cp.fichier_pdf||cp.fichier_b64?'<i class="ti ti-paperclip" title="PDF disponible" style="font-size:0.75rem;color:var(--gris);"></i>':'')
+      +((cp.communique_fichiers&&cp.communique_fichiers.length)||cp.fichier_pdf||cp.fichier_b64?'<i class="ti ti-paperclip" title="Fichier(s) joint(s)" style="font-size:0.75rem;color:var(--gris);"></i>':'')
       +(cp.reponse_requise?'<i class="ti ti-alert-triangle" title="Réponse requise" style="font-size:0.75rem;color:#856404;"></i>':'');
     row.onclick = function(){ cpsOuvrirDetail(cp); };
     t.appendChild(row);
@@ -21996,8 +21996,9 @@ function cpsMakeCard(cp, isAdmin){
     ? '<span class="cp-nonlu-dot" style="background:#7D3C98;color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:3px;margin-left:4px;font-weight:700;">Nouveau</span>'
     : '';
 
-  var pdfBadge = cp.fichier_pdf
-    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> PDF</span>'
+  var nbFichiers = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+  var pdfBadge = nbFichiers
+    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> '+nbFichiers+'</span>'
     : '';
 
   // Modifier/Supprimer réservés à l'appli Communiqués admin (isAdmin=true) — jamais
@@ -22050,10 +22051,17 @@ function cpsMakeCard(cp, isAdmin){
         ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;"><i class="ti ti-pencil"></i> Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
         : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;"><i class="ti ti-pin"></i> Sujet créé — pas encore réservé</span>')
     : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;"><i class="ti ti-pin"></i> Transformer en sujet</button>';
+  // Un bouton par fichier joint (nouveau système) + le PDF legacy éventuel — plutôt qu'un
+  // bouton unique "Télécharger PDF" qui ne pouvait pointer que vers un seul fichier.
+  var boutonsFichiers = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).map(function(f){
+    return '<button data-url="'+esc(_driveLienAuthuser(f.url))+'" onclick="window.open(this.dataset.url,\'_blank\')" title="'+esc(f.nom)+'" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="ti ti-'+(f.type==='image'?'photo':'download')+'"></i> '+esc(f.nom)+'</button>';
+  }).join('');
+  if(cp.fichier_pdf) boutonsFichiers += '<button data-url="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>';
+
   var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
     +boutonSujet
     +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;"><i class="ti ti-pencil"></i> Créer un article</button>'
-    +(cp.fichier_pdf?'<button data-url="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>':'')
+    +boutonsFichiers
     +'</div>';
 
   card.innerHTML =
@@ -22259,10 +22267,28 @@ function osCpFenetreRender(winId){
     body.appendChild(corps);
   }
 
+  // Fichiers joints (nouveau système multi-fichiers) — un bloc par fichier, iframe pour un
+  // PDF, image simple sinon.
+  (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).forEach(function(f){
+    var fichierWrap = document.createElement('div');
+    fichierWrap.style.cssText = 'margin-bottom:1.2rem;';
+    if(f.type === 'image'){
+      fichierWrap.innerHTML =
+        '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
+        +'<img src="'+esc(_driveImgSrc(f.url))+'" style="max-width:100%;border-radius:6px;border:1px solid var(--gris-bord);display:block;">';
+    } else {
+      fichierWrap.innerHTML =
+        '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
+        +'<iframe src="'+esc(_driveLienPourIframe(f.url))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
+        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+    }
+    body.appendChild(fichierWrap);
+  });
+
   if(cp.fichier_pdf){
     var pdfWrap = document.createElement('div');
     pdfWrap.innerHTML =
-      '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF</div>'
+      '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF (ancien format)</div>'
       +'<iframe src="'+esc(_driveLienPourIframe(cp.fichier_pdf))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
       +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
     body.appendChild(pdfWrap);
@@ -22272,7 +22298,7 @@ function osCpFenetreRender(winId){
       '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF</div>'
       +'<embed src="'+cp.fichier_b64+'" type="application/pdf" style="width:100%;min-height:380px;border:1px solid var(--gris-bord);border-radius:4px;">';
     body.appendChild(embedWrap);
-  } else if(!cp.corps){
+  } else if(!cp.corps && !(cp.communique_fichiers&&cp.communique_fichiers.length)){
     body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;font-family:Space Mono,monospace;">Aucun contenu pour ce communiqué.</div>';
   }
 
@@ -22394,45 +22420,98 @@ function osCpFenetreRender(winId){
   }
 }
 
-// ---- PDF UPLOAD ----
-var _cpsPdfFile = null;
+// ---- FICHIERS JOINTS (PDF + images, plusieurs par communiqué) ----
+var _cpsFichiersSelectionnes = []; // File[] tout juste choisis, pas encore envoyés
+var _cpsFichiersExistants = [];    // lignes communique_fichiers déjà en base (mode édition)
+var _cpsFichierPdfLegacy = null;   // cp.fichier_pdf (ancien format un seul PDF) — lecture seule, jamais réécrit
 
-function cpsPdfSelectionne(input){
-  var file = input.files[0];
-  if(!file) return;
-  _cpsPdfFile = file;
-  var label = document.getElementById('cps-pdf-label');
-  if(label) label.textContent = '✓ '+file.name;
-  notif('PDF sélectionné : '+file.name);
+function cpsFichiersSelectionnes(input){
+  var fichiers = Array.prototype.slice.call(input.files||[]);
+  if(!fichiers.length) return;
+  _cpsFichiersSelectionnes = _cpsFichiersSelectionnes.concat(fichiers);
+  input.value = ''; // permet de resélectionner le même fichier si on l'a retiré par erreur
+  _cpsRenderFichiersListe();
 }
 
-function _cpsUploadPdf(file, cpId){
-  return new Promise(function(resolve, reject){
-    if(!file){ resolve(null); return; }
-    var reader = new FileReader();
-    reader.onload = function(e){
-      var base64 = e.target.result.split(',')[1];
-      var path = 'communiques/'+cpId+'.pdf';
-      fetch('https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/images-articles/'+path, {
-        method: 'POST',
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': 'Bearer '+(_session&&_session.access_token||''),
-          'Content-Type': 'application/pdf',
-          'x-upsert': 'true'
-        },
-        body: e.target.result.split(',')[1] ? Uint8Array.from(atob(base64), function(c){ return c.charCodeAt(0); }) : file
-      }).then(function(r){
-        if(r.ok){
-          var url = 'https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/'+path;
-          resolve(url);
-        } else {
-          r.text().then(function(t){ console.warn('PDF upload fail:', t); resolve(null); });
-        }
-      }).catch(function(){ resolve(null); });
-    };
-    reader.readAsDataURL(file);
+function _cpsRenderFichiersListe(){
+  var zone = document.getElementById('cps-fichiers-liste');
+  if(!zone) return;
+  var html = '';
+  if(_cpsFichierPdfLegacy){
+    html += '<div style="display:flex;align-items:center;gap:6px;font-size:0.76rem;padding:3px 8px;background:#E6F1FB;border-radius:5px;">'
+      +'<i class="ti ti-file-text"></i> <a href="'+esc(_cpsFichierPdfLegacy)+'" target="_blank" rel="noopener" style="color:#0C447C;">PDF existant (ancien format)</a>'
+      +'</div>';
+  }
+  _cpsFichiersExistants.forEach(function(f){
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#F3F4F6;border-radius:5px;">'
+      +'<span><i class="ti ti-'+(f.type==='image'?'photo':'file-text')+'"></i> '+esc(f.nom)+'</span>'
+      +'<button type="button" data-id="'+f.id+'" onclick="_cpsSupprimerFichierExistant(this.dataset.id)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'</div>';
   });
+  _cpsFichiersSelectionnes.forEach(function(f, i){
+    var typeIcone = f.type && f.type.indexOf('image/')===0 ? 'photo' : 'file-text';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#FFF8E6;border-radius:5px;">'
+      +'<span><i class="ti ti-'+typeIcone+'"></i> '+esc(f.name)+' <span style="color:var(--gris);">(à envoyer)</span></span>'
+      +'<button type="button" data-i="'+i+'" onclick="_cpsRetirerFichierSelectionne(this.dataset.i)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'</div>';
+  });
+  zone.innerHTML = html;
+}
+function _cpsRetirerFichierSelectionne(i){
+  _cpsFichiersSelectionnes.splice(parseInt(i,10), 1);
+  _cpsRenderFichiersListe();
+}
+function _cpsSupprimerFichierExistant(id){
+  if(!confirm('Retirer ce fichier du communiqué ?')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/communique_fichiers?id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:authH })
+  .then(function(r){
+    if(r.ok){
+      _cpsFichiersExistants = _cpsFichiersExistants.filter(function(f){ return f.id !== id; });
+      _cpsRenderFichiersListe();
+      notif('Fichier retiré','succes');
+    } else notif('Erreur suppression','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+// Upload vers Drive (même compte de service et même mécanisme d'impersonation que
+// communique-vers-drive, pas le Drive personnel de qui clique) — atterrit dans le même
+// arbre que le PDF officiel généré à la publication : Communiques / <Source> / <Année> /
+// <Titre du CP>. La fonction résout elle-même la source à partir du CP en base (cpId
+// suffit, le CP existe déjà à ce stade de la sauvegarde). Renvoie un tableau d'objets
+// prêts à poster dans communique_fichiers.
+function _cpsUploaderFichiers(fichiers, cpId){
+  if(!fichiers || !fichiers.length) return Promise.resolve([]);
+  var uploads = fichiers.map(function(file, i){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var base64 = e.target.result.split(',')[1];
+        fetch(SB_URL+'/functions/v1/communique-fichier-vers-drive', {
+          method:'POST',
+          headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+          body: JSON.stringify({
+            cpId: cpId,
+            contenuBase64: base64,
+            mimeType: file.type || 'application/octet-stream',
+            nomFichier: file.name
+          })
+        }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+        .then(function(res){
+          if(!res.ok || !res.data || !res.data.lien){ reject(new Error((res.data&&res.data.error)||'Échec upload Drive')); return; }
+          resolve({
+            url: res.data.lien,
+            nom: file.name,
+            type: file.type && file.type.indexOf('image/')===0 ? 'image' : (file.type==='application/pdf' ? 'pdf' : 'autre'),
+            ordre: i
+          });
+        }).catch(reject);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  });
+  return Promise.all(uploads);
 }
 
 // ---- ADMIN : charger la liste des contacts dans le select ----
@@ -22457,7 +22536,9 @@ function cpsChargerContactsSelect(){
 // ---- ADMIN : Nouveau formulaire ----
 function cpsAdminNouveauForm(){
   _cpEditId = null;
-  _cpsPdfFile = null;
+  _cpsFichiersSelectionnes = [];
+  _cpsFichiersExistants = [];
+  _cpsFichierPdfLegacy = null;
   var form = osGetEl('cps-form') || document.getElementById('cps-form');
   var label = osGetEl('cps-form-titre-label') || document.getElementById('cps-form-titre-label');
   if(!form) return;
@@ -22467,9 +22548,8 @@ function cpsAdminNouveauForm(){
   });
   var dateEl = document.getElementById('cps-date'); if(dateEl) dateEl.value = '';
   var sel = document.getElementById('cps-contact-id'); if(sel) sel.value = '';
-  var pdfLabel = document.getElementById('cps-pdf-label');
-  if(pdfLabel) pdfLabel.textContent = '📎 Cliquer pour ajouter un PDF';
   var inp = document.getElementById('cps-pdf-input'); if(inp) inp.value = '';
+  _cpsRenderFichiersListe();
   // Peupler le select rédaction avec les rédactions du membre
   cpsRemplirSelectRedaction(window._redacActiveId || null);
   form.style.display = 'block';
@@ -22485,7 +22565,8 @@ function cpsAdminEditer(id){
     var cp = data && data[0];
     if(!cp){ notif('CP introuvable'); return; }
     _cpEditId = id;
-    _cpsPdfFile = null;
+    _cpsFichiersSelectionnes = [];
+    _cpsFichierPdfLegacy = cp.fichier_pdf || null;
     var form = osGetEl('cps-form') || document.getElementById('cps-form');
     var label = osGetEl('cps-form-titre-label') || document.getElementById('cps-form-titre-label');
     if(!form) return;
@@ -22494,8 +22575,6 @@ function cpsAdminEditer(id){
     var source = document.getElementById('cps-source'); if(source) source.value = cp.source||'';
     var date = document.getElementById('cps-date'); if(date) date.value = cp.date_cp||'';
     var corps = document.getElementById('cps-corps'); if(corps) corps.value = cp.corps||'';
-    var pdfLabel = document.getElementById('cps-pdf-label');
-    if(pdfLabel) pdfLabel.textContent = cp.fichier_pdf ? '✓ PDF existant (remplacer ?)' : '📎 Cliquer pour ajouter un PDF';
     cpsChargerContactsSelect();
     cpsRemplirSelectRedaction(cp.redaction_id || null);
     setTimeout(function(){
@@ -22506,6 +22585,14 @@ function cpsAdminEditer(id){
     }, 600);
     form.style.display = 'block';
     form.scrollIntoView({ behavior:'smooth' });
+    // Fichiers déjà joints (nouveau système multi-fichiers) — requête séparée du CP lui-même
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/communique_fichiers?communique_id=eq.'+encodeURIComponent(id)+'&order=ordre.asc', {headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      _cpsFichiersExistants = (rows && !rows.code) ? rows : [];
+      _cpsRenderFichiersListe();
+    }).catch(function(){ _cpsFichiersExistants = []; _cpsRenderFichiersListe(); });
   }).catch(function(){ notif('Erreur chargement CP'); });
 }
 
@@ -22527,6 +22614,12 @@ function cpsAdminSauvegarder(statut){
 
   var isNew = !_cpEditId;
   var cpId = isNew ? ('CP-'+genId().slice(4)) : _cpEditId;
+  var redacSelValue = (document.getElementById('cps-redaction-id')||{}).value || null;
+  var redacId = redacSelValue;
+  if(!redacId){
+    var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
+    if(monLienRedac) redacId = monLienRedac.redaction_id;
+  }
 
   // Écran de chargement
   var form = document.getElementById('cps-form');
@@ -22535,75 +22628,88 @@ function cpsAdminSauvegarder(statut){
   overlay.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,0.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;border-radius:inherit;';
   overlay.innerHTML =
     '<div style="width:40px;height:40px;border:3px solid var(--gris-bord);border-top-color:var(--rouge);border-radius:50%;animation:spin 0.8s linear infinite;"></div>'
-    +'<div id="cps-upload-msg" style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);">'
-    +(_cpsPdfFile ? '📎 Upload du PDF en cours…' : '💾 Sauvegarde en cours…')
-    +'</div>';
+    +'<div id="cps-upload-msg" style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);"><i class="ti ti-device-floppy"></i> Sauvegarde en cours…</div>';
   if(form){ form.style.position = 'relative'; form.appendChild(overlay); }
 
-  _cpsUploadPdf(_cpsPdfFile, cpId).then(function(pdfUrl){
-    var msgEl = document.getElementById('cps-upload-msg');
-    if(msgEl) msgEl.textContent = '💾 Enregistrement…';
+  var payload = {
+    titre: titre.trim(),
+    source: source.trim() || null,
+    date_cp: date || null,
+    corps: corps.trim() || null,
+    statut: statut,
+    contact_id: contactId || null,
+    type: type || 'communique',
+    date_evenement: dateEv ? new Date(dateEv).toISOString() : null,
+    lieu_evenement: lieuEv.trim() || null,
+    places_max: placesMax ? parseInt(placesMax) : null,
+    date_reponse: dateRep || null,
+    reponse_requise: repReq,
+    updated_at: new Date().toISOString()
+  };
+  if(isNew){
+    payload.id = cpId;
+    payload.created_by = getUserId();
+    if(redacId) payload.redaction_id = redacId;
+  }
 
-    var payload = {
-      titre: titre.trim(),
-      source: source.trim() || null,
-      date_cp: date || null,
-      corps: corps.trim() || null,
-      statut: statut,
-      contact_id: contactId || null,
-      type: type || 'communique',
-      date_evenement: dateEv ? new Date(dateEv).toISOString() : null,
-      lieu_evenement: lieuEv.trim() || null,
-      places_max: placesMax ? parseInt(placesMax) : null,
-      date_reponse: dateRep || null,
-      reponse_requise: repReq,
-      updated_at: new Date().toISOString()
-    };
-    if(pdfUrl) payload.fichier_pdf = pdfUrl;
-    if(isNew){
-      payload.id = cpId;
-      payload.created_by = getUserId();
-      var redacSelValue = (document.getElementById('cps-redaction-id')||{}).value || null;
-      if(redacSelValue) payload.redaction_id = redacSelValue;
-      else {
-        var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
-        if(monLienRedac) payload.redaction_id = monLienRedac.redaction_id;
-      }
-    }
+  var url = isNew
+    ? SB_URL+'/rest/v1/communiques'
+    : SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId);
+  var method = isNew ? 'POST' : 'PATCH';
 
-    var url = isNew
-      ? SB_URL+'/rest/v1/communiques'
-      : SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId);
-    var method = isNew ? 'POST' : 'PATCH';
-
-    return fetch(url, {
-      method: method,
-      headers: Object.assign({}, SB_HEADERS, {
-        'Authorization':'Bearer '+(_session&&_session.access_token||''),
-        'Prefer':'return=representation'
-      }),
-      body: JSON.stringify(payload)
-    });
+  fetch(url, {
+    method: method,
+    headers: Object.assign({}, SB_HEADERS, {
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      'Prefer':'return=representation'
+    }),
+    body: JSON.stringify(payload)
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    if(data && data.code){ notif('Erreur : '+(data.message||data.code)); return; }
+    if(data && data.code){ if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); notif('Erreur : '+(data.message||data.code)); return; }
     var cp = Array.isArray(data) ? data[0] : data;
-    notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé !', 'succes');
-    if(form) form.style.display = 'none';
-    _cpEditId = null;
-    _cpsPdfFile = null;
-    cpsAdminCharger();
-    if(statut === 'publie' && cp && cp.id) {
-      fetch(SB_URL+'/functions/v1/communique-vers-drive', {
-        method:'POST',
-        headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
-        body: JSON.stringify({ cpId: cp.id })
-      }).then(function(r){
-        if(!r.ok) r.json().then(function(e){ console.error('communique-vers-drive:', e); notif('Publié, mais échec envoi Drive : '+(e.error||r.status),'erreur'); }).catch(function(){ notif('Publié, mais échec envoi Drive (statut '+r.status+')','erreur'); });
-      }).catch(function(e){ console.error('communique-vers-drive réseau:', e); notif('Publié, mais échec réseau vers Drive','erreur'); });
-    }
+
+    // Le CP existe désormais en base (nécessaire avant d'y rattacher des fichiers — clé
+    // étrangère communique_fichiers.communique_id). L'éventuel échec d'upload d'un fichier
+    // ne doit pas faire passer la sauvegarde du CP elle-même pour un échec : elle a déjà eu
+    // lieu à ce stade.
+    var fichiersAEnvoyer = _cpsFichiersSelectionnes.slice();
+    var suite = fichiersAEnvoyer.length
+      ? (function(){
+          var msgEl = document.getElementById('cps-upload-msg');
+          if(msgEl) msgEl.innerHTML = '<i class="ti ti-cloud-upload"></i> Envoi de '+fichiersAEnvoyer.length+' fichier(s)…';
+          return _cpsUploaderFichiers(fichiersAEnvoyer, cpId)
+            .then(function(fichiersUploades){
+              var authHFiles = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+              return fetch(SB_URL+'/rest/v1/communique_fichiers', {
+                method:'POST', headers:authHFiles,
+                body: JSON.stringify(fichiersUploades.map(function(f){ return Object.assign({communique_id: cpId}, f); }))
+              });
+            })
+            .catch(function(e){ console.error('Upload fichiers CP:', e); notif('CP sauvegardé, mais l\'envoi de certains fichiers a échoué','erreur'); });
+        })()
+      : Promise.resolve();
+
+    suite.then(function(){
+      if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé !', 'succes');
+      if(form) form.style.display = 'none';
+      _cpEditId = null;
+      _cpsFichiersSelectionnes = [];
+      _cpsFichiersExistants = [];
+      _cpsFichierPdfLegacy = null;
+      cpsAdminCharger();
+      if(statut === 'publie' && cp && cp.id) {
+        fetch(SB_URL+'/functions/v1/communique-vers-drive', {
+          method:'POST',
+          headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+          body: JSON.stringify({ cpId: cp.id })
+        }).then(function(r){
+          if(!r.ok) r.json().then(function(e){ console.error('communique-vers-drive:', e); notif('Publié, mais échec envoi Drive : '+(e.error||r.status),'erreur'); }).catch(function(){ notif('Publié, mais échec envoi Drive (statut '+r.status+')','erreur'); });
+        }).catch(function(e){ console.error('communique-vers-drive réseau:', e); notif('Publié, mais échec réseau vers Drive','erreur'); });
+      }
+    });
   })
   .catch(function(e){
     if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -22848,7 +22954,7 @@ function cpsAdminCharger(){
   liste.innerHTML = osLoadingHtml();
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Filtrer par rédaction active si non-admin ou si rédaction choisie
-  var urlAdmin = SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*';
+  var urlAdmin = SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*,communique_fichiers(*)';
   if(window._redacActiveId) urlAdmin += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(urlAdmin, { headers: authH })
   .then(function(r){ return r.json(); })
@@ -22936,7 +23042,10 @@ function _osCpEmailCarte(cp){
     h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">📅 '+dateStr+'</div>';
   }
   if(cp.corps) h += '<p style="font-size:0.85rem;color:#374151;margin:0.6rem 0 0;white-space:pre-wrap;">'+esc(cp.corps).substring(0,300)+(cp.corps.length>300?'…':'')+'</p>';
-  if(cp.fichier_pdf) h += '<div style="margin-top:0.6rem;"><a href="'+esc(cp.fichier_pdf)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 Voir le PDF</a></div>';
+  (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).forEach(function(f){
+    h += '<div style="margin-top:0.4rem;"><a href="'+esc(f.url)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 '+esc(f.nom)+'</a></div>';
+  });
+  if(cp.fichier_pdf) h += '<div style="margin-top:0.4rem;"><a href="'+esc(cp.fichier_pdf)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 Voir le PDF</a></div>';
   h += '</div>';
   return h;
 }
@@ -22947,7 +23056,7 @@ function cpsEnvoyerNotifsManuelles(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   // Récupérer les CPs publiés non encore notifiés
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&notifie=eq.false&select=*',{headers:authH})
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&notifie=eq.false&select=*,communique_fichiers(*)',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(cps){
     if(!cps||cps.code||!cps.length){
@@ -32363,7 +32472,7 @@ function osCarnetChargerCPs(contactId){
   var container = document.getElementById('carnet-cps-'+contactId);
   if(!container) return;
 
-  fetch(SB_URL+'/rest/v1/communiques?contact_id=eq.'+encodeURIComponent(contactId)+'&select=id,titre,statut,date_cp,source,fichier_pdf&order=date_cp.desc', { headers:SB_HEADERS })
+  fetch(SB_URL+'/rest/v1/communiques?contact_id=eq.'+encodeURIComponent(contactId)+'&select=id,titre,statut,date_cp,source,fichier_pdf,communique_fichiers(id)&order=date_cp.desc', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
@@ -32382,7 +32491,8 @@ function osCarnetChargerCPs(contactId){
       if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+dateStr+'</div>';
       html += '</div>';
       html += '<div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0;">';
-      if(cp.fichier_pdf) html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:#E6F1FB;color:#0C447C;">📎 PDF</span>';
+      var nbFichiersContact = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+      if(nbFichiersContact) html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:#E6F1FB;color:#0C447C;"><i class="ti ti-paperclip"></i> '+nbFichiersContact+'</span>';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span>';
       html += '</div>';
       html += '</div>';
@@ -32394,7 +32504,7 @@ function osCarnetChargerCPs(contactId){
 }
 
 function osCarnetOuvrirCP(id){
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*', { headers:SB_HEADERS })
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*,communique_fichiers(*)', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
     var cp = data && data[0];
@@ -32661,7 +32771,7 @@ function osCarnetSupprimer(id){
 
 function cpsOuvrirDetailParId(cpId){
   if(!cpId) return;
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*', {headers:SB_HEADERS})
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*,communique_fichiers(*)', {headers:SB_HEADERS})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var cp = data && data[0];
@@ -32676,7 +32786,7 @@ function rArticleOuvrirCpACote(){
   var cpId = currentDoc && currentDoc.cp_id;
   if(!cpId) return;
   if(_windows['redaction']) osSnapWindow('redaction', 'right');
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*', {headers:SB_HEADERS})
+  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(cpId)+'&select=*,communique_fichiers(*)', {headers:SB_HEADERS})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var cp = data && data[0];
