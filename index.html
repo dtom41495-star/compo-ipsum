@@ -4929,16 +4929,35 @@ function osChoisirAvatar(avatarId){
 }
 
 // ===== CANAL DE NOTIFICATIONS PERSONNELLES (email / Google Chat) =====
+// Domaine Workspace de l'association — seules ces adresses ont un compte Google Chat.
+var COMPO_DOMAINE_WORKSPACE = 'ipsummedia.fr';
+
 function _osChargerCanalNotifActuel(){
   var uid = getUserId();
   var toggle = document.getElementById('params-canal-notif');
   if(!uid || !toggle) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=canal_notif', {headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=canal_notif,email', {headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(rows){
-    var actuel = rows && rows[0] ? (rows[0].canal_notif||'email') : 'email';
+    var ligne = rows && rows[0] ? rows[0] : {};
+    var actuel = ligne.canal_notif || 'email';
     toggle.checked = (actuel === 'chat');
+    // Google Chat n'existe que pour les comptes du domaine Workspace : une adresse
+    // externe (gmail, hotmail...) n'est pas dans l'annuaire, le DM ne peut pas partir.
+    // Comme les notifications Chat n'ont pas de repli email (canal choisi = canal
+    // respecté), laisser quelqu'un l'activer dans ce cas reviendrait à le priver de
+    // toute notification, silencieusement. On verrouille donc l'interrupteur.
+    var email = (ligne.email||'').toLowerCase();
+    if(email && email.indexOf('@'+COMPO_DOMAINE_WORKSPACE) === -1){
+      toggle.disabled = true;
+      toggle.checked = false;
+      var rangee = toggle.closest('.params-row');
+      var sousTexte = rangee && rangee.querySelector('.params-label-sub');
+      if(sousTexte) sousTexte.textContent = 'Réservé aux adresses @'+COMPO_DOMAINE_WORKSPACE+' — Google Chat n\'est pas disponible pour ton adresse actuelle. Tu continues de recevoir tes notifications par email.';
+      var labelOn = document.getElementById('canal-notif-label-on');
+      if(labelOn) labelOn.style.opacity = '0.4';
+    }
   }).catch(function(){});
 }
 function osChoisirCanalNotif(canal){
