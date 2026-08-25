@@ -9977,6 +9977,31 @@ function _recrutementActionsRedac(a){
 
 // Modale de candidature partagée — remplace le prompt() natif côté Bénévoles et la
 // modale ad hoc jusqu'ici dupliquée côté Ma rédac'.
+// Confirme au candidat lui-même que sa candidature est bien partie — jusqu'ici, seul
+// l'admin était notifié (osBenvEmailCandidature) ; le candidat n'avait qu'un toast local
+// dans l'appli, invisible s'il n'était pas devant l'écran au moment précis de l'envoi.
+// Respecte son canal_notif comme la décision (accepté/refusé) le fait déjà.
+function _recrutementConfirmerCandidat(annonceTitre){
+  var uid = getUserId();
+  if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom,canal_notif',{headers:SB_HEADERS})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var m = data && data[0];
+    if(!m || !m.email) return;
+    var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
+      +'<div style="background:#1A1A2E;padding:1rem 1.5rem;border-radius:8px 8px 0 0;">'
+      +'<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;">Ipsum Média</span></div>'
+      +'<div style="background:#F7F8FA;padding:1.5rem;">'
+      +'<p style="font-size:0.95rem;color:#111;">Bonjour '+esc(m.prenom||'')+'</p>'
+      +'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Ta candidature pour <strong>'+esc(annonceTitre)+'</strong> a bien été envoyée. L\'équipe va l\'examiner et revient vers toi prochainement.</p>'
+      +'</div></div>';
+    var chatTexte = '✋ Ta candidature pour "'+annonceTitre+'" a bien été envoyée. L\'équipe va l\'examiner et revient vers toi prochainement.';
+    function envoyerEmailConfirmation(){ envoyerEmailResend(m.email, 'Candidature envoyée — '+annonceTitre, html, 'recrutement'); }
+    notifierPersonnel(uid, m.canal_notif, chatTexte, 'recrutement', envoyerEmailConfirmation);
+  }).catch(function(){});
+}
+
 function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
   var existing = document.getElementById('recrut-candid-modal');
   if(existing) existing.remove();
@@ -10005,6 +10030,7 @@ function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
         if(detailModal) detailModal.remove();
         notif('Candidature envoyée ✓','succes');
         osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
+        _recrutementConfirmerCandidat(annonceTitre);
         if(surface==='redac'){ _redacOnglet='recrutement'; osRedactionsRender(); }
         else { osBenevolesDashRender(); }
       } else notif('Tu as déjà candidaté ou erreur','erreur');
