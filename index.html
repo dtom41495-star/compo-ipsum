@@ -23562,7 +23562,7 @@ function cpsEnvoyerNotifsManuelles(){
       }
       // Filtrer directement en base sur les IDs concernés avec email valide
       var idsFilter = '('+ids.join(',')+')';
-      fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom&actif=eq.true&id=in.'+idsFilter+'&email=not.is.null',{headers:SB_HEADERS})
+      fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom,canal_notif&actif=eq.true&id=in.'+idsFilter+'&email=not.is.null',{headers:SB_HEADERS})
       .then(function(r){return r.json();})
       .then(function(destinataires){
         destinataires = destinataires.filter(function(m){ return m.email && m.email.includes('@'); });
@@ -23572,8 +23572,12 @@ function cpsEnvoyerNotifsManuelles(){
           return;
         }
 
-        // Construire le récap HTML des CPs
+        // Construire le récap HTML des CPs (email) et son équivalent texte (Chat — pas
+        // de HTML dans les messages Chat, juste le sous-ensemble markdown *gras*/<url|texte>).
         var cpHtml = cps.map(_osCpEmailCarte).join('');
+        var chatTexte = '📨 *'+cps.length+' nouveau(x) communiqué(s)*\n'
+          + cps.map(function(cp,i){ return (i+1)+'. *'+(cp.titre||'Sans titre')+'*'+((cp.source||cp.organisation)?' — '+(cp.source||cp.organisation):''); }).join('\n')
+          + '\n📎 <https://compo.ipsummedia.fr|Voir dans l\'appli>';
 
         var cpIds = cps.map(function(cp){return cp.id;});
 
@@ -23587,13 +23591,25 @@ function cpsEnvoyerNotifsManuelles(){
               method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
               body:JSON.stringify({notifie:true})
             }).catch(function(){});
-            var msg = nb+' email(s) envoyé(s) pour '+cps.length+' CP(s) ✓';
+            var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s) ✓';
             if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
             notif(msg, nb>0?'succes':'alerte');
             if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
             return;
           }
           var m = destinataires[idx];
+          // Canal Chat choisi par la personne : part toujours, connectée ou non — ce
+          // n'est pas un filet de secours comme l'email ci-dessous.
+          if(m.canal_notif === 'chat'){
+            notifierChatDM(m.id, chatTexte, 'cp')
+            .then(function(r){
+              if(r && r.ok !== false) nb++;
+              else { echecs.push(m.email); console.warn('Échec envoi CP (chat) à '+m.email, r); }
+            })
+            .catch(function(e){ echecs.push(m.email); console.warn('Erreur envoi CP (chat) à '+m.email, e); })
+            .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+            return;
+          }
           // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
           // moment-là — inutile de doubler avec un email pour cette personne précise.
           // Ni un envoi ni un échec : on passe simplement au destinataire suivant.
@@ -23633,16 +23649,29 @@ function cpsEnvoyerAuxAbonnes(cp){
     var tousIds = globaux.slice();
     parSource.forEach(function(id){ if(!tousIds.includes(id)) tousIds.push(id); });
     if(!tousIds.length){ notif('Aucun abonné pour ce CP'); return; }
-    fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom&id=in.('+tousIds.map(function(id){return encodeURIComponent(id);}).join(',')+')', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom,canal_notif&id=in.('+tousIds.map(function(id){return encodeURIComponent(id);}).join(',')+')', {headers:SB_HEADERS})
     .then(function(r){return r.json();})
     .then(function(membres){
       if(!membres||!membres.length) return;
       var carte = _osCpEmailCarte(cp);
       var lienCp = genererLienCP(cp.id);
       var titreInterne = cp.type==='invitation_presse' ? '📅 Nouvelle invitation presse' : '📰 Nouveau communiqué de presse';
+      var lignesCorps = (cp.corps||'').split('\n').filter(function(l){return l.trim();});
+      var extraitChat = lignesCorps.slice(0,3).join(' ').slice(0,200);
+      var chatTexte = (cp.type==='invitation_presse' ? '📅 *Nouvelle invitation presse*' : '📰 *Nouveau communiqué de presse*')
+        +'\n*'+(cp.titre||'Sans titre')+'*'+((cp.source||cp.organisation)?' — '+(cp.source||cp.organisation):'')
+        +(extraitChat?'\n'+extraitChat:'')
+        +'\n📎 <'+lienCp+'|Ouvrir le communiqué>';
       var nb = 0;
       membres.forEach(function(m){
         if(!m.email) return;
+        // Canal Chat choisi par la personne : part toujours, connectée ou non — ce
+        // n'est pas un filet de secours comme l'email ci-dessous.
+        if(m.canal_notif === 'chat'){
+          notifierChatDM(m.id, chatTexte, 'cp');
+          nb++;
+          return;
+        }
         // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
         // moment-là — inutile de doubler avec un email pour cette personne précise.
         if(osEstEnLigne(m.id)) return;
@@ -23656,7 +23685,7 @@ function cpsEnvoyerAuxAbonnes(cp){
         envoyerEmailResend(m.email, '[Compo] CP : '+(cp.titre||'Sans titre'), html, 'cp');
         nb++;
       });
-      notif(nb+' email(s) envoyé(s)');
+      notif(nb+' notification(s) envoyée(s)');
     });
   }).catch(function(){ console.warn('Erreur envoi CPs'); });
 }
@@ -24760,7 +24789,7 @@ function osEnvoyerNotifsSujets(){
 
   Promise.all([
     // Membres abonnés notif_sujets avec email valide
-    fetch(SB_URL+'/rest/v1/membres?notif_sujets=eq.true&actif=eq.true&select=id,prenom,nom,email&email=not.is.null',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?notif_sujets=eq.true&actif=eq.true&select=id,prenom,nom,email,canal_notif&email=not.is.null',{headers:authH}).then(function(r){return r.json();}),
     // Sujets ouverts non encore notifiés (notifie=false ou null)
     fetch(SB_URL+'/rest/v1/briefing?statut=eq.ouvert&or=(notifie.eq.false,notifie.is.null)&order=created_at.desc&select=*',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
@@ -24793,6 +24822,12 @@ function osEnvoyerNotifsSujets(){
         +'</div>';
     }).join('');
 
+    // Équivalent texte pour Chat — pas de HTML dans les messages Chat, juste le
+    // sous-ensemble markdown *gras*/<url|texte>.
+    var chatTexte = '📌 *'+sujets.length+' nouveau(x) sujet(s) à rédiger*\n'
+      + sujets.map(function(s,i){ return (i+1)+'. *'+(s.titre||'')+'*'+(s.priorite?' ('+s.priorite+')':''); }).join('\n')
+      + '\n📎 <https://compo.ipsummedia.fr|Réserver un sujet>';
+
     var ids = sujets.map(function(s){return s.id;});
     var nbSujets = 0;
     var echecsSujets = [];
@@ -24802,13 +24837,22 @@ function osEnvoyerNotifsSujets(){
           method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
           body:JSON.stringify({notifie:true})
         }).catch(function(){});
-        var msg = nbSujets+' email(s) envoyé(s) pour '+sujets.length+' sujet(s) ✓';
+        var msg = nbSujets+' notification(s) envoyée(s) pour '+sujets.length+' sujet(s) ✓';
         if(echecsSujets.length) msg += ' ('+echecsSujets.length+' échec(s))';
         notif(msg, nbSujets>0?'succes':'alerte');
         if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
         return;
       }
       var m = membres[idx];
+      // Canal Chat choisi par la personne : part toujours, connectée ou non — ce n'est
+      // pas un filet de secours comme l'email ci-dessous.
+      if(m.canal_notif === 'chat'){
+        notifierChatDM(m.id, chatTexte, 'sujets')
+        .then(function(r){ if(r && r.ok !== false) nbSujets++; else { echecsSujets.push(m.email); console.warn('Échec envoi sujet (chat) à '+m.email); } })
+        .catch(function(e){ echecsSujets.push(m.email); console.warn('Erreur envoi sujet (chat) à '+m.email, e); })
+        .finally(function(){ setTimeout(function(){ envoyerSujetProchain(idx+1); }, 200); });
+        return;
+      }
       var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
         +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
         +'<h1 style="color:white;font-size:1.1rem;margin:0;">📌 Nouveaux sujets à rédiger</h1>'
@@ -27253,6 +27297,12 @@ function osRedacReglagesForm(redac){
   });
   h += '</div></div>';
 
+  h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
+  h += '<button id="redac-recap-btn" onclick="osRedacEnvoyerRecapHebdo(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap à l\'équipe</button>';
+  h += '</div>';
+
   if(redac.est_centrale){
     h += '<div style="font-size:0.7rem;color:#0B3D91;background:#E6F1FB;padding:8px 10px;border-radius:6px;"><i class="ti ti-shield-check"></i> Rédaction centrale — seul un admin peut changer ce statut, depuis Gestion rédactions.</div>';
   }
@@ -27290,6 +27340,124 @@ function osRedacChefEnregistrerReglages(redacId){
   }).catch(function(){
     if(btn){ btn.disabled = false; btn.textContent = '✓ Enregistrer'; }
     notif('Erreur réseau','erreur');
+  });
+}
+
+// Récap hebdomadaire envoyé par le rédac chef à toute son équipe — reprend le même
+// périmètre de données que osRapportRedaction() (articles/sujets/membres scopés à la
+// rédaction) mais sur les 7 derniers jours plutôt que l'année civile, et sous forme
+// d'email/Chat plutôt que de document imprimable. Manuel pour l'instant (bouton dans
+// Réglages) : pas de planification serveur, Compo n'a pas cette brique aujourd'hui.
+function osRedacEnvoyerRecapHebdo(redacId){
+  var btn = document.getElementById('redac-recap-btn');
+  var btnLabelRepos = '<i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap à l\'équipe';
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="vertical-align:-2px;margin-right:4px;"></i>Préparation…'; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var depuis7 = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+  var maintenant = new Date().toISOString();
+
+  function get(url){
+    return fetch(SB_URL+url,{headers:authH}).then(function(r){return r.json();}).then(function(d){ return (!d||d.code)?[]:d; }).catch(function(){ return []; });
+  }
+
+  Promise.all([
+    get('/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id'),
+    get('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.publie&updated_at=gte.'+encodeURIComponent(depuis7)+'&select=id,titre,type,auteur_id&order=updated_at.desc'),
+    get('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.ouvert&select=id,titre,priorite&order=created_at.desc'),
+    get('/rest/v1/communiques?statut=eq.publie&created_at=gte.'+encodeURIComponent(depuis7)+'&select=id,titre,source,type,redaction_id&order=created_at.desc'),
+    get('/rest/v1/agenda_evenements?date_debut=gte.'+encodeURIComponent(maintenant)+'&statut=neq.annule&order=date_debut.asc&limit=5&select=id,titre,type,date_debut,lieu'),
+    get('/rest/v1/heures_benevolat?created_at=gte.'+encodeURIComponent(depuis7)+'&select=membre_id,duree_minutes')
+  ]).then(function(res){
+    var liens = res[0], artsSemaine = res[1], sujetsOuverts = res[2], cpsRecents = res[3], evenements = res[4], heures = res[5];
+    var idsEquipe = liens.map(function(l){ return l.membre_id; });
+    var equipe = (_membresData||[]).filter(function(m){ return idsEquipe.indexOf(m.id)!==-1; });
+    var redac = (_redactionsData||[]).find(function(r){ return r.id===redacId; });
+    var nomRedac = redac ? redac.nom : 'ta rédaction';
+
+    var cpsConcernes = cpsRecents.filter(function(cp){ return !cp.redaction_id || cp.redaction_id===redacId; });
+    var nouveaux = equipe.filter(function(m){ return m.created_at && m.created_at >= depuis7; });
+    var minutesEquipe = heures.filter(function(h){ return idsEquipe.indexOf(h.membre_id)!==-1; })
+      .reduce(function(s,h){ return s+(h.duree_minutes||0); },0);
+    var destinataires = equipe.filter(function(m){ return m.actif!==false && m.email && m.email.includes('@'); });
+
+    if(!destinataires.length){
+      notif('Aucun destinataire dans cette rédaction');
+      if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
+      return;
+    }
+
+    function auteurNom(id){
+      var m = equipe.find(function(x){ return x.id===id; });
+      return m ? ((m.prenom||'')+' '+(m.nom||'')).trim() : '';
+    }
+
+    // ---- Corps HTML (email) ----
+    var kpiHtml = '<div style="display:flex;gap:0.6rem;margin-bottom:1.2rem;">'
+      + [
+          [artsSemaine.length,'Publiés'],
+          [sujetsOuverts.length,'Sujets à prendre'],
+          [_osRapportHeures(minutesEquipe),'Bénévolat']
+        ].map(function(kv){
+          return '<div style="flex:1;background:white;border-radius:8px;padding:0.8rem;text-align:center;">'
+            +'<div style="font-family:Poppins,sans-serif;font-size:1.15rem;font-weight:800;color:#1A1A2E;">'+esc(String(kv[0]))+'</div>'
+            +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;">'+kv[1]+'</div></div>';
+        }).join('')
+      + '</div>';
+
+    function section(titre, listeHtml){
+      return '<div style="margin-bottom:1.3rem;">'
+        +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:0.5rem;">'+titre+'</div>'
+        +listeHtml+'</div>';
+    }
+    function ligne(titre, sousTexte){
+      return '<div style="background:white;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.4rem;">'
+        +'<div style="font-size:0.84rem;font-weight:600;color:#1A1A2E;">'+titre+'</div>'
+        +(sousTexte?'<div style="font-size:0.72rem;color:#6B7280;margin-top:1px;">'+sousTexte+'</div>':'')
+        +'</div>';
+    }
+    function vide(texte){ return '<div style="font-size:0.78rem;color:#9CA3AF;font-style:italic;">'+texte+'</div>'; }
+
+    var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1.2rem;">Voici ce qui s\'est passé cette semaine à '+esc(nomRedac)+'.</p>'
+      + kpiHtml
+      + section('📰 Communiqués reçus', cpsConcernes.length
+          ? cpsConcernes.map(function(cp){ return ligne(esc(cp.titre||'Sans titre'), esc(cp.source||'')); }).join('')
+          : vide('Aucun communiqué cette semaine.'))
+      + section('📌 Sujets à réserver ('+sujetsOuverts.length+')', sujetsOuverts.length
+          ? sujetsOuverts.slice(0,6).map(function(s){ return ligne(esc(s.titre||'Sans titre'), s.priorite||''); }).join('')
+          : vide('Aucun sujet ouvert en ce moment.'))
+      + section('✅ Articles publiés', artsSemaine.length
+          ? artsSemaine.map(function(a){ return ligne(esc(a.titre||'Sans titre'), auteurNom(a.auteur_id) ? esc(auteurNom(a.auteur_id)) : ''); }).join('')
+          : vide('Aucun article publié cette semaine.'))
+      + section('📅 Prochains événements', evenements.length
+          ? evenements.map(function(e){ return ligne(esc(e.titre||''), new Date(e.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(e.lieu?' — '+esc(e.lieu):'')); }).join('')
+          : vide('Rien de prévu pour le moment.'))
+      + (nouveaux.length ? section('👋 Nouveaux bénévoles', nouveaux.map(function(m){ return ligne(esc(((m.prenom||'')+' '+(m.nom||'')).trim()), 'Bienvenue dans l\'équipe !'); }).join('')) : '')
+      + '<div style="margin-top:0.4rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>';
+
+    var html = _osCpEmailShell('📊 Récap de la semaine — '+esc(nomRedac), corps);
+
+    // ---- Équivalent texte (Chat) ----
+    var chatTexte = '📊 *Récap de la semaine — '+nomRedac+'*\n'
+      + artsSemaine.length+' article(s) publié(s), '+sujetsOuverts.length+' sujet(s) à réserver, '+_osRapportHeures(minutesEquipe)+' de bénévolat.'
+      + (cpsConcernes.length ? '\n\n📰 Communiqués : '+cpsConcernes.slice(0,3).map(function(cp){return cp.titre||'Sans titre';}).join(', ') : '')
+      + (sujetsOuverts.length ? '\n📌 À réserver : '+sujetsOuverts.slice(0,3).map(function(s){return s.titre||'Sans titre';}).join(', ') : '')
+      + (evenements.length ? '\n📅 Prochain événement : '+esc(evenements[0].titre||'')+' le '+new Date(evenements[0].date_debut).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) : '')
+      + '\n<https://compo.ipsummedia.fr|Ouvrir Compo>';
+
+    var nb = 0;
+    destinataires.forEach(function(m){
+      if(m.canal_notif === 'chat'){
+        notifierChatDM(m.id, chatTexte, 'recap_hebdo');
+      } else {
+        envoyerEmailResend(m.email, '[Compo] Récap de la semaine — '+nomRedac, html, 'recap_hebdo');
+      }
+      nb++;
+    });
+    notif(nb+' notification(s) envoyée(s) à l\'équipe ✓','succes');
+    if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
+  }).catch(function(){
+    notif('Erreur lors de la génération du récap','erreur');
+    if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
   });
 }
 
