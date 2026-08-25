@@ -26426,7 +26426,7 @@ function osRedacChargerAlertes(zone){
         return !inv.date_evenement || new Date(inv.date_evenement) > new Date();
       });
       if(!aVenir.length) return '';
-      return _osAlerteCarteHTML('#784212','#FDEBD0','ti-microphone',"osOpenWindow('cps')",
+      return _osAlerteCarteHTML('#784212','#FDEBD0','ti-microphone',"osOuvrirCommuniques()",
         aVenir.length+' invitation'+(aVenir.length>1?'s':'')+' presse disponible'+(aVenir.length>1?'s':''),
         aVenir.slice(0,2).map(function(i){return esc(i.titre||'');}).join(', '));
     })
