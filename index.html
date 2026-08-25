@@ -9862,6 +9862,202 @@ function _rImgVersMd(img){
   return '!['+alt+']('+url+')';
 }
 
+// ===== RECRUTEMENT — carte, détail et candidature partagés entre Ma rédac' et =====
+// ===== Bénévoles (avant : deux implémentations séparées qui dumpaient la description  =====
+// ===== brute dans la liste, sans vue détail). La description est stockée en markdown, =====
+// ===== même dialecte que les articles — mdVersHtml() la rend telle quelle, aucune     =====
+// ===== nouvelle colonne en base.                                                       =====
+
+// Extrait en texte brut pour la carte de liste — la mise en forme markdown n'a pas sa
+// place dans un aperçu de 2 lignes, seul le détail (au clic) la restitue.
+function _recrutementTexteBrut(md){
+  if(!md) return '';
+  return md
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g,'')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+    .replace(/\*\*([^*]+)\*\*/g,'$1')
+    .replace(/_([^_]+)_/g,'$1')
+    .replace(/^#{1,3}\s+/gm,'')
+    .replace(/^>\s?/gm,'')
+    .replace(/^-\s+/gm,'')
+    .replace(/\n+/g,' ')
+    .trim();
+}
+
+// Carte cliquable de la liste — `a` doit porter `a.mesCandidature` (statut de candidature
+// du membre courant, ou null) posé par l'appelant avant le rendu. `opts.surface` ('benv'
+// ou 'redac') détermine quel global _recrutementOuvrirDetailParId ira relire au clic.
+function _recrutementCarteHTML(a, opts){
+  opts = opts || {};
+  var estOuvert = a.statut === 'ouvert';
+  var dateStr = a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+  var excerpt = _recrutementTexteBrut(a.description);
+  if(excerpt.length > 140) excerpt = excerpt.slice(0,140).trim()+'…';
+  var statutTexte = '';
+  if(a.mesCandidature){
+    statutTexte = {en_attente:'Candidature en attente',accepte:'Candidature acceptée',refuse:'Candidature refusée'}[a.mesCandidature] || '';
+  } else if(!estOuvert){
+    statutTexte = 'Fermé';
+  }
+  var r = '<div onclick="_recrutementOuvrirDetailParId(\''+a.id+'\',\''+(opts.surface||'benv')+'\')" style="background:white;border:1px solid var(--gris-bord);border-left:3px solid '+(estOuvert?'var(--rouge)':'var(--gris-bord)')+';border-radius:0 10px 10px 0;padding:0.8rem 1rem;margin-bottom:0.5rem;cursor:pointer;display:flex;align-items:flex-start;gap:0.7rem;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">';
+  if(opts.nonVue) r += '<div style="width:7px;height:7px;border-radius:50%;background:var(--rouge);flex-shrink:0;margin-top:6px;"></div>';
+  r += '<div style="flex:1;min-width:0;">';
+  r += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);">'+esc(a.titre)+'</div>';
+  if(a.commissions) r += '<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:.04em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:2px 8px;margin-top:4px;">'+esc(a.commissions.nom)+'</span>';
+  if(excerpt) r += '<div style="font-size:0.76rem;color:var(--gris);margin-top:5px;line-height:1.5;">'+esc(excerpt)+'</div>';
+  r += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:5px;">'+(estOuvert?'Publié le '+dateStr:'Publié le '+dateStr+' · Fermé')+(statutTexte?' · '+statutTexte:'')+'</div>';
+  r += '</div>';
+  if(opts.compteCandidatures && opts.compteCandidatures.total){
+    r += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0;white-space:nowrap;background:'+(opts.compteCandidatures.enAttente?'#FFF3CD':'#F5F5F5')+';color:'+(opts.compteCandidatures.enAttente?'#856404':'#6c757d')+';">'+opts.compteCandidatures.total+(opts.compteCandidatures.enAttente?' · '+opts.compteCandidatures.enAttente+' en attente':'')+'</span>';
+  }
+  r += '<span style="color:var(--gris);font-size:0.85rem;flex-shrink:0;margin-top:2px;">→</span>';
+  r += '</div>';
+  return r;
+}
+
+function _recrutementOuvrirDetailParId(id, surface){
+  var liste = surface==='redac' ? (window._recrutementAnnonces||[]) : (window._benvAnnonces||[]);
+  var a = liste.find(function(x){ return x.id===id; });
+  if(a) _recrutementOuvrirDetail(a, surface);
+}
+
+// Modale de détail façon offre d'emploi — contenu mis en forme (.art-corps, même classe
+// que la lecture d'article), bouton Candidater, et actions admin propres à la surface.
+function _recrutementOuvrirDetail(a, surface){
+  var existing = document.getElementById('recrut-detail-modal');
+  if(existing) existing.remove();
+  var estOuvert = a.statut === 'ouvert';
+  var dateStr = a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+
+  var actionsHtml = '';
+  if(estOuvert && !a.mesCandidature){
+    actionsHtml += '<button onclick="_recrutementOuvrirCandidatureModal(\''+a.id+'\',\''+esc(a.titre).replace(/'/g,"\\'")+'\',\''+surface+'\')" style="padding:.6rem 1.3rem;background:var(--rouge);color:white;border:none;border-radius:9px;font-family:DM Sans,sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:4px;"></i>Candidater</button>';
+  } else if(a.mesCandidature){
+    var lbl = {en_attente:'⏳ Candidature en attente',accepte:'✓ Candidature acceptée',refuse:'✗ Candidature refusée'}[a.mesCandidature]||a.mesCandidature;
+    actionsHtml += '<span style="font-size:.78rem;padding:.5rem 1rem;border-radius:8px;background:#EAF3DE;color:#155724;font-weight:600;">'+lbl+'</span>';
+  }
+  actionsHtml += (surface==='benv' ? _recrutementActionsBenv(a) : _recrutementActionsRedac(a));
+
+  var modal = document.createElement('div');
+  modal.id = 'recrut-detail-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  modal.innerHTML = '<div style="background:white;border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
+    +'<div style="padding:1.3rem 1.5rem 1.1rem;border-bottom:1px solid var(--gris-bord);">'
+    +(a.commissions?'<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:3px 9px;margin-bottom:.6rem;">'+esc(a.commissions.nom)+'</span>':'')
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;line-height:1.3;color:var(--encre);">'+esc(a.titre)+'</div>'
+    +'<div style="display:flex;gap:1rem;margin-top:.6rem;font-family:Space Mono,monospace;font-size:.65rem;color:var(--gris);flex-wrap:wrap;">'
+    +'<span>📅 Publié le '+dateStr+'</span>'
+    +(a.email_contact?'<span>✉ '+esc(a.email_contact)+'</span>':'')
+    +(!estOuvert?'<span>Fermé</span>':'')
+    +'</div></div>'
+    +'<div class="art-corps" style="padding:1.3rem 1.5rem;font-size:.86rem;">'+(a.description?mdVersHtml(a.description):'<span style="color:var(--gris);font-style:italic;">Pas de description.</span>')+'</div>'
+    +'<div style="padding:1rem 1.5rem;background:var(--gris-clair);border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">'+actionsHtml+'</div>'
+    +'</div>';
+  document.body.appendChild(modal);
+}
+
+function _recrutementActionsBenv(a){
+  var isVieAsso = getUserRole()==='admin' || getUserHasFonction('vie_asso');
+  if(!isVieAsso) return '';
+  var h = '<button data-aid="'+a.id+'" onclick="osBenvAnnonceVoirCandidatures(this.dataset.aid)" style="padding:.5rem 1rem;border:1px solid #1A5276;border-radius:8px;background:transparent;cursor:pointer;color:#1A5276;font-size:.78rem;font-weight:600;">Voir les candidatures'+(a.candidatureCompte&&a.candidatureCompte.total?' ('+a.candidatureCompte.total+')':'')+'</button>';
+  h += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceToggle(this.dataset.aid,\''+a.statut+'\')" style="padding:.5rem 1rem;border:1px solid var(--gris-bord);border-radius:8px;background:transparent;cursor:pointer;color:var(--gris);font-size:.78rem;">'+(a.statut==='ouvert'?'Fermer ce poste':'Rouvrir')+'</button>';
+  return h;
+}
+
+function _recrutementActionsRedac(a){
+  if(getUserRole()!=='admin') return '';
+  var h = '';
+  if(a.statut==='ouvert'){
+    h += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacNotifierAnnonceRecrutement(this.dataset.aid,this.dataset.atit,this)" style="padding:.5rem 1rem;border:1px solid var(--gris-bord);border-radius:8px;background:transparent;cursor:pointer;color:var(--gris);font-size:.78rem;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Notifier l\'équipe</button>';
+  }
+  h += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacSupprimerAnnonceRecrutement(this.dataset.aid,this.dataset.atit)" style="padding:.5rem 1rem;border:1px solid #DC2626;border-radius:8px;background:transparent;cursor:pointer;color:#DC2626;font-size:.78rem;"><i class="ti ti-trash" style="vertical-align:-2px;margin-right:4px;"></i>Supprimer</button>';
+  return h;
+}
+
+// Modale de candidature partagée — remplace le prompt() natif côté Bénévoles et la
+// modale ad hoc jusqu'ici dupliquée côté Ma rédac'.
+function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
+  var existing = document.getElementById('recrut-candid-modal');
+  if(existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'recrut-candid-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  modal.innerHTML = '<div style="background:white;border-radius:12px;padding:1.5rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">'
+    +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;font-family:Poppins,sans-serif;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Candidater</div>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:1rem;">'+esc(annonceTitre)+'</div>'
+    +'<label style="font-size:0.65rem;color:var(--gris);">Message de motivation (optionnel)</label>'
+    +'<textarea id="recrut-candid-msg" rows="4" placeholder="Présente-toi, explique pourquoi ce poste t\'intéresse..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:DM Sans,sans-serif;resize:none;margin-top:4px;box-sizing:border-box;outline:none;"></textarea>'
+    +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
+    +'<button id="recrut-candid-btn" style="flex:1;padding:0.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Envoyer ma candidature</button>'
+    +'<button onclick="document.getElementById(\'recrut-candid-modal\').remove()" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('recrut-candid-btn').onclick = function(){
+    var msg = (document.getElementById('recrut-candid-msg')||{}).value||'';
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/recrutement_candidatures',{method:'POST',headers:authH,body:JSON.stringify({annonce_id:annonceId,membre_id:getUserId(),message:msg.trim()||null})})
+    .then(function(r){
+      if(r.ok){
+        modal.remove();
+        var detailModal = document.getElementById('recrut-detail-modal');
+        if(detailModal) detailModal.remove();
+        notif('Candidature envoyée ✓','succes');
+        osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
+        if(surface==='redac'){ _redacOnglet='recrutement'; osRedactionsRender(); }
+        else { osBenevolesDashRender(); }
+      } else notif('Tu as déjà candidaté ou erreur','erreur');
+    });
+  };
+}
+
+// ---- Petit éditeur markdown (titre + description) pour la création d'annonce ----
+// Réutilise le dialecte de mdVersHtml() via une barre d'outils qui insère des marqueurs
+// dans un <textarea> classique plutôt qu'un contenteditable complet (pas besoin de
+// resynchronisation DOM<->markdown façon #r-corps-live pour un formulaire aussi court).
+function _recrutementEditorToolbarHTML(taId){
+  return '<div style="display:flex;gap:4px;margin-bottom:6px;">'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'bold\')" title="Gras" style="width:28px;height:28px;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">B</button>'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'italic\')" title="Italique" style="width:28px;height:28px;font-style:italic;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">i</button>'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'h3\')" title="Titre de section" style="width:28px;height:28px;font-size:0.62rem;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">H3</button>'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'ul\')" title="Liste à puces" style="width:28px;height:28px;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">•—</button>'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'link\')" title="Lien" style="width:28px;height:28px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">🔗</button>'
+    +'</div>';
+}
+function _recrutementFormat(taId, type){
+  var ta = document.getElementById(taId);
+  if(!ta) return;
+  var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
+  var sel = val.slice(s,e);
+  if(type==='bold' || type==='italic' || type==='link'){
+    var before, after, ph;
+    if(type==='bold'){ before='**'; after='**'; ph='texte en gras'; }
+    else if(type==='italic'){ before='_'; after='_'; ph='texte en italique'; }
+    else {
+      var url = prompt('URL du lien :','https://');
+      if(!url) return;
+      before='['; after='](' + url + ')'; ph='texte du lien';
+    }
+    var texte = sel || ph;
+    ta.value = val.slice(0,s) + before+texte+after + val.slice(e);
+    ta.focus(); ta.setSelectionRange(s+before.length, s+before.length+texte.length);
+  } else {
+    var debutLigne = val.lastIndexOf('\n', s-1) + 1;
+    var prefix = type==='h3' ? '### ' : '- ';
+    ta.value = val.slice(0,debutLigne) + prefix + val.slice(debutLigne);
+    var pos = s + prefix.length;
+    ta.focus(); ta.setSelectionRange(pos,pos);
+  }
+  _recrutementApercu(taId);
+}
+function _recrutementApercu(taId){
+  var ta = document.getElementById(taId);
+  var prev = document.getElementById(taId+'-preview');
+  if(!ta || !prev) return;
+  prev.innerHTML = ta.value.trim() ? mdVersHtml(ta.value) : '<span style="color:var(--gris);font-style:italic;">L\'aperçu apparaît ici.</span>';
+}
+
 // ===== Synchronisation éditeur en direct <-> textarea fantôme (#r-corps, display:none) =====
 // #r-corps reste la source de vérité lue par tout le reste du fichier (autosave x2,
 // updateStats, buildDoc, validations, reprise de brouillon...) — voir le plan pour
@@ -17057,8 +17253,80 @@ function osAppComBrief(id, titre){
   .then(function(arts){
     var a = arts&&arts[0];
     if(!a){ notif('Article introuvable','erreur'); return; }
-    osGenererBriefZip(a, '[ ] Post Instagram (1080x1080)\n[ ] Story Instagram (1080x1920)');
+    _osComGenererBriefDoc(a, ['Post Instagram (1080x1080)','Story Instagram (1080x1920)']);
   });
+}
+
+// Brief visuels — un seul document imprimable/PDF, avec l'image directement dedans,
+// plutôt que le zip précédent (brief.txt + image.ext en fichiers séparés) : personne
+// n'ouvrait le zip en entier, l'image restait invisible tant qu'on ne pensait pas à
+// aller la chercher dans le deuxième fichier. Suit le même modèle "fenêtre imprimable"
+// que les autres documents de Compo (voir _tresRapportPDF/osTresorerieBilan).
+function _osComNomRedac(redactionId){
+  if(!redactionId) return '';
+  var r = (window._redactionsData||[]).find(function(x){ return x.id===redactionId; });
+  return r ? r.nom : '';
+}
+
+function _osComGenererBriefDoc(article, checklist){
+  var win = window.open('','_blank','width=900,height=1000');
+  if(!win){ notif('Autorise les popups pour générer le brief','erreur'); return; }
+  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var imgSrc = article.image ? _driveImgSrc(article.image) : null;
+  var extrait = '';
+  if(article.corps){
+    var lignes = article.corps.split('\n').filter(function(l){ return l.trim(); });
+    extrait = lignes.slice(0,3).join(' ');
+    if(extrait.length > 320) extrait = extrait.slice(0,320).trim()+'…';
+  }
+  var css = '*{margin:0;padding:0;box-sizing:border-box;}body{background:#F9FAFB;font-family:Arial,sans-serif;padding:28px 20px;color:#111827;}'
+    +'.doc{max-width:720px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);}'
+    +'.hdr{background:linear-gradient(135deg,#7D3C98,#5B2C6F);padding:28px 36px;}'
+    +'.hdr .eyebrow{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.6);}'
+    +'.hdr h1{font-size:1.25rem;font-weight:800;color:white;margin-top:6px;line-height:1.35;}'
+    +'.meta{padding:14px 36px;border-bottom:1px solid #E5E7EB;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}'
+    +'.meta span{font-size:.68rem;color:#6B7280;}'
+    +'.tag{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#7D3C98;background:#F3E8FA;border-radius:10px;padding:2px 9px;font-weight:700;}'
+    +'.img-wrap{padding:20px 36px 0;}'
+    +'.img-wrap img{width:100%;max-height:380px;object-fit:cover;border-radius:8px;display:block;}'
+    +'.img-wrap .dl{display:block;text-align:center;margin-top:8px;font-size:.68rem;color:#7D3C98;text-decoration:none;font-weight:600;}'
+    +'.img-empty{margin:20px 36px 0;padding:24px;border:1.5px dashed #E5E7EB;border-radius:8px;text-align:center;font-size:.78rem;color:#9CA3AF;}'
+    +'.body{padding:20px 36px 8px;}'
+    +'.chapeau{font-size:.92rem;line-height:1.6;color:#1F2937;font-style:italic;margin-bottom:14px;}'
+    +'.extrait{font-size:.82rem;line-height:1.65;color:#4B5563;margin-bottom:20px;}'
+    +'h2{font-size:.64rem;text-transform:uppercase;letter-spacing:.1em;color:#7D3C98;border-bottom:2px solid #7D3C98;padding-bottom:5px;margin:22px 0 12px;}'
+    +'.check-item{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:.84rem;color:#1F2937;}'
+    +'.check-item:last-child{border-bottom:none;}'
+    +'.check-box{width:16px;height:16px;border:2px solid #D1D5DB;border-radius:4px;flex-shrink:0;}'
+    +'.canva-btn{display:inline-block;margin-top:6px;background:#7D3C98;color:white;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:.82rem;font-weight:700;}'
+    +'.ftr{background:#F9FAFB;padding:16px 36px;display:flex;justify-content:space-between;border-top:1px solid #E5E7EB;font-size:.62rem;color:#9CA3AF;margin-top:20px;}'
+    +'@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}.img-wrap .dl{display:none;}}';
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Brief — '+esc(article.titre||'Sans titre')+'</title><style>'+css+'</style></head><body>'
+    +'<div class="np" style="max-width:720px;margin:0 auto 12px;text-align:right;">'
+    +'<button onclick="window.print()" style="background:#7D3C98;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;">🖨 Imprimer / PDF</button>'
+    +'<button onclick="window.close()" style="background:#E5E7EB;color:#374151;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;">Fermer</button></div>'
+    +'<div class="doc">'
+    +'<div class="hdr"><div class="eyebrow">Ipsum Média · Brief visuels</div><h1>'+esc(article.titre||'Sans titre')+'</h1></div>'
+    +'<div class="meta">'
+    +(article.rubrique?'<span class="tag">'+esc(article.rubrique)+'</span>':'')
+    +(article.auteur?'<span>Par '+esc(article.auteur)+'</span>':'')
+    +'<span>Brief généré le '+today+'</span>'
+    +'</div>'
+    +(imgSrc
+      ? '<div class="img-wrap"><img src="'+esc(imgSrc)+'" alt="Image de l\'article"><a class="dl" href="'+esc(imgSrc)+'" download target="_blank" rel="noopener">⬇ Télécharger l\'image en taille réelle</a></div>'
+      : '<div class="img-empty">Cet article n\'a pas d\'image associée — à trouver ou demander à la rédaction avant de créer les visuels.</div>')
+    +'<div class="body">'
+    +(article.chapeau?'<div class="chapeau">'+esc(article.chapeau)+'</div>':'')
+    +(extrait?'<div class="extrait">'+esc(extrait)+'</div>':'')
+    +'<h2>Visuels à créer</h2>'
+    +(checklist||[]).map(function(item){ return '<div class="check-item"><span class="check-box"></span>'+esc(item)+'</div>'; }).join('')
+    +'<h2>Pour créer les visuels</h2>'
+    +'<a class="canva-btn" href="'+esc(COM_CANVA_MODELE_URL)+'" target="_blank" rel="noopener">Ouvrir le modèle Canva de l\'équipe →</a>'
+    +'</div>'
+    +'<div class="ftr"><span>Généré par Compo OS</span><span>'+esc(_osComNomRedac(article.redaction_id))+'</span></div>'
+    +'</div></body></html>';
+  win.document.write(html);
+  win.document.close();
 }
 
 // Modèle Canva partagé de l'équipe — sert de base à tous les visuels réseaux.
@@ -17389,100 +17657,6 @@ function osNotifierValidationCentraleOK(article){
     chefs.forEach(function(m){ envoyerEmailResend(m.email, '✅ Validation centrale obtenue : '+titre, emailHtml, 'valide-central-ok'); });
   }).catch(function(){});
 }
-
-function osGenererBriefZip(article, checklist){
-  var titre   = (article.titre||'Sans titre').replace(/[^a-zA-Z0-9\u00C0-\u017F\s]/g,'').trim().substring(0,40);
-  var nom     = titre.replace(/\s+/g,'_');
-
-  var brief   = 'BRIEF VISUELS — IPSUM MÉDIA\n';
-  brief      += '================================\n\n';
-  brief      += 'ARTICLE : '+(article.titre||'Sans titre')+'\n';
-  if(article.rubrique) brief += 'RUBRIQUE : '+article.rubrique+'\n';
-  if(article.auteur)   brief += 'AUTEUR : '+article.auteur+'\n';
-  brief      += 'DATE : '+new Date().toLocaleDateString('fr-FR')+'\n\n';
-  if(article.chapeau)  brief += 'CHAPEAU :\n'+article.chapeau+'\n\n';
-  if(article.corps)    brief += 'EXTRAIT :\n'+article.corps.substring(0,600)+'\n\n';
-  brief      += 'VISUELS À CRÉER :\n'+(checklist||'[ ] Post Instagram\n[ ] Story')+'\n\n';
-  brief      += '================================\n';
-  brief      += 'Généré par Compo OS\n';
-
-  // Charger JSZip depuis CDN
-  if(typeof JSZip !== 'undefined'){
-    _osCreerZip(article, nom, brief);
-    return;
-  }
-  var script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-  script.onload = function(){ _osCreerZip(article, nom, brief); };
-  script.onerror = function(){
-    // Fallback si JSZip pas dispo — télécharger juste le txt
-    var blob = new Blob([brief], {type:'text/plain;charset=utf-8'});
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement('a');
-    a.href   = url; a.download = 'brief_'+nom+'.txt'; a.click();
-    URL.revokeObjectURL(url);
-    notif('Brief téléchargé (format txt)','succes');
-  };
-  document.head.appendChild(script);
-}
-
-function _osCreerZip(article, nom, brief){
-  var zip = new JSZip();
-  var dossier = zip.folder('brief_'+nom);
-
-  // Fichier texte
-  dossier.file('brief.txt', brief);
-
-  // Fichier image si disponible
-  if(article.image){
-    // L'image peut être un data URI (base64) ou une URL
-    if(article.image.startsWith('data:')){
-      // Extraire le base64 et l'extension
-      var matches = article.image.match(/^data:image\/(\w+);base64,(.+)$/);
-      if(matches){
-        var ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-        dossier.file('image.'+ext, matches[2], {base64:true});
-      }
-      _osTelechargezZip(zip, nom);
-    } else {
-      // URL externe — fetch pour récupérer le blob
-      fetch(article.image)
-      .then(function(r){ return r.blob(); })
-      .then(function(blob){
-        var ext = blob.type.includes('png')?'png':blob.type.includes('gif')?'gif':'jpg';
-        return new Promise(function(resolve){
-          var reader = new FileReader();
-          reader.onload = function(e){ resolve({data:e.target.result.split(',')[1], ext:ext}); };
-          reader.readAsDataURL(blob);
-        });
-      })
-      .then(function(img){
-        dossier.file('image.'+img.ext, img.data, {base64:true});
-        _osTelechargezZip(zip, nom);
-      })
-      .catch(function(){
-        // Image inaccessible — ZIP sans image
-        notif('Image non récupérable, brief sans image');
-        _osTelechargezZip(zip, nom);
-      });
-      return;
-    }
-  } else {
-    _osTelechargezZip(zip, nom);
-  }
-}
-
-function _osTelechargezZip(zip, nom){
-  zip.generateAsync({type:'blob'}).then(function(blob){
-    var url = URL.createObjectURL(blob);
-    var a   = document.createElement('a');
-    a.href  = url; a.download = 'brief_'+nom+'.zip'; a.click();
-    URL.revokeObjectURL(url);
-    notif('Brief ZIP téléchargé ✓','succes');
-  });
-}
-
-
 
 function osToggleFocusMode(){
   _focusMode = !_focusMode;
@@ -24066,6 +24240,7 @@ function osBenevolesDashRender(){
         rail.querySelectorAll('button[data-onglet]').forEach(function(b){b.style.background='transparent';b.style.color='var(--encre)';});
         btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
+        if(tid==='recrutement') _osBenvMarquerRecrutementLu();
       };})(t.id,btn);
       rail.appendChild(btn);
     });
@@ -24283,6 +24458,30 @@ function osBenevolesDashRender(){
 // Recharge uniquement l'onglet Recrutement — pas tout le tableau de bord Bénévoles —
 // pour rester léger après chaque décision sur une candidature (accepter/refuser),
 // où recharger équipe/commissions/stats n'apporte rien.
+// Badge non-lu côté Bénévoles — même mécanisme et même clé localStorage
+// (compo_os_recrutement_vus) que côté Ma rédac' (_osRedacMajBadgeRail /
+// _osRedacMarquerRecrutementLu) : les deux surfaces partagent la même notion de "vu",
+// donc consulter l'annonce d'un côté la marque lue de l'autre aussi.
+function _osBenvMajBadgeRail(ongletId, count){
+  var btn = document.querySelector('#benv-sidebar-rail button[data-onglet="'+ongletId+'"]');
+  if(!btn) return;
+  var existant = btn.querySelector('.rail-badge');
+  if(!count){ if(existant) existant.remove(); return; }
+  var html = _railBadgeNombre(count);
+  if(existant) existant.outerHTML = html;
+  else btn.insertAdjacentHTML('beforeend', html);
+}
+function _osBenvMarquerRecrutementLu(){
+  try{
+    var allIds = (window._benvAnnonces||[]).map(function(a){return a.id;});
+    var seen = [];
+    try{ seen = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+    var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
+    localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeen));
+    _osBenvMajBadgeRail('recrutement', 0);
+  }catch(e){}
+}
+
 function osBenvChargerRecrutement(elForce){
   var recrutDiv = elForce || document.getElementById('benv-recrutement-zone');
   if(!recrutDiv) return;
@@ -24298,7 +24497,6 @@ function osBenvChargerRecrutement(elForce){
   ]).then(function(res){
     var annonces = (!res[0]||res[0].code)?[]:res[0];
     var mesCandidatures = (!res[1]||res[1].code)?[]:res[1];
-    var mesCandidaturesIds = mesCandidatures.map(function(c){return c.annonce_id;});
     var toutesCandidatures = (!res[2]||res[2].code)?[]:res[2];
     var compteParAnnonce = {};
     toutesCandidatures.forEach(function(c){
@@ -24306,6 +24504,19 @@ function osBenvChargerRecrutement(elForce){
       compteParAnnonce[c.annonce_id].total++;
       if(c.statut==='en_attente') compteParAnnonce[c.annonce_id].enAttente++;
     });
+    // Dénormalisé sur chaque annonce pour que la carte et la modale de détail (ouvertes
+    // séparément, au clic) n'aient pas besoin de refaire ces recherches plus tard.
+    var seenRecBenv = [];
+    try{ seenRecBenv = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+    annonces.forEach(function(a){
+      var cand = mesCandidatures.find(function(c){return c.annonce_id===a.id;});
+      a.mesCandidature = cand ? cand.statut : null;
+      if(isVieAsso) a.candidatureCompte = compteParAnnonce[a.id] || {total:0, enAttente:0};
+    });
+    window._benvAnnonces = annonces;
+    var nonVues = annonces.filter(function(a){ return a.statut==='ouvert' && seenRecBenv.indexOf(a.id)===-1; });
+    _osBenvMajBadgeRail('recrutement', nonVues.length);
+
     var h = '';
     if(isVieAsso){
       h += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.8rem;">';
@@ -24315,55 +24526,19 @@ function osBenvChargerRecrutement(elForce){
     }
     var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
     var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
-    function renderAnnonce(a){
-      var dejaCandid = mesCandidaturesIds.indexOf(a.id) !== -1;
-      var statCandid = dejaCandid ? mesCandidatures.find(function(c){return c.annonce_id===a.id;}).statut : null;
-      var dateStr = a.created_at?new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-      var r = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.5rem;">';
-      r += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
-      r += '<div style="flex:1;">';
-      r += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+esc(a.titre)+'</div>';
-      if(a.commissions) r += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:2px;">'+esc(a.commissions.nom)+'</div>';
-      if(a.description) r += '<div style="font-size:0.75rem;color:var(--gris);margin-top:4px;line-height:1.5;">'+esc(a.description)+'</div>';
-      r += '<div style="font-size:0.62rem;color:var(--gris);margin-top:5px;">'+dateStr+'</div>';
-      r += '</div>';
-      r += '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;">';
-      r += '<span style="font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(a.statut==='ouvert'?'#D4EDDA':'#F5F5F5')+';color:'+(a.statut==='ouvert'?'#155724':'#6c757d')+';">'+(a.statut==='ouvert'?'Ouvert':'Fermé')+'</span>';
-      if(a.statut==='ouvert'){
-        if(!dejaCandid){
-          r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osBenvCandidater(this.dataset.aid,this.dataset.atit)" style="font-size:0.65rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✋ Candidater</button>';
-        } else {
-          var statLabel = {en_attente:'En attente',accepte:'✓ Accepté',refuse:'✗ Refusé'}[statCandid]||statCandid;
-          r += '<span style="font-size:0.62rem;padding:3px 8px;border-radius:6px;background:#EAF3DE;color:#155724;">'+statLabel+'</span>';
-        }
-      }
-      if(isVieAsso){
-        var compte = compteParAnnonce[a.id] || {total:0, enAttente:0};
-        r += '<div style="display:flex;gap:4px;align-items:center;">';
-        if(compte.total){
-          r += '<span title="'+compte.total+' candidature'+(compte.total>1?'s':'')+' au total, '+compte.enAttente+' en attente" style="font-size:0.6rem;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;background:'+(compte.enAttente?'#FFF3CD':'#F5F5F5')+';color:'+(compte.enAttente?'#856404':'#6c757d')+';">'+compte.total+(compte.enAttente?' · '+compte.enAttente+' en attente':'')+'</span>';
-        }
-        r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceToggle(this.dataset.aid,\''+a.statut+'\')" style="font-size:0.62rem;padding:2px 8px;border:1px solid var(--gris-bord);border-radius:5px;background:transparent;cursor:pointer;color:var(--gris);">'+(a.statut==='ouvert'?'Fermer':'Rouvrir')+'</button>';
-        r += '<button data-aid="'+a.id+'" onclick="osBenvAnnonceVoirCandidatures(this.dataset.aid)" style="font-size:0.62rem;padding:2px 8px;border:1px solid #1A5276;border-radius:5px;background:transparent;cursor:pointer;color:#1A5276;">Candidatures</button>';
-        r += '</div>';
-      }
-      r += '</div></div></div>';
-      return r;
-    }
     if(!annonces.length){
       h += '<div style="text-align:center;padding:2rem;color:var(--gris);">Aucune annonce de recrutement.'+(isVieAsso?' Crée la première !':'')+'</div>';
     } else {
       if(ouvertes.length){
         h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;">Postes ouverts ('+ouvertes.length+')</div>';
-        ouvertes.forEach(function(a){ h += renderAnnonce(a); });
+        ouvertes.forEach(function(a){ h += _recrutementCarteHTML(a, {surface:'benv', nonVue: seenRecBenv.indexOf(a.id)===-1, compteCandidatures:a.candidatureCompte}); });
       }
       if(fermees.length){
         h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin:0.8rem 0 0.5rem;">Fermés ('+fermees.length+')</div>';
-        fermees.forEach(function(a){ h += renderAnnonce(a); });
+        fermees.forEach(function(a){ h += _recrutementCarteHTML(a, {surface:'benv', compteCandidatures:a.candidatureCompte}); });
       }
     }
     recrutDiv.innerHTML = h;
-    window._benvAnnonces = annonces;
   }).catch(function(){ recrutDiv.innerHTML = osErreurHtml(); });
 }
 
@@ -24608,13 +24783,18 @@ function osBenvAnnonceNouvelle(){
       +'<div style="font-size:0.72rem;font-weight:700;color:var(--encre);margin-bottom:0.7rem;">Nouvelle annonce</div>'
       +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Titre du poste *</label><input id="benv-ann-titre" type="text" placeholder="Ex: Responsable communication" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
       +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Commission</label><select id="benv-ann-comm" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;margin-top:2px;">'+optsComm+'</select></div>'
-      +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Description</label><textarea id="benv-ann-desc" rows="3" placeholder="Ce qu\'on recherche, les missions..." style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;margin-top:2px;resize:none;box-sizing:border-box;"></textarea></div>'
+      +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Description</label>'
+      +_recrutementEditorToolbarHTML('benv-ann-desc')
+      +'<div style="display:flex;gap:0.6rem;">'
+      +'<textarea id="benv-ann-desc" oninput="_recrutementApercu(\'benv-ann-desc\')" rows="6" placeholder="Ce qu\'on recherche, les missions... (mise en forme : **gras**, _italique_, ### titre, - liste, [lien](url))" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;font-family:DM Sans,sans-serif;margin-top:2px;resize:vertical;box-sizing:border-box;"></textarea>'
+      +'<div id="benv-ann-desc-preview" class="art-corps" style="flex:1;min-width:0;font-size:0.78rem;padding:0.5rem 0.7rem;border:1.5px dashed var(--gris-bord);border-radius:6px;margin-top:2px;overflow-y:auto;max-height:160px;"></div>'
+      +'</div></div>'
       +'<div style="margin-bottom:0.8rem;"><label style="font-size:0.65rem;color:var(--gris);">Email de contact</label><input id="benv-ann-email" type="email" placeholder="contact@ipsummedia.fr" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
       +'<div style="display:flex;gap:0.5rem;">'
       +'<button onclick="osBenvAnnonceSauvegarder()" style="padding:0.4rem 1rem;background:var(--rouge);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;">Publier</button>'
       +'<button onclick="document.getElementById(\'benv-annonce-form-zone\').style.display=\'none\'" style="padding:0.4rem 0.8rem;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;font-size:0.72rem;cursor:pointer;color:var(--gris);">Annuler</button>'
       +'</div></div>';
-    setTimeout(function(){ var el=document.getElementById('benv-ann-titre'); if(el) el.focus(); },100);
+    setTimeout(function(){ var el=document.getElementById('benv-ann-titre'); if(el) el.focus(); _recrutementApercu('benv-ann-desc'); },100);
   }
 }
 
@@ -24634,20 +24814,6 @@ function osBenvAnnonceToggle(id, statutActuel){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_annonces?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({statut:nouveau})})
   .then(function(r){ if(r.ok){ notif('Statut mis à jour','succes'); osBenevolesDashRender(); } });
-}
-
-function osBenvCandidater(annonceId, annonceTitre){
-  var msg = prompt('Message de motivation (optionnel) :','');
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/recrutement_candidatures',{method:'POST',headers:authH,body:JSON.stringify({annonce_id:annonceId,membre_id:getUserId(),message:msg||null})})
-  .then(function(r){
-    if(r.ok){
-      notif('Candidature envoyée ✓','succes');
-      // Email à l'admin
-      osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
-      osBenevolesDashRender();
-    } else notif('Tu as déjà candidaté ou erreur','erreur');
-  });
 }
 
 function osBenvEmailCandidature(annonceId, annonceTitre, candidatPrenom){
@@ -25105,13 +25271,16 @@ function osRedacChargerRecrutement(zone, uid){
     fetch(SB_URL+'/rest/v1/recrutement_candidatures?membre_id=eq.'+uid+'&select=annonce_id,statut',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     var annonces = (!res[0]||res[0].code)?[]:res[0];
-    window._recrutementAnnonces = annonces; // pour le badge du rail Ma Rédac'
     var mesCandids = (!res[1]||res[1].code)?[]:res[1];
-    var mesCandidsIds = mesCandids.map(function(c){return c.annonce_id;});
-    var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
-    var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
     var seenRec = [];
     try{ seenRec = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
+    annonces.forEach(function(a){
+      var cand = mesCandids.find(function(c){return c.annonce_id===a.id;});
+      a.mesCandidature = cand ? cand.statut : null;
+    });
+    window._recrutementAnnonces = annonces; // pour le badge du rail Ma Rédac'
+    var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
+    var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
     var recNonVues = ouvertes.filter(function(a){ return seenRec.indexOf(a.id)===-1; });
     var h = '';
     if(recNonVues.length){
@@ -25121,44 +25290,13 @@ function osRedacChargerRecrutement(zone, uid){
       h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Aucune annonce de recrutement pour le moment.</div>';
       zone.innerHTML = h; return;
     }
-    function renderAnn(a){
-      var cand = mesCandids.find(function(c){return c.annonce_id===a.id;});
-      var dateStr = a.created_at?new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-      var r = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.5rem;">';
-      r += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
-      r += '<div style="flex:1;">';
-      r += '<div style="font-size:0.9rem;font-weight:600;color:var(--encre);">'+esc(a.titre)+'</div>';
-      if(a.commissions) r += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:2px;">'+esc(a.commissions.nom)+'</div>';
-      if(a.description) r += '<div style="font-size:0.78rem;color:var(--gris);margin-top:6px;line-height:1.55;">'+esc(a.description)+'</div>';
-      if(a.email_contact) r += '<div style="font-size:0.65rem;color:var(--gris);margin-top:4px;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>'+esc(a.email_contact)+'</div>';
-      r += '<div style="font-size:0.6rem;color:var(--gris);margin-top:4px;">Publié le '+dateStr+'</div>';
-      r += '</div>';
-      r += '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;">';
-      r += '<span style="font-size:0.6rem;padding:2px 9px;border-radius:10px;font-weight:600;background:'+(a.statut==='ouvert'?'#D4EDDA':'#F5F5F5')+';color:'+(a.statut==='ouvert'?'#155724':'#6c757d')+';">'+(a.statut==='ouvert'?'Ouvert':'Fermé')+'</span>';
-      if(a.statut==='ouvert'){
-        if(!cand){
-          r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacCandidater(this.dataset.aid,this.dataset.atit)" style="font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Candidater</button>';
-        } else {
-          var statLabels = {en_attente:'⏳ En attente',accepte:'✓ Accepté',refuse:'✗ Refusé'};
-          r += '<span style="font-size:0.65rem;padding:4px 10px;border-radius:7px;background:#EAF3DE;color:#155724;font-weight:600;">'+(statLabels[cand.statut]||cand.statut)+'</span>';
-        }
-      }
-      if(getUserRole()==='admin'){
-        if(a.statut==='ouvert'){
-          r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacNotifierAnnonceRecrutement(this.dataset.aid,this.dataset.atit,this)" style="font-size:0.6rem;padding:3px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;cursor:pointer;color:var(--gris);"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier</button>';
-        }
-        r += '<button data-aid="'+a.id+'" data-atit="'+esc(a.titre)+'" onclick="osRedacSupprimerAnnonceRecrutement(this.dataset.aid,this.dataset.atit)" style="font-size:0.6rem;padding:3px 9px;border:1px solid #DC2626;border-radius:6px;background:transparent;cursor:pointer;color:#DC2626;"><i class="ti ti-trash" style="vertical-align:-2px;margin-right:3px;"></i>Supprimer</button>';
-      }
-      r += '</div></div></div>';
-      return r;
-    }
     if(ouvertes.length){
       h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin-bottom:0.5rem;font-weight:600;">Postes ouverts ('+ouvertes.length+')</div>';
-      ouvertes.forEach(function(a){ h += renderAnn(a); });
+      ouvertes.forEach(function(a){ h += _recrutementCarteHTML(a, {surface:'redac', nonVue: seenRec.indexOf(a.id)===-1}); });
     }
     if(fermees.length && getUserRole()==='admin'){
       h += '<div style="font-size:0.62rem;text-transform:uppercase;color:var(--gris);letter-spacing:.08em;margin:0.8rem 0 0.5rem;">Fermés ('+fermees.length+')</div>';
-      fermees.forEach(function(a){ h += renderAnn(a); });
+      fermees.forEach(function(a){ h += _recrutementCarteHTML(a, {surface:'redac'}); });
     }
     zone.innerHTML = h;
   }).catch(function(){ zone.innerHTML = osErreurHtml('osRedactionsRender'); });
@@ -25217,7 +25355,7 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
           +'<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
           +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(a.titre||'')+'</h3>'
-          +(a.description?'<p style="margin:0.5rem 0 0;font-size:0.9rem;white-space:pre-wrap;">'+esc(a.description)+'</p>':'')
+          +(a.description?'<div style="margin:0.5rem 0 0;font-size:0.9rem;">'+mdVersHtml(a.description)+'</div>':'')
           +(a.email_contact?'<div style="color:#666;font-size:0.85rem;margin-top:0.5rem;">📧 '+esc(a.email_contact)+'</div>':'')
           +'</div>'
           +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Voir sur Compo</a></p>';
@@ -25234,38 +25372,6 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
   });
 }
 
-function osRedacCandidater(annonceId, annonceTitre){
-  // Modale inline de candidature
-  var existing = document.getElementById('redac-candid-modal');
-  if(existing) existing.remove();
-  var modal = document.createElement('div');
-  modal.id = 'redac-candid-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML = '<div style="background:white;border-radius:12px;padding:1.5rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">'
-    +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Candidater</div>'
-    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:1rem;">'+esc(annonceTitre)+'</div>'
-    +'<label style="font-size:0.65rem;color:var(--gris);">Message de motivation (optionnel)</label>'
-    +'<textarea id="redac-candid-msg" rows="4" placeholder="Présente-toi, explique pourquoi ce poste t\'intéresse..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:DM Sans,sans-serif;resize:none;margin-top:4px;box-sizing:border-box;outline:none;"></textarea>'
-    +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
-    +'<button id="redac-candid-btn" style="flex:1;padding:0.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Envoyer ma candidature</button>'
-    +'<button onclick="document.getElementById(\'redac-candid-modal\').remove()" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
-    +'</div></div>';
-  document.body.appendChild(modal);
-  document.getElementById('redac-candid-btn').onclick = function(){
-    var msg = (document.getElementById('redac-candid-msg')||{}).value||'';
-    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/recrutement_candidatures',{method:'POST',headers:authH,body:JSON.stringify({annonce_id:annonceId,membre_id:getUserId(),message:msg.trim()||null})})
-    .then(function(r){
-      if(r.ok){
-        modal.remove();
-        notif('Candidature envoyée ✓','succes');
-        osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
-        _redacOnglet = 'recrutement';
-        osRedactionsRender();
-      } else notif('Tu as déjà candidaté ou erreur','erreur');
-    });
-  };
-}
 
 
 // Le rail n'est reconstruit qu'une fois (voir osRedactionsChangerOnglet) — pour qu'un badge
