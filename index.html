@@ -8840,12 +8840,15 @@ function assignValider(){
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
         if(!membre) return;
+        // Réglage par rédaction, indépendant du canal choisi par la personne — s'il est
+        // désactivé, ni le DM Chat ni l'email ne doivent partir.
+        if(!_osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')) return;
         if(membre.canal_notif === 'chat'){
           // Canal choisi par la personne : part systématiquement, même connectée à
           // Compo — ce n'est pas un filet de secours comme l'email ci-dessous.
           var messageChat = '🔍 Un article t\'attend en correction : "'+(_assignDoc2.titre||'Sans titre')+'" (assigné par '+(_assignDoc2.auteur||'un·e rédacteur·rice')+'). https://compo.ipsummedia.fr';
           notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
-        } else if(membre.email && _osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction') && !osEstEnLigne(_assignDoc2.correcteur_id)){
+        } else if(membre.email && !osEstEnLigne(_assignDoc2.correcteur_id)){
           // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
           var html = '<h2>Un article t\'attend en correction 🔍</h2>'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
@@ -9623,7 +9626,7 @@ function osVerifierNotifsAuteurArticles(){
 
 function _osEmailStatutArticle(doc, statut, cfg){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom,canal_notif',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
@@ -9663,7 +9666,11 @@ function _osEmailStatutArticle(doc, statut, cfg){
       +'</div>'
       +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
       +'</div>';
-    envoyerEmailResend(m.email, (sujets[statut]||'')+esc(doc.titre||''), html, 'statut_article');
+    var chatTitres = { corrige:'✅ Ton article a été corrigé', valide:'⭐ Ton article a été validé', publie:'📢 Ton article est publié' };
+    var chatTexte = (chatTitres[statut]||'Mise à jour de ton article')+' : "'+(doc.titre||'Sans titre')+'". https://compo.ipsummedia.fr';
+    notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'statut_article', function(){
+      envoyerEmailResend(m.email, (sujets[statut]||'')+esc(doc.titre||''), html, 'statut_article');
+    });
   }).catch(function(){});
 }
 
@@ -9671,7 +9678,7 @@ function _osEmailStatutArticle(doc, statut, cfg){
 function _osEmailRefusArticle(doc, note){
   if(!doc.auteur_id) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom,canal_notif',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
@@ -9707,7 +9714,10 @@ function _osEmailRefusArticle(doc, note){
       +'</div>'
       +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
       +'</div>';
-    envoyerEmailResend(m.email, '📝 Ton article nécessite des modifications — '+esc(doc.titre||''), html, 'refus_article');
+    var chatTexte = '📝 Ton article nécessite des modifications : "'+(doc.titre||'Sans titre')+'". Motif : '+(note||'à retravailler')+'. https://compo.ipsummedia.fr';
+    notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'refus_article', function(){
+      envoyerEmailResend(m.email, '📝 Ton article nécessite des modifications — '+esc(doc.titre||''), html, 'refus_article');
+    });
   }).catch(function(){});
 }
 
@@ -10397,7 +10407,7 @@ function _publierArticleReel(id){
         }
         // Chercher directement par auteur_id si disponible
         // Récupérer tous les membres pour trouver le rédacteur
-        fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom', {headers:SB_HEADERS})
+        fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom,canal_notif', {headers:SB_HEADERS})
         .then(function(r){ return r.json(); })
         .then(function(membres){
           var membre = null;
@@ -10435,8 +10445,11 @@ function _publierArticleReel(id){
               '<p>Bravo pour ce travail !</p>'+
               '<p style="color:#155724;background:#D4EDDA;padding:0.8rem;border-left:3px solid #155724;">'+
               'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>';
-            envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html, 'publication')
-              .catch(function(){ console.warn('Email publication non envoye'); });
+            var chatTexte = '📢 Ton article est publié : "'+(article.titre||'')+'". Bravo pour ce travail ! https://compo.ipsummedia.fr';
+            notifierPersonnel(membre.id, membre.canal_notif, chatTexte, 'publication', function(){
+              envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html, 'publication')
+                .catch(function(){ console.warn('Email publication non envoye'); });
+            });
           } else {
             console.warn('[Email pub] Membre non trouve pour auteur:', article.auteur, 'id:', article.auteur_id);
           }
@@ -11151,6 +11164,20 @@ function notifierChatDM(membreId, message, type){
     .catch(function(e){ console.warn('notifierChatDM:', e); return {ok:false}; });
 }
 
+// Branchement commun aux notifications personnelles (statut article, ticket, boutique,
+// invitation presse, sujet assigné, agenda...) : Chat DM si le membre a choisi ce canal
+// (toujours envoyé, cf. notifierChatDM ci-dessus), sinon on délègue à emailCallback qui
+// garde intact le comportement email propre à chaque site (gating _osRedacNotifActive,
+// check osEstEnLigne, contenu HTML...) — pas de fallback email si le DM échoue, le choix
+// du membre est respecté tel quel, comme pour le site pilote assignValider().
+function notifierPersonnel(membreId, canalNotif, chatTexte, type, emailCallback){
+  if(canalNotif === 'chat'){
+    notifierChatDM(membreId, chatTexte, type);
+  } else {
+    emailCallback();
+  }
+}
+
 function _envoyerEmailResendReel(to, subject, html, type){
   fetch(SB_URL+'/rest/v1/emails_log', {
     method:'POST',
@@ -11189,12 +11216,15 @@ function ticketCreer(){
   // Trouver l'email du destinataire
   var destEmail = ADMIN_EMAIL;
   var destNom = 'Admin';
+  var destId = null, destCanalNotif = null;
   if(dest === 'correcteur'){
     var corrSel = document.getElementById('ticket-correcteur-id');
     if(corrSel && corrSel.value){
       var opt = corrSel.options[corrSel.selectedIndex];
       destEmail = opt.dataset.email || ADMIN_EMAIL;
       destNom = opt.textContent;
+      destId = corrSel.value;
+      destCanalNotif = opt.dataset.canalNotif || null;
     } else {
       notif('Choisis un correcteur');
       return;
@@ -11235,8 +11265,16 @@ function ticketCreer(){
       'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
       'Cette adresse email ne recoit pas de messages.</p>';
 
-    envoyerEmailResend(destEmail, '[Compo] Nouvelle assistance : '+titre, html, 'ticket')
-      .catch(function(){ console.warn('Email non envoye'); });
+    function envoyerEmailTicket(){
+      envoyerEmailResend(destEmail, '[Compo] Nouvelle assistance : '+titre, html, 'ticket')
+        .catch(function(){ console.warn('Email non envoye'); });
+    }
+    if(destId && destCanalNotif === 'chat'){
+      var chatTexte = '🎫 Nouvelle demande d\'assistance de '+auteur+' : "'+titre+'" (priorité '+priorite+'). https://compo.ipsummedia.fr';
+      notifierPersonnel(destId, destCanalNotif, chatTexte, 'ticket', envoyerEmailTicket);
+    } else {
+      envoyerEmailTicket();
+    }
   })
   .catch(function(){ notif('Erreur creation demande'); });
 }
@@ -11413,7 +11451,7 @@ function ticketFermer(ticket, reponse){
       '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
 
     // Envoyer email au membre via sa colonne email dans membres
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom,canal_notif', {headers:SB_HEADERS})
     .then(function(r){ return r.json(); })
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
@@ -11426,8 +11464,11 @@ function ticketFermer(ticket, reponse){
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour ouvrir un nouveau ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
           'Cette adresse email ne recoit pas de messages.</p>';
-        envoyerEmailResend(membre.email, '[Compo] Assistance resolue : '+ticket.titre, htmlMembre, 'ticket')
-          .catch(function(){ console.warn('Email membre non envoye'); });
+        var chatTexte = '🎫 Ta demande d\'assistance "'+ticket.titre+'" a été traitée et fermée. Réponse : '+reponse+' https://compo.ipsummedia.fr';
+        notifierPersonnel(ticket.auteur_id, membre.canal_notif, chatTexte, 'ticket', function(){
+          envoyerEmailResend(membre.email, '[Compo] Assistance resolue : '+ticket.titre, htmlMembre, 'ticket')
+            .catch(function(){ console.warn('Email membre non envoye'); });
+        });
       }
       // Pas d'annonce publique - la reponse est privee (email uniquement)
     }).catch(function(){});
@@ -11477,7 +11518,7 @@ function ticketRepondre(ticket, reponse){
     chargerTickets();
 
     // Email au membre
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom,canal_notif', {headers:SB_HEADERS})
     .then(function(r){ return r.json(); })
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
@@ -11489,8 +11530,11 @@ function ticketRepondre(ticket, reponse){
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour repondre ou suivre ce ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
           'Cette adresse email ne recoit pas de messages.</p>';
-        envoyerEmailResend(membre.email, '[Compo] Reponse sur ton assistance : '+ticket.titre, html, 'ticket')
-          .catch(function(){ console.warn('Email non envoye'); });
+        var chatTexte = '🎫 Nouvelle réponse sur ta demande d\'assistance "'+ticket.titre+'" : '+reponse+' https://compo.ipsummedia.fr';
+        notifierPersonnel(ticket.auteur_id, membre.canal_notif, chatTexte, 'ticket', function(){
+          envoyerEmailResend(membre.email, '[Compo] Reponse sur ton assistance : '+ticket.titre, html, 'ticket')
+            .catch(function(){ console.warn('Email non envoye'); });
+        });
       }
     }).catch(function(){});
   }).catch(function(){ notif('Erreur envoi reponse'); });
@@ -11532,7 +11576,7 @@ function ticketRepondreRedacteur(ticket, message){
 function chargerListeCorrecteurs(){
   var sel = document.getElementById('ticket-correcteur-id');
   if(!sel || sel.children.length > 1) return; // Déjà chargé
-  fetch(SB_URL+'/rest/v1/membres?role=eq.correcteur&actif=eq.true&select=id,prenom,nom,email&order=prenom.asc', {
+  fetch(SB_URL+'/rest/v1/membres?role=eq.correcteur&actif=eq.true&select=id,prenom,nom,email,canal_notif&order=prenom.asc', {
     headers: SB_HEADERS
   })
   .then(function(r){ return r.json(); })
@@ -11545,6 +11589,7 @@ function chargerListeCorrecteurs(){
       opt.textContent = m.prenom + ' ' + m.nom;
       opt.dataset.email = m.email || '';
       opt.dataset.prenom = m.prenom || '';
+      opt.dataset.canalNotif = m.canal_notif || '';
       sel.appendChild(opt);
     });
   }).catch(function(){});
@@ -12328,7 +12373,7 @@ function osBoutiqueValider(cmdId){
       osBoutiqueRender();
       if(cmd){
         var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom',{headers:authHGet})
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
         .then(function(r){return r.json();})
         .then(function(membres){
           var m = membres&&membres[0];
@@ -12341,7 +12386,10 @@ function osBoutiqueValider(cmdId){
             +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> a été validée ! ('+cmd.cout_heures+'h déduits)</p>'
             +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#7D3C98;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
             +'</div></div>';
-          envoyerEmailResend(m.email,'[Compo] Boutique : commande validée',html,'boutique').catch(function(){});
+          var chatTexte = '✅ Ta commande boutique "'+(art?art.nom:'')+'" a été validée ! ('+cmd.cout_heures+'h déduits) https://compo.ipsummedia.fr';
+          notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
+            envoyerEmailResend(m.email,'[Compo] Boutique : commande validée',html,'boutique').catch(function(){});
+          });
         }).catch(function(){});
       }
     });
@@ -12363,7 +12411,7 @@ function osBoutiqueRefuser(cmdId){
       osBoutiqueRender();
       if(cmd){
         var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom',{headers:authHGet})
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
         .then(function(r){return r.json();})
         .then(function(membres){
           var m = membres&&membres[0];
@@ -12375,7 +12423,10 @@ function osBoutiqueRefuser(cmdId){
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
             +'</div></div>';
-          envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
+          var chatTexte = '❌ Ta commande boutique "'+(art?art.nom:'')+'" n\'a pas pu être validée.'+(raison?' Raison : '+raison:'')+' https://compo.ipsummedia.fr';
+          notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
+            envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
+          });
         }).catch(function(){});
       }
     });
@@ -21160,7 +21211,7 @@ function _sigCreationEtapePlacement(){
 
 function _sigChargerMembresPourPlacement(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,email&order=prenom.asc',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,email,canal_notif&order=prenom.asc',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(membres){
     _sigMembresDispo = (!membres || membres.code) ? [] : membres;
@@ -21315,7 +21366,16 @@ function osSignatureEnvoyer(){
         +'<a href="'+lien+'" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Signer le document</a>'
         +'<p style="font-size:0.75rem;color:#888;margin-top:1rem;">Signature possible depuis un téléphone ou un ordinateur, en quelques secondes.</p>'
         +'</div></div>';
-      envoyerEmailResend(s.email, '[Compo] '+_sigNouveauTitre+' — à signer', html, 'signature').catch(function(){});
+      var membreInfo = (_sigMembresDispo||[]).find(function(mm){ return mm.id === s.membre_id; });
+      var chatTexte = '✍️ "'+_sigNouveauTitre+'" attend ta signature : '+lien;
+      function envoyerEmailSignature(){
+        envoyerEmailResend(s.email, '[Compo] '+_sigNouveauTitre+' — à signer', html, 'signature').catch(function(){});
+      }
+      if(s.membre_id && membreInfo && membreInfo.canal_notif === 'chat'){
+        notifierPersonnel(s.membre_id, 'chat', chatTexte, 'signature', envoyerEmailSignature);
+      } else {
+        envoyerEmailSignature();
+      }
     });
     notif('Document envoyé à '+signataires.length+' signataire(s) ✓','succes');
     var overlay = document.getElementById('sig-creation-overlay');
@@ -21683,14 +21743,30 @@ function _sigAssemblerPdfFinal(doc, signataires){
       body: JSON.stringify({ statut:'complet', pdf_final_url:finalUrl })
     }).then(function(){ return finalUrl; });
   }).then(function(finalUrl){
-    signataires.forEach(function(s){
-      var html = '<div style="font-family:sans-serif;max-width:500px;">'
-        +'<div style="background:#1A5726;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document entièrement signé</h2></div>'
-        +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
-        +'<p><strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties.</p>'
-        +'<a href="'+esc(finalUrl)+'" style="display:inline-block;background:#155724;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Télécharger le PDF final</a>'
-        +'</div></div>';
-      envoyerEmailResend(s.email, '[Compo] '+doc.titre+' — signé par tous', html, 'signature_complete').catch(function(){});
+    var idsAvecMembre = signataires.map(function(s){ return s.membre_id; }).filter(Boolean);
+    var fetchCanaux = idsAvecMembre.length
+      ? fetch(SB_URL+'/rest/v1/membres?id=in.('+idsAvecMembre.join(',')+')&select=id,canal_notif',{headers:SB_HEADERS}).then(function(r){return r.json();}).catch(function(){return [];})
+      : Promise.resolve([]);
+    fetchCanaux.then(function(canaux){
+      canaux = (!canaux||canaux.code) ? [] : canaux;
+      signataires.forEach(function(s){
+        var html = '<div style="font-family:sans-serif;max-width:500px;">'
+          +'<div style="background:#1A5726;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document entièrement signé</h2></div>'
+          +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
+          +'<p><strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties.</p>'
+          +'<a href="'+esc(finalUrl)+'" style="display:inline-block;background:#155724;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Télécharger le PDF final</a>'
+          +'</div></div>';
+        var chatTexte = '✅ "'+doc.titre+'" a été signé par toutes les parties : '+finalUrl;
+        function envoyerEmailSigneParTous(){
+          envoyerEmailResend(s.email, '[Compo] '+doc.titre+' — signé par tous', html, 'signature_complete').catch(function(){});
+        }
+        var canalInfo = s.membre_id && canaux.find(function(c){ return c.id === s.membre_id; });
+        if(canalInfo && canalInfo.canal_notif === 'chat'){
+          notifierPersonnel(s.membre_id, 'chat', chatTexte, 'signature_complete', envoyerEmailSigneParTous);
+        } else {
+          envoyerEmailSigneParTous();
+        }
+      });
     });
   }).catch(function(e){ console.error('Erreur génération PDF final', e); });
 }
@@ -22040,7 +22116,7 @@ function cpsInvitationSelectionner(dispId, cpId, membreId){
     notif('Membre sélectionné ✓','succes');
     // Email au sélectionné
     var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;})||{};
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=email,prenom',{headers:authHGet})
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=email,prenom,canal_notif',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(membres){
       var m = membres&&membres[0];
@@ -22056,7 +22132,10 @@ function cpsInvitationSelectionner(dispId, cpId, membreId){
         +(cp.lieu_evenement?'<p>📍 '+esc(cp.lieu_evenement)+'</p>':'')
         +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
         +'</div></div>';
-      envoyerEmailResend(m.email,'[Compo] Tu couvres : '+esc(cp.titre||''),html,'invitation').catch(function(){});
+      var chatTexte = '✅ Tu es sélectionné(e) pour couvrir "'+(cp.titre||'')+'"'+(dateEv?' — '+dateEv:'')+(cp.lieu_evenement?' — 📍 '+cp.lieu_evenement:'')+'. https://compo.ipsummedia.fr';
+      notifierPersonnel(membreId, m.canal_notif, chatTexte, 'invitation', function(){
+        envoyerEmailResend(m.email,'[Compo] Tu couvres : '+esc(cp.titre||''),html,'invitation').catch(function(){});
+      });
     }).catch(function(){});
     cpsAdminCharger();
   });
@@ -23873,7 +23952,7 @@ function osBenevolesDashRender(){
   wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
@@ -24627,7 +24706,20 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
             :'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Merci pour ta candidature. Malheureusement, nous n\'avons pas pu retenir ta candidature cette fois-ci. N\'hésite pas à postuler à nouveau !</p>'
           )
           +'</div></div>';
-        envoyerEmailResend(email, sujet, corps);
+        var chatTexte = (decision==='accepte'
+          ? '✓ Ta candidature a été acceptée ! Bienvenue dans l\'équipe, tu seras contacté prochainement pour la suite.'
+          : 'Merci pour ta candidature. Nous n\'avons pas pu la retenir cette fois-ci — n\'hésite pas à postuler à nouveau !');
+        function envoyerEmailCandidature(){ envoyerEmailResend(email, sujet, corps); }
+        if(membreId){
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=canal_notif',{headers:SB_HEADERS})
+          .then(function(r){return r.json();})
+          .then(function(data){
+            var canal = data && data[0] ? data[0].canal_notif : null;
+            notifierPersonnel(membreId, canal, chatTexte, 'recrutement', envoyerEmailCandidature);
+          }).catch(envoyerEmailCandidature);
+        } else {
+          envoyerEmailCandidature();
+        }
       }
       // La fenêtre reste ouverte : on la remet juste à jour sur place, pour pouvoir
       // enchaîner sur le dossier suivant sans devoir rouvrir "Candidatures".
@@ -26892,7 +26984,7 @@ function osSujetOuvrirAssignation(sujetId){
   var zone = document.getElementById('sujet-assign-liste');
   if(!ids.length){ if(zone) zone.innerHTML = '<div style="text-align:center;color:var(--gris);font-size:0.78rem;padding:1rem;">Aucun membre dans cette rédaction.</div>'; return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&actif=eq.true&role=neq.interdit&select=id,prenom,nom,email&order=prenom.asc',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&actif=eq.true&role=neq.interdit&select=id,prenom,nom,email,canal_notif&order=prenom.asc',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(membres){
     membres = (!membres||membres.code) ? [] : membres;
@@ -26936,7 +27028,10 @@ function osSujetAssigner(sujetId, membreId){
           +(sujet && sujet.note ? '<p style="color:#666;font-size:0.85rem;">'+esc(sujet.note)+'</p>' : '')
           +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Ouvrir Compo</a>'
           +'</div></div>';
-        envoyerEmailResend(m.email, '📌 Sujet attribué : '+(titreSujet||''), html, 'sujet-attribue');
+        var chatTexte = '📌 On t\'a confié le sujet "'+(titreSujet||'')+'" sur Compo.'+(sujet && sujet.note ? ' '+sujet.note : '')+' https://compo.ipsummedia.fr';
+        notifierPersonnel(membreId, m.canal_notif, chatTexte, 'sujet-attribue', function(){
+          envoyerEmailResend(m.email, '📌 Sujet attribué : '+(titreSujet||''), html, 'sujet-attribue');
+        });
       }
     }
     var overlay = document.getElementById('sujet-assign-overlay');
@@ -27835,14 +27930,20 @@ function osBenevolesRelancer(membreId){
   var s = data.find(function(d){ return d.membre.id === membreId; });
   if(!s || !s.membre.email){ notif('Pas d\'email pour ce membre'); return; }
   var m = s.membre;
-  if(!confirm('Envoyer un email de relance à '+m.prenom+' ?')) return;
+  var viaChat = m.canal_notif === 'chat';
+  if(!confirm('Envoyer '+(viaChat?'un message Chat':'un email')+' de relance à '+m.prenom+' ?')) return;
   var html = '<h2>Un petit rappel de la part de la rédac ✏️</h2>'
     +'<p>Bonjour '+esc(m.prenom||'')+ ',</p>'
     +'<p>On n\'a pas eu de tes nouvelles depuis un moment sur Compo. N\'hésite pas à reprendre tes articles en cours !</p>'
     +'<p style="margin-top:1rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:6px;">Accéder à Compo</a></p>';
-  envoyerEmailResend(m.email, '[Compo] Un peu de nouvelles ?', html, 'relance')
-    .then(function(){ notif('Email de relance envoyé à '+m.prenom+' ✓', 'succes'); })
-    .catch(function(){ notif('Erreur envoi email'); });
+  var chatTexte = '✏️ Un petit rappel de la part de la rédac : on n\'a pas eu de tes nouvelles depuis un moment sur Compo. N\'hésite pas à reprendre tes articles en cours ! https://compo.ipsummedia.fr';
+  if(viaChat){
+    notifierChatDM(membreId, chatTexte, 'relance').then(function(){ notif('Message Chat de relance envoyé à '+m.prenom+' ✓', 'succes'); });
+  } else {
+    envoyerEmailResend(m.email, '[Compo] Un peu de nouvelles ?', html, 'relance')
+      .then(function(){ notif('Email de relance envoyé à '+m.prenom+' ✓', 'succes'); })
+      .catch(function(){ notif('Erreur envoi email'); });
+  }
 }
 
 // Deux façons de devenir inactif, volontairement distinguées dans l'export :
@@ -34668,7 +34769,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
       fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH}).catch(function(){});
       if(insc){
         var ev = _agendaEvenements.find(function(e){ return e.id===(evId||insc.evenement_id); });
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+        fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
         .then(function(r){return r.json();})
         .then(function(membres){
           var m = membres&&membres[0];
@@ -34681,7 +34782,10 @@ function osAgendaAdminDesinscrire(inscrId, evId){
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
             +'</div></div>';
-          envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
+          var chatTexte = 'ℹ️ Tu as été désinscrit(e) de "'+(ev?ev.titre||'':'Événement')+'" par un administrateur. https://compo.ipsummedia.fr';
+          notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
+            envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
+          });
         }).catch(function(){});
       }
       var evReload = _agendaEvenements.find(function(e){return e.id===evId;});
@@ -34955,7 +35059,7 @@ function osAgendaValiderInscr(inscrId, evId){
         // Email à l'inscrit
         if(insc){
           var authHGet2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet2})
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet2})
           .then(function(r){return r.json();})
           .then(function(membres){
             var m = membres && membres[0];
@@ -34974,7 +35078,10 @@ function osAgendaValiderInscr(inscrId, evId){
               +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
               +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
               +'</div></div>';
-            envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
+            var chatTexte = '✅ Ta demande d\'inscription à "'+(ev?ev.titre||'':'Événement')+'" a été acceptée.'+(debut?' 📅 '+debut+(heureStr?' à '+heureStr:''):'')+(ev&&ev.lieu?' 📍 '+ev.lieu:'')+' https://compo.ipsummedia.fr';
+            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
+              envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
+            });
           }).catch(function(){});
         }
         if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
@@ -34997,7 +35104,7 @@ function osAgendaRefuserInscr(inscrId, evId){
         // Email à l'inscrit
         if(insc){
           var ev = _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); });
-          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom',{headers:authHGet})
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+insc.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
           .then(function(r){return r.json();})
           .then(function(membres){
             var m = membres && membres[0];
@@ -35012,7 +35119,10 @@ function osAgendaRefuserInscr(inscrId, evId){
               +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
               +'<p style="color:#666;font-size:0.82rem;">Si tu as des questions, contacte un administrateur sur Compo.</p>'
               +'</div></div>';
-            envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
+            var chatTexte = '❌ Nous n\'avons pas pu retenir ta demande d\'inscription à "'+(ev?ev.titre||'':'Événement')+'". Si tu as des questions, contacte un administrateur sur Compo. https://compo.ipsummedia.fr';
+            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
+              envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
+            });
           }).catch(function(){});
         }
         if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
@@ -35656,7 +35766,7 @@ function osProjetsOuvrirProjet(projet){
 
   Promise.all([
     fetch(SB_URL+'/rest/v1/projets_taches?projet_id=eq.'+projet.id+'&order=created_at.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id,email,canal_notif',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
     var taches  = (!results[0]||results[0].code)?[]:results[0];
     var membres = (!results[1]||results[1].code)?[]:results[1];
@@ -36016,7 +36126,10 @@ function osProjetsNotifierAssignes(assignesIds, titreTache, titreProjet, membres
       +'<p>Tu as été assigné(e) à la tâche <strong>'+esc(titreTache)+'</strong> dans le projet <strong>'+esc(titreProjet)+'</strong>.</p>'
       +'<p style="text-align:center;margin-top:1.2rem;"><a href="https://compo.ipsummedia.fr" style="background:#2C3E50;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-weight:600;">Voir mes tâches sur Compo</a></p>'
       +'</div></div>';
-    envoyerEmailResend(m.email,'[Compo] Tâche assignée : '+titreTache,html,'projet');
+    var chatTexte = '📋 Tu as été assigné(e) à la tâche "'+titreTache+'" dans le projet "'+titreProjet+'". https://compo.ipsummedia.fr';
+    notifierPersonnel(aid, m.canal_notif, chatTexte, 'projet', function(){
+      envoyerEmailResend(m.email,'[Compo] Tâche assignée : '+titreTache,html,'projet');
+    });
   });
 }
 
@@ -37527,7 +37640,7 @@ function tchapVerifierRappelEmail(){
       if(!parExp[msg.expediteur_id]) parExp[msg.expediteur_id] = [];
       parExp[msg.expediteur_id].push(msg);
     });
-    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom,tchap_dernier_rappel',{headers:authH})
+    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom,tchap_dernier_rappel,canal_notif',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(data){
       var moi = data && data[0];
@@ -37557,7 +37670,10 @@ function tchapVerifierRappelEmail(){
         headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
         body:JSON.stringify({tchap_dernier_rappel:new Date().toISOString()})
       }).catch(function(){});
-      envoyerEmailResend(moi.email,'[Compo] Tu as '+totalMsgs+' message(s) non lu(s) sur Tchap',html,'tchap_rappel');
+      var chatTexte = '💬 Tu as '+totalMsgs+' message(s) non lu(s) sur Tchap depuis plus de 5h. https://compo.ipsummedia.fr';
+      notifierPersonnel(uid, moi.canal_notif, chatTexte, 'tchap_rappel', function(){
+        envoyerEmailResend(moi.email,'[Compo] Tu as '+totalMsgs+' message(s) non lu(s) sur Tchap',html,'tchap_rappel');
+      });
     }).catch(function(){});
   }).catch(function(){});
 }
