@@ -26693,9 +26693,11 @@ function osRedacChargerSujetsProfil(zone){
   if(!zone) return;
   var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
   var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
-  // Fetch direct avec filtre rédaction active
+  // Fetch direct avec filtre rédaction active — uniquement les sujets ouverts (pas
+  // "en_cours"/réservés) : contrairement à l'onglet Sujets, ce widget de profil n'a
+  // d'intérêt que pour montrer ce qui reste réellement à prendre.
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=*';
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.ouvert&order=created_at.desc&select=*';
   if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
