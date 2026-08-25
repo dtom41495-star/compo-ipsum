@@ -11368,7 +11368,15 @@ function envoyerEmailResend(to, subject, html, type){
 // n'est pas un filet de secours comme l'email, c'est le canal qu'elle a choisi.
 function notifierChatDM(membreId, message, type){
   if(!membreId) return Promise.resolve({ok:false});
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Construit ses propres en-têtes plutôt que de cloner SB_HEADERS : celui-ci porte
+  // 'Prefer: return=representation' (convention PostgREST, sans rapport avec cette
+  // Edge Function) — le laisser passer faisait échouer le preflight CORS, la fonction
+  // n'autorisant que apikey/authorization/content-type dans Access-Control-Allow-Headers.
+  var authH = {
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer '+(_session&&_session.access_token||SB_KEY),
+    'Content-Type': 'application/json'
+  };
   return fetch(SB_URL+'/functions/v1/envoyer-chat-dm', {
     method:'POST', headers:authH,
     body: JSON.stringify({membreId:membreId, message:message, type:type||'autre'})
