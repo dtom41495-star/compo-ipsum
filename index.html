@@ -6,7 +6,7 @@
 <title>Compo · Ipsum Média</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
 <style>
 
@@ -9507,17 +9507,17 @@ function rWorkflowAvancer(nouveauStatut){
 // le bon destinataire) et celle affichée à l'auteur plus tard (corrige/valide/publie —
 // des étapes réalisées par quelqu'un d'autre, donc pas logique de les montrer à l'acteur).
 var STATUT_ARTICLE_CONFIGS = {
-  'en-relecture':{ icon:'🔍', titre:'Article envoyé en correction',
+  'en-relecture':{ icon:'🔍', tabler:'ti-search', titre:'Article envoyé en correction',
     msg:'Ton article est maintenant entre les mains du correcteur. Tu seras notifié dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false, pourAuteur:false },
-  corrige:{ icon:'✅', titre:'Article marqué comme corrigé',
+  corrige:{ icon:'✅', tabler:'ti-circle-check', titre:'Article marqué comme corrigé',
     msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:true, pourAuteur:true },
-  valide:{ icon:'⭐', titre:'Article validé !',
+  valide:{ icon:'⭐', tabler:'ti-confetti', titre:'Article validé !',
     msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true, pourAuteur:true },
-  valide_central:{ icon:'🛡️', titre:'Validé par la rédaction centrale',
+  valide_central:{ icon:'🛡️', tabler:'ti-shield-check', titre:'Validé par la rédaction centrale',
     msg:'La rédaction centrale a validé l\'article. Il peut maintenant être publié.', couleur:'#0B3D91', bg:'#D4EDDA', email:false, pourAuteur:true },
-  publie:{ icon:'📢', titre:'Article publié !',
+  publie:{ icon:'📢', tabler:'ti-speakerphone', titre:'Article publié !',
     msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true, pourAuteur:true },
-  refuse:{ icon:'🔴', titre:'Article renvoyé au rédacteur',
+  refuse:{ icon:'🔴', tabler:'ti-arrow-back-up', titre:'Article renvoyé au rédacteur',
     msg:'Le rédacteur a été notifié par email avec le motif et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false, pourAuteur:false },
 };
 
@@ -9548,15 +9548,15 @@ function _osAfficherPopupStatutArticle(doc, statut, cfg){
   overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
   overlay.innerHTML =
     '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;transform:scale(.92);animation:popIn .2s ease forwards;">'
-    +'<div style="background:'+cfg.bg+';padding:1.4rem 1.6rem;border-bottom:3px solid '+cfg.couleur+'30;">'
-    +'<div style="font-size:2rem;margin-bottom:.4rem;">'+cfg.icon+'</div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.98rem;color:'+cfg.couleur+';">'+cfg.titre+'</div>'
+    +'<div style="display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.5rem;border-left:4px solid '+cfg.couleur+';">'
+    +'<div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.15rem;background:'+cfg.bg+';color:'+cfg.couleur+';"><i class="ti '+cfg.tabler+'"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.92rem;color:#1A1A2E;">'+cfg.titre+'</div>'
     +'</div>'
-    +'<div style="padding:1.2rem 1.6rem;">'
-    +'<div style="font-size:.88rem;font-weight:600;color:#1A1A2E;margin-bottom:.4rem;">«&nbsp;'+esc(doc.titre||'Sans titre')+'&nbsp;»</div>'
-    +'<div style="font-size:.82rem;color:#6B7280;line-height:1.6;">'+cfg.msg+'</div>'
+    +'<div style="padding:1.1rem 1.5rem 1.3rem;">'
+    +'<div style="font-size:.86rem;font-weight:700;color:#1A1A2E;margin-bottom:.5rem;">«&nbsp;'+esc(doc.titre||'Sans titre')+'&nbsp;»</div>'
+    +'<div style="font-family:Figtree,sans-serif;font-size:.88rem;font-weight:500;color:#40404A;line-height:1.6;">'+cfg.msg+'</div>'
     +'</div>'
-    +'<div style="padding:.8rem 1.6rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;">'
+    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;">'
     +'<button id="notif-statut-ok" style="padding:.5rem 1.4rem;background:'+cfg.couleur+';color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">OK</button>'
     +'</div></div>';
   document.body.appendChild(overlay);
@@ -26140,6 +26140,21 @@ function osRedacPublierAnnonce(){
   }).catch(function(){ notif('Erreur'); });
 }
 
+// Carte d'alerte réutilisée par toutes les alertes du profil Ma rédac (correction en
+// attente, article validé, invitation presse, ticket...) — fond blanc, accent latéral
+// coloré, icône dans un badge teinté, titre en Poppins (encre foncée) et sous-texte en
+// Figtree : même traitement que la popup de changement de statut (design "Carte Compo"),
+// à la place de l'ancien fond plein coloré + sous-texte en Space Mono.
+function _osAlerteCarteHTML(couleur, bg, icon, onclickAttr, titre, sousTexte){
+  return '<div onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;background:white;border:1px solid var(--gris-bord);border-left:4px solid '+couleur+';border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+    +'<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:'+bg+';color:'+couleur+';"><i class="ti '+icon+'"></i></div>'
+    +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.78rem;color:var(--encre);">'+titre+'</div>'
+      +'<div style="font-family:Figtree,sans-serif;font-size:0.68rem;color:var(--gris);margin-top:1px;">'+sousTexte+'</div>'
+    +'</div>'
+    +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:'+couleur+';flex-shrink:0;">→</span></div>';
+}
+
 function osRedacChargerAlertes(zone){
   if(!zone) return;
   var role = getUserRole();
@@ -26159,21 +26174,15 @@ function osRedacChargerAlertes(zone){
         var corriges = arts.filter(function(a){return a.statut==='corrige';});
         var valides = arts.filter(function(a){return a.statut==='valide';});
         var blocs = '';
-        if(enRelecture.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-search"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#1A5276;">'+enRelecture.length+' article'+(enRelecture.length>1?'s':'')+' en cours de correction</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#1A5276;opacity:0.7;">'+enRelecture.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#1A5276;">→</span></div>';
-        if(corriges.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D1ECF1;border:1px solid #BEE5EB;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-pencil"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#0C5460;">'+corriges.length+' article'+(corriges.length>1?'s':'')+' corrigé'+(corriges.length>1?'s':'')+' — à revoir</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#0C5460;opacity:0.7;">'+corriges.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#0C5460;">→</span></div>';
-        if(valides.length) blocs += '<div onclick="osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-confetti"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:600;color:#155724;">'+valides.length+' article'+(valides.length>1?'s':'')+' validé'+(valides.length>1?'s':'')+' — prêt à publier</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#155724;opacity:0.7;">'+valides.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+'</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;">→</span></div>';
+        if(enRelecture.length) blocs += _osAlerteCarteHTML('#1A5276','#D6EAF8','ti-search',"osOpenWindow('mes-articles')",
+          enRelecture.length+' article'+(enRelecture.length>1?'s':'')+' en cours de correction',
+          enRelecture.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', '));
+        if(corriges.length) blocs += _osAlerteCarteHTML('#0C5460','#D1ECF1','ti-pencil',"osOpenWindow('mes-articles')",
+          corriges.length+' article'+(corriges.length>1?'s':'')+' corrigé'+(corriges.length>1?'s':'')+' — à revoir',
+          corriges.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', '));
+        if(valides.length) blocs += _osAlerteCarteHTML('#155724','#D4EDDA','ti-confetti',"osOpenWindow('mes-articles')",
+          valides.length+' article'+(valides.length>1?'s':'')+' validé'+(valides.length>1?'s':'')+' — prêt à publier',
+          valides.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', '));
         return blocs;
       })
     );
@@ -26188,11 +26197,9 @@ function osRedacChargerAlertes(zone){
         if(!arts||arts.code) return '';
         if(role !== 'admin') arts = arts.filter(function(a){ return a.correcteur_id === uid; });
         if(!arts.length) return '';
-        return '<div onclick="_maOnglet=\'corriger\';osOpenWindow(\'mes-articles\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D6EAF8;border:1px solid #AED6F1;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-search"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#1A5276;">'+arts.length+' article'+(arts.length>1?'s':'')+' en attente de correction</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#1A5276;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#1A5276;">→</span></div>';
+        return _osAlerteCarteHTML('#1A5276','#D6EAF8','ti-search',"_maOnglet='corriger';osOpenWindow('mes-articles')",
+          arts.length+' article'+(arts.length>1?'s':'')+' en attente de correction',
+          arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):''));
       })
     );
   }
@@ -26204,11 +26211,9 @@ function osRedacChargerAlertes(zone){
       .then(function(r){return r.json();})
       .then(function(arts){
         if(!arts||arts.code||!arts.length) return '';
-        return '<div onclick="_redacOnglet=\'redac\';osOpenWindow(\'redactions\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#D4EDDA;border:1px solid #A9DFBF;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-circle-check"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#155724;">'+arts.length+' article'+(arts.length>1?'s':'')+' prêt'+(arts.length>1?'s':'')+' à publier</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#155724;opacity:0.7;">'+arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):'')+'</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;">→</span></div>';
+        return _osAlerteCarteHTML('#155724','#D4EDDA','ti-circle-check',"_redacOnglet='redac';osOpenWindow('redactions')",
+          arts.length+' article'+(arts.length>1?'s':'')+' prêt'+(arts.length>1?'s':'')+' à publier',
+          arts.slice(0,2).map(function(a){return esc(a.titre||'Sans titre');}).join(', ')+(arts.length>2?' +'+( arts.length-2):''));
       })
     );
   }
@@ -26220,11 +26225,9 @@ function osRedacChargerAlertes(zone){
       .then(function(r){return r.json();})
       .then(function(inscrits){
         if(!inscrits||inscrits.code||!inscrits.length) return '';
-        return '<div onclick="osOpenWindow(\'agenda\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#EDE7F6;border:1px solid #CE93D8;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-          +'<span style="font-size:1rem;"><i class="ti ti-calendar-event"></i></span>'
-          +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#4A235A;">'+inscrits.length+' inscription(s) agenda en attente de validation</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#4A235A;opacity:0.7;">Ouvrir l\'agenda pour valider</div></div>'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#4A235A;">→</span></div>';
+        return _osAlerteCarteHTML('#4A235A','#EDE7F6','ti-calendar-event',"osOpenWindow('agenda')",
+          inscrits.length+' inscription(s) agenda en attente de validation',
+          'Ouvrir l\'agenda pour valider');
       })
     );
   }
@@ -26239,11 +26242,9 @@ function osRedacChargerAlertes(zone){
         return !inv.date_evenement || new Date(inv.date_evenement) > new Date();
       });
       if(!aVenir.length) return '';
-      return '<div onclick="osOpenWindow(\'cps\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#FDEBD0;border:1px solid #F0B27A;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-        +'<span style="font-size:1rem;"><i class="ti ti-microphone"></i></span>'
-        +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#784212;">'+aVenir.length+' invitation'+(aVenir.length>1?'s':'')+' presse disponible'+(aVenir.length>1?'s':'')+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#784212;opacity:0.8;">'+aVenir.slice(0,2).map(function(i){return esc(i.titre||'');}).join(', ')+'</div></div>'
-        +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#784212;">→</span></div>';
+      return _osAlerteCarteHTML('#784212','#FDEBD0','ti-microphone',"osOpenWindow('cps')",
+        aVenir.length+' invitation'+(aVenir.length>1?'s':'')+' presse disponible'+(aVenir.length>1?'s':''),
+        aVenir.slice(0,2).map(function(i){return esc(i.titre||'');}).join(', '));
     })
   );
 
@@ -26256,11 +26257,9 @@ function osRedacChargerAlertes(zone){
       // Pour les non-admins, seulement ses propres tickets avec réponse
       if(role !== 'admin') tickets = tickets.filter(function(t){ return t.reponse; });
       if(!tickets.length) return '';
-      return '<div onclick="osOpenWindow(\'tchap\')" style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.9rem;background:#FFF3CD;border:1px solid #FDEBD0;border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
-        +'<span style="font-size:1rem;"><i class="ti ti-ticket"></i></span>'
-        +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:#856404;">'+(role==='admin'?tickets.length+' ticket'+(tickets.length>1?'s':'')+' en attente':'Réponse disponible sur ton ticket')+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#856404;opacity:0.7;">Voir dans Tchap → Assistance</div></div>'
-        +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#856404;">→</span></div>';
+      return _osAlerteCarteHTML('#856404','#FFF3CD','ti-ticket',"osOpenWindow('tchap')",
+        (role==='admin'?tickets.length+' ticket'+(tickets.length>1?'s':'')+' en attente':'Réponse disponible sur ton ticket'),
+        'Voir dans Tchap → Assistance');
     })
   );
 
