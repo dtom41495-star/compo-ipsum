@@ -16321,9 +16321,53 @@ function osLoginValider(){
   });
 }
 
+// Autorisations Google demandées au moment de la connexion, en un seul écran de
+// consentement — plutôt qu'une deuxième popup plus tard dans Fichiers/Enregistrer.
+//
+// drive.file suffit à tout : mêmes fichiers que l'ancienne popup (GOOGLE_DRIVE_SCOPE),
+// ET la synchro des notes en documents Google — l'API Docs (documents.batchUpdate,
+// documents.get) accepte ce scope, pas besoin d'y ajouter auth/documents.
+//
+// Le scope Keep a été retiré : Google le refuse sur cette édition Workspace
+// ("champ d'application non valide"), et l'API Keep ne sait de toute façon pas
+// modifier une note existante — les documents Google, si.
+var GOOGLE_SCOPES_CONNEXION = [
+  'https://www.googleapis.com/auth/drive.file'
+];
+
+// Jetons Google de la personne connectée — distincts du jeton Supabase de _session.
+// Volontairement en mémoire seule : le jeton de rafraîchissement ne doit pas atterrir
+// dans localStorage avec le reste de _session (il sera rangé côté serveur, phase 2).
+var _googleAuth = null; // {access_token, refresh_token, scopes:[], expires_at}
+
+// Une permission peut avoir été décochée par la personne sur l'écran Google tout en
+// laissant la connexion aboutir — d'où cette vérification, à appeler avant d'utiliser
+// une fonctionnalité qui en dépend, jamais pour bloquer l'accès à Compo.
+function osGoogleScopeAccorde(scope){
+  return !!(_googleAuth && _googleAuth.scopes && _googleAuth.scopes.indexOf(scope) !== -1);
+}
+
 function osLoginGoogle(){
   var retour = location.origin + location.pathname;
-  location.href = SB_URL+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(retour)+'&hd=ipsummedia.fr';
+  // access_type=offline + prompt=consent : sans ces deux paramètres, Google ne délivre
+  // aucun jeton de rafraîchissement et l'accès expirerait au bout d'une heure sans
+  // possibilité de le renouveler.
+  location.href = SB_URL+'/auth/v1/authorize?provider=google'
+    +'&redirect_to='+encodeURIComponent(retour)
+    +'&scopes='+encodeURIComponent(GOOGLE_SCOPES_CONNEXION.join(' '))
+    +'&access_type=offline&prompt=consent'
+    +'&hd=ipsummedia.fr';
+}
+
+// Interroge Google sur ce qui a réellement été accordé : l'écran de consentement
+// permet de décocher une permission sans renoncer à la connexion, et le fragment de
+// redirection ne dit pas lesquelles sont passées.
+function _osGoogleLireScopes(providerToken){
+  if(!providerToken) return Promise.resolve([]);
+  return fetch('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(providerToken))
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(info){ return (info && info.scope) ? info.scope.split(' ') : []; })
+    .catch(function(){ return []; });
 }
 
 // Retour de redirection Google : Supabase renvoie le jeton dans le fragment d'URL
@@ -16335,8 +16379,28 @@ function _osCheckRetourGoogle(){
   var accessToken = params.get('access_token');
   var refreshToken = params.get('refresh_token');
   var expiresIn = parseInt(params.get('expires_in')||'3600', 10);
+  // Jetons Google (distincts de ceux de Supabase juste au-dessus) — à lire ICI,
+  // impérativement avant le history.replaceState qui efface le fragment.
+  var providerToken = params.get('provider_token');
+  var providerRefreshToken = params.get('provider_refresh_token');
   history.replaceState(null, '', location.pathname + location.search);
   if(!accessToken) return true;
+
+  if(providerToken){
+    _googleAuth = {
+      access_token: providerToken,
+      refresh_token: providerRefreshToken || null,
+      scopes: [],
+      expires_at: Date.now() + 3600*1000
+    };
+    _osGoogleLireScopes(providerToken).then(function(scopes){
+      if(_googleAuth) _googleAuth.scopes = scopes;
+      console.log('[Google] permissions accordées :', scopes.join(', ')||'(aucune)',
+                  '· jeton de rafraîchissement :', providerRefreshToken ? 'reçu' : 'ABSENT');
+    });
+  } else {
+    console.log('[Google] aucun provider_token dans le retour de connexion.');
+  }
 
   fetch(SB_URL+'/auth/v1/user', { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+accessToken } })
   .then(function(r){ return r.json(); })
@@ -31371,7 +31435,7 @@ function osNotesBuildUI(wc){
   var sidebarCachee = isMobile && _noteSelectionnee;
   html += '<div id="notes-sidebar" style="display:'+(sidebarCachee?'none':'flex')+';width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);flex-direction:column;background:var(--gris-clair);">';
   html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
-  html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
+  html += '<span id="notes-compteur" style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
   html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:Space Mono,monospace;cursor:pointer;">+ Nouvelle</button>';
   html += '</div>';
   html += '<div style="flex:1;overflow-y:auto;" id="notes-liste">';
@@ -31384,7 +31448,7 @@ function osNotesBuildUI(wc){
       var actif = n.id === _noteSelectionnee;
       var dateStr = _benvFormatDate(new Date(n.updated_at));
       html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-      html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(n.titre||'Sans titre')+'</div>';
+      html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
       html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
       html += '</div>';
     });
@@ -31445,13 +31509,31 @@ function osNotesEditorHTML(note){
   return html;
 }
 
+// Force l'enregistrement en attente AVANT que l'éditeur ne soit reconstruit.
+//
+// osNotesSauvegarder lit les champs dans le DOM (#note-titre / #note-contenu), pas
+// dans ses arguments : si un enregistrement différé se déclenchait après un changement
+// de note, il écrivait le texte de la NOUVELLE note dans la ligne de l'ANCIENNE, et le
+// texte d'origine était perdu. À appeler donc systématiquement avant osNotesBuildUI().
+function _osNotesFlush(){
+  var id = _noteSelectionnee;
+  if(!id || !_notesDebounce[id]) return;
+  clearTimeout(_notesDebounce[id]);
+  delete _notesDebounce[id];
+  // Les champs du DOM appartiennent encore à cette note à cet instant précis.
+  osNotesSauvegarder(id);
+}
+
 function osNotesRetourListe(){
+  _osNotesFlush();
   _noteSelectionnee = null;
   var wc = document.getElementById('wincontent-notes');
   if(wc) osNotesBuildUI(wc);
 }
 
 function osNotesSelectionner(id){
+  if(id === _noteSelectionnee) return; // déjà ouverte : rien à enregistrer ni à reconstruire
+  _osNotesFlush();
   _noteSelectionnee = id;
   var wc = document.getElementById('wincontent-notes');
   if(!wc) return;
@@ -31460,6 +31542,7 @@ function osNotesSelectionner(id){
 
 function osNoteNouvelle(){
   var uid = getUserId(); if(!uid) return;
+  _osNotesFlush(); // la note en cours peut avoir un enregistrement encore en attente
   var id = 'NOTE-'+genId().slice(4);
   var payload = {
     id: id,
@@ -31545,18 +31628,32 @@ function osNotesSauvegarder(id){
   });
 }
 
+// Re-rendu de la seule liste, sans toucher à l'éditeur (pour ne pas perdre le curseur
+// pendant la frappe). Doit appliquer EXACTEMENT le même filtre et le même tri que
+// osNotesBuildUI : sans ça, un enregistrement sous filtre de couleur actif repeuplait
+// la liste avec toutes les notes, et une note modifiée gardait son ancienne position.
 function _notesRafraichirListe(liste){
+  var notesFiltrees = _notesFiltreCouleur === 'Toutes'
+    ? _notesData.slice()
+    : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
+  notesFiltrees.sort(function(a,b){ return new Date(b.updated_at) - new Date(a.updated_at); });
+
   var html = '';
-  _notesData.forEach(function(n){
+  notesFiltrees.forEach(function(n){
     var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
     var actif = n.id === _noteSelectionnee;
     var dateStr = _benvFormatDate(new Date(n.updated_at));
     html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-    html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(n.titre||'Sans titre')+'</div>';
+    html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
     html += '</div>';
   });
   liste.innerHTML = html;
+
+  // Le compteur vit hors de #notes-liste : sans cette mise à jour il affichait encore
+  // le nombre d'avant le filtrage.
+  var compteur = document.getElementById('notes-compteur');
+  if(compteur) compteur.textContent = notesFiltrees.length+' note(s)';
 }
 
 function osNotesCouleur(id, couleur){
