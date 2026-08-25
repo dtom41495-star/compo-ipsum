@@ -1939,6 +1939,14 @@ body {
 .params-label { font-size:0.85rem; color:var(--encre); font-weight:500; }
 .params-label-sub { font-size:0.72rem; color:var(--gris); margin-top:2px; }
 .params-action { flex-shrink:0; }
+/* Petit badge "bêta" pour les réglages encore en rodage — pas encore assez éprouvés
+   pour être proposés par défaut (OOBE) ou mis en avant sans réserve. */
+.badge-beta {
+  display:inline-block; font-family:'Space Mono',monospace; font-size:0.56rem;
+  font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+  color:#7D3C98; background:#F3E8FA; border-radius:8px;
+  padding:1px 6px; margin-left:6px; vertical-align:1px;
+}
 
 /* Toggle switch */
 .os-toggle {
@@ -3535,7 +3543,6 @@ input:focus,select:focus,textarea:focus{
       <div class="oobe-dot active" id="oobe-dot-0"></div>
       <div class="oobe-dot" id="oobe-dot-1"></div>
       <div class="oobe-dot" id="oobe-dot-2"></div>
-      <div class="oobe-dot" id="oobe-dot-3"></div>
     </div>
 
     <!-- Étape 0 : Bienvenue -->
@@ -3559,25 +3566,8 @@ input:focus,select:focus,textarea:focus{
       <button class="oobe-btn" onclick="oobeNext(1)">Continuer →</button>
     </div>
 
-    <!-- Étape 2 : Thème -->
+    <!-- Étape 2 : Apps (le thème n'est plus proposé ici — sombre est en bêta, réglable depuis les paramètres) -->
     <div class="oobe-step" id="oobe-step-2">
-      <div class="oobe-title">Ton thème</div>
-      <div class="oobe-sub">Tu pourras changer ça dans les paramètres</div>
-      <div class="oobe-theme-grid">
-        <div class="oobe-theme-card selected" id="oobe-theme-light" onclick="oobeSelectTheme('light')">
-          <div class="oobe-theme-preview" style="background:#F0EEE9;">🌤️</div>
-          <div class="oobe-theme-label">Clair</div>
-        </div>
-        <div class="oobe-theme-card" id="oobe-theme-dark" onclick="oobeSelectTheme('dark')">
-          <div class="oobe-theme-preview" style="background:#1A1A2E;">🌙</div>
-          <div class="oobe-theme-label">Sombre</div>
-        </div>
-      </div>
-      <button class="oobe-btn" onclick="oobeNext(2)">Continuer →</button>
-    </div>
-
-    <!-- Étape 3 : Apps -->
-    <div class="oobe-step" id="oobe-step-3">
       <div class="oobe-title">Tes apps</div>
       <div class="oobe-sub">Choisis ce que tu veux dans le dock (max 8)</div>
       <div class="oobe-apps-grid" id="oobe-apps-grid"></div>
@@ -13820,25 +13810,32 @@ function osPresenceMajWidget(){
 function osClockInit(){
   var JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
   var MOIS = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+  var dernierJour = null;
   function tick(){
     var now = new Date();
-    var s = now.getSeconds();
-    var m = now.getMinutes();
-    var h = now.getHours() % 12;
+    // Fraction de milliseconde incluse à chaque niveau : la trotteuse (et par ricochet
+    // les aiguilles minute/heure) avance en continu plutôt que par à-coups de 6°/seconde.
+    var s = now.getSeconds() + now.getMilliseconds()/1000;
+    var m = now.getMinutes() + s/60;
+    var h = (now.getHours()%12) + m/60;
     var degS = s * 6;
-    var degM = m * 6 + s * 0.1;
-    var degH = h * 30 + m * 0.5;
+    var degM = m * 6;
+    var degH = h * 30;
     var aH = document.getElementById('os-clock-h');
     var aM = document.getElementById('os-clock-m');
     var aS = document.getElementById('os-clock-s');
     if(aH) aH.setAttribute('transform','rotate('+degH+' 45 45)');
     if(aM) aM.setAttribute('transform','rotate('+degM+' 45 45)');
     if(aS) aS.setAttribute('transform','rotate('+degS+' 45 45)');
-    var dateEl = document.getElementById('os-clock-date');
-    if(dateEl) dateEl.textContent = JOURS[now.getDay()]+' '+now.getDate()+' '+MOIS[now.getMonth()];
+    var jour = now.getDate();
+    if(jour !== dernierJour){
+      dernierJour = jour;
+      var dateEl = document.getElementById('os-clock-date');
+      if(dateEl) dateEl.textContent = JOURS[now.getDay()]+' '+jour+' '+MOIS[now.getMonth()];
+    }
+    requestAnimationFrame(tick);
   }
   tick();
-  setInterval(tick, 1000);
 }
 
 // ===== SIDEBAR WIDGETS =====
@@ -18467,7 +18464,7 @@ function osParamsRenderSection(section, container){
     // certains envois si la notification in-app suffit déjà).
     var rowCanal = document.createElement('div');
     rowCanal.className = 'params-row';
-    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles</div><div class="params-label-sub">Comment tu veux recevoir "tu es assigné à ceci", "ton article est publié"...</div></div>'
+    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles <span class="badge-beta">Bêta</span></div><div class="params-label-sub">Comment tu veux recevoir "tu es assigné à ceci", "ton article est publié"...</div></div>'
       + '<div style="display:flex;align-items:center;gap:8px;">'
       + '<span id="canal-notif-label-off" style="font-size:0.72rem;color:var(--gris);">Email</span>'
       + '<label class="compo-toggle"><input type="checkbox" id="params-canal-notif" onchange="osChoisirCanalNotif(this.checked?\'chat\':\'email\')"><span class="track"></span><span class="thumb"></span></label>'
@@ -18523,7 +18520,7 @@ function osParamsRenderSection(section, container){
     // Demande de changement de rôle
     var rowRole = document.createElement('div');
     rowRole.className = 'params-row';
-    rowRole.innerHTML = '<div><div class="params-label">Demander un changement de role</div><div class="params-label-sub">Envoie une demande a l admin</div></div>';
+    rowRole.innerHTML = '<div><div class="params-label">Demander un changement de rôle</div><div class="params-label-sub">Envoie une demande à l\'admin</div></div>';
     var roleSelect = document.createElement('select');
     roleSelect.style.cssText = 'padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:Space Mono,monospace;';
     var roles = ['redacteur','correcteur','communicant'];
@@ -18539,7 +18536,7 @@ function osParamsRenderSection(section, container){
     askRoleBtn.style.fontSize = '0.72rem';
     askRoleBtn.onclick = function(){
       var newRole = roleSelect.value;
-      if(newRole === getUserRole()){ notif('Tu as deja ce role'); return; }
+      if(newRole === getUserRole()){ notif('Tu as déjà ce rôle'); return; }
       // Créer un ticket de demande
       fetch(SB_URL+'/rest/v1/tickets', {
         method:'POST',
@@ -18551,7 +18548,7 @@ function osParamsRenderSection(section, container){
           auteur:getUserNomComplet(), auteur_id:getUserId(), auteur_email:getUserEmail()
         })
       }).then(function(r){
-        if(r.ok) notif('Demande envoyee a l admin !');
+        if(r.ok) notif('Demande envoyée à l\'admin !');
       }).catch(function(){});
     };
     var roleActions = document.createElement('div');
@@ -18564,17 +18561,17 @@ function osParamsRenderSection(section, container){
   }
   
   else if(section === 'apparence'){
-    container.innerHTML = '<div class="params-section-title">🎨 Apparence</div><div class="params-section-sub">Personnalise l interface Compo OS</div>';
+    container.innerHTML = '<div class="params-section-title">🎨 Apparence</div><div class="params-section-sub">Personnalise l\'interface Compo OS</div>';
     
     // Thème clair/sombre
     var rowTheme = document.createElement('div');
     rowTheme.className = 'params-row';
     var isDark = localStorage.getItem('compo_os_theme') !== 'light';
-    rowTheme.innerHTML = '<div><div class="params-label">Thème de l interface</div><div class="params-label-sub">Bascule entre thème clair et sombre</div></div>';
+    rowTheme.innerHTML = '<div><div class="params-label">Thème de l\'interface</div><div class="params-label-sub">Bascule entre thème clair et sombre</div></div>';
     
     var themeAction = document.createElement('div');
     themeAction.className = 'params-action';
-    themeAction.style.cssText = 'display:flex;gap:0.4rem;';
+    themeAction.style.cssText = 'display:flex;align-items:center;gap:0.4rem;';
     
     var btnClair = document.createElement('button');
     btnClair.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;'+
@@ -18596,8 +18593,13 @@ function osParamsRenderSection(section, container){
       btnClair.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
     };
     
+    var badgeSombre = document.createElement('span');
+    badgeSombre.className = 'badge-beta';
+    badgeSombre.textContent = 'Bêta';
+
     themeAction.appendChild(btnClair);
     themeAction.appendChild(btnSombre);
+    themeAction.appendChild(badgeSombre);
     rowTheme.appendChild(themeAction);
     container.appendChild(rowTheme);
 
@@ -18605,10 +18607,10 @@ function osParamsRenderSection(section, container){
     var rowLeger = document.createElement('div');
     rowLeger.className = 'params-row';
     var modeLegerActif = localStorage.getItem('compo_os_mode_leger') === '1';
-    rowLeger.innerHTML = '<div><div class="params-label">Mode allégé</div><div class="params-label-sub">Désactive les flous et effets de transparence — utile sur un PC moins puissant</div></div>';
+    rowLeger.innerHTML = '<div><div class="params-label">Mode allégé</div><div class="params-label-sub">Désactive les flous et effets de transparence, utile sur un PC moins puissant</div></div>';
 
     var legerAction = document.createElement('div');
-    legerAction.style.cssText = 'display:flex;gap:0.4rem;';
+    legerAction.style.cssText = 'display:flex;align-items:center;gap:0.4rem;';
     var legerStyleActif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
     var legerStyleInactif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
 
@@ -18631,8 +18633,13 @@ function osParamsRenderSection(section, container){
       btnNormal.style.cssText = legerStyleInactif;
     };
 
+    var badgeLeger = document.createElement('span');
+    badgeLeger.className = 'badge-beta';
+    badgeLeger.textContent = 'Bêta';
+
     legerAction.appendChild(btnNormal);
     legerAction.appendChild(btnLeger);
+    legerAction.appendChild(badgeLeger);
     rowLeger.appendChild(legerAction);
     container.appendChild(rowLeger);
 
@@ -18676,7 +18683,7 @@ function osParamsRenderSection(section, container){
     rowWp.className = 'params-row';
     rowWp.style.flexDirection = 'column';
     rowWp.style.alignItems = 'flex-start';
-    rowWp.innerHTML = '<div style="margin-bottom:0.8rem;"><div class="params-label">Fond decran</div><div class="params-label-sub">Choisis ou importe ton fond decran</div></div>';
+    rowWp.innerHTML = '<div style="margin-bottom:0.8rem;"><div class="params-label">Fond d\'écran</div><div class="params-label-sub">Choisis ou importe ton fond d\'écran</div></div>';
     
     var wpGrid = document.createElement('div');
     wpGrid.className = 'wallpaper-grid';
@@ -18719,7 +18726,7 @@ function osParamsRenderSection(section, container){
         var dataUrl = ev.target.result;
         localStorage.setItem('compo_os_wallpaper_custom', dataUrl);
         osAppliquerWallpaper('custom', dataUrl, null);
-        notif('Fond decran personnalisé appliqué !');
+        notif('Fond d\'écran personnalisé appliqué !');
         osParamsRenderSection('apparence', document.getElementById('params-content-area'));
       };
       reader.readAsDataURL(file);
@@ -18779,10 +18786,10 @@ function osParamsRenderSection(section, container){
 
     var rowDeconnect = document.createElement('div');
     rowDeconnect.className = 'params-row';
-    rowDeconnect.innerHTML = '<div><div class="params-label">Se deconnecter</div><div class="params-label-sub">Quitte Compo OS</div></div>';
+    rowDeconnect.innerHTML = '<div><div class="params-label">Se déconnecter</div><div class="params-label-sub">Quitte Compo OS</div></div>';
     var btnDeco = document.createElement('button');
     btnDeco.className = 'btn sec';
-    btnDeco.textContent = 'Deconnecter';
+    btnDeco.textContent = 'Déconnecter';
     btnDeco.style.cssText = 'font-size:0.72rem;color:#FF5F57;border-color:#FF5F57;';
     btnDeco.onclick = osSeDeconnecter;
     rowDeconnect.appendChild(btnDeco);
@@ -33552,10 +33559,9 @@ function rEditionDetacherCpSource(){
 
 // ===== OOBE (PREMIÈRE CONNEXION) =====
 
-var _oobeTheme = 'light';
 var _oobeAppsSelectionnees = new Set();
 var _oobeStepCourant = 0;
-var _oobeNbSteps = 4;
+var _oobeNbSteps = 3;
 
 function oobeVerifier(userId, membre){
   var done = localStorage.getItem('compo_oobe_done_'+userId);
@@ -33581,7 +33587,7 @@ function oobeOuvrir(userId, role){
   window._oobeAppsPreconfigurees = (window._userAppsAll && window._userAppsAll.length > 0);
 
   // Adapter le nombre de dots selon qu'on a l'étape apps ou pas
-  var nbSteps = window._oobeAppsPreconfigurees ? 3 : 4;
+  var nbSteps = window._oobeAppsPreconfigurees ? 2 : 3;
   var progress = document.getElementById('oobe-progress');
   if(progress){
     progress.innerHTML = '';
@@ -33594,8 +33600,8 @@ function oobeOuvrir(userId, role){
   }
 
   // Masquer l'étape apps si préconfigurée
-  var step3 = document.getElementById('oobe-step-3');
-  if(step3) step3.style.display = window._oobeAppsPreconfigurees ? 'none' : '';
+  var stepApps = document.getElementById('oobe-step-2');
+  if(stepApps) stepApps.style.display = window._oobeAppsPreconfigurees ? 'none' : '';
 
   // Pré-remplir avec ce qu'on sait
   var prenom = localStorage.getItem('ipsum_user_prenom')||'';
@@ -33644,10 +33650,10 @@ function oobeNext(step){
     if(!prenom.trim()){ notif('Saisis ton prénom'); return; }
   }
 
-  // Si apps préconfigurées, sauter l'étape 2 (thème=étape 2, apps=étape 3)
-  // et terminer directement après le thème
+  // Si apps préconfigurées, sauter l'étape apps (étape 2) et terminer directement
+  // après le profil (étape 1).
   var nextStep = step + 1;
-  if(window._oobeAppsPreconfigurees && step === 2){
+  if(window._oobeAppsPreconfigurees && step === 1){
     // Pas d'étape apps — terminer directement
     oobeTerminer();
     return;
@@ -33666,28 +33672,14 @@ function oobeNext(step){
   _oobeStepCourant = nextStep;
 }
 
-function oobeSelectTheme(theme){
-  _oobeTheme = theme;
-  var light = document.getElementById('oobe-theme-light');
-  var dark = document.getElementById('oobe-theme-dark');
-  if(light) light.classList.toggle('selected', theme==='light');
-  if(dark)  dark.classList.toggle('selected', theme==='dark');
-
-  // Preview en direct
-  var root = document.documentElement;
-  if(theme === 'dark'){ root.classList.add('theme-dark'); root.classList.remove('theme-light'); }
-  else { root.classList.remove('theme-dark'); root.classList.add('theme-light'); }
-}
-
 function oobeTerminer(){
   var userId = getUserId(); if(!userId) return;
   var prenom = ((document.getElementById('oobe-prenom')||{}).value||'').trim();
   var nom    = ((document.getElementById('oobe-nom')||{}).value||'').trim();
   var role   = getUserRole();
 
-  // Sauvegarder le thème
-  localStorage.setItem('compo_os_theme', _oobeTheme);
-  osToggleTheme(_oobeTheme === 'dark');
+  // Le thème n'est plus proposé pendant l'OOBE (sombre est en bêta) — osAppliquerThemeAuDemarrage()
+  // applique déjà "clair" par défaut tant que compo_os_theme n'est pas défini.
 
   // Sauvegarder le profil — PATCH uniquement prenom/nom, jamais le rôle
   if(prenom){
