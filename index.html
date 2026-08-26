@@ -4105,8 +4105,11 @@ input:focus,select:focus,textarea:focus{
 
       <!-- Titre -->
       <textarea id="r-titre" placeholder="Titre de l'article" rows="1" spellcheck="true" lang="fr"
-        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateStats();"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateStats();osVerifierDoublonTitre();"
         style="resize:none;overflow:hidden;width:100%;font-size:1.9rem;font-weight:800;font-family:'Poppins',sans-serif;color:var(--encre);border:none;border-radius:0;padding:0;background:transparent;line-height:1.25;outline:none;display:block;margin-bottom:0.6rem;letter-spacing:-0.01em;"></textarea>
+
+      <!-- Avertissement sujet en double — purement informatif, n'empêche jamais d'écrire -->
+      <div id="r-doublon-alerte" style="display:none;background:white;border:1px solid var(--gris-bord);border-left:4px solid #F39C12;border-radius:0 8px 8px 0;padding:0.7rem 0.9rem;margin-bottom:0.9rem;"></div>
 
       <!-- Chapeau -->
       <div id="rg-chapeau" class="form-group">
@@ -5153,6 +5156,130 @@ function updateStats(){
   document.getElementById('lisib-label').textContent='Lisibilité - '+(sc>=75?'Bonne':sc>=55?'Correcte (phrases un peu longues)':'Difficile (phrases trop longues)');
 }
 
+// ===== DÉTECTION DE SUJETS EN DOUBLE =====
+// Deux personnes ont déjà écrit sur le même sujet sans le savoir, faute d'aller voir la
+// liste des sujets avant de commencer. On compare donc le titre en cours de frappe aux
+// sujets réservés et aux articles non publiés, et on PRÉVIENT — sans jamais empêcher
+// d'écrire : la détection est approximative par nature, elle ne doit pas faire autorité.
+
+var _doublonsCache = null;      // {sujets:[], articles:[], charge_a:timestamp}
+var _doublonsTimer = null;
+var _doublonsIgnores = false;   // l'auteur a fermé l'avertissement : on ne le rouvre plus
+
+// Mots vides français + mots trop courts : sans ce filtre, « le », « de » et « la »
+// feraient correspondre à peu près n'importe quels deux titres entre eux.
+var _DOUBLONS_MOTS_VIDES = ['le','la','les','un','une','des','du','de','au','aux','et','ou','a','en','sur','pour','dans','par','avec','sans','sous','ce','cet','cette','ces','son','sa','ses','leur','leurs','qui','que','quoi','dont','ou','est','sont','ete','plus','moins','tres','tout','tous','toute','toutes','apres','avant','entre','vers','chez','contre','depuis','pendant','nouveau','nouvelle'];
+
+function _doublonsNormaliser(texte){
+  return String(texte||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // enlève les accents
+    .replace(/[^a-z0-9\s-]/g,' ')
+    .split(/[\s-]+/)
+    .filter(function(m){
+      return m.length >= 3 && _DOUBLONS_MOTS_VIDES.indexOf(m) === -1;
+    });
+}
+
+// Proportion de mots significatifs communs, rapportée au titre le plus court : un titre
+// court entièrement contenu dans un titre long doit ressortir fortement (« marché de
+// Castres » dans « le marché de Castres retrouve son animation »).
+function _doublonsScore(motsA, motsB){
+  if(!motsA.length || !motsB.length) return 0;
+  var communs = motsA.filter(function(m){ return motsB.indexOf(m) !== -1; });
+  return { score: communs.length / Math.min(motsA.length, motsB.length), communs: communs.length };
+}
+
+function _doublonsCharger(){
+  var frais = _doublonsCache && (Date.now() - _doublonsCache.charge_a) < 2*60*1000;
+  if(frais) return Promise.resolve(_doublonsCache);
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  function get(url){
+    return fetch(SB_URL+url,{headers:authH}).then(function(r){return r.json();})
+      .then(function(d){ return (!d||d.code)?[]:d; }).catch(function(){ return []; });
+  }
+  return Promise.all([
+    // Sujets encore ouverts ou déjà réservés par quelqu'un
+    get('/rest/v1/briefing?statut=in.(ouvert,en_cours)&select=id,titre,statut,responsable'),
+    // Articles pas encore publiés — c'est là que se cache le doublon en train de s'écrire
+    get('/rest/v1/articles?statut=neq.publie&select=id,titre,auteur,auteur_id,statut')
+  ]).then(function(res){
+    _doublonsCache = { sujets:res[0], articles:res[1], charge_a: Date.now() };
+    return _doublonsCache;
+  });
+}
+
+function _doublonsChercher(titre, cache, idArticleCourant){
+  var mots = _doublonsNormaliser(titre);
+  if(mots.length < 2) return [];   // trop court pour conclure quoi que ce soit
+  var trouves = [];
+
+  cache.sujets.forEach(function(s){
+    var r = _doublonsScore(mots, _doublonsNormaliser(s.titre));
+    if(r.communs >= 2 && r.score >= 0.5){
+      trouves.push({
+        score: r.score, titre: s.titre,
+        quoi: 'sujet',
+        detail: s.statut === 'en_cours' && s.responsable
+          ? 'sujet réservé par '+s.responsable
+          : 'sujet ouvert, pas encore pris'
+      });
+    }
+  });
+
+  cache.articles.forEach(function(a){
+    if(idArticleCourant && a.id === idArticleCourant) return; // son propre article
+    var r = _doublonsScore(mots, _doublonsNormaliser(a.titre));
+    if(r.communs >= 2 && r.score >= 0.5){
+      trouves.push({
+        score: r.score, titre: a.titre,
+        quoi: 'article',
+        detail: a.auteur ? 'article en cours par '+a.auteur : 'article en cours'
+      });
+    }
+  });
+
+  return trouves.sort(function(x,y){ return y.score - x.score; }).slice(0,3);
+}
+
+// Remet l'avertissement à zéro quand on change d'article — sans ça, un « ignorer »
+// cliqué une fois vaudrait pour tous les articles écrits ensuite dans la même session.
+function _osDoublonsReinit(){
+  _doublonsIgnores = false;
+  if(_doublonsTimer){ clearTimeout(_doublonsTimer); _doublonsTimer = null; }
+  var zone = document.getElementById('r-doublon-alerte');
+  if(zone){ zone.style.display = 'none'; zone.innerHTML = ''; }
+}
+
+function osVerifierDoublonTitre(){
+  if(_doublonsIgnores) return;
+  if(_doublonsTimer) clearTimeout(_doublonsTimer);
+  _doublonsTimer = setTimeout(function(){
+    var champ = document.getElementById('r-titre');
+    var zone  = document.getElementById('r-doublon-alerte');
+    if(!champ || !zone) return;
+    var titre = champ.value.trim();
+    if(titre.length < 10){ zone.style.display='none'; return; }
+    _doublonsCharger().then(function(cache){
+      var trouves = _doublonsChercher(titre, cache, (typeof currentDoc!=='undefined' && currentDoc) ? currentDoc.id : null);
+      if(!trouves.length){ zone.style.display='none'; return; }
+      var h = '<div style="display:flex;align-items:flex-start;gap:0.7rem;">';
+      h += '<div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#FFF3CD;color:#856404;font-size:0.95rem;"><i class="ti ti-alert-triangle"></i></div>';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.78rem;color:var(--encre);">Quelqu\'un écrit peut-être déjà là-dessus</div>';
+      trouves.forEach(function(t){
+        h += '<div style="font-family:Figtree,sans-serif;font-size:0.72rem;color:var(--gris);margin-top:3px;">« '+esc(t.titre)+' » — '+esc(t.detail)+'</div>';
+      });
+      h += '<div style="font-family:Figtree,sans-serif;font-size:0.66rem;color:var(--gris);margin-top:5px;font-style:italic;">Vérifie avant de continuer, ou ignore si ça n\'a rien à voir.</div>';
+      h += '</div>';
+      h += '<button onclick="_doublonsIgnores=true;document.getElementById(\'r-doublon-alerte\').style.display=\'none\';" title="Ignorer" style="background:none;border:none;cursor:pointer;color:var(--gris);font-size:0.9rem;flex-shrink:0;padding:0;"><i class="ti ti-x"></i></button>';
+      h += '</div>';
+      zone.innerHTML = h;
+      zone.style.display = 'block';
+    });
+  }, 700);
+}
+
 // ===== IMAGE =====
 // Redimensionne/recompresse une image côté client avant upload (couverture d'article
 // ou image insérée dans le corps) — l'objectif est de gagner de la place (Drive, Storage)
@@ -5435,6 +5562,7 @@ function osOuvrirNouvelArticle(){
 function resetRedaction(){
   osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
+  _osDoublonsReinit(); // nouvel article : l'avertissement doit pouvoir réapparaître
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   rCorpsSetValeur('');
   document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
@@ -5509,6 +5637,7 @@ function reprendreBrouillon(id){
   setTimeout(()=>{
     setType(doc.type||'article');
     document.getElementById('r-auteur').value=doc.auteur||'';
+    _osDoublonsReinit(); // on ouvre un autre article : repartir d'un avertissement neuf
     var tEl=document.getElementById('r-titre'); if(tEl){ tEl.value=doc.titre||''; tEl.style.height='auto'; tEl.style.height=tEl.scrollHeight+'px'; }
     document.getElementById('r-chapeau').value=doc.chapeau||'';
     document.getElementById('r-angle').value=doc.angle||'';
@@ -16393,13 +16522,6 @@ function _osCheckRetourGoogle(){
       scopes: [],
       expires_at: Date.now() + 3600*1000
     };
-    _osGoogleLireScopes(providerToken).then(function(scopes){
-      if(_googleAuth) _googleAuth.scopes = scopes;
-      console.log('[Google] permissions accordées :', scopes.join(', ')||'(aucune)',
-                  '· jeton de rafraîchissement :', providerRefreshToken ? 'reçu' : 'ABSENT');
-    });
-  } else {
-    console.log('[Google] aucun provider_token dans le retour de connexion.');
   }
 
   fetch(SB_URL+'/auth/v1/user', { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+accessToken } })
@@ -16412,9 +16534,75 @@ function _osCheckRetourGoogle(){
     var loginEl = document.getElementById('os-login');
     if(loginEl) loginEl.style.display = 'none';
     chargerProfilMembre(user.id);
+    // Une fois la session Supabase établie (et pas avant : la fonction serveur s'en sert
+    // pour identifier l'appelant), on range le jeton de rafraîchissement Google côté
+    // serveur. Il ne reste ainsi ni dans localStorage ni au-delà de cette page.
+    if(providerToken) _osGoogleRangerJeton(providerToken, providerRefreshToken);
   })
   .catch(function(){ notif('Connexion Google échouée — erreur réseau','erreur'); });
   return true;
+}
+
+// Envoie le jeton de rafraîchissement à la fonction google-token, qui le garde hors de
+// portée du navigateur. Les permissions accordées sont relues au passage : Google
+// autorise à en décocher une tout en se connectant, il faut donc savoir ce qu'on a
+// vraiment obtenu plutôt que ce qu'on a demandé.
+function _osGoogleRangerJeton(providerToken, providerRefreshToken){
+  _osGoogleLireScopes(providerToken).then(function(scopes){
+    if(_googleAuth) _googleAuth.scopes = scopes;
+    console.log('[Google] permissions accordées :', scopes.join(', ')||'(aucune)',
+                '· jeton de rafraîchissement :', providerRefreshToken ? 'reçu' : 'ABSENT');
+    if(!providerRefreshToken) return;
+    fetch(SB_URL+'/functions/v1/google-token', {
+      method:'POST',
+      headers: _osHeadersFonction(),
+      body: JSON.stringify({ action:'store', refreshToken: providerRefreshToken, scopes: scopes.join(' ') })
+    }).then(function(r){
+      if(!r.ok) console.warn('[Google] jeton non enregistré côté serveur (HTTP '+r.status+')');
+    }).catch(function(e){ console.warn('[Google] jeton non enregistré :', e); });
+  });
+}
+
+// En-têtes pour les Edge Functions. Volontairement construits à la main : SB_HEADERS
+// porte 'Prefer: return=representation' (convention PostgREST), qui fait échouer le
+// contrôle CORS préalable des fonctions — leçon déjà payée sur envoyer-chat-dm.
+function _osHeadersFonction(){
+  return {
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer '+(_session&&_session.access_token||SB_KEY),
+    'Content-Type': 'application/json'
+  };
+}
+
+// Jeton d'accès Google frais pour la personne connectée, obtenu côté serveur à partir
+// du jeton de rafraîchissement rangé à la connexion. Mis en cache jusqu'à une minute
+// avant expiration, pour ne pas rappeler le serveur à chaque fichier envoyé.
+// Renvoie null si la personne doit se reconnecter — l'appelant doit gérer ce cas
+// plutôt que de supposer un jeton toujours disponible.
+function osGoogleAccessToken(){
+  if(_googleAuth && _googleAuth.access_token && _googleAuth.expires_at > Date.now() + 60000){
+    return Promise.resolve(_googleAuth.access_token);
+  }
+  return fetch(SB_URL+'/functions/v1/google-token', {
+    method:'POST',
+    headers: _osHeadersFonction(),
+    body: JSON.stringify({ action:'access' })
+  })
+  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+  .then(function(res){
+    if(!res.ok || !res.data.access_token){
+      if(res.data && res.data.reconnexionRequise) _googleAuth = null;
+      return null;
+    }
+    _googleAuth = {
+      access_token: res.data.access_token,
+      refresh_token: null, // jamais renvoyé au navigateur, il reste côté serveur
+      scopes: (res.data.scopes||'').split(' ').filter(Boolean),
+      expires_at: Date.now() + (res.data.expires_in||3600)*1000
+    };
+    return _googleAuth.access_token;
+  })
+  .catch(function(){ return null; });
 }
 
 function osSeDeconnecter(){
