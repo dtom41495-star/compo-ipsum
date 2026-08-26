@@ -17458,14 +17458,14 @@ function osAppComCharger(){
   if(_comOnglet==='encours') filtreCom = '&statut_com=eq.en_cours';
   if(_comOnglet==='fait')    filtreCom = '&statut_com=eq.fait';
 
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,statut_com,redaction_id';
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id';
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
     if(!arts||arts.code){
       // statut_com n'existe pas encore — afficher tous les validés/publiés
-      var url2 = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,redaction_id';
+      var url2 = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,redaction_id';
       return fetch(url2,{headers:authH}).then(function(r2){return r2.json();});
     }
     return arts;
@@ -17495,9 +17495,17 @@ function osAppComCharger(){
       h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
 
-      // Image si disponible
-      if(a.image){
-        h += '<img src="'+esc(_driveImgSrc(a.image))+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />';
+      // Image si disponible — couverture, ou à défaut la première image du corps
+      var imgArt = _osComImageArticle(a);
+      if(imgArt){
+        h += '<div style="position:relative;flex-shrink:0;">';
+        h += '<img src="'+esc(_driveImgSrc(imgArt.url))+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;display:block;" />';
+        // On signale d'où vient l'image : sans ça, impossible de distinguer une vraie
+        // image de couverture d'une illustration piochée dans le corps de l'article.
+        if(imgArt.source === 'corps'){
+          h += '<span title="Image trouvée dans le corps de l\'article, pas une image de couverture" style="position:absolute;bottom:-3px;right:-3px;background:white;border:1px solid var(--gris-bord);border-radius:5px;font-size:0.55rem;padding:0 3px;color:var(--gris);line-height:1.4;">corps</span>';
+        }
+        h += '</div>';
       }
 
       h += '<div style="flex:1;min-width:0;">';
@@ -17567,6 +17575,24 @@ function osAppComBrief(id, titre){
 // n'ouvrait le zip en entier, l'image restait invisible tant qu'on ne pensait pas à
 // aller la chercher dans le deuxième fichier. Suit le même modèle "fenêtre imprimable"
 // que les autres documents de Compo (voir _tresRapportPDF/osTresorerieBilan).
+// Image représentative d'un article, pour la com.
+//
+// Beaucoup d'articles n'ont pas d'image de couverture (`image`) mais en contiennent une
+// dans leur corps, insérée par l'éditeur au format markdown ![légende](url). On ne
+// regardait que la couverture : la vignette restait vide et le brief annonçait « pas
+// d'image » alors qu'il y en avait une, ce qui obligeait le ou la communicante à ouvrir
+// l'article pour aller la chercher à la main.
+//
+// Retourne {url, source:'couverture'|'corps', legende} ou null.
+function _osComImageArticle(article){
+  if(!article) return null;
+  if(article.image) return { url: article.image, source: 'couverture', legende: article.image_legende || '' };
+  var corps = article.corps || '';
+  var m = corps.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+  if(m && m[2]) return { url: m[2], source: 'corps', legende: m[1] || '' };
+  return null;
+}
+
 function _osComNomRedac(redactionId){
   if(!redactionId) return '';
   var r = (window._redactionsData||[]).find(function(x){ return x.id===redactionId; });
@@ -17577,7 +17603,8 @@ function _osComGenererBriefDoc(article, checklist){
   var win = window.open('','_blank','width=900,height=1000');
   if(!win){ notif('Autorise les popups pour générer le brief','erreur'); return; }
   var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-  var imgSrc = article.image ? _driveImgSrc(article.image) : null;
+  var imgArt = _osComImageArticle(article);
+  var imgSrc = imgArt ? _driveImgSrc(imgArt.url) : null;
   var extrait = '';
   if(article.corps){
     var lignes = article.corps.split('\n').filter(function(l){ return l.trim(); });
@@ -17594,7 +17621,8 @@ function _osComGenererBriefDoc(article, checklist){
     +'.tag{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#7D3C98;background:#F3E8FA;border-radius:10px;padding:2px 9px;font-weight:700;}'
     +'.img-wrap{padding:20px 36px 0;}'
     +'.img-wrap img{width:100%;max-height:380px;object-fit:cover;border-radius:8px;display:block;}'
-    +'.img-wrap .dl{display:block;text-align:center;margin-top:8px;font-size:.68rem;color:#7D3C98;text-decoration:none;font-weight:600;}'
+    +'.img-wrap .origine, .img-origine{text-align:center;margin-top:6px;font-size:.66rem;color:#6B7280;font-style:italic;}'
+    +'.img-wrap .dl{display:block;text-align:center;margin-top:6px;font-size:.68rem;color:#7D3C98;text-decoration:none;font-weight:600;}'
     +'.img-empty{margin:20px 36px 0;padding:24px;border:1.5px dashed #E5E7EB;border-radius:8px;text-align:center;font-size:.78rem;color:#9CA3AF;}'
     +'.body{padding:20px 36px 8px;}'
     +'.chapeau{font-size:.92rem;line-height:1.6;color:#1F2937;font-style:italic;margin-bottom:14px;}'
@@ -17618,7 +17646,11 @@ function _osComGenererBriefDoc(article, checklist){
     +'<span>Brief généré le '+today+'</span>'
     +'</div>'
     +(imgSrc
-      ? '<div class="img-wrap"><img src="'+esc(imgSrc)+'" alt="Image de l\'article"><a class="dl" href="'+esc(imgSrc)+'" download target="_blank" rel="noopener">⬇ Télécharger l\'image en taille réelle</a></div>'
+      ? '<div class="img-wrap"><img src="'+esc(imgSrc)+'" alt="Image de l\'article">'
+        +'<div class="img-origine">'+(imgArt.source === 'corps'
+            ? 'Image tirée du corps de l\'article'+(imgArt.legende ? ' — « '+esc(imgArt.legende)+' »' : '')+'. Ce n\'est pas une image de couverture.'
+            : 'Image de couverture de l\'article.')+'</div>'
+        +'<a class="dl" href="'+esc(imgSrc)+'" download target="_blank" rel="noopener">⬇ Télécharger l\'image en taille réelle</a></div>'
       : '<div class="img-empty">Cet article n\'a pas d\'image associée — à trouver ou demander à la rédaction avant de créer les visuels.</div>')
     +'<div class="body">'
     +(article.chapeau?'<div class="chapeau">'+esc(article.chapeau)+'</div>':'')
@@ -17640,68 +17672,85 @@ function osAppComNouveauVisuel(){
   window.open(COM_CANVA_MODELE_URL, '_blank');
 }
 
-// ===== VISUELS RÉSEAUX — remise au rédac chef via Drive =====
-// Réutilise le moteur d'envoi de l'appli Fichiers (osUploadTrouverOuCreerDossier /
-// osUploadEnvoyerFichier), avec sa propre arborescence : [Rédaction] › Visuels
-// réseaux › [titre de l'article]. Les envois atterrissent sur le Drive personnel de
-// la personne qui envoie (comme partout ailleurs dans Compo) — on partage donc le
-// dossier avec le ou les rédac chef(s) de la rédaction dès l'envoi, pour que la
-// remise soit automatique et pas une étape manuelle en plus pour le communicant.
-function _osComNomDossierArticle(titre){
-  return (titre||'Sans titre').replace(/[\/\\:*?"<>|]/g,'-').trim().substring(0,80) || 'Sans titre';
+// ===== VISUELS RÉSEAUX — dossier partagé de l'association =====
+// Arborescence : Visuels-reseaux › [Rédaction] › [titre de l'article], sur le Drive du
+// compte de service, partagée en lecture avec le domaine — exactement le même schéma
+// que les images d'articles et les communiqués.
+// Les visuels passent par le compte de service (fonction com-visuel-vers-drive), plus
+// par le Drive personnel de qui les envoie. Avant, chaque communicant créait sa propre
+// arborescence chez lui : les visuels d'un même article se retrouvaient éparpillés dans
+// plusieurs Drive, « Voir les visuels » fabriquait un dossier vide chez qui n'avait rien
+// envoyé, et tout disparaissait avec la personne le jour de son départ.
+// Effet de bord appréciable : plus aucune connexion Google demandée pour l'appli Com.
+function _osComAppelerFonctionVisuel(charge){
+  return fetch(SB_URL+'/functions/v1/com-visuel-vers-drive', {
+    method:'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+    body: JSON.stringify(charge)
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); });
 }
-function _osComResoudreDossierVisuel(redacId, titreArticle){
+
+function osAppComEnvoyerVisuel(titreArticle, redacId){
+  if(!redacId){ notif('Rédaction inconnue pour cet article','erreur'); return; }
   var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
   var redacNom = redac ? redac.nom : 'Sans rédaction';
-  var nomDossierArticle = _osComNomDossierArticle(titreArticle);
-  return osUploadTrouverOuCreerDossier(redacNom, null).then(function(redacFolderId){
-    return osUploadTrouverOuCreerDossier('Visuels réseaux', redacFolderId);
-  }).then(function(visuelsFolderId){
-    return osUploadTrouverOuCreerDossier(nomDossierArticle, visuelsFolderId);
-  });
-}
-// Emails des rédac chef(s) de la rédaction — pour le partage automatique du dossier.
-function _osComEmailsChefs(redacId){
-  var chefIds = (window._membresRedactionsData||[]).filter(function(l){
-    return l.redaction_id===redacId && l.role_redac==='redac_chef';
-  }).map(function(l){ return l.membre_id; });
-  return chefIds.map(function(id){
-    var m = (window._membresData||[]).find(function(mb){ return mb.id===id; });
-    return m ? m.email : null;
-  }).filter(Boolean);
-}
-function osAppComEnvoyerVisuel(titreArticle, redacId){
-  if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
-  if(!redacId){ notif('Rédaction inconnue pour cet article','erreur'); return; }
   var input = document.createElement('input');
-  input.type = 'file'; input.multiple = true; input.accept = 'image/*,video/*';
+  // Images uniquement : le fichier transite par la fonction serveur, une vidéo
+  // dépasserait la taille maximale d'une requête. Mieux vaut l'empêcher au choix du
+  // fichier que d'échouer après l'envoi sans explication.
+  input.type = 'file'; input.multiple = true; input.accept = 'image/*';
   input.onchange = function(){
     var fichiers = Array.prototype.slice.call(input.files||[]);
     if(!fichiers.length) return;
-    notif('Préparation du dossier…');
-    _osComResoudreDossierVisuel(redacId, titreArticle).then(function(folderId){
-      _osComEmailsChefs(redacId).forEach(function(email){
-        osUploadPartagerAvecPersonne(folderId, email, 'reader').catch(function(){});
+    var tropGros = fichiers.filter(function(f){ return f.size > 8*1024*1024; });
+    if(tropGros.length){
+      notif('Trop volumineux (max 8 Mo) : '+tropGros.map(function(f){return f.name;}).join(', '),'erreur');
+      return;
+    }
+    notif('Envoi de '+fichiers.length+' visuel(s)…');
+    var envois = fichiers.map(function(fichier){
+      return new Promise(function(resolve){
+        var reader = new FileReader();
+        reader.onload = function(e){
+          _osComAppelerFonctionVisuel({
+            action:'envoyer',
+            redactionNom: redacNom,
+            titreArticle: titreArticle,
+            nomFichier: fichier.name,
+            mimeType: fichier.type || 'image/jpeg',
+            contenuBase64: e.target.result.split(',')[1]
+          }).then(function(res){ resolve(res.ok && res.data && res.data.ok); })
+            .catch(function(){ resolve(false); });
+        };
+        reader.onerror = function(){ resolve(false); };
+        reader.readAsDataURL(fichier);
       });
-      fichiers.forEach(function(fichier){
-        osUploadEnvoyerFichier({
-          id: 'com-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
-          file: fichier, folderId: folderId, statut:'attente', progress:0,
-          onMaj: function(){}
-        });
-      });
-      notif(fichiers.length+' visuel(s) envoyé(s), partagé avec le/la rédac chef ✓','succes');
-    }).catch(function(){ notif('Erreur : impossible de préparer le dossier Drive','erreur'); });
+    });
+    Promise.all(envois).then(function(resultats){
+      var reussis = resultats.filter(Boolean).length;
+      var echecs = resultats.length - reussis;
+      if(reussis) notif(reussis+' visuel(s) envoyé(s) ✓'+(echecs?' — '+echecs+' échec(s)':''), echecs?'alerte':'succes');
+      else notif('Aucun visuel envoyé — erreur Drive','erreur');
+    });
   };
   input.click();
 }
+
 function osAppComVoirVisuels(titreArticle, redacId){
-  if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
   if(!redacId){ notif('Rédaction inconnue pour cet article','erreur'); return; }
-  notif('Ouverture du dossier…');
-  _osComResoudreDossierVisuel(redacId, titreArticle).then(function(folderId){
-    window.open('https://drive.google.com/drive/folders/'+folderId, '_blank');
-  }).catch(function(){ notif('Erreur : dossier introuvable','erreur'); });
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  notif('Recherche du dossier…');
+  _osComAppelerFonctionVisuel({
+    action:'dossier',
+    redactionNom: redac ? redac.nom : 'Sans rédaction',
+    titreArticle: titreArticle
+  }).then(function(res){
+    if(!res.ok || !res.data || !res.data.ok){ notif('Erreur : dossier introuvable','erreur'); return; }
+    // Le dossier n'est plus créé à la simple consultation : s'il n'existe pas, c'est
+    // qu'aucun visuel n'a encore été envoyé, et on le dit franchement.
+    if(!res.data.existe){ notif('Aucun visuel envoyé pour cet article pour l\'instant','alerte'); return; }
+    window.open(res.data.lien, '_blank');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 
@@ -23289,7 +23338,11 @@ function osCpFenetreRender(winId){
       var btnZone = document.createElement('div');
       btnZone.style.cssText = 'margin-top:0.6rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
 
-      if(!isAdmin){
+      // Se déclarer disponible est ouvert à tout le monde, admin compris : un·e admin
+      // est aussi rédac chef et peut vouloir couvrir l'événement. C'était auparavant
+      // réservé aux non-admins, ce qui rendait l'inscription impossible depuis la fiche
+      // pour eux — alors que la vue cartes, elle, leur proposait déjà le bouton.
+      {
         var btnDisp = document.createElement('button');
         if(maDisp && maDisp.statut !== 'refuse'){
           btnDisp.style.cssText = 'font-family:Space Mono,monospace;font-size:0.7rem;padding:5px 12px;background:white;color:#A32D2D;border:0.5px solid #A32D2D;border-radius:6px;cursor:pointer;';
