@@ -28499,6 +28499,12 @@ function osRedactionCreerModal(){
 }
 
 function osRedactionEditerModal(redacId){
+  // Le bouton qui ouvre cette modale n'existe déjà que dans la vue admin
+  // (osRedactionsRenderAdmin), mais ce garde-ci ne dépend pas de ça : sans lui, seule
+  // l'absence du bouton empêchait un autre rôle de changer la rédaction centrale — un
+  // appel direct à la fonction serait passé sans encombre, comme on l'a vu avec
+  // chargerDansRedaction avant correction.
+  if(getUserRole() !== 'admin'){ notif('Réservé aux admins', 'erreur'); return; }
   var redac = _redactionsData.find(function(r){ return r.id===redacId; });
   if(!redac) return;
   var overlay = document.createElement('div');
@@ -28515,6 +28521,10 @@ function osRedactionEditerModal(redacId){
     +'<span><div style="font-family:Space Mono,monospace;font-size:0.68rem;font-weight:700;color:var(--encre);">Rédaction centrale</div>'
     +'<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Son rédac chef (+ les admins) valide les articles des autres rédactions avant publication. Une seule rédaction centrale à la fois — en cocher une autre décoche celle-ci.</div></span>'
     +'</label>'
+    // Même badge que celui vu par le rédac chef dans ses réglages quand sa rédaction est
+    // centrale (osRedacChefEnregistrerReglages, "seul un admin peut changer ce statut") —
+    // pour que le rappel soit visible des deux côtés du même réglage.
+    +'<div style="font-size:0.7rem;color:#0B3D91;background:#E6F1FB;padding:8px 10px;border-radius:6px;"><i class="ti ti-shield-check"></i> Réservé aux admins — les rédac chefs ne peuvent pas changer ce statut, même pour leur propre rédaction.</div>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-edit-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Enregistrer</button>'
