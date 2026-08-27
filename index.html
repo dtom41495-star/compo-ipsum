@@ -4164,7 +4164,7 @@ input:focus,select:focus,textarea:focus{
           <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer au rédacteur</button>
         </div>
         <div id="r-actions-chef" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button id="r-btn-valider" onclick="rWorkflowAvancer('valide')" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
+          <button id="r-btn-valider" onclick="osDemanderBesoinVisuel()" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
           <button id="r-btn-valider-central" onclick="rWorkflowAvancer('valide_central')" style="background:#0B3D91;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-shield-check"></i> Valider (rédaction centrale)</button>
           <button id="r-btn-publier" onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
           <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>
@@ -7706,9 +7706,15 @@ var db = {
       note_interne: doc.note_interne || '',
       cp_id: doc.cp_id || null,
       sujet_id: doc.sujet_id || doc._sujet_id || null,
+      besoin_visuel: doc.besoin_visuel,
       updated_at: new Date().toISOString()
     };
 
+    // besoin_visuel n'est posé qu'au moment de « Valider » (voir rWorkflowAvancer) — tout
+    // le reste du temps (autosave, autres transitions de statut) doc.besoin_visuel est
+    // undefined. Sans ce garde, chacun de ces enregistrements écraserait silencieusement
+    // le choix déjà fait par le rédac chef.
+    if(payload.besoin_visuel === undefined) delete payload.besoin_visuel;
     // Ne pas écraser l'image avec null si on ne change pas l'image
     if(payload.image === null) delete payload.image;
     // Ne pas écraser sujet_id avec null : la création automatique du sujet (plus bas,
@@ -9625,17 +9631,55 @@ function osAppDubRaccourcir(){
   });
 }
 
-function rWorkflowAvancer(nouveauStatut){
+// Demandé avant de valider un article ou une brève : avant, la com était prévenue
+// automatiquement pour tout ce qui n'était pas une brève — une règle qui ratait aussi
+// bien des brèves à illustrer que des articles qui n'en avaient pas besoin. C'est
+// maintenant le rédac chef ou l'admin qui tranche au cas par cas, au moment même où
+// il valide — pas une case à cocher séparée qu'on oublierait de remplir.
+function osDemanderBesoinVisuel(){
+  if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
+  var titre = (document.getElementById('r-titre')&&document.getElementById('r-titre').value)||currentDoc.titre||'Sans titre';
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;">'
+    +'<div style="display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.5rem;border-left:4px solid #E8461E;">'
+    +'<div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.15rem;background:#FDECE7;color:#E8461E;"><i class="ti ti-photo"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.92rem;color:#1A1A2E;">Besoin d\'un visuel ?</div>'
+    +'</div>'
+    +'<div style="padding:1.1rem 1.5rem 1.3rem;">'
+    +'<div style="font-size:.86rem;font-weight:700;color:#1A1A2E;margin-bottom:.5rem;">«&nbsp;'+esc(titre)+'&nbsp;»</div>'
+    +'<div style="font-family:Figtree,sans-serif;font-size:.85rem;font-weight:500;color:#40404A;line-height:1.6;">Si oui, la com sera prévenue par email et l\'article apparaîtra dans l\'appli Com.</div>'
+    +'</div>'
+    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;gap:.5rem;">'
+    +'<button id="besoin-visuel-non" style="padding:.5rem 1.1rem;background:white;color:#40404A;border:1px solid #D1D5DB;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">Non, pas besoin</button>'
+    +'<button id="besoin-visuel-oui" style="padding:.5rem 1.1rem;background:#E8461E;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;"><i class="ti ti-photo"></i> Oui, prévenir la com</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+  var fermer = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+  document.getElementById('besoin-visuel-oui').onclick = function(){ fermer(); rWorkflowAvancer('valide', true); };
+  document.getElementById('besoin-visuel-non').onclick = function(){ fermer(); rWorkflowAvancer('valide', false); };
+  // Cliquer à côté de la modale annule la validation plutôt que de la forcer sans choix —
+  // « Valider » reste une action volontaire, pas quelque chose qu'on déclenche par erreur.
+  overlay.onclick = function(e){ if(e.target===overlay) fermer(); };
+}
+
+function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var doc = buildDoc();
   doc.statut = nouveauStatut;
+  // besoinVisuel n'arrive que depuis osDemanderBesoinVisuel(), au moment de « Valider ».
+  // C'est ce champ, pas le type article/brève, qui décide si la com est prévenue —
+  // c'est le rédac chef ou l'admin qui tranche au cas par cas, plus une règle automatique
+  // qui ratait aussi bien des brèves à illustrer que des articles qui n'en avaient pas besoin.
+  if(nouveauStatut==='valide' && typeof besoinVisuel === 'boolean') doc.besoin_visuel = besoinVisuel;
   if(currentDoc.auteur_id){ doc.auteur=currentDoc.auteur; doc.auteur_id=currentDoc.auteur_id; }
   db.sauvegarderArticle(doc).then(function(){
     currentDoc = doc;
     rWorkflowMajInterface(currentDoc);
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
-    if(nouveauStatut==='valide' && currentDoc.type !== 'breve') osNotifierComArticleValide(currentDoc);
+    if(nouveauStatut==='valide' && doc.besoin_visuel) osNotifierComArticleValide(currentDoc);
     if(nouveauStatut==='valide') osNotifierValidateursCentraux(currentDoc);
     if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
@@ -17458,13 +17502,19 @@ function osAppComCharger(){
   if(_comOnglet==='encours') filtreCom = '&statut_com=eq.en_cours';
   if(_comOnglet==='fait')    filtreCom = '&statut_com=eq.fait';
 
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id';
+  // besoin_visuel=eq.true : seuls les articles/brèves que le rédac chef ou l'admin a
+  // explicitement marqués comme ayant besoin d'un visuel, au moment de « Valider »
+  // (osDemanderBesoinVisuel). Avant, TOUT article validé ou publié atterrissait ici,
+  // qu'il ait besoin d'un visuel ou non — la com devait trier elle-même.
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&besoin_visuel=eq.true'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id';
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
     if(!arts||arts.code){
-      // statut_com n'existe pas encore — afficher tous les validés/publiés
+      // besoin_visuel ou statut_com n'existe pas encore côté base (migration pas encore
+      // jouée) — on retombe sur l'ancien comportement (tout ce qui est validé/publié)
+      // plutôt que d'afficher une liste vide sans explication.
       var url2 = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,redaction_id';
       return fetch(url2,{headers:authH}).then(function(r2){return r2.json();});
     }
