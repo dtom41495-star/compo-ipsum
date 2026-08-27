@@ -4257,7 +4257,7 @@ input:focus,select:focus,textarea:focus{
       <button class="btn" onclick="genMd('lect')">Copier le texte</button>
       <button class="btn sec" onclick="genererVisuelsDepuisLecture()">🎨 Générer les visuels</button>
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
-      <button class="btn sec" onclick="if(currentDoc && currentDoc.statut==='publie' && getUserRole()!=='admin'){ notif('Article publie - contacte un admin pour le modifier'); } else { chargerDansRedaction(currentDoc); }">Modifier</button>
+      <button id="lect-btn-modifier" class="btn sec" style="display:none" onclick="chargerDansRedaction(currentDoc)">Modifier</button>
     </div>
     <!-- Sur sa propre ligne, sous la rangée principale — jamais collé aux autres
          boutons, pour éviter un clic malheureux. Rempli par renderLecture, visible
@@ -5948,6 +5948,13 @@ function renderLecture(){
   // validé (brouillon, en-relecture, corrigé) — même règle que partout ailleurs dans
   // Compo pour cette action. Visible seulement une fois l'article ouvert en lecture.
   var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
+  // Le clic est de toute façon revérifié dans chargerDansRedaction — ce garde-ci n'est
+  // qu'un confort d'affichage, pas la barrière de sécurité elle-même.
+  var btnModifier = document.getElementById('lect-btn-modifier');
+  if(btnModifier){
+    var permLect = _osPermissionsModalAction(doc);
+    btnModifier.style.display = (permLect.peutModifier || permLect.peutCorriger) ? '' : 'none';
+  }
   var zoneSuppr = document.getElementById('lect-suppr-zone');
   if(zoneSuppr){
     var statutsSupprimablesAuteur = ['brouillon','en-relecture','corrige'];
@@ -9201,17 +9208,23 @@ function osClearAutosave(){
 }
 
 function chargerDansRedaction(doc){
-  if(doc && getUserRole() === 'redacteur'){
-    if(doc.statut === 'publie'){
-      notif('Cet article est publie. Contacte un admin pour le modifier.');
-      return;
-    }
-    if(doc.statut === 'en-relecture' || doc.statut === 'corrige' || doc.statut === 'valide'){
-      notif('Article en cours de correction - modification impossible.');
-      return;
-    }
-  } else if(doc && doc.statut === 'publie' && getUserRole() !== 'admin'){
+  if(!doc) return;
+  // Porte d'entrée de l'éditeur complet, quel que soit le chemin qui y mène (bouton
+  // Modifier de la fiche membre, "Mes articles", lien partagé…) : sans ce garde ici,
+  // chaque appelant devait revérifier lui-même qui a le droit d'éditer, et l'un d'eux
+  // (le bouton Modifier de la page de lecture) ne le faisait pas — n'importe quel membre
+  // pouvait ouvrir et modifier le brouillon de n'importe qui d'autre.
+  var perm = _osPermissionsModalAction(doc);
+  if(!perm.peutModifier && !perm.peutCorriger){
+    notif('Tu n\'es pas autorisé·e à modifier cet article — réservé à l\'auteur·rice, au correcteur·rice, au rédac chef ou à un·e admin.', 'erreur');
+    return;
+  }
+  if(doc.statut === 'publie' && getUserRole() !== 'admin'){
     notif('Cet article est publie. Contacte un admin pour le modifier.');
+    return;
+  }
+  if(getUserRole() === 'redacteur' && (doc.statut === 'en-relecture' || doc.statut === 'corrige' || doc.statut === 'valide')){
+    notif('Article en cours de correction - modification impossible.');
     return;
   }
   go('redaction');
@@ -26948,9 +26961,18 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
 
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
 
+  // Un brouillon est un travail pas encore soumis — il n'a pas à être visible par
+  // n'importe quel collègue de la rédaction qui clique sur ce profil. Seuls l'auteur·rice,
+  // le rédac chef de CETTE rédaction et un·e admin le voient dans cette fiche.
+  var estChefDeCetteRedac = redacId && (window._membresRedactionsData||[]).some(function(l){
+    return l.membre_id===getUserId() && l.redaction_id===redacId && l.role_redac==='redac_chef';
+  });
+  var voirBrouillons = getUserRole()==='admin' || membreId===getUserId() || estChefDeCetteRedac;
+  var filtreStatutArts = voirBrouillons ? '' : '&statut=neq.brouillon';
+
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId+'&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+membreId+(redacId?'&redaction_id=eq.'+redacId:'')+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+membreId+(redacId?'&redaction_id=eq.'+redacId:'')+filtreStatutArts+'&select=id,titre,statut,updated_at&order=updated_at.desc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+membreId+'&select=id,evenement_id,statut,statut_presence,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+membreId+'&select=duree_minutes,type,description,created_at&order=created_at.desc',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(results){
