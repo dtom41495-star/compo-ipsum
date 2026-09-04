@@ -25717,7 +25717,7 @@ function osRedacChargerRecrutement(zone, uid){
     var recNonVues = ouvertes.filter(function(a){ return seenRec.indexOf(a.id)===-1; });
     var h = '';
     if(recNonVues.length){
-      h += '<button onclick="_osRedacMarquerRecrutementLu();this.style.display=\'none\';" style="font-family:Space Mono,monospace;font-size:0.66rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
+      h += '<button onclick="_osRedacMarquerRecrutementLu();this.style.display=\'none\';" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
     }
     if(!annonces.length){
       h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Aucune annonce de recrutement pour le moment.</div>';
@@ -25879,64 +25879,87 @@ function osRedactionsChangerOnglet(onglet){
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
   var h = '';
 
-  // Header profil — teinté à la couleur de la rédaction active
+  // Carte profil unique : le bandeau coloré et la zone "Actions rapides" partagent
+  // désormais un seul cadre (border+radius sur l'enveloppe, overflow:hidden), au lieu
+  // de deux boîtes séparées par un espace — le bandeau se prolonge dans le blanc plutôt
+  // que de s'arrêter net. Le dégradé, lui, va jusqu'au blanc en fin de bandeau pour que
+  // la transition soit continue et pas juste une couleur coupée à la règle.
   var fondHeader = redac && couleurRedac
-    ? 'linear-gradient(135deg,'+couleurRedac+' 0%,var(--encre-fixe) 130%)'
-    : 'var(--encre-fixe)';
-  h += '<div style="background:'+fondHeader+';border-radius:14px;padding:1rem 1.2rem;">';
-  h += '<div style="display:flex;align-items:center;gap:0.9rem;">';
+    ? 'linear-gradient(150deg,'+couleurRedac+' 0%,var(--encre-fixe) 62%,var(--encre-fixe) 82%,white 100%)'
+    : 'linear-gradient(180deg,var(--encre-fixe) 0%,var(--encre-fixe) 82%,white 100%)';
+  h += '<div style="border:1px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
+  h += '<div style="background:'+fondHeader+';padding:1.1rem 1.2rem 1.5rem;">';
+  h += '<div style="display:flex;align-items:flex-start;gap:0.9rem;">';
   h += '<div style="position:relative;flex-shrink:0;cursor:pointer;" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
   h += renderAvatarHTML(membre, 46, {rc:['rgba(255,255,255,0.16)','white'], bord:'border:1.5px solid rgba(255,255,255,0.3);'});
   h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span>';
   h += '</div>';
+  // Colonne identité : nom → fonction → statuts, dans cet ordre de priorité — les
+  // badges de rôle vivaient avant tout en bas du bandeau, séparés du nom par les
+  // boutons et le chiffre de bénévolat ; ils rejoignent maintenant directement le nom,
+  // puisque "qui je suis" prime sur les actions et les stats.
   h += '<div style="flex:1;min-width:0;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
-  if(fonctionShort(membre.fonction)) h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.62);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
-  h += '</div>';
-  h += '<div style="display:flex;gap:0.4rem;flex-shrink:0;">';
-  h += '<button id="redac-carte-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-credit-card" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
-  h += '<button id="redac-bilan-btn" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
-  h += '</div>';
-  h += '<div style="text-align:center;flex-shrink:0;">';
-  h += '<div id="membre-heures-banner" style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">—</div>';
-  h += '<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.6);white-space:nowrap;">Bénévolat</div>';
-  h += '</div>';
-  h += '</div>';
-  h += '<div style="display:flex;gap:0.4rem;margin-top:10px;flex-wrap:wrap;align-items:center;">';
-  h += '<span title="Rôle global sur Compo" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.14);color:white;">'+(membre.role||'')+'</span>';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.15rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
+  if(fonctionShort(membre.fonction)) h += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.78rem;color:rgba(255,255,255,0.78);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
+  h += '<div style="display:flex;gap:0.4rem;margin-top:6px;flex-wrap:wrap;align-items:center;">';
+  h += '<span title="Rôle global sur Compo" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.66rem;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.14);color:white;">'+(membre.role||'')+'</span>';
   if(redac){
     var estChefDeCetteRedac = roleRedac === 'redac_chef';
-    h += '<span title="Statut sur cette rédaction" style="font-family:Space Mono,monospace;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:10px;background:white;color:'+couleurRedac+';display:inline-flex;align-items:center;gap:4px;">'
+    h += '<span title="Statut sur cette rédaction" style="font-family:\'DM Sans\',sans-serif;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;background:white;color:'+couleurRedac+';display:inline-flex;align-items:center;gap:4px;">'
       +(estChefDeCetteRedac?'<i class="ti ti-crown" style="font-size:0.62rem;"></i>':'')
       +esc(redac.nom)+(estChefDeCetteRedac?' · Chef':'')
       +'</span>';
   }
   h += '</div>';
   h += '</div>';
+  // Cluster secondaire (utilitaires) : boutons puis stat de bénévolat, nettement plus
+  // discrets que le nom — avant, le chiffre d'heures rivalisait presque avec lui en
+  // taille alors que ce n'est qu'une statistique, pas l'identité de la personne.
+  h += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">';
+  h += '<div style="display:flex;gap:0.4rem;">';
+  h += '<button id="redac-carte-btn" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-credit-card" style="vertical-align:-2px;margin-right:3px;"></i>Carte</button>';
+  h += '<button id="redac-bilan-btn" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:5px 9px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;"><i class="ti ti-clipboard-list" style="vertical-align:-2px;margin-right:3px;"></i>Bilan</button>';
+  h += '</div>';
+  h += '<div style="text-align:right;">';
+  h += '<span id="membre-heures-banner" style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:rgba(255,255,255,0.92);">—</span>';
+  h += ' <span style="font-family:\'DM Sans\',sans-serif;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.55);white-space:nowrap;">bénévolat</span>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
 
   // Actions rapides — remontées au-dessus des sujets à rédiger : ce sont les portes
-  // d'entrée vers le reste de l'app, avant même l'actionnable du dessous.
+  // d'entrée vers le reste de l'app, avant même l'actionnable du dessous. Plus de
+  // bordure/radius propres : la carte englobante (ouverte plus haut) fournit déjà le
+  // cadre, cette zone n'est jamais que le prolongement blanc du bandeau.
   var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
   if(actionsRedac.length){
-    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="background:white;padding:0.9rem 1rem;">';
     h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.5rem;"><i class="ti ti-bolt" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Actions rapides</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.5rem;">';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.55rem;">';
     actionsRedac.forEach(function(a){
       var onclickAttr = a.action || ("osOpenWindow('"+a.page+"')");
-      h += '<button onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:white;border:0.5px solid var(--gris-bord);border-radius:8px;cursor:pointer;text-align:left;transition:border-color 0.1s,background 0.1s;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'white\'">';
-      h += '<span style="font-size:1.1rem;">'+a.icon+'</span>';
-      h += '<div><div style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+a.titre+'</div><div style="font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);">'+a.desc+'</div></div>';
+      // Icône dans un badge coloré (plutôt qu'un glyphe nu) : chaque action a sa propre
+      // couleur, reprise d'ailleurs dans l'app, pour qu'on les distingue au premier
+      // coup d'œil plutôt que six cartes strictement identiques.
+      h += '<button onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.8rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;cursor:pointer;text-align:left;transition:border-color 0.15s,box-shadow 0.15s,transform 0.15s;" '
+        +'onmouseover="this.style.borderColor=\''+a.c+'\';this.style.boxShadow=\'0 3px 10px rgba(0,0,0,0.08)\';this.style.transform=\'translateY(-1px)\';" '
+        +'onmouseout="this.style.borderColor=\'var(--gris-bord)\';this.style.boxShadow=\'none\';this.style.transform=\'none\';">';
+      h += '<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:'+a.bg+';color:'+a.c+';">'+a.icon+'</div>';
+      h += '<div style="min-width:0;"><div style="font-family:Poppins,sans-serif;font-size:0.8rem;font-weight:700;color:var(--encre);">'+a.titre+'</div><div style="font-family:\'DM Sans\',sans-serif;font-size:0.7rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.desc+'</div></div>';
       h += '</button>';
     });
-    // Bouton annonce pour admin et rédac chef
+    // Bouton annonce pour admin et rédac chef — reste la seule carte pleine couleur
+    // du lot : c'est un appel à l'action (écrire un message), pas juste un raccourci.
     var peutAnnoncer = getUserRole() === 'admin' || roleRedac === 'redac_chef';
     if(peutAnnoncer){
-      h += '<button onclick="osRedacToggleAnnonceForm()" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:var(--encre-fixe);border:none;border-radius:8px;cursor:pointer;text-align:left;">';
-      h += '<span style="font-size:1.1rem;"><i class="ti ti-speakerphone"></i></span>';
-      h += '<div><div style="font-size:0.78rem;font-weight:600;color:white;">Annonce</div><div style="font-family:Space Mono,monospace;font-size:0.55rem;color:rgba(255,255,255,0.5);">Message équipe</div></div>';
+      h += '<button onclick="osRedacToggleAnnonceForm()" style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.8rem;background:var(--encre-fixe);border:none;border-radius:10px;cursor:pointer;text-align:left;transition:transform 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'">';
+      h += '<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:rgba(255,255,255,0.14);color:white;"><i class="ti ti-speakerphone"></i></div>';
+      h += '<div style="min-width:0;"><div style="font-family:Poppins,sans-serif;font-size:0.8rem;font-weight:700;color:white;">Annonce</div><div style="font-family:\'DM Sans\',sans-serif;font-size:0.7rem;color:rgba(255,255,255,0.55);">Message équipe</div></div>';
       h += '</button>';
     }
     h += '</div></div>';
+    h += '</div>'; // ferme la carte englobante bandeau + actions rapides
     // Formulaire annonce (admin et rédac chef) caché
     if(peutAnnoncer){
       h += '<div id="redac-annonce-form" style="display:none;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1rem;">';
@@ -25949,31 +25972,24 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
       h += '<button onclick="document.getElementById(\'redac-annonce-form\').style.display=\'none\'" class="btn sec" style="font-size:0.72rem;padding:0.4rem 0.9rem;">Annuler</button>';
       h += '</div></div>';
     }
+  } else {
+    h += '</div>'; // filet de sécurité : ferme quand même la carte si jamais aucune action rapide
   }
 
   // Sujets à rédiger
   h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
   h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
-  h += '<button onclick="osOuvrirSujets()" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
+  h += '<button onclick="osOuvrirSujets()" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
   h += '</div>';
   h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '</div>';
-
-  // Stats — condensées en une bande fine, secondaires par rapport à l'actionnable au-dessus
-  h += '<div style="display:flex;align-items:stretch;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
-  function statBrin(id, l, c){ return '<div style="flex:1;padding:0.55rem 0.4rem;text-align:center;border-right:0.5px solid var(--gris-bord);"><div id="'+id+'" style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:'+(c||'var(--encre)')+'">—</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
-  h += statBrin('stat-arts','Articles');
-  h += statBrin('stat-pub','Publiés','#27AE60');
-  h += statBrin('stat-mois','Ce mois','#EA5B1C');
-  h += '<div style="flex:1;padding:0.55rem 0.4rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.05rem;font-weight:800;color:#1A5276;">'+mesParticipations.length+'</div><div style="font-family:Space Mono,monospace;font-size:0.48rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--gris);margin-top:2px;">Activités</div></div>';
   h += '</div>';
 
   // Mes derniers articles
   h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
   h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-notes" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes derniers articles</span>';
-  h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
+  h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
   h += '</div>';
   h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   h += '</div>';
@@ -25982,7 +25998,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
   h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes activités</span>';
-  h += '<button onclick="osOpenWindow(\'agenda\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir l\'agenda →</button>';
+  h += '<button onclick="osOpenWindow(\'agenda\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir l\'agenda →</button>';
   h += '</div>';
   h += '<div id="redac-mes-activites"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   h += '</div>';
@@ -26131,7 +26147,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
     h += '</div>';
   }
   h += '</div>';
-  h += '<button id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';" style="display:none;font-family:Space Mono,monospace;font-size:0.66rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
+  h += '<button id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';" style="display:none;font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
@@ -26674,27 +26690,30 @@ function osEnregistrerPostReseau(){
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
+// Couleurs reprises telles quelles d'ailleurs dans l'app (badge "en-relecture", teinte
+// "communicant", bleu "rédaction centrale"...) plutôt qu'inventées pour l'occasion —
+// chaque action rapide garde le langage visuel de l'app qu'elle ouvre.
 function _osRedacActionsRapides(role, roleRedac){
   var actions = {
     redacteur: [
-      {icon:'<i class="ti ti-pencil"></i>', titre:'Rédiger', desc:'Nouvel article', page:'redaction'},
+      {icon:'<i class="ti ti-pencil"></i>', titre:'Rédiger', desc:'Nouvel article', page:'redaction', c:'var(--rouge)', bg:'#FCEBEB'},
     ],
     correcteur: [
-      {icon:'<i class="ti ti-search"></i>', titre:'Correction', desc:'Articles en attente', page:'app-correction'},
-      {icon:'<i class="ti ti-mail"></i>', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter'},
+      {icon:'<i class="ti ti-search"></i>', titre:'Correction', desc:'Articles en attente', page:'app-correction', c:'#1A5276', bg:'#D6EAF8'},
+      {icon:'<i class="ti ti-mail"></i>', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter', c:'#784212', bg:'#FDEBD0'},
     ],
     admin: [
-      {icon:'<i class="ti ti-pencil"></i>', titre:'Rédiger', desc:'Nouvel article', page:'redaction'},
-      {icon:'<i class="ti ti-search"></i>', titre:'Corrections', desc:'En attente', page:'app-correction'},
-      {icon:'<i class="ti ti-mail"></i>', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter'},
-      {icon:'<i class="ti ti-users"></i>', titre:'Bénévoles', desc:'Gérer l\'équipe', page:'benevoles'},
+      {icon:'<i class="ti ti-pencil"></i>', titre:'Rédiger', desc:'Nouvel article', page:'redaction', c:'var(--rouge)', bg:'#FCEBEB'},
+      {icon:'<i class="ti ti-search"></i>', titre:'Corrections', desc:'En attente', page:'app-correction', c:'#1A5276', bg:'#D6EAF8'},
+      {icon:'<i class="ti ti-mail"></i>', titre:'Newsletter', desc:'Assembler l\'édition', page:'newsletter', c:'#784212', bg:'#FDEBD0'},
+      {icon:'<i class="ti ti-users"></i>', titre:'Bénévoles', desc:'Gérer l\'équipe', page:'benevoles', c:'#4A235A', bg:'#E8D9F5'},
     ],
     communicant: [
-      {icon:'<i class="ti ti-speakerphone"></i>', titre:'Com', desc:'Communication', page:'app-com'},
+      {icon:'<i class="ti ti-speakerphone"></i>', titre:'Com', desc:'Communication', page:'app-com', c:'#7D3C98', bg:'#F3E8FA'},
     ]
   };
   var liste = actions[role] || actions.redacteur;
-  if(roleRedac === 'redac_chef') liste = liste.concat([{icon:'<i class="ti ti-news"></i>', titre:'Ma rédaction', desc:'Gérer l\'équipe', action:"osRedactionsChangerOnglet('redac')"}]);
+  if(roleRedac === 'redac_chef') liste = liste.concat([{icon:'<i class="ti ti-news"></i>', titre:'Ma rédaction', desc:'Gérer l\'équipe', action:"osRedactionsChangerOnglet('redac')", c:'#0B3D91', bg:'#E6F1FB'}]);
   return liste;
 }
 
@@ -27691,9 +27710,9 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   // Header rédac
   h += '<div style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
   h += '<div style="flex:1;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:white;">'+esc(redac.nom)+'</div>';
-  if(redac.departement) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.6);">'+esc(redac.departement)+'</div>';
+  if(redac.departement) h += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;color:rgba(255,255,255,0.7);">'+esc(redac.departement)+'</div>';
   h += '</div>';
-  h += '<span style="font-family:Space Mono,monospace;font-size:0.62rem;color:rgba(255,255,255,0.7);">'+membresRedac.length+' membres</span>';
+  h += '<span style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;color:rgba(255,255,255,0.75);">'+membresRedac.length+' membres</span>';
   h += '</div>';
 
   var isChef = roleRedac === 'redac_chef' || getUserRole()==='admin';
@@ -27701,7 +27720,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   if(!isChef){
     // Vue membre simple — inchangée : stats + collègues + articles récents, pas de sous-menu
     h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;overflow:hidden;">';
-    function sc3(n,l,c,last){return '<div style="padding:0.8rem;text-align:center;'+(last?'':'border-right:0.5px solid var(--gris-bord);')+'"><div style="font-size:1.2rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;color:var(--gris);text-transform:uppercase;">'+l+'</div></div>';}
+    function sc3(n,l,c,last){return '<div style="padding:0.8rem;text-align:center;'+(last?'':'border-right:0.5px solid var(--gris-bord);')+'"><div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:'+(c||'var(--encre)')+';">'+n+'</div><div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.03em;">'+l+'</div></div>';}
     h += sc3(membresRedac.length,'Membres');
     h += sc3(artsPublies.length,'Publiés','#27AE60');
     h += sc3(artsMois.length,'Ce mois','#EA5B1C');
@@ -27717,7 +27736,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       h += '<div style="position:relative;">'+renderAvatarHTML(mb, 24, {});
       h += '<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid var(--gris-clair);"></span></div>';
       h += '<span style="font-size:0.75rem;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span>';
-      if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:Space Mono,monospace;font-size:0.5rem;color:#27500A;background:#C0DD97;padding:1px 5px;border-radius:3px;">chef</span>';
+      if(lienMb&&lienMb.role_redac==='redac_chef') h += '<span style="font-family:\'DM Sans\',sans-serif;font-weight:700;font-size:0.6rem;color:#27500A;background:#C0DD97;padding:1px 6px;border-radius:8px;">chef</span>';
       h += '</div>';
     });
     if(!membresRedac.length) h += '<span style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);">Aucun membre</span>';
@@ -27759,7 +27778,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;">';
     h += '<div style="padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;">Membres</span>';
-    h += '<button onclick="osRedacChefAjouterMembre(\''+redacId+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Ajouter</button>';
+    h += '<button onclick="osRedacChefAjouterMembre(\''+redacId+'\')" style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.7rem;padding:4px 10px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;">+ Ajouter</button>';
     h += '</div>';
     h += '<table style="width:100%;border-collapse:collapse;">';
     h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.9rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th></th></tr></thead><tbody>';
@@ -27775,10 +27794,10 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       });
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(m, 26, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
-      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
@@ -27791,7 +27810,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   }
   else {
     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
-    function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
+    function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
     h += sc2(membresRedac.length,'Membres',null,null);
     h += sc2(artsPublies.length,'Publiés','#27AE60','redac-stat-pub');
     h += sc2(artsMois.length,'Ce mois','#EA5B1C','redac-stat-mois');
