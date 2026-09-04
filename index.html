@@ -22945,9 +22945,16 @@ function cpsvListe(liste, cps, vus){
     var d = cp.date_cp||cp.date_reception ? new Date(cp.date_cp||cp.date_reception).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;border-bottom:1px solid var(--gris-bord);'+(nonLu?'background:rgba(125,60,152,0.04);':'');
+    // Même badge « Invitation » que sur les cartes (cpsMakeCard) : dans la liste
+    // compacte, rien ne distinguait un communiqué d'une invitation presse avant la
+    // ligne cliquée — il fallait ouvrir le détail pour le savoir.
+    var badgeInvit = cp.type === 'invitation_presse'
+      ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;flex-shrink:0;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
+      : '';
     row.innerHTML = (nonLu?'<span style="width:7px;height:7px;border-radius:50%;background:#7D3C98;flex-shrink:0;display:inline-block;"></span>':'<span style="width:7px;height:7px;flex-shrink:0;display:inline-block;"></span>')
       +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:'+(nonLu?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
       +'<div style="font-size:0.62rem;color:var(--gris);">'+esc(cp.organisation||cp.source||'')+(d?' · '+d:'')+'</div></div>'
+      +badgeInvit
       +((cp.communique_fichiers&&cp.communique_fichiers.length)||cp.fichier_pdf||cp.fichier_b64?'<i class="ti ti-paperclip" title="Fichier(s) joint(s)" style="font-size:0.75rem;color:var(--gris);"></i>':'')
       +(cp.reponse_requise?'<i class="ti ti-alert-triangle" title="Réponse requise" style="font-size:0.75rem;color:#856404;"></i>':'');
     row.onclick = function(){ cpsOuvrirDetail(cp); };
@@ -23904,12 +23911,17 @@ function cpsAfficherAbonnement(){
     var html = '';
     html += '<div style="margin-bottom:1rem;">';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Notifications CPs</div>';
-    html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;border-radius:8px;'+(abonneGlobal?'background:#D4EDDA;border:1.5px solid #155724;':'background:#FFF3CD;border:1.5px solid #856404;')+'">';
-    html += '<span style="font-size:1.1rem;"><i class="ti '+(abonneGlobal?'ti-bell':'ti-bell-off')+'"></i></span>';
-    html += '<div style="flex:1;"><div style="font-weight:700;font-size:0.82rem;color:var(--encre);">'+(abonneGlobal?'Notifications activées':'Notifications désactivées')+'</div>';
-    html += '<div style="font-size:0.72rem;color:var(--gris);">'+(abonneGlobal?'Tu reçois les récapitulatifs CPs par email.':'Tu ne reçois plus les récapitulatifs CPs.')+'</div></div>';
-    html += '<button class="btn'+(abonneGlobal?' sec':'')+'" onclick="cpsToggleAbonnementGlobal('+abonneGlobal+')" style="font-size:0.72rem;padding:0.35rem 0.8rem;">'+(abonneGlobal?'Se désabonner':'Se réabonner')+'</button>';
-    html += '</div></div>';
+    // Même DA que la carte « Nouveaux sujets par email » de l'onglet Sujets
+    // (osRedactionsMembre_OngletSujets) : carte blanche, icône dans un badge de
+    // couleur fixe, et un interrupteur pour l'abonnement plutôt qu'un bouton texte
+    // dont le libellé change selon l'état.
+    html += '<div style="display:flex;align-items:center;gap:0.7rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.6rem 0.8rem;">';
+    html += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">'+(abonneGlobal?'Notifications activées':'Notifications désactivées')+'</div>';
+    html += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">'+(abonneGlobal?'Tu reçois les récapitulatifs CPs par email.':'Tu ne reçois plus les récapitulatifs CPs.')+'</div></div>';
+    html += '<label class="compo-toggle"><input type="checkbox" '+(abonneGlobal?'checked':'')+' onchange="cpsToggleAbonnementGlobal(!this.checked)"><span class="track"></span><span class="thumb"></span></label>';
+    html += '</div>';
     if(contacts.length){
       html += '<div>';
       html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Par source <span style="opacity:0.6;">('+(abonneGlobal?contacts.length:abonneSources.length)+'/'+contacts.length+')</span></div>';
@@ -26110,7 +26122,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   if(isChefOuAdmin || getUserRole()==='admin'){
     h += '<div style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
     if(isChefOuAdmin){
-      h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Space Mono,monospace;font-size:0.68rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Nouveau sujet</button>';
+      h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">+ Nouveau sujet</button>';
     }
     if(getUserRole()==='admin'){
       h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
@@ -26813,7 +26825,11 @@ function osRedacChargerAlertes(zone){
         return !inv.date_evenement || new Date(inv.date_evenement) > new Date();
       });
       if(!aVenir.length) return '';
-      return _osAlerteCarteHTML('#784212','#FDEBD0','ti-microphone',"osOuvrirCommuniques()",
+      // osOuvrirCommuniques accepte un filtre de type, déjà utilisé par les boutons
+      // de filtre de la liste elle-même — sans ça, le clic ouvrait la liste sur
+      // "Tous", noyant les invitations parmi les communiqués classiques alors que
+      // la carte annonce précisément des invitations.
+      return _osAlerteCarteHTML('#784212','#FDEBD0','ti-microphone',"osOuvrirCommuniques('invitation_presse')",
         aVenir.length+' invitation'+(aVenir.length>1?'s':'')+' presse disponible'+(aVenir.length>1?'s':''),
         aVenir.slice(0,2).map(function(i){return esc(i.titre||'');}).join(', '));
     })
@@ -27200,7 +27216,11 @@ function osRedacChargerMesArticles(zone){
         '<div style="width:8px;height:8px;border-radius:50%;background:'+sd.dot+';flex-shrink:0;"></div>'
         +'<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(a.titre||'Sans titre')+'</div>'
         +(a.vues_substack!=null?'<span title="Vues Substack" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 7px;background:#FDEBD0;color:#784212;border-radius:10px;flex-shrink:0;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+a.vues_substack.toLocaleString('fr-FR')+'</span>':'')
-        +'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:'+sd.bg+';color:'+sd.c+';border-radius:10px;flex-shrink:0;">'+sd.l+'</span>';
+        // Même gabarit que le badge « Confirmé » de Mes activités juste en dessous
+        // (padding:1px 5px + border-radius:3px) — c'est aussi la convention dominante
+        // pour ces petits badges de statut ailleurs dans l'app. Celui-ci utilisait
+        // encore l'ancien format en pilule (10px), d'où l'incohérence visuelle.
+        +'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;flex-shrink:0;">'+sd.l+'</span>';
       zone.appendChild(row);
     });
   }).catch(function(){
@@ -27289,7 +27309,7 @@ function osRedacChargerSujetsProfil(zone){
       h+='<div onclick="osRedacOuvrirSujet(this)" data-sujet-id="'+s.id+'" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;'+(i<Math.min(sujets.length,4)-1?'border-bottom:0.5px solid var(--gris-bord);':'')+';cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">';
       h+='<div style="width:8px;height:8px;border-radius:50%;background:'+PRIO_C[prio]+';flex-shrink:0;"></div>';
       h+='<div style="flex:1;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.titre||'')+'</div>';
-      h+='<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:10px;flex-shrink:0;">'+prio+'</span>';
+      h+='<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
       h+='</div>';
     });
     zone.innerHTML=h;
