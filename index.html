@@ -32569,13 +32569,22 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
   // base — jusqu'au prochain recalcul (rafraîchissement périodique des fonctions, 5 min).
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id,epingle', { headers:authHApps }).then(function(r){ return r.json(); }),
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(userId)+'&select=fonction', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(userId)+'&select=fonction', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    // Chef d'au moins une rédaction ? Requête dédiée pour la même raison que "fonction"
+    // juste au-dessus : au tout premier login, _membresRedactionsData n'est pas encore
+    // chargée, s'y fier donnerait le même faux-négatif déjà documenté pour la fonction.
+    // Sans ce statut, une app listant roles:['admin','redac_chef'] (Communiqués...)
+    // n'était jamais atteignable pour personne d'autre qu'un admin, MÊME accordée
+    // explicitement depuis Gestion apps — appAccessible() ne comparait qu'au rôle
+    // global (redacteur/correcteur/...), qui n'est jamais littéralement 'redac_chef'.
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.redac_chef&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ])
   .then(function(resultats){
     var data = resultats[0];
     var fonctionRow = resultats[1] && !resultats[1].code && resultats[1][0];
     var fonctionFraiche = fonctionRow ? fonctionArray(fonctionRow.fonction) : null;
     if(fonctionFraiche) window._membreCourantFonction = fonctionFraiche;
+    var estChefQuelquePart = !!(resultats[2] && !resultats[2].code && resultats[2].length);
     if(!data || data.code){
       // Erreur API (ex: token pas encore synchronisé) — retenter avant de conclure à un compte non configuré
       _retryCount = _retryCount || 0;
@@ -32597,7 +32606,8 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
         osAfficherSessionNonConfiguree();
         return;
       }
-      _initialiserAppsParDefaut(userId, roleOverride || getUserRole());
+      var roleInitial = roleOverride || getUserRole();
+      _initialiserAppsParDefaut(userId, (estChefQuelquePart && roleInitial !== 'admin') ? 'redac_chef' : roleInitial);
     } else {
       // Apps trouvées — si OOBE pas encore faite, ne pas la sauter
       // Elle permettra au bénévole de saisir prénom/nom même si apps préconfigurées
@@ -32637,12 +32647,38 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
         }).catch(function(){});
       }
 
+      // Rédac chef : garantir cps-admin (Communiqués) toujours présent — devenir chef
+      // (osRedacChefChangerRole) ne fait qu'un PATCH sur role_redac, jamais sur
+      // membres_apps ; sans cette garantie, personne ne récupérait automatiquement de
+      // quoi créer un communiqué en le devenant, il fallait qu'un admin pense à le
+      // faire à la main depuis Gestion apps.
+      if(estChefQuelquePart && !allIds.includes('cps-admin')){
+        allIds.push('cps-admin');
+        epinglesIds.push('cps-admin');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'cps-admin', epingle: true })
+        }).catch(function(){});
+      }
+
       // Filtrer aussi selon le rôle — une app admin ne doit pas apparaître pour un rédacteur
       // SAUF si le membre a la fonction requise (ex: tresorier)
       function appAccessible(a){
         if(a.legacy) return false;
         if(!a.roles) return true;
-        if(!a.roles.includes(roleEffectif)) return false;
+        // "redac_chef" en plus du rôle global, jamais à sa place : role_redac est un
+        // statut par rédaction, pas le rôle Compo de la personne. Le vérifier EN PLUS
+        // (et non en remplacement) évite qu'un chef rédacteur perde l'accès à Rédiger
+        // (roles:['redacteur','admin'], sans 'redac_chef') tout en débloquant enfin
+        // Communiqués (roles:['admin','redac_chef']) — jusqu'ici accordable depuis
+        // Gestion apps mais toujours filtré ici, silencieusement, faute de connaître
+        // ce statut.
+        var roleOk = a.roles.includes(roleEffectif) || (estChefQuelquePart && a.roles.includes('redac_chef'));
+        if(!roleOk) return false;
         // Si l'app requiert une fonction, vérifier (sauf admin)
         if(a.fonctions_requises && a.fonctions_requises.length && roleEffectif !== 'admin'){
           return a.fonctions_requises.some(function(f){ return fonctionsEffectives.indexOf(f) !== -1; });
