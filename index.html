@@ -32711,6 +32711,26 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
         }).catch(function(){});
       }
 
+      // Agenda : garantir toujours présent — l'icône fixe du bureau (osBuildDesktopIcons)
+      // y donnait accès à tout le monde sans jamais dépendre de membres_apps, donc
+      // personne n'avait besoin de se l'auto-accorder. Le bureau étant masqué sur
+      // mobile (#os-desktop-icons{display:none}), ce chemin unique disparaissait pour
+      // quiconque n'avait pas Agenda dans ses apps réelles — la plupart des rédacteurs
+      // et correcteurs, absents de leurs profils par défaut (voir PROFILS_PREDEFINIS).
+      // appAccessible() plus bas filtre déjà par rôle, pas besoin de le revérifier ici.
+      if(!allIds.includes('agenda')){
+        allIds.push('agenda');
+        epinglesIds.push('agenda');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'agenda', epingle: true })
+        }).catch(function(){});
+      }
+
       // Filtrer aussi selon le rôle — une app admin ne doit pas apparaître pour un rédacteur
       // SAUF si le membre a la fonction requise (ex: tresorier)
       function appAccessible(a){
@@ -35592,7 +35612,7 @@ function osAgendaSInscrire(evId){
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(admin.prenom||'')+',</p>'
             +'<p><strong>'+esc(monNom)+'</strong> demande à s\'inscrire à l\'événement <strong>'+evTitre+'</strong>'+(debut?' ('+debut+')':'')+'.</p>'
-            +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
+            +'<a href="https://compo.ipsummedia.fr'+(ev?'?agenda='+ev.id:'')+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
             +'</div></div>';
           envoyerEmailResend(admin.email, '[Compo] Nouvelle inscription : '+evTitre, html, 'agenda').catch(function(){});
         });
@@ -35925,7 +35945,7 @@ function osAgendaEnvoyerNotif(evId, titre){
           +(ev.lien_visio?'<li>🔗 <a href="'+esc(ev.lien_visio)+'">Lien visio</a></li>':'')
           +'</ul>'
           +(ev.description?'<p style="font-size:0.82rem;color:#666;">'+esc(ev.description)+'</p>':'')
-          +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+          +'<a href="https://compo.ipsummedia.fr?agenda='+ev.id+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
           +'</div></div>';
         envoyerEmailResend(m.email, '[Compo] Rappel : '+titre, html, 'agenda')
         .then(function(r){ if(r&&r.ok!==false) nb++; })
@@ -35989,7 +36009,7 @@ function osAgendaValiderInscr(inscrId, evId){
               +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
               +(debut?'<p>📅 '+debut+(heureStr?' à '+heureStr:'')+'</p>':'')
               +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
-              +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
+              +'<a href="https://compo.ipsummedia.fr'+(ev?'?agenda='+ev.id:'')+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
               +'</div></div>';
             var chatTexte = '✅ Ta demande d\'inscription à "'+(ev?ev.titre||'':'Événement')+'" a été acceptée.'+(debut?' 📅 '+debut+(heureStr?' à '+heureStr:''):'')+(ev&&ev.lieu?' 📍 '+ev.lieu:'')+' https://compo.ipsummedia.fr';
             notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
