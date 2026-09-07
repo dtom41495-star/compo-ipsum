@@ -25894,13 +25894,16 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   var fondHeader = redac && couleurRedac
     ? 'linear-gradient(150deg,'+couleurRedac+' 0%,#1A1A2E 62%,#1A1A2E 82%,white 100%)'
     : 'linear-gradient(180deg,#1A1A2E 0%,#1A1A2E 82%,white 100%)';
-  // transform:translateZ(0) force cette carte sur sa propre couche de composition dès
-  // l'insertion — sans ça, Chrome peint parfois en retard un fond dégradé posé sur un
-  // enfant quand le parent le découpe avec overflow:hidden + border-radius, surtout sur
-  // du contenu injecté via innerHTML. Le DOM et les styles étaient déjà corrects (vu
-  // via l'inspecteur), seul le premier rendu GPU restait bloqué jusqu'au moindre repaint.
-  h += '<div style="border:1px solid var(--gris-bord);border-radius:14px;overflow:hidden;transform:translateZ(0);">';
-  h += '<div style="background:'+fondHeader+';padding:1.1rem 1.2rem 1.5rem;">';
+  // Structure changée après deux correctifs sans effet (translateZ(0), couleur en dur) :
+  // le DOM et les styles étaient prouvés corrects à l'inspection, donc le problème n'était
+  // ni le contenu ni la couleur — c'était le montage overflow:hidden découpant un enfant
+  // pour lui donner des coins arrondis, un déclencheur connu de ce bug de peinture Chrome
+  // sur du contenu injecté par innerHTML. Plutôt que de continuer à contourner ce montage,
+  // on l'enlève : chaque bloc porte directement ses propres coins arrondis, rien à
+  // découper. Le forceRepaint() juste après l'assignation à innerHTML (voir plus bas,
+  // _osRedacRenderContenu) couvre aussi tout résidu, sur ce montage ou un autre.
+  h += '<div style="border:1px solid var(--gris-bord);border-radius:14px;">';
+  h += '<div style="background:'+fondHeader+';padding:1.1rem 1.2rem 1.5rem;border-radius:14px 14px 0 0;">';
   h += '<div style="display:flex;align-items:flex-start;gap:0.9rem;">';
   h += '<div style="position:relative;flex-shrink:0;cursor:pointer;" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
   h += renderAvatarHTML(membre, 46, {rc:['rgba(255,255,255,0.16)','white'], bord:'border:1.5px solid rgba(255,255,255,0.3);'});
@@ -25946,7 +25949,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   // cadre, cette zone n'est jamais que le prolongement blanc du bandeau.
   var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
   if(actionsRedac.length){
-    h += '<div style="background:white;padding:0.9rem 1rem;">';
+    h += '<div style="background:white;padding:0.9rem 1rem;border-radius:0 0 14px 14px;">';
     h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.5rem;"><i class="ti ti-bolt" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Actions rapides</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.55rem;">';
     actionsRedac.forEach(function(a){
@@ -28221,6 +28224,11 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     h += '</div>';
   }
   outer.innerHTML = h;
+  // Filet de sécurité contre un bug de peinture Chrome déjà constaté sur cette fenêtre :
+  // du contenu fraîchement injecté par innerHTML reste invisible tant que rien ne force
+  // un nouveau calcul de mise en page — inspecter l'élément suffisait à le "réparer" à
+  // chaque fois. Lire offsetHeight force ce calcul immédiatement, sans intervention.
+  void outer.offsetHeight;
 
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
