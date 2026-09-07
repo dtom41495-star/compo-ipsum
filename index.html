@@ -35282,6 +35282,18 @@ function osAgendaOuvrirDetail(ev){
   html += '<button onclick="document.body.removeChild(document.getElementById(\'agenda-detail-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;flex-shrink:0;">×</button>';
   html += '</div></div>';
 
+  // Lien public — même bandeau que la case à cocher dans le formulaire, pour que le
+  // lien entre les deux soit visuellement évident. N'apparaît que si l'événement a été
+  // explicitement ouvert aux externes ; sinon, rien à voir ici — pas de lien à copier
+  // pour un événement resté interne.
+  if(ev.ouvert_externes){
+    html += '<div style="padding:0.8rem 1.5rem;background:#EEF2FF;border-bottom:1px solid #C7D2FE;display:flex;align-items:center;justify-content:space-between;gap:0.8rem;">';
+    html += '<div><div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.76rem;color:var(--encre);"><i class="ti ti-world"></i> Ouvert aux personnes extérieures</div>';
+    html += '<div style="font-size:0.68rem;color:var(--gris);margin-top:1px;">Partage ce lien à qui n\'a pas de compte Compo.</div></div>';
+    html += '<button onclick="osAgendaCopierLienExterne(\''+ev.id+'\')" style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.7rem;padding:5px 11px;border:none;border-radius:6px;background:#4338CA;color:white;cursor:pointer;flex-shrink:0;white-space:nowrap;">🔗 Copier le lien public</button>';
+    html += '</div>';
+  }
+
   // Organisateur + rédaction
   html += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
   html += '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
@@ -35419,6 +35431,10 @@ function osAgendaOuvrirDetail(ev){
         iz += '</div>';
       }
 
+      // Inscrits externes (sans compte Compo) — rempli séparément juste après ce
+      // rendu, via l'Edge Function (la table n'a aucune policy RLS, voir la migration).
+      if(ev.ouvert_externes) iz += '<div id="agenda-externes-zone" style="margin-top:0.8rem;"></div>';
+
       // Bouton ajouter un participant manuellement
       iz += '<div style="margin-top:0.8rem;">';
       iz += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Ajouter un participant</div>';
@@ -35451,7 +35467,38 @@ function osAgendaOuvrirDetail(ev){
     if(btnI && !complet) btnI.onclick = function(){ osAgendaSInscrire(ev.id); };
     var btnD = document.getElementById('agenda-desinscr-btn');
     if(btnD) btnD.onclick = function(){ osAgendaSeDesinscrire(monInscription.id, ev.id); };
+
+    if(peutGererParticipants && ev.ouvert_externes) osAgendaChargerInscritsExternes(ev.id);
   }).catch(function(){});
+}
+
+// Inscrits externes : passe par agenda-inscription-externe (action 'lister'), jamais par
+// un fetch REST direct — la table n'a aucune policy RLS, seule cette fonction y a accès.
+function osAgendaChargerInscritsExternes(evId){
+  var zoneExt = document.getElementById('agenda-externes-zone');
+  if(!zoneExt) return;
+  fetch(SB_URL+'/functions/v1/agenda-inscription-externe', {
+    method:'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+    body: JSON.stringify({ action:'lister', evenementId: evId })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var inscrits = (data && data.inscrits) || [];
+    if(!inscrits.length){ zoneExt.innerHTML = ''; return; }
+    var h = '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;"><i class="ti ti-world"></i> Inscrits externes ('+inscrits.length+')</div>';
+    inscrits.forEach(function(ins){
+      var dateInscr = ins.created_at ? new Date(ins.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+      h += '<div style="padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+        +'<div style="display:flex;align-items:center;gap:0.5rem;">'
+        +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+esc(ins.nom||'')+' <span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(ins.email||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
+        +'<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:#EEF2FF;color:#4338CA;border-radius:3px;">Externe</span>'
+        +'</div>'
+        +(ins.message ? '<div style="font-size:0.75rem;color:var(--gris);font-style:italic;margin-top:2px;">« '+esc(ins.message)+' »</div>' : '')
+        +'</div>';
+    });
+    zoneExt.innerHTML = h;
+  }).catch(function(){ zoneExt.innerHTML = ''; });
 }
 
 function osAgendaSInscrire(evId){
@@ -35951,21 +35998,44 @@ function osAgendaRefuserInscr(inscrId, evId){
   });
 }
 
+// Presse-papiers : navigator.clipboard.writeText peut refuser pour des raisons qui
+// n'ont rien à voir avec un bug (fenêtre pas au premier plan, permission refusée par le
+// navigateur...) — un vrai cas chez un utilisateur, pas seulement en test automatisé.
+// Sans ce .catch, le rejet remontait tel quel jusqu'au rapport d'erreurs global, où
+// plusieurs coups d'affilée peuvent se lire comme un plantage en cascade et déclencher
+// l'alerte email "critique" à l'admin pour un simple souci de presse-papiers.
+function _osCopierTexte(texte, messageSucces){
+  function repliManuel(){
+    var ta = document.createElement('textarea');
+    ta.value = texte; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try{ ok = document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    notif(ok ? messageSucces : 'Impossible de copier — sélectionne et copie le lien à la main.', ok?'succes':'erreur');
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texte).then(function(){
+      notif(messageSucces, 'succes');
+    }).catch(repliManuel);
+  } else {
+    repliManuel();
+  }
+}
+
 function osAgendaCopierLien(evId){
   var base = window.location.origin + window.location.pathname;
   var lien = base + '?agenda=' + encodeURIComponent(evId);
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(lien).then(function(){
-      notif('Lien copié ✓', 'succes');
-    });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = lien; ta.style.position='fixed'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    notif('Lien copié ✓', 'succes');
-  }
+  _osCopierTexte(lien, 'Lien copié ✓');
+}
+
+// Lien vers inscription.html — page à part, aucun rapport avec ?agenda= (osAgendaCopierLien
+// ci-dessus), qui ouvre Compo et exige une connexion Google @ipsummedia.fr. Celui-ci
+// n'a aucune dépendance à Compo : la personne qui le reçoit n'a jamais besoin de compte.
+function osAgendaCopierLienExterne(evId){
+  var base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  var lien = base + 'inscription.html?event=' + encodeURIComponent(evId);
+  _osCopierTexte(lien, 'Lien public copié ✓');
 }
 
 function osAgendaAnnuler(evId){
@@ -36312,6 +36382,16 @@ function osAgendaOuvrirFormulaire(ev){
     +'<label class="compo-toggle"><input type="checkbox" id="ag-validation"'+(ev&&ev.validation_admin?' checked':'')+'><span class="track"></span><span class="thumb"></span></label></div>'
     +'</div>'
 
+    // Ouvert aux externes — génère un lien public (page à part, sans compte Compo ni
+    // connexion Google) que n'importe qui peut ouvrir pour s'inscrire. Décoché par
+    // défaut : jamais public sans un geste explicite, pour ne pas exposer par erreur un
+    // événement interne (bureau, réunion...).
+    +'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:0.7rem 0.9rem;display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;">'
+    +'<div><label for="ag-ouvert-externes" style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.76rem;color:var(--encre);cursor:pointer;display:block;"><i class="ti ti-world"></i> Ouvert aux personnes extérieures</label>'
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Génère un lien public, sans compte Compo — utile pour un événement type portes ouvertes ou réunion d\'info recrutement.</div></div>'
+    +'<label class="compo-toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" id="ag-ouvert-externes"'+(ev&&ev.ouvert_externes?' checked':'')+'><span class="track"></span><span class="thumb"></span></label>'
+    +'</div>'
+
     // Bouton
     +'<button id="ag-submit" style="padding:0.75rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;margin-top:0.3rem;">'+(isEdit?'Enregistrer':'Créer et notifier')+'</button>'
     +'</div>';
@@ -36339,6 +36419,7 @@ function osAgendaSauvegarder(evId){
   var desc  = (document.getElementById('ag-desc')||{}).value||'';
   var places = (document.getElementById('ag-places')||{}).value||'';
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
+  var ouvertExternes = !!(document.getElementById('ag-ouvert-externes')||{}).checked;
   var organisateur = (document.getElementById('ag-organisateur')||{}).value||getUserNomComplet();
   var redactionId = (document.getElementById('ag-redaction')||{}).value||null;
   var contactNom = (document.getElementById('ag-contact-nom')||{}).value||'';
@@ -36367,6 +36448,7 @@ function osAgendaSauvegarder(evId){
     cible_roles:roles, cible_fonctions:fonctions,
     places_max:places?parseInt(places):null,
     validation_admin:validation,
+    ouvert_externes:ouvertExternes,
     statut:'publie',
     contact_nom: type==='interview' ? (contactNom.trim()||null) : null,
     contact_email: type==='interview' ? (contactEmail.trim()||null) : null
