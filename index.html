@@ -12458,8 +12458,39 @@ function osAfficherUserWatermark(){
   var nom = (getUserPrenom()+' '+getUserNom()).trim();
   if(!nom) return;
   var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
+  // Le watermark entier a pointer-events:none (élément purement décoratif, pour ne
+  // jamais gêner un clic sur le bureau en-dessous) — on le réactive seulement sur le
+  // nom, pas sur le bloc entier, pour garder ce comportement partout ailleurs.
+  nomEl.dataset.nom = nom;
+  nomEl.dataset.id = getUserId() || '';
   nomEl.textContent = nom;
+  nomEl.style.pointerEvents = 'auto';
+  nomEl.style.cursor = 'pointer';
+  nomEl.title = 'Cliquer pour afficher l\'identifiant';
+  nomEl.onclick = osToggleUserWatermark;
   roleEl.textContent = roleLabels[getUserRole()] || getUserRole() || '';
+}
+
+// Alterne entre le nom (par défaut) et l'identifiant du membre — un identifiant est
+// bien plus long qu'un nom, d'où le changement de police/taille en même temps pour
+// rester lisible plutôt que de déborder en Poppins gras 1.3rem.
+function osToggleUserWatermark(){
+  var nomEl = document.getElementById('os-user-watermark-nom');
+  if(!nomEl || !nomEl.dataset.id) return;
+  var afficheId = nomEl.textContent === nomEl.dataset.id;
+  if(afficheId){
+    nomEl.textContent = nomEl.dataset.nom;
+    nomEl.style.fontFamily = "'Poppins',sans-serif";
+    nomEl.style.fontWeight = '700';
+    nomEl.style.fontSize = '1.3rem';
+    nomEl.style.letterSpacing = '0.04em';
+  } else {
+    nomEl.textContent = nomEl.dataset.id;
+    nomEl.style.fontFamily = "'Space Mono',monospace";
+    nomEl.style.fontWeight = '400';
+    nomEl.style.fontSize = '0.68rem';
+    nomEl.style.letterSpacing = '0';
+  }
 }
 
 function osAfficherRedactionLabel(){
