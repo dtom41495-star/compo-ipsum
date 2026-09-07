@@ -25884,9 +25884,16 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   // de deux boîtes séparées par un espace — le bandeau se prolonge dans le blanc plutôt
   // que de s'arrêter net. Le dégradé, lui, va jusqu'au blanc en fin de bandeau pour que
   // la transition soit continue et pas juste une couleur coupée à la règle.
+  // #1A1A2E en dur plutôt que var(--encre-fixe) : une variable CSS référencée À
+  // L'INTÉRIEUR d'un linear-gradient() injecté par innerHTML peut ne pas être encore
+  // résolue au tout premier rendu sur Chrome — si un seul point d'arrêt du dégradé
+  // échoue, TOUT le dégradé est jugé invalide et ignoré (fond transparent, texte blanc
+  // devenu invisible dessus). C'est ce qui explique un bandeau qui "disparaît" alors que
+  // le DOM et les styles sont, eux, corrects à l'inspection — un simple survol suffit à
+  // déclencher le recalcul qui le fait réapparaître. En dur, rien à résoudre.
   var fondHeader = redac && couleurRedac
-    ? 'linear-gradient(150deg,'+couleurRedac+' 0%,var(--encre-fixe) 62%,var(--encre-fixe) 82%,white 100%)'
-    : 'linear-gradient(180deg,var(--encre-fixe) 0%,var(--encre-fixe) 82%,white 100%)';
+    ? 'linear-gradient(150deg,'+couleurRedac+' 0%,#1A1A2E 62%,#1A1A2E 82%,white 100%)'
+    : 'linear-gradient(180deg,#1A1A2E 0%,#1A1A2E 82%,white 100%)';
   // transform:translateZ(0) force cette carte sur sa propre couche de composition dès
   // l'insertion — sans ça, Chrome peint parfois en retard un fond dégradé posé sur un
   // enfant quand le parent le découpe avec overflow:hidden + border-radius, surtout sur
