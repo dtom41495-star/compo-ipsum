@@ -8463,12 +8463,31 @@ function loginValider(){
   });
 }
 
-function chargerProfilMembre(userId){
-  // Vider immédiatement les données de l'ancien compte pour éviter tout affichage résiduel
-  localStorage.removeItem('ipsum_user_prenom');
-  localStorage.removeItem('ipsum_user_nom');
-  localStorage.removeItem('ipsum_user_role');
-  localStorage.removeItem('ipsum_user_email');
+function chargerProfilMembre(userId, contexte){
+  contexte = contexte || {};
+  var tentative = contexte.tentative || 1;
+  var prenomPrecedent, nomPrecedent, rolePrecedent, emailPrecedent;
+  if(tentative === 1){
+    // Vider immédiatement les données de l'ancien compte pour éviter tout affichage résiduel
+    // — mais garder une copie avant de le faire : si le fetch ci-dessous échoue (réseau),
+    // on restaure ces valeurs plutôt que de démarrer la session avec un nom vide. C'est ce
+    // qui causait des articles enregistrés avec auteur_id correct (vient de la session,
+    // indépendant de ce fetch) mais sans nom d'auteur — un aléa réseau ponctuel sur ce seul
+    // appel suffisait à vider le nom pour toute la session, sans jamais être rattrapé.
+    prenomPrecedent = localStorage.getItem('ipsum_user_prenom');
+    nomPrecedent = localStorage.getItem('ipsum_user_nom');
+    rolePrecedent = localStorage.getItem('ipsum_user_role');
+    emailPrecedent = localStorage.getItem('ipsum_user_email');
+    localStorage.removeItem('ipsum_user_prenom');
+    localStorage.removeItem('ipsum_user_nom');
+    localStorage.removeItem('ipsum_user_role');
+    localStorage.removeItem('ipsum_user_email');
+  } else {
+    prenomPrecedent = contexte.prenomPrecedent;
+    nomPrecedent = contexte.nomPrecedent;
+    rolePrecedent = contexte.rolePrecedent;
+    emailPrecedent = contexte.emailPrecedent;
+  }
 
   fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?id=eq.' + userId + '&select=*', {
     headers: SB_HEADERS
@@ -8553,6 +8572,20 @@ function chargerProfilMembre(userId){
     }
   })
   .catch(function(){
+    if(tentative < 2){
+      // Un seul nouvel essai après un court délai — suffit à absorber un aléa réseau ponctuel
+      // sans faire attendre l'utilisateur indéfiniment avant de démarrer Compo.
+      setTimeout(function(){
+        chargerProfilMembre(userId, {tentative:tentative+1, prenomPrecedent:prenomPrecedent, nomPrecedent:nomPrecedent, rolePrecedent:rolePrecedent, emailPrecedent:emailPrecedent});
+      }, 1500);
+      return;
+    }
+    // Deux échecs de suite : restaurer les valeurs précédentes (si elles existaient) plutôt
+    // que de laisser le nom vide — auteur_id restera de toute façon correct via la session.
+    if(prenomPrecedent) localStorage.setItem('ipsum_user_prenom', prenomPrecedent);
+    if(nomPrecedent) localStorage.setItem('ipsum_user_nom', nomPrecedent);
+    if(rolePrecedent) localStorage.setItem('ipsum_user_role', rolePrecedent);
+    if(emailPrecedent) localStorage.setItem('ipsum_user_email', emailPrecedent);
     var ls3 = document.getElementById('login-screen');
     if(ls3) ls3.classList.remove('visible');
     var uid = getUserId();
@@ -35567,6 +35600,42 @@ function osAgendaChargerInscritsExternes(evId){
   }).catch(function(){ zoneExt.innerHTML = ''; });
 }
 
+// Prévient l'équipe qu'un membre vient de s'inscrire (ou demande à s'inscrire) à un
+// événement — vie associative et admins systématiquement (n'importe quelle rédaction),
+// rédac chef seulement si l'événement concerne sa rédaction. Toujours par Chat, forcé,
+// sans tenir compte du canal_notif choisi par le destinataire — décision explicite de
+// Tom (2026-09-07) : contrairement aux notifications personnelles, cette alerte d'équipe
+// ne doit jamais tomber sur email selon le réglage individuel. Un membre qui cumule
+// plusieurs de ces rôles n'est notifié qu'une fois.
+function _osAgendaNotifierEquipeInscription(ev, nomInscrit, statut){
+  if(!ev) return;
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var uid = getUserId();
+  var evTitre = esc(ev.titre||'Événement');
+  var debut = ev.date_debut ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
+  var lienCompo = 'https://compo.ipsummedia.fr?agenda='+ev.id;
+  var enAttente = statut !== 'confirme';
+
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,email,role,fonction',{headers:authHGet}).then(function(r){return r.json();}),
+    ev.redaction_id
+      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+ev.redaction_id+'&role_redac=eq.redac_chef&select=membre_id',{headers:authHGet}).then(function(r){return r.json();})
+      : Promise.resolve([])
+  ]).then(function(res){
+    var membres = res[0], chefsLiens = res[1];
+    if(!membres||membres.code) return;
+    var chefIds = (Array.isArray(chefsLiens)?chefsLiens:[]).map(function(l){return l.membre_id;});
+    var cibles = membres.filter(function(m){
+      if(m.id === uid || !m.email) return false;
+      return fonctionArray(m.fonction).indexOf('vie_asso')!==-1 || m.role==='admin' || chefIds.indexOf(m.id)!==-1;
+    });
+    var chatTexte = (enAttente?'🗓️ ':'✅ ')+esc(nomInscrit)+(enAttente?' demande à s\'inscrire à ':' s\'est inscrit(e) à ')+'"'+evTitre+'"'+(debut?' ('+debut+')':'')+'. '+lienCompo;
+    cibles.forEach(function(m){
+      notifierChatDM(m.id, chatTexte, 'agenda');
+    });
+  }).catch(function(){});
+}
+
 function osAgendaSInscrire(evId){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
@@ -35585,6 +35654,7 @@ function osAgendaSInscrire(evId){
     var inscr = data && data[0];
     if(statutInitial === 'confirme'){
       notif('Inscription confirmée ✓','succes');
+      _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'confirme');
       if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
         var duree = ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
         if(duree > 0){
@@ -35597,26 +35667,7 @@ function osAgendaSInscrire(evId){
       }
     } else {
       notif('Demande d\'inscription envoyée ✓ — en attente de validation','succes');
-      // Notifier l'admin par email
-      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=email,prenom',{headers:authHGet})
-      .then(function(r){return r.json();})
-      .then(function(admins){
-        var monNom = getUserNomComplet();
-        var evTitre = ev ? esc(ev.titre||'') : 'Événement';
-        var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
-        (admins||[]).forEach(function(admin){
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#1A1A2E;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">🗓️ Nouvelle demande d\'inscription</h2>'
-            +'</div>'
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(admin.prenom||'')+',</p>'
-            +'<p><strong>'+esc(monNom)+'</strong> demande à s\'inscrire à l\'événement <strong>'+evTitre+'</strong>'+(debut?' ('+debut+')':'')+'.</p>'
-            +'<a href="https://compo.ipsummedia.fr'+(ev?'?agenda='+ev.id:'')+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
-            +'</div></div>';
-          envoyerEmailResend(admin.email, '[Compo] Nouvelle inscription : '+evTitre, html, 'agenda').catch(function(){});
-        });
-      }).catch(function(){});
+      _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'en_attente');
     }
     if(ev) osAgendaOuvrirDetail(ev);
   }).catch(function(){ notif('Erreur réseau'); });
@@ -36600,7 +36651,7 @@ function osAgendaEnvoyerInvitations(ev, roles, fonctions){
         +(ev.places_max?'<p style="font-size:0.8rem;color:#666;margin-bottom:1rem;">Places limitées : '+ev.places_max+(ev.validation_admin?' · Inscription soumise à validation':'')+'</p>':'')
         +'<a href="https://compo.ipsummedia.fr?agenda='+ev.id+'" style="background:#E8461E;color:white;padding:0.6rem 1.5rem;text-decoration:none;border-radius:6px;font-weight:600;">Voir l\'événement et s\'inscrire</a>'
         +'</div></div>';
-      envoyerEmailResend(m.email,'[Ipsum] '+t.icon+' '+ev.titre,html,'agenda');
+      envoyerEmailResend(m.email,'[Agenda] '+t.icon+' '+ev.titre,html,'agenda');
     });
     notif('Invitations envoyées à '+cibles.length+' bénévole(s)');
   });
