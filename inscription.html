@@ -27,7 +27,7 @@
   button{width:100%;padding:0.8rem;border:none;border-radius:9px;background:var(--rouge);color:white;font-family:'Poppins',sans-serif;font-weight:700;font-size:0.92rem;cursor:pointer;transition:opacity .15s;}
   button:hover{opacity:0.9;}
   button:disabled{opacity:0.6;cursor:default;}
-  .site{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
+  .site{display:none;}
   .etat{text-align:center;padding:2.5rem 1.6rem;}
   .etat .picto{font-size:2.2rem;margin-bottom:0.8rem;}
   .etat .msg{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:0.4rem;}
@@ -92,7 +92,11 @@ function afficherFormulaire(ev){
   html += '<label for="email">Ton email</label><input id="email" name="email" type="email" required autocomplete="email">';
   html += '<label for="message">Un mot sur toi ou ta motivation (facultatif)</label><textarea id="message" name="message" maxlength="1000" placeholder="Pourquoi tu veux nous rejoindre, si tu veux nous en dire plus…"></textarea>';
   // Honeypot — invisible pour un humain, un bot qui remplit tout le formulaire le remplira aussi.
-  html += '<input class="site" type="text" name="site" id="site" tabindex="-1" autocomplete="off">';
+  // display:none (plutôt qu'un positionnement hors écran) : un champ juste déplacé hors du
+  // viewport reste "visible" pour beaucoup de gestionnaires de mots de passe/autofill, qui le
+  // remplissaient parfois (surtout avec un name="site" qui ressemble à un champ "site web") —
+  // ça faisait échouer silencieusement l'inscription de vraies personnes, sans erreur visible.
+  html += '<input class="site" type="text" name="site" id="site" tabindex="-1" autocomplete="off" aria-hidden="true">';
   html += '<button type="submit" id="btn-envoyer">Je m\'inscris</button>';
   html += '<div class="confirmation" id="confirmation">C\'est noté ! Regarde ta boîte mail pour la confirmation.</div>';
   html += '<div class="erreur" id="erreur"></div>';

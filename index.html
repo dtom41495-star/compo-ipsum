@@ -35581,10 +35581,18 @@ function osAgendaChargerInscritsExternes(evId){
     headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
     body: JSON.stringify({ action:'lister', evenementId: evId })
   })
-  .then(function(r){ return r.json(); })
+  .then(function(r){
+    if(!r.ok){ zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur de chargement des inscrits externes.</div>'; return null; }
+    return r.json();
+  })
   .then(function(data){
+    if(!data) return;
     var inscrits = (data && data.inscrits) || [];
-    if(!inscrits.length){ zoneExt.innerHTML = ''; return; }
+    if(!inscrits.length){
+      zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.2rem;"><i class="ti ti-world"></i> Inscrits externes</div>'
+        + '<div style="font-size:0.75rem;color:var(--gris);padding:0.3rem 0;">Aucune inscription externe pour l\'instant.</div>';
+      return;
+    }
     var h = '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;"><i class="ti ti-world"></i> Inscrits externes ('+inscrits.length+')</div>';
     inscrits.forEach(function(ins){
       var dateInscr = ins.created_at ? new Date(ins.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
@@ -35597,7 +35605,7 @@ function osAgendaChargerInscritsExternes(evId){
         +'</div>';
     });
     zoneExt.innerHTML = h;
-  }).catch(function(){ zoneExt.innerHTML = ''; });
+  }).catch(function(){ zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur réseau — inscrits externes non chargés.</div>'; });
 }
 
 // Prévient l'équipe qu'un membre vient de s'inscrire (ou demande à s'inscrire) à un
