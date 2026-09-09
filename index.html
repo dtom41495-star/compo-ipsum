@@ -8818,7 +8818,7 @@ function lancerCompo(){
     membresRedacs:    fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
     membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
     mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
-    annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
+    annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
     cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
   };
 
@@ -14366,7 +14366,7 @@ function osChargerWidgets(){
     fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+uid+'&statut=neq.publie'+(redacId?'&redaction_id=eq.'+redacId:'')+'&select=id,titre,statut&order=updated_at.desc&limit=5',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&statut=neq.refuse&select=cout_heures',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();})
   ]).then(function(res){
     var evs      = (!res[0]||res[0].code) ? [] : res[0];
     var arts     = (!res[1]||res[1].code) ? [] : res[1];
@@ -15239,7 +15239,7 @@ function osConstruireRattrapage(callback){
     isVieAsso ? fetch(SB_URL+'/rest/v1/membres?marque_inactif=eq.true&select=id,prenom,nom',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide,
     isVieAsso ? fetch(SB_URL+'/rest/v1/membres?actif=eq.true&marque_inactif=eq.false&select=id,prenom,nom,derniere_connexion',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide,
     // 11: Annonces admin (tableau d'affichage)
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&created_at=gt.'+encodeURIComponent(depuis)+'&select=id,message,lien,roles_cibles,created_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&created_at=gt.'+encodeURIComponent(depuis)+'&select=id,message,lien,roles_cibles,created_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
     // 12: Communicant — articles validés en attente de visuels
     isCommunicant ? fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&type=neq.breve&updated_at=gt.'+encodeURIComponent(depuis)+'&select=id,titre,updated_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide,
     // 13-14: Admin — tickets, commandes boutique
@@ -18568,7 +18568,7 @@ function osChargerNotifsDemarrage(){
   // Demandes de suppression (annonces de type alerte avec DEMANDE DE SUPPRESSION)
   if(role === 'admin'){
     pending++;
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&type=eq.alerte&order=created_at.desc&select=*&limit=10', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&type=eq.alerte&order=created_at.desc&select=*&limit=10', {headers:SB_HEADERS})
     .then(function(r){ return r.json(); })
     .then(function(annonces){
       if(annonces && !annonces.code){
@@ -18801,10 +18801,20 @@ var _sujetsData = [];
 
 function osSujetsCharger(callback){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=*', {
-    headers: authH
-  })
+  var uid = getUserId();
+  // Sujets ouverts/en cours de MES rédactions uniquement — jamais toutes rédactions
+  // confondues, sinon le badge et les notifications du bureau révèlent des titres de
+  // sujets internes à des rédactions dont on n'est pas membre (osRedacChargerSujets, la
+  // version affichée dans l'onglet "Ma rédac", filtre déjà correctement — ce n'était que
+  // ce chemin-ci, desktop/notifications, qui ne le faisait pas).
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id',{headers:authH})
   .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var mesRedacIds = (Array.isArray(rows)?rows:[]).map(function(r){return r.redaction_id;});
+    if(!mesRedacIds.length) return [];
+    var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=*&redaction_id=in.('+mesRedacIds.join(',')+')';
+    return fetch(url,{headers:authH}).then(function(r){ return r.json(); });
+  })
   .then(function(sujets){
     _sujetsData = (sujets && !sujets.code) ? sujets : [];
     // Mettre à jour le badge sur l'icône bureau
@@ -25576,11 +25586,36 @@ function osRedactionsRender(){
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var debutMoisISO = debutMois.toISOString();
 
+  // Les articles "toutes rédactions" ne doivent jamais partir sur le fil sans filtre pour
+  // un non-admin — seul le sélecteur multi-rédactions en a besoin, et seulement pour SES
+  // propres rédactions (comptage "en cours" par rédaction dont on est membre). Avant ce
+  // correctif, cette requête n'avait aucun filtre : chaque membre recevait côté client les
+  // titres/statuts de TOUS les articles de TOUTES les rédactions, y compris les brouillons
+  // d'une rédaction à laquelle il n'appartient pas — visible via window._tousArticles.
+  // La vraie vue admin (stats globales) a son propre fetch dédié, gated sur role==='admin',
+  // dans osRedactionsRenderAdmin — ce fetch-ci n'a donc jamais besoin d'être global pour elle.
+  var pMesRedacIds = (role === 'admin')
+    ? Promise.resolve(null)
+    : fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id',{headers:authH})
+        .then(function(r){return r.json();})
+        .then(function(rows){ return (Array.isArray(rows)?rows:[]).map(function(r){return r.redaction_id;}); })
+        .catch(function(){ return []; });
+
+  pMesRedacIds.then(function(mesRedacIds){
+    var pArticles;
+    if(mesRedacIds && !mesRedacIds.length){
+      pArticles = Promise.resolve([]);
+    } else {
+      var uArticles = SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=1000';
+      if(mesRedacIds) uArticles += '&redaction_id=in.('+mesRedacIds.join(',')+')';
+      pArticles = fetch(uArticles,{headers:authH}).then(function(r){return r.json();});
+    }
+
   Promise.all([
     fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,role,email,fonction,redaction,created_at,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
-    (function(){ var u=SB_URL+'/rest/v1/articles?select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc&limit=1000'; return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
+    pArticles,
     (function(){ var u=SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,statut,auteur_id,updated_at&order=updated_at.desc'; if(window._redacActiveId) u+='&redaction_id=eq.'+encodeURIComponent(window._redacActiveId); return fetch(u,{headers:authH}).then(function(r){return r.json();}); })(),
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=eq.confirme&select=membre_id,evenement_id,created_at',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&created_at=gte.'+encodeURIComponent(debutMoisISO)+'&select=id,created_at',{headers:authH}).then(function(r){return r.json();}),
@@ -25624,6 +25659,7 @@ function osRedactionsRender(){
     osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
   }).catch(function(e){
     wc.innerHTML = '<div style="padding:2rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--rouge);">Erreur de chargement.</div>';
+  });
   });
 }
 
@@ -26807,7 +26843,12 @@ function osRedacPublierAnnonce(){
   var lien = ((document.getElementById('redac-annonce-lien')||{}).value||'').trim();
   if(!msg.trim()){ notif('Saisis un message'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/annonces',{method:'POST',headers:authH,body:JSON.stringify({message:msg.trim(),type:type,lien:lien||null,auteur:getUserNomComplet(),actif:true})})
+  // redaction_id : ce bouton vit dans l'écran d'UNE rédaction, mais postait jusqu'ici dans
+  // la même table que le Tableau/Tchap général sans aucune distinction — le message était
+  // en réalité diffusé à toute l'association. Marquer explicitement la rédaction d'origine
+  // permet à osRedacChargerAnnonces de n'afficher que les messages de SA propre équipe, et
+  // aux flux généraux (Tableau, Tchap...) de continuer à exclure ces messages d'équipe.
+  fetch(SB_URL+'/rest/v1/annonces',{method:'POST',headers:authH,body:JSON.stringify({message:msg.trim(),type:type,lien:lien||null,auteur:getUserNomComplet(),actif:true,redaction_id:window._redacActiveId||null})})
   .then(function(r){
     if(r.ok){
       notif('Annonce publiée ✓','succes');
@@ -26957,7 +26998,11 @@ function osRedacChargerAlertes(zone){
 
 function osRedacChargerAnnonces(zone){
   if(!zone) return;
-  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&order=created_at.desc&select=*',{headers:SB_HEADERS})
+  // Uniquement les messages d'équipe de LA rédaction active — jamais toute l'association
+  // (les annonces association-wide, redaction_id=null, restent visibles via le Tableau/Tchap).
+  var uRedacAnn = SB_URL+'/rest/v1/annonces?actif=eq.true&order=created_at.desc&select=*';
+  uRedacAnn += window._redacActiveId ? '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId) : '&redaction_id=is.null';
+  fetch(uRedacAnn,{headers:SB_HEADERS})
   .then(function(r){return r.json();})
   .then(function(annonces){
     if(!annonces||annonces.code||!annonces.length){ zone.innerHTML=''; return; }
@@ -30968,7 +31013,7 @@ function osTableauRender(){
   if(!wc) return;
   wc.innerHTML = osLoadingHtml();
 
-  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&order=epingle.desc,created_at.desc&select=*', { headers: SB_HEADERS })
+  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=epingle.desc,created_at.desc&select=*', { headers: SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(annonces){
     if(annonces && annonces.code) annonces = [];
@@ -31318,7 +31363,7 @@ function _tableauMajBadge(count){
 
 // Vérifier les annonces non vues au démarrage et mettre à jour le badge
 function tableauVerifierNonVus(){
-  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&select=id,expire_le,roles_cibles', { headers:SB_HEADERS })
+  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=id,expire_le,roles_cibles', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(annonces){
     if(!annonces || annonces.code) return;
@@ -35351,7 +35396,12 @@ function osAgendaOuvrirDetail(ev){
   var uid = getUserId();
   var role = getUserRole();
   var isAdmin = role === 'admin';
-  var monLienAgDetail = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===window._redacActiveId; });
+  // Droits basés sur la rédaction de L'ÉVÉNEMENT, pas celle actuellement affichée à l'écran
+  // (avec repli sur la rédaction active pour un événement associatif sans rédaction propre)
+  // — même principe que osProjetsOuvrirProjet. Sinon un rédac chef de la rédaction A, tout
+  // en regardant A, pouvait confirmer/refuser des inscriptions sur un événement de B.
+  var redacIdEvDetail = ev.redaction_id || window._redacActiveId;
+  var monLienAgDetail = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===redacIdEvDetail; });
   var peutGererParticipants = isAdmin || getUserHasFonction('vie_asso') || (monLienAgDetail && monLienAgDetail.role_redac === 'redac_chef');
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var existing = document.getElementById('agenda-detail-overlay');
@@ -35683,7 +35733,11 @@ function osAgendaSInscrire(evId){
 
 function osAgendaAjouterParticipant(evId){
   var role = getUserRole();
-  var monLienAg = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
+  // Droits basés sur la rédaction de L'ÉVÉNEMENT (repli sur la rédaction active si
+  // événement associatif sans rédaction propre) — même correctif que osAgendaOuvrirDetail.
+  var evAg = (_agendaEvenements||[]).find(function(e){ return e.id===evId; });
+  var redacIdEvAg = (evAg && evAg.redaction_id) || window._redacActiveId;
+  var monLienAg = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === redacIdEvAg; });
   var roleRedacAg = monLienAg ? monLienAg.role_redac : null;
   if(role !== 'admin' && roleRedacAg !== 'redac_chef'){ notif('Accès réservé aux admins et rédacteurs en chef'); return; }
   var sel = document.getElementById('ag-ajout-membre-select');
@@ -37582,7 +37636,7 @@ function tchapOuvrirAnnonces(){
 
 function tchapChargerAnnonces(role, zone, isAdmin){
   var masques = _tableauGetMasques ? _tableauGetMasques() : [];
-  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&order=epingle.desc,created_at.desc&select=*', {headers:SB_HEADERS})
+  fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=epingle.desc,created_at.desc&select=*', {headers:SB_HEADERS})
   .then(function(r){return r.json();})
   .then(function(annonces){
     window._tableauAnnonces = annonces && !annonces.code ? annonces : [];
