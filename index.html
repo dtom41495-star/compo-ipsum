@@ -15794,6 +15794,25 @@ function osBuildDesktopIcons(){
   agendaIcon.appendChild(agendaLabel);
   container.appendChild(agendaIcon);
 
+  // Icône Veille toujours présente sur le bureau (Tom veut qu'elle soit visible
+  // directement, pas seulement dans le dock)
+  if(role === 'admin' || role === 'redacteur' || role === 'correcteur'){
+    var veilleIcon = document.createElement('div');
+    veilleIcon.className = 'desktop-icon';
+    veilleIcon.onclick = function(){ osOpenWindow('veille'); };
+    var veilleImg = document.createElement('div');
+    veilleImg.className = 'desktop-icon-img';
+    veilleImg.style.background = 'linear-gradient(135deg,#0C5460,#149EB2)';
+    veilleImg.style.color = 'white';
+    veilleImg.innerHTML = '<i class="ti ti-rss"></i>';
+    var veilleLabel = document.createElement('div');
+    veilleLabel.className = 'desktop-icon-label';
+    veilleLabel.textContent = 'Veille';
+    veilleIcon.appendChild(veilleImg);
+    veilleIcon.appendChild(veilleLabel);
+    container.appendChild(veilleIcon);
+  }
+
   // Icône Guide toujours présente
   var guidIcon = document.createElement('div');
   guidIcon.className = 'desktop-icon';
@@ -32217,13 +32236,13 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures','veille'],
-  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures','veille'],
-  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','tchap','projets','agenda','boutique','mail','signatures','veille'],
-  admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie','veille'],
+  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures','veille'],
+  correcteur: ['mes-articles','redactions','calendrier-edito','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures','veille'],
+  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','tchap','projets','agenda','boutique','mail','signatures','veille'],
+  admin:      ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
-  communicant: ['app-com','carnet','notes','tchap','compo-store','boutique','mail','signatures'],
+  communicant: ['app-com','notes','tchap','compo-store','boutique','mail','signatures'],
 };
 
 window._userApps = null;
@@ -32354,6 +32373,23 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'agenda', epingle: true })
+        }).catch(function(){});
+      }
+
+      // Veille : garantir toujours présent — Tom veut que tout le monde l'ait d'entrée,
+      // pas seulement les nouveaux comptes (PROFILS_PREDEFINIS ne s'applique jamais
+      // rétroactivement aux comptes déjà configurés dans membres_apps). Même mécanisme
+      // que pour Agenda juste au-dessus ; appAccessible() plus bas filtre quand même par
+      // rôle, donc ça n'accorde rien à un rôle qui ne devrait pas l'avoir (communicant).
+      if(!allIds.includes('veille')){
+        allIds.push('veille');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'veille' })
         }).catch(function(){});
       }
 
