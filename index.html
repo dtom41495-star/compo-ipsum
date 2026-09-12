@@ -1787,6 +1787,82 @@ body {
   -webkit-backdrop-filter: none !important;
 }
 
+/* ===== ACCESSIBILITÉ — police adaptée (malvoyance / dyslexie) ===== */
+/* Même logique que .mode-leger juste au-dessus : la police est fixée en dur (Poppins,
+   DM Sans, Space Mono...) dans des centaines de style="" générés par le JS — un seul
+   sélecteur générique !important en cascade permet de la remplacer partout sans toucher
+   à chacun de ces endroits. Les icônes Tabler sont explicitement exclues du sélecteur
+   (elles rendent leur glyphe via ::before avec leur propre font-family) et re-protégées
+   juste après par sécurité.
+   Luciole : conçue pour la malvoyance (CTRDV / typographies.fr), fichiers servis via le
+   dépôt GitHub dreamRs/luciole (pas de CDN officiel dédié à ce jour).
+   OpenDyslexic : conçue pour la dyslexie, servie via Fontsource/jsDelivr. */
+@font-face{font-family:'Luciole';src:url('https://cdn.jsdelivr.net/gh/dreamRs/luciole@main/inst/assets/fonts/Luciole-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:'Luciole';src:url('https://cdn.jsdelivr.net/gh/dreamRs/luciole@main/inst/assets/fonts/Luciole-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap;}
+@font-face{font-family:'Luciole';src:url('https://cdn.jsdelivr.net/gh/dreamRs/luciole@main/inst/assets/fonts/Luciole-Regular-Italic.ttf') format('truetype');font-weight:400;font-style:italic;font-display:swap;}
+@font-face{font-family:'Luciole';src:url('https://cdn.jsdelivr.net/gh/dreamRs/luciole@main/inst/assets/fonts/Luciole-Bold-Italic.ttf') format('truetype');font-weight:700;font-style:italic;font-display:swap;}
+@font-face{font-family:'OpenDyslexic';src:url('https://cdn.jsdelivr.net/fontsource/fonts/opendyslexic@latest/latin-400-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:'OpenDyslexic';src:url('https://cdn.jsdelivr.net/fontsource/fonts/opendyslexic@latest/latin-700-normal.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
+@font-face{font-family:'OpenDyslexic';src:url('https://cdn.jsdelivr.net/fontsource/fonts/opendyslexic@latest/latin-400-italic.woff2') format('woff2');font-weight:400;font-style:italic;font-display:swap;}
+
+:root.accessibilite-luciole *:not(.ti):not([class*="ti-"]) { font-family:'Luciole',sans-serif !important; }
+:root.accessibilite-opendyslexic *:not(.ti):not([class*="ti-"]) { font-family:'OpenDyslexic',sans-serif !important; }
+:root.accessibilite-luciole [class*="ti-"]::before,
+:root.accessibilite-opendyslexic [class*="ti-"]::before { font-family:"tabler-icons" !important; }
+
+/* ===== MODE MALVOYANT — contraste renforcé, cibles plus grandes, mise en page simplifiée =====
+   Même principe que .mode-leger et .accessibilite-* ci-dessus : une classe sur la racine
+   + une cascade générique !important, plutôt que de retoucher les centaines de style=""
+   écrits en dur dans le JS. Premier passage limité aux 6 écrans prioritaires (Ma rédac,
+   Agenda, Menu démarrer, Écran de connexion, Mes articles, Rédiger) — les valeurs de
+   font-size/padding ci-dessous couvrent la grande majorité des petits boutons/textes
+   trouvés sur ces 6 écrans lors de l'audit, pas une garantie exhaustive sur le reste. */
+
+/* Contraste : ré-assombrir les tokens gris, trop clairs pour rester lisibles (texte
+   secondaire ~3.2:1 sur blanc aujourd'hui, sous le seuil WCAG AA de 4.5:1). */
+:root.mode-malvoyant { --gris:#3A3630; --gris-bord:#8A8580; }
+
+/* Simplifié : flou et ombres purement décoratifs aplatis, comme .mode-leger mais sans
+   dépendre de ce réglage séparé — un malvoyant n'a pas à cocher deux cases. */
+:root.mode-malvoyant * {
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+
+/* Écran de connexion : carte opaque, décor (photo de fond, halo, particules) masqué —
+   le contraste texte/fond n'y est plus imprévisible. */
+:root.mode-malvoyant .os-login-card { background:#FFFFFF !important; }
+:root.mode-malvoyant #os-login::before,
+:root.mode-malvoyant #os-login::after,
+:root.mode-malvoyant #os-login-canvas { display:none !important; }
+
+/* Ma rédac : rail (170px fixe) + contenu, côte à côte en temps normal → colonne unique. */
+:root.mode-malvoyant [style*="display:flex;height:100%;overflow:hidden"] { flex-direction:column !important; }
+:root.mode-malvoyant #redac-sidebar-rail { width:100% !important; }
+
+/* Menu démarrer : boutons d'icônes du pied (34×34) remontés à une cible confortable. */
+:root.mode-malvoyant .sm-icon-btn { width:44px !important; height:44px !important; }
+
+/* Cibles plus grandes : petits boutons/avatars 28×28 carrés récurrents (barre d'outils
+   Rédiger, pastilles d'initiales) — sauf les icônes, jamais concernées par ces règles. */
+:root.mode-malvoyant [style*="width:28px;height:28px"]:not(.ti):not([class*="ti-"]) { width:40px !important; height:40px !important; }
+
+/* Cibles/texte plus grands : les tailles de police compactes qui reviennent le plus
+   souvent sur les 6 écrans (badges, boutons d'action, légendes, horodatages). */
+:root.mode-malvoyant [style*="font-size:0.5rem"],
+:root.mode-malvoyant [style*="font-size:0.52rem"],
+:root.mode-malvoyant [style*="font-size:0.55rem"],
+:root.mode-malvoyant [style*="font-size:0.56rem"],
+:root.mode-malvoyant [style*="font-size:0.58rem"],
+:root.mode-malvoyant [style*="font-size:0.6rem"],
+:root.mode-malvoyant [style*="font-size:0.62rem"],
+:root.mode-malvoyant [style*="font-size:0.65rem"],
+:root.mode-malvoyant [style*="font-size:0.68rem"] { font-size:0.85rem !important; }
+:root.mode-malvoyant [style*="padding:2px 6px"],
+:root.mode-malvoyant [style*="padding:2px 7px"],
+:root.mode-malvoyant [style*="padding:3px 8px"],
+:root.mode-malvoyant [style*="padding:4px 10px"] { padding:10px 14px !important; }
+
 /* ===== OOBE ===== */
 #oobe-screen {
   position: fixed; inset: 0; z-index: 99997;
@@ -3971,7 +4047,7 @@ input:focus,select:focus,textarea:focus{
             <div id="r-cp-source-org" style="font-size:0.6rem;color:var(--gris);"></div>
           </div>
           <button onclick="rArticleOuvrirCpACote()" title="Ouvrir le communiqué à côté de l'article" style="background:none;border:0.5px solid var(--bleu);color:var(--bleu);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:2px 7px;"><i class="ti ti-layout-sidebar-right" style="vertical-align:-2px;margin-right:2px;"></i>Lire à côté</button>
-          <button onclick="rArticleDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;">✕</button>
+          <button onclick="rArticleDetacherCpSource()" title="Retirer le communiqué lié" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;">✕</button>
         </div>
       </div>
 
@@ -4002,7 +4078,7 @@ input:focus,select:focus,textarea:focus{
       <div class="form-group" id="rg-sources">
         <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
         <div class="sources-list" id="sources-list" style="margin-top:0.35rem;">
-          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>
+          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>
         </div>
         <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
       </div>
@@ -5285,7 +5361,7 @@ function renderTags(){
 }
 
 // ===== SOURCES =====
-function addSrc(){const l=document.getElementById('sources-list'),n=l.children.length+1;const d=document.createElement('div');d.className='src-item';d.innerHTML='<input type="text" placeholder="Source '+n+'"><button onclick="rmSrc(this)">✕</button>';l.appendChild(d);}
+function addSrc(){const l=document.getElementById('sources-list'),n=l.children.length+1;const d=document.createElement('div');d.className='src-item';d.innerHTML='<input type="text" placeholder="Source '+n+'"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button>';l.appendChild(d);}
 function rmSrc(b){b.parentElement.remove();}
 function getSrc(){return Array.from(document.querySelectorAll('#sources-list .src-item input')).map(i=>i.value.trim()).filter(Boolean);}
 
@@ -5522,7 +5598,7 @@ function resetRedaction(){
   if(zoneSujetLie) zoneSujetLie.innerHTML = '';
   var abandonBtnReset = document.getElementById('r-abandon-sujet');
   if(abandonBtnReset){ abandonBtnReset.style.display='none'; abandonBtnReset.dataset.sujetId=''; }
-  document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)">✕</button></div>';
+  document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>';
   setUrg('normal');updateStats();
   osStartAutosave(); // Démarrer aussi pour les nouveaux articles (pas seulement les reprises)
 }
@@ -11659,7 +11735,9 @@ function osLancer(){
   osBuildDesktopIcons();
   osAppliquerThemeAuDemarrage();
   osAppliquerWallpaperAuDemarrage();
-  osAppliquerModeLegerAuDemarrage();
+  // Mode allégé / police adaptée / taille de texte / mode malvoyant : appliqués beaucoup
+  // plus tôt désormais, tout en haut de demarrer() — voir ce fichier, section INIT OS —
+  // pour couvrir aussi l'écran de connexion. Pas la peine de les rappeler ici.
   osAfficherRedactionLabel();
   osAfficherUserWatermark();
   setTimeout(osRequestFullscreen, 500);
@@ -18305,6 +18383,7 @@ function osParamsRender(){
   var sections = [
     { id:'profil', icon:'👤', label:'Mon profil' },
     { id:'apparence', icon:'🎨', label:'Apparence' },
+    { id:'accessibilite', icon:'♿', label:'Accessibilité' },
     { id:'compte', icon:'🔑', label:'Compte' },
   ];
   
@@ -18652,6 +18731,87 @@ function osParamsRenderSection(section, container){
     container.appendChild(rowWp);
   }
   
+  else if(section === 'accessibilite'){
+    container.innerHTML = '<div class="params-section-title">♿ Accessibilité</div><div class="params-section-sub">Taille du texte et police adaptée à la malvoyance ou à la dyslexie</div>';
+
+    var accStyleActif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
+    var accStyleInactif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
+
+    // Taille du texte
+    var rowTaille = document.createElement('div');
+    rowTaille.className = 'params-row';
+    var tailleActuelle = parseInt(localStorage.getItem('compo_os_taille_texte'),10) || 100;
+    rowTaille.innerHTML = '<div><div class="params-label">Taille du texte</div><div class="params-label-sub">Agrandit tout le texte de l\'interface</div></div>';
+    var tailleAction = document.createElement('div');
+    tailleAction.style.cssText = 'display:flex;gap:0.4rem;flex-wrap:wrap;';
+    [100,115,130,150].forEach(function(pct){
+      var btn = document.createElement('button');
+      btn.style.cssText = (tailleActuelle===pct ? accStyleActif : accStyleInactif);
+      btn.textContent = (pct===100?'Normal':pct+'%');
+      btn.onclick = function(){
+        osAppliquerTailleTexte(pct);
+        osParamsRenderSection('accessibilite', document.getElementById('params-content-area'));
+      };
+      tailleAction.appendChild(btn);
+    });
+    rowTaille.appendChild(tailleAction);
+    container.appendChild(rowTaille);
+
+    // Police adaptée
+    var rowPolice = document.createElement('div');
+    rowPolice.className = 'params-row';
+    rowPolice.style.flexDirection = 'column';
+    rowPolice.style.alignItems = 'flex-start';
+    var policeActuelle = localStorage.getItem('compo_os_police') || 'defaut';
+    rowPolice.innerHTML = '<div style="margin-bottom:0.6rem;"><div class="params-label">Police adaptée</div><div class="params-label-sub">Luciole (malvoyance) et OpenDyslexic (dyslexie) sont deux polices conçues spécifiquement pour ça</div></div>';
+    var policeAction = document.createElement('div');
+    policeAction.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;';
+    [
+      {id:'defaut', label:'Par défaut', ff:'inherit'},
+      {id:'luciole', label:'Luciole', ff:"'Luciole',sans-serif"},
+      {id:'opendyslexic', label:'OpenDyslexic', ff:"'OpenDyslexic',sans-serif"}
+    ].forEach(function(p){
+      var btn = document.createElement('button');
+      btn.style.cssText = (policeActuelle===p.id ? accStyleActif : accStyleInactif) + 'font-family:'+p.ff+' !important;';
+      btn.textContent = p.label;
+      btn.onclick = function(){
+        osAppliquerPolice(p.id);
+        osParamsRenderSection('accessibilite', document.getElementById('params-content-area'));
+      };
+      policeAction.appendChild(btn);
+    });
+    rowPolice.appendChild(policeAction);
+    container.appendChild(rowPolice);
+
+    // Mode malvoyant — contraste renforcé, cibles plus grandes, mise en page simplifiée.
+    // Premier passage limité à 6 écrans (Ma rédac, Agenda, Menu démarrer, Écran de
+    // connexion, Mes articles, Rédiger) — les autres suivront dans un second temps.
+    var rowMalvoyant = document.createElement('div');
+    rowMalvoyant.className = 'params-row';
+    var malvoyantActif = localStorage.getItem('compo_os_mode_malvoyant') === '1';
+    rowMalvoyant.innerHTML = '<div><div class="params-label">Mode malvoyant <span class="badge-beta">Bêta</span></div><div class="params-label-sub">Contraste renforcé, boutons plus grands, mise en page simplifiée — disponible pour l\'instant sur Ma rédac, l\'agenda, le menu démarrer, l\'écran de connexion, Mes articles et Rédiger</div></div>';
+    var malvoyantAction = document.createElement('div');
+    malvoyantAction.style.cssText = 'display:flex;gap:0.4rem;';
+    var btnMalvNormal = document.createElement('button');
+    btnMalvNormal.style.cssText = !malvoyantActif ? accStyleActif : accStyleInactif;
+    btnMalvNormal.textContent = 'Normal';
+    var btnMalvActif = document.createElement('button');
+    btnMalvActif.style.cssText = malvoyantActif ? accStyleActif : accStyleInactif;
+    btnMalvActif.textContent = '◐ Activé';
+    btnMalvNormal.onclick = function(){
+      osAppliquerModeMalvoyant(false);
+      osParamsRenderSection('accessibilite', document.getElementById('params-content-area'));
+    };
+    btnMalvActif.onclick = function(){
+      osAppliquerModeMalvoyant(true);
+      osParamsRenderSection('accessibilite', document.getElementById('params-content-area'));
+    };
+    malvoyantAction.appendChild(btnMalvNormal);
+    malvoyantAction.appendChild(btnMalvActif);
+    rowMalvoyant.appendChild(malvoyantAction);
+    container.appendChild(rowMalvoyant);
+  }
+
   else if(section === 'compte'){
     container.innerHTML = '<div class="params-section-title">🔑 Compte</div><div class="params-section-sub">Informations de ton compte</div>';
     
@@ -18734,6 +18894,49 @@ function osAppliquerModeLeger(actif){
 
 function osAppliquerModeLegerAuDemarrage(){
   osAppliquerModeLeger(localStorage.getItem('compo_os_mode_leger') === '1');
+}
+
+// Mode malvoyant : contraste renforcé + cibles plus grandes + mise en page simplifiée —
+// voir la classe :root.mode-malvoyant dans le <style>, juste après .mode-leger.
+function osAppliquerModeMalvoyant(actif){
+  var root = document.documentElement;
+  if(actif){
+    localStorage.setItem('compo_os_mode_malvoyant', '1');
+    root.classList.add('mode-malvoyant');
+  } else {
+    localStorage.removeItem('compo_os_mode_malvoyant');
+    root.classList.remove('mode-malvoyant');
+  }
+}
+function osAppliquerModeMalvoyantAuDemarrage(){
+  osAppliquerModeMalvoyant(localStorage.getItem('compo_os_mode_malvoyant') === '1');
+}
+
+// ===== ACCESSIBILITÉ =====
+// Police adaptée : 'defaut' | 'luciole' | 'opendyslexic' — voir les classes CSS
+// :root.accessibilite-* juste après .mode-leger dans le <style>.
+function osAppliquerPolice(id){
+  var root = document.documentElement;
+  root.classList.remove('accessibilite-luciole','accessibilite-opendyslexic');
+  if(id === 'luciole') root.classList.add('accessibilite-luciole');
+  else if(id === 'opendyslexic') root.classList.add('accessibilite-opendyslexic');
+  if(id && id !== 'defaut') localStorage.setItem('compo_os_police', id);
+  else localStorage.removeItem('compo_os_police');
+}
+function osAppliquerPoliceAuDemarrage(){
+  osAppliquerPolice(localStorage.getItem('compo_os_police') || 'defaut');
+}
+
+// Taille du texte : un pourcentage appliqué à la racine — comme la quasi-totalité des
+// tailles de police dans Compo sont en rem (relatives à la racine), ça suffit à tout
+// agrandir proportionnellement sans devoir toucher aux centaines de style="" du JS.
+function osAppliquerTailleTexte(pct){
+  document.documentElement.style.fontSize = pct + '%';
+  if(pct && pct !== 100) localStorage.setItem('compo_os_taille_texte', pct);
+  else localStorage.removeItem('compo_os_taille_texte');
+}
+function osAppliquerTailleTexteAuDemarrage(){
+  osAppliquerTailleTexte(parseInt(localStorage.getItem('compo_os_taille_texte'),10) || 100);
 }
 
 // ===== WALLPAPER =====
@@ -20368,7 +20571,7 @@ function _maRenderBrouillonsLocaux(list, count){
       +(d.corps ? ' · '+d.corps.trim().split(/\s+/).length+' mots' : ' · vide')+'</div>'
       +'<div style="display:flex;gap:.35rem;">'
       +'<button style="'+_maBtn('rouge')+'" data-id="'+esc(d.id)+'" onclick="reprendreBrouillon(this.dataset.id)"><i class="ti ti-pencil" style="vertical-align:-1px;"></i> Reprendre</button>'
-      +'<button style="'+_maBtn('danger')+'" data-id="'+esc(d.id)+'" onclick="maOsSupprimerBrouillonLocal(this.dataset.id)"><i class="ti ti-trash"></i></button>'
+      +'<button style="'+_maBtn('danger')+'" data-id="'+esc(d.id)+'" onclick="maOsSupprimerBrouillonLocal(this.dataset.id)" title="Supprimer ce brouillon local"><i class="ti ti-trash"></i></button>'
       +'</div>';
     list.appendChild(card);
   });
@@ -33912,6 +34115,17 @@ function oobeTerminer(){
 (function(){
 
   function demarrer(){
+  // Appliqués ici, tout en haut de demarrer() — avant même le moindre check de session —
+  // pour que le contraste/la police/la taille de texte choisis par l'utilisateur soient
+  // déjà là sur l'écran de connexion lui-même, pas seulement une fois connecté. Avant ce
+  // correctif, ces trois réglages n'étaient appliqués que dans osLancer() (post-connexion
+  // uniquement) : quelqu'un qui avait choisi une police/un contraste voyait son réglage
+  // disparaître sur l'écran de connexion, pour ne revenir qu'après authentification.
+  osAppliquerModeLegerAuDemarrage();
+  osAppliquerPoliceAuDemarrage();
+  osAppliquerTailleTexteAuDemarrage();
+  osAppliquerModeMalvoyantAuDemarrage();
+
   osNettoyerServiceWorker();
 
   // Lien "mot de passe oublié" cliqué depuis l'email — prioritaire sur tout le reste
