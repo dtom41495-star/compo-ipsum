@@ -11750,6 +11750,7 @@ function osLancer(){
     // Service Worker désactivé (blob: protocol non supporté en prod)
     osVerifierEtatConnexion();
     chargerAlertTickets();
+    osVeilleChargerBadge();
     ssInit();
     // Popup "ton article a été corrigé/validé/publié" — montrée à l'auteur, pas à qui a fait l'action
     setTimeout(osVerifierNotifsAuteurArticles, 4000);
@@ -14112,7 +14113,7 @@ function _creerIconeDock(app, isPinned){
   icon.appendChild(label);
 
   // Badge notifications
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets'];
+  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets','veille'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var badge = document.createElement('span');
     badge.className = 'desktop-icon-badge';
@@ -15096,6 +15097,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'notes'){
     setTimeout(function(){ osNotesRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'veille'){
+    setTimeout(function(){ osVeilleRender(); }, 50);
     return;
   }
 
@@ -16209,7 +16215,7 @@ function _creerAppTuile(app, epingle){
     icon.appendChild(badgePin);
   }
 
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets'];
+  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','tchap','projets','veille'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var smBadge = document.createElement('span');
     smBadge.style.cssText = 'position:absolute;top:-3px;left:2px;background:#FF5F57;color:white;border-radius:9px;font-size:0.5rem;font-weight:700;font-family:Space Mono,monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid rgba(0,0,0,0.3);display:none;z-index:2;';
@@ -26991,6 +26997,203 @@ function osCreerNouveauSujet(){
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
+// ===== VEILLE (flux RSS partagés par l'équipe) =====
+// Les articles sont récupérés côté serveur (Edge Function veille-recuperer-flux,
+// déclenchée par pg_cron) — jamais depuis le navigateur, un flux RSS externe ne
+// s'ouvre pas en CORS. Ici, lecture seule des tables + gestion des flux (admin/chef).
+window._veilleFlux = [];
+window._veilleArticles = [];
+var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
+
+function osVeilleRender(){
+  var wc = document.getElementById('wincontent-veille');
+  if(!wc) return;
+  wc.innerHTML = osLoadingHtml();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/veille_flux?select=id,nom,url,actif&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,resume,image,date_publication&order=date_publication.desc.nullslast&limit=200',{headers:authH}).then(function(r){return r.json();})
+  ]).then(function(res){
+    window._veilleFlux = (!res[0]||res[0].code)?[]:res[0];
+    window._veilleArticles = (!res[1]||res[1].code)?[]:res[1];
+    osVeilleRendreListe(wc);
+  }).catch(function(){ wc.innerHTML = osErreurHtml(); });
+}
+
+function osVeilleEstGestionnaire(){
+  var role = getUserRole();
+  if(role === 'admin') return true;
+  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
+  return !!(monLien && monLien.role_redac === 'redac_chef');
+}
+
+function osVeilleVus(){
+  try{ return JSON.parse(localStorage.getItem('ipsum_veille_vus')||'[]'); }catch(e){ return []; }
+}
+
+function osVeilleMarquerVu(articleId){
+  var vus = osVeilleVus();
+  if(vus.indexOf(articleId) === -1){
+    vus.push(articleId);
+    localStorage.setItem('ipsum_veille_vus', JSON.stringify(vus));
+  }
+  osVeilleChargerBadge();
+}
+
+function osVeilleToutMarquerLu(){
+  var vus = osVeilleVus();
+  var ids = (window._veilleArticles||[]).map(function(a){ return a.id; });
+  localStorage.setItem('ipsum_veille_vus', JSON.stringify(vus.concat(ids.filter(function(id){ return vus.indexOf(id)===-1; }))));
+  osVeilleChargerBadge();
+  var wc = document.getElementById('wincontent-veille');
+  if(wc) osVeilleRendreListe(wc);
+}
+
+// Appelée au démarrage (comme cpsChargerBadge) pour le badge du dock, sans ouvrir l'app.
+function osVeilleChargerBadge(){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/veille_articles?select=id&order=date_publication.desc.nullslast&limit=200',{headers:authH})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data || data.code) return;
+    var vus = osVeilleVus();
+    var nonLus = data.filter(function(a){ return vus.indexOf(a.id) === -1; }).length;
+    osMajBadge('veille', nonLus);
+  }).catch(function(){});
+}
+
+function osVeilleOuvrirArticle(articleId, lien){
+  osVeilleMarquerVu(articleId);
+  window.open(lien, '_blank', 'noopener');
+}
+
+// Pré-remplit la modale existante "Nouveau sujet" avec le titre/résumé de l'article, après
+// avoir vérifié qu'un sujet très proche n'existe pas déjà (même détection que pour la
+// rédaction normale — non bloquant, juste un avertissement).
+function osVeilleCreerSujet(articleId){
+  var article = (window._veilleArticles||[]).find(function(a){ return a.id===articleId; });
+  if(!article) return;
+  _doublonsCharger().then(function(cache){
+    var proches = _doublonsChercher(article.titre, cache);
+    if(proches.length){
+      notif('Sujet proche déjà existant : "'+proches[0].titre+'" — '+proches[0].detail, 'alerte');
+    }
+    osOuvrirNouveauSujetModal();
+    setTimeout(function(){
+      var t = document.getElementById('ns-titre');
+      var n = document.getElementById('ns-note');
+      if(t) t.value = article.titre||'';
+      if(n) n.value = (article.resume?article.resume+'\n\n':'')+'Source : '+article.lien;
+    }, 60);
+  });
+}
+
+function osVeilleRendreListe(wc){
+  var vus = osVeilleVus();
+  var articles = (window._veilleArticles||[]).filter(function(a){
+    return _veilleFiltreActif !== 'non_lus' || vus.indexOf(a.id) === -1;
+  });
+  var nonLusTotal = (window._veilleArticles||[]).filter(function(a){ return vus.indexOf(a.id)===-1; }).length;
+  var fluxParId = {};
+  (window._veilleFlux||[]).forEach(function(f){ fluxParId[f.id] = f; });
+
+  var h = '<div style="padding:1rem 1.5rem;">';
+
+  // Barre filtre + tout marquer lu
+  h += '<div style="display:flex;gap:0.4rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">';
+  [
+    {id:'tous', label:'Tous ('+(window._veilleArticles||[]).length+')'},
+    {id:'non_lus', label:'Non lus ('+nonLusTotal+')'}
+  ].forEach(function(f){
+    var actif = _veilleFiltreActif === f.id;
+    h += '<button onclick="_veilleFiltreActif=\''+f.id+'\';osVeilleRendreListe(document.getElementById(\'wincontent-veille\'))" style="font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;font-weight:'+(actif?'700':'400')+';border:1.5px solid '+(actif?'var(--rouge)':'var(--gris-bord)')+';background:'+(actif?'var(--rouge)':'white')+';color:'+(actif?'white':'var(--gris)')+';">'+esc(f.label)+'</button>';
+  });
+  if(nonLusTotal > 0){
+    h += '<button onclick="osVeilleToutMarquerLu()" style="margin-left:auto;font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);"><i class="ti ti-checks"></i> Tout marquer comme lu</button>';
+  }
+  if(osVeilleEstGestionnaire()){
+    h += '<button onclick="osVeilleOuvrirGestionFlux()" style="font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-settings"></i> Gérer les flux</button>';
+  }
+  h += '</div>';
+
+  if(!(window._veilleFlux||[]).length){
+    h += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Aucun flux suivi pour l\'instant.'+(osVeilleEstGestionnaire()?' <br><button onclick="osVeilleOuvrirGestionFlux()" class="btn sec" style="margin-top:0.8rem;">Ajouter un flux</button>':'')+'</div>';
+  } else if(!articles.length){
+    h += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Rien à lire ici pour l\'instant.</div>';
+  } else {
+    articles.forEach(function(a){
+      var flux = fluxParId[a.flux_id];
+      var estVu = vus.indexOf(a.id) !== -1;
+      var dateStr = a.date_publication ? new Date(a.date_publication).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+      h += '<div style="display:flex;gap:0.8rem;padding:0.8rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;'+(estVu?'':'background:var(--rouge-clair);')+'">';
+      if(a.image) h += '<img src="'+esc(a.image)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;" loading="lazy" onerror="this.remove()">';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:2px;">'+esc(flux?flux.nom:'Source inconnue')+(dateStr?' · '+dateStr:'')+(estVu?'':' · <span style="color:var(--rouge);font-weight:700;">nouveau</span>')+'</div>';
+      h += '<div onclick="osVeilleOuvrirArticle(\''+a.id+'\',\''+esc(a.lien).replace(/'/g,"\\'")+'\')" style="font-weight:700;font-size:0.88rem;color:var(--encre);cursor:pointer;">'+esc(a.titre)+'</div>';
+      if(a.resume) h += '<div style="font-size:0.78rem;color:var(--gris);margin-top:3px;">'+esc(a.resume)+'</div>';
+      h += '<div style="margin-top:0.5rem;"><button onclick="osVeilleCreerSujet(\''+a.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--rouge);border-radius:4px;background:white;color:var(--rouge);cursor:pointer;"><i class="ti ti-bulb"></i> Créer un sujet</button></div>';
+      h += '</div></div>';
+    });
+  }
+  h += '</div>';
+  wc.innerHTML = h;
+}
+
+// ── Gestion des flux (admin/rédac chef) — formulaire minimal nom+URL.
+function osVeilleOuvrirGestionFlux(){
+  var existing = document.getElementById('veille-gestion-overlay');
+  if(existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'veille-gestion-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
+  var h = '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-rss"></i> Flux suivis</div>'
+    +'<button onclick="document.getElementById(\'veille-gestion-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'</div><div style="padding:1.2rem 1.5rem;">';
+  h += '<div class="form-grid" style="margin-bottom:0.8rem;">'
+    +'<div class="form-group full"><label>Nom de la source</label><input type="text" id="vf-nom" placeholder="Ex : La Dépêche du Midi"></div>'
+    +'<div class="form-group full"><label>URL du flux RSS</label><input type="text" id="vf-url" placeholder="https://exemple.fr/rss"></div>'
+    +'</div><div class="btn-row"><button class="btn" onclick="osVeilleAjouterFlux()">Ajouter</button></div><hr style="margin:1rem 0;border:none;border-top:1px solid var(--gris-bord);">';
+  h += '<div id="veille-liste-flux">'+(window._veilleFlux||[]).map(function(f){
+    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(f.nom)+'</div><div style="font-size:0.65rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(f.url)+'</div></div>'
+      +'<button onclick="osVeilleSupprimerFlux(\''+f.id+'\')" title="Retirer ce flux" style="background:none;border:none;cursor:pointer;color:var(--rouge);font-size:0.9rem;"><i class="ti ti-trash"></i></button>'
+      +'</div>';
+  }).join('')+'</div>';
+  h += '</div>';
+  card.innerHTML = h;
+  overlay.appendChild(card);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function osVeilleAjouterFlux(){
+  var nom = ((document.getElementById('vf-nom')||{}).value||'').trim();
+  var url = ((document.getElementById('vf-url')||{}).value||'').trim();
+  if(!nom || !url){ notif('Nom et URL requis'); return; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/veille_flux',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,url:url,cree_par:getUserId()})})
+  .then(function(r){
+    if(r.ok){
+      notif('Flux ajouté ✓ — les premiers articles arriveront à la prochaine récupération','succes');
+      var ov = document.getElementById('veille-gestion-overlay'); if(ov) ov.remove();
+      osVeilleRender();
+    } else notif('Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+function osVeilleSupprimerFlux(fluxId){
+  if(!confirm('Retirer ce flux ? Les articles déjà récupérés resteront visibles.')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/veille_flux?id=eq.'+fluxId,{method:'DELETE',headers:authH})
+  .then(function(r){
+    if(r.ok){ notif('Flux retiré','succes'); osVeilleOuvrirGestionFlux(); osVeilleRender(); }
+    else notif('Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 // ── Modifier un sujet existant (chef/admin) — même formulaire que la création,
 // pré-rempli, en PATCH plutôt qu'en POST.
 function osSujetOuvrirModifier(sujetId){
@@ -32009,14 +32212,15 @@ var ALL_APPS_CATALOGUE = [
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
   { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','admin'], store:true, desc:'Suivi de projets et tâches — assignation, kanban, deadlines.' },
+  { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures'],
-  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures'],
-  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','tchap','projets','agenda','boutique','mail','signatures'],
-  admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie'],
+  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','visuels-pro','tutos','tchap','projets','boutique','mail','signatures','veille'],
+  correcteur: ['mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','newsletter','tutos','tchap','projets','boutique','mail','signatures','veille'],
+  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','tchap','projets','agenda','boutique','mail','signatures','veille'],
+  admin:      ['redaction','mes-articles','redactions','calendrier-edito','carnet','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','tchap','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
   communicant: ['app-com','carnet','notes','tchap','compo-store','boutique','mail','signatures'],
