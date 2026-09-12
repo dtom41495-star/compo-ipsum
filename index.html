@@ -34735,14 +34735,26 @@ function osAgendaOuvrirDetail(ev){
           confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
           refuse:     {c:'#A32D2D',bg:'#FCEBEB',l:'Refusé'}
         };
+        // L'appel n'a de sens qu'une fois l'événement commencé — inutile de pointer une
+        // présence avant que ça n'ait lieu.
+        var evDejaCommence = new Date(ev.date_debut) <= new Date();
         inscriptions.forEach(function(insc){
           var m = membres.find(function(x){return x.id===insc.membre_id;});
           var nom = m ? esc((m.prenom||'')+' '+(m.nom||'')).trim() : 'Inconnu';
           var sc = ST_CONF[insc.statut]||{c:'#333',bg:'#eee',l:insc.statut};
           var dateInscr = insc.created_at ? new Date(insc.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+          var presenceHtml = '';
+          if(insc.statut==='confirme' && evDejaCommence){
+            var pEtat = insc.presence===true?'true':(insc.presence===false?'false':'null');
+            var pLabel = insc.presence===true?'✓ Présent':(insc.presence===false?'✕ Absent':'? Appel');
+            var pCoul = insc.presence===true?'#155724':(insc.presence===false?'#A32D2D':'#856404');
+            var pBg = insc.presence===true?'#D4EDDA':(insc.presence===false?'#FCEBEB':'#FFF3CD');
+            presenceHtml = '<button id="presence-btn-'+insc.id+'" data-presence="'+pEtat+'" onclick="event.stopPropagation();osAgendaTogglePresence(\''+insc.id+'\',\''+ev.id+'\')" title="Faire l\'appel — clique pour changer" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid '+pCoul+';border-radius:3px;background:'+pBg+';color:'+pCoul+';cursor:pointer;white-space:nowrap;">'+pLabel+'</button>';
+          }
           iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
             +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
             +'<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
+            +presenceHtml
             +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #1A5276;border-radius:3px;background:white;color:#1A5276;cursor:pointer;">📋</button>':'')
             +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
             +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
@@ -34872,9 +34884,14 @@ function osAgendaSInscrire(evId){
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
   var statutInitial = (ev && ev.validation_admin) ? 'en_attente' : 'confirme';
 
+  // Inscription à un événement déjà passé (saisie rétroactive, ex. pour créditer des
+  // heures après coup) : presence=true d'emblée — l'inscription EST la confirmation de
+  // présence, pas la peine de repasser par l'appel.
+  var inscrPayload = {evenement_id:evId, membre_id:uid, statut:statutInitial};
+  if(ev && ev.date_debut && new Date(ev.date_debut) < new Date()) inscrPayload.presence = true;
   fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
     method:'POST', headers:authH,
-    body:JSON.stringify({evenement_id:evId, membre_id:uid, statut:statutInitial})
+    body:JSON.stringify(inscrPayload)
   }).then(function(r){
     if(!r.ok){ notif('Erreur inscription'); return; }
     return r.json();
@@ -34920,9 +34937,13 @@ function osAgendaAjouterParticipant(evId){
   if(val.startsWith('membre_')){
     var membreId = val.replace('membre_','');
     var authHRep = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+    // Ajout manuel sur un événement déjà passé = confirmation de présence directe, comme
+    // pour osAgendaSInscrire — pas besoin de repasser par l'appel.
+    var ajoutPayload = {evenement_id:evId, membre_id:membreId, statut:'confirme'};
+    if(evAg && evAg.date_debut && new Date(evAg.date_debut) < new Date()) ajoutPayload.presence = true;
     fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
       method:'POST', headers:authHRep,
-      body:JSON.stringify({evenement_id:evId, membre_id:membreId, statut:'confirme'})
+      body:JSON.stringify(ajoutPayload)
     }).then(function(r){
       if(!r.ok){ notif('Erreur ou déjà inscrit','erreur'); return; }
       return r.json();
@@ -35035,8 +35056,27 @@ function osAgendaSeDesinscrire(inscrId, evId){
   }).catch(function(){});
 }
 
+// Fait l'appel : bascule null (pas encore pointé) → présent → absent → null. Le crédit
+// d'heures (osAgendaCreditHeuresAuto) ne se déclenche que sur presence===true — sans
+// appel explicite, personne n'est crédité, même avec une inscription confirmée.
+function osAgendaTogglePresence(inscrId, evId){
+  var btn = document.getElementById('presence-btn-'+inscrId);
+  var etatActuel = btn ? btn.dataset.presence : 'null';
+  var nouvel = etatActuel==='null' ? true : (etatActuel==='true' ? false : null);
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId, {
+    method:'PATCH', headers:authH,
+    body: JSON.stringify({presence: nouvel})
+  }).then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+    if(ev) osAgendaOuvrirDetail(ev);
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function osAgendaCreditHeuresAuto(){
-  // Créditer les heures pour les événements terminés où l'inscription est confirmée
+  // Créditer les heures pour les événements terminés où l'inscription est confirmée,
+  // où la présence a été pointée (presence=true, via l'appel — voir osAgendaTogglePresence)
   // et où les heures n'ont pas encore été créditées (pas d'entrée heures_benevolat avec reference_id = inscription.id)
   var maintenant = new Date().toISOString();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -35052,7 +35092,7 @@ function osAgendaCreditHeuresAuto(){
 
     // Inscriptions confirmées du membre pour ces événements
     var evIds = evs.map(function(e){return e.id;});
-    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&evenement_id=in.('+evIds.join(',')+')'+'&select=id,evenement_id',{headers:authH})
+    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&presence=eq.true&evenement_id=in.('+evIds.join(',')+')'+'&select=id,evenement_id',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(inscriptions){
       if(!inscriptions||inscriptions.code||!inscriptions.length) return;
