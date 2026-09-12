@@ -35198,46 +35198,65 @@ function osAgendaEnvoyerNotif(evId, titre){
   if(!ev){ notif('Événement introuvable'); return; }
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=eq.confirme&select=membre_id',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(inscriptions){
-    if(!inscriptions||!inscriptions.length){ notif('Aucun inscrit à notifier'); return; }
-    var ids = inscriptions.map(function(i){return i.membre_id;});
-    return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom,nom&email=not.is.null',{headers:authH})
+  // Lien public (inscription.html) pour les destinataires externes — ils n'ont pas de
+  // compte Compo, le lien interne les enverrait juste sur l'écran de connexion Google.
+  var lienPublic = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'inscription.html?event=' + encodeURIComponent(evId);
+
+  var pMembres = fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=eq.confirme&select=membre_id',{headers:authH})
     .then(function(r){return r.json();})
-    .then(function(membres){
-      if(!membres||!membres.length){ notif('Aucun email disponible'); return; }
-      var debut = new Date(ev.date_debut);
-      var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-      var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-      var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
-      var nb = 0;
-      function envoyerProchain(idx){
-        if(idx >= membres.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); return; }
-        var m = membres[idx];
-        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-          +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
-          +'<h1 style="color:white;font-size:1rem;margin:0;">'+t.icon+' Rappel : '+esc(titre)+'</h1>'
-          +'</div>'
-          +'<div style="padding:1.2rem 1.5rem;">'
-          +'<p style="font-size:0.9rem;">Bonjour '+esc(m.prenom||'')+',</p>'
-          +'<p>Rappel pour l\'événement <strong>'+esc(titre)+'</strong> :</p>'
-          +'<ul style="font-size:0.85rem;">'
-          +'<li>📅 '+dateStr+'</li>'
-          +'<li>🕐 '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</li>'
-          +(ev.lieu?'<li>📍 '+esc(ev.lieu)+'</li>':'')
-          +(ev.lien_visio?'<li>🔗 <a href="'+esc(ev.lien_visio)+'">Lien visio</a></li>':'')
-          +'</ul>'
-          +(ev.description?'<p style="font-size:0.82rem;color:#666;">'+esc(ev.description)+'</p>':'')
-          +'<a href="https://compo.ipsummedia.fr?agenda='+ev.id+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
-          +'</div></div>';
-        envoyerEmailResend(m.email, '[Compo] Rappel : '+titre, html, 'agenda')
-        .then(function(r){ if(r&&r.ok!==false) nb++; })
-        .catch(function(){})
-        .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
-      }
-      envoyerProchain(0);
-    });
+    .then(function(inscriptions){
+      if(!inscriptions||!inscriptions.length) return [];
+      var ids = inscriptions.map(function(i){return i.membre_id;});
+      return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom,nom&email=not.is.null',{headers:authH})
+        .then(function(r){return r.json();})
+        .then(function(membres){
+          return (membres||[]).map(function(m){ return {email:m.email, nom:m.prenom||'', externe:false}; });
+        });
+    }).catch(function(){ return []; });
+
+  var pExternes = (ev.ouvert_externes ? fetch(SB_URL+'/functions/v1/agenda-inscription-externe', {
+    method:'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+    body: JSON.stringify({ action:'lister', evenementId: evId })
+  }).then(function(r){return r.json();}) : Promise.resolve({inscrits:[]}))
+    .then(function(data){
+      return ((data&&data.inscrits)||[]).map(function(e){ return {email:e.email, nom:e.nom||'', externe:true}; });
+    }).catch(function(){ return []; });
+
+  Promise.all([pMembres, pExternes]).then(function(res){
+    var destinataires = res[0].concat(res[1]);
+    if(!destinataires.length){ notif('Aucun inscrit à notifier'); return; }
+    var debut = new Date(ev.date_debut);
+    var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
+    var nb = 0;
+    function envoyerProchain(idx){
+      if(idx >= destinataires.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); return; }
+      var d = destinataires[idx];
+      var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;text-align:center;">'
+        +'<img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" style="height:84px;margin-bottom:0.6rem;">'
+        +'<h1 style="color:white;font-size:1rem;margin:0;">'+t.icon+' Rappel : '+esc(titre)+'</h1>'
+        +'</div>'
+        +'<div style="padding:1.2rem 1.5rem;">'
+        +'<p style="font-size:0.9rem;">Bonjour '+esc(d.nom)+',</p>'
+        +'<p>Rappel pour l\'événement <strong>'+esc(titre)+'</strong> :</p>'
+        +'<ul style="font-size:0.85rem;">'
+        +'<li>📅 '+dateStr+'</li>'
+        +'<li>🕐 '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</li>'
+        +(ev.lieu?'<li>📍 '+esc(ev.lieu)+'</li>':'')
+        +(ev.lien_visio?'<li>🔗 <a href="'+esc(ev.lien_visio)+'">Lien visio</a></li>':'')
+        +'</ul>'
+        +(ev.description?'<p style="font-size:0.82rem;color:#666;">'+esc(ev.description)+'</p>':'')
+        +'<a href="'+(d.externe?esc(lienPublic):'https://compo.ipsummedia.fr?agenda='+ev.id)+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">'+(d.externe?'Voir l\'événement':'Voir sur Compo')+'</a>'
+        +'</div></div>';
+      envoyerEmailResend(d.email, '[Compo] Rappel : '+titre, html, 'agenda')
+      .then(function(r){ if(r&&r.ok!==false) nb++; })
+      .catch(function(){})
+      .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
+    }
+    envoyerProchain(0);
   }).catch(function(){ notif('Erreur envoi','erreur'); });
 }
 
