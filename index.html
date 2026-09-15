@@ -8657,13 +8657,16 @@ function assignValider(){
           notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
         } else if(membre.email && !osEstEnLigne(_assignDoc2.correcteur_id)){
           // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
-          var html = '<h2>Un article t\'attend en correction 🔍</h2>'
+          var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+            +osEnteteEmailLogo('Un article t\'attend en correction 🔍')
+            +'<div style="padding:1.2rem 1.5rem;">'
             +'<p>Bonjour '+esc(membre.prenom)+',</p>'
             +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
             +'<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+esc(_assignDoc2.titre||'Sans titre')+'</p>'
             +'<p style="font-family:monospace;font-size:0.72rem;color:#888;">ID : '+esc(docId)+'</p>'
             +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'
-            +'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article.</p>';
+            +'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article.</p>'
+            +'</div></div>';
           envoyerEmailResend(membre.email, '[Compo] Article à corriger : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
             .catch(function(){ console.warn('Email correcteur non envoyé'); });
         }
@@ -9495,10 +9498,7 @@ function _osEmailStatutArticle(doc, statut, cfg){
       extrait = lignes.slice(0,15).join('\n');
     }
     var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
-      +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<span style="font-size:1.2rem;">'+cfg.icon+'</span>'
-      +'<span style="color:white;font-weight:700;font-size:.95rem;margin-left:.5rem;">Ipsum Média · Compo OS</span>'
-      +'</div>'
+      +osEnteteEmailLogo(cfg.icon+' Ipsum Média · Compo OS')
       +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
       +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
       +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">'+intros[statut]+'</p>'
@@ -9540,10 +9540,7 @@ function _osEmailRefusArticle(doc, note){
       extrait = lignes.slice(0,15).join('\n');
     }
     var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
-      +'<div style="background:#DC2626;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<span style="font-size:1.2rem;">📝</span>'
-      +'<span style="color:white;font-weight:700;font-size:.95rem;margin-left:.5rem;">Article renvoyé en correction</span>'
-      +'</div>'
+      +osEnteteEmailLogo('📝 Article renvoyé en correction')
       +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
       +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
       +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">Ton article a été relu et nécessite des modifications avant d\'être validé.</p>'
@@ -9851,8 +9848,7 @@ function _recrutementConfirmerCandidat(annonceTitre){
     var m = data && data[0];
     if(!m || !m.email) return;
     var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-      +'<div style="background:#1A1A2E;padding:1rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;">Ipsum Média</span></div>'
+      +osEnteteEmailLogo('Ipsum Média')
       +'<div style="background:#F7F8FA;padding:1.5rem;">'
       +'<p style="font-size:0.95rem;color:#111;">Bonjour '+esc(m.prenom||'')+'</p>'
       +'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Ta candidature pour <strong>'+esc(annonceTitre)+'</strong> a bien été envoyée. L\'équipe va l\'examiner et revient vers toi prochainement.</p>'
@@ -10512,12 +10508,15 @@ function _publierArticleReel(id){
           }
           
           if(membre && membre.email && _osRedacNotifActive(article.redaction_id, 'notif_statut_article')){
-            var html = '<h2>Ton article a ete publie !</h2>'+
+            var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+              osEnteteEmailLogo('Ton article a ete publie !')+
+              '<div style="padding:1.2rem 1.5rem;">'+
               '<p>Bonjour '+membre.prenom+',</p>'+
               '<p>Ton article <strong>"'+article.titre+'"</strong> a ete valide et publie sur Substack par la redaction en chef.</p>'+
               '<p>Bravo pour ce travail !</p>'+
               '<p style="color:#155724;background:#D4EDDA;padding:0.8rem;border-left:3px solid #155724;">'+
-              'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>';
+              'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>'+
+              '</div></div>';
             var chatTexte = '📢 Ton article est publié : "'+(article.titre||'')+'". Bravo pour ce travail ! https://compo.ipsummedia.fr';
             notifierPersonnel(membre.id, membre.canal_notif, chatTexte, 'publication', function(){
               envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html, 'publication')
@@ -10955,6 +10954,18 @@ document.addEventListener('visibilitychange', function(){
   }
 });
 
+// Bandeau logo standard pour tous les emails Compo (même bloc que le mail de
+// rappel d'agenda) — titreHtml peut contenir un emoji/icône avant le texte, ex.
+// osEnteteEmailLogo('🔕 Rappel d\'inactivité'). Une fonction dédiée plutôt qu'un
+// bout de HTML recopié dans chacun des ~40 envois d'email, pour que l'identité
+// visuelle reste cohérente et facile à changer d'un seul endroit.
+function osEnteteEmailLogo(titreHtml){
+  return '<div style="background:#1A1A2E;padding:1.2rem 1.5rem;text-align:center;">'
+    +'<img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" style="height:84px;margin-bottom:0.6rem;">'
+    +'<h1 style="color:white;font-size:1rem;margin:0;">'+titreHtml+'</h1>'
+    +'</div>';
+}
+
 // Garde-fou centralisé, à cet unique endroit plutôt que dans chacun des ~40 envois
 // d'email de l'appli : un membre marqué inactif (marque_inactif, décidé par la vie
 // associative), indisponible (dnd, auto-déclaré) ou dont le compte est restreint
@@ -11093,14 +11104,17 @@ function ticketCreer(){
     notif('Demande envoyee a ' + destNom + ' !');
     chargerTickets();
 
-    var html = '<h2>Nouvelle demande d assistance</h2>'+
+    var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+      osEnteteEmailLogo('Nouvelle demande d assistance')+
+      '<div style="padding:1.2rem 1.5rem;">'+
       '<p><strong>De :</strong> '+auteur+'</p>'+
       '<p><strong>Titre :</strong> '+titre+'</p>'+
       '<p><strong>Priorite :</strong> '+priorite+'</p>'+
       (desc ? '<p><strong>Description :</strong><br>'+desc.replace(/\n/g,'<br>')+'</p>' : '')+
       '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
       'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
-      'Cette adresse email ne recoit pas de messages.</p>';
+      'Cette adresse email ne recoit pas de messages.</p>'+
+      '</div></div>';
 
     function envoyerEmailTicket(){
       envoyerEmailResend(destEmail, '[Compo] Nouvelle assistance : '+titre, html, 'ticket')
@@ -11281,11 +11295,14 @@ function ticketFermer(ticket, reponse){
     chargerTickets();
 
     // Email au membre
-    var html = '<h2>Ta demande a ete traitee</h2>'+
+    var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+      osEnteteEmailLogo('Ta demande a ete traitee')+
+      '<div style="padding:1.2rem 1.5rem;">'+
       '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
       '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
       '<p>Demande fermee par l administrateur.</p>'+
-      '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>';
+      '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>'+
+      '</div></div>';
 
     // Envoyer email au membre via sa colonne email dans membres
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+ticket.auteur_id+'&select=email,prenom,canal_notif', {headers:SB_HEADERS})
@@ -11293,14 +11310,17 @@ function ticketFermer(ticket, reponse){
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
       if(membre && membre.email){
-        var htmlMembre = '<h2>Ta demande d assistance a ete traitee !</h2>'+
+        var htmlMembre = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+          osEnteteEmailLogo('Ta demande d assistance a ete traitee !')+
+          '<div style="padding:1.2rem 1.5rem;">'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
           '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
           '<p><strong>Reponse de l admin :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
           '<p>Ce ticket est maintenant ferme.</p>'+
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour ouvrir un nouveau ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
-          'Cette adresse email ne recoit pas de messages.</p>';
+          'Cette adresse email ne recoit pas de messages.</p>'+
+          '</div></div>';
         var chatTexte = '🎫 Ta demande d\'assistance "'+ticket.titre+'" a été traitée et fermée. Réponse : '+reponse+' https://compo.ipsummedia.fr';
         notifierPersonnel(ticket.auteur_id, membre.canal_notif, chatTexte, 'ticket', function(){
           envoyerEmailResend(membre.email, '[Compo] Assistance resolue : '+ticket.titre, htmlMembre, 'ticket')
@@ -11360,13 +11380,16 @@ function ticketRepondre(ticket, reponse){
     .then(function(data){
       var membre = data && data[0] ? data[0] : null;
       if(membre && membre.email){
-        var html = '<h2>Nouvelle reponse sur ta demande d assistance</h2>'+
+        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+          osEnteteEmailLogo('Nouvelle reponse sur ta demande d assistance')+
+          '<div style="padding:1.2rem 1.5rem;">'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
           '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
           '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour repondre ou suivre ce ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
-          'Cette adresse email ne recoit pas de messages.</p>';
+          'Cette adresse email ne recoit pas de messages.</p>'+
+          '</div></div>';
         var chatTexte = '🎫 Nouvelle réponse sur ta demande d\'assistance "'+ticket.titre+'" : '+reponse+' https://compo.ipsummedia.fr';
         notifierPersonnel(ticket.auteur_id, membre.canal_notif, chatTexte, 'ticket', function(){
           envoyerEmailResend(membre.email, '[Compo] Reponse sur ton assistance : '+ticket.titre, html, 'ticket')
@@ -11397,12 +11420,15 @@ function ticketRepondreRedacteur(ticket, message){
     chargerTickets();
 
     // Email a l'admin
-    var html = '<h2>Nouvelle reponse sur une demande d assistance</h2>'+
+    var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+      osEnteteEmailLogo('Nouvelle reponse sur une demande d assistance')+
+      '<div style="padding:1.2rem 1.5rem;">'+
       '<p><strong>'+auteur+'</strong> a repondu sur la demande : <strong>'+ticket.titre+'</strong></p>'+
       '<p><strong>Message :</strong><br>'+message.replace(/\n/g,'<br>')+'</p>'+
       '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
       'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
-      'Cette adresse email ne recoit pas de messages.</p>';
+      'Cette adresse email ne recoit pas de messages.</p>'+
+      '</div></div>';
 
     envoyerEmailResend(ADMIN_EMAIL, '[Compo] Reponse de '+auteur+' : '+ticket.titre, html, 'ticket')
       .catch(function(){ console.warn('Email admin non envoye'); });
@@ -12214,8 +12240,7 @@ function osBoutiqueCommander(articleId, nom, cout){
         var monNom = getUserNomComplet();
         (admins||[]).forEach(function(admin){
           var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#7D3C98;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">🎁 Nouvelle commande boutique</h2></div>'
+            +osEnteteEmailLogo('🎁 Nouvelle commande boutique')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(admin.prenom||'')+'</p>'
             +'<p><strong>'+esc(monNom)+'</strong> souhaite échanger <strong>'+cout+'h</strong> contre <strong>'+esc(nom)+'</strong>.</p>'
@@ -12249,8 +12274,7 @@ function osBoutiqueValider(cmdId){
           var m = membres&&membres[0];
           if(!m||!m.email) return;
           var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#155724;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Commande validée</h2></div>'
+            +osEnteteEmailLogo('✅ Commande validée')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> a été validée ! ('+cmd.cout_heures+'h déduits)</p>'
@@ -12287,8 +12311,7 @@ function osBoutiqueRefuser(cmdId){
           var m = membres&&membres[0];
           if(!m||!m.email) return;
           var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Commande non retenue</h2></div>'
+            +osEnteteEmailLogo('❌ Commande non retenue')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
@@ -17414,10 +17437,7 @@ function osNotifierComArticleValide(article){
     var auteur  = article.auteur||'';
 
     var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-      +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
-      +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">🎨 Nouvel article à illustrer</div>'
-      +'</div>'
+      +osEnteteEmailLogo('🎨 Nouvel article à illustrer')
       +'<div style="background:#F7F8FA;padding:1.5rem;">'
       +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #E8461E;">'
       +'<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Titre</div>'
@@ -17479,10 +17499,7 @@ function osNotifierValidateursCentraux(article){
       var auteur = article.auteur||'';
       var lien   = genererLien(article.id);
       var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-        +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
-        +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">🛡️ Validation centrale requise</div>'
-        +'</div>'
+        +osEnteteEmailLogo('🛡️ Validation centrale requise')
         +'<div style="background:#F7F8FA;padding:1.5rem;">'
         +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #0B3D91;">'
         +'<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Article validé localement, en attente de la rédaction centrale</div>'
@@ -17517,10 +17534,7 @@ function osNotifierValidationCentraleOK(article){
     var titre = article.titre||'Sans titre';
     var lien  = genererLien(article.id);
     var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-      +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
-      +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">✅ Validation centrale obtenue</div>'
-      +'</div>'
+      +osEnteteEmailLogo('✅ Validation centrale obtenue')
       +'<div style="background:#F7F8FA;padding:1.5rem;">'
       +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #155724;">'
       +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
@@ -20882,7 +20896,7 @@ function _bugAlerterAdminCritique(rapport){
   _bugEmailCooldown = true;
   setTimeout(function(){ _bugEmailCooldown = false; }, 10*60*1000);
   var html = '<div style="font-family:sans-serif;max-width:520px;">'
-    +'<div style="background:#721C24;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">🚨 Erreur critique sur Compo</h2></div>'
+    +osEnteteEmailLogo('🚨 Erreur critique sur Compo')
     +'<div style="padding:1rem 1.5rem;">'
     +'<p style="font-weight:600;">'+esc(rapport.message)+'</p>'
     +'<p style="font-size:0.85rem;color:#555;">Utilisateur : '+esc(rapport.user_nom||'Non connecté')+' ('+esc(rapport.user_role||'')+')<br>Page : '+esc(rapport.page)+'<br>URL : '+esc(rapport.url)+'</p>'
@@ -21486,7 +21500,7 @@ function osSignatureEnvoyer(){
     signataires.forEach(function(s){
       var lien = 'https://compo.ipsummedia.fr/?signature='+s.token;
       var html = '<div style="font-family:sans-serif;max-width:500px;">'
-        +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document à signer</h2></div>'
+        +osEnteteEmailLogo('Document à signer')
         +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
         +'<p><strong>'+esc(_sigNouveauTitre)+'</strong> attend ta signature.</p>'
         +'<a href="'+lien+'" style="display:inline-block;background:#E8461E;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Signer le document</a>'
@@ -21877,7 +21891,7 @@ function _sigAssemblerPdfFinal(doc, signataires){
       canaux = (!canaux||canaux.code) ? [] : canaux;
       signataires.forEach(function(s){
         var html = '<div style="font-family:sans-serif;max-width:500px;">'
-          +'<div style="background:#1A5726;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">Document entièrement signé</h2></div>'
+          +osEnteteEmailLogo('Document entièrement signé')
           +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
           +'<p><strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties.</p>'
           +'<a href="'+esc(finalUrl)+'" style="display:inline-block;background:#155724;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Télécharger le PDF final</a>'
@@ -22155,8 +22169,7 @@ function cpsInvitationSeDeclarer(cpId){
         var cp = (_cpAdminListe||[]).find(function(c){return c.id===cpId;})||{titre:cpId};
         ;(admins||[]).forEach(function(admin){
           var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#784212;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">📰 Disponibilité invitation presse</h2></div>'
+            +osEnteteEmailLogo('📰 Disponibilité invitation presse')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(admin.prenom||'')+'</p>'
             +'<p><strong>'+esc(monNom)+'</strong> se déclare disponible pour l\'invitation : <strong>'+esc(cp.titre||cpId)+'</strong></p>'
@@ -22239,8 +22252,7 @@ function cpsInvitationSelectionner(dispId, cpId, membreId){
       if(!m||!m.email) return;
       var dateEv = cp.date_evenement ? new Date(cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
       var html = '<div style="font-family:sans-serif;max-width:500px;">'
-        +'<div style="background:#155724;padding:1rem 1.5rem;">'
-        +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Tu es sélectionné(e) !</h2></div>'
+        +osEnteteEmailLogo('✅ Tu es sélectionné(e) !')
         +'<div style="padding:1rem 1.5rem;">'
         +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
         +'<p>Tu as été sélectionné(e) pour couvrir <strong>'+esc(cp.titre||'')+'</strong>.</p>'
@@ -23610,10 +23622,7 @@ function cpsAdminCharger(){
 // que les autres emails plus récents de l'appli (validation centrale, visuels...).
 function _osCpEmailShell(titreInterne, corpsHtml){
   return '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-    +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;border-radius:8px 8px 0 0;">'
-    +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</div>'
-    +'<div style="font-size:1.1rem;font-weight:700;color:white;margin-top:4px;">'+titreInterne+'</div>'
-    +'</div>'
+    +osEnteteEmailLogo(titreInterne)
     +'<div style="background:#F7F8FA;padding:1.5rem;border-radius:0 0 8px 8px;">'
     +corpsHtml
     +'</div></div>';
@@ -24707,9 +24716,7 @@ function osBenvEmailCandidature(annonceId, annonceTitre, candidatPrenom){
     if(!admin||!admin.email) return;
     var sujet = '📢 Nouvelle candidature — '+annonceTitre;
     var corps = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-      +'<div style="background:#1A1A2E;padding:1rem 1.5rem;border-radius:8px 8px 0 0;">'
-      +'<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.1em;">Ipsum Média · Compo OS</span>'
-      +'</div>'
+      +osEnteteEmailLogo('Ipsum Média · Compo OS')
       +'<div style="background:#F7F8FA;padding:1.5rem;">'
       +'<p style="font-size:0.95rem;color:#111;">Bonjour '+esc(admin.prenom||'')+'</p>'
       +'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;"><strong>'+esc(candidatPrenom)+'</strong> a candidaté pour le poste <strong>'+esc(annonceTitre)+'</strong>.</p>'
@@ -24780,8 +24787,7 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
       if(email){
         var sujet = decision==='accepte'?'✓ Ta candidature a été acceptée — Ipsum Média':'Ta candidature chez Ipsum Média';
         var corps = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-          +'<div style="background:#1A1A2E;padding:1rem 1.5rem;border-radius:8px 8px 0 0;">'
-          +'<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;">Ipsum Média</span></div>'
+          +osEnteteEmailLogo('Ipsum Média')
           +'<div style="background:#F7F8FA;padding:1.5rem;">'
           +'<p style="font-size:0.95rem;color:#111;">Bonjour '+esc(prenom)+'</p>'
           +(decision==='accepte'
@@ -24901,11 +24907,10 @@ function osEnvoyerNotifsSujets(){
         return;
       }
       var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;">'
-        +'<h1 style="color:white;font-size:1.1rem;margin:0;">📌 Nouveaux sujets à rédiger</h1>'
-        +'<p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">Bonjour '+esc(m.prenom||'')+' — '+sujets.length+' nouveau(x) sujet(s) disponible(s)</p>'
-        +'</div>'
-        +'<div style="padding:1.2rem 1.5rem;">'+sujetsHtml+'</div>'
+        +osEnteteEmailLogo('📌 Nouveaux sujets à rédiger')
+        +'<div style="padding:1.2rem 1.5rem;">'
+        +'<p style="color:#666;font-size:0.85rem;margin:0 0 0.8rem;">Bonjour '+esc(m.prenom||'')+' — '+sujets.length+' nouveau(x) sujet(s) disponible(s)</p>'
+        +sujetsHtml+'</div>'
         +'<div style="padding:1rem 1.5rem;text-align:center;">'
         +'<a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.82rem;font-weight:600;">Réserver un sujet sur Compo</a>'
         +'</div>'
@@ -25258,14 +25263,17 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           return;
         }
         var m = destinataires[idx];
-        var html = '<h2 style="color:#E8461E;">📢 Nouvelle annonce de recrutement</h2>'
+        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+          +osEnteteEmailLogo('📢 Nouvelle annonce de recrutement')
+          +'<div style="padding:1.2rem 1.5rem;">'
           +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
           +'<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
           +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(a.titre||'')+'</h3>'
           +(a.description?'<div style="margin:0.5rem 0 0;font-size:0.9rem;">'+mdVersHtml(a.description)+'</div>':'')
           +(a.email_contact?'<div style="color:#666;font-size:0.85rem;margin-top:0.5rem;">📧 '+esc(a.email_contact)+'</div>':'')
           +'</div>'
-          +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Voir sur Compo</a></p>';
+          +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Voir sur Compo</a></p>'
+          +'</div></div>';
         envoyerEmailResend(m.email, '[Compo] Recrutement : '+a.titre, html, 'recrutement')
         .then(function(r){ if(r && r.ok !== false) nb++; else echecs.push(m.email); })
         .catch(function(){ echecs.push(m.email); })
@@ -27344,7 +27352,7 @@ function osSujetAssigner(sujetId, membreId){
       var titreSujet = sujet ? sujet.titre : '';
       if(_osRedacNotifActive(sujet && sujet.redaction_id, 'notif_sujet_attribue')){
         var html = '<div style="font-family:sans-serif;max-width:500px;">'
-          +'<div style="background:#1A1A2E;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">📌 Un sujet t\'a été attribué</h2></div>'
+          +osEnteteEmailLogo('📌 Un sujet t\'a été attribué')
           +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
           +'<p>On t\'a confié le sujet <strong>'+esc(titreSujet||'')+'</strong> sur Compo.</p>'
           +(sujet && sujet.note ? '<p style="color:#666;font-size:0.85rem;">'+esc(sujet.note)+'</p>' : '')
@@ -28388,10 +28396,13 @@ function osBenevolesRelancer(membreId){
   var m = s.membre;
   var viaChat = m.canal_notif === 'chat';
   if(!confirm('Envoyer '+(viaChat?'un message Chat':'un email')+' de relance à '+m.prenom+' ?')) return;
-  var html = '<h2>Un petit rappel de la part de la rédac ✏️</h2>'
+  var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+    +osEnteteEmailLogo('Un petit rappel de la part de la rédac ✏️')
+    +'<div style="padding:1.2rem 1.5rem;">'
     +'<p>Bonjour '+esc(m.prenom||'')+ ',</p>'
     +'<p>On n\'a pas eu de tes nouvelles depuis un moment sur Compo. N\'hésite pas à reprendre tes articles en cours !</p>'
-    +'<p style="margin-top:1rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:6px;">Accéder à Compo</a></p>';
+    +'<p style="margin-top:1rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:6px;">Accéder à Compo</a></p>'
+    +'</div></div>';
   var chatTexte = '✏️ Un petit rappel de la part de la rédac : on n\'a pas eu de tes nouvelles depuis un moment sur Compo. N\'hésite pas à reprendre tes articles en cours ! https://compo.ipsummedia.fr';
   if(viaChat){
     notifierChatDM(membreId, chatTexte, 'relance').then(function(){ notif('Message Chat de relance envoyé à '+m.prenom+' ✓', 'succes'); });
@@ -29003,7 +29014,7 @@ function _osNotifierVieAssoIndisponibilite(nomMembre, raison){
     cibles.forEach(function(m){
       if(!m.email) return;
       var html = '<div style="font-family:sans-serif;max-width:500px;">'
-        +'<div style="background:#721C24;padding:1rem 1.5rem;"><h2 style="color:white;font-size:1rem;margin:0;">🔕 '+esc(nomMembre)+' est indisponible</h2></div>'
+        +osEnteteEmailLogo('🔕 '+esc(nomMembre)+' est indisponible')
         +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(m.prenom||'')+',</p>'
         +'<p><strong>'+esc(nomMembre)+'</strong> vient d\'être '+esc(raison||'signalé(e) indisponible')+'. Ça peut valoir le coup de prendre des nouvelles.</p>'
         +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
@@ -32752,8 +32763,12 @@ function osInviterMembreValider(){
     envoyerEmailResend(
       email,
       'Ton compte Compo est prêt',
-      '<p>Bonjour '+prenom+',</p><p>Ton compte Compo (Ipsum Média) a été créé.</p>'
-        +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>',
+      '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+        +osEnteteEmailLogo('Ton compte Compo est prêt')
+        +'<div style="padding:1.2rem 1.5rem;">'
+        +'<p>Bonjour '+prenom+',</p><p>Ton compte Compo (Ipsum Média) a été créé.</p>'
+        +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
+        +'</div></div>',
       'invitation'
     );
     var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
@@ -32777,8 +32792,12 @@ function osRenvoyerInvitation(email, nom, btn){
   envoyerEmailResend(
     email,
     'Ton compte Compo est prêt',
-    '<p>Bonjour '+prenomSeul+',</p><p>Ton compte Compo (Ipsum Média) est prêt.</p>'
-      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>',
+    '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+      +osEnteteEmailLogo('Ton compte Compo est prêt')
+      +'<div style="padding:1.2rem 1.5rem;">'
+      +'<p>Bonjour '+prenomSeul+',</p><p>Ton compte Compo (Ipsum Média) est prêt.</p>'
+      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
+      +'</div></div>',
     'invitation'
   ).then(function(r){
     notif(r.ok ? 'Rappel renvoyé à '+email+' !' : 'Erreur envoi email', r.ok ? 'succes' : 'erreur');
@@ -35240,7 +35259,7 @@ function osAgendaOuvrirDetail(ev){
         +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">Envoie un rappel avec les infos de l\'événement</div></div>'
         +'<label class="compo-toggle"><input type="checkbox" id="ag-notif-email" checked><span class="track"></span><span class="thumb"></span></label>'
         +'</div>';
-      iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\')" style="margin-top:0.5rem;font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;width:100%;">📨 Envoyer le rappel</button>';
+      iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\',this)" style="margin-top:0.5rem;font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;width:100%;">📨 Envoyer le rappel</button>';
       iz += '</div>';
     }
     zone.innerHTML = iz;
@@ -35464,8 +35483,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
           if(!m||!m.email) return;
           var evTitre = ev?esc(ev.titre||''):'Événement';
           var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +'<div style="background:#856404;padding:1rem 1.5rem;">'
-            +'<h2 style="color:white;font-size:1rem;margin:0;">ℹ️ Désinscription</h2></div>'
+            +osEnteteEmailLogo('ℹ️ Désinscription')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
             +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
@@ -35680,12 +35698,34 @@ function osAgendaValiderInscription(inscrId){
   osAgendaValiderInscr(inscrId, ev?ev.id:null);
 }
 
-function osAgendaEnvoyerNotif(evId, titre){
+function osAgendaEnvoyerNotif(evId, titre, btnEl){
   var envoyerMail = (document.getElementById('ag-notif-email')||{}).checked !== false;
   if(!envoyerMail){ notif('Notification désactivée'); return; }
 
+  // Anti double-clic : le bouton n'affichait aucun retour visuel pendant l'envoi
+  // (plusieurs emails partent l'un après l'autre avec un délai), donc un clic
+  // impatient déclenchait un deuxième envoi complet par-dessus le premier.
+  if(btnEl){
+    if(btnEl.disabled) return;
+    btnEl.disabled = true;
+    btnEl._texteOriginal = btnEl.textContent;
+    btnEl.style.opacity = '0.6';
+    btnEl.style.cursor = 'default';
+    btnEl.textContent = 'Envoi en cours...';
+  }
+  function terminerEnvoi(texte){
+    if(!btnEl) return;
+    btnEl.textContent = texte;
+    setTimeout(function(){
+      btnEl.disabled = false;
+      btnEl.style.opacity = '';
+      btnEl.style.cursor = 'pointer';
+      btnEl.textContent = btnEl._texteOriginal || '📨 Envoyer le rappel';
+    }, 3000);
+  }
+
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
-  if(!ev){ notif('Événement introuvable'); return; }
+  if(!ev){ notif('Événement introuvable'); terminerEnvoi('Événement introuvable'); return; }
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Lien public (inscription.html) pour les destinataires externes — ils n'ont pas de
@@ -35715,14 +35755,14 @@ function osAgendaEnvoyerNotif(evId, titre){
 
   Promise.all([pMembres, pExternes]).then(function(res){
     var destinataires = res[0].concat(res[1]);
-    if(!destinataires.length){ notif('Aucun inscrit à notifier'); return; }
+    if(!destinataires.length){ notif('Aucun inscrit à notifier'); terminerEnvoi('Aucun inscrit'); return; }
     var debut = new Date(ev.date_debut);
     var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
     var nb = 0;
     function envoyerProchain(idx){
-      if(idx >= destinataires.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); return; }
+      if(idx >= destinataires.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); terminerEnvoi(nb+' rappel(s) envoyé(s) ✓'); return; }
       var d = destinataires[idx];
       var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
         +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;text-align:center;">'
@@ -35747,7 +35787,7 @@ function osAgendaEnvoyerNotif(evId, titre){
       .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
     }
     envoyerProchain(0);
-  }).catch(function(){ notif('Erreur envoi','erreur'); });
+  }).catch(function(){ notif('Erreur envoi','erreur'); terminerEnvoi('Erreur envoi'); });
 }
 
 
@@ -35794,9 +35834,7 @@ function osAgendaValiderInscr(inscrId, evId){
             var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
             var heureStr = ev ? new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
             var html = '<div style="font-family:sans-serif;max-width:500px;">'
-              +'<div style="background:#155724;padding:1rem 1.5rem;">'
-              +'<h2 style="color:white;font-size:1rem;margin:0;">✅ Inscription confirmée</h2>'
-              +'</div>'
+              +osEnteteEmailLogo('✅ Inscription confirmée')
               +'<div style="padding:1rem 1.5rem;">'
               +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
               +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
@@ -35837,9 +35875,7 @@ function osAgendaRefuserInscr(inscrId, evId){
             if(!m || !m.email) return;
             var evTitre = ev ? esc(ev.titre||'') : 'Événement';
             var html = '<div style="font-family:sans-serif;max-width:500px;">'
-              +'<div style="background:#A32D2D;padding:1rem 1.5rem;">'
-              +'<h2 style="color:white;font-size:1rem;margin:0;">❌ Inscription non retenue</h2>'
-              +'</div>'
+              +osEnteteEmailLogo('❌ Inscription non retenue')
               +'<div style="padding:1rem 1.5rem;">'
               +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
               +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
@@ -35944,9 +35980,13 @@ function osAgendaEnvoyerEmailAnnulation(evId){
       function envoyerProchain(idx){
         if(idx >= membres.length){ if(nb) notif(nb+' membre(s) notifié(s) de l\'annulation','succes'); return; }
         var m = membres[idx];
-        var html = '<h2>Événement annulé</h2><p>Bonjour '+esc(m.prenom||'')+',</p>'
+        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+          +osEnteteEmailLogo('Événement annulé')
+          +'<div style="padding:1.2rem 1.5rem;">'
+          +'<p>Bonjour '+esc(m.prenom||'')+',</p>'
           +'<p>L\'événement <strong>'+esc(ev.titre||'')+'</strong> prévu le '+new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' a été annulé.</p>'
-          +'<p style="color:#666;font-size:0.88rem;">Pour consulter l\'agenda à jour : <a href="https://compo.ipsummedia.fr?agenda='+ev.id+'">voir sur Compo</a></p>';
+          +'<p style="color:#666;font-size:0.88rem;">Pour consulter l\'agenda à jour : <a href="https://compo.ipsummedia.fr?agenda='+ev.id+'">voir sur Compo</a></p>'
+          +'</div></div>';
         envoyerEmailResend(m.email,'[Ipsum] Événement annulé : '+ev.titre,html,'agenda')
         .then(function(r){ if(r&&r.ok!==false) nb++; })
         .catch(function(){})
@@ -36343,8 +36383,7 @@ function osAgendaPrevenirContactExterne(ev){
   var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-    +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">🎤 '+esc(ev.titre||'')+'</h1>'
-    +'<p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">Ipsum Média</p></div>'
+    +osEnteteEmailLogo('🎤 '+esc(ev.titre||''))
     +'<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">'
     +'<p style="margin:0 0 0.8rem;">Bonjour'+(ev.contact_nom?' '+esc(ev.contact_nom):'')+',</p>'
     +'<p style="margin:0 0 0.8rem;">'+esc(ev.organisateur||'Un membre d\'Ipsum Média')+' souhaite s\'entretenir avec vous. Voici les informations pratiques :</p>'
@@ -36380,9 +36419,9 @@ function osAgendaEnvoyerInvitations(ev, roles, fonctions){
     var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
     cibles.forEach(function(m){
       var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">'+t.icon+' '+esc(ev.titre||'')+'</h1>'
-        +'<p style="color:rgba(255,255,255,0.5);font-size:0.78rem;margin:4px 0 0;">'+t.l+'</p></div>'
+        +osEnteteEmailLogo(t.icon+' '+esc(ev.titre||''))
         +'<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">'
+        +'<p style="color:#888;font-size:0.78rem;margin:0 0 0.8rem;">'+t.l+'</p>'
         +'<p style="margin:0 0 0.5rem;"><strong>📅</strong> '+dateStr+'</p>'
         +'<p style="margin:0 0 0.5rem;"><strong>🕐</strong> '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</p>'
         +(ev.lieu?'<p style="margin:0 0 0.5rem;"><strong>📍</strong> '+esc(ev.lieu)+'</p>':'')
@@ -36881,7 +36920,7 @@ function osProjetsNotifierAssignes(assignesIds, titreTache, titreProjet, membres
     var m = membres.find(function(x){return x.id===aid;});
     if(!m||!m.email) return;
     var html = '<div style="font-family:sans-serif;max-width:540px;margin:0 auto;">'
-      +'<div style="background:#2C3E50;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">📋 Nouvelle tâche assignée</h1></div>'
+      +osEnteteEmailLogo('📋 Nouvelle tâche assignée')
       +'<div style="padding:1.2rem 1.5rem;">'
       +'<p>Bonjour '+esc(m.prenom||'')+',</p>'
       +'<p>Tu as été assigné(e) à la tâche <strong>'+esc(titreTache)+'</strong> dans le projet <strong>'+esc(titreProjet)+'</strong>.</p>'
@@ -38292,12 +38331,15 @@ function tchapEnvoyerTicket(){
   .then(function(data){
     notif('Demande envoyée ✓','succes');
     chargerAlertTickets();
-    var html = '<h2>Nouvelle demande d\'assistance</h2>'
+    var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+      +osEnteteEmailLogo('Nouvelle demande d\'assistance')
+      +'<div style="padding:1.2rem 1.5rem;">'
       +'<p><strong>De :</strong> '+auteur+'</p>'
       +'<p><strong>Titre :</strong> '+titre+'</p>'
       +'<p><strong>Priorité :</strong> '+priorite+'</p>'
       +(desc?'<p><strong>Description :</strong><br>'+desc.replace(/\n/g,'<br>')+'</p>':'')
-      +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour répondre.</p>';
+      +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour répondre.</p>'
+      +'</div></div>';
     envoyerEmailResend(ADMIN_EMAIL,'[Compo] Nouvelle assistance : '+titre,html,'ticket').catch(function(){});
     tchapOuvrirAssistance();
   }).catch(function(){ notif('Erreur création demande'); });
@@ -38410,7 +38452,7 @@ function tchapVerifierRappelEmail(){
       if(moi.tchap_dernier_rappel && (maintenant-new Date(moi.tchap_dernier_rappel).getTime()) < 4*60*60*1000) return;
       var totalMsgs = msgs.length;
       var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;"><h1 style="color:white;font-size:1rem;margin:0;">Messages non lus sur Tchap</h1></div>'
+        +osEnteteEmailLogo('Messages non lus sur Tchap')
         +'<div style="padding:1.2rem 1.5rem;">'
         +'<p style="font-size:0.88rem;color:#333;">Bonjour '+esc(moi.prenom||'')+', tu as <strong>'+totalMsgs+' message(s) non lu(s)</strong> sur Tchap depuis plus de 5h.</p>';
       Object.keys(parExp).forEach(function(expId){
