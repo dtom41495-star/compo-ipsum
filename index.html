@@ -25669,6 +25669,13 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     try{ seenSJ = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
     var btnSujetsToutLu = document.getElementById('btn-sujets-tout-lu');
     if(btnSujetsToutLu) btnSujetsToutLu.style.display = sujets.some(function(s){ return seenSJ.indexOf(s.id)===-1; }) ? '' : 'none';
+    // Corrige le badge du rail avec le vrai compte de CETTE rédaction — le rail n'est
+    // construit qu'une fois (voir osRedactionsRenderAvecOnglets), donc à l'ouverture de
+    // l'onglet Sujets juste après avoir changé de rédaction, le badge affichait encore
+    // le compte de la rédaction précédemment consultée (window._sujetsData pas encore à
+    // jour à ce moment-là). Recrutement/Communiqués ont déjà ce correctif, Sujets non :
+    // bug repéré via Mathéo (Tarn + Haute-Garonne), badge "7" alors que le Tarn est vide.
+    _osRedacMajBadgeRail('sujets', sujets.filter(function(s){ return seenSJ.indexOf(s.id)===-1; }).length);
     if(!sujets.length){
       zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       if(callback) callback();
