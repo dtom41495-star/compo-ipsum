@@ -786,6 +786,28 @@ body {
   animation: dock-bounce 0.5s ease;
 }
 
+/* Icône Ma rédac : contour orange lumineux qui clignote deux fois très vite (fondu),
+   puis 4 s de calme, tant qu'il reste du non lu et que la fenêtre n'est pas ouverte
+   (classe posée par osRedacMajClignotement). Le cycle dure 4,6 s : 0,55 s de double
+   clignotement + 4,05 s de pause. outline + filter:drop-shadow, PAS box-shadow :
+   .dock-icon-img a déjà un box-shadow en !important (plus haut) qu'une animation ne
+   peut pas surpasser, et son overflow:hidden !important rognerait un pseudo-élément. */
+@keyframes dock-notif-clignote {
+  0%, 12%, 100% { outline-color: rgba(255,150,40,0); filter: drop-shadow(0 0 0 rgba(255,150,40,0)) drop-shadow(0 0 0 rgba(255,140,30,0)); }
+  2.2%, 8.7%    { outline-color: rgba(255,150,40,1); filter: drop-shadow(0 0 3px rgba(255,150,40,1)) drop-shadow(0 0 10px rgba(255,140,30,0.95)); }
+  5.4%          { outline-color: rgba(255,150,40,0); filter: drop-shadow(0 0 0 rgba(255,150,40,0)) drop-shadow(0 0 0 rgba(255,140,30,0)); }
+}
+.dock-icon.notif-clignote .dock-icon-img {
+  outline: 2px solid rgba(255,150,40,0);
+  outline-offset: 1px;
+  animation: dock-notif-clignote 4.6s ease-in-out infinite;
+}
+/* Le rebond à l'ouverture/fermeture passe avant le clignotement le temps qu'il dure. */
+.dock-icon.notif-clignote.bouncing .dock-icon-img { animation: dock-bounce 0.5s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .dock-icon.notif-clignote .dock-icon-img { animation: none; outline-color: rgba(255,150,40,0.9); }
+}
+
 /* ===== NOTIFICATIONS BUREAU ===== */
 #os-toast-stack {
   position: fixed;
@@ -14103,6 +14125,9 @@ function _creerIconeDock(app, isPinned){
   icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '');
   icon.dataset.page = app.id;
   icon.dataset.pinned = isPinned ? '1' : '0';
+  // Reconstruit avec le dock : sans ça le clignotement de Ma rédac attendait le prochain
+  // passage du minuteur (osRedacMajClignotement) avant de réapparaître.
+  if(app.id === 'redactions' && !_windows['redactions'] && osRedacResteDuNonLu()) icon.classList.add('notif-clignote');
 
   var pill = document.createElement('div');
   pill.className = 'dock-icon-pill';
@@ -15030,6 +15055,7 @@ function _osOpenWindowExecuter(pageId){
   if(ws) ws.appendChild(win);
   
   _windows[pageId] = { el: win, page: pageId, maximized: false };
+  if(pageId === 'redactions') osRedacMajClignotement();
   
   // Drag & resize (desktop seulement)
   if(!isMobile){
@@ -15421,7 +15447,14 @@ function osCloseWindowForce(pageId){
   setTimeout(function(){
     if(el.parentNode) el.parentNode.removeChild(el);
   }, 200);
+  // Ma rédac fermée sur l'onglet Sujets/Recrutement : ce qui y était affiché a été vu,
+  // sinon l'icône du dock se remettrait à clignoter pour des choses qu'on vient de lire.
+  if(pageId === 'redactions'){
+    if(_redacOnglet === 'sujets') _osRedacMarquerSujetsLus();
+    if(_redacOnglet === 'recrutement') _osRedacMarquerRecrutementLu();
+  }
   delete _windows[pageId];
+  if(pageId === 'redactions') osRedacMajClignotement();
   if(window._activeWindowId === pageId) window._activeWindowId = null;
   // Mettre à jour le dock
   setTimeout(osDockMajFenetresOuvertes, 50);
@@ -17879,9 +17912,81 @@ function _dismissToast(toast){
   }, 380);
 }
 
+// ===== MA RÉDAC : CLIGNOTEMENT DE L'ICÔNE DU DOCK =====
+// L'icône clignote (voir .notif-clignote dans le CSS) quand il reste du non lu — sujets,
+// recrutement ou communiqués — ET que la fenêtre Ma rédac n'est pas ouverte à l'écran.
+// Le "lu" est celui déjà utilisé par les badges du rail (mêmes clés localStorage) : les
+// ids non lus sont chargés en arrière-plan (les globales habituelles ne se remplissent
+// qu'à l'ouverture de l'appli), puis comparés aux listes "vus" toutes les quelques
+// secondes, ce qui couvre lecture, fermeture et réduction sans dépendre d'un hook précis.
+var _redacNonLusIds = { sujets:[], recrutement:[], cps:[] };
+var _redacClignoteInit = false;
+
+function _osLireListeVus(cle){
+  try{ var v = JSON.parse(localStorage.getItem(cle)||'[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+
+function osRedacResteDuNonLu(){
+  if(!_redacNonLusIds) return false;
+  var lu = {
+    sujets: _osLireListeVus('compo_os_sujets_vus'),
+    recrutement: _osLireListeVus('compo_os_recrutement_vus'),
+    cps: _osLireListeVus('ipsum_cps_vus')
+  };
+  return Object.keys(_redacNonLusIds).some(function(type){
+    return _redacNonLusIds[type].some(function(id){ return lu[type].indexOf(id) === -1; });
+  });
+}
+
+function osRedacMajClignotement(){
+  var win = _windows['redactions'];
+  var fenetreVisible = !!win && !(win.el && win.el.classList.contains('minimized'));
+  var doitClignoter = !fenetreVisible && osRedacResteDuNonLu();
+  var icone = document.querySelector('#os-dock .dock-icon[data-page="redactions"]');
+  if(icone) icone.classList.toggle('notif-clignote', doitClignoter);
+}
+
+function osRedacChargerNonLus(){
+  var uid = getUserId();
+  if(!uid || uid === 'undefined' || !_session || !_session.access_token) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token});
+  function ids(r){ return r.json().then(function(rows){
+    return Array.isArray(rows) ? rows.map(function(x){ return x.id; }) : [];
+  }); }
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(liens){
+    var mesRedacIds = (Array.isArray(liens) ? liens : []).map(function(l){ return l.redaction_id; });
+    return Promise.all([
+      // Sujets de MES rédactions uniquement — même règle que osSujetsCharger
+      mesRedacIds.length
+        ? fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&redaction_id=in.('+mesRedacIds.join(',')+')&select=id', {headers:authH}).then(ids)
+        : Promise.resolve([]),
+      fetch(SB_URL+'/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id', {headers:authH}).then(ids),
+      fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id', {headers:authH}).then(ids)
+    ]);
+  })
+  .then(function(res){
+    _redacNonLusIds = { sujets:res[0], recrutement:res[1], cps:res[2] };
+    osRedacMajClignotement();
+  })
+  .catch(function(){});
+}
+
+function osRedacClignotementInit(){
+  if(_redacClignoteInit) return;
+  _redacClignoteInit = true;
+  osRedacChargerNonLus();
+  setInterval(osRedacChargerNonLus, 180000);
+  setInterval(osRedacMajClignotement, 3000);
+}
+
 // Charger les notifs au démarrage
 function osChargerNotifsDemarrage(){
   var role = getUserRole();
+  // Clignotement de l'icône Ma rédac s'il y a du non lu
+  setTimeout(osRedacClignotementInit, 2000);
   // Badge CPs non lus
   setTimeout(cpsChargerBadge, 1500);
   // Badge Projets tâches assignées
@@ -18262,13 +18367,17 @@ function osInitSujets(){
     var seen = [];
     try { seen = JSON.parse(seenRaw); } catch(e){}
     
-    var nouveaux = sujets.filter(function(s){ return seen.indexOf(s.id) === -1; });
+    // "Prévenu" (toast + centre de notifs, une seule fois) est distinct de "lu" :
+    // compo_os_sujets_vus ne doit être écrit que quand on a réellement vu le sujet dans
+    // Ma rédac (voir _osRedacMarquerSujetsLus), sinon l'icône du dock ne pourrait jamais
+    // clignoter pour un nouveau sujet — il était marqué vu dès le démarrage.
+    var prevenus = [];
+    try { prevenus = JSON.parse(localStorage.getItem('compo_os_sujets_prevenus') || '[]'); } catch(e){}
+    var nouveaux = sujets.filter(function(s){ return seen.indexOf(s.id) === -1 && prevenus.indexOf(s.id) === -1; });
     if(!nouveaux.length) return;
-    
-    // Marquer comme vus
-    var newSeen = seen.concat(nouveaux.map(function(s){ return s.id; }));
-    localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
-    
+
+    localStorage.setItem('compo_os_sujets_prevenus', JSON.stringify(prevenus.concat(nouveaux.map(function(s){ return s.id; }))));
+
     // Ajouter en silence dans le centre
     nouveaux.forEach(function(s){
       osAddNotif('Sujet disponible : '+s.titre, 'sujet', function(){ osOuvrirSujets(); }, true);
@@ -22318,7 +22427,9 @@ function cpsRendreListe(liste, cps){
   var filtreType   = window._cpsFiltreActif  || 'tous';
   var filtreDate   = window._cpsFiltreDateActif || 'tous';
   var filtreVue    = window._cpsVueActif || 'liste';
-  var rechercheVal = (window._cpsRecherche || '').toLowerCase();
+  // Sans accents ni casse : "elections" doit trouver "Élections".
+  function _cpsSansAccent(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+  var rechercheVal = _cpsSansAccent(window._cpsRecherche);
   var vus = (function(){ try{ return JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]'); }catch(e){return[];} })();
 
   // Comptes
@@ -22332,7 +22443,7 @@ function cpsRendreListe(liste, cps){
     if(filtreType==='invitation_presse' && c.type!=='invitation_presse') return false;
     if(filtreType==='non_lus' && vus.indexOf(c.id)!==-1) return false;
     if(rechercheVal){
-      var hay = ((c.titre||'')+(c.organisation||'')+(c.corps||'')+(c.objet||'')).toLowerCase();
+      var hay = _cpsSansAccent((c.titre||'')+' '+(c.organisation||'')+' '+(c.corps||'')+' '+(c.objet||''));
       if(hay.indexOf(rechercheVal)===-1) return false;
     }
     if(filtreDate !== 'tous'){
@@ -22370,7 +22481,12 @@ function cpsRendreListe(liste, cps){
   var champRecherche = recherche.querySelector('#cps-search');
   if(champRecherche) champRecherche.oninput = function(){
     window._cpsRecherche = this.value;
+    var pos = this.selectionStart;
     cpsRendreListe(liste, window._cpsData||[]);
+    // cpsRendreListe reconstruit toute la liste, champ de recherche compris : sans ceci
+    // le champ perdait le focus après chaque lettre tapée.
+    var nouveau = document.getElementById('cps-search');
+    if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
   };
 
   // ── Filtres type
@@ -27826,7 +27942,11 @@ function _osRedacOngletsListe(){
   onglets.forEach(function(o){
     o.badge = '';
     if(o.id === 'sujets'){
-      var sujetsData = window._sujetsData || [];
+      // Uniquement la rédaction affichée : _sujetsData (chargé au démarrage) couvre TOUTES
+      // les rédactions de la personne, un compte cumulé n'aurait pas de sens sur ce rail.
+      var sujetsData = (window._sujetsData || []).filter(function(s){
+        return !window._redacActiveId || s.redaction_id === window._redacActiveId;
+      });
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
