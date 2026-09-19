@@ -804,8 +804,22 @@ body {
 }
 /* Le rebond à l'ouverture/fermeture passe avant le clignotement le temps qu'il dure. */
 .dock-icon.notif-clignote.bouncing .dock-icon-img { animation: dock-bounce 0.5s ease; }
+/* Même clignotement en vert pour Mes articles quand un article attend ma correction
+   (classe posée par osMesArticlesMajClignotement). */
+@keyframes dock-notif-clignote-vert {
+  0%, 12%, 100% { outline-color: rgba(60,210,100,0); filter: drop-shadow(0 0 0 rgba(60,210,100,0)) drop-shadow(0 0 0 rgba(40,200,90,0)); }
+  2.2%, 8.7%    { outline-color: rgba(60,210,100,1); filter: drop-shadow(0 0 3px rgba(60,210,100,1)) drop-shadow(0 0 10px rgba(40,200,90,0.95)); }
+  5.4%          { outline-color: rgba(60,210,100,0); filter: drop-shadow(0 0 0 rgba(60,210,100,0)) drop-shadow(0 0 0 rgba(40,200,90,0)); }
+}
+.dock-icon.notif-clignote-vert .dock-icon-img {
+  outline: 2px solid rgba(60,210,100,0);
+  outline-offset: 1px;
+  animation: dock-notif-clignote-vert 4.6s ease-in-out infinite;
+}
+.dock-icon.notif-clignote-vert.bouncing .dock-icon-img { animation: dock-bounce 0.5s ease; }
 @media (prefers-reduced-motion: reduce) {
   .dock-icon.notif-clignote .dock-icon-img { animation: none; outline-color: rgba(255,150,40,0.9); }
+  .dock-icon.notif-clignote-vert .dock-icon-img { animation: none; outline-color: rgba(60,210,100,0.9); }
 }
 
 /* ===== NOTIFICATIONS BUREAU ===== */
@@ -14128,6 +14142,7 @@ function _creerIconeDock(app, isPinned){
   // Reconstruit avec le dock : sans ça le clignotement de Ma rédac attendait le prochain
   // passage du minuteur (osRedacMajClignotement) avant de réapparaître.
   if(app.id === 'redactions' && !_windows['redactions'] && osRedacResteDuNonLu()) icon.classList.add('notif-clignote');
+  if(app.id === 'mes-articles' && !_windows['mes-articles'] && _corrAArticleACorriger) icon.classList.add('notif-clignote-vert');
 
   var pill = document.createElement('div');
   pill.className = 'dock-icon-pill';
@@ -15056,6 +15071,7 @@ function _osOpenWindowExecuter(pageId){
   
   _windows[pageId] = { el: win, page: pageId, maximized: false };
   if(pageId === 'redactions') osRedacMajClignotement();
+  if(pageId === 'mes-articles') osMesArticlesMajClignotement();
   
   // Drag & resize (desktop seulement)
   if(!isMobile){
@@ -15455,6 +15471,12 @@ function osCloseWindowForce(pageId){
   }
   delete _windows[pageId];
   if(pageId === 'redactions') osRedacMajClignotement();
+  // Corriger/envoyer un article change l'état "à corriger" : le vérifier tout de suite
+  // à la fermeture de l'éditeur ou de Mes articles plutôt qu'au prochain passage du minuteur.
+  if(pageId === 'mes-articles' || pageId === 'redaction' || pageId === 'app-correction'){
+    osMesArticlesMajClignotement();
+    setTimeout(osMesArticlesChargerACorriger, 1500);
+  }
   if(window._activeWindowId === pageId) window._activeWindowId = null;
   // Mettre à jour le dock
   setTimeout(osDockMajFenetresOuvertes, 50);
@@ -15948,6 +15970,30 @@ function osBuildDesktopIcons(){
   mailIcon.appendChild(mailImg);
   mailIcon.appendChild(mailLabel);
   container.appendChild(mailIcon);
+
+  // Raccourci Tchat — ouvre Google Chat (l'équipe y a remplacé la messagerie interne).
+  // Logo Google Chat en SVG vectoriel (version mai 2026, Wikimedia Commons), ids du
+  // masque/dégradé préfixés pour ne jamais entrer en collision avec un autre SVG inline.
+  var chatIcon = document.createElement('div');
+  chatIcon.className = 'desktop-icon';
+  chatIcon.title = 'Google Chat';
+  chatIcon.onclick = function(){ window.open('https://chat.google.com/','_blank'); };
+  var chatImg = document.createElement('div');
+  chatImg.className = 'desktop-icon-img';
+  chatImg.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="42" height="42" fill="none" role="img" aria-label="Google Chat">'
+    +'<rect width="160" height="96" x="16" y="28" fill="#00AF57" rx="48"/>'
+    +'<path fill="#0EBC5F" d="M133 48c28.167 0 51 22.834 51 51 0 28.167-22.833 51-51 51H96.624l-34.857 23.064c-3.86 2.544-5.789 3.816-7.372 3.92a6 6 0 0 1-5.612-3.022C48 172.583 48 170.271 48 165.649V148.81C25.121 143.78 8 123.39 8 99c0-28.166 22.834-51 51-51h74z"/>'
+    +'<mask id="gchat-m" width="176" height="129" x="8" y="48" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#0EBC5F" d="M133 48c28.167 0 51 22.834 51 51 0 28.167-22.833 51-51 51H96.722l-39.428 25.896c-3.99 2.62-9.294-.242-9.294-5.015V148.81C25.121 143.78 8 123.39 8 99c0-28.166 22.834-51 51-51h74z"/></mask>'
+    +'<g mask="url(#gchat-m)"><rect width="160" height="96" x="16" y="28" fill="#0EBC5F" rx="48"/><rect width="160" height="96" x="16" y="28" fill="url(#gchat-g)" rx="48"/>'
+    +'<path stroke="#fff" stroke-linecap="round" stroke-width="12" d="M62 94s8.84 18 34 18 34-17.182 34-17.182"/></g>'
+    +'<defs><linearGradient id="gchat-g" x1="96" x2="96" y1="28" y2="124" gradientUnits="userSpaceOnUse"><stop offset=".09" stop-color="#94D4FF"/><stop offset=".28" stop-color="#78C9FF"/><stop offset=".88" stop-color="#01AE58" stop-opacity="0"/></linearGradient></defs>'
+    +'</svg>';
+  var chatLabel = document.createElement('div');
+  chatLabel.className = 'desktop-icon-label';
+  chatLabel.textContent = 'Tchat';
+  chatIcon.appendChild(chatImg);
+  chatIcon.appendChild(chatLabel);
+  container.appendChild(chatIcon);
 }
 
 // Surcharger go() pour ouvrir les fenêtres
@@ -17982,11 +18028,50 @@ function osRedacClignotementInit(){
   setInterval(osRedacMajClignotement, 3000);
 }
 
+// ===== MES ARTICLES : CLIGNOTEMENT VERT DE L'ICÔNE (article à corriger) =====
+// Même principe que Ma rédac ci-dessus, mais l'état n'est pas un "lu/non lu" local : il
+// suit la base — l'icône clignote tant qu'au moins un article en relecture m'est
+// assigné comme correcteur, et s'éteint tout seul une fois corrigé. Fenêtre Mes
+// articles ouverte à l'écran = pas de clignotement.
+var _corrClignoteInit = false;
+var _corrAArticleACorriger = false;
+
+function osMesArticlesMajClignotement(){
+  var win = _windows['mes-articles'];
+  var fenetreVisible = !!win && !(win.el && win.el.classList.contains('minimized'));
+  var icone = document.querySelector('#os-dock .dock-icon[data-page="mes-articles"]');
+  if(icone) icone.classList.toggle('notif-clignote-vert', !fenetreVisible && _corrAArticleACorriger);
+}
+
+function osMesArticlesChargerACorriger(){
+  var uid = getUserId();
+  if(!uid || uid === 'undefined' || !_session || !_session.access_token) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token});
+  fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id&limit=1', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    if(!Array.isArray(rows)) return;
+    _corrAArticleACorriger = rows.length > 0;
+    osMesArticlesMajClignotement();
+  })
+  .catch(function(){});
+}
+
+function osMesArticlesClignotementInit(){
+  if(_corrClignoteInit) return;
+  _corrClignoteInit = true;
+  osMesArticlesChargerACorriger();
+  setInterval(osMesArticlesChargerACorriger, 90000);
+  setInterval(osMesArticlesMajClignotement, 3000);
+}
+
 // Charger les notifs au démarrage
 function osChargerNotifsDemarrage(){
   var role = getUserRole();
   // Clignotement de l'icône Ma rédac s'il y a du non lu
   setTimeout(osRedacClignotementInit, 2000);
+  // Clignotement vert de Mes articles s'il y a un article à corriger
+  setTimeout(osMesArticlesClignotementInit, 2500);
   // Badge CPs non lus
   setTimeout(cpsChargerBadge, 1500);
   // Badge Projets tâches assignées
