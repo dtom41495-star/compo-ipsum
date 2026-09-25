@@ -1436,15 +1436,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
       var rr = lien ? lien.role_redac : 'redacteur';
       var nbArts = (window._tousArticles||_articlesRedacData).filter(function(a){ return a.auteur_id === m.id && a.redaction_id === redacId; }).length;
-      h += '<div class="rm-carte">'
-        +'<button type="button" class="rm-tete" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacOuvrirFicheMembre(this.dataset.mid,this.dataset.rid)">'
-        +'<span class="rm-avatar">'+renderAvatarHTML(m, 40, {})+'<span data-presence-id="'+m.id+'" class="rm-presence" style="background:'+(osEstEnLigne(m.id)?'#27AE60':'#A8A29E')+';"></span></span>'
-        +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+nbArts+' article'+(nbArts>1?'s':'')+'</span></span>'
-        +'<i class="ti ti-chevron-right"></i></button>'
-        +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
-        +[['redacteur','Rédacteur·rice'],['correcteur','Correcteur·rice'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
-        +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
-        +'</div>';
+      h += _osRedacCarteMembreMobile(m, redacId, rr, nbArts+' article'+(nbArts>1?'s':''));
     });
     if(!membresRedac.length) h += '<div class="rm-vide">Aucun membre dans cette rédaction.</div>';
     h += '</div>';
@@ -2026,7 +2018,86 @@ function osRedactionsRenderAdmin(wc, uid){
   });
 }
 
+// Carte d'un membre sur téléphone (Ma rédaction et Gestion rédactions) : toucher le nom
+// ouvre sa fiche, le rôle et le retrait sont en dessous
+function _osRedacCarteMembreMobile(m, redacId, rr, sousTitreHtml){
+  return '<div class="rm-carte">'
+    +'<button type="button" class="rm-tete" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacOuvrirFicheMembre(this.dataset.mid,this.dataset.rid)">'
+    +'<span class="rm-avatar">'+renderAvatarHTML(m, 40, {})+'<span data-presence-id="'+m.id+'" class="rm-presence" style="background:'+(osEstEnLigne(m.id)?'#27AE60':'#A8A29E')+';"></span></span>'
+    +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+sousTitreHtml+'</span></span>'
+    +'<i class="ti ti-chevron-right"></i></button>'
+    +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+esc(rr)+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
+    +[['redacteur','Rédacteur·rice'],['correcteur','Correcteur·rice'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
+    +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
+    +'</div>';
+}
+
+// Gestion rédactions sur téléphone
+function _osRedactionsAdminMobile(wc, tousArts){
+  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  var artsPublies = tousArts.filter(function(a){ return a.statut==='publie'; });
+  function tuile(n, l, c){ return '<div class="ga-chiffre"><strong style="color:'+(c||'#1A1A2E')+';">'+n+'</strong><span>'+l+'</span></div>'; }
+  var h = '<div class="ga-mobile">';
+  h += '<div class="ga-chiffres">'
+    +tuile(_membresData.length, 'Bénévoles')
+    +tuile((window._nouveauxMembres||[]).length, 'Nouveaux ce mois', '#C2410C')
+    +tuile(artsPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; }).length, 'Publiés ce mois', '#E8461E')
+    +tuile(artsPublies.length, 'Publiés au total', '#047857')
+    +'</div>';
+  h += '<div class="ga-redacs">';
+  _redactionsData.forEach(function(r){
+    var sel = r.id === _adminRedacSelectId;
+    h += '<button type="button" class="'+(sel?'actif':'')+'" style="'+(sel?'background:'+esc(r.couleur||'#E8461E')+';border-color:'+esc(r.couleur||'#E8461E')+';':'')+'" data-rid="'+r.id+'" onclick="osAdminSelectRedac(this.dataset.rid)">'+esc(r.nom)+'</button>';
+  });
+  h += '<button type="button" class="ga-nouvelle" onclick="osRedactionCreerModal()"><i class="ti ti-plus"></i>Nouvelle</button></div>';
+
+  var redac = _redactionsData.find(function(r){ return r.id === _adminRedacSelectId; });
+  if(redac){
+    var liens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
+    var ids = liens.map(function(mr){ return mr.membre_id; });
+    var actifs = liens.map(function(mr){ return { lien:mr, m:_membresData.find(function(x){ return x.id === mr.membre_id; }) }; })
+      .filter(function(o){ return o.m && o.m.role !== 'interdit'; });
+    var artsRedac = tousArts.filter(function(a){ return a.redaction_id === redac.id; });
+    var pubRedac = artsRedac.filter(function(a){ return a.statut==='publie'; });
+    var nouveaux = (window._nouveauxMembres||[]).filter(function(m){ return ids.indexOf(m.id) !== -1; });
+    var activites = (window._agendaInscriptions||[]).filter(function(i){ return ids.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
+
+    h += '<div class="ga-bandeau" style="background:'+esc(redac.couleur||'#E8461E')+';">'
+      +'<div class="ga-bandeau-nom"><strong>'+esc(redac.nom)+'</strong>'
+      +(redac.est_centrale ? '<span><i class="ti ti-star-filled"></i> Rédaction centrale</span>' : (redac.departement ? '<span>'+esc(redac.departement)+'</span>' : ''))+'</div>'
+      +'<button type="button" title="Modifier" data-rid="'+redac.id+'" onclick="osRedactionEditerModal(this.dataset.rid)"><i class="ti ti-pencil"></i></button>'
+      +'<button type="button" title="Supprimer" data-rid="'+redac.id+'" data-nom="'+esc(redac.nom)+'" onclick="osRedactionSupprimerConfirm(this.dataset.rid,this.dataset.nom)"><i class="ti ti-trash"></i></button>'
+      +'</div>';
+    h += '<div class="ga-chiffres ga-chiffres-3">'
+      +tuile(actifs.length, 'Membres')
+      +tuile(pubRedac.length, 'Publiés', '#047857')
+      +tuile(pubRedac.filter(function(a){ return new Date(a.updated_at)>=depuis30; }).length, 'Ce mois', '#E8461E')
+      +tuile(activites.length, 'Activités', '#7D3C98')
+      +tuile(nouveaux.length, 'Nouveaux', nouveaux.length ? '#C2410C' : '#6B7280')
+      +'</div>';
+    h += '<div class="ga-titre">Membres</div><div class="rm-liste">';
+    actifs.forEach(function(o){
+      var arts = tousArts.filter(function(a){ return a.auteur_id === o.m.id && a.redaction_id === redac.id; });
+      var pub = arts.filter(function(a){ return a.statut==='publie'; }).length;
+      var sous = arts.length+' article'+(arts.length>1?'s':'')+' · '+pub+' publié'+(pub>1?'s':'')+' · <span id="heures-'+o.m.id+'">0h</span>';
+      h += _osRedacCarteMembreMobile(o.m, redac.id, o.lien.role_redac||'redacteur', sous);
+    });
+    if(!actifs.length) h += '<div class="rm-vide">Aucun membre dans cette rédaction.</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+  wc.innerHTML = h;
+  osChargerHeuresMembres(_adminRedacSelectId);
+  if(typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
+}
+
 function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, debutMoisISO2){
+  if(osEstMobile() && _redactionsData.length){
+    if(!_adminRedacSelectId || !_redactionsData.some(function(r){ return r.id === _adminRedacSelectId; })) _adminRedacSelectId = _redactionsData[0].id;
+    _osRedactionsAdminMobile(wc, tousArts);
+    return;
+  }
   var h = '<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
@@ -2135,7 +2206,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:#27AE60;">'+pub.length+'</td>';
       h += '<td style="padding:0.5rem;text-align:center;">'+heuresEl+'</td>';
-      h += '<td style="padding:0.4rem;"><button onclick="osAdminRetirerMembreRedac(\''+mb.id+'\',\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '<td style="padding:0.4rem;"><button onclick="osAdminRetirerMembreRedac(\''+mb.id+'\',\''+redac.id+'\')" title="Retirer de la rédaction" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-user-minus"></i></button></td>';
       h += '</tr>';
     });
     if(!membresLiens.length) h += '<tr><td colspan="6" style="padding:1rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucun membre</td></tr>';

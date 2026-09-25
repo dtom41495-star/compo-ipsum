@@ -495,6 +495,9 @@ function _accueilMenusMaRedac(onglet){
       {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
     ]};
   }
+  if(onglet === 'admin' && admin){
+    return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ if(_adminRedacSelectId) osAdminAjouterMembreRedac(_adminRedacSelectId); }} };
+  }
   if(onglet === 'redac' && chef && _redacSousOnglet === 'membres' && ctx.redacId){
     return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ osRedacChefAjouterMembre(ctx.redacId); }} };
   }

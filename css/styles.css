@@ -3888,3 +3888,24 @@ input:focus,select:focus,textarea:focus{
   #redac-fiche-membre-overlay [id^="fiche-panel-"] { padding: 12px 16px !important; }
   #redac-fiche-membre-overlay [id="fiche-panel-arts"] > div { min-height: 44px; }
 }
+
+/* ===== GESTION RÉDACTIONS SUR TÉLÉPHONE ===== */
+@media (max-width: 768px) {
+  .ga-mobile { display: flex; flex-direction: column; gap: 14px; padding-bottom: 5rem; }
+  .ga-chiffres { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ga-chiffres-3 { grid-template-columns: repeat(3, 1fr); }
+  .ga-chiffre { background: #fff; border: 1px solid #E7E5E4; border-radius: 14px; padding: 12px 8px; text-align: center; }
+  .ga-chiffre strong { display: block; font: 800 22px Poppins, 'DM Sans', sans-serif; }
+  .ga-chiffre span { display: block; margin-top: 2px; font-size: 12px; color: #6B7280; }
+  .ga-redacs { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
+  .ga-redacs::-webkit-scrollbar { display: none; }
+  .ga-redacs button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid #E7E5E4; background: #fff; color: #1A1A2E; font: 600 14px 'DM Sans', Arial, sans-serif; white-space: nowrap; cursor: pointer; }
+  .ga-redacs button.actif { color: #fff; }
+  .ga-redacs .ga-nouvelle { border-style: dashed; color: #6B7280; }
+  .ga-bandeau { display: flex; align-items: center; gap: 8px; padding: 14px 14px 14px 16px; border-radius: 16px; color: #fff; }
+  .ga-bandeau-nom { flex: 1; min-width: 0; }
+  .ga-bandeau-nom strong { display: block; font: 800 20px Poppins, 'DM Sans', sans-serif; }
+  .ga-bandeau-nom span { display: block; font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .ga-bandeau button { width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,0.22); color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .ga-titre { font: 700 13px 'DM Sans', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #6B7280; margin-bottom: -4px; }
+}
