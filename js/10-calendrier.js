@@ -1441,7 +1441,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
         +'<span class="rm-avatar">'+renderAvatarHTML(m, 40, {})+'<span data-presence-id="'+m.id+'" class="rm-presence" style="background:'+(osEstEnLigne(m.id)?'#27AE60':'#A8A29E')+';"></span></span>'
         +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+nbArts+' article'+(nbArts>1?'s':'')+'</span></span>'
         +'<i class="ti ti-chevron-right"></i></button>'
-        +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
+        +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
         +[['redacteur','Rédacteur·rice'],['correcteur','Correcteur·rice'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
         +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
         +'</div>';
@@ -1469,10 +1469,10 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       });
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(m, 26, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
-      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="event.stopPropagation();osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" title="Retirer de la rédaction" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-user-minus"></i></button></td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
@@ -2129,7 +2129,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
       h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(mb, 26, {})+'<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select onchange="osRedacChefChangerRole(\''+mb.id+'\',\''+redac.id+'\',this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+mb.id+'" data-rid="'+redac.id+'" data-avant="'+esc(mr.role_redac||'redacteur')+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
         +'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
@@ -2340,18 +2340,24 @@ function osAdminRetirerMembreRedac(membreId, redacId){
 
 // ---- ACTIONS RÉDAC CHEF ----
 function osRedacChefChangerRole(membreId, redacId, nouveauRole){
+  // Remet les menus de ce membre sur le rôle d'avant quand le changement n'a pas pu se faire
+  function annuler(message){
+    document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ if(sel.dataset.avant) sel.value = sel.dataset.avant; });
+    notif(message, 'erreur');
+  }
   function appliquer(){
-    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
-    .then(function(r){
-      if(r.ok){
-        // Mettre à jour le cache local immédiatement
-        var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
-        if(lien) lien.role_redac = nouveauRole;
-        notif('Rôle mis à jour ✓','succes');
-      } else notif('Erreur mise à jour');
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id',{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(lignes){
+      if(!Array.isArray(lignes) || !lignes.length){ annuler('Le rôle n\'a pas pu être changé'); return; }
+      // Mettre à jour le cache local immédiatement
+      var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
+      if(lien) lien.role_redac = nouveauRole;
+      document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ sel.dataset.avant = nouveauRole; });
+      notif('Rôle mis à jour','succes');
     })
-    .catch(function(){ notif('Erreur réseau'); });
+    .catch(function(){ annuler('Erreur réseau, rôle inchangé'); });
   }
 
   // Un chef non-admin qui se retire lui-même son statut perd instantanément l'écran
@@ -2364,9 +2370,7 @@ function osRedacChefChangerRole(membreId, redacId, nouveauRole){
     .then(function(chefs){
       var autresChefs = (chefs||[]).filter(function(l){ return l.membre_id !== membreId; });
       if(autresChefs.length === 0){
-        notif('Impossible : tu es le seul chef de cette rédaction. Nomme d\'abord quelqu\'un d\'autre chef.','erreur');
-        var sel = document.querySelector('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]');
-        if(sel) sel.value = 'redac_chef';
+        annuler('Impossible : tu es le seul chef de cette rédaction. Nomme d\'abord quelqu\'un d\'autre chef.');
         return;
       }
       appliquer();
