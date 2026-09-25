@@ -944,6 +944,7 @@ function osSujetValiderProposition(sujetId, accepte){
     if(!r.ok){ notif('Erreur','erreur'); return; }
     notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');
     _osSujetPrevenirAuteur(s, accepte);
+    window._sujetsPropositionsAttente = (window._sujetsPropositionsAttente||[]).filter(function(x){ return x.id !== sujetId; });
     osRedactionsChangerOnglet('sujets');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
@@ -1779,7 +1780,10 @@ function _osRedacOngletsListe(){
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
-      o.badge = _railBadgeNombre(nouveaux.length);
+      var propositions = osSujetsDroit() === 'chef' ? (window._sujetsPropositionsAttente || []).filter(function(s){
+        return !window._redacActiveId || s.redaction_id === window._redacActiveId;
+      }).length : 0;
+      o.badge = _railBadgeNombre(nouveaux.length + propositions);
     }
     if(o.id === 'recrutement'){
       var annonces = window._recrutementAnnonces || [];
