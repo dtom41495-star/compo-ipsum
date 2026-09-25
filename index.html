@@ -782,6 +782,23 @@ body {
   40% { transform: translateY(-16px) scale(1.2); }
   70% { transform: translateY(-8px) scale(1.1); }
 }
+#agenda-filtres::-webkit-scrollbar { display: none; }
+
+/* Formulaire communiqué (appli Communiqués, admin) — même langage que le formulaire
+   d'événement de l'agenda : cartes, titres de section, libellés en casse normale.
+   Les classes neutralisent le style global des <label> (Arial, majuscules) et
+   appliquent aux champs datetime-local/url les jetons du style global des champs. */
+#cps-form .cpf-carte { background:white; border:1px solid var(--gris-bord); border-radius:10px; padding:0.9rem 1.1rem; display:flex; flex-direction:column; gap:0.8rem; }
+#cps-form .cpf-titre { font-family:'DM Sans',sans-serif; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--gris); }
+#cps-form label.cpf-label { display:block; font-family:'DM Sans',sans-serif; font-size:0.74rem; font-weight:600; text-transform:none; letter-spacing:0; color:var(--encre); margin-bottom:4px; }
+#cps-form .cpf-champ { width:100%; padding:0.5rem 0.65rem; border:1.5px solid var(--md-outline); border-radius:var(--md-shape-sm); font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--md-on-surface); background:var(--md-surface); box-sizing:border-box; outline:none; }
+#cps-form textarea.cpf-champ { resize:vertical; line-height:1.5; }
+#cps-form .cpf-deux { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:0.6rem; }
+#cps-form .cpf-aide { font-family:'DM Sans',sans-serif; font-size:0.7rem; color:var(--gris); margin-top:4px; line-height:1.4; }
+#cps-form .cpf-btn { display:inline-flex; align-items:center; gap:5px; font-family:'DM Sans',sans-serif; font-size:0.76rem; font-weight:600; padding:7px 14px; border-radius:7px; cursor:pointer; white-space:nowrap; border:1px solid var(--gris-bord); background:white; color:var(--encre); }
+#cps-form .cpf-btn.principal { background:var(--rouge); border-color:var(--rouge); color:white; }
+#cps-form .cpf-depot { border:1.5px dashed var(--gris-bord); border-radius:8px; padding:0.9rem 1rem; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.8rem; color:var(--gris); display:flex; align-items:center; gap:0.5rem; transition:border-color 0.15s, background 0.15s; }
+#cps-form .cpf-depot:hover { border-color:var(--rouge); background:rgba(232,70,30,0.03); color:var(--encre); }
 .dock-icon.bouncing .dock-icon-img {
   animation: dock-bounce 0.5s ease;
 }
@@ -3907,93 +3924,138 @@ input:focus,select:focus,textarea:focus{
 <!-- PAGE CPS LECTURE (tous) -->
 <!-- PAGE CPS ADMIN -->
 <div class="page" id="page-cps-admin">
+  <!-- Accueil : masqué pendant la saisie d'un communiqué (voir _cpsAdminBasculerFormulaire) -->
+  <div id="cps-admin-accueil">
   <div class="panel-title">📰 Gestion des communiqués</div>
   <div class="panel-subtitle">Créer, publier et envoyer les communiqués aux membres abonnés</div>
-  
+
   <div style="display:flex;gap:0.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
     <button class="btn" onclick="cpsAdminNouveauForm()" style="font-size:0.8rem;">+ Nouveau CP</button>
     <button class="btn sec" onclick="cpsEnvoyerNotifsManuelles()" id="btn-envoyer-cps" style="font-size:0.8rem;">📨 Notifier les abonnés</button>
     <button class="btn sec" onclick="cpsAdminCharger()" style="font-size:0.8rem;">🔄 Actualiser</button>
   </div>
+  </div>
 
-  <!-- Formulaire création -->
-  <div id="cps-form" style="display:none;background:var(--fond-page);border:1.5px solid var(--gris-bord);border-radius:10px;padding:1.2rem;margin-bottom:1.2rem;">
-    <div style="font-family:Arial,sans-serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.8rem;" id="cps-form-titre-label">Nouveau communiqué</div>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>Titre / Objet <span class="req">*</span></label>
-        <input type="text" id="cps-titre" placeholder="Objet du communiqué">
-      </div>
-      <div class="form-group">
-        <label>Source / Organisation</label>
-        <input type="text" id="cps-source" placeholder="Mairie de Castres, Préfecture...">
-      </div>
-      <div class="form-group">
-        <label>Date du communiqué</label>
-        <input type="date" id="cps-date">
-      </div>
-      <div class="form-group full">
-        <label>Type</label>
-        <select id="cps-type" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;" onchange="cpsToggleInvitationFields(this.value)">
-          <option value="communique">Communiqué de presse</option>
-          <option value="invitation_presse">Invitation presse</option>
-        </select>
+  <!-- Formulaire création / modification — même langage que le formulaire d'événement
+       de l'agenda (cartes, fil d'Ariane, actions en bas). Les id des champs sont ceux que
+       lisent cpsAdminNouveauForm / cpsAdminEditer / cpsAdminSauvegarder. -->
+  <div id="cps-form" style="display:none;max-width:960px;margin:0 auto 1.2rem;">
+    <div style="display:flex;flex-direction:column;gap:0.8rem;">
+
+      <div style="display:flex;align-items:center;gap:0.45rem;min-width:0;">
+        <button type="button" class="cpf-btn" onclick="cpsAdminFermerFormulaire()" style="padding:5px 10px;font-size:0.72rem;"><i class="ti ti-arrow-left"></i> Communiqués</button>
+        <i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>
+        <span id="cps-form-titre-label" style="font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Nouveau communiqué</span>
       </div>
 
-      <!-- Champs spécifiques invitation presse -->
-      <div id="cps-invitation-fields" style="display:none;grid-column:1/-1;">
-        <div class="form-grid" style="margin:0;">
-          <div class="form-group">
-            <label>📅 Date de l'événement</label>
-            <input type="datetime-local" id="cps-date-evenement">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0.8rem;align-items:start;">
+
+        <!-- Colonne gauche : le communiqué lui-même -->
+        <div style="display:flex;flex-direction:column;gap:0.8rem;">
+          <div class="cpf-carte">
+            <div class="cpf-titre">Le communiqué</div>
+            <div>
+              <label class="cpf-label" for="cps-titre">Titre *</label>
+              <input type="text" id="cps-titre" class="cpf-champ" placeholder="Ex : Budget participatif 2027, les projets retenus" style="font-size:0.9rem;font-weight:600;">
+            </div>
+            <div class="cpf-deux">
+              <div>
+                <label class="cpf-label" for="cps-type">Type</label>
+                <select id="cps-type" class="cpf-champ" onchange="cpsToggleInvitationFields(this.value)">
+                  <option value="communique">Communiqué de presse</option>
+                  <option value="invitation_presse">Invitation presse</option>
+                </select>
+              </div>
+              <div>
+                <label class="cpf-label" for="cps-date">Date du communiqué</label>
+                <input type="date" id="cps-date" class="cpf-champ">
+              </div>
+            </div>
+            <div>
+              <label class="cpf-label" for="cps-source">Source</label>
+              <input type="text" id="cps-source" class="cpf-champ" placeholder="Mairie de Castres, Préfecture du Tarn…">
+            </div>
           </div>
-          <div class="form-group">
-            <label>📍 Lieu</label>
-            <input type="text" id="cps-lieu-evenement" placeholder="Adresse, salle...">
+
+          <!-- Visible seulement pour une invitation presse (cpsToggleInvitationFields) -->
+          <div id="cps-invitation-fields" class="cpf-carte" style="display:none;border-color:#E4D2F0;">
+            <div class="cpf-titre" style="color:#6B2F8A;">Invitation presse</div>
+            <div class="cpf-deux">
+              <div>
+                <label class="cpf-label" for="cps-date-evenement">Date et heure de l'événement</label>
+                <input type="datetime-local" id="cps-date-evenement" class="cpf-champ">
+              </div>
+              <div>
+                <label class="cpf-label" for="cps-lieu-evenement">Lieu</label>
+                <input type="text" id="cps-lieu-evenement" class="cpf-champ" placeholder="Adresse, salle…">
+              </div>
+            </div>
+            <div class="cpf-deux">
+              <div>
+                <label class="cpf-label" for="cps-places-max">Places pour la presse</label>
+                <input type="number" id="cps-places-max" class="cpf-champ" placeholder="Illimité" min="1">
+              </div>
+              <div>
+                <label class="cpf-label" for="cps-date-reponse">Réponse avant le</label>
+                <input type="date" id="cps-date-reponse" class="cpf-champ">
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;">
+              <div style="display:flex;gap:0.55rem;align-items:flex-start;">
+                <i class="ti ti-mail-forward" style="font-size:1rem;color:var(--gris);margin-top:1px;"></i>
+                <div>
+                  <label class="cpf-label" for="cps-reponse-requise" style="margin:0;cursor:pointer;">Réponse obligatoire</label>
+                  <div class="cpf-aide" style="margin-top:1px;">L'organisateur demande de confirmer sa venue.</div>
+                </div>
+              </div>
+              <label class="compo-toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" id="cps-reponse-requise"><span class="track"></span><span class="thumb"></span></label>
+            </div>
           </div>
-          <div class="form-group">
-            <label>🪑 Nombre de places</label>
-            <input type="number" id="cps-places-max" placeholder="Laisser vide = illimité" min="1">
+
+          <div class="cpf-carte">
+            <div class="cpf-titre">Contenu</div>
+            <textarea id="cps-corps" class="cpf-champ" rows="9" placeholder="Colle ou rédige le contenu du communiqué ici…"></textarea>
           </div>
-          <div class="form-group">
-            <label>⏰ RSVP avant le</label>
-            <input type="date" id="cps-date-reponse">
+        </div>
+
+        <!-- Colonne droite : à qui il s'adresse, et les fichiers -->
+        <div style="display:flex;flex-direction:column;gap:0.8rem;">
+          <div class="cpf-carte">
+            <div class="cpf-titre">Diffusion</div>
+            <div>
+              <label class="cpf-label" for="cps-redaction-id">Rédaction concernée</label>
+              <select id="cps-redaction-id" class="cpf-champ">
+                <option value="">Toutes les rédactions</option>
+              </select>
+              <div class="cpf-aide">Les membres de cette rédaction le recevront lors du prochain envoi.</div>
+            </div>
+            <div>
+              <label class="cpf-label" for="cps-contact-id">Contact lié (carnet de sources)</label>
+              <select id="cps-contact-id" class="cpf-champ">
+                <option value="">Aucun contact lié</option>
+              </select>
+              <div class="cpf-aide">Les personnes abonnées à cette source le recevront aussi.</div>
+            </div>
           </div>
-          <div class="form-group full" style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;">
-            <label style="margin:0;font-size:0.85rem;">RSVP requis</label>
-            <label class="compo-toggle"><input type="checkbox" id="cps-reponse-requise"><span class="track"></span><span class="thumb"></span></label>
+
+          <div class="cpf-carte">
+            <div class="cpf-titre">Pièces jointes</div>
+            <div id="cps-pdf-zone" class="cpf-depot" onclick="document.getElementById('cps-pdf-input').click()">
+              <i class="ti ti-paperclip" style="font-size:1.05rem;"></i>
+              <span id="cps-pdf-label">Ajouter des fichiers (PDF, images)</span>
+            </div>
+            <input type="file" id="cps-pdf-input" multiple accept=".pdf,image/*" style="display:none;" onchange="cpsFichiersSelectionnes(this)">
+            <div id="cps-fichiers-liste" style="display:flex;flex-direction:column;gap:4px;"></div>
           </div>
         </div>
       </div>
-      <div class="form-group full">
-        <label>Rédaction concernée</label>
-        <select id="cps-redaction-id" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;">
-          <option value="">— Toutes les rédactions —</option>
-        </select>
+
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.2rem 0 0.4rem;">
+        <span class="cpf-aide" style="margin:0 auto 0 0;"><i class="ti ti-info-circle" style="vertical-align:-2px;"></i> Publier ne prévient personne : l'envoi se fait ensuite avec « Notifier les abonnés ».</span>
+        <button type="button" class="cpf-btn" onclick="cpsAdminFermerFormulaire()">Annuler</button>
+        <button type="button" class="cpf-btn" onclick="cpsAdminSauvegarder('brouillon')"><i class="ti ti-device-floppy"></i> Enregistrer le brouillon</button>
+        <button type="button" class="cpf-btn principal" onclick="cpsAdminSauvegarder('publie')"><i class="ti ti-world-upload"></i> Publier</button>
       </div>
-      <div class="form-group full">
-        <label>Contact lié (carnet de sources)</label>
-        <select id="cps-contact-id" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;width:100%;">
-          <option value="">— Aucun contact lié —</option>
-        </select>
-      </div>
-      <div class="form-group full">
-        <label>Fichiers joints (PDF, images)</label>
-        <div id="cps-pdf-zone" style="border:1.5px dashed var(--gris-bord);border-radius:6px;padding:0.8rem 1rem;cursor:pointer;font-size:0.82rem;color:var(--gris);" onclick="document.getElementById('cps-pdf-input').click()">
-          <span id="cps-pdf-label"><i class="ti ti-paperclip"></i> Cliquer pour ajouter un ou plusieurs fichiers</span>
-        </div>
-        <input type="file" id="cps-pdf-input" multiple accept=".pdf,image/*" style="display:none;" onchange="cpsFichiersSelectionnes(this)">
-        <div id="cps-fichiers-liste" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>
-      </div>
-      <div class="form-group full">
-        <label>Contenu</label>
-        <textarea id="cps-corps" style="min-height:150px;" placeholder="Colle ou rédige le contenu du communiqué ici..."></textarea>
-      </div>
-    </div>
-    <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">
-      <button class="btn" onclick="cpsAdminSauvegarder('brouillon')" style="font-size:0.8rem;">💾 Sauvegarder brouillon</button>
-      <button class="btn" onclick="cpsAdminSauvegarder('publie')" style="font-size:0.8rem;background:linear-gradient(135deg,#155724,#1E7E34);">📤 Publier</button>
-      <button class="btn sec" onclick="document.getElementById('cps-form').style.display='none';_cpsFichiersSelectionnes=[];_cpsFichiersExistants=[];_cpsFichierPdfLegacy=null;" style="font-size:0.8rem;">Annuler</button>
     </div>
   </div>
 
@@ -11051,6 +11113,13 @@ function notifierChatDM(membreId, message, type){
     body: JSON.stringify({membreId:membreId, message:message, type:type||'autre'})
   }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
     .catch(function(e){ console.warn('notifierChatDM:', e); return {ok:false}; });
+}
+
+// Texte variable (titre, source, lieu...) inséré dans un message Google Chat : Chat
+// interprète * _ ~ ` comme de la mise en forme — un titre qui en contient décalait tout
+// le gras/italique du message. On les retire, et on écrase les retours à la ligne.
+function _chatSansMiseEnForme(s){
+  return String(s||'').replace(/[*_~`]/g,'').replace(/\s+/g,' ').trim();
 }
 
 // Branchement commun aux notifications personnelles (statut article, ticket, boutique,
@@ -22319,11 +22388,11 @@ function cpsRemplirSelectRedaction(redacIdSelectionne){
   var mesLiens = (_membresRedactionsData||[]).filter(function(mr){ return mr.membre_id === uid; });
   var mesRedacIds = mesLiens.map(function(mr){ return mr.redaction_id; });
   var mesRedacs = (_redactionsData||[]).filter(function(r){ return mesRedacIds.indexOf(r.id) !== -1; });
-  sel.innerHTML = '<option value="">— Toutes les rédactions —</option>';
+  sel.innerHTML = '<option value="">Toutes les rédactions</option>';
   mesRedacs.forEach(function(r){
     var opt = document.createElement('option');
     opt.value = r.id;
-    opt.textContent = esc(r.nom);
+    opt.textContent = r.nom; // textContent échappe déjà : esc() affichait "&amp;" en clair
     if(r.id === redacIdSelectionne) opt.selected = true;
     sel.appendChild(opt);
   });
@@ -22331,7 +22400,52 @@ function cpsRemplirSelectRedaction(redacIdSelectionne){
 
 function cpsToggleInvitationFields(type){
   var fields = document.getElementById('cps-invitation-fields');
-  if(fields) fields.style.display = type === 'invitation_presse' ? 'block' : 'none';
+  if(fields) fields.style.display = type === 'invitation_presse' ? 'flex' : 'none'; // carte en flex (gap)
+}
+
+// Formulaire communiqué : il remplace l'accueil de l'appli (titre, boutons, liste) le
+// temps de la saisie, comme le formulaire d'événement de l'agenda — plus un encart
+// ajouté au-dessus de la liste.
+function _cpsAdminBasculerFormulaire(ouvert){
+  var form = document.getElementById('cps-form');
+  var accueil = document.getElementById('cps-admin-accueil');
+  var liste = document.getElementById('cps-admin-liste');
+  if(form) form.style.display = ouvert ? 'block' : 'none';
+  if(accueil) accueil.style.display = ouvert ? 'none' : '';
+  if(liste) liste.style.display = ouvert ? 'none' : '';
+  var fenetre = form && form.closest('.os-window-content');
+  if(fenetre) fenetre.scrollTop = 0;
+}
+
+function cpsAdminFermerFormulaire(){
+  _cpEditId = null;
+  _cpsFichiersSelectionnes = [];
+  _cpsFichiersExistants = [];
+  _cpsFichierPdfLegacy = null;
+  _cpsAdminBasculerFormulaire(false);
+}
+
+// datetime-local attend une heure LOCALE (toISOString() donnerait l'heure UTC, donc
+// 2 h de décalage l'été, et un décalage de plus à chaque réenregistrement).
+function _cpsVersDatetimeLocal(valeur){
+  if(!valeur) return '';
+  var d = new Date(valeur);
+  if(isNaN(d.getTime())) return '';
+  function p(n){ return String(n).padStart(2,'0'); }
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+// Type + champs d'invitation presse, dans les deux sens (vide pour un nouveau CP)
+function _cpsRemplirChampsType(cp){
+  cp = cp || {};
+  var type = cp.type === 'invitation_presse' ? 'invitation_presse' : 'communique';
+  var sel = document.getElementById('cps-type'); if(sel) sel.value = type;
+  var dEv = document.getElementById('cps-date-evenement'); if(dEv) dEv.value = _cpsVersDatetimeLocal(cp.date_evenement);
+  var lieu = document.getElementById('cps-lieu-evenement'); if(lieu) lieu.value = cp.lieu_evenement || '';
+  var places = document.getElementById('cps-places-max'); if(places) places.value = cp.places_max || '';
+  var dRep = document.getElementById('cps-date-reponse'); if(dRep) dRep.value = cp.date_reponse ? String(cp.date_reponse).slice(0,10) : '';
+  var req = document.getElementById('cps-reponse-requise'); if(req) req.checked = !!cp.reponse_requise;
+  cpsToggleInvitationFields(type);
 }
 
 function cpsInvitationSeDeclarer(cpId){
@@ -23310,9 +23424,13 @@ function _cpsUploaderFichiers(fichiers, cpId){
 }
 
 // ---- ADMIN : charger la liste des contacts dans le select ----
-function cpsChargerContactsSelect(){
+// apres (optionnel) : appelé une fois les contacts dans la liste — pour sélectionner le
+// contact d'un CP modifié sans deviner un délai (avant : setTimeout de 600 ms, qui
+// ratait la sélection sur une connexion lente).
+function cpsChargerContactsSelect(apres){
   var sel = document.getElementById('cps-contact-id');
-  if(!sel || sel.dataset.loaded) return;
+  if(!sel) return;
+  if(sel.dataset.loaded){ if(apres) apres(); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation&order=nom.asc', { headers:authH })
   .then(function(r){ return r.json(); })
@@ -23325,6 +23443,7 @@ function cpsChargerContactsSelect(){
       sel.appendChild(opt);
     });
     sel.dataset.loaded = '1';
+    if(apres) apres();
   }).catch(function(){ notif('Erreur réseau — contacts non chargés','erreur'); });
 }
 
@@ -23344,12 +23463,15 @@ function cpsAdminNouveauForm(){
   var dateEl = document.getElementById('cps-date'); if(dateEl) dateEl.value = '';
   var sel = document.getElementById('cps-contact-id'); if(sel) sel.value = '';
   var inp = document.getElementById('cps-pdf-input'); if(inp) inp.value = '';
+  // Repartir d'un type "communiqué" sans champs d'invitation : avant, ceux du dernier CP
+  // modifié restaient dans le formulaire et partaient avec le nouveau.
+  _cpsRemplirChampsType(null);
   _cpsRenderFichiersListe();
   // Peupler le select rédaction avec les rédactions du membre
   cpsRemplirSelectRedaction(window._redacActiveId || null);
-  form.style.display = 'block';
-  form.scrollIntoView({ behavior:'smooth' });
+  _cpsAdminBasculerFormulaire(true);
   cpsChargerContactsSelect();
+  var t = document.getElementById('cps-titre'); if(t) t.focus();
 }
 
 // ---- ADMIN : Éditer ----
@@ -23370,16 +23492,27 @@ function cpsAdminEditer(id){
     var source = document.getElementById('cps-source'); if(source) source.value = cp.source||'';
     var date = document.getElementById('cps-date'); if(date) date.value = cp.date_cp||'';
     var corps = document.getElementById('cps-corps'); if(corps) corps.value = cp.corps||'';
-    cpsChargerContactsSelect();
+    // Type et champs d'invitation : jamais rechargés avant — enregistrer une invitation
+    // presse modifiée la repassait en simple communiqué et effaçait date, lieu et places.
+    _cpsRemplirChampsType(cp);
     cpsRemplirSelectRedaction(cp.redaction_id || null);
-    setTimeout(function(){
+    var selRedac = document.getElementById('cps-redaction-id');
+    // La liste ne propose que MES rédactions : un CP d'une autre rédaction (admin qui
+    // modifie) perdrait sa rédaction à l'enregistrement si elle n'y figurait pas.
+    if(selRedac && cp.redaction_id && !Array.prototype.some.call(selRedac.options, function(o){ return o.value === cp.redaction_id; })){
+      var rCp = (window._redactionsData||[]).find(function(r){ return r.id === cp.redaction_id; });
+      var optCp = document.createElement('option');
+      optCp.value = cp.redaction_id;
+      optCp.textContent = rCp ? rCp.nom : 'Rédaction du communiqué';
+      selRedac.appendChild(optCp);
+    }
+    if(selRedac) selRedac.value = cp.redaction_id || '';
+    var selContact = document.getElementById('cps-contact-id'); if(selContact) selContact.value = '';
+    cpsChargerContactsSelect(function(){
       var sel = document.getElementById('cps-contact-id');
-      if(sel && cp.contact_id) sel.value = cp.contact_id;
-      var selRedac = document.getElementById('cps-redaction-id');
-      if(selRedac && cp.redaction_id) selRedac.value = cp.redaction_id;
-    }, 600);
-    form.style.display = 'block';
-    form.scrollIntoView({ behavior:'smooth' });
+      if(sel) sel.value = cp.contact_id || '';
+    });
+    _cpsAdminBasculerFormulaire(true);
     // Fichiers déjà joints (nouveau système multi-fichiers) — requête séparée du CP lui-même
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
     fetch(SB_URL+'/rest/v1/communique_fichiers?communique_id=eq.'+encodeURIComponent(id)+'&order=ordre.asc', {headers:authH})
@@ -23409,9 +23542,12 @@ function cpsAdminSauvegarder(statut){
 
   var isNew = !_cpEditId;
   var cpId = isNew ? ('CP-'+genId().slice(4)) : _cpEditId;
-  var redacSelValue = (document.getElementById('cps-redaction-id')||{}).value || null;
-  var redacId = redacSelValue;
-  if(!redacId){
+  // Le choix de la liste fait foi, "Toutes les rédactions" compris (vide = null) : avant,
+  // ce choix était remplacé en douce par la rédaction active. Repli sur la rédaction
+  // active seulement si la liste n'existe pas du tout.
+  var selRedaction = document.getElementById('cps-redaction-id');
+  var redacId = selRedaction ? (selRedaction.value || null) : null;
+  if(!selRedaction){
     var monLienRedac = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
     if(monLienRedac) redacId = monLienRedac.redaction_id;
   }
@@ -23439,12 +23575,14 @@ function cpsAdminSauvegarder(statut){
     places_max: placesMax ? parseInt(placesMax) : null,
     date_reponse: dateRep || null,
     reponse_requise: repReq,
+    // Aussi en modification : avant, changer la rédaction d'un CP existant n'était
+    // jamais enregistré (redaction_id n'était envoyé qu'à la création).
+    redaction_id: redacId,
     updated_at: new Date().toISOString()
   };
   if(isNew){
     payload.id = cpId;
     payload.created_by = getUserId();
-    if(redacId) payload.redaction_id = redacId;
   }
 
   var url = isNew
@@ -23489,11 +23627,7 @@ function cpsAdminSauvegarder(statut){
     suite.then(function(){
       if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       notif(statut === 'publie' ? 'CP publié !' : 'CP sauvegardé !', 'succes');
-      if(form) form.style.display = 'none';
-      _cpEditId = null;
-      _cpsFichiersSelectionnes = [];
-      _cpsFichiersExistants = [];
-      _cpsFichierPdfLegacy = null;
+      cpsAdminFermerFormulaire();
       cpsAdminCharger();
       if(statut === 'publie' && cp && cp.id) {
         fetch(SB_URL+'/functions/v1/communique-vers-drive', {
@@ -23515,7 +23649,8 @@ function cpsAdminSauvegarder(statut){
 
 // ---- ADMIN : Publier depuis la liste ----
 function cpsAdminPublier(id){
-  if(!confirm('Publier ce communiqué et envoyer aux abonnés ?')) return;
+  // Publier n'envoie rien aux abonnés : l'envoi se fait à part, via "Notifier les abonnés".
+  if(!confirm('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».')) return;
   fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -23862,22 +23997,45 @@ function cpsEnvoyerNotifsManuelles(){
       return;
     }
 
-    // Récupérer les abonnés globaux + tous les membres des rédactions concernées par ces CPs
-    // (un CP marqué pour une rédaction doit prévenir toute la rédaction, pas seulement les abonnés manuels)
-    var redactionIds = cps.map(function(cp){return cp.redaction_id;}).filter(Boolean);
-    redactionIds = redactionIds.filter(function(id,i){ return redactionIds.indexOf(id)===i; });
+    // Trois façons d'être concerné·e, chacune avec SA liste de communiqués :
+    //  - abonné·e à tous les CPs (abonnements_cp)        -> tous les communiqués
+    //  - membre d'une rédaction ciblée par un CP          -> les CPs de sa rédaction
+    //  - abonné·e à une source (abonnements_sources)      -> les CPs de cette source (cp.contact_id)
+    // Avant, les abonnés à une source n'étaient jamais prévenus (seule une ancienne
+    // fonction d'envoi à la publication les lisait, jamais appelée — l'envoi reste
+    // volontairement manuel, via ce bouton), et un membre de rédaction recevait tout le
+    // récap, y compris les CPs destinés à d'autres rédactions.
+    function uniques(t){ return t.filter(function(v,i){ return v && t.indexOf(v)===i; }); }
+    var redactionIds = uniques(cps.map(function(cp){return cp.redaction_id;}));
+    var contactIds = uniques(cps.map(function(cp){return cp.contact_id;}));
 
     Promise.all([
       fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id',{headers:authH}).then(function(r){return r.json();}),
       redactionIds.length
-        ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=in.('+redactionIds.join(',')+')&select=membre_id',{headers:authH}).then(function(r){return r.json();})
+        ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=in.('+redactionIds.join(',')+')&select=membre_id,redaction_id',{headers:authH}).then(function(r){return r.json();})
+        : Promise.resolve([]),
+      contactIds.length
+        ? fetch(SB_URL+'/rest/v1/abonnements_sources?contact_id=in.('+contactIds.map(encodeURIComponent).join(',')+')&select=membre_id,contact_id',{headers:authH}).then(function(r){return r.json();})
         : Promise.resolve([])
     ])
     .then(function(res){
       var abos = (!res[0]||res[0].code) ? [] : res[0];
       var redacMembres = (!res[1]||res[1].code) ? [] : res[1];
-      var ids = abos.map(function(a){return a.membre_id;}).concat(redacMembres.map(function(a){return a.membre_id;}));
-      ids = ids.filter(function(id,i){ return ids.indexOf(id)===i; });
+      var abosSources = (!res[2]||res[2].code) ? [] : res[2];
+      var globaux = abos.map(function(a){ return a.membre_id; });
+      // Pour chaque membre : les CPs qui le concernent, et pourquoi (pour le pied de l'email)
+      var parMembre = {};
+      function ajouter(membreId, cp, raison){
+        var p = parMembre[membreId] || (parMembre[membreId] = {cps:[], raisons:{}});
+        if(p.cps.indexOf(cp) === -1) p.cps.push(cp);
+        p.raisons[raison] = true;
+      }
+      cps.forEach(function(cp){
+        globaux.forEach(function(id){ ajouter(id, cp, 'tous'); });
+        if(cp.redaction_id) redacMembres.forEach(function(l){ if(l.redaction_id===cp.redaction_id) ajouter(l.membre_id, cp, 'redaction'); });
+        if(cp.contact_id) abosSources.forEach(function(a){ if(a.contact_id===cp.contact_id) ajouter(a.membre_id, cp, 'source'); });
+      });
+      var ids = Object.keys(parMembre);
       if(!ids.length){
         notif('Aucun destinataire (ni abonné, ni rédaction ciblée)');
         if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
@@ -23895,12 +24053,23 @@ function cpsEnvoyerNotifsManuelles(){
           return;
         }
 
-        // Construire le récap HTML des CPs (email) et son équivalent texte (Chat — pas
-        // de HTML dans les messages Chat, juste le sous-ensemble markdown *gras*/<url|texte>).
-        var cpHtml = cps.map(_osCpEmailCarte).join('');
-        var chatTexte = '📨 *'+cps.length+' nouveau(x) communiqué(s)*\n'
-          + cps.map(function(cp,i){ return (i+1)+'. *'+(cp.titre||'Sans titre')+'*'+((cp.source||cp.organisation)?' — '+(cp.source||cp.organisation):''); }).join('\n')
-          + '\n📎 <https://compo.ipsummedia.fr|Voir dans l\'appli>';
+        // Texte Chat : seule la 1re ligne (texte fixe) est en *gras*. Titres et sources ne
+        // sont plus entourés d'astérisques — un titre finissant par un guillemet, une
+        // parenthèse ou un espace empêchait Chat de refermer le gras, qui débordait alors
+        // sur tout le reste du message. _chatSansMiseEnForme retire aussi * _ ~ ` du titre.
+        function texteChat(liste){
+          return '📨 *'+liste.length+' '+(liste.length>1?'nouveaux communiqués':'nouveau communiqué')+'*\n'
+            + liste.map(function(cp){
+                var src = _chatSansMiseEnForme(cp.source||cp.organisation);
+                return '• '+(src?src+' : ':'')+'« '+_chatSansMiseEnForme(cp.titre||'Sans titre')+' »'+(cp.type==='invitation_presse'?' (invitation presse)':'');
+              }).join('\n')
+            + '\n<https://compo.ipsummedia.fr|Voir les communiqués>';
+        }
+        var RAISONS = {
+          tous: 'tu es abonné·e à tous les communiqués',
+          redaction: 'ta rédaction est concernée',
+          source: 'tu es abonné·e à cette source'
+        };
 
         var cpIds = cps.map(function(cp){return cp.id;});
 
@@ -23921,10 +24090,12 @@ function cpsEnvoyerNotifsManuelles(){
             return;
           }
           var m = destinataires[idx];
+          var sesCps = (parMembre[m.id] && parMembre[m.id].cps) || cps;
+          var sesRaisons = Object.keys((parMembre[m.id] && parMembre[m.id].raisons) || {}).map(function(k){ return RAISONS[k]; });
           // Canal Chat choisi par la personne : part toujours, connectée ou non — ce
           // n'est pas un filet de secours comme l'email ci-dessous.
           if(m.canal_notif === 'chat'){
-            notifierChatDM(m.id, chatTexte, 'cp')
+            notifierChatDM(m.id, texteChat(sesCps), 'cp')
             .then(function(r){
               if(r && r.ok !== false) nb++;
               else { echecs.push(m.email); console.warn('Échec envoi CP (chat) à '+m.email, r); }
@@ -23937,12 +24108,13 @@ function cpsEnvoyerNotifsManuelles(){
           // moment-là — inutile de doubler avec un email pour cette personne précise.
           // Ni un envoi ni un échec : on passe simplement au destinataire suivant.
           if(osEstEnLigne(m.id)){ setTimeout(function(){ envoyerProchain(idx+1); }, 0); return; }
-          var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', '+cps.length+' nouveau(x) communiqué(s) disponible(s) sur Compo :</p>'
-            +cpHtml
+          var nbLibelle = sesCps.length+' '+(sesCps.length>1?'nouveaux communiqués':'nouveau communiqué');
+          var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', '+nbLibelle+' sur Compo :</p>'
+            +sesCps.map(_osCpEmailCarte).join('')
             +'<div style="margin-top:1.2rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>'
-            +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">Tu reçois cet email car tu es abonné aux CPs sur Compo, ou parce que ta rédaction est concernée par au moins un de ces communiqués.</p>';
-          var html = _osCpEmailShell('📰 '+cps.length+' nouveau(x) communiqué(s)', corps);
-          envoyerEmailResend(m.email, '[Compo] '+cps.length+' nouveau(x) communiqué(s)', html, 'cp')
+            +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">Tu reçois cet email car '+esc(sesRaisons.join(', ') || 'tu es abonné·e aux communiqués')+'.</p>';
+          var html = _osCpEmailShell('📰 '+nbLibelle, corps);
+          envoyerEmailResend(m.email, '[Compo] '+nbLibelle, html, 'cp')
           .then(function(r){
             if(r && r.ok !== false) nb++;
             else { echecs.push(m.email); console.warn('Échec envoi CP à '+m.email, r); }
@@ -23957,60 +24129,6 @@ function cpsEnvoyerNotifsManuelles(){
     notif('Erreur envoi');
     if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
   });
-}
-
-function cpsEnvoyerAuxAbonnes(cp){
-  var headers = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
-  Promise.all([
-    fetch(SB_URL+'/rest/v1/abonnements_cp?select=membre_id', {headers:headers}).then(function(r){return r.json();}),
-    cp.contact_id
-      ? fetch(SB_URL+'/rest/v1/abonnements_sources?contact_id=eq.'+encodeURIComponent(cp.contact_id)+'&select=membre_id', {headers:headers}).then(function(r){return r.json();})
-      : Promise.resolve([])
-  ]).then(function(res){
-    var globaux = (!res[0]||res[0].code) ? [] : res[0].map(function(a){return a.membre_id;});
-    var parSource = (!res[1]||res[1].code) ? [] : res[1].map(function(a){return a.membre_id;});
-    var tousIds = globaux.slice();
-    parSource.forEach(function(id){ if(!tousIds.includes(id)) tousIds.push(id); });
-    if(!tousIds.length){ notif('Aucun abonné pour ce CP'); return; }
-    fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom,nom,canal_notif&id=in.('+tousIds.map(function(id){return encodeURIComponent(id);}).join(',')+')', {headers:SB_HEADERS})
-    .then(function(r){return r.json();})
-    .then(function(membres){
-      if(!membres||!membres.length) return;
-      var carte = _osCpEmailCarte(cp);
-      var lienCp = genererLienCP(cp.id);
-      var titreInterne = cp.type==='invitation_presse' ? '📅 Nouvelle invitation presse' : '📰 Nouveau communiqué de presse';
-      var lignesCorps = (cp.corps||'').split('\n').filter(function(l){return l.trim();});
-      var extraitChat = lignesCorps.slice(0,3).join(' ').slice(0,200);
-      var chatTexte = (cp.type==='invitation_presse' ? '📅 *Nouvelle invitation presse*' : '📰 *Nouveau communiqué de presse*')
-        +'\n*'+(cp.titre||'Sans titre')+'*'+((cp.source||cp.organisation)?' — '+(cp.source||cp.organisation):'')
-        +(extraitChat?'\n'+extraitChat:'')
-        +'\n📎 <'+lienCp+'|Ouvrir le communiqué>';
-      var nb = 0;
-      membres.forEach(function(m){
-        if(!m.email) return;
-        // Canal Chat choisi par la personne : part toujours, connectée ou non — ce
-        // n'est pas un filet de secours comme l'email ci-dessous.
-        if(m.canal_notif === 'chat'){
-          notifierChatDM(m.id, chatTexte, 'cp');
-          nb++;
-          return;
-        }
-        // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
-        // moment-là — inutile de doubler avec un email pour cette personne précise.
-        if(osEstEnLigne(m.id)) return;
-        var estGlobal = globaux.includes(m.id);
-        var raison = estGlobal ? 'Tu reçois cet email car tu es abonné à tous les CPs sur Compo.' : 'Tu reçois cet email car tu es abonné aux CPs de cette source sur Compo.';
-        var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', un nouveau'+(cp.type==='invitation_presse'?'e invitation a été publiée':' communiqué a été publié')+' :</p>'
-          +carte
-          +'<div style="margin-top:1.2rem;text-align:center;"><a href="'+esc(lienCp)+'" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir le communiqué →</a></div>'
-          +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">'+raison+' Gère tes abonnements depuis l\'appli CPs.</p>';
-        var html = _osCpEmailShell(titreInterne, corps);
-        envoyerEmailResend(m.email, '[Compo] CP : '+(cp.titre||'Sans titre'), html, 'cp');
-        nb++;
-      });
-      notif(nb+' notification(s) envoyée(s)');
-    });
-  }).catch(function(){ console.warn('Erreur envoi CPs'); });
 }
 
 // ===== DASHBOARD BÉNÉVOLES =====
@@ -34688,26 +34806,29 @@ function osAgendaRender(){
   var ligne1 = '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;">';
   ligne1 += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda Ipsum Média</div>';
   ligne1 += '<div style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
-    +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
-    +'<button onclick="osAgendaSetVue(\'semaine\')" id="agenda-btn-semaine" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Semaine</button>'
-    +'<button onclick="osAgendaSetVue(\'jour\')" id="agenda-btn-jour" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Jour</button>'
-    +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Mois</button>'
+    +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
+    +'<button onclick="osAgendaSetVue(\'semaine\')" id="agenda-btn-semaine" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Semaine</button>'
+    +'<button onclick="osAgendaSetVue(\'jour\')" id="agenda-btn-jour" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Jour</button>'
+    +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Mois</button>'
     +'</div>';
-  if(isChefOuAdmin) ligne1 += '<button onclick="osAgendaNouvelEvenement()" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
+  if(isChefOuAdmin) ligne1 += '<button onclick="osAgendaNouvelEvenement()" style="font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
   ligne1 += '</div>';
 
   // Ligne 2 : filtres par type
-  var ligne2 = '<div style="display:flex;gap:0.4rem;padding:0.4rem 1.2rem 0.6rem;overflow-x:auto;flex-wrap:nowrap;" id="agenda-filtres">';
-  ligne2 += '<button onclick="osAgendaFiltre(\'tous\')" data-filtre="tous" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:10px;cursor:pointer;background:var(--rouge);color:white;white-space:nowrap;">Tous</button>';
+  // Défile toujours horizontalement si les filtres dépassent, mais sans la barre de
+  // défilement grise qui soulignait tout le bandeau (scrollbar-width + règle webkit CSS).
+  var ligne2 = '<div style="display:flex;gap:0.4rem;padding:0.4rem 1.2rem 0.6rem;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;" id="agenda-filtres">';
+  ligne2 += '<button onclick="osAgendaFiltre(\'tous\')" data-filtre="tous" style="font-family:DM Sans,sans-serif;font-size:0.7rem;font-weight:500;padding:3px 10px;border:0.5px solid var(--rouge);border-radius:10px;cursor:pointer;background:var(--rouge);color:white;white-space:nowrap;">Tous</button>';
   Object.keys(AGENDA_TYPES).forEach(function(k){
     var t = AGENDA_TYPES[k];
-    ligne2 += '<button onclick="osAgendaFiltre(\''+k+'\')" data-filtre="'+k+'" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:10px;cursor:pointer;background:white;color:var(--gris);white-space:nowrap;">'+t.icon+' '+t.l+'</button>';
+    ligne2 += '<button onclick="osAgendaFiltre(\''+k+'\')" data-filtre="'+k+'" style="font-family:DM Sans,sans-serif;font-size:0.7rem;font-weight:500;padding:3px 10px;border:0.5px solid var(--gris-bord);border-radius:10px;cursor:pointer;background:white;color:var(--gris);white-space:nowrap;">'+t.icon+' '+t.l+'</button>';
   });
   ligne2 += '</div>';
 
   hdr.innerHTML = ligne1 + ligne2;
   wc.innerHTML = '';
   wc.appendChild(hdr);
+  _agendaMajBoutonsVue();
 
   var body = document.createElement('div');
   body.id = 'agenda-body';
@@ -34733,25 +34854,37 @@ function osAgendaFiltre(type){
 
 function osAgendaSetVue(vue){
   _agendaVue = vue;
-  // Reset tous les boutons
-  ['agenda-btn-liste','agenda-btn-cal','agenda-btn-semaine','agenda-btn-jour'].forEach(function(id){
-    var btn = document.getElementById(id);
-    if(!btn) return;
-    var actif = id === 'agenda-btn-'+vue || (vue==='calendrier'&&id==='agenda-btn-cal') || (vue==='liste'&&id==='agenda-btn-liste') || (vue==='semaine'&&id==='agenda-btn-semaine') || (vue==='jour'&&id==='agenda-btn-jour');
-    btn.style.background = actif ? 'white' : 'transparent';
-    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
-  });
   osAgendaRendreVue();
 }
 
+// Surligne le bouton de la vue réellement affichée. Fait à chaque rendu (et plus
+// seulement au clic) : en rouvrant l'Agenda, l'en-tête reconstruit surlignait
+// toujours "Liste" alors que la vue mémorisée (semaine, jour...) était affichée.
+function _agendaMajBoutonsVue(){
+  var ids = {liste:'agenda-btn-liste', semaine:'agenda-btn-semaine', jour:'agenda-btn-jour', calendrier:'agenda-btn-cal'};
+  Object.keys(ids).forEach(function(vue){
+    var btn = document.getElementById(ids[vue]);
+    if(!btn) return;
+    var actif = (_agendaVue || 'liste') === vue;
+    btn.style.background = actif ? 'white' : 'transparent';
+    btn.style.color = actif ? 'var(--encre)' : 'var(--gris)';
+    btn.style.boxShadow = actif ? '0 1px 2px rgba(0,0,0,0.08)' : 'none';
+  });
+}
+
 function osAgendaRendreVue(){
+  _agendaMajBoutonsVue();
+  var filtresType = document.getElementById('agenda-filtres');
+  if(filtresType) filtresType.style.display = 'flex'; // masqués pendant la fiche d'un événement
   if(_agendaVue === 'calendrier') osAgendaRendreCalendrier();
   else if(_agendaVue === 'semaine') osAgendaRendreSemaine();
   else if(_agendaVue === 'jour') osAgendaRendreJour();
   else osAgendaRendreListe();
 }
 
-function osAgendaCharger(){
+// apres (optionnel) : appelé à la place de osAgendaRendreVue() une fois les données
+// chargées — ex. rouvrir la fiche d'un événement tout juste enregistré.
+function osAgendaCharger(apres){
   var body = document.getElementById('agenda-body');
   if(!body) return;
   body.innerHTML = osLoadingHtml('osAgendaCharger');
@@ -34759,10 +34892,25 @@ function osAgendaCharger(){
 
   Promise.all([
     fetch(SB_URL+'/rest/v1/agenda_evenements?statut=neq.supprime&order=date_debut.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=not.is.null&select=id,titre,date_evenement,lieu_evenement,places_max,date_reponse,reponse_requise',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=not.is.null&select=id,titre,date_evenement,lieu_evenement,places_max,date_reponse,reponse_requise',{headers:authH}).then(function(r){return r.json();}),
+    // Inscriptions de tout le monde (hors refusées) : nombre d'inscrits confirmés et ma
+    // propre inscription par événement. Avant, la liste lisait _agendaInscriptions, chargé
+    // seulement par Ma rédac (donc vide si on ouvrait l'Agenda directement), et
+    // ev._nb_inscrits, jamais rempli nulle part : le compteur de places affichait 0.
+    fetch(SB_URL+'/rest/v1/agenda_inscriptions?statut=neq.refuse&select=evenement_id,membre_id,statut',{headers:authH}).then(function(r){return r.json();}).catch(function(){ return []; })
   ]).then(function(res){
     var evs    = (!res[0]||res[0].code)?[]:res[0];
     var invits = (!res[1]||res[1].code)?[]:res[1];
+    var inscrs = (!res[2]||res[2].code||!Array.isArray(res[2]))?[]:res[2];
+    var uidAg = getUserId();
+    var evParId = {};
+    evs.forEach(function(e){ e._nb_inscrits = 0; e._mon_statut = null; evParId[e.id] = e; });
+    inscrs.forEach(function(i){
+      var e = evParId[i.evenement_id];
+      if(!e) return;
+      if(i.statut === 'confirme') e._nb_inscrits++;
+      if(i.membre_id === uidAg) e._mon_statut = i.statut;
+    });
 
     // Convertir les invitations presse en événements agenda virtuels
     invits.forEach(function(inv){
@@ -34786,7 +34934,7 @@ function osAgendaCharger(){
 
     evs.sort(function(a,b){ return new Date(a.date_debut)-new Date(b.date_debut); });
     _agendaEvenements = evs;
-    osAgendaRendreVue();
+    if(typeof apres === 'function') apres(); else osAgendaRendreVue();
   }).catch(function(){
     if(body) body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.82rem;">Erreur chargement</div>';
   });
@@ -34806,10 +34954,16 @@ function osAgendaRendreListe(){
     : _agendaEvenements.filter(function(e){ return e.type === _agendaFiltreActif; });
 
   var aVenir = evsFiltres.filter(function(e){ return new Date(e.date_debut) >= maintenant && e.statut !== 'annule'; });
-  var passes  = evsFiltres.filter(function(e){ return new Date(e.date_debut) < maintenant || e.statut === 'annule'; });
+  // _agendaEvenements est trié du plus ancien au plus récent (osAgendaCharger) — bon pour
+  // "à venir" (le plus proche en premier), mais sans le retrier ici, le slice(0,5) plus bas
+  // gardait les 5 événements passés les PLUS ANCIENS de tout l'historique au lieu des 5
+  // plus récents : la section "Passés" affichait des dates au hasard, parfois très
+  // vieilles, jamais les derniers événements en date.
+  var passes  = evsFiltres.filter(function(e){ return new Date(e.date_debut) < maintenant || e.statut === 'annule'; })
+    .sort(function(a,b){ return new Date(b.date_debut) - new Date(a.date_debut); });
 
   if(!evsFiltres.length){
-    body.innerHTML = '<div style="text-align:center;padding:3rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Aucun événement'+(
+    body.innerHTML = '<div style="text-align:center;padding:3rem;font-family:DM Sans,sans-serif;font-size:0.78rem;color:var(--gris);">Aucun événement'+(
       _agendaFiltreActif !== 'tous' ? ' dans cette catégorie' : ' à venir')+'</div>';
     return;
   }
@@ -34817,7 +34971,7 @@ function osAgendaRendreListe(){
   function renderSection(titre, evts){
     if(!evts.length) return;
     var section = document.createElement('div');
-    section.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+titre+' ('+evts.length+')</div>';
+    section.innerHTML = '<div style="font-family:DM Sans,sans-serif;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+titre+' ('+evts.length+')</div>';
     evts.forEach(function(ev){
       var card = agendaCardHTML(ev, uid, isAdmin);
       section.appendChild(card);
@@ -34834,17 +34988,18 @@ function agendaCardHTML(ev, uid, isAdmin){
   var debut = new Date(ev.date_debut);
   var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   var isAnnule = ev.statut === 'annule';
-  var isInscrit = (window._agendaInscriptions||[]).some(function(i){ return i.evenement_id===ev.id && i.membre_id===uid; });
+  var monStatut = _agendaMonStatut(ev, uid);
+  var isInscrit = monStatut === 'confirme';
 
   // Badge rédaction
   var redacBadge = '';
   if(ev.redaction_id && _redactionsData){
     var r = _redactionsData.find(function(r){return r.id===ev.redaction_id;});
-    if(r) redacBadge = '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:'+(r.couleur||'#EA5B1C')+'22;color:'+(r.couleur||'#EA5B1C')+';border:1px solid '+(r.couleur||'#EA5B1C')+'44;border-radius:3px;">'+esc(r.nom)+'</span>';
+    if(r) redacBadge = '<span style="font-family:DM Sans,sans-serif;font-size:0.55rem;padding:1px 5px;background:'+(r.couleur||'#EA5B1C')+'22;color:'+(r.couleur||'#EA5B1C')+';border:1px solid '+(r.couleur||'#EA5B1C')+'44;border-radius:3px;">'+esc(r.nom)+'</span>';
   }
 
   var card = document.createElement('div');
-  card.style.cssText = 'display:flex;gap:0.8rem;padding:0.9rem 1rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;transition:background 0.1s;background:white;'+(isAnnule?'opacity:0.55;':'')+(isInscrit?'border-left:3px solid var(--rouge);':'');
+  card.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.9rem 1rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;transition:background 0.1s;background:white;'+(isAnnule?'opacity:0.55;':'')+(isInscrit?'border-left:3px solid #2E9E5B;':'');
   card.onmouseover = function(){this.style.background='var(--gris-clair)';};
   card.onmouseout  = function(){this.style.background='white';};
 
@@ -34852,7 +35007,7 @@ function agendaCardHTML(ev, uid, isAdmin){
   var dateBadge = document.createElement('div');
   dateBadge.style.cssText = 'flex-shrink:0;width:46px;text-align:center;';
   dateBadge.innerHTML =
-    '<div style="background:var(--rouge);color:white;border-radius:6px 6px 0 0;font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;padding:2px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>'
+    '<div style="background:var(--rouge);color:white;border-radius:6px 6px 0 0;font-family:DM Sans,sans-serif;font-size:0.58rem;text-transform:uppercase;padding:2px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>'
     +'<div style="background:var(--gris-clair);border-radius:0 0 6px 6px;font-family:Poppins,sans-serif;font-weight:700;font-size:1.2rem;color:var(--encre);padding:2px 0;border:1px solid var(--gris-bord);border-top:none;">'+debut.getDate()+'</div>';
 
   var content = document.createElement('div');
@@ -34861,9 +35016,8 @@ function agendaCardHTML(ev, uid, isAdmin){
   // Ligne badges
   var badges = '<div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.25rem;">'
     +'<span style="font-size:0.75rem;">'+t.icon+'</span>'
-    +'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:'+t.bg+';color:'+t.c+';border-radius:3px;">'+t.l+'</span>'
-    +(isAnnule?'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:#FCEBEB;color:#A32D2D;border-radius:3px;">Annulé</span>':'')
-    +(isInscrit?'<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:#D4EDDA;color:#155724;border-radius:3px;">✓ Inscrit</span>':'')
+    +'<span style="font-family:DM Sans,sans-serif;font-size:0.55rem;padding:1px 5px;background:'+t.bg+';color:'+t.c+';border-radius:3px;">'+t.l+'</span>'
+    +(isAnnule?'<span style="font-family:DM Sans,sans-serif;font-size:0.55rem;padding:1px 5px;background:#FCEBEB;color:#A32D2D;border-radius:3px;">Annulé</span>':'')
     +redacBadge
     +'</div>';
 
@@ -34871,22 +35025,51 @@ function agendaCardHTML(ev, uid, isAdmin){
   var titre = '<div style="font-weight:700;font-size:0.88rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.2rem;">'+esc(ev.titre||'')+'</div>';
 
   // Méta
-  var meta = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">';
+  var meta = '<div style="font-family:DM Sans,sans-serif;font-size:0.6rem;color:var(--gris);display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">';
   meta += '<span>🕐 '+heureStr+'</span>';
   if(ev.lieu) meta += '<span>📍 '+esc(ev.lieu)+'</span>';
   if(ev.organisateur) meta += '<span>👤 '+esc(ev.organisateur)+'</span>';
-  if(ev.places_max){
-    var nbInscrits = ev._nb_inscrits || 0;
-    var complet = nbInscrits >= ev.places_max;
-    meta += '<span style="color:'+(complet?'#A32D2D':'var(--gris)')+';">🪑 '+nbInscrits+'/'+ev.places_max+(complet?' · Complet':'')+'</span>';
-  }
   meta += '</div>';
 
   content.innerHTML = badges + titre + meta;
   card.appendChild(dateBadge);
   card.appendChild(content);
+  var macaron = _agendaMacaronHTML(ev, monStatut);
+  if(macaron){
+    var cote = document.createElement('div');
+    cote.style.cssText = 'flex-shrink:0;';
+    cote.innerHTML = macaron;
+    card.appendChild(cote);
+  }
   card.onclick = function(){ osAgendaOuvrirDetail(ev); };
   return card;
+}
+
+// Mon inscription à un événement : 'confirme', 'en_attente', 'refuse' ou null. Vient
+// d'osAgendaCharger (ev._mon_statut) ; repli sur _agendaInscriptions (inscriptions
+// confirmées chargées par Ma rédac) pour un événement venu d'ailleurs (lien direct).
+function _agendaMonStatut(ev, uid){
+  if(ev._mon_statut !== undefined) return ev._mon_statut;
+  uid = uid || getUserId();
+  return (window._agendaInscriptions||[]).some(function(i){ return i.evenement_id===ev.id && i.membre_id===uid; }) ? 'confirme' : null;
+}
+
+// Macaron d'état à droite d'une carte de la liste : inscrit (vert), en attente
+// (ambre), sinon les places restantes, ou "Complet" en rouge. Rien pour un événement
+// annulé, passé (sauf si j'y étais inscrit) ou sans limite de places.
+function _agendaMacaronHTML(ev, monStatut){
+  if(ev.statut === 'annule') return '';
+  function macaron(icone, texte, fond, bord, coul){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px 4px 7px;border-radius:999px;background:'+fond+';border:1px solid '+bord+';color:'+coul+';font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;white-space:nowrap;">'
+      +'<i class="ti ti-'+icone+'" style="font-size:1.05rem;"></i>'+texte+'</span>';
+  }
+  if(monStatut === 'confirme') return macaron('circle-check', 'Inscrit', '#E3F6EA', '#BFE6CD', '#1E7A45');
+  if(monStatut === 'en_attente') return macaron('clock', 'En attente', '#FFF6DB', '#F3DFA2', '#8A6400');
+  var passe = new Date(ev.date_debut) < new Date();
+  if(passe || !ev.places_max) return '';
+  var restantes = Math.max(0, ev.places_max - (ev._nb_inscrits || 0));
+  if(!restantes) return macaron('circle-x', 'Complet', '#FDECEC', '#F5C6C6', '#B42318');
+  return macaron('armchair', restantes+' place'+(restantes>1?'s':'')+' restante'+(restantes>1?'s':''), 'var(--gris-clair)', 'var(--gris-bord)', 'var(--encre)');
 }
 
 function osAgendaRendreCalendrier(){
@@ -34911,7 +35094,7 @@ function osAgendaRendreCalendrier(){
   hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
   JOURS.forEach(function(j, idx){
     var el = document.createElement('div');
-    el.style.cssText = 'text-align:center;font-family:Space Mono,monospace;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
+    el.style.cssText = 'text-align:center;font-family:DM Sans,sans-serif;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
     el.textContent = j;
     hdrJours.appendChild(el);
   });
@@ -34952,7 +35135,7 @@ function osAgendaRendreCalendrier(){
     cell.style.cssText = 'min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
 
     var numEl = document.createElement('div');
-    numEl.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
+    numEl.style.cssText = 'font-family:DM Sans,sans-serif;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
     numEl.textContent = d;
     cell.appendChild(numEl);
 
@@ -34965,7 +35148,7 @@ function osAgendaRendreCalendrier(){
     });
     if(evsDuJour.length > 3){
       var more = document.createElement('div');
-      more.style.cssText = 'font-size:0.5rem;color:var(--rouge);font-family:Space Mono,monospace;font-weight:600;';
+      more.style.cssText = 'font-size:0.5rem;color:var(--rouge);font-family:DM Sans,sans-serif;font-weight:600;';
       more.textContent = '+'+( evsDuJour.length-3)+' autres';
       cell.appendChild(more);
     }
@@ -34981,6 +35164,136 @@ function osAgendaRendreCalendrier(){
 
 function osAgendaMoisPrev(){ _agendaMois--; if(_agendaMois<0){_agendaMois=11;_agendaAnnee--;} osAgendaRendreCalendrier(); }
 function osAgendaMoisNext(){ _agendaMois++; if(_agendaMois>11){_agendaMois=0;_agendaAnnee++;} osAgendaRendreCalendrier(); }
+
+// ===== VUES SEMAINE / JOUR — briques communes =====
+// Même langage visuel que la liste et la fiche d'un événement (DM Sans, cartes
+// bordées, icônes Tabler). Les deux vues partagent : le filtre par type du bandeau,
+// la plage horaire (7h–23h, élargie si un événement déborde), la disposition des
+// événements qui se chevauchent (côte à côte au lieu d'empilés) et le trait "maintenant".
+var _AGENDA_HAUTEUR_HEURE_SEMAINE = 52;
+var _AGENDA_HAUTEUR_HEURE_JOUR = 64;
+
+function _agendaEvsVisibles(filtreJour){
+  return (_agendaEvenements||[]).filter(function(e){
+    if(e.statut === 'annule') return false;
+    if(_agendaFiltreActif && _agendaFiltreActif !== 'tous' && e.type !== _agendaFiltreActif) return false;
+    return filtreJour ? filtreJour(new Date(e.date_debut)) : true;
+  });
+}
+
+function _agendaMemeJour(a, b){
+  return a.getDate()===b.getDate() && a.getMonth()===b.getMonth() && a.getFullYear()===b.getFullYear();
+}
+
+// Répartit en colonnes les événements d'une même journée qui se chevauchent : chaque
+// groupe d'événements imbriqués se partage la largeur, au lieu de se recouvrir.
+function _agendaDisposer(evs){
+  var items = evs.map(function(ev){
+    var d = new Date(ev.date_debut);
+    var f = ev.date_fin ? new Date(ev.date_fin) : new Date(d.getTime()+3600000);
+    if(f <= d) f = new Date(d.getTime()+1800000);
+    return {ev:ev, debut:d, fin:f};
+  }).sort(function(a,b){ return (a.debut-b.debut) || (b.fin-a.fin); });
+  var groupe = null, finGroupe = 0;
+  items.forEach(function(it){
+    if(!groupe || it.debut >= finGroupe){ groupe = {items:[], colonnes:[]}; finGroupe = 0; it._groupe = groupe; }
+    var c = 0;
+    while(c < groupe.colonnes.length && groupe.colonnes[c] > it.debut) c++;
+    groupe.colonnes[c] = it.fin;
+    it.col = c; it._groupe = groupe; groupe.items.push(it);
+    if(it.fin > finGroupe) finGroupe = it.fin;
+  });
+  items.forEach(function(it){ it.nbCols = it._groupe.colonnes.length; });
+  return items;
+}
+
+// 7h–23h par défaut, élargi pour ne jamais couper un événement (avant, un rendez-vous à
+// 6h30 s'affichait dans la case de 7h, et un à 22h30 dépassait sous la grille).
+function _agendaPlage(items){
+  var hMin = 7, hMax = 23;
+  items.forEach(function(it){
+    hMin = Math.min(hMin, it.debut.getHours());
+    var hFin = _agendaMemeJour(it.debut, it.fin) ? it.fin.getHours() + (it.fin.getMinutes() ? 1 : 0) : 24;
+    hMax = Math.max(hMax, hFin);
+  });
+  return {min:hMin, max:Math.min(24, hMax)};
+}
+
+function _agendaHeureDecimale(d){ return d.getHours() + d.getMinutes()/60; }
+function _agendaHHMM(d){ return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+
+function _agendaNavHTML(titre, fnPrev, fnNow, fnNext, dejaAujourdhui){
+  var B = 'display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;border:1px solid var(--gris-bord);background:white;color:var(--encre);border-radius:7px;cursor:pointer;height:30px;flex-shrink:0;';
+  return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.6rem 1.2rem;border-bottom:1px solid var(--gris-bord);background:white;flex-shrink:0;">'
+    +'<button onclick="'+fnPrev+'()" title="Précédent" style="'+B+'width:30px;"><i class="ti ti-chevron-left"></i></button>'
+    +'<button onclick="'+fnNext+'()" title="Suivant" style="'+B+'width:30px;"><i class="ti ti-chevron-right"></i></button>'
+    +'<button onclick="'+fnNow+'()" style="'+B+'padding:0 12px;'+(dejaAujourdhui?'opacity:0.45;cursor:default;':'')+'"'+(dejaAujourdhui?' disabled':'')+'>Aujourd\'hui</button>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-left:0.4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+titre+'</div>'
+    +'</div>';
+}
+
+// Colonne des heures + lignes de fond d'une colonne de jour
+function _agendaColonneHeures(plage, hauteur){
+  var col = document.createElement('div');
+  for(var h = plage.min; h < plage.max; h++){
+    var el = document.createElement('div');
+    el.style.cssText = 'height:'+hauteur+'px;text-align:right;padding-right:8px;box-sizing:border-box;';
+    el.innerHTML = h > plage.min ? '<span style="font-size:0.62rem;color:var(--gris);position:relative;top:-8px;">'+String(h).padStart(2,'0')+':00</span>' : '';
+    col.appendChild(el);
+  }
+  return col;
+}
+function _agendaLignesFond(colonne, plage, hauteur){
+  for(var h = plage.min; h < plage.max; h++){
+    var l = document.createElement('div');
+    l.style.cssText = 'height:'+hauteur+'px;border-top:1px solid '+(h===plage.min?'transparent':'var(--gris-bord)')+';box-sizing:border-box;';
+    colonne.appendChild(l);
+  }
+}
+function _agendaTraitMaintenant(colonne, plage, hauteur){
+  var now = new Date();
+  var h = _agendaHeureDecimale(now);
+  if(h < plage.min || h >= plage.max) return;
+  var trait = document.createElement('div');
+  trait.title = 'Maintenant · '+_agendaHHMM(now);
+  // Derrière les événements (z-index 1 < 2) : au-dessus, il traversait le titre de
+  // l'événement en cours comme un texte barré.
+  trait.style.cssText = 'position:absolute;left:0;right:0;top:'+((h-plage.min)*hauteur)+'px;height:2px;background:var(--rouge);z-index:1;pointer-events:none;';
+  trait.innerHTML = '<span style="position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--rouge);"></span>';
+  colonne.appendChild(trait);
+}
+
+// Position verticale + largeur d'un bloc événement.
+// mode 'cote' (vue Jour, colonne large) : les événements simultanés se partagent la
+// largeur à parts égales. mode 'cascade' (vue Semaine, colonnes étroites) : partager
+// en deux ou trois donnait des blocs de 40px au texte haché ("Réu/nion/co/mm") — les
+// suivants se décalent seulement un peu vers la droite et passent par-dessus, le haut
+// du précédent (son titre, puisqu'il commence plus tôt) reste lisible.
+function _agendaPlacer(el, it, plage, hauteur, marge, mode){
+  var debutH = _agendaHeureDecimale(it.debut);
+  var finH = _agendaMemeJour(it.debut, it.fin) ? _agendaHeureDecimale(it.fin) : 24;
+  var top = (debutH - plage.min) * hauteur;
+  var haut = Math.max(18, (Math.min(finH, plage.max) - debutH) * hauteur - 2);
+  el.style.position = 'absolute';
+  el.style.top = top+'px';
+  el.style.height = haut+'px';
+  if(mode === 'cascade' && it.nbCols > 1){
+    var decalage = Math.min(100 / it.nbCols, 28) * it.col;
+    el.style.left = 'calc('+decalage+'% + '+marge+'px)';
+    el.style.width = 'calc('+(100-decalage)+'% - '+(marge*2)+'px)';
+    el.dataset.niveau = it.col;
+  } else {
+    var largeur = 100 / it.nbCols;
+    el.style.left = 'calc('+(largeur*it.col)+'% + '+marge+'px)';
+    el.style.width = 'calc('+largeur+'% - '+(marge*2)+'px)';
+  }
+  return haut;
+}
+
+function _agendaDefilerVers(conteneur, plage, hauteur, heureCible){
+  var h = Math.max(plage.min, heureCible - 1);
+  conteneur.scrollTop = Math.max(0, (h - plage.min) * hauteur);
+}
 
 // ===== VUE SEMAINE =====
 var _agendaSemaineDebut = null; // lundi de la semaine affichée
@@ -35001,105 +35314,88 @@ function osAgendaRendreSemaine(){
   body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
 
   if(!_agendaSemaineDebut) _agendaSemaineDebut = _agendaLundiSemaine(new Date());
-
   var lundi = new Date(_agendaSemaineDebut);
   var dimanche = new Date(lundi); dimanche.setDate(lundi.getDate()+6);
-  var JOURS_COURTS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   var today = new Date(); today.setHours(0,0,0,0);
+  var HAUTEUR = _AGENDA_HAUTEUR_HEURE_SEMAINE;
+  var uid = getUserId();
 
-  // Nav
-  var nav = document.createElement('div');
-  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
-  var labelSem = lundi.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' – '+dimanche.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
-  nav.innerHTML =
-    '<button onclick="osAgendaSemainePrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">‹</button>'
-    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.88rem;color:var(--encre);">'+labelSem+'</div>'
-    +'<button onclick="osAgendaSemaineNow()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;cursor:pointer;background:white;color:var(--rouge);">Aujourd\'hui</button>'
-    +'<button onclick="osAgendaSemaineNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">›</button>';
-  body.appendChild(nav);
+  var jours = [];
+  for(var i=0; i<7; i++){ var dj = new Date(lundi); dj.setDate(lundi.getDate()+i); jours.push(dj); }
+  var semaineCourante = jours.some(function(d){ return d.getTime()===today.getTime(); });
 
-  // Grille
-  var grille = document.createElement('div');
-  grille.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;';
+  // "21 – 27 septembre 2026", ou "29 sept. – 5 oct. 2026" à cheval sur deux mois
+  var memeMois = lundi.getMonth() === dimanche.getMonth();
+  var titre = memeMois
+    ? lundi.getDate()+' – '+dimanche.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})
+    : lundi.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' – '+dimanche.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  body.insertAdjacentHTML('beforeend', _agendaNavHTML(titre, 'osAgendaSemainePrev', 'osAgendaSemaineNow', 'osAgendaSemaineNext', semaineCourante));
 
-  // En-tête jours
-  var hdrRow = '<div style="display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;position:sticky;top:0;z-index:2;">';
-  hdrRow += '<div></div>';
-  for(var di=0; di<7; di++){
-    var dateJour = new Date(lundi); dateJour.setDate(lundi.getDate()+di);
-    var isToday = dateJour.getTime() === today.getTime();
-    hdrRow += '<div style="text-align:center;padding:5px 0;border-left:1px solid var(--gris-bord);">'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:'+(isToday?'var(--rouge)':'var(--gris)')+';">'+JOURS_COURTS[di]+'</div>'
-      +'<div style="font-family:Poppins,sans-serif;font-size:1rem;font-weight:'+(isToday?'800':'400')+';color:'+(isToday?'white':'var(--encre)') +';width:28px;height:28px;border-radius:50%;background:'+(isToday?'var(--rouge)':'transparent')+';display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" onclick="osAgendaAllerJour('+dateJour.getFullYear()+','+dateJour.getMonth()+','+dateJour.getDate()+')">'+dateJour.getDate()+'</div>'
+  var parJour = jours.map(function(dj){ return _agendaDisposer(_agendaEvsVisibles(function(d){ return _agendaMemeJour(d, dj); })); });
+  var tous = [].concat.apply([], parJour);
+  var plage = _agendaPlage(tous);
+
+  var zone = document.createElement('div');
+  zone.style.cssText = 'flex:1;overflow-y:auto;position:relative;';
+
+  // En-tête des jours (collant en haut au défilement) — clic = vue Jour
+  var entete = '<div style="display:grid;grid-template-columns:56px repeat(7,1fr);border-bottom:1px solid var(--gris-bord);background:white;position:sticky;top:0;z-index:5;">';
+  entete += '<div></div>';
+  jours.forEach(function(dj, i){
+    var estAuj = dj.getTime() === today.getTime();
+    entete += '<div onclick="osAgendaAllerJour('+dj.getFullYear()+','+dj.getMonth()+','+dj.getDate()+')" title="Voir cette journée" '
+      +'onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'transparent\'" '
+      +'style="text-align:center;padding:6px 0 7px;border-left:1px solid var(--gris-bord);cursor:pointer;">'
+      +'<div style="font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:'+(estAuj?'var(--rouge)':'var(--gris)')+';">'+dj.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')+'</div>'
+      +'<div style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;margin-top:1px;font-family:Poppins,sans-serif;font-size:1rem;font-weight:'+(estAuj?'700':'500')+';background:'+(estAuj?'var(--rouge)':'transparent')+';color:'+(estAuj?'white':'var(--encre)')+';">'+dj.getDate()+'</div>'
       +'</div>';
-  }
-  hdrRow += '</div>';
-
-  var content = document.createElement('div');
-  content.style.cssText = 'flex:1;overflow-y:auto;';
-  content.innerHTML = hdrRow;
-
-  var timeline = document.createElement('div');
-  timeline.style.cssText = 'display:grid;grid-template-columns:48px repeat(7,1fr);position:relative;';
-
-  var HEURES = [];
-  for(var h=7; h<=22; h++) HEURES.push(h);
-  var HAUTEUR_HEURE = 52;
-
-  // Colonne heures + lignes
-  var colHeures = document.createElement('div');
-  HEURES.forEach(function(h){
-    var el = document.createElement('div');
-    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid var(--gris-bord);padding-right:4px;text-align:right;';
-    el.innerHTML = '<span style="font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);position:relative;top:-7px;">'+h+'h</span>';
-    colHeures.appendChild(el);
   });
-  timeline.appendChild(colHeures);
+  entete += '</div>';
+  zone.innerHTML = entete;
 
-  // Colonnes jours
-  for(var di=0; di<7; di++){
-    var dateJour = new Date(lundi); dateJour.setDate(lundi.getDate()+di);
-    var isWeekend = di >= 5;
-    var colJour = document.createElement('div');
-    colJour.style.cssText = 'border-left:1px solid var(--gris-bord);position:relative;background:'+(isWeekend?'#FAFAFA':'white')+';';
+  var grille = document.createElement('div');
+  grille.style.cssText = 'display:grid;grid-template-columns:56px repeat(7,1fr);';
+  grille.appendChild(_agendaColonneHeures(plage, HAUTEUR));
 
-    // Lignes heures
-    HEURES.forEach(function(){
-      var ligne = document.createElement('div');
-      ligne.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid rgba(0,0,0,0.04);';
-      colJour.appendChild(ligne);
-    });
+  jours.forEach(function(dj, i){
+    var col = document.createElement('div');
+    var estAuj = dj.getTime() === today.getTime();
+    var weekend = i >= 5;
+    col.style.cssText = 'position:relative;border-left:1px solid var(--gris-bord);background:'+(estAuj?'rgba(234,91,28,0.035)':(weekend?'var(--gris-clair)':'white'))+';';
+    _agendaLignesFond(col, plage, HAUTEUR);
+    if(estAuj) _agendaTraitMaintenant(col, plage, HAUTEUR);
 
-    // Événements du jour
-    var evsDuJour = _agendaEvenements.filter(function(e){
-      var ed = new Date(e.date_debut);
-      return ed.getDate()===dateJour.getDate() && ed.getMonth()===dateJour.getMonth() && ed.getFullYear()===dateJour.getFullYear() && e.statut!=='annule';
-    });
-
-    evsDuJour.forEach(function(ev){
-      var debut = new Date(ev.date_debut);
-      var fin = ev.date_fin ? new Date(ev.date_fin) : new Date(debut.getTime()+3600000);
+    parJour[i].forEach(function(it){
+      var ev = it.ev;
       var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
-
-      var topH = (debut.getHours() - 7) + debut.getMinutes()/60;
-      var durH = (fin - debut) / 3600000;
-      if(topH < 0) topH = 0;
-      if(durH < 0.25) durH = 0.25;
-
-      var evEl = document.createElement('div');
-      evEl.style.cssText = 'position:absolute;left:2px;right:2px;top:'+(topH*HAUTEUR_HEURE)+'px;height:'+(durH*HAUTEUR_HEURE-2)+'px;background:'+t.bg+';color:'+t.c+';border-radius:4px;padding:2px 4px;font-size:0.58rem;overflow:hidden;cursor:pointer;border-left:3px solid '+t.c+';z-index:1;';
-      evEl.innerHTML = '<div style="font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.icon+' '+esc(ev.titre)+'</div>';
-      if(durH >= 0.75) evEl.innerHTML += '<div style="opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
-      evEl.onclick = function(){ osAgendaOuvrirDetail(ev); };
-      colJour.appendChild(evEl);
+      var inscrit = _agendaMonStatut(ev, uid) === 'confirme';
+      var bloc = document.createElement('div');
+      var haut = _agendaPlacer(bloc, it, plage, HAUTEUR, 2, 'cascade');
+      var niveau = 2 + it.col; // les blocs décalés passent au-dessus de ceux qu'ils chevauchent
+      var ombreBase = it.col ? '0 0 0 1.5px white' : 'none';
+      bloc.title = ev.titre+' · '+_agendaHHMM(it.debut)+' – '+_agendaHHMM(it.fin)+(ev.lieu?' · '+ev.lieu:'');
+      bloc.style.cssText += 'background:'+t.bg+';border-left:3px solid '+t.c+';border-radius:6px;padding:3px 5px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:'+niveau+';box-shadow:'+ombreBase+';transition:box-shadow 0.12s;';
+      bloc.onmouseover = function(){ this.style.boxShadow='0 2px 10px rgba(0,0,0,0.16)'; this.style.zIndex='20'; };
+      bloc.onmouseout  = function(){ this.style.boxShadow=ombreBase; this.style.zIndex=String(niveau); };
+      var lignesTitre = Math.max(1, Math.floor((haut - (haut >= 40 ? 16 : 6)) / 13));
+      bloc.innerHTML =
+        '<div style="font-size:0.68rem;font-weight:600;line-height:1.25;color:'+t.c+';display:-webkit-box;-webkit-line-clamp:'+lignesTitre+';-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:break-word;">'
+        +(inscrit?'<i class="ti ti-circle-check" title="Inscrit" style="font-size:0.7rem;vertical-align:-1px;margin-right:2px;"></i>':'')+esc(ev.titre||'')+'</div>'
+        +(haut >= 34 ? '<div style="font-size:0.6rem;color:'+t.c+';opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">'+_agendaHHMM(it.debut)+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>' : '');
+      bloc.onclick = function(){ osAgendaOuvrirDetail(ev); };
+      col.appendChild(bloc);
     });
+    grille.appendChild(col);
+  });
 
-    timeline.appendChild(colJour);
-  }
+  zone.appendChild(grille);
+  body.appendChild(zone);
 
-  content.appendChild(timeline);
-  grille.appendChild(content);
-  body.appendChild(grille);
+  // Ouvrir sur l'heure utile : maintenant si c'est la semaine en cours, sinon le
+  // premier événement de la semaine, sinon 8h.
+  var cible = semaineCourante ? _agendaHeureDecimale(new Date())
+    : (tous.length ? Math.min.apply(null, tous.map(function(it){ return _agendaHeureDecimale(it.debut); })) : 9);
+  _agendaDefilerVers(zone, plage, HAUTEUR, cible);
 }
 
 function osAgendaSemainePrev(){ _agendaSemaineDebut.setDate(_agendaSemaineDebut.getDate()-7); osAgendaRendreSemaine(); }
@@ -35117,91 +35413,69 @@ function osAgendaRendreJour(){
   body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
 
   if(!_agendaJourActuel) _agendaJourActuel = new Date();
-  var jour = new Date(_agendaJourActuel);
-  jour.setHours(0,0,0,0);
+  var jour = new Date(_agendaJourActuel); jour.setHours(0,0,0,0);
   var today = new Date(); today.setHours(0,0,0,0);
-  var isToday = jour.getTime() === today.getTime();
+  var estAuj = jour.getTime() === today.getTime();
+  var HAUTEUR = _AGENDA_HAUTEUR_HEURE_JOUR;
+  var uid = getUserId();
 
-  // Nav
-  var nav = document.createElement('div');
-  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
-  var labelJour = jour.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  nav.innerHTML =
-    '<button onclick="osAgendaJourPrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">‹</button>'
-    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.88rem;color:'+(isToday?'var(--rouge)':'var(--encre)')+';">'+labelJour+'</div>'
-    +'<button onclick="osAgendaJourNow()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border:0.5px solid var(--rouge);border-radius:4px;cursor:pointer;background:white;color:var(--rouge);">Auj.</button>'
-    +'<button onclick="osAgendaJourNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'none\'">›</button>';
-  body.appendChild(nav);
+  var titre = jour.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  titre = titre.charAt(0).toUpperCase() + titre.slice(1);
+  body.insertAdjacentHTML('beforeend', _agendaNavHTML(titre, 'osAgendaJourPrev', 'osAgendaJourNow', 'osAgendaJourNext', estAuj));
 
-  var evsDuJour = _agendaEvenements.filter(function(e){
-    var ed = new Date(e.date_debut);
-    return ed.getDate()===jour.getDate() && ed.getMonth()===jour.getMonth() && ed.getFullYear()===jour.getFullYear() && e.statut!=='annule';
-  });
+  var items = _agendaDisposer(_agendaEvsVisibles(function(d){ return _agendaMemeJour(d, jour); }));
 
-  var content = document.createElement('div');
-  content.style.cssText = 'flex:1;overflow-y:auto;';
+  var zone = document.createElement('div');
+  zone.style.cssText = 'flex:1;overflow-y:auto;position:relative;';
 
-  if(!evsDuJour.length){
-    content.innerHTML = '<div style="text-align:center;padding:4rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Aucun événement ce jour</div>';
-    body.appendChild(content);
+  if(!items.length){
+    zone.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:3.5rem 1rem;text-align:center;">'
+      +'<i class="ti ti-calendar-off" style="font-size:1.8rem;color:var(--gris);opacity:0.6;"></i>'
+      +'<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">Aucun événement '+(estAuj?'aujourd\'hui':'ce jour-là')+'</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);">'+(_agendaFiltreActif && _agendaFiltreActif!=='tous' ? 'Dans la catégorie sélectionnée. ' : '')+'Utilise les flèches pour passer au jour suivant.</div>'
+      +'</div>';
+    body.appendChild(zone);
     return;
   }
 
-  var HAUTEUR_HEURE = 60;
-  var HEURES = [];
-  for(var h=7; h<=22; h++) HEURES.push(h);
+  var plage = _agendaPlage(items);
+  var grille = document.createElement('div');
+  grille.style.cssText = 'display:grid;grid-template-columns:64px 1fr;padding:0.8rem 1.2rem 1rem 0;';
+  grille.appendChild(_agendaColonneHeures(plage, HAUTEUR));
 
-  var timeline = document.createElement('div');
-  timeline.style.cssText = 'display:grid;grid-template-columns:60px 1fr;padding:0 1rem;';
+  var col = document.createElement('div');
+  col.style.cssText = 'position:relative;border-left:1px solid var(--gris-bord);';
+  _agendaLignesFond(col, plage, HAUTEUR);
+  if(estAuj) _agendaTraitMaintenant(col, plage, HAUTEUR);
 
-  var colH = document.createElement('div');
-  HEURES.forEach(function(h){
-    var el = document.createElement('div');
-    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid var(--gris-bord);text-align:right;padding-right:8px;';
-    el.innerHTML = '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);position:relative;top:-8px;">'+h+'h00</span>';
-    colH.appendChild(el);
-  });
-  timeline.appendChild(colH);
-
-  var colEvs = document.createElement('div');
-  colEvs.style.cssText = 'position:relative;border-left:1px solid var(--gris-bord);';
-  HEURES.forEach(function(){
-    var el = document.createElement('div');
-    el.style.cssText = 'height:'+HAUTEUR_HEURE+'px;border-top:1px solid rgba(0,0,0,0.05);';
-    colEvs.appendChild(el);
-  });
-
-  evsDuJour.forEach(function(ev){
-    var debut = new Date(ev.date_debut);
-    var fin = ev.date_fin ? new Date(ev.date_fin) : new Date(debut.getTime()+3600000);
+  items.forEach(function(it){
+    var ev = it.ev;
     var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
-    var isInscrit = (window._agendaInscriptions||[]).some(function(i){ return i.evenement_id===ev.id && i.membre_id===getUserId(); });
-
-    var topH = (debut.getHours()-7) + debut.getMinutes()/60;
-    var durH = Math.max(0.5, (fin-debut)/3600000);
-    if(topH < 0) topH = 0;
-
-    var evEl = document.createElement('div');
-    evEl.style.cssText = 'position:absolute;left:8px;right:8px;top:'+(topH*HAUTEUR_HEURE)+'px;height:'+(durH*HAUTEUR_HEURE-4)+'px;background:'+t.bg+';border-left:4px solid '+t.c+';border-radius:0 8px 8px 0;padding:6px 10px;cursor:pointer;overflow:hidden;';
-    evEl.innerHTML =
-      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;">'
-      +'<span style="font-size:0.8rem;">'+t.icon+'</span>'
-      +'<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:'+t.c+';padding:1px 5px;background:'+t.c+'22;border-radius:3px;">'+t.l+'</span>'
-      +(isInscrit?'<span style="font-family:Space Mono,monospace;font-size:0.55rem;background:#D4EDDA;color:#155724;padding:1px 5px;border-radius:3px;">✓ Inscrit</span>':'')
-      +'</div>'
-      +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);">'+esc(ev.titre)+'</div>'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:3px;">'
-      +debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' – '+fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
-      +(ev.lieu?' &nbsp;📍 '+esc(ev.lieu):'')
-      +(ev.organisateur?' &nbsp;👤 '+esc(ev.organisateur):'')
-      +'</div>';
-    evEl.onclick = function(){ osAgendaOuvrirDetail(ev); };
-    colEvs.appendChild(evEl);
+    var inscrit = _agendaMonStatut(ev, uid) === 'confirme';
+    var bloc = document.createElement('div');
+    var haut = _agendaPlacer(bloc, it, plage, HAUTEUR, 4, 'cote');
+    bloc.style.cssText += 'background:'+t.bg+';border-left:4px solid '+t.c+';border-radius:8px;padding:6px 10px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:2;transition:box-shadow 0.12s;';
+    bloc.onmouseover = function(){ this.style.boxShadow='0 3px 12px rgba(0,0,0,0.12)'; this.style.zIndex='4'; };
+    bloc.onmouseout  = function(){ this.style.boxShadow='none'; this.style.zIndex='2'; };
+    var puce = function(txt, fond, coul){ return '<span style="font-family:DM Sans,sans-serif;font-size:0.56rem;padding:1px 6px;background:'+fond+';color:'+coul+';border-radius:3px;white-space:nowrap;">'+txt+'</span>'; };
+    var meta = '<span style="display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-clock"></i>'+_agendaHHMM(it.debut)+' – '+_agendaHHMM(it.fin)+'</span>'
+      +(ev.lieu?'<span style="display:inline-flex;align-items:center;gap:3px;min-width:0;"><i class="ti ti-map-pin"></i>'+esc(ev.lieu)+'</span>':'')
+      +(ev.organisateur?'<span style="display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-user"></i>'+esc(ev.organisateur)+'</span>':'');
+    bloc.innerHTML =
+      (haut >= 70 ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:3px;">'+puce(t.l,'rgba(255,255,255,0.65)',t.c)+(inscrit?puce('Inscrit','#D4EDDA','#155724'):'')+'</div>' : '')
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.84rem;color:var(--encre);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+      +(inscrit && haut < 70 ? '<i class="ti ti-circle-check" style="color:#155724;font-size:0.8rem;vertical-align:-1px;margin-right:3px;"></i>' : '')+esc(ev.titre||'')+'</div>'
+      +(haut >= 40 ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem 0.7rem;font-size:0.7rem;color:var(--gris);margin-top:2px;">'+meta+'</div>' : '');
+    bloc.onclick = function(){ osAgendaOuvrirDetail(ev); };
+    col.appendChild(bloc);
   });
 
-  timeline.appendChild(colEvs);
-  content.appendChild(timeline);
-  body.appendChild(content);
+  grille.appendChild(col);
+  zone.appendChild(grille);
+  body.appendChild(zone);
+
+  var cible = estAuj ? _agendaHeureDecimale(new Date()) : _agendaHeureDecimale(items[0].debut);
+  _agendaDefilerVers(zone, plage, HAUTEUR, cible);
 }
 
 function osAgendaJourPrev(){ _agendaJourActuel.setDate(_agendaJourActuel.getDate()-1); osAgendaRendreJour(); }
@@ -35241,86 +35515,123 @@ function osAgendaOuvrirDetail(ev){
   var redacIdEvDetail = ev.redaction_id || window._redacActiveId;
   var monLienAgDetail = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===uid && l.redaction_id===redacIdEvDetail; });
   var peutGererParticipants = isAdmin || getUserHasFonction('vie_asso') || (monLienAgDetail && monLienAgDetail.role_redac === 'redac_chef');
+  // Affiché directement dans la fenêtre Agenda (remplace la liste/le calendrier dans
+  // #agenda-body) plutôt qu'en popup par-dessus tout l'écran — demande de Tom
+  // (2026-09-25), la popup coupait le lien visuel avec le reste de l'agenda. Retour à
+  // la vue précédente via osAgendaFermerDetail(), pas une fermeture de fenêtre.
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var existing = document.getElementById('agenda-detail-overlay');
-  if(existing) document.body.removeChild(existing);
+  var body = document.getElementById('agenda-body');
+  if(!body) return;
+  body.style.cssText = 'flex:1;overflow-y:auto;padding:1rem 1.2rem;';
+  body.innerHTML = '';
 
-  var overlay = document.createElement('div');
-  overlay.id = 'agenda-detail-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
+  // Les filtres par type n'ont pas de sens sur la fiche d'un seul événement — masqués
+  // le temps de la fiche, réaffichés par osAgendaRendreVue() au retour.
+  var filtresType = document.getElementById('agenda-filtres');
+  if(filtresType) filtresType.style.display = 'none';
 
   var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
   var debut = new Date(ev.date_debut);
   var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1); // "Lundi 28 septembre", pas "Lundi 28 Septembre"
   var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  var finStr = ev.date_fin ? ' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+  var finStr = ev.date_fin ? ' – '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+  var isAnnule = ev.statut === 'annule';
+  var isInscrit = _agendaMonStatut(ev, uid) === 'confirme';
+  var rEv = ev.redaction_id ? (_redactionsData||[]).find(function(r){ return r.id===ev.redaction_id; }) : null;
 
-  var html = '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;">';
-  html += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
-  html += '<div style="font-size:1.8rem;flex-shrink:0;">'+t.icon+'</div>';
-  html += '<div style="flex:1;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;margin-bottom:0.3rem;">'+esc(ev.titre||'')+'</div>';
-  html += '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:rgba(255,255,255,0.6);">'+t.l+(ev.statut==='annule'?' · <span style="color:#FF8A80;">Annulé</span>':'')+'</div>';
+  // Même vocabulaire visuel que la liste (agendaCardHTML) : cartes blanches bordées,
+  // badge date rouge/gris, puces de type — la fiche prolonge la liste au lieu d'avoir
+  // l'air d'une popup posée dans la fenêtre.
+  var CARTE = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;';
+  var TITRE_SECTION = 'font-family:DM Sans,sans-serif;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.6rem;';
+  var BTN = 'display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;';
+  var BTN_SEC = BTN+'border:1px solid var(--gris-bord);background:white;color:var(--encre);';
+  var BTN_DANGER = BTN+'border:1px solid #F1C2C2;background:white;color:#A32D2D;';
+  function puce(texte, bg, c){ return '<span style="font-family:DM Sans,sans-serif;font-size:0.58rem;padding:2px 7px;background:'+bg+';color:'+c+';border-radius:3px;white-space:nowrap;">'+texte+'</span>'; }
+  function ligneInfo(icone, contenu){
+    return '<div style="display:flex;align-items:flex-start;gap:0.65rem;padding:0.5rem 0;border-bottom:1px solid var(--gris-bord);">'
+      +'<i class="ti ti-'+icone+'" style="font-size:1rem;color:var(--gris);flex-shrink:0;margin-top:1px;"></i>'
+      +'<div style="font-size:0.82rem;color:var(--encre);min-width:0;">'+contenu+'</div></div>';
+  }
+
+  var overlay = document.createElement('div');
+  overlay.id = 'agenda-detail-overlay';
+  overlay.style.cssText = 'max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:0.8rem;';
+
+  // Fil d'Ariane — le retour se lit comme une navigation dans l'agenda
+  var html = '<div style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
+    +'<button onclick="osAgendaFermerDetail()" style="'+BTN_SEC+'"><i class="ti ti-arrow-left"></i> Agenda</button>'
+    +'<i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>'
+    +'<span style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.titre||'')+'</span>'
+    +'</div>';
+
+  // En-tête : badge date + titre + actions
+  html += '<div style="'+CARTE+'padding:1rem 1.1rem;display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">';
+  html += '<div style="flex-shrink:0;width:58px;text-align:center;'+(isAnnule?'opacity:0.55;':'')+'">'
+    +'<div style="background:var(--rouge);color:white;border-radius:7px 7px 0 0;font-family:DM Sans,sans-serif;font-size:0.62rem;text-transform:uppercase;padding:3px 0;">'+debut.toLocaleDateString('fr-FR',{month:'short'})+'</div>'
+    +'<div style="background:var(--gris-clair);border:1px solid var(--gris-bord);border-top:none;border-radius:0 0 7px 7px;font-family:Poppins,sans-serif;font-weight:700;font-size:1.5rem;color:var(--encre);padding:3px 0;line-height:1.2;">'+debut.getDate()+'</div>'
+    +'</div>';
+  html += '<div style="flex:1;min-width:220px;">';
+  html += '<div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.35rem;">'
+    +puce(t.l, t.bg, t.c)
+    +(isAnnule ? puce('Annulé','#FCEBEB','#A32D2D') : '')
+    +(isInscrit ? puce('Inscrit','#D4EDDA','#155724') : '')
+    +(rEv ? puce(esc(rEv.nom), (rEv.couleur||'#EA5B1C')+'22', rEv.couleur||'#EA5B1C') : '')
+    +(ev.ouvert_externes ? puce('Ouvert aux externes','#EEF2FF','#4338CA') : '')
+    +'</div>';
+  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.12rem;color:var(--encre);line-height:1.3;'+(isAnnule?'text-decoration:line-through;color:var(--gris);':'')+'">'+esc(ev.titre||'')+'</div>';
+  html += '<div style="font-size:0.78rem;color:var(--gris);margin-top:0.25rem;">'+dateStr+' · '+heureStr+finStr+'</div>';
   html += '</div>';
-  html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;flex-shrink:0;">🔗 Copier le lien</button>';
-  html += '<button onclick="document.body.removeChild(document.getElementById(\'agenda-detail-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;flex-shrink:0;">×</button>';
-  html += '</div></div>';
+  html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
+  html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-link"></i> Copier le lien</button>';
+  if(isAdmin && !isAnnule){
+    html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-pencil"></i> Modifier</button>';
+    html += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',null)" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Ordre de mission</button>';
+    html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" title="Annuler l\'événement" style="'+BTN_DANGER+'"><i class="ti ti-ban"></i> Annuler</button>';
+    html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" title="Supprimer définitivement" style="'+BTN_DANGER+'"><i class="ti ti-trash"></i></button>';
+  }
+  html += '</div>';
+  html += '</div>';
 
-  // Lien public — même bandeau que la case à cocher dans le formulaire, pour que le
-  // lien entre les deux soit visuellement évident. N'apparaît que si l'événement a été
-  // explicitement ouvert aux externes ; sinon, rien à voir ici — pas de lien à copier
-  // pour un événement resté interne.
+  // Lien public — n'apparaît que si l'événement a été explicitement ouvert aux
+  // externes ; sinon, rien à copier pour un événement resté interne.
   if(ev.ouvert_externes){
-    html += '<div style="padding:0.8rem 1.5rem;background:#EEF2FF;border-bottom:1px solid #C7D2FE;display:flex;align-items:center;justify-content:space-between;gap:0.8rem;">';
-    html += '<div><div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.76rem;color:var(--encre);"><i class="ti ti-world"></i> Ouvert aux personnes extérieures</div>';
-    html += '<div style="font-size:0.68rem;color:var(--gris);margin-top:1px;">Partage ce lien à qui n\'a pas de compte Compo.</div></div>';
-    html += '<button onclick="osAgendaCopierLienExterne(\''+ev.id+'\')" style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.7rem;padding:5px 11px;border:none;border-radius:6px;background:#4338CA;color:white;cursor:pointer;flex-shrink:0;white-space:nowrap;">🔗 Copier le lien public</button>';
+    html += '<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:0.7rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;">';
+    html += '<div style="display:flex;align-items:center;gap:0.6rem;"><i class="ti ti-world" style="font-size:1.1rem;color:#4338CA;"></i><div>'
+      +'<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">Ouvert aux personnes extérieures</div>'
+      +'<div style="font-size:0.7rem;color:var(--gris);">Partage le lien public à qui n\'a pas de compte Compo.</div></div></div>';
+    html += '<button onclick="osAgendaCopierLienExterne(\''+ev.id+'\')" style="'+BTN+'border:none;background:#4338CA;color:white;"><i class="ti ti-link"></i> Copier le lien public</button>';
     html += '</div>';
   }
 
-  // Organisateur + rédaction
-  html += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
-  html += '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
-  html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🗓️</span><span style="font-size:0.85rem;color:var(--encre);">'+dateStr+'</span></div>';
-  html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🕐</span><span style="font-family:Space Mono,monospace;font-size:0.82rem;color:var(--gris);">'+heureStr+finStr+'</span></div>';
-  if(ev.lieu) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">📍</span><span style="font-size:0.82rem;color:var(--gris);">'+esc(ev.lieu)+'</span></div>';
-  if(ev.lien_visio) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🔗</span><a href="'+esc(ev.lien_visio)+'" target="_blank" style="font-size:0.82rem;color:var(--bleu);">Rejoindre en visio</a></div>';
-  if(ev.organisateur) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">👤</span><span style="font-size:0.82rem;color:var(--gris);">'+esc(ev.organisateur)+'</span></div>';
-  if(ev.redaction_id){
-    var rEv = (_redactionsData||[]).find(function(r){return r.id===ev.redaction_id;});
-    if(rEv) html += '<div style="display:flex;align-items:center;gap:0.6rem;"><span style="font-size:0.9rem;">🗞️</span><span style="font-family:Space Mono,monospace;font-size:0.72rem;padding:2px 8px;background:'+(rEv.couleur||'#EA5B1C')+'22;color:'+(rEv.couleur||'#EA5B1C')+';border-radius:4px;">'+esc(rEv.nom)+'</span></div>';
-  }
-  html += '</div></div>';
+  // Deux colonnes quand la fenêtre est assez large (infos / participation), une seule
+  // colonne sinon — auto-fit, sans point de rupture à maintenir.
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:0.8rem;align-items:start;">';
 
+  html += '<div style="'+CARTE+'padding:0.9rem 1.1rem;">';
+  html += '<div style="'+TITRE_SECTION+'">Infos pratiques</div>';
+  html += ligneInfo('calendar', dateStr);
+  html += ligneInfo('clock', heureStr+finStr);
+  if(ev.lieu) html += ligneInfo('map-pin', esc(ev.lieu));
+  if(ev.lien_visio) html += ligneInfo('video', '<a href="'+esc(ev.lien_visio)+'" target="_blank" rel="noopener" style="color:var(--bleu);">Rejoindre en visio</a>');
+  if(ev.organisateur) html += ligneInfo('user', esc(ev.organisateur));
+  if(ev.places_max) html += ligneInfo('armchair', ev.places_max+' places'+(ev.validation_admin?' · inscription soumise à validation':''));
   if(ev.description){
-    html += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;">Description</div>';
-    html += '<div style="font-size:0.85rem;color:var(--encre);line-height:1.6;white-space:pre-wrap;">'+esc(ev.description)+'</div>';
-    html += '</div>';
+    html += '<div style="'+TITRE_SECTION+'margin-top:1rem;">Description</div>';
+    html += '<div style="font-size:0.84rem;color:var(--encre);line-height:1.6;white-space:pre-wrap;">'+esc(ev.description)+'</div>';
   }
-
-  // Inscriptions
-  html += '<div id="agenda-inscr-zone" style="padding:1rem 1.5rem;">';
-  html += osLoadingHtml();
   html += '</div>';
 
-  // Actions admin
-  if(isAdmin && ev.statut !== 'annule'){
-    html += '<div style="padding:0.8rem 1.5rem;border-top:1px solid var(--gris-bord);display:flex;gap:0.5rem;flex-wrap:wrap;background:var(--gris-clair);border-radius:0 0 14px 14px;">';
-    html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;">✏️ Modifier</button>';
-    html += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',null)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #1A5276;border-radius:5px;background:white;color:#1A5276;cursor:pointer;">📋 Ordre de mission</button>';
-    html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:white;color:#A32D2D;cursor:pointer;">🚫 Annuler</button>';
-    html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:#FCEBEB;color:#A32D2D;cursor:pointer;">🗑️ Supprimer</button>';
-    html += '</div>';
-  }
+  html += '<div style="'+CARTE+'padding:0.9rem 1.1rem;">';
+  html += '<div style="'+TITRE_SECTION+'">Participation</div>';
+  html += '<div id="agenda-inscr-zone">'+osLoadingHtml()+'</div>';
+  html += '</div>';
 
-  modal.innerHTML = html;
-  overlay.appendChild(modal);
-  overlay.onclick = function(e){if(e.target===overlay) document.body.removeChild(overlay);};
-  document.body.appendChild(overlay);
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  body.appendChild(overlay);
 
   // Charger les inscriptions
   Promise.all([
@@ -35338,65 +35649,64 @@ function osAgendaOuvrirDetail(ev){
     var complet = ev.places_max && nbConfirmes >= ev.places_max;
 
     var iz = '';
+    var SEPARATEUR = 'border-top:1px solid var(--gris-bord);margin-top:0.9rem;padding-top:0.9rem;';
+    var BTN_ICONE = 'display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:white;cursor:pointer;flex-shrink:0;font-size:0.85rem;';
+    function tuile(valeur, libelle, couleur, fond){
+      return '<div style="flex:1;min-width:80px;background:'+(fond||'var(--gris-clair)')+';border-radius:8px;padding:0.5rem 0.6rem;text-align:center;">'
+        +'<div style="font-family:Poppins,sans-serif;font-size:1.15rem;font-weight:800;color:'+(couleur||'var(--encre)')+';line-height:1.2;">'+valeur+'</div>'
+        +'<div style="font-family:DM Sans,sans-serif;font-size:0.54rem;text-transform:uppercase;letter-spacing:0.05em;color:'+(couleur&&fond?couleur:'var(--gris)')+';">'+libelle+'</div></div>';
+    }
 
-    // Compteurs participants
-    iz += '<div style="display:flex;gap:0.8rem;margin-bottom:0.8rem;flex-wrap:wrap;">';
-    iz += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
-      +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:var(--encre);">'+nbConfirmes+'</div>'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);">Inscrits</div>'
-      +'</div>';
-    if(ev.places_max){
-      var restantes = Math.max(0, ev.places_max - nbConfirmes);
-      iz += '<div style="background:var(--gris-clair);border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
-        +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:'+(complet?'#A32D2D':'#155724')+';">'+restantes+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.55rem;text-transform:uppercase;color:var(--gris);">Places restantes</div>'
-        +'</div>';
-    }
-    if(nbEnAttente){
-      iz += '<div style="background:#FFF3CD;border-radius:8px;padding:0.5rem 0.8rem;text-align:center;flex:1;">'
-        +'<div style="font-family:Poppins,sans-serif;font-size:1.2rem;font-weight:800;color:#856404;">'+nbEnAttente+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.55rem;text-transform:uppercase;color:#856404;">En attente</div>'
-        +'</div>';
-    }
+    // Compteurs
+    iz += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
+    iz += tuile(nbConfirmes, 'Inscrit'+(nbConfirmes>1?'s':''));
+    if(ev.places_max) iz += tuile(Math.max(0, ev.places_max - nbConfirmes), 'Places restantes', complet?'#A32D2D':'#155724');
+    if(nbEnAttente) iz += tuile(nbEnAttente, 'En attente', '#856404', '#FFF3CD');
     iz += '</div>';
 
-    // Avatars des inscrits
+    // Avatars des inscrits confirmés (les vrais avatars, comme partout ailleurs)
     if(nbConfirmes > 0){
       var inscrConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';});
-      iz += '<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.8rem;flex-wrap:wrap;">';
-      inscrConfirmes.slice(0,8).forEach(function(insc){
+      iz += '<div style="display:flex;align-items:center;margin-top:0.7rem;padding-left:6px;">';
+      inscrConfirmes.slice(0,10).forEach(function(insc){
         var m = membres.find(function(x){return x.id===insc.membre_id;});
         if(!m) return;
-        var ini = ((m.prenom||'?')[0]+(m.nom||'?')[0]).toUpperCase();
-        var col = ({redacteur:'#F5C4B3',correcteur:'#B5D4F4',admin:'#C0DD97'}[m.role]||'#D3D1C7');
-        iz += '<div title="'+esc((m.prenom||'')+' '+(m.nom||''))+'" style="width:30px;height:30px;border-radius:50%;background:'+col+';display:flex;align-items:center;justify-content:center;font-family:Poppins,sans-serif;font-size:0.65rem;font-weight:700;border:2px solid white;margin-left:-6px;first-child:margin-left:0;">'+ini+'</div>';
+        iz += '<span title="'+esc((m.prenom||'')+' '+(m.nom||''))+'" style="margin-left:-6px;border:2px solid white;border-radius:50%;display:inline-flex;">'+renderAvatarHTML(m, 28, {})+'</span>';
       });
-      if(inscrConfirmes.length > 8) iz += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:6px;">+'+( inscrConfirmes.length-8)+' autres</div>';
+      if(inscrConfirmes.length > 10) iz += '<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;color:var(--gris);margin-left:6px;">+'+(inscrConfirmes.length-10)+'</span>';
       iz += '</div>';
     }
 
-    // Bouton inscription/désinscription
+    // Mon inscription
     if(ev.statut !== 'annule'){
+      iz += '<div style="margin-top:0.8rem;">';
       if(!monInscription){
-        iz += '<button id="agenda-inscr-btn" style="width:100%;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'+(complet?'Complet ·  '+nbConfirmes+'/'+ev.places_max+' inscrits':'✓ S\'inscrire')+'</button>';
+        iz += '<button id="agenda-inscr-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'
+          +(complet ? 'Complet · '+nbConfirmes+'/'+ev.places_max+' inscrits' : '<i class="ti ti-check"></i> S\'inscrire')+'</button>';
       } else {
-        var stCoul = {en_attente:'#856404',confirme:'#155724',refuse:'#A32D2D'};
-        var stLabel = {en_attente:'En attente de validation',confirme:'Inscrit ✓',refuse:'Refusé'};
-        iz += '<div style="background:'+(monInscription.statut==='confirme'?'#D4EDDA':'#FFF3CD')+';border-radius:8px;padding:0.6rem 0.8rem;font-size:0.82rem;color:'+stCoul[monInscription.statut]+';font-weight:600;margin-bottom:0.5rem;">'+(stLabel[monInscription.statut]||monInscription.statut)+'</div>';
-        iz += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
-        iz += '<button id="agenda-desinscr-btn" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #A32D2D;border-radius:5px;background:white;color:#A32D2D;cursor:pointer;">Se désinscrire</button>';
+        var ST_MOI = {
+          en_attente: {c:'#856404', bg:'#FFF3CD', i:'hourglass', l:'Inscription en attente de validation'},
+          confirme:   {c:'#155724', bg:'#D4EDDA', i:'circle-check', l:'Tu es inscrit·e'},
+          refuse:     {c:'#A32D2D', bg:'#FCEBEB', i:'circle-x', l:'Inscription refusée'}
+        };
+        var sm = ST_MOI[monInscription.statut] || {c:'var(--encre)', bg:'var(--gris-clair)', i:'info-circle', l:monInscription.statut};
+        iz += '<div style="background:'+sm.bg+';border-radius:8px;padding:0.6rem 0.7rem;">';
+        iz += '<div style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;font-weight:600;color:'+sm.c+';"><i class="ti ti-'+sm.i+'" style="font-size:1rem;"></i>'+sm.l+'</div>';
+        iz += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">';
         if(monInscription.statut==='confirme'){
-          iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:0.5px solid #1A5276;border-radius:5px;background:white;color:#1A5276;cursor:pointer;">📋 Mon ordre de mission</button>';
+          iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Mon ordre de mission</button>';
         }
-        iz += '</div>';
+        iz += '<button id="agenda-desinscr-btn" style="'+BTN_DANGER+'">Se désinscrire</button>';
+        iz += '</div></div>';
       }
+      iz += '</div>';
     }
 
     // Gestion des participants (admin + rédac chef)
     if(peutGererParticipants){
       if(inscriptions.length){
-        iz += '<div style="margin-top:0.8rem;">';
-        iz += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Liste des participants</div>';
+        iz += '<div style="'+SEPARATEUR+'">';
+        iz += '<div style="'+TITRE_SECTION+'">Participants ('+inscriptions.length+')</div>';
         var ST_CONF = {
           en_attente: {c:'#856404',bg:'#FFF3CD',l:'En attente'},
           confirme:   {c:'#155724',bg:'#D4EDDA',l:'Confirmé'},
@@ -35416,15 +35726,17 @@ function osAgendaOuvrirDetail(ev){
             var pLabel = insc.presence===true?'✓ Présent':(insc.presence===false?'✕ Absent':'? Appel');
             var pCoul = insc.presence===true?'#155724':(insc.presence===false?'#A32D2D':'#856404');
             var pBg = insc.presence===true?'#D4EDDA':(insc.presence===false?'#FCEBEB':'#FFF3CD');
-            presenceHtml = '<button id="presence-btn-'+insc.id+'" data-presence="'+pEtat+'" onclick="event.stopPropagation();osAgendaTogglePresence(\''+insc.id+'\',\''+ev.id+'\')" title="Faire l\'appel — clique pour changer" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid '+pCoul+';border-radius:3px;background:'+pBg+';color:'+pCoul+';cursor:pointer;white-space:nowrap;">'+pLabel+'</button>';
+            presenceHtml = '<button id="presence-btn-'+insc.id+'" data-presence="'+pEtat+'" onclick="event.stopPropagation();osAgendaTogglePresence(\''+insc.id+'\',\''+ev.id+'\')" title="Faire l\'appel — clique pour changer" style="font-family:DM Sans,sans-serif;font-size:0.55rem;padding:2px 6px;border:0.5px solid '+pCoul+';border-radius:3px;background:'+pBg+';color:'+pCoul+';cursor:pointer;white-space:nowrap;">'+pLabel+'</button>';
           }
-          iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-            +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+nom+'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
-            +'<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
+          var mAvatar = m || {prenom:'?', nom:'?'};
+          iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid var(--gris-bord);flex-wrap:wrap;">'
+            +renderAvatarHTML(mAvatar, 24, {})
+            +'<div style="flex:1;min-width:110px;font-size:0.8rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+nom+(dateInscr?'<span style="font-family:DM Sans,sans-serif;font-size:0.58rem;color:var(--gris);margin-left:0.45rem;">'+dateInscr+'</span>':'')+'</div>'
+            +'<span style="font-family:DM Sans,sans-serif;font-size:0.56rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
             +presenceHtml
-            +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #1A5276;border-radius:3px;background:white;color:#1A5276;cursor:pointer;">📋</button>':'')
-            +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #155724;border-radius:3px;background:white;color:#155724;cursor:pointer;">✓</button>':'')
-            +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:3px;background:white;color:#A32D2D;cursor:pointer;">✕</button>'
+            +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="'+BTN_ICONE+'border:1px solid var(--gris-bord);color:#1A5276;"><i class="ti ti-clipboard-list"></i></button>':'')
+            +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" title="Valider l\'inscription" style="'+BTN_ICONE+'border:1px solid #B7DFC2;color:#155724;"><i class="ti ti-check"></i></button>':'')
+            +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" title="Retirer de l\'événement" style="'+BTN_ICONE+'border:1px solid #F1C2C2;color:#A32D2D;"><i class="ti ti-x"></i></button>'
             +'</div>';
         });
         iz += '</div>';
@@ -35432,32 +35744,36 @@ function osAgendaOuvrirDetail(ev){
 
       // Inscrits externes (sans compte Compo) — rempli séparément juste après ce
       // rendu, via l'Edge Function (la table n'a aucune policy RLS, voir la migration).
-      if(ev.ouvert_externes) iz += '<div id="agenda-externes-zone" style="margin-top:0.8rem;"></div>';
+      if(ev.ouvert_externes) iz += '<div id="agenda-externes-zone" style="'+SEPARATEUR+'"></div>';
 
-      // Bouton ajouter un participant manuellement
-      iz += '<div style="margin-top:0.8rem;">';
-      iz += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Ajouter un participant</div>';
+      // Ajouter un participant manuellement
+      iz += '<div style="'+SEPARATEUR+'">';
+      iz += '<div style="'+TITRE_SECTION+'">Ajouter un participant</div>';
       iz += '<div style="display:flex;gap:0.4rem;">';
-      iz += '<select id="ag-ajout-membre-select" style="flex:1;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-family:Space Mono,monospace;font-size:0.72rem;">';
-      iz += '<option value="">— Choisir une rédaction —</option>';
+      iz += '<select id="ag-ajout-membre-select" style="flex:1;min-width:0;padding:0.4rem 0.6rem;border:1px solid var(--gris-bord);border-radius:6px;font-size:0.76rem;background:white;color:var(--encre);">';
+      iz += '<option value="">Choisir un membre ou une rédaction…</option>';
+      iz += '<optgroup label="Rédactions">';
       (_redactionsData||[]).forEach(function(r){
-        iz += '<option value="redac_'+r.id+'">📰 '+esc(r.nom)+'</option>';
+        iz += '<option value="redac_'+r.id+'">'+esc(r.nom)+'</option>';
       });
-      // Option membres directs de la rédaction active
+      iz += '</optgroup><optgroup label="Membres">';
       (_membresData||[]).filter(function(m){ return m.role !== 'interdit'; }).forEach(function(m){
         var dejaInscrit = inscriptions.some(function(i){ return i.membre_id === m.id; });
         if(!dejaInscrit) iz += '<option value="membre_'+m.id+'">'+esc((m.prenom||'')+' '+(m.nom||''))+'</option>';
       });
-      iz += '</select>';
-      iz += '<button onclick="osAgendaAjouterParticipant(\''+ev.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;background:#1A5276;color:white;border:none;border-radius:6px;cursor:pointer;">+ Ajouter</button>';
+      iz += '</optgroup></select>';
+      iz += '<button onclick="osAgendaAjouterParticipant(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-user-plus"></i> Ajouter</button>';
       iz += '</div></div>';
-      iz += '<div style="margin-top:0.8rem;padding:0.7rem;background:var(--gris-clair);border-radius:8px;">';
+
+      // Rappel par email
+      iz += '<div style="'+SEPARATEUR+'">';
       iz += '<div style="display:flex;align-items:center;gap:0.6rem;">'
-        +'<div style="flex:1;"><div style="font-family:Space Mono,monospace;font-size:0.65rem;font-weight:600;">📧 Notifier les inscrits par email</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">Envoie un rappel avec les infos de l\'événement</div></div>'
-        +'<label class="compo-toggle"><input type="checkbox" id="ag-notif-email" checked><span class="track"></span><span class="thumb"></span></label>'
+        +'<i class="ti ti-mail" style="font-size:1rem;color:var(--gris);"></i>'
+        +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:var(--encre);">Rappel aux inscrits</div>'
+        +'<div style="font-size:0.7rem;color:var(--gris);">Email avec les infos de l\'événement</div></div>'
+        +'<label class="compo-toggle" title="Activer l\'envoi par email"><input type="checkbox" id="ag-notif-email" checked><span class="track"></span><span class="thumb"></span></label>'
         +'</div>';
-      iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\',this)" style="margin-top:0.5rem;font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;width:100%;">📨 Envoyer le rappel</button>';
+      iz += '<button onclick="osAgendaEnvoyerNotif(\''+ev.id+'\',\''+esc(ev.titre)+'\',this)" style="'+BTN_SEC+'margin-top:0.55rem;width:100%;justify-content:center;"><i class="ti ti-send"></i> Envoyer le rappel</button>';
       iz += '</div>';
     }
     zone.innerHTML = iz;
@@ -35471,6 +35787,14 @@ function osAgendaOuvrirDetail(ev){
   }).catch(function(){});
 }
 
+// Retour depuis le détail d'un événement vers la vue Agenda précédente (liste, semaine,
+// jour ou calendrier).
+function osAgendaFermerDetail(){
+  // Recharge (et non simple re-rendu) : une inscription/désinscription faite depuis la
+  // fiche doit se voir tout de suite sur les macarons et compteurs de places de la liste.
+  osAgendaCharger();
+}
+
 // Inscrits externes : passe par agenda-inscription-externe (action 'lister'), jamais par
 // un fetch REST direct — la table n'a aucune policy RLS, seule cette fonction y a accès.
 function osAgendaChargerInscritsExternes(evId){
@@ -35482,30 +35806,30 @@ function osAgendaChargerInscritsExternes(evId){
     body: JSON.stringify({ action:'lister', evenementId: evId })
   })
   .then(function(r){
-    if(!r.ok){ zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur de chargement des inscrits externes.</div>'; return null; }
+    if(!r.ok){ zoneExt.innerHTML = '<div style="font-family:DM Sans,sans-serif;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur de chargement des inscrits externes.</div>'; return null; }
     return r.json();
   })
   .then(function(data){
     if(!data) return;
     var inscrits = (data && data.inscrits) || [];
     if(!inscrits.length){
-      zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.2rem;"><i class="ti ti-world"></i> Inscrits externes</div>'
+      zoneExt.innerHTML = '<div style="font-family:DM Sans,sans-serif;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.2rem;"><i class="ti ti-world"></i> Inscrits externes</div>'
         + '<div style="font-size:0.75rem;color:var(--gris);padding:0.3rem 0;">Aucune inscription externe pour l\'instant.</div>';
       return;
     }
-    var h = '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;"><i class="ti ti-world"></i> Inscrits externes ('+inscrits.length+')</div>';
+    var h = '<div style="font-family:DM Sans,sans-serif;font-size:0.58rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;"><i class="ti ti-world"></i> Inscrits externes ('+inscrits.length+')</div>';
     inscrits.forEach(function(ins){
       var dateInscr = ins.created_at ? new Date(ins.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
       h += '<div style="padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
         +'<div style="display:flex;align-items:center;gap:0.5rem;">'
-        +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+esc(ins.nom||'')+' <span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(ins.email||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
-        +'<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:#EEF2FF;color:#4338CA;border-radius:3px;">Externe</span>'
+        +'<div style="flex:1;font-size:0.82rem;color:var(--encre);">'+esc(ins.nom||'')+' <span style="font-family:DM Sans,sans-serif;font-size:0.6rem;color:var(--gris);">'+esc(ins.email||'')+'</span><span style="font-family:DM Sans,sans-serif;font-size:0.6rem;color:var(--gris);margin-left:0.5rem;">'+dateInscr+'</span></div>'
+        +'<span style="font-family:DM Sans,sans-serif;font-size:0.58rem;padding:2px 6px;background:#EEF2FF;color:#4338CA;border-radius:3px;">Externe</span>'
         +'</div>'
         +(ins.message ? '<div style="font-size:0.75rem;color:var(--gris);font-style:italic;margin-top:2px;">« '+esc(ins.message)+' »</div>' : '')
         +'</div>';
     });
     zoneExt.innerHTML = h;
-  }).catch(function(){ zoneExt.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur réseau — inscrits externes non chargés.</div>'; });
+  }).catch(function(){ zoneExt.innerHTML = '<div style="font-family:DM Sans,sans-serif;font-size:0.65rem;color:#A32D2D;padding:0.4rem 0;">Erreur réseau — inscrits externes non chargés.</div>'; });
 }
 
 // Prévient l'équipe qu'un membre vient de s'inscrire (ou demande à s'inscrire) à un
@@ -35631,7 +35955,7 @@ function osAgendaAjouterParticipant(evId){
           }).catch(function(){});
         }
       }
-      if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); }
+      if(ev){ osAgendaOuvrirDetail(ev); }
     });
   } else if(val.startsWith('redac_')){
     // Charger les membres de cette rédaction
@@ -35693,7 +36017,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
         }).catch(function(){});
       }
       var evReload = _agendaEvenements.find(function(e){return e.id===evId;});
-      if(evReload){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(evReload); }
+      if(evReload){ osAgendaOuvrirDetail(evReload); }
     });
   });
 }
@@ -35708,9 +36032,6 @@ function osAgendaSeDesinscrire(inscrId, evId){
       // Supprimer les heures créditées pour cette inscription
       fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH})
       .catch(function(){});
-      // Fermer l'overlay actuel
-      var existing = document.getElementById('agenda-detail-overlay');
-      if(existing) document.body.removeChild(existing);
       var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
       fetch(SB_URL+'/rest/v1/agenda_evenements?id=eq.'+evId+'&select=*',{headers:authH2})
       .then(function(r){return r.json();})
@@ -35906,7 +36227,7 @@ function osAgendaEnvoyerNotif(evId, titre, btnEl){
   if(btnEl){
     if(btnEl.disabled) return;
     btnEl.disabled = true;
-    btnEl._texteOriginal = btnEl.textContent;
+    btnEl._texteOriginal = btnEl.innerHTML; // innerHTML : le bouton contient une icône
     btnEl.style.opacity = '0.6';
     btnEl.style.cursor = 'default';
     btnEl.textContent = 'Envoi en cours...';
@@ -35918,7 +36239,7 @@ function osAgendaEnvoyerNotif(evId, titre, btnEl){
       btnEl.disabled = false;
       btnEl.style.opacity = '';
       btnEl.style.cursor = 'pointer';
-      btnEl.textContent = btnEl._texteOriginal || '📨 Envoyer le rappel';
+      btnEl.innerHTML = btnEl._texteOriginal || 'Envoyer le rappel';
     }, 3000);
   }
 
@@ -36046,7 +36367,7 @@ function osAgendaValiderInscr(inscrId, evId){
             });
           }).catch(function(){});
         }
-        if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev2); } }
+        if(evId){ var ev2 = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev2){ osAgendaOuvrirDetail(ev2); } }
       }
     });
   });
@@ -36085,7 +36406,7 @@ function osAgendaRefuserInscr(inscrId, evId){
             });
           }).catch(function(){});
         }
-        if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ var ex=document.getElementById('agenda-detail-overlay'); if(ex) document.body.removeChild(ex); osAgendaOuvrirDetail(ev); } }
+        if(evId){ var ev = _agendaEvenements.find(function(e){return e.id===evId;}); if(ev){ osAgendaOuvrirDetail(ev); } }
       }
     });
   });
@@ -36138,8 +36459,6 @@ function osAgendaAnnuler(evId){
   .then(function(r){
     if(r.ok){
       notif('Événement annulé','succes');
-      var existing = document.getElementById('agenda-detail-overlay');
-      if(existing) document.body.removeChild(existing);
       // Envoyer emails aux inscrits
       osAgendaEnvoyerEmailAnnulation(evId);
       osAgendaCharger();
@@ -36154,8 +36473,6 @@ function osAgendaSupprimer(evId){
   .then(function(r){
     if(r.ok){
       notif('Événement supprimé');
-      var existing = document.getElementById('agenda-detail-overlay');
-      if(existing) document.body.removeChild(existing);
       osAgendaCharger();
     }
   });
@@ -36360,144 +36677,172 @@ function osAgendaNouvelEvenement(){
 
 function osAgendaEditer(evId){
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
-  var existing = document.getElementById('agenda-detail-overlay');
-  if(existing) document.body.removeChild(existing);
   if(ev) osAgendaOuvrirFormulaire(ev);
 }
 
 function osAgendaOuvrirFormulaire(ev){
-  var existing = document.getElementById('agenda-form-overlay');
-  if(existing) document.body.removeChild(existing);
+  // Affiché dans la fenêtre Agenda (#agenda-body), comme la fiche d'un événement —
+  // plus en popup par-dessus tout l'écran. "Annuler" ramène d'où l'on vient : la fiche
+  // de l'événement en modification, la vue de l'agenda en création.
+  var body = document.getElementById('agenda-body');
+  if(!body) return;
   var isEdit = !!ev;
+  body.style.cssText = 'flex:1;overflow-y:auto;padding:1rem 1.2rem;';
+  body.innerHTML = '';
+  var filtresType = document.getElementById('agenda-filtres');
+  if(filtresType) filtresType.style.display = 'none';
 
-  var overlay = document.createElement('div');
-  overlay.id = 'agenda-form-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;';
+  // datetime-local attend une heure LOCALE : toISOString() donnait l'heure UTC, si bien
+  // qu'un événement à 14h s'affichait à 12h dans le formulaire (heure d'été) et qu'un
+  // simple réenregistrement le décalait de 2h à chaque modification.
+  function toDateInput(d){
+    function p(n){ return String(n).padStart(2,'0'); }
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  }
+  var debutDefaut = ev ? new Date(ev.date_debut) : (function(){ var d = new Date(); d.setMinutes(0,0,0); d.setHours(d.getHours()+1); return d; })();
 
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:14px;max-width:540px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);';
-
-  var now = ev ? new Date(ev.date_debut) : new Date();
-  var toDateInput = function(d){ return d.toISOString().slice(0,16); };
-
-  var typeOpts = Object.keys(AGENDA_TYPES).map(function(k){
-    return '<option value="'+k+'"'+(ev&&ev.type===k?' selected':'')+'>'+AGENDA_TYPES[k].icon+' '+AGENDA_TYPES[k].l+'</option>';
-  }).join('');
-
-  function multiCheck(label, items, labels, selected, name){
-    var html = '<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">'+label+'</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.1rem;">';
+  var CARTE = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1.1rem;display:flex;flex-direction:column;gap:0.8rem;';
+  var TITRE_SECTION = 'font-family:DM Sans,sans-serif;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);';
+  // Neutralise le style global des <label> (Arial, majuscules espacées) : ici les
+  // titres de section font déjà ce rôle, les libellés restent lisibles en casse normale.
+  var LABEL = 'display:block;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--encre);margin-bottom:4px;';
+  // Mêmes jetons que le style global des champs de Compo (--md-outline, --md-surface…),
+  // appliqués aussi aux types que ce style oublie (datetime-local, url) : sinon ces
+  // champs-là ressortaient blancs à bord gris au milieu des autres.
+  var CHAMP = 'width:100%;padding:0.5rem 0.65rem;border:1.5px solid var(--md-outline);border-radius:var(--md-shape-sm);font-family:DM Sans,sans-serif;font-size:0.85rem;color:var(--md-on-surface);background:var(--md-surface);box-sizing:border-box;outline:none;';
+  var DEUX_COL = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.6rem;';
+  var BTN = 'display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.76rem;font-weight:600;padding:7px 14px;border-radius:7px;cursor:pointer;white-space:nowrap;';
+  function champ(label, contenu){ return '<div><label style="'+LABEL+'">'+label+'</label>'+contenu+'</div>'; }
+  function interrupteur(id, titre, aide, coche, icone){
+    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;">'
+      +'<div style="display:flex;gap:0.55rem;align-items:flex-start;">'+(icone?'<i class="ti ti-'+icone+'" style="font-size:1rem;color:var(--gris);margin-top:1px;"></i>':'')
+      +'<div><label for="'+id+'" style="font-family:DM Sans,sans-serif;font-size:0.8rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--encre);cursor:pointer;">'+titre+'</label>'
+      +'<div style="font-size:0.7rem;color:var(--gris);margin-top:1px;line-height:1.4;">'+aide+'</div></div></div>'
+      +'<label class="compo-toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" id="'+id+'"'+(coche?' checked':'')+'><span class="track"></span><span class="thumb"></span></label>'
+      +'</div>';
+  }
+  function puces(label, items, labels, selected, name){
+    var h = '<div><div style="'+LABEL+'">'+label+'</div><div style="display:flex;flex-wrap:wrap;gap:0.35rem;">';
     items.forEach(function(item){
-      var lbl = labels[item]||item;
       var checked = !selected || !selected.length || selected.indexOf(item)!==-1;
-      html += '<label style="display:flex;align-items:center;gap:3px;font-family:Space Mono,monospace;font-size:0.65rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;">'
-        +'<input type="checkbox" name="'+name+'" value="'+item+'"'+(checked?' checked':'')+' style="accent-color:var(--rouge);"> '+lbl+'</label>';
+      h += '<label style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:500;text-transform:none;letter-spacing:0;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;cursor:pointer;background:white;color:var(--encre);">'
+        +'<input type="checkbox" name="'+name+'" value="'+item+'"'+(checked?' checked':'')+' style="accent-color:var(--rouge);margin:0;"> '+esc(labels[item]||item)+'</label>';
     });
-    html += '</div>';
-    return html;
+    return h + '</div></div>';
   }
 
-  var rolesLabels = {redacteur:'Rédacteur',correcteur:'Correcteur',admin:'Admin'};
-  var fonctLabels = FONCTIONS_LBL;
+  var typeOpts = Object.keys(AGENDA_TYPES).map(function(k){
+    return '<option value="'+k+'"'+(ev&&ev.type===k?' selected':'')+'>'+AGENDA_TYPES[k].l+'</option>';
+  }).join('');
+  var redacOpts = '<option value="">Toutes les rédactions</option>';
+  (_redactionsData||[]).forEach(function(r){
+    var sel = ev ? ev.redaction_id===r.id : r.id===window._redacActiveId;
+    redacOpts += '<option value="'+r.id+'"'+(sel?' selected':'')+'>'+esc(r.nom)+'</option>';
+  });
 
-  modal.innerHTML =
-    '<div style="background:var(--encre-fixe);padding:1.2rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:0.8rem;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:white;flex:1;">'+(isEdit?'✏️ Modifier l\'événement':'➕ Nouvel événement')+'</div>'
-    +'<button onclick="document.body.removeChild(document.getElementById(\'agenda-form-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;">×</button>'
-    +'</div>'
-    +'<div style="padding:1.3rem 1.5rem;display:flex;flex-direction:column;gap:0.9rem;">'
+  var titrePage = isEdit ? 'Modifier l\'événement' : 'Nouvel événement';
+  var html = '<div id="agenda-form-overlay" style="max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:0.8rem;">';
 
-    // Titre
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Titre *</label>'
-    +'<input id="ag-titre" type="text" value="'+esc(ev?ev.titre||'':'')+'" placeholder="Titre de l\'événement" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.85rem;box-sizing:border-box;outline:none;"></div>'
-
-    // Type + Organisateur
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Type</label>'
-    +'<select id="ag-type" onchange="osAgendaMajContactExterne()" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:Space Mono,monospace;font-size:0.75rem;box-sizing:border-box;">'+typeOpts+'</select></div>'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Organisateur</label>'
-    +'<input id="ag-organisateur" type="text" value="'+esc(ev?ev.organisateur||getUserNomComplet():getUserNomComplet())+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'</div>'
-
-    // Contact externe à prévenir (interview / appel) — visible seulement pour ce type,
-    // permet de renseigner son email pour qu'il soit automatiquement informé de
-    // l'interview/l'appel à la création de l'événement.
-    +'<div id="ag-contact-wrap" style="background:#FEF9F0;border:1px solid #FDEBD0;border-radius:8px;padding:0.8rem 1rem;display:'+(ev&&ev.type==='interview'?'block':'none')+';">'
-    +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:#856404;margin-bottom:0.5rem;">👤 Personne à prévenir (interview/appel)</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);display:block;margin-bottom:3px;">Nom</label>'
-    +'<input id="ag-contact-nom" type="text" value="'+esc(ev?ev.contact_nom||'':'')+'" placeholder="Ex : Jean Dupont" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);display:block;margin-bottom:3px;">Email *</label>'
-    +'<input id="ag-contact-email" type="email" value="'+esc(ev?ev.contact_email||'':'')+'" placeholder="jean.dupont@mail.fr" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'</div>'
-    +'<div style="font-size:0.68rem;color:#856404;margin-top:0.5rem;">'+(isEdit?'Modifier l\'email ne renvoie pas d\'email automatiquement.':'Cette personne recevra automatiquement un email avec la date, l\'heure, le lieu (ou le lien visio) à la création de l\'événement.')+'</div>'
-    +'</div>'
-
-    // Rédaction
-    +(function(){
-      var opts = '<option value="">— Toutes les rédactions —</option>';
-      (_redactionsData||[]).forEach(function(r){
-        opts += '<option value="'+r.id+'"'+(ev&&ev.redaction_id===r.id?' selected':r.id===window._redacActiveId?' selected':'')+'>'+esc(r.nom)+'</option>';
-      });
-      return '<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Rédaction concernée</label>'
-        +'<select id="ag-redaction" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:Space Mono,monospace;font-size:0.75rem;box-sizing:border-box;">'+opts+'</select></div>';
-    })()
-
-    // Dates
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Début *</label>'
-    +'<input id="ag-debut" type="datetime-local" value="'+toDateInput(now)+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;"></div>'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Fin</label>'
-    +'<input id="ag-fin" type="datetime-local" value="'+(ev&&ev.date_fin?toDateInput(new Date(ev.date_fin)):'')+'" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;"></div>'
-    +'</div>'
-
-    // Lieu / Visio
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Lieu</label>'
-    +'<input id="ag-lieu" type="text" value="'+esc(ev?ev.lieu||'':'')+'" placeholder="Adresse ou salle" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Lien visio</label>'
-    +'<input id="ag-visio" type="url" value="'+esc(ev?ev.lien_visio||'':'')+'" placeholder="https://..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'</div>'
-
-    // Description
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Description</label>'
-    +'<textarea id="ag-desc" rows="3" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.82rem;box-sizing:border-box;resize:none;outline:none;">'+esc(ev?ev.description||'':'')+'</textarea></div>'
-
-    // Destinataires
-    +'<div style="background:var(--gris-clair);border-radius:8px;padding:0.8rem 1rem;">'
-    +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.6rem;">Destinataires <span style="opacity:0.6;">(vide = tous)</span></div>'
-    +multiCheck('Rôles', AGENDA_CIBLE_ROLES, rolesLabels, ev?ev.cible_roles:[], 'ag-roles')
-    +multiCheck('Fonctions', AGENDA_CIBLE_FONCTIONS, fonctLabels, ev?ev.cible_fonctions:[], 'ag-fonctions')
-    +'</div>'
-
-    // Places / Validation
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">'
-    +'<div><label style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:4px;">Places max</label>'
-    +'<input id="ag-places" type="number" min="1" value="'+(ev&&ev.places_max?ev.places_max:'')+'" placeholder="Illimité" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;box-sizing:border-box;"></div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding-top:1.4rem;">'
-    +'<label for="ag-validation" style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--encre);cursor:pointer;">Validation admin</label>'
-    +'<label class="compo-toggle"><input type="checkbox" id="ag-validation"'+(ev&&ev.validation_admin?' checked':'')+'><span class="track"></span><span class="thumb"></span></label></div>'
-    +'</div>'
-
-    // Ouvert aux externes — génère un lien public (page à part, sans compte Compo ni
-    // connexion Google) que n'importe qui peut ouvrir pour s'inscrire. Décoché par
-    // défaut : jamais public sans un geste explicite, pour ne pas exposer par erreur un
-    // événement interne (bureau, réunion...).
-    +'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:0.7rem 0.9rem;display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;">'
-    +'<div><label for="ag-ouvert-externes" style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.76rem;color:var(--encre);cursor:pointer;display:block;"><i class="ti ti-world"></i> Ouvert aux personnes extérieures</label>'
-    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Génère un lien public, sans compte Compo — utile pour un événement type portes ouvertes ou réunion d\'info recrutement.</div></div>'
-    +'<label class="compo-toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" id="ag-ouvert-externes"'+(ev&&ev.ouvert_externes?' checked':'')+'><span class="track"></span><span class="thumb"></span></label>'
-    +'</div>'
-
-    // Bouton
-    +'<button id="ag-submit" style="padding:0.75rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;margin-top:0.3rem;">'+(isEdit?'Enregistrer':'Créer et notifier')+'</button>'
+  // Fil d'Ariane
+  html += '<div style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
+    +'<button onclick="osAgendaFermerFormulaire()" style="'+BTN+'padding:5px 10px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-arrow-left"></i> Agenda</button>'
+    +'<i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>'
+    +(isEdit ? '<span style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.titre||'')+'</span><i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>' : '')
+    +'<span style="font-size:0.75rem;color:var(--encre);font-weight:600;white-space:nowrap;">'+titrePage+'</span>'
     +'</div>';
 
-  overlay.appendChild(modal);
-  overlay.onclick = function(e){if(e.target===overlay) document.body.removeChild(overlay);};
-  document.body.appendChild(overlay);
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0.8rem;align-items:start;">';
+
+  // Colonne gauche : l'événement lui-même
+  html += '<div style="display:flex;flex-direction:column;gap:0.8rem;">';
+
+  html += '<div style="'+CARTE+'">';
+  html += '<div style="'+TITRE_SECTION+'">L\'événement</div>';
+  html += champ('Titre *', '<input id="ag-titre" type="text" value="'+esc(ev?ev.titre||'':'')+'" placeholder="Ex : Conférence de rédaction mensuelle" style="'+CHAMP+'font-size:0.9rem;font-weight:600;">');
+  html += '<div style="'+DEUX_COL+'">'
+    +champ('Type', '<select id="ag-type" onchange="osAgendaMajContactExterne()" style="'+CHAMP+'">'+typeOpts+'</select>')
+    +champ('Rédaction concernée', '<select id="ag-redaction" style="'+CHAMP+'">'+redacOpts+'</select>')
+    +'</div>';
+  html += champ('Organisateur', '<input id="ag-organisateur" type="text" value="'+esc(ev?ev.organisateur||getUserNomComplet():getUserNomComplet())+'" style="'+CHAMP+'">');
+  // Contact externe à prévenir — visible seulement pour une interview : il reçoit
+  // automatiquement un email avec les infos pratiques à la création de l'événement.
+  html += '<div id="ag-contact-wrap" style="background:#FEF9F0;border:1px solid #FDEBD0;border-radius:8px;padding:0.75rem 0.85rem;display:'+(ev&&ev.type==='interview'?'block':'none')+';">'
+    +'<div style="display:flex;align-items:center;gap:0.45rem;font-size:0.78rem;font-weight:600;color:#856404;margin-bottom:0.6rem;"><i class="ti ti-user-share"></i> Personne interviewée à prévenir</div>'
+    +'<div style="'+DEUX_COL+'">'
+    +champ('Nom', '<input id="ag-contact-nom" type="text" value="'+esc(ev?ev.contact_nom||'':'')+'" placeholder="Ex : Jean Dupont" style="'+CHAMP+'">')
+    +champ('Email', '<input id="ag-contact-email" type="email" value="'+esc(ev?ev.contact_email||'':'')+'" placeholder="jean.dupont@mail.fr" style="'+CHAMP+'">')
+    +'</div>'
+    +'<div style="font-size:0.7rem;color:#856404;margin-top:0.55rem;">'+(isEdit?'Modifier l\'email ne renvoie pas d\'email automatiquement.':'Cette personne recevra un email avec la date, l\'heure et le lieu (ou le lien visio) à la création.')+'</div>'
+    +'</div>';
+  html += '</div>';
+
+  html += '<div style="'+CARTE+'">';
+  html += '<div style="'+TITRE_SECTION+'">Quand et où</div>';
+  html += '<div style="'+DEUX_COL+'">'
+    +champ('Début *', '<input id="ag-debut" type="datetime-local" value="'+toDateInput(debutDefaut)+'" style="'+CHAMP+'">')
+    +champ('Fin', '<input id="ag-fin" type="datetime-local" value="'+(ev&&ev.date_fin?toDateInput(new Date(ev.date_fin)):'')+'" style="'+CHAMP+'">')
+    +'</div>';
+  html += '<div style="'+DEUX_COL+'">'
+    +champ('Lieu', '<input id="ag-lieu" type="text" value="'+esc(ev?ev.lieu||'':'')+'" placeholder="Adresse ou salle" style="'+CHAMP+'">')
+    +champ('Lien visio', '<input id="ag-visio" type="url" value="'+esc(ev?ev.lien_visio||'':'')+'" placeholder="https://…" style="'+CHAMP+'">')
+    +'</div>';
+  html += '</div>';
+
+  html += '<div style="'+CARTE+'">';
+  html += '<div style="'+TITRE_SECTION+'">Description</div>';
+  html += '<textarea id="ag-desc" rows="5" placeholder="Programme, infos utiles, ce qu\'il faut apporter…" style="'+CHAMP+'resize:vertical;line-height:1.5;">'+esc(ev?ev.description||'':'')+'</textarea>';
+  html += '</div>';
+
+  html += '</div>';
+
+  // Colonne droite : qui peut venir et comment
+  html += '<div style="display:flex;flex-direction:column;gap:0.8rem;">';
+
+  html += '<div style="'+CARTE+'">';
+  html += '<div style="'+TITRE_SECTION+'">Inscriptions</div>';
+  html += champ('Places max', '<input id="ag-places" type="number" min="1" value="'+(ev&&ev.places_max?ev.places_max:'')+'" placeholder="Illimité" style="'+CHAMP+'">');
+  html += interrupteur('ag-validation', 'Validation des inscriptions', 'Chaque inscription attend l\'accord d\'un admin ou rédac chef.', ev&&ev.validation_admin, 'user-check');
+  // Décoché par défaut : jamais public sans un geste explicite, pour ne pas exposer par
+  // erreur un événement interne (bureau, réunion...).
+  html += '<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:0.7rem 0.8rem;">'
+    +interrupteur('ag-ouvert-externes', 'Ouvert aux personnes extérieures', 'Génère un lien public, sans compte Compo (portes ouvertes, réunion d\'info…).', ev&&ev.ouvert_externes, 'world')
+    +'</div>';
+  html += '</div>';
+
+  html += '<div style="'+CARTE+'">';
+  html += '<div style="'+TITRE_SECTION+'">Qui est invité</div>';
+  html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;">Tout coché ou tout décoché = toute l\'équipe.</div>';
+  html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'Correcteurs', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
+  html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
+  html += '</div>';
+
+  html += '</div>';
+  html += '</div>';
+
+  // Actions
+  html += '<div style="display:flex;justify-content:flex-end;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.2rem 0 0.4rem;">'
+    +(isEdit ? '' : '<span style="font-size:0.72rem;color:var(--gris);margin-right:auto;"><i class="ti ti-mail" style="vertical-align:-2px;"></i> Les invités sont prévenus par email à la création.</span>')
+    +'<button onclick="osAgendaFermerFormulaire()" style="'+BTN+'border:1px solid var(--gris-bord);background:white;color:var(--encre);">Annuler</button>'
+    +'<button id="ag-submit" style="'+BTN+'border:none;background:var(--rouge);color:white;"><i class="ti ti-'+(isEdit?'device-floppy':'send')+'"></i> '+(isEdit?'Enregistrer':'Créer et prévenir')+'</button>'
+    +'</div>';
+
+  html += '</div>';
+  body.innerHTML = html;
+  body.scrollTop = 0;
+  window._agendaFormEvId = isEdit ? ev.id : null;
 
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
+  if(!isEdit){ var t = document.getElementById('ag-titre'); if(t) t.focus(); }
+}
+
+// Quitter le formulaire sans enregistrer : retour à la fiche de l'événement si on le
+// modifiait, sinon à la vue de l'agenda.
+function osAgendaFermerFormulaire(){
+  var evId = window._agendaFormEvId;
+  window._agendaFormEvId = null;
+  var ev = evId ? (_agendaEvenements||[]).find(function(e){ return e.id===evId; }) : null;
+  if(ev) osAgendaOuvrirDetail(ev);
+  else osAgendaRendreVue();
 }
 
 function osAgendaMajContactExterne(){
@@ -36562,9 +36907,15 @@ function osAgendaSauvegarder(evId){
   .then(function(data){
     var evSauve = isEdit ? Object.assign({},_agendaEvenements.find(function(e){return e.id===evId;})||{},payload) : (data&&data[0]?data[0]:payload);
     notif((isEdit?'Événement modifié':'Événement créé')+' ✓','succes');
-    var overlay = document.getElementById('agenda-form-overlay');
-    if(overlay) document.body.removeChild(overlay);
-    osAgendaCharger();
+    window._agendaFormEvId = null;
+    // Recharger puis atterrir sur la fiche de l'événement qu'on vient d'enregistrer —
+    // on voit tout de suite le résultat, au lieu d'être renvoyé à la liste.
+    var idCible = isEdit ? evId : (evSauve && evSauve.id);
+    osAgendaCharger(function(){
+      var evFrais = idCible ? (_agendaEvenements||[]).find(function(e){ return e.id===idCible; }) : null;
+      if(evFrais) osAgendaOuvrirDetail(evFrais);
+      else osAgendaRendreVue();
+    });
     // Événement passé (saisi rétroactivement pour créditer des heures) — ne pas inviter à un événement déjà terminé
     if(!isEdit && new Date(payload.date_debut) > new Date()){
       osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
