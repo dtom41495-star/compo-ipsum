@@ -226,7 +226,7 @@ function osBenevolesDashRender(){
   wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
@@ -330,6 +330,7 @@ function osBenevolesDashRender(){
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<button onclick="osBenevolesExporterPDF()" title="Document PDF listant l\'équipe, inactifs en tête" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Exporter PDF</button>';
     sh+='<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
+    if(isVieAsso) sh+='<div id="benv-recontacter" style="display:none;padding:0.7rem 1.4rem 0;flex-shrink:0;"></div>';
     // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
     // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
     sh+='<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
@@ -351,9 +352,9 @@ function osBenevolesDashRender(){
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m,32,{})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
-        +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.8rem;flex-shrink:0;">⚠️</span>':'')
-        +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.8rem;flex-shrink:0;">❗</span>':'')
-        +(s.recompenses.length?'<span title="Récompense(s) : '+esc(s.recompenses.join(', '))+'" style="font-size:0.8rem;flex-shrink:0;">🏅</span>':'')
+        +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-file-off"></i></span>':'')
+        +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.9rem;flex-shrink:0;color:#B91C1C;display:flex;"><i class="ti ti-unlink"></i></span>':'')
+        +(s.recompenses.length?'<span title="Récompense(s) : '+esc(s.recompenses.join(', '))+'" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-award"></i></span>':'')
         +'</div>';
       sh+='</div>';
       sh+='<div style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center;">';
@@ -361,8 +362,8 @@ function osBenevolesDashRender(){
       sh+='<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span>';
       sh+='</div>';
       sh+='<div style="display:flex;gap:4px;">';
-      sh+='<button onclick="event.stopPropagation();osBenevolesRelancer(\''+m.id+'\')" title="Relancer par email" style="font-family:Space Mono,monospace;font-size:0.56rem;padding:2px 6px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">✉️</button>';
-      if(isVieAsso) sh+='<button onclick="event.stopPropagation();osBenevolesToggleInactif(\''+m.id+'\','+(m.marque_inactif?'false':'true')+',\''+esc((m.prenom||'')+' '+(m.nom||''))+'\')" title="'+(m.marque_inactif?'Réactiver':'Marquer inactif')+'" style="font-family:Space Mono,monospace;font-size:0.56rem;padding:2px 6px;border:0.5px solid '+(m.marque_inactif?'#27500A':'#A32D2D')+';border-radius:4px;background:white;cursor:pointer;color:'+(m.marque_inactif?'#27500A':'#A32D2D')+';">'+(m.marque_inactif?'✓':'⏸')+'</button>';
+      sh+='<button onclick="event.stopPropagation();osBenevolesRelancer(\''+m.id+'\')" title="Lui écrire" style="font-family:Space Mono,monospace;font-size:0.75rem;padding:2px 6px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-message"></i></button>';
+      if(isVieAsso) sh+='<button onclick="event.stopPropagation();osBenevolesToggleInactif(\''+m.id+'\','+(m.marque_inactif?'false':'true')+',\''+esc((m.prenom||'')+' '+(m.nom||''))+'\')" title="'+(m.marque_inactif?'Réactiver':'Marquer inactif')+'" style="font-family:Space Mono,monospace;font-size:0.75rem;padding:2px 6px;border:0.5px solid '+(m.marque_inactif?'#27500A':'#A32D2D')+';border-radius:4px;background:white;cursor:pointer;color:'+(m.marque_inactif?'#27500A':'#A32D2D')+';">'+(m.marque_inactif?'<i class="ti ti-player-play"></i>':'<i class="ti ti-player-pause"></i>')+'</button>';
       sh+='</div>';
       sh+='</div>';
     });
@@ -516,6 +517,7 @@ function osBenevolesDashRender(){
 
     wc.innerHTML='';
     wc.appendChild(app);
+    if(isVieAsso && typeof osBenvRecontacterRendre === 'function') osBenvRecontacterRendre();
     window._benvData=statsMembres;
   }).catch(function(){wc.innerHTML='<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';});
 }
