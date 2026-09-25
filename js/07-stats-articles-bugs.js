@@ -2057,7 +2057,9 @@ function osSignaturesRenderListe(wc){
       html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;">';
       signataires.forEach(function(s){
         var ok = s.statut === 'signe';
-        html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:20px;background:'+(ok?'#EAF3DE':'var(--gris-clair)')+';color:'+(ok?'#27500A':'var(--gris)')+';"><i class="ti ti-'+(ok?'circle-check':'clock')+'"></i> '+esc(s.nom)+'</span>';
+        var icSig = !ok ? 'clock' : (s.methode === 'carte' ? 'qrcode' : s.methode === 'code' ? 'shield-check' : 'circle-check');
+        var titreSig = !ok ? 'En attente' : (SE_METHODES[s.methode] || 'Signé');
+        html += '<span title="'+esc(titreSig)+'" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:20px;background:'+(ok?'#EAF3DE':'var(--gris-clair)')+';color:'+(ok?'#27500A':'var(--gris)')+';"><i class="ti ti-'+icSig+'"></i> '+esc(s.nom)+'</span>';
       });
       html += '</div>';
       html += '<div style="display:flex;gap:0.9rem;align-items:center;flex-wrap:wrap;">';
@@ -2345,6 +2347,7 @@ function osSignatureEnvoyer(){
         envoyerEmailSignature();
       }
     });
+    if(_session) _seAppel('sceller', { documentId:docId }, _session.access_token).catch(function(){});
     notif('Document envoyé à '+signataires.length+' signataire(s) ✓','succes');
     var overlay = document.getElementById('sig-creation-overlay');
     if(overlay) overlay.remove();
@@ -2431,7 +2434,12 @@ function _sigRenderEcranSignature(screen){
     +'</div>'
     +'<div style="padding:0.9rem 1rem;background:white;border-top:1px solid var(--gris-bord);flex-shrink:0;">'
     +'<input id="sig-mention-input" type="text" maxlength="60" placeholder="Mention (optionnel) — ex : Lu et approuvé" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.82rem;box-sizing:border-box;margin-bottom:0.6rem;">'
-    +'<button onclick="_sigOuvrirPadSignature()" style="width:100%;padding:0.9rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;"><i class="ti ti-signature"></i> Signer le document</button>'
+    +(sig.membre_id
+      ? '<div class="se-choix">'
+        +'<button class="se-choix-btn se-choix-principal" onclick="osSigElecOuvrir()"><i class="ti ti-qrcode"></i><span><strong>Signer avec ma carte de membre</strong><small>Signature électronique</small></span></button>'
+        +'<button class="se-choix-btn" onclick="_sigOuvrirPadSignature()"><i class="ti ti-signature"></i><span><strong>Dessiner ma signature</strong><small>Au doigt ou à la souris</small></span></button>'
+        +'</div>'
+      : '<button onclick="_sigOuvrirPadSignature()" style="width:100%;padding:0.9rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;"><i class="ti ti-signature"></i> Signer le document</button>')
     +'</div>';
 
   function charger(){
@@ -2632,6 +2640,7 @@ function _osGenererPdfFinal(documentId){
 }
 
 function _sigAssemblerPdfFinal(doc, signataires){
+  var codeVerif = null;
   var PDFDocument = PDFLib.PDFDocument;
   var StandardFonts = PDFLib.StandardFonts;
   var rgb = PDFLib.rgb;
@@ -2646,7 +2655,15 @@ function _sigAssemblerPdfFinal(doc, signataires){
       var fontNom = fonts[0], fontMention = fonts[1];
       var chaine = Promise.resolve();
       signataires.forEach(function(s){
-        if(!s.signature_data) return;
+        if(!s.signature_data){
+          if(s.methode === 'carte' || s.methode === 'code'){
+            chaine = chaine.then(function(){
+              var pageE = pages[s.page-1];
+              if(pageE) _sigElecTampon(pageE, s, fontNom, fontMention, rgb);
+            });
+          }
+          return;
+        }
         chaine = chaine.then(function(){
           var page = pages[s.page-1];
           if(!page) return;
@@ -2694,7 +2711,8 @@ function _sigAssemblerPdfFinal(doc, signataires){
         });
       });
       return chaine;
-    }).then(function(){ return pdfDoc.save(); });
+    }).then(function(){ return _sigAjouterCertificat(pdfDoc, doc); })
+    .then(function(code){ codeVerif = code; return pdfDoc.save(); });
   }).then(function(finalBytes){
     var path = 'documents/'+doc.id+'-final.pdf';
     return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
@@ -2709,7 +2727,10 @@ function _sigAssemblerPdfFinal(doc, signataires){
     return fetch(SB_URL+'/rest/v1/signature_documents?id=eq.'+doc.id, {
       method:'PATCH', headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
       body: JSON.stringify({ statut:'complet', pdf_final_url:finalUrl })
-    }).then(function(){ return finalUrl; });
+    }).then(function(){
+      if(codeVerif) _seAppel('empreinte', { documentId:doc.id }).catch(function(){});
+      return finalUrl;
+    });
   }).then(function(finalUrl){
     var idsAvecMembre = signataires.map(function(s){ return s.membre_id; }).filter(Boolean);
     var fetchCanaux = idsAvecMembre.length
@@ -2718,15 +2739,19 @@ function _sigAssemblerPdfFinal(doc, signataires){
     fetchCanaux.then(function(canaux){
       canaux = (!canaux||canaux.code) ? [] : canaux;
       signataires.forEach(function(s){
-        var html = '<div style="font-family:sans-serif;max-width:500px;">'
-          +osEnteteEmailLogo('Document entièrement signé')
-          +'<div style="padding:1rem 1.5rem;"><p>Bonjour '+esc(s.nom)+',</p>'
-          +'<p><strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties.</p>'
-          +'<a href="'+esc(finalUrl)+'" style="display:inline-block;background:#155724;color:white;padding:0.6rem 1.2rem;text-decoration:none;border-radius:6px;font-size:0.85rem;margin-top:0.5rem;">Télécharger le PDF final</a>'
-          +'</div></div>';
-        var chatTexte = '✅ "'+doc.titre+'" a été signé par toutes les parties : '+finalUrl;
+        var boutons = [{ label:'Télécharger le PDF final', url:finalUrl }];
+        if(codeVerif) boutons.push({ label:'Vérifier le document', url:SE_VERIF_URL+'?code='+codeVerif, secondaire:true });
+        var html = _emailCompo({
+          accent:'neutre', etiquette:'Signatures', titre:'Document signé par tous',
+          bonjour:'Bonjour '+esc(s.nom)+',',
+          texte:'<strong>'+esc(doc.titre)+'</strong> a été signé par toutes les parties. Le PDF final est prêt.'
+            +(codeVerif ? ' Son code de vérification est <strong>'+esc(codeVerif)+'</strong> : il permet à tout le monde de vérifier que le document n\'a pas été modifié.' : ''),
+          boutons:boutons,
+          pourquoi:'Tu reçois cet email parce que tu fais partie des signataires de ce document.'
+        });
+        var chatTexte = '✅ *Document signé par tous*\n'+_chatSansMiseEnForme(doc.titre)+' : '+finalUrl+(codeVerif ? '\nCode de vérification : '+codeVerif : '');
         function envoyerEmailSigneParTous(){
-          envoyerEmailResend(s.email, '[Compo] '+doc.titre+' — signé par tous', html, 'signature_complete').catch(function(){});
+          envoyerEmailResend(s.email, '[Ipsum Média] Document signé par tous : '+doc.titre, html, 'signature_complete').catch(function(){});
         }
         var canalInfo = s.membre_id && canaux.find(function(c){ return c.id === s.membre_id; });
         if(canalInfo && canalInfo.canal_notif === 'chat'){
