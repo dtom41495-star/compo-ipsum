@@ -1333,6 +1333,8 @@ function assignValider(){
 
     assignFermer();
     notif('Envoyé en correction à ' + _assignDoc2.correcteur + ' ✓', 'succes');
+    var delaiRelecture = typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(_assignDoc2.redaction_id) : null;
+    if(delaiRelecture) setTimeout(function(){ osShowToast(delaiRelecture+'.', 'info', {icon:'clock'}); }, 600);
     osClearAutosave();
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();

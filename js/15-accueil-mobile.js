@@ -142,7 +142,8 @@ function _accueilChargerCompteurs(){
   var pRecrut = window._recrutementAnnonces ? Promise.resolve() :
     lire('/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id,statut').then(function(a){ if(!window._recrutementAnnonces) window._recrutementAnnonces = a; });
   try{ cpsChargerBadge(); }catch(e){}
-  Promise.all([pCorr, pEv, pInv, pSujets, pRecrut]).then(function(r){
+  var pVol = typeof cpsChargerVolontairesEnAttente === 'function' ? cpsChargerVolontairesEnAttente() : Promise.resolve();
+  Promise.all([pCorr, pEv, pInv, pSujets, pRecrut, pVol]).then(function(r){
     _accueilCompteurs = { aCorriger:r[0].length, evenements:r[1].length, invitations:r[2] };
     osAccueilMobileRendre();
   });
@@ -192,6 +193,8 @@ function osAccueilMobileRendre(){
   var c = _accueilCompteurs;
   var cartes = '';
   if(c.aCorriger) cartes += '<button type="button" class="acc-alerte chaud" data-app="mes-articles"><span class="acc-n">'+c.aCorriger+'</span><span class="acc-l">article'+(c.aCorriger>1?'s':'')+'<br>à corriger</span></button>';
+  var vol = (window._cpInvitAttente||{}).total || 0;
+  if(vol) cartes += '<button type="button" class="acc-alerte chaud" data-app="cps-invitations"><span class="acc-n">'+vol+'</span><span class="acc-l">volontaire'+(vol>1?'s':'')+' pour une<br>invitation presse</span></button>';
   if(c.invitations) cartes += '<button type="button" class="acc-alerte" data-app="cps-invitations"><span class="acc-n">'+c.invitations+'</span><span class="acc-l">invitation'+(c.invitations>1?'s':'')+' presse<br>à pourvoir</span></button>';
   if(c.evenements) cartes += '<button type="button" class="acc-alerte" data-app="agenda"><span class="acc-n">'+c.evenements+'</span><span class="acc-l">événement'+(c.evenements>1?'s':'')+'<br>cette semaine</span></button>';
 
@@ -318,6 +321,9 @@ function _accueilPreparerFenetre(win){
     });
     barre.insertBefore(btn, barre.firstChild);
   }
+  // Pas d'emoji dans les titres des applis sur téléphone
+  var titreFen = win.querySelector('.os-titlebar-title');
+  if(titreFen && osEstMobile()) titreFen.textContent = titreFen.textContent.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '');
   if(osEstMobile() && !_accSansHistorique){
     try{ history.pushState({compoFenetre:pageId}, ''); }catch(e){}
   }
@@ -393,6 +399,8 @@ function _accueilAgrandirTexte(racine){
   var elements = [racine].concat(Array.prototype.slice.call(racine.querySelectorAll('*')));
   elements.forEach(function(el){
     if(el.dataset && el.dataset.accTexte) return;
+    // Texte des dessins (jauges, graphiques) : sa taille suit celle du dessin
+    if(el instanceof SVGElement) return;
     var aDuTexte = false;
     for(var i = 0; i < el.childNodes.length; i++){
       var n = el.childNodes[i];
@@ -494,6 +502,9 @@ function _accueilMenusMaRedac(onglet){
       {icon:'download', label:'Exporter en CSV', action:function(){ cpsExportCSV(); }},
       {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
     ]};
+  }
+  if(onglet === 'admin' && admin){
+    return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ if(_adminRedacSelectId) osAdminAjouterMembreRedac(_adminRedacSelectId); }} };
   }
   if(onglet === 'redac' && chef && _redacSousOnglet === 'membres' && ctx.redacId){
     return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ osRedacChefAjouterMembre(ctx.redacId); }} };

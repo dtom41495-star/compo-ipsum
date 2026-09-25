@@ -3050,7 +3050,7 @@ function osShowToast(msg, type, opts){
   if(!stack) return;
 
   type = type || 'info';
-  var ICONS = { succes:'✅', erreur:'❌', alerte:'⚡', info:'ℹ️' };
+  var ICONS = { succes:'circle-check', erreur:'alert-circle', alerte:'alert-triangle', info:'info-circle' };
   var COLORS = { succes:'#27500A', erreur:'#A32D2D', alerte:'#633806', info:'#185FA5' };
   var DUREE  = opts.persistent ? 0 : 4000;
 
@@ -3082,12 +3082,16 @@ function osShowToast(msg, type, opts){
   toast.style.cssText = 'background:rgba(15,15,25,0.96);backdrop-filter:blur(24px) saturate(150%);border:1px solid rgba(255,255,255,.10);border-left:3px solid '+COLORS[type]+';border-radius:14px;padding:0;min-width:300px;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.2);overflow:hidden;transform:translateX(120%) scale(0.95);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.3,0.64,1),opacity 0.28s ease;pointer-events:all;';
 
   var body = document.createElement('div');
+  body.className = 'os-toast-corps';
   body.style.cssText = 'display:flex;align-items:flex-start;gap:.7rem;padding:.75rem 1rem;';
 
   // Icône
   var iconEl = document.createElement('div');
-  iconEl.style.cssText = 'font-size:1.1rem;flex-shrink:0;line-height:1.3;';
-  iconEl.textContent = opts.icon || ICONS[type];
+  iconEl.className = 'os-toast-ic';
+  iconEl.style.cssText = 'font-size:1.1rem;flex-shrink:0;line-height:1.3;color:'+({ succes:'#4ADE80', erreur:'#F87171', alerte:'#FBBF24', info:'#60A5FA' }[type]||'#60A5FA')+';';
+  // opts.icon : nom d'icône Tabler (ex. 'refresh'), sinon celle du type
+  var nomIcone = (opts.icon && /^[a-z0-9-]+$/.test(opts.icon)) ? opts.icon : ICONS[type];
+  iconEl.innerHTML = '<i class="ti ti-'+nomIcone+'"></i>';
 
   // Texte
   var textWrap = document.createElement('div');
@@ -3101,6 +3105,7 @@ function osShowToast(msg, type, opts){
   // Bouton action (optionnel)
   if(opts.action){
     var actBtn = document.createElement('button');
+    actBtn.className = 'os-toast-action';
     actBtn.style.cssText = 'background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.9);border-radius:20px;padding:3px 10px;font-size:.68rem;font-weight:600;cursor:pointer;margin-top:5px;font-family:inherit;transition:background .15s;';
     actBtn.textContent = opts.action.label;
     actBtn.onmouseover = function(){ this.style.background='rgba(255,255,255,.22)'; };
@@ -3111,8 +3116,10 @@ function osShowToast(msg, type, opts){
 
   // Bouton fermer
   var closeBtn = document.createElement('button');
+  closeBtn.className = 'os-toast-fermer';
+  closeBtn.title = 'Fermer';
   closeBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:1.1rem;line-height:1;padding:0;flex-shrink:0;transition:color .15s;';
-  closeBtn.textContent = '×';
+  closeBtn.innerHTML = '<i class="ti ti-x"></i>';
   closeBtn.onmouseover = function(){ this.style.color='rgba(255,255,255,.8)'; };
   closeBtn.onmouseout  = function(){ this.style.color='rgba(255,255,255,.3)'; };
   closeBtn.onclick = function(){
@@ -3146,6 +3153,7 @@ function osShowToast(msg, type, opts){
     requestAnimationFrame(function(){
       toast.style.transform = 'translateX(0) scale(1)';
       toast.style.opacity   = '1';
+      toast.classList.add('show');
     });
   });
 
@@ -3162,7 +3170,7 @@ function notifPersistante(msg, type, actionLabel, actionFn, icone){
   // Notif qui ne se ferme pas automatiquement — pour les CPs et alertes importantes
   osShowToast(msg, type||'info', {
     persistent: true,
-    icon: icone||'📨',
+    icon: icone||'mail',
     action: actionLabel ? {label:actionLabel, fn:actionFn||function(){}} : null
   });
 }
