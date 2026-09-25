@@ -211,3 +211,48 @@ function osFeliciterPremierArticle(articleId){
     });
   });
 }
+
+// Fenêtre de félicitations à la connexion qui suit le premier article publié (une seule fois)
+function _osPremierArticleVerifier(){
+  var uid = getUserId();
+  if(!uid || !_session) return false;
+  var cle = 'compo_premier_article_fete_'+uid;
+  try{ if(localStorage.getItem(cle)) return true; }catch(e){ return true; }
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/articles?statut=eq.publie&auteur_id=eq.'+encodeURIComponent(uid)+'&select=id,titre,lien_publication,publie_le,updated_at&limit=2',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(arts){
+    if(!Array.isArray(arts)) return;
+    // Déjà plusieurs articles, ou premier article publié il y a longtemps : rien à fêter
+    var art = arts.length === 1 ? arts[0] : null;
+    var quand = art && new Date(art.publie_le || art.updated_at).getTime();
+    if(!art || !quand || Date.now() - quand > 30*86400000){
+      if(arts.length) try{ localStorage.setItem(cle, '1'); }catch(e){}
+      return;
+    }
+    try{ localStorage.setItem(cle, '1'); }catch(e){}
+    var ov = document.createElement('div');
+    ov.className = 'pa-voile';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.innerHTML = '<div class="pa-boite" style="background:white;border-radius:18px;max-width:400px;width:100%;padding:1.8rem 1.5rem 1.4rem;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn .25s ease forwards;">'
+      +'<div style="width:64px;height:64px;border-radius:50%;background:#E3F6EA;color:#1E7A45;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 0.9rem;"><i class="ti ti-confetti"></i></div>'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.2rem;color:var(--encre);">Ton premier article est en ligne !</div>'
+      +'<div style="font-size:0.88rem;color:var(--encre);margin-top:0.6rem;line-height:1.5;">Bravo '+esc(getUserPrenom()||'')+' : « '+esc(art.titre||'')+' » a été publié. Merci pour ton travail, et bienvenue parmi les auteurs d\'Ipsum Média.</div>'
+      +'<div style="display:flex;gap:0.5rem;margin-top:1.2rem;flex-wrap:wrap;">'
+      +(art.lien_publication ? '<a class="pa-lire" href="'+esc(art.lien_publication)+'" target="_blank" rel="noopener" style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--rouge);color:white;font-weight:600;font-size:0.85rem;text-decoration:none;">Lire l\'article</a>' : '')
+      +'<button class="pa-merci" style="flex:1;min-height:44px;border-radius:10px;border:1px solid var(--gris-bord);background:white;color:var(--encre);font-weight:600;font-size:0.85rem;cursor:pointer;">Merci !</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    function fermer(){ ov.remove(); }
+    ov.addEventListener('click', function(e){ if(e.target === ov || e.target.closest('.pa-merci') || e.target.closest('.pa-lire')) fermer(); });
+  }).catch(function(){});
+  return true;
+}
+(function(){
+  // Une fois la session ouverte, une seule vérification
+  var essais = 0;
+  var t = setInterval(function(){
+    essais++;
+    if(_osPremierArticleVerifier() || essais > 60) clearInterval(t);
+  }, 5000);
+})();
