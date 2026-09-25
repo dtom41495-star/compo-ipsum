@@ -2207,9 +2207,8 @@ function osLancer(){
     .then(function(r){return r.json();})
     .then(function(liens){
       if(!liens||liens.code||liens.length<=1){
-        // Une seule rédac ou aucune — stocker et continuer
+        // Une seule rédac ou aucune — stocker et continuer (sans ouvrir Ma rédac')
         if(liens&&liens.length===1) window._redacActiveId = liens[0].redaction_id;
-        osOpenWindow('redactions');
         return;
       }
       // Plusieurs rédacs — fetch les noms des rédactions puis afficher l'overlay
@@ -2223,9 +2222,7 @@ function osLancer(){
       }).catch(function(){
         _osAfficherSelecteurRedaction(liens, true);
       });
-    }).catch(function(){
-      osOpenWindow('redactions');
-    });
+    }).catch(function(){});
   }, 300);
 }
 

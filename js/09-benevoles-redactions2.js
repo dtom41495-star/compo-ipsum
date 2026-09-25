@@ -1282,6 +1282,18 @@ function _osAfficherSelecteurRedaction(liens, estOuvertureInitiale){
 
 function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac, estOuvertureInitiale){
     effectifsParRedac = effectifsParRedac || {};
+    // Choisir une rédaction ne fait que changer de rédaction : Ma rédac' n'est pas ouverte
+    // d'office (elle se met à jour si elle l'est déjà), l'accueil mobile non plus
+    function choisir(redacId){
+      var ov = document.getElementById('redac-select-overlay');
+      if(ov) ov.remove();
+      osRedactionsChoisirRedac(redacId);
+      if(typeof osAccueilMobileRendre === 'function') osAccueilMobileRendre();
+    }
+    if(typeof osEstMobile === 'function' && osEstMobile()){
+      _osSelecteurRedactionMobile(redactions, liens, effectifsParRedac, choisir);
+      return;
+    }
     var overlay = document.createElement('div');
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.55);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
@@ -1290,8 +1302,8 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
     card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:2.5rem;max-width:480px;width:100%;';
 
     var icon = document.createElement('div');
-    icon.style.cssText = 'font-size:2.5rem;text-align:center;margin-bottom:1rem;';
-    icon.textContent = '🗞️';
+    icon.style.cssText = 'font-size:2.5rem;text-align:center;margin-bottom:1rem;color:white;';
+    icon.innerHTML = '<i class="ti ti-news"></i>';
 
     var title = document.createElement('div');
     title.style.cssText = 'font-family:Poppins,sans-serif;font-size:1.4rem;font-weight:800;color:white;text-align:center;margin-bottom:0.5rem;';
@@ -1328,11 +1340,7 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
         +'</div></div>'
         +'<div style="color:rgba(255,255,255,0.3);font-size:1rem;flex-shrink:0;">→</div>';
 
-      btn.onclick = function(){
-        overlay.remove();
-        osRedactionsChoisirRedac(lien.redaction_id);
-        osOpenWindow('redactions');
-      };
+      btn.onclick = function(){ choisir(lien.redaction_id); };
       card.appendChild(btn);
     });
 

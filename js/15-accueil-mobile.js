@@ -122,6 +122,7 @@ function osAccueilMobileRendre(){
     zone.addEventListener('click', function(e){
       var t = e.target.closest('[data-app]');
       if(t){ _accueilOuvrir(t.dataset.app); return; }
+      if(e.target.closest('.acc-changer-redac')){ rChangerRedaction(); return; }
       var dnd = e.target.closest('.acc-statut');
       if(dnd){ osToggleDND(); return; }
       if(e.target.closest('.acc-quitter') && confirm('Te déconnecter de Compo ?')) seDeconnecter();
@@ -138,6 +139,7 @@ function osAccueilMobileRendre(){
     : '<span class="acc-initiales">'+esc(((prenom||'?').charAt(0)+(getUserNom()||'').charAt(0)).toUpperCase())+'</span>';
   var redac = (window._redactionsData||[]).find(function(r){ return r.id === window._redacActiveId; });
   var jour = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'});
+  var plusieursRedacs = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid; }).length > 1;
 
   var apps = _accueilApps();
   var parId = {}; apps.forEach(function(a){ parId[a.id] = a; });
@@ -158,7 +160,8 @@ function osAccueilMobileRendre(){
   var h = '<div class="acc-salut">'
     +'<div class="acc-avatar">'+avatar+'</div>'
     +'<div class="acc-salut-txt"><div class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</div>'
-    +'<div class="acc-sous-salut">'+(redac?'Rédaction '+esc(redac.nom)+' · ':'')+esc(jour)+'</div></div>'
+    +'<div class="acc-sous-salut">'+(redac?'Rédaction '+esc(redac.nom)+' · ':'')+esc(jour)
+    +(plusieursRedacs ? ' <button type="button" class="acc-changer-redac">changer</button>' : '')+'</div></div>'
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +'</div>';
   if(cartes) h += '<div class="acc-a-faire">'+cartes+'</div>';
@@ -312,3 +315,33 @@ function _accueilAgrandirTexte(racine){
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', brancher); else brancher();
 })();
+
+// Choix de la rédaction sur téléphone (plusieurs rédactions) : plein écran clair, dans
+// le style de l'accueil, avec de grandes cartes
+function _osSelecteurRedactionMobile(redactions, liens, effectifs, choisir){
+  var ov = document.createElement('div');
+  ov.id = 'redac-select-overlay';
+  ov.className = 'redac-choix-mobile';
+  var prenom = getUserPrenom() || '';
+  var h = '<div class="rcm-tete"><div class="rcm-ic"><i class="ti ti-news"></i></div>'
+    +'<div class="rcm-titre">'+(prenom ? 'Bonjour '+esc(prenom)+', d' : 'D')+'ans quelle rédaction veux-tu travailler ?</div>'
+    +'<div class="rcm-sous">Tu es membre de '+liens.length+' rédactions. Tu pourras changer à tout moment depuis Ma rédac\'.</div></div>';
+  liens.forEach(function(lien){
+    var r = (redactions||[]).find(function(x){ return x.id === lien.redaction_id; });
+    var couleur = (r && r.couleur) || '#EA5B1C';
+    var role = (typeof ROLE_REDAC_LABELS !== 'undefined' && ROLE_REDAC_LABELS[lien.role_redac]) || lien.role_redac || '';
+    var n = effectifs[lien.redaction_id] || 0;
+    h += '<button type="button" class="rcm-choix" data-redac="'+esc(lien.redaction_id)+'">'
+      +'<span class="rcm-carre" style="background:'+esc(couleur)+';"><i class="ti ti-news"></i></span>'
+      +'<span class="rcm-txt"><span class="rcm-nom">'+esc(r ? r.nom : 'Rédaction')+'</span>'
+      +'<span class="rcm-info">'+(lien.role_redac === 'redac_chef' ? '<span class="rcm-chef"><i class="ti ti-crown"></i>'+esc(role)+'</span>' : esc(role))
+      +' · <i class="ti ti-users"></i>'+n+' membre'+(n>1?'s':'')+'</span></span>'
+      +'<i class="ti ti-chevron-right rcm-fleche"></i></button>';
+  });
+  ov.innerHTML = h;
+  ov.addEventListener('click', function(e){
+    var b = e.target.closest('[data-redac]');
+    if(b) choisir(b.dataset.redac);
+  });
+  document.body.appendChild(ov);
+}
