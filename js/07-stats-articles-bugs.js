@@ -1429,7 +1429,8 @@ function maOsMakeCard(doc, uid, role){
   // Titre + tags, dans le prolongement l'un de l'autre (avant : deux lignes séparées) —
   // et le statut réduit ci-dessus, aligné à droite sur cette même ligne.
   var age=badgeFraicheur(doc.updated_at||doc.created_at, s);
-  var tagsHtml=(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
+  var delaiRelecture = estAuteur && s==='en-relecture' && typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(doc.redaction_id) : null;
+  var tagsHtml=(delaiRelecture?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#3730A3;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-clock"></i>'+esc(delaiRelecture)+'</span>':'')+(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
     +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
     +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
     +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
@@ -1521,6 +1522,8 @@ function _maCarteMobile(doc, uid, role){
   var extra = '';
   if(estRefuse) extra += '<div class="ma-carte-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>';
   if(_maOnglet==='corriger') extra += '<div class="ma-carte-info"><i class="ti ti-user-search"></i>'+(doc.correcteur ? 'Correction : '+esc(doc.correcteur) : 'Aucun correcteur')+'</div>';
+  var delai = estAuteur && s==='en-relecture' && typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(doc.redaction_id) : null;
+  if(delai) extra += '<div class="ma-carte-info"><i class="ti ti-clock"></i>'+esc(delai)+'</div>';
   var nl = _maNewsletterMap[doc.id];
   if(nl) extra += '<div class="ma-carte-info"><i class="ti ti-mail"></i>Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR')+'</div>';
   else if(doc.redaction_id && (s==='valide'||s==='publie')) extra += '<div class="ma-carte-info"><i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+'</div>';

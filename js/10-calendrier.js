@@ -1561,6 +1561,8 @@ function osRedacReglagesForm(redac){
   h += '</div>';
   }
 
+  if('horaires' in redac) h += osRedacHorairesFormHtml(redac);
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1591,6 +1593,11 @@ function osRedacChefEnregistrerReglages(redacId){
     if(cle.indexOf('sujets_') === 0 && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
+  if('horaires' in redacAvant){
+    var horaires = osRedacHorairesLireForm();
+    if(horaires === false) return;
+    payload.horaires = horaires;
+  }
   var btn = document.getElementById('redac-reg-submit');
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});

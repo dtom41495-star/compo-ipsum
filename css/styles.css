@@ -3983,3 +3983,20 @@ input:focus,select:focus,textarea:focus{
   #os-toast-stack .os-toast-fermer { width: 40px; height: 40px; border-radius: 12px !important; color: #6B7280 !important; font-size: 20px !important; display: flex; align-items: center; justify-content: center; }
   #os-toast-stack .os-toast-bar, #os-toast-stack .os-toast > div:last-child:not(.os-toast-corps) { height: 3px !important; border-radius: 0 !important; }
 }
+
+/* ===== HORAIRES D'OUVERTURE ===== */
+@media (max-width: 768px) {
+  .rh-jours { gap: 8px !important; }
+  .rh-jour { flex-wrap: wrap; background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 12px; padding: 8px 10px; }
+  .rh-jour label { width: 100% !important; font-size: 15px !important; min-height: 32px; }
+  .rh-jour input[type="checkbox"] { width: 20px; height: 20px; }
+  .rh-jour input[type="time"] { flex: 1; min-width: 0; height: 44px; font-size: 16px !important; border-radius: 10px !important; }
+  #redac-reg-horaires-actif { width: 20px; height: 20px; }
+}
+.rh-bloc label, .rh-bloc label span { text-transform: none !important; letter-spacing: normal !important; font-family: 'DM Sans', Arial, sans-serif !important; }
+@media (max-width: 768px) {
+  .rh-jour.rh-est-ferme { flex-wrap: nowrap; }
+  .rh-jour.rh-est-ferme label { width: auto !important; flex: 1; }
+  .rh-jour.rh-est-ferme input[type="time"], .rh-jour.rh-est-ferme .rh-sep { display: none; }
+  .rh-jour .rh-ferme { font-size: 14px !important; }
+}
