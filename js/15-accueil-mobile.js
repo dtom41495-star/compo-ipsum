@@ -413,7 +413,8 @@ function _accueilMenusMaRedac(onglet){
       m.push({icon:'mail', label:'Notifier les abonnés', action:function(){ osEnvoyerNotifsSujets(); }});
       m.push({icon:'trash', label:'Nettoyer les sujets publiés', action:function(){ osNettoyerSujetsPublies(); }});
     }
-    return { menu:m, flottant: chef ? {icon:'plus', label:'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
+    var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : (chef ? 'chef' : null);
+    return { menu:m, flottant: droit ? {icon:droit==='chef'?'plus':'bulb', label:droit==='chef'?'Nouveau sujet':'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
   }
   if(onglet === 'cps'){
     return { menu:[

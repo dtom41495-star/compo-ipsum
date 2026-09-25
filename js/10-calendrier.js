@@ -1194,7 +1194,22 @@ function osSujetSupprimerDepuisRedac(sujetId){
 // ── Nouveau sujet (chef/admin) — remplace l'ancien outil "briefing" (multi-sujets,
 // sélecteur de rédaction redondant, export PDF) par un formulaire simple à un seul
 // sujet, rattaché automatiquement à la rédaction déjà active.
+// Qui peut créer un sujet dans la rédaction affichée :
+//  'chef'     admin ou rédac chef : le sujet est publié tout de suite
+//  'proposer' membre, si la rédaction l'autorise avec validation : le sujet attend
+//  'publier'  membre, si la rédaction l'autorise sans validation
+//  null       personne d'autre
+function osSujetsDroit(){
+  var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
+  if(getUserRole() === 'admin' || (lien && lien.role_redac === 'redac_chef')) return 'chef';
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id === window._redacActiveId; });
+  if(lien && redac && redac.sujets_proposes_membres) return redac.sujets_validation === false ? 'publier' : 'proposer';
+  return null;
+}
+
 function osOuvrirNouveauSujetModal(){
+  var droit = osSujetsDroit();
+  if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
   var existing = document.getElementById('nouveau-sujet-overlay');
   if(existing) existing.remove();
 
@@ -1206,7 +1221,7 @@ function osOuvrirNouveauSujetModal(){
   card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;';
   card.innerHTML =
     '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">📌 Nouveau sujet</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-pin"></i> '+(droit==='chef'?'Nouveau sujet':'Proposer un sujet')+'</div>'
     +'<button onclick="document.getElementById(\'nouveau-sujet-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
     +'</div>'
     +'<div style="padding:1.2rem 1.5rem;">'
@@ -1217,8 +1232,9 @@ function osOuvrirNouveauSujetModal(){
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ns-rubrique" placeholder="Ex : Municipales, Culture..."></div>'
     +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ns-note" style="min-height:70px;" placeholder="De quoi ça parle, pourquoi c\'est intéressant..."></textarea></div>'
     +'</div>'
+    +(droit==='proposer' ? '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">Ton sujet sera visible par l\'équipe une fois validé par le rédac chef.</div>' : '')
     +'<div class="btn-row">'
-    +'<button class="btn" onclick="osCreerNouveauSujet()">Publier le sujet</button>'
+    +'<button class="btn" onclick="osCreerNouveauSujet()">'+(droit==='proposer'?'Envoyer la proposition':'Publier le sujet')+'</button>'
     +'</div>'
     +'</div>';
 
@@ -1236,13 +1252,16 @@ function osCreerNouveauSujet(){
   var rubrique = ((document.getElementById('ns-rubrique')||{}).value||'').trim();
   var note = ((document.getElementById('ns-note')||{}).value||'').trim();
 
+  var droit = osSujetsDroit();
+  if(!droit) return;
+  var aValider = droit === 'proposer';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var payload = {
     id: 'BRF-'+Date.now(),
     titre: titre,
     type: type,
     priorite: priorite,
-    statut: 'ouvert',
+    statut: aValider ? 'propose' : 'ouvert',
     note: note||null,
     rubrique: rubrique||null,
     redaction_id: window._redacActiveId||null,
@@ -1251,11 +1270,108 @@ function osCreerNouveauSujet(){
   fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif('Sujet publié ✓','succes');
+      notif(aValider ? 'Proposition envoyée au rédac chef' : 'Sujet publié','succes');
       var overlay = document.getElementById('nouveau-sujet-overlay');
       if(overlay) overlay.remove();
+      if(aValider) _osSujetPrevenirChefs(payload);
       osRedactionsChangerOnglet('sujets');
-    } else notif('Erreur','erreur');
+    } else notif(aValider ? 'Impossible d\'envoyer la proposition' : 'Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+// ===== PROPOSITIONS DE SUJETS =====
+// Un membre propose un sujet (si la rédaction l'autorise, voir ses Réglages) : il reste
+// au statut 'propose', invisible des listes (qui ne lisent que ouvert / en_cours), jusqu'à
+// ce qu'un rédac chef ou un admin le publie ou le refuse.
+function _osSujetEmail(o){
+  return _emailCompo(Object.assign({ boutons:[{label:'Ouvrir les sujets', url:'https://compo.ipsummedia.fr'}] }, o));
+}
+function _osSujetPrevenirChefs(sujet){
+  var auteur = getUserNomComplet() || 'Un membre';
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id === sujet.redaction_id; });
+  _cpInvitGestionnaires({redaction_id: sujet.redaction_id}).then(function(chefs){
+    chefs.forEach(function(c){
+      var html = _osSujetEmail({ accent:'bleu', etiquette:'SUJET PROPOSÉ', titre:esc(sujet.titre),
+        bonjour:'Bonjour '+esc(c.prenom||'')+',',
+        texte:esc(auteur)+' propose ce sujet'+(redac?' pour la rédaction '+esc(redac.nom):'')+'. Il attend ta validation avant d\'être visible par l\'équipe.',
+        description:sujet.note||'',
+        boutons:[{label:'Valider ou refuser', url:'https://compo.ipsummedia.fr'}],
+        pourquoi:'Tu reçois cet email car tu es rédac chef ou admin de cette rédaction.' });
+      var chat = '💡 *Nouveau sujet proposé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » par '+_chatSansMiseEnForme(auteur)+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
+      notifierPersonnel(c.id, c.canal_notif, chat, 'sujet', function(){
+        envoyerEmailResend(c.email, '[Ipsum Média] Sujet proposé · '+sujet.titre, html, 'sujet');
+      });
+    });
+  }).catch(function(){});
+}
+function _osSujetPrevenirAuteur(sujet, accepte){
+  if(!sujet.created_by || sujet.created_by === getUserId()) return;
+  _cpInvitChargerMembres([sujet.created_by]).then(function(ms){
+    var m = ms.find(function(x){ return x.id === sujet.created_by; }); if(!m || !m.email) return;
+    var html = accepte
+      ? _osSujetEmail({ accent:'vert', etiquette:'SUJET PUBLIÉ', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
+          texte:'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
+          pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' })
+      : _osSujetEmail({ accent:'ambre', etiquette:'SUJET NON RETENU', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
+          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition ! Tu peux en parler avec ton rédac chef pour en savoir plus.',
+          boutons:[], pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
+    var chat = accepte
+      ? '✅ *Ton sujet est publié*\n« '+_chatSansMiseEnForme(sujet.titre)+' » est visible par l\'équipe, tu peux le réserver.'
+      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !';
+    notifierPersonnel(m.id, m.canal_notif, chat, 'sujet', function(){
+      envoyerEmailResend(m.email, '[Ipsum Média] '+(accepte?'Sujet publié':'Sujet non retenu')+' · '+sujet.titre, html, 'sujet');
+    });
+  }).catch(function(){});
+}
+
+// Encart en haut de l'onglet Sujets : propositions à valider (rédac chef, admin) ou mes
+// propositions en attente (membre)
+function osSujetsChargerPropositions(zone){
+  if(!zone || !window._redacActiveId) return;
+  var chef = osSujetsDroit() === 'chef';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.propose&redaction_id=eq.'+encodeURIComponent(window._redacActiveId)
+    +(chef ? '' : '&created_by=eq.'+encodeURIComponent(getUserId()))+'&order=created_at.desc&select=*';
+  fetch(url,{headers:authH}).then(function(r){ return r.json(); }).then(function(props){
+    if(!Array.isArray(props) || !props.length){ zone.innerHTML = ''; return; }
+    window._sujetsPropositions = props;
+    var auteurs = {};
+    (window._membresData||[]).forEach(function(m){ auteurs[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
+    var h = '<div class="sujets-propositions" style="background:#FFF6DB;border:1px solid #F3DFA2;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#8A6400;margin-bottom:0.5rem;"><i class="ti ti-bulb"></i> '
+      +(chef ? 'Propositions à valider ('+props.length+')' : 'Mes propositions en attente ('+props.length+')')+'</div>';
+    props.forEach(function(s){
+      h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
+        +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>'
+        +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
+        +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+new Date(s.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'
+        +(chef
+          ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ti ti-check"></i> Publier</button>'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)" style="font-size:0.72rem;padding:5px 12px;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;"><i class="ti ti-pencil"></i> Modifier</button>'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)" style="font-size:0.72rem;padding:5px 12px;background:white;color:#A32D2D;border:1px solid #F1C2C2;border-radius:6px;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>'
+            +'</div>'
+          : '<div style="font-size:0.7rem;color:#8A6400;margin-top:4px;"><i class="ti ti-clock"></i> En attente de validation</div>')
+        +'</div>';
+    });
+    h += '</div>';
+    zone.innerHTML = h;
+  }).catch(function(){ zone.innerHTML = ''; });
+}
+
+function osSujetValiderProposition(sujetId, accepte){
+  var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
+  if(!s) return;
+  if(!accepte && !confirm('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var req = accepte
+    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut:'ouvert'})})
+    : fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH});
+  req.then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');
+    _osSujetPrevenirAuteur(s, accepte);
+    osRedactionsChangerOnglet('sujets');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
@@ -1459,7 +1575,7 @@ function osVeilleSupprimerFlux(fluxId){
 // ── Modifier un sujet existant (chef/admin) — même formulaire que la création,
 // pré-rempli, en PATCH plutôt qu'en POST.
 function osSujetOuvrirModifier(sujetId){
-  var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
+  var sujet = (window._sujetsData||[]).concat(window._sujetsPropositions||[]).find(function(s){ return s.id===sujetId; });
   if(!sujet) return;
   var existing = document.getElementById('modifier-sujet-overlay');
   if(existing) existing.remove();
@@ -1810,6 +1926,18 @@ function osRedacReglagesForm(redac){
   });
   h += '</div></div>';
 
+  if('sujets_proposes_membres' in redac){
+  h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Propositions de sujets</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Permet à tous les membres de la rédaction de proposer des idées de sujets, pas seulement au rédac chef.</div>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:0.6rem;"><input type="checkbox" id="redac-reg-sujets_proposes_membres" '+(redac.sujets_proposes_membres?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Les membres peuvent proposer des sujets</span></span></label>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-sujets_validation" '+(redac.sujets_validation!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Validation du rédac chef avant publication</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">sinon, les sujets proposés sont visibles tout de suite</span></span></label>';
+  h += '</div>';
+  }
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1830,10 +1958,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok'];
+  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','sujets_proposes_membres','sujets_validation'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
+  var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
+    // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
+    // en base, sinon tout l'enregistrement serait refusé
+    if(cle.indexOf('sujets_') === 0 && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   var btn = document.getElementById('redac-reg-submit');
@@ -2202,6 +2334,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     var zoneSujets = document.getElementById('redac-sujets-zone');
     var finSujetsTab = function(){ _osForcerRepaint(document.getElementById('win-redactions')); };
     if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac, finSujetsTab);
+    osSujetsChargerPropositions(document.getElementById('sujets-propositions-zone'));
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac'){
