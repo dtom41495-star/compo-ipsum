@@ -335,7 +335,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
     snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'calendrier-edito':'🗓️ Calendrier éditorial', 'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'app-dub':'✂️ Raccourcisseur'
+    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'app-dub':'✂️ Raccourcisseur'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -554,11 +554,6 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'veille'){
     setTimeout(function(){ osVeilleRender(); }, 50);
-    return;
-  }
-
-  if(pageId === 'calendrier-edito'){
-    setTimeout(function(){ osCalendrierEditoRender(); }, 50);
     return;
   }
 

@@ -8,7 +8,7 @@ function osEstMobile(){ return window.innerWidth <= 768; }
 
 // Rangement des tuiles par thème. Une appli absente de ces listes va dans « Outils ».
 var ACCUEIL_RUBRIQUES = [
-  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction','calendrier-edito'] },
+  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
