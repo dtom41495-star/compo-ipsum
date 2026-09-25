@@ -8,11 +8,23 @@ function osEstMobile(){ return window.innerWidth <= 768; }
 
 // Rangement des tuiles par thème. Une appli absente de ces listes va dans « Outils ».
 var ACCUEIL_RUBRIQUES = [
-  { titre:'Rédaction',      ids:['mes-articles','app-correction','redactions','calendrier-edito','notes','carnet','veille','substack','stats-dashboard'] },
-  { titre:'Sur le terrain', ids:['agenda','cps-admin','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
+  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction','calendrier-edito'] },
+  { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
+  { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
-  { titre:'Administration', ids:['gestion-apps','bugs','log','nettoyage'] }
+  { titre:'Administration', ids:['gestion-apps','redac:admin','cps-admin','bugs','log','nettoyage'] }
 ];
+
+// Sur téléphone, Ma rédac' est découpée : chaque onglet a sa tuile et s'ouvre seul, en
+// plein écran (voir osOuvrirMaRedacMobile). Le profil s'ouvre depuis le haut de l'accueil.
+var ACCUEIL_REDAC_TUILES = [
+  { id:'redac:sujets',      onglet:'sujets',      icon:'<i class="ti ti-pin"></i>',          label:'Sujets',       color:'#E8461E' },
+  { id:'redac:cps',         onglet:'cps',         icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',  color:'#4A235A' },
+  { id:'redac:redac',       onglet:'redac',       icon:'<i class="ti ti-users-group"></i>',  label:'Ma rédaction', color:'#1A5276' },
+  { id:'redac:recrutement', onglet:'recrutement', icon:'<i class="ti ti-user-plus"></i>',    label:'Recrutement',  color:'#7D3C98' }
+];
+var ACCUEIL_REDAC_TITRES = { profil:'Mon profil', sujets:'Sujets', recrutement:'Recrutement', redac:'Ma rédaction',
+  cps:'Communiqués', 'cps-abonnements':'Mes abonnements', admin:'Gestion rédactions' };
 // En bas de l'accueil, pas en tuile
 var ACCUEIL_HORS_TUILES = ['tutos','params'];
 
@@ -46,12 +58,22 @@ function _accueilApps(){
     if(!a || vues[a.id] || a.legacy) return;
     vues[a.id] = true; liste.push(a);
   });
+  // Ma rédac' remplacée par ses morceaux ; l'appli admin « Gestion des CPs » renommée pour
+  // ne pas la confondre avec la tuile Communiqués
+  var iRedac = liste.findIndex(function(a){ return a.id === 'redactions'; });
+  if(iRedac !== -1){
+    liste.splice(iRedac, 1);
+    ACCUEIL_REDAC_TUILES.forEach(function(t){ liste.push(t); });
+    if(getUserRole() === 'admin') liste.push({ id:'redac:admin', onglet:'admin', icon:'<i class="ti ti-building-community"></i>', label:'Gestion rédactions', color:'#2C3E50' });
+  }
+  liste = liste.map(function(a){ return a.id === 'cps-admin' ? Object.assign({}, a, {label:'Gestion des CPs'}) : a; });
   return liste;
 }
 
 function _accueilOuvrir(id){
+  if(id.indexOf('redac:') === 0){ osOuvrirMaRedacMobile(id.slice(6)); return; }
   // Carte « invitations à pourvoir » : les communiqués sont un onglet de Ma rédac'
-  if(id === 'cps-invitations'){ osOuvrirCommuniques(); return; }
+  if(id === 'cps-invitations'){ osOuvrirMaRedacMobile('cps'); return; }
   if(id === 'tchat'){ window.open('https://chat.google.com/','_blank'); return; }
   if(id === 'substack'){ osOuvrirSubstack(); return; }
   if(id === 'bugs'){ osOuvrirBugs(); return; }
@@ -65,6 +87,14 @@ function _accueilOuvrir(id){
 // Pastille d'une tuile : même compteur que le dock, ou un point si l'icône du dock
 // clignote (non-lu dans Ma rédac', article à corriger...)
 function _accueilPastille(id){
+  // Tuiles de Ma rédac' : même pastille que l'onglet correspondant sur ordinateur
+  if(id.indexOf('redac:') === 0){
+    try{
+      var o = _osRedacOngletsListe().find(function(x){ return x.id === id.slice(6); });
+      if(o && o.badge){ var tmp = document.createElement('div'); tmp.innerHTML = o.badge; return tmp.textContent.trim() || '•'; }
+    }catch(e){}
+    return '';
+  }
   var badge = document.getElementById('dock-badge-'+id);
   if(badge && badge.style.display !== 'none' && badge.textContent.trim()) return badge.textContent.trim();
   if(id === 'mes-articles' && _accueilCompteurs.aCorriger) return String(_accueilCompteurs.aCorriger);
@@ -106,7 +136,13 @@ function _accueilChargerCompteurs(){
           return cps.filter(function(cp){ return pourvus.indexOf(cp.id) === -1; }).length;
         });
     });
-  Promise.all([pCorr, pEv, pInv]).then(function(r){
+  // Pastilles des tuiles Sujets, Recrutement et Communiqués : mêmes données que les
+  // onglets de Ma rédac', qui n'est plus ouverte d'office au démarrage
+  var pSujets = new Promise(function(ok){ try{ osSujetsCharger(function(){ ok(); }); }catch(e){ ok(); } setTimeout(ok, 8000); });
+  var pRecrut = window._recrutementAnnonces ? Promise.resolve() :
+    lire('/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id,statut').then(function(a){ if(!window._recrutementAnnonces) window._recrutementAnnonces = a; });
+  try{ cpsChargerBadge(); }catch(e){}
+  Promise.all([pCorr, pEv, pInv, pSujets, pRecrut]).then(function(r){
     _accueilCompteurs = { aCorriger:r[0].length, evenements:r[1].length, invitations:r[2] };
     osAccueilMobileRendre();
   });
@@ -122,7 +158,7 @@ function osAccueilMobileRendre(){
     zone.addEventListener('click', function(e){
       var t = e.target.closest('[data-app]');
       if(t){ _accueilOuvrir(t.dataset.app); return; }
-      if(e.target.closest('.acc-changer-redac')){ rChangerRedaction(); return; }
+      if(e.target.closest('.acc-pill-redac[data-changer]')){ rChangerRedaction(); return; }
       var dnd = e.target.closest('.acc-statut');
       if(dnd){ osToggleDND(); return; }
       if(e.target.closest('.acc-quitter') && confirm('Te déconnecter de Compo ?')) seDeconnecter();
@@ -157,12 +193,17 @@ function osAccueilMobileRendre(){
   if(c.invitations) cartes += '<button type="button" class="acc-alerte" data-app="cps-invitations"><span class="acc-n">'+c.invitations+'</span><span class="acc-l">invitation'+(c.invitations>1?'s':'')+' presse<br>à pourvoir</span></button>';
   if(c.evenements) cartes += '<button type="button" class="acc-alerte" data-app="agenda"><span class="acc-n">'+c.evenements+'</span><span class="acc-l">événement'+(c.evenements>1?'s':'')+'<br>cette semaine</span></button>';
 
-  var h = '<div class="acc-salut">'
-    +'<div class="acc-avatar">'+avatar+'</div>'
-    +'<div class="acc-salut-txt"><div class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</div>'
-    +'<div class="acc-sous-salut">'+(redac?'Rédaction '+esc(redac.nom)+' · ':'')+esc(jour)
-    +(plusieursRedacs ? ' <button type="button" class="acc-changer-redac">changer</button>' : '')+'</div></div>'
+  // En-tête : toucher son nom ouvre son profil (et sa carte d'adhérent)
+  var aMaRedac = _accueilApps().some(function(a){ return a.id.indexOf('redac:') === 0; });
+  var h = '<button type="button" class="acc-salut"'+(aMaRedac ? ' data-app="redac:profil"' : '')+'>'
+    +'<span class="acc-avatar">'+avatar+'</span>'
+    +'<span class="acc-salut-txt"><span class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</span>'
+    +'<span class="acc-sous-salut">'+(aMaRedac ? 'Voir mon profil et ma carte' : esc(jour))+'</span></span>'
+    +(aMaRedac ? '<i class="ti ti-chevron-right acc-chevron"></i>' : '')
+    +'</button>'
+    +'<div class="acc-ligne-statut">'
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
+    +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
     +'</div>';
   if(cartes) h += '<div class="acc-a-faire">'+cartes+'</div>';
   if(grande) h += '<div class="acc-tuiles">'+_accueilTuile(grande.app, true, grande.sous)+'</div>';
@@ -210,6 +251,7 @@ function _accueilPreparerFenetre(win){
   if(osEstMobile()){
     try{ history.pushState({compoFenetre:pageId}, ''); }catch(e){}
   }
+  if(pageId === 'redactions' && osEstMobile()) setTimeout(_accueilPreparerMaRedac, 0);
 }
 window.addEventListener('popstate', function(){
   if(_accIgnorerRetour){ _accIgnorerRetour = false; return; }
@@ -344,4 +386,101 @@ function _osSelecteurRedactionMobile(redactions, liens, effectifs, choisir){
     if(b) choisir(b.dataset.redac);
   });
   document.body.appendChild(ov);
+}
+
+// ---- Ma rédac' découpée (téléphone) ----
+// Ouvre un onglet de Ma rédac' seul, en plein écran : pas de rangée d'onglets, le titre
+// de la fenêtre devient celui de l'onglet, et les outils peu utilisés passent dans un
+// menu « … ». Sur ordinateur, ouvre simplement Ma rédac' sur cet onglet.
+function osOuvrirMaRedacMobile(onglet){
+  if(_windows['redactions']){
+    osFocusWindow('redactions');
+    osRedactionsChangerOnglet(onglet);
+  } else {
+    _redacOnglet = onglet;
+    osOpenWindow('redactions');
+  }
+  setTimeout(_accueilPreparerMaRedac, 0);
+}
+
+function _accueilMenusMaRedac(onglet){
+  var ctx = window._redacCtx || {};
+  var admin = getUserRole() === 'admin';
+  var chef = admin || ctx.roleRedac === 'redac_chef';
+  if(onglet === 'sujets'){
+    var m = [{icon:'checks', label:'Tout marquer comme lu', action:function(){ _osRedacMarquerSujetsLus(); osRedactionsChangerOnglet('sujets'); }}];
+    if(admin){
+      m.push({icon:'mail', label:'Notifier les abonnés', action:function(){ osEnvoyerNotifsSujets(); }});
+      m.push({icon:'trash', label:'Nettoyer les sujets publiés', action:function(){ osNettoyerSujetsPublies(); }});
+    }
+    return { menu:m, flottant: chef ? {icon:'plus', label:'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
+  }
+  if(onglet === 'cps'){
+    return { menu:[
+      {icon:'checks', label:'Tout marquer comme lu', action:function(){ cpsToutMarquerLu(); }},
+      {icon:'refresh', label:'Actualiser', action:function(){ cpsCharger(); }},
+      {icon:'download', label:'Exporter en CSV', action:function(){ cpsExportCSV(); }},
+      {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
+    ]};
+  }
+  return {};
+}
+
+function _accueilPreparerMaRedac(){
+  var win = document.getElementById('win-redactions');
+  if(!win) return;
+  if(!osEstMobile()){ win.classList.remove('redac-directe'); return; }
+  var onglet = _redacOnglet;
+  win.classList.add('redac-directe');
+  var titre = win.querySelector('.os-titlebar-title');
+  if(titre) titre.textContent = ACCUEIL_REDAC_TITRES[onglet] || 'Ma rédac\'';
+  // Menu « … » dans la barre de titre, et bouton flottant, propres à l'onglet
+  var ancien = win.querySelector('.acc-btn-menu'); if(ancien) ancien.remove();
+  var ancienF = win.querySelector('.acc-flottant'); if(ancienF) ancienF.remove();
+  var conf = _accueilMenusMaRedac(onglet);
+  var barre = win.querySelector('.os-titlebar');
+  if(conf.menu && barre){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'acc-btn-menu'; b.title = 'Plus d\'actions';
+    b.innerHTML = '<i class="ti ti-dots"></i>';
+    b.addEventListener('click', function(e){ e.stopPropagation(); osMenuMobile(conf.menu); });
+    barre.appendChild(b);
+  }
+  if(conf.flottant){
+    var f = document.createElement('button');
+    f.type = 'button'; f.className = 'acc-flottant';
+    f.innerHTML = '<i class="ti ti-'+conf.flottant.icon+'"></i>'+esc(conf.flottant.label);
+    f.addEventListener('click', conf.flottant.action);
+    win.appendChild(f);
+  }
+}
+
+// Changer d'onglet depuis l'intérieur (ex. « Voir tous » dans le profil) met à jour le titre
+var _osRedactionsChangerOngletAvantAccueil = osRedactionsChangerOnglet;
+osRedactionsChangerOnglet = function(onglet){
+  _osRedactionsChangerOngletAvantAccueil.apply(this, arguments);
+  if(osEstMobile()) _accueilPreparerMaRedac();
+};
+
+// Menu d'actions qui s'ouvre depuis le bas de l'écran
+function osMenuMobile(items){
+  var ov = document.createElement('div');
+  ov.className = 'acc-menu-voile';
+  ov.innerHTML = '<div class="acc-menu"><div class="acc-menu-poignee"></div>'
+    + items.map(function(it, i){ return '<button type="button" data-i="'+i+'"><i class="ti ti-'+it.icon+'"></i>'+esc(it.label)+'</button>'; }).join('')
+    +'</div>';
+  ov.addEventListener('click', function(e){
+    var b = e.target.closest('[data-i]');
+    if(b){ ov.remove(); items[+b.dataset.i].action(); return; }
+    if(e.target === ov) ov.remove();
+  });
+  document.body.appendChild(ov);
+}
+
+// Onglets « À prendre » / « En cours » des Sujets sur téléphone
+function _osSujetsFiltrer(btn){
+  var barre = btn.parentNode;
+  barre.querySelectorAll('button').forEach(function(b){ b.classList.toggle('actif', b === btn); });
+  var liste = barre.parentNode.querySelector('.sujets-liste');
+  if(liste) liste.dataset.filtre = btn.dataset.f;
 }

@@ -1705,7 +1705,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     {id:'reglages', label:'Réglages',         icon:'<i class="ti ti-settings"></i>'}
   ];
   h += '<div id="redac-onglet-redac-contenu">';
-  h += '<div style="display:flex;gap:0.4rem;margin:0.9rem 0 0.2rem;flex-wrap:wrap;">';
+  h += '<div class="redac-sous-onglets" style="display:flex;gap:0.4rem;margin:0.9rem 0 0.2rem;flex-wrap:wrap;">';
   sousOnglets.forEach(function(so){
     var actif = _redacSousOnglet===so.id;
     h += '<button onclick="osRedacChangerSousOngletRedac(\''+so.id+'\')" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid '+(actif?'var(--rouge)':'var(--gris-bord)')+';background:'+(actif?'var(--rouge)':'white')+';color:'+(actif?'white':'var(--gris)')+';font-size:0.7rem;font-family:DM Sans,sans-serif;cursor:pointer;">'+so.icon+' '+so.label+'</button>';
@@ -2116,7 +2116,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   var mesParticipations = (window._agendaInscriptions||[]).filter(function(i){ return i.membre_id===uid && new Date(i.created_at)>=debutMois; });
 
   // Zone contenu — fond sombre comme dans la maquette
-  var h = '<div style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
+  var h = '<div class="redac-contenu" style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
   // Zone alertes — chargées en async après render
   h += '<div id="redac-alertes-zone"></div>';
 
@@ -2134,7 +2134,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   } else if(_redacOnglet === 'admin'){
     h += '<div id="redac-admin-zone" style="min-height:200px;"></div>';
   } else if(_redacOnglet === 'cps'){
-    h += '<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;"><button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button></div>';
+    h += '<div class="redac-cps-actualiser" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;"><button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button></div>';
     h += '<div id="cps-liste">'+osLoadingHtml()+'</div>';
   } else if(_redacOnglet === 'cps-abonnements'){
     h += '<div id="cps-abonnement-zone">'+osLoadingHtml()+'</div>';
@@ -2145,7 +2145,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   var onglets = _osRedacOngletsListe();
   var ongletActif = onglets.find(function(o){ return o.id === _redacOnglet; });
   if(ongletActif){
-    h += '<div style="position:absolute;left:14px;bottom:14px;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,0.14);pointer-events:none;">';
+    h += '<div class="redac-barre-flottante" style="position:absolute;left:14px;bottom:14px;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,0.14);pointer-events:none;">';
     h += '<span style="font-size:0.9rem;">'+ongletActif.icon+'</span>';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.72rem;color:var(--encre);">'+ongletActif.label+'</span>';
     h += '</div>';

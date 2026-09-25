@@ -973,7 +973,7 @@ function cpsRendreListe(liste, cps){
     +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
     +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
     +'</div>'
-    +'<button onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
+    +'<button class="cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
   liste.appendChild(recherche);
   var champRecherche = recherche.querySelector('#cps-search');
   if(champRecherche) champRecherche.oninput = function(){
@@ -988,6 +988,7 @@ function cpsRendreListe(liste, cps){
 
   // ── Filtres type
   var barreType = document.createElement('div');
+  barreType.className = 'cps-filtres';
   barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
   [
     {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
@@ -1006,6 +1007,7 @@ function cpsRendreListe(liste, cps){
   });
   if(nonLus.length > 0){
     var btnToutLu = document.createElement('button');
+    btnToutLu.className = 'cps-btn-tout-lu';
     btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
     btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
     btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
@@ -1015,6 +1017,7 @@ function cpsRendreListe(liste, cps){
 
   // ── Filtres date + vue
   var barreOpts = document.createElement('div');
+  barreOpts.className = 'cps-filtres';
   barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
   var leftDate = document.createElement('div');
   leftDate.style.cssText = 'display:flex;gap:0.3rem;';
@@ -1027,6 +1030,7 @@ function cpsRendreListe(liste, cps){
     leftDate.appendChild(b);
   });
   var rightVue = document.createElement('div');
+  rightVue.className = 'cps-vues';
   rightVue.style.cssText = 'display:flex;gap:0.3rem;';
   [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
     var b = document.createElement('button');
