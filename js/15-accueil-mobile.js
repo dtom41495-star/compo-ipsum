@@ -142,7 +142,8 @@ function _accueilChargerCompteurs(){
   var pRecrut = window._recrutementAnnonces ? Promise.resolve() :
     lire('/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id,statut').then(function(a){ if(!window._recrutementAnnonces) window._recrutementAnnonces = a; });
   try{ cpsChargerBadge(); }catch(e){}
-  Promise.all([pCorr, pEv, pInv, pSujets, pRecrut]).then(function(r){
+  var pVol = typeof cpsChargerVolontairesEnAttente === 'function' ? cpsChargerVolontairesEnAttente() : Promise.resolve();
+  Promise.all([pCorr, pEv, pInv, pSujets, pRecrut, pVol]).then(function(r){
     _accueilCompteurs = { aCorriger:r[0].length, evenements:r[1].length, invitations:r[2] };
     osAccueilMobileRendre();
   });
@@ -192,6 +193,8 @@ function osAccueilMobileRendre(){
   var c = _accueilCompteurs;
   var cartes = '';
   if(c.aCorriger) cartes += '<button type="button" class="acc-alerte chaud" data-app="mes-articles"><span class="acc-n">'+c.aCorriger+'</span><span class="acc-l">article'+(c.aCorriger>1?'s':'')+'<br>à corriger</span></button>';
+  var vol = (window._cpInvitAttente||{}).total || 0;
+  if(vol) cartes += '<button type="button" class="acc-alerte chaud" data-app="cps-invitations"><span class="acc-n">'+vol+'</span><span class="acc-l">volontaire'+(vol>1?'s':'')+' pour une<br>invitation presse</span></button>';
   if(c.invitations) cartes += '<button type="button" class="acc-alerte" data-app="cps-invitations"><span class="acc-n">'+c.invitations+'</span><span class="acc-l">invitation'+(c.invitations>1?'s':'')+' presse<br>à pourvoir</span></button>';
   if(c.evenements) cartes += '<button type="button" class="acc-alerte" data-app="agenda"><span class="acc-n">'+c.evenements+'</span><span class="acc-l">événement'+(c.evenements>1?'s':'')+'<br>cette semaine</span></button>';
 

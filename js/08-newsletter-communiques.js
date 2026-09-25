@@ -212,6 +212,12 @@ function cpsChargerBadge(){
     var appId = (role === 'admin' || (monLien && monLien.role_redac === 'redac_chef')) ? 'cps-admin' : 'cps';
     osMajBadge(appId, nonLus);
     _osRedacMajDotRail('cps', nonLus>0);
+    // Volontaires à départager : comptés dans la pastille de l'admin et des rédac chefs
+    cpsChargerVolontairesEnAttente().then(function(a){
+      if(!a.total) return;
+      osMajBadge(appId, nonLus + a.total);
+      _osRedacMajDotRail('cps', true);
+    });
   }).catch(function(){});
 }
 
@@ -695,7 +701,11 @@ function _cpInvitMacaronHTML(cp, e){
     return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px 4px 7px;border-radius:999px;background:'+fond+';border:1px solid '+bord+';color:'+coul+';font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;white-space:nowrap;">'
       +'<i class="ti ti-'+icone+'" style="font-size:1.05rem;"></i>'+texte+'</span>';
   }
+  // Admin / rédac chef : combien de volontaires attendent qu'on choisisse
+  var aChoisir = (!e.passe && !e.complet && e.nbDispo && _cpInvitPeutGerer(cp))
+    ? macaron('users', e.nbDispo+' volontaire'+(e.nbDispo>1?'s':'')+' à départager', '#EEF4FF', '#C7D7FE', '#1E3A8A') : '';
   var st = e.moi && e.moi.statut;
+  if(aChoisir && st !== 'selectionne' && st !== 'disponible') return aChoisir;
   if(st === 'selectionne') return macaron('circle-check', 'Tu couvres', '#E3F6EA', '#BFE6CD', '#1E7A45');
   if(st === 'disponible') return macaron('hourglass', 'Disponible, en attente', '#FFF6DB', '#F3DFA2', '#8A6400');
   if(st === 'refuse') return macaron('circle-minus', 'Pas retenu·e', 'var(--gris-clair)', 'var(--gris-bord)', 'var(--gris)');
@@ -717,6 +727,61 @@ function _cpsChargerDispos(cps, callback){
     window._cpsDisposParCp = map;
     if(callback) callback();
   }).catch(function(){ window._cpsDisposParCp = {}; if(callback) callback(); });
+}
+
+// Invitations presse à venir où des membres se sont proposés et attendent une réponse,
+// parmi celles que la personne connectée peut gérer (admin, rédac chef de la rédaction)
+function _cpInvitCalculerAttente(cps, disposParCp){
+  var res = { total:0, invitations:[] };
+  (cps||[]).forEach(function(cp){
+    if(cp.type !== 'invitation_presse' || cp.statut !== 'publie' || !_cpInvitPeutGerer(cp)) return;
+    var e = _cpInvitEtat(cp, (disposParCp||{})[cp.id]);
+    if(e.passe || e.complet || !e.nbDispo) return;
+    res.total += e.nbDispo;
+    res.invitations.push({ cp:cp, nb:e.nbDispo });
+  });
+  return res;
+}
+window._cpInvitAttente = { total:0, invitations:[] };
+function cpsChargerVolontairesEnAttente(){
+  var uid = getUserId();
+  var gere = getUserRole() === 'admin' || (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; });
+  if(!gere){ window._cpInvitAttente = { total:0, invitations:[] }; return Promise.resolve(window._cpInvitAttente); }
+  return fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=gte.'+encodeURIComponent(new Date().toISOString())+'&select=id,titre,type,statut,redaction_id,places_max,date_evenement',{headers:_cpInvitH()})
+    .then(function(r){ return r.json(); })
+    .then(function(cps){
+      cps = (cps && !cps.code) ? cps : [];
+      if(!cps.length) return [cps, []];
+      return fetch(SB_URL+'/rest/v1/invitations_disponibilites?communique_id=in.('+cps.map(function(c){ return encodeURIComponent(c.id); }).join(',')+')&select=communique_id,membre_id,statut',{headers:_cpInvitH()})
+        .then(function(r){ return r.json(); }).then(function(d){ return [cps, (d && !d.code) ? d : []]; });
+    })
+    .then(function(res){
+      var map = {};
+      res[1].forEach(function(d){ (map[d.communique_id] = map[d.communique_id] || []).push(d); });
+      window._cpInvitAttente = _cpInvitCalculerAttente(res[0], map);
+      return window._cpInvitAttente;
+    })
+    .catch(function(){ return window._cpInvitAttente; });
+}
+
+// Encadré en tête de la liste des communiqués : les invitations où il faut choisir qui y va
+function _cpInvitEncadreAttente(){
+  var a = window._cpInvitAttente || {};
+  if(!a.invitations || !a.invitations.length) return null;
+  var div = document.createElement('div');
+  div.className = 'cps-attente';
+  div.style.cssText = 'background:#EEF4FF;border:1px solid #C7D7FE;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;';
+  div.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#1E3A8A;margin-bottom:0.3rem;"><i class="ti ti-hand-stop"></i> '
+    +(a.total>1 ? a.total+' volontaires attendent ta réponse' : 'Un·e volontaire attend ta réponse')+'</div>'
+    + a.invitations.map(function(o){
+      var d = o.cp.date_evenement ? new Date(o.cp.date_evenement).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '';
+      return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-top:1px solid #DCE6FD;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(o.cp.titre||'Invitation presse')+'</div>'
+        +'<div style="font-size:0.72rem;color:var(--gris);">'+(d?esc(d)+' · ':'')+o.nb+' volontaire'+(o.nb>1?'s':'')+'</div></div>'
+        +'<button data-cp="'+esc(o.cp.id)+'" onclick="cpsOuvrirDetailParId(this.dataset.cp)" style="flex-shrink:0;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:6px 12px;background:#1E3A8A;color:white;border:none;border-radius:8px;cursor:pointer;">Choisir</button>'
+        +'</div>';
+    }).join('');
+  return div;
 }
 
 // Bloc "Invitation presse" en tête de la fiche d'un communiqué : l'événement à gauche,
@@ -980,6 +1045,9 @@ function cpsRendreListe(liste, cps){
   });
 
   liste.innerHTML = '';
+  window._cpInvitAttente = _cpInvitCalculerAttente(cps, window._cpsDisposParCp);
+  var encadreAttente = _cpInvitEncadreAttente();
+  if(encadreAttente) liste.appendChild(encadreAttente);
 
   // ── Barre de recherche
   var recherche = document.createElement('div');
