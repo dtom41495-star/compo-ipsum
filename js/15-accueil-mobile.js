@@ -8,7 +8,7 @@ function osEstMobile(){ return window.innerWidth <= 768; }
 
 // Rangement des tuiles par thème. Une appli absente de ces listes va dans « Outils ».
 var ACCUEIL_RUBRIQUES = [
-  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction','calendrier-edito'] },
+  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
@@ -162,6 +162,8 @@ function osAccueilMobileRendre(){
       var dnd = e.target.closest('.acc-statut');
       if(dnd){ osToggleDND(); return; }
       if(e.target.closest('.acc-quitter') && confirm('Te déconnecter de Compo ?')) seDeconnecter();
+      if(e.target.closest('.acc-installer-ok')){ osInstallerCompo(); return; }
+      if(e.target.closest('.acc-installer-non')){ _accueilInstallPlusTard(); return; }
     });
     desktop.appendChild(zone);
   }
@@ -205,6 +207,11 @@ function osAccueilMobileRendre(){
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
     +'</div>';
+  if(_accueilProposerInstall()){
+    h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'
+      +'<div class="acc-installer-txt"><strong>Installe Compo sur ton téléphone</strong><span>Une icône sur ton écran d\'accueil, comme une vraie appli.</span>'
+      +'<div class="acc-installer-btns"><button type="button" class="acc-installer-ok">Installer</button><button type="button" class="acc-installer-non">Plus tard</button></div></div></div>';
+  }
   if(cartes) h += '<div class="acc-a-faire">'+cartes+'</div>';
   if(grande) h += '<div class="acc-tuiles">'+_accueilTuile(grande.app, true, grande.sous)+'</div>';
 
@@ -229,8 +236,71 @@ function osAccueilMobileRendre(){
   try{ osDNDMajUI(); }catch(e){}
 }
 
+// ---- Installer Compo sur l'écran d'accueil du téléphone ----
+var _accInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _accInstallPrompt = e;
+  if(osEstMobile()) osAccueilMobileRendre();
+});
+window.addEventListener('appinstalled', function(){
+  _accInstallPrompt = null;
+  try{ localStorage.setItem('compo_installee', '1'); }catch(e){}
+  osAccueilMobileRendre();
+});
+function _accueilEstInstallee(){
+  return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+}
+function _accueilEstIOS(){
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+function _accueilProposerInstall(){
+  if(_accueilEstInstallee()) return false;
+  try{
+    if(localStorage.getItem('compo_installee')) return false;
+    var plusTard = +localStorage.getItem('compo_install_plus_tard') || 0;
+    if(Date.now() - plusTard < 14*24*3600*1000) return false;
+  }catch(e){}
+  return true;
+}
+function _accueilInstallPlusTard(){
+  try{ localStorage.setItem('compo_install_plus_tard', String(Date.now())); }catch(e){}
+  osAccueilMobileRendre();
+}
+function osInstallerCompo(){
+  // Android (Chrome, Edge…) : la fenêtre d'installation du téléphone
+  if(_accInstallPrompt){
+    var invite = _accInstallPrompt;
+    _accInstallPrompt = null;
+    invite.prompt();
+    if(invite.userChoice) invite.userChoice.then(function(r){
+      if(r && r.outcome === 'accepted'){ try{ localStorage.setItem('compo_installee', '1'); }catch(e){} }
+      osAccueilMobileRendre();
+    });
+    return;
+  }
+  // iPhone, ou navigateur sans installation automatique : la marche à suivre
+  var etapes = _accueilEstIOS()
+    ? [['share-2', 'Touche le bouton <strong>Partager</strong>, en bas de l\'écran (en haut sur iPad).'],
+       ['square-plus', 'Choisis <strong>Sur l\'écran d\'accueil</strong> (fais défiler la liste si besoin).'],
+       ['check', 'Touche <strong>Ajouter</strong>. Compo apparaît avec les autres applis.']]
+    : [['dots-vertical', 'Ouvre le <strong>menu du navigateur</strong> (les trois points, en haut à droite).'],
+       ['device-mobile-plus', 'Choisis <strong>Installer l\'application</strong> ou <strong>Ajouter à l\'écran d\'accueil</strong>.'],
+       ['check', 'Confirme. Compo apparaît avec les autres applis.']];
+  var ov = document.createElement('div');
+  ov.className = 'acc-menu-voile';
+  ov.innerHTML = '<div class="acc-menu acc-installer-aide"><div class="acc-menu-poignee"></div>'
+    +'<div class="acc-installer-aide-titre">Installer Compo</div>'
+    + etapes.map(function(e, i){ return '<div class="acc-installer-etape"><span class="acc-installer-num">'+(i+1)+'</span><i class="ti ti-'+e[0]+'"></i><span>'+e[1]+'</span></div>'; }).join('')
+    +(_accueilEstIOS() ? '<div class="acc-installer-note">Tu devras te reconnecter une fois dans l\'appli installée.</div>' : '')
+    +'<button type="button" class="acc-installer-fermer">J\'ai compris</button></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov || e.target.closest('.acc-installer-fermer')) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
 // ---- Bouton « Accueil » dans les fenêtres, et bouton retour du téléphone ----
 var _accIgnorerRetour = false;
+var _accSansHistorique = false; // retour à la liste : l'entrée d'historique existe déjà
 function _accueilPreparerFenetre(win){
   if(!win || win.dataset.accPret) return;
   win.dataset.accPret = '1';
@@ -240,17 +310,18 @@ function _accueilPreparerFenetre(win){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'acc-btn-accueil';
-    btn.innerHTML = '<i class="ti ti-chevron-left"></i>Accueil';
+    btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+(ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil');
     btn.addEventListener('click', function(e){
       e.stopPropagation();
-      osCloseWindow(pageId);
+      _accueilRetourDepuis(pageId, win);
       if(history.state && history.state.compoFenetre){ _accIgnorerRetour = true; history.back(); }
     });
     barre.insertBefore(btn, barre.firstChild);
   }
-  if(osEstMobile()){
+  if(osEstMobile() && !_accSansHistorique){
     try{ history.pushState({compoFenetre:pageId}, ''); }catch(e){}
   }
+  _accSansHistorique = false;
   if(pageId === 'redactions' && osEstMobile()) setTimeout(_accueilPreparerMaRedac, 0);
 }
 window.addEventListener('popstate', function(){
@@ -259,7 +330,7 @@ window.addEventListener('popstate', function(){
   var ouvertes = Object.keys(window._windows||{});
   if(!ouvertes.length) return;
   var id = ouvertes[ouvertes.length-1];
-  osCloseWindow(id);
+  _accueilRetourDepuis(id, document.getElementById('win-'+id));
   // Fermeture refusée (article non enregistré) : on remet l'entrée d'historique, pour que
   // le prochain « retour » ne quitte pas Compo
   setTimeout(function(){ if(_windows[id]){ try{ history.pushState({compoFenetre:id}, ''); }catch(e){} } }, 400);
@@ -413,7 +484,8 @@ function _accueilMenusMaRedac(onglet){
       m.push({icon:'mail', label:'Notifier les abonnés', action:function(){ osEnvoyerNotifsSujets(); }});
       m.push({icon:'trash', label:'Nettoyer les sujets publiés', action:function(){ osNettoyerSujetsPublies(); }});
     }
-    return { menu:m, flottant: chef ? {icon:'plus', label:'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
+    var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : (chef ? 'chef' : null);
+    return { menu:m, flottant: droit ? {icon:droit==='chef'?'plus':'bulb', label:droit==='chef'?'Nouveau sujet':'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
   }
   if(onglet === 'cps'){
     return { menu:[
@@ -422,6 +494,9 @@ function _accueilMenusMaRedac(onglet){
       {icon:'download', label:'Exporter en CSV', action:function(){ cpsExportCSV(); }},
       {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
     ]};
+  }
+  if(onglet === 'redac' && chef && _redacSousOnglet === 'membres' && ctx.redacId){
+    return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ osRedacChefAjouterMembre(ctx.redacId); }} };
   }
   return {};
 }
@@ -434,10 +509,13 @@ function _accueilPreparerMaRedac(){
   win.classList.add('redac-directe');
   var titre = win.querySelector('.os-titlebar-title');
   if(titre) titre.textContent = ACCUEIL_REDAC_TITRES[onglet] || 'Ma rédac\'';
-  // Menu « … » dans la barre de titre, et bouton flottant, propres à l'onglet
+  _accueilActionsFenetre(win, _accueilMenusMaRedac(onglet));
+}
+
+// Menu « … » dans la barre de titre, et bouton flottant, propres à l'écran affiché
+function _accueilActionsFenetre(win, conf){
   var ancien = win.querySelector('.acc-btn-menu'); if(ancien) ancien.remove();
   var ancienF = win.querySelector('.acc-flottant'); if(ancienF) ancienF.remove();
-  var conf = _accueilMenusMaRedac(onglet);
   var barre = win.querySelector('.os-titlebar');
   if(conf.menu && barre){
     var b = document.createElement('button');
@@ -455,10 +533,52 @@ function _accueilPreparerMaRedac(){
   }
 }
 
+// Mes articles sur téléphone : « Nouvel article » en bas, « Actualiser » dans le menu
+function _accueilPreparerMesArticles(){
+  if(!osEstMobile()) return;
+  var app = document.querySelector('.os-window .ma-app');
+  var win = app && app.closest('.os-window');
+  if(!win) return;
+  _accueilActionsFenetre(win, {
+    menu:[{icon:'refresh', label:'Actualiser', action:function(){ osMesArticlesCharger(); }}],
+    flottant:{icon:'plus', label:'Nouvel article', action:function(){ osOuvrirNouvelArticle(); }}
+  });
+}
+var _osMesArticlesRenderAvantAccueil = osMesArticlesRender;
+osMesArticlesRender = function(){
+  _osMesArticlesRenderAvantAccueil.apply(this, arguments);
+  setTimeout(_accueilPreparerMesArticles, 0);
+};
+
+// Sur téléphone une seule appli est ouverte à la fois : un article ouvert depuis Mes
+// articles remplace la liste. Le bouton retour y ramène au lieu de revenir à l'accueil.
+var ACCUEIL_RETOUR_VERS = { 'mes-articles':'Mes articles', 'app-correction':'Corrections' };
+var _osOpenWindowAvantAccueil = osOpenWindow;
+osOpenWindow = function(pageId){
+  var precedente = osEstMobile() ? Object.keys(window._windows||{}).filter(function(id){ return id !== pageId; }).pop() : null;
+  var res = _osOpenWindowAvantAccueil.apply(this, arguments);
+  var win = document.getElementById('win-'+pageId);
+  if(win && precedente && ACCUEIL_RETOUR_VERS[precedente] && !win.dataset.accPret){
+    win.dataset.accRetour = precedente;
+  }
+  return res;
+};
+function _accueilRetourDepuis(pageId, win){
+  var vers = win && win.dataset.accRetour;
+  osCloseWindow(pageId);
+  if(vers && !_windows[pageId]) setTimeout(function(){ if(!_windows[pageId]){ _accSansHistorique = true; osOpenWindow(vers); } }, 0);
+}
+
 // Changer d'onglet depuis l'intérieur (ex. « Voir tous » dans le profil) met à jour le titre
 var _osRedactionsChangerOngletAvantAccueil = osRedactionsChangerOnglet;
 osRedactionsChangerOnglet = function(onglet){
   _osRedactionsChangerOngletAvantAccueil.apply(this, arguments);
+  if(osEstMobile()) _accueilPreparerMaRedac();
+};
+
+var _osRedacChangerSousOngletRedacAvantAccueil = osRedacChangerSousOngletRedac;
+osRedacChangerSousOngletRedac = function(){
+  _osRedacChangerSousOngletRedacAvantAccueil.apply(this, arguments);
   if(osEstMobile()) _accueilPreparerMaRedac();
 };
 

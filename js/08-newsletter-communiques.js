@@ -489,7 +489,13 @@ function _cpInvitPrevenirGestionnaires(cp, cas, dispos){
 // cas : 'retenu' (tu couvres) ou 'pas_retenu'. retenusIds : toutes les personnes
 // retenues à ce moment-là (pour dire qui y va / avec qui).
 function _cpInvitNotifierMembre(cp, membreId, cas, retenusIds){
-  _cpInvitChargerMembres([membreId].concat(retenusIds||[])).then(function(membres){
+  // Coordonnées de la source : seulement pour la personne retenue
+  var pContact = (cas === 'retenu' && cp.contact_id)
+    ? fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,poste,organisation,email,telephone',{headers:_cpInvitH()})
+        .then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d[0] : null; }).catch(function(){ return null; })
+    : Promise.resolve(null);
+  Promise.all([_cpInvitChargerMembres([membreId].concat(retenusIds||[])), pContact]).then(function(res){
+    var membres = res[0], contact = res[1];
     var m = membres.find(function(x){ return x.id === membreId; });
     if(!m) return;
     var autres = membres.filter(function(x){ return x.id !== membreId && (retenusIds||[]).indexOf(x.id) !== -1; });
@@ -500,16 +506,25 @@ function _cpInvitNotifierMembre(cp, membreId, cas, retenusIds){
       sujet = '[Ipsum Média] C\'est toi qui couvres · '+titreCp;
       var boutons = [{label:'Voir l\'invitation', url:lien}];
       if(cp.date_evenement) boutons.push({label:'Ajouter à mon agenda', url:_cpInvitLienAgenda(cp), secondaire:true});
+      var contactHtml = contact && (contact.email || contact.telephone)
+        ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;background:#F7F7F5;border-radius:10px;"><tr><td style="padding:12px 16px;font:400 14px/1.6 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';">'
+          +'<div style="font:600 10px/1.6 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:'+EMAIL_COUL.gris+';">Contact sur place</div>'
+          +'<strong>'+esc(contact.nom||'')+'</strong>'+(contact.poste?' · '+esc(contact.poste):'')+(contact.organisation?' · '+esc(contact.organisation):'')
+          +(contact.email?'<br><a href="mailto:'+esc(contact.email)+'" style="color:'+EMAIL_COUL.rouge+';text-decoration:none;">'+esc(contact.email)+'</a>':'')
+          +(contact.telephone?'<br>'+esc(contact.telephone):'')
+          +'</td></tr></table>'
+        : '';
       email = _emailCompo({ accent:'vert', etiquette:'TU COUVRES', titre:'C\'est toi qui couvres cette invitation',
         bonjour:'Bonjour '+esc(m.prenom||'')+',',
         texte:'Tu as été choisi·e pour couvrir cette invitation presse'+(autres.length?', avec '+esc(_cpInvitNoms(autres)):'')+'. Voici les informations pratiques.',
-        contenu:_emailCarteInvitation(cp, false),
+        contenu:_emailCarteInvitation(cp, false)+contactHtml,
         apresCarte:'Un empêchement ? Retire-toi depuis la fiche de l\'invitation dans Compo : les responsables seront prévenus pour trouver quelqu\'un d\'autre.',
         boutons:boutons,
         pourquoi:'Tu reçois cet email car tu t\'étais déclaré·e disponible pour cette invitation.' });
       chat = '✅ *C\'est toi qui couvres une invitation presse*\n'
         +'« '+_chatSansMiseEnForme(titreCp)+' »'+(autres.length?' avec '+_chatSansMiseEnForme(_cpInvitNoms(autres)):'')+'\n'
         +(_cpInvitLigneChat(cp)?_cpInvitLigneChat(cp)+'\n':'')
+        +(contact && (contact.email||contact.telephone) ? 'Contact : '+_chatSansMiseEnForme(contact.nom||'')+(contact.email?' · '+contact.email:'')+(contact.telephone?' · '+contact.telephone:'')+'\n' : '')
         +'Un empêchement ? Retire-toi depuis la fiche, les responsables seront prévenus.\n'
         +'<'+lien+'|Voir l\'invitation>';
     } else {
@@ -1539,24 +1554,32 @@ function osCpFenetreRender(winId){
   if(cp.contact_id){
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
     var uid = getUserId();
+    // Coordonnées (email, téléphone) : seulement pour la personne choisie pour couvrir
+    // une invitation presse. Les autres voient le nom et l'organisation de la source.
+    var estInvit = cp.type === 'invitation_presse';
+    var pChoisi = !estInvit ? Promise.resolve(false) :
+      _cpInvitChargerDispos(cp.id).then(function(ds){ return (ds||[]).some(function(d){ return d.membre_id === uid && d.statut === 'selectionne'; }); }).catch(function(){ return false; });
     Promise.all([
       fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,organisation,poste,email,telephone',{headers:authH}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid+'&contact_id=eq.'+encodeURIComponent(cp.contact_id)+'&select=contact_id',{headers:authH}).then(function(r){return r.json();})
+      fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid+'&contact_id=eq.'+encodeURIComponent(cp.contact_id)+'&select=contact_id',{headers:authH}).then(function(r){return r.json();}),
+      pChoisi
     ]).then(function(results){
       var c = results[0]&&results[0][0];
       var estAbonne = results[1]&&results[1].length>0;
+      var voitCoordonnees = results[2] === true;
       var el = document.getElementById('cp-win-contact-'+winId);
       if(!el||!c) return;
       el.innerHTML =
         '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">'
-        +'<div style="flex:1;">📇 <strong>'+esc(c.nom||'')+'</strong>'
+        +'<div style="flex:1;"><i class="ti ti-address-book"></i> <strong>'+esc(c.nom||'')+'</strong>'
         +(c.poste?' · <span style="font-size:0.85em;">'+esc(c.poste)+'</span>':'')
-        +(c.organisation?' — '+esc(c.organisation):'')+'<br>'
-        +(c.email?'<a href="mailto:'+esc(c.email)+'" style="color:#0C447C;">'+esc(c.email)+'</a>':'')
-        +(c.telephone?' · '+esc(c.telephone):'')
+        +(c.organisation?' — '+esc(c.organisation):'')
+        +(voitCoordonnees
+          ? '<br>'+(c.email?'<a href="mailto:'+esc(c.email)+'" style="color:#0C447C;">'+esc(c.email)+'</a>':'')+(c.telephone?' · <a href="tel:'+esc(c.telephone)+'" style="color:#0C447C;">'+esc(c.telephone)+'</a>':'')
+          : (estInvit ? '<br><span style="opacity:0.75;">Coordonnées visibles une fois choisi·e pour couvrir l\'invitation</span>' : ''))
         +'</div>'
         +'<button data-contact="'+esc(cp.contact_id)+'" data-abonne="'+(estAbonne?'1':'0')+'" onclick="cpsBasculeAbonnementSource(this.dataset.contact, this.dataset.abonne===\'1\', this)" style="font-size:0.65rem;padding:3px 8px;background:'+(estAbonne?'#C8DDF5':'#E6F1FB')+';border:1px solid #8AB4D6;border-radius:5px;cursor:pointer;color:#0C447C;">'
-        +(estAbonne?'🔔 Abonné':'🔔 S\'abonner à cette source')+'</button>'
+        +'<i class="ti ti-bell"></i> '+(estAbonne?'Abonné':'S\'abonner à cette source')+'</button>'
         +'</div>';
     }).catch(function(){});
   }

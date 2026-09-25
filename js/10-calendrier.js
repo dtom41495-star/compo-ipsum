@@ -1,430 +1,3 @@
-// ===== CALENDRIER ÉDITORIAL =====
-var _caleMois = new Date().getMonth();
-var _caleAnnee = new Date().getFullYear();
-var _caleData = { sujets:[], cps:[], articles:[], posts:[] };
-var PLATEFORME_ICONS = { instagram:'📸', facebook:'👍', tiktok:'🎵', threads:'🧵' };
-var SUJET_STATUT_STYLE = {
-  ouvert:'background:#FFF3CD;color:#856404;',
-  en_cours:'background:#D6EAF8;color:#1A5276;',
-  publie:'background:#D4EDDA;color:#155724;'
-};
-
-function _caleEstChefOuAdmin(){
-  var role = getUserRole();
-  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
-  return role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
-}
-
-function _caleDateStr(annee, mois, jour){
-  return annee+'-'+pad(mois+1)+'-'+pad(jour);
-}
-
-function osCalendrierEditoRender(){
-  var wc = document.getElementById('wincontent-calendrier-edito');
-  if(!wc) return;
-  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
-  wc.innerHTML = osLoadingHtml();
-  _caleChargerDonnees(function(){ _caleRendreVue(); });
-}
-
-function _caleChargerDonnees(callback){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var redacId = window._redacActiveId;
-  var qs = redacId ? '&redaction_id=eq.'+encodeURIComponent(redacId) : '';
-  Promise.all([
-    fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours,publie)&date_cible=not.is.null'+qs+'&select=*',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/communiques?date_cp=not.is.null'+qs+'&select=id,titre,objet,date_cp,statut',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?statut=eq.publie'+qs+'&select=id,titre,type,updated_at&order=updated_at.desc&limit=200',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/posts_reseaux?select=*'+qs,{headers:authH}).then(function(r){return r.json();})
-  ]).then(function(results){
-    _caleData.sujets   = (!results[0]||results[0].code) ? [] : results[0];
-    _caleData.cps      = (!results[1]||results[1].code) ? [] : results[1];
-    _caleData.articles = (!results[2]||results[2].code) ? [] : results[2];
-    _caleData.posts    = (!results[3]||results[3].code) ? [] : results[3];
-    if(callback) callback();
-  }).catch(function(){
-    _caleData = { sujets:[], cps:[], articles:[], posts:[] };
-    if(callback) callback();
-  });
-}
-
-function _caleItemsDuJour(d){
-  var items = [];
-  (_caleData.sujets||[]).forEach(function(s){
-    if(!s.date_cible) return;
-    var dj = new Date(s.date_cible+'T00:00:00');
-    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
-      var initiales = s.responsable ? ' · '+s.responsable.trim().split(' ').map(function(p){return p[0]||'';}).join('').toUpperCase().slice(0,2) : '';
-      items.push({ type:'sujet', raw:s, label:esc(s.titre||'Sujet')+initiales, style:SUJET_STATUT_STYLE[s.statut]||SUJET_STATUT_STYLE.ouvert });
-    }
-  });
-  (_caleData.cps||[]).forEach(function(c){
-    if(!c.date_cp) return;
-    var dj = new Date(c.date_cp+'T00:00:00');
-    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
-      items.push({ type:'cp', raw:c, label:'📰 '+esc(c.titre||c.objet||'CP'), style:'background:#EAE0F0;color:#4A235A;' });
-    }
-  });
-  (_caleData.articles||[]).forEach(function(a){
-    if(!a.updated_at) return;
-    var dj = new Date(a.updated_at);
-    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
-      var icon = a.type==='breve' ? '⚡' : '📄';
-      items.push({ type:'article', raw:a, label:icon+' '+esc(a.titre||'Article'), style:'background:#D4EDDA;color:#155724;' });
-    }
-  });
-  (_caleData.posts||[]).forEach(function(p){
-    if(!p.date_prevue) return;
-    var dj = new Date(p.date_prevue+'T00:00:00');
-    if(dj.getDate()===d && dj.getMonth()===_caleMois && dj.getFullYear()===_caleAnnee){
-      var icon = PLATEFORME_ICONS[p.plateforme]||'📱';
-      var estPublie = p.statut==='publie';
-      items.push({ type:'post', raw:p, label:icon+' '+esc((p.contenu||'').slice(0,30)), style: estPublie ? 'background:#7D3C98;color:white;' : 'background:white;color:#7D3C98;border:1px solid #7D3C98;' });
-    }
-  });
-  return items;
-}
-
-function _caleRendreVue(){
-  var wc = document.getElementById('wincontent-calendrier-edito');
-  if(!wc) return;
-  wc.innerHTML = '';
-  var estChefOuAdmin = _caleEstChefOuAdmin();
-
-  var hdr = document.createElement('div');
-  hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.7rem 1.2rem;';
-  hdr.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);">🗓️ Calendrier éditorial</div>';
-  wc.appendChild(hdr);
-
-  var nav = document.createElement('div');
-  nav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.6rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;';
-  var moisNom = new Date(_caleAnnee,_caleMois,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  nav.innerHTML =
-    '<button onclick="_caleMoisPrev()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;">‹</button>'
-    +'<div style="flex:1;text-align:center;font-family:Poppins,sans-serif;font-weight:600;font-size:0.9rem;color:var(--encre);text-transform:capitalize;">'+moisNom+'</div>'
-    +'<button onclick="_caleMoisNext()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;">›</button>';
-  wc.appendChild(nav);
-
-  var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-  var hdrJours = document.createElement('div');
-  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
-  JOURS.forEach(function(j, idx){
-    var el = document.createElement('div');
-    el.style.cssText = 'text-align:center;font-family:Space Mono,monospace;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
-    el.textContent = j;
-    hdrJours.appendChild(el);
-  });
-  wc.appendChild(hdrJours);
-
-  var scrollZone = document.createElement('div');
-  scrollZone.style.cssText = 'flex:1;overflow-y:auto;padding:0 0.6rem 0.6rem;';
-
-  var cellGrid = document.createElement('div');
-  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gris-bord);';
-
-  var premier = new Date(_caleAnnee, _caleMois, 1);
-  var jourSemaine = (premier.getDay() + 6) % 7;
-  var nbJours = new Date(_caleAnnee, _caleMois+1, 0).getDate();
-  var today = new Date();
-
-  for(var i=0; i<jourSemaine; i++){
-    var empty = document.createElement('div');
-    empty.style.cssText = 'min-height:78px;background:var(--gris-clair);';
-    cellGrid.appendChild(empty);
-  }
-
-  for(var d=1; d<=nbJours; d++){
-    var isToday = today.getDate()===d && today.getMonth()===_caleMois && today.getFullYear()===_caleAnnee;
-    var isWeekend = ((d + jourSemaine - 1) % 7) >= 5;
-    var itemsDuJour = _caleItemsDuJour(d);
-
-    var cell = document.createElement('div');
-    cell.style.cssText = 'min-height:78px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:pointer;';
-
-    var numEl = document.createElement('div');
-    numEl.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
-    numEl.textContent = d;
-    cell.appendChild(numEl);
-
-    itemsDuJour.slice(0,3).forEach(function(item){
-      var chip = document.createElement('div');
-      chip.style.cssText = 'font-size:0.5rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;'+item.style;
-      chip.textContent = item.label;
-      cell.appendChild(chip);
-    });
-    if(itemsDuJour.length > 3){
-      var more = document.createElement('div');
-      more.style.cssText = 'font-size:0.5rem;color:var(--rouge);font-family:Space Mono,monospace;font-weight:600;';
-      more.textContent = '+'+(itemsDuJour.length-3)+' autres';
-      cell.appendChild(more);
-    }
-
-    cell.onclick = (function(dateStr, items){ return function(){ _caleOuvrirJour(dateStr, items); }; })(_caleDateStr(_caleAnnee,_caleMois,d), itemsDuJour);
-    cellGrid.appendChild(cell);
-  }
-
-  scrollZone.appendChild(cellGrid);
-  wc.appendChild(scrollZone);
-
-  var footer = document.createElement('div');
-  footer.id = 'cale-sujets-a-programmer';
-  footer.style.cssText = 'flex-shrink:0;';
-  wc.appendChild(footer);
-  if(estChefOuAdmin) _caleRendreSujetsAProgrammer();
-}
-
-function _caleMoisPrev(){ _caleMois--; if(_caleMois<0){_caleMois=11;_caleAnnee--;} _caleRendreVue(); }
-function _caleMoisNext(){ _caleMois++; if(_caleMois>11){_caleMois=0;_caleAnnee++;} _caleRendreVue(); }
-
-function _caleOuvrirJour(dateStr, items){
-  var existing = document.getElementById('cale-jour-overlay');
-  if(existing) existing.parentNode.removeChild(existing);
-  var estChefOuAdmin = _caleEstChefOuAdmin();
-  var overlay = document.createElement('div');
-  overlay.id = 'cale-jour-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:12px;max-width:420px;width:100%;max-height:78vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:1.2rem;';
-
-  var dateAff = new Date(dateStr+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">'
-    +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);text-transform:capitalize;">'+dateAff+'</div>'
-    +'<button onclick="document.getElementById(\'cale-jour-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
-    +'</div>';
-
-  if(!items.length){
-    h += '<div style="text-align:center;padding:1.2rem 0.5rem;color:var(--gris);font-size:0.78rem;">Rien de prévu ce jour-là.</div>';
-  }
-
-  items.forEach(function(item){
-    h += '<div style="border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 0.8rem;margin-bottom:0.5rem;">';
-    if(item.type==='sujet'){
-      var s = item.raw;
-      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+esc(s.titre||'')+'</div>';
-      h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.4rem;">Sujet · '+esc(s.statut||'')+(s.responsable?' · '+esc(s.responsable):'')+'</div>';
-      if(estChefOuAdmin){
-        h += '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">'
-          +'<input type="date" id="cale-date-sujet-'+s.id+'" value="'+(s.date_cible||'')+'" style="width:130px;flex-shrink:0;font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
-          +'<button data-id="'+s.id+'" onclick="_caleReprogrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Déplacer</button>'
-          +'<button data-id="'+s.id+'" onclick="_caleRetirerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Retirer</button>'
-          +'</div>';
-      }
-    } else if(item.type==='cp'){
-      var c = item.raw;
-      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">📰 '+esc(c.titre||c.objet||'')+'</div>';
-      h += '<div style="font-size:0.68rem;color:var(--gris);">Communiqué de presse</div>';
-    } else if(item.type==='article'){
-      var a = item.raw;
-      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+(a.type==='breve'?'⚡':'📄')+' '+esc(a.titre||'')+'</div>';
-      h += '<div style="font-size:0.68rem;color:var(--gris);">'+(a.type==='breve'?'Brève publiée':'Article publié')+'</div>';
-    } else if(item.type==='post'){
-      var p = item.raw;
-      h += '<div style="font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.2rem;">'+(PLATEFORME_ICONS[p.plateforme]||'📱')+' '+esc(p.contenu||'')+'</div>';
-      h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.4rem;">'+esc(p.plateforme||'')+' · '+(p.statut==='publie'?'Publié':'Prévu')+'</div>';
-      if(estChefOuAdmin){
-        h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
-        if(p.statut!=='publie') h += '<button data-id="'+p.id+'" onclick="_calePostMarquerPublie(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:#155724;color:white;cursor:pointer;">Marquer publié</button>';
-        h += '<input type="date" id="cale-date-post-'+p.id+'" value="'+(p.date_prevue||'')+'" style="width:130px;flex-shrink:0;font-size:0.72rem;padding:3px 6px;border:1px solid var(--gris-bord);border-radius:4px;">'
-          +'<button data-id="'+p.id+'" onclick="_calePostReplanifier(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;">Replanifier</button>'
-          +'<button data-id="'+p.id+'" onclick="_calePostSupprimer(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">Supprimer</button>';
-        h += '</div>';
-      }
-    }
-    h += '</div>';
-  });
-
-  if(estChefOuAdmin){
-    h += '<button onclick="document.getElementById(\'cale-jour-overlay\').remove();osOuvrirPostReseauModal(\''+dateStr+'\')" style="width:100%;margin-top:0.4rem;padding:0.5rem;background:transparent;border:1.5px dashed #7D3C98;border-radius:8px;color:#7D3C98;font-size:0.75rem;font-weight:600;cursor:pointer;">+ Ajouter un post réseaux</button>';
-  }
-
-  modal.innerHTML = h;
-  overlay.appendChild(modal);
-  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
-}
-
-function _caleFermerJourEtRafraichir(){
-  var overlay = document.getElementById('cale-jour-overlay');
-  if(overlay) overlay.remove();
-  osCalendrierEditoRender();
-}
-
-function _caleReprogrammerSujet(sujetId){
-  var input = document.getElementById('cale-date-sujet-'+sujetId);
-  var val = input ? input.value : '';
-  if(!val){ notif('Choisis une date'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
-    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:val})
-  }).then(function(r){
-    if(r.ok){ notif('Sujet reprogrammé ✓','succes'); _caleFermerJourEtRafraichir(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function _caleRetirerSujet(sujetId){
-  if(!confirm('Retirer ce sujet du calendrier ? Il reste dans les sujets, juste sans échéance.')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
-    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:null})
-  }).then(function(r){
-    if(r.ok){ notif('Retiré du calendrier'); _caleFermerJourEtRafraichir(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function _calePostMarquerPublie(postId){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
-    method:'PATCH', headers:authH, body:JSON.stringify({statut:'publie'})
-  }).then(function(r){
-    if(r.ok){ notif('Post marqué publié ✓','succes'); _caleFermerJourEtRafraichir(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function _calePostReplanifier(postId){
-  var input = document.getElementById('cale-date-post-'+postId);
-  var val = input ? input.value : '';
-  if(!val){ notif('Choisis une date'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
-    method:'PATCH', headers:authH, body:JSON.stringify({date_prevue:val})
-  }).then(function(r){
-    if(r.ok){ notif('Post replanifié ✓','succes'); _caleFermerJourEtRafraichir(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function _calePostSupprimer(postId){
-  if(!confirm('Supprimer ce post prévu ?')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/posts_reseaux?id=eq.'+encodeURIComponent(postId),{
-    method:'DELETE', headers:authH
-  }).then(function(r){
-    if(r.ok){ notif('Post supprimé'); _caleFermerJourEtRafraichir(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function _caleRendreSujetsAProgrammer(){
-  var zone = document.getElementById('cale-sujets-a-programmer');
-  if(!zone) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var redacId = window._redacActiveId;
-  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&date_cible=is.null&order=created_at.desc&select=id,titre,statut';
-  if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
-  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
-    sujets = (!sujets||sujets.code) ? [] : sujets;
-    if(!sujets.length){ zone.innerHTML=''; return; }
-    var h = '<div style="border-top:1px solid var(--gris-bord);background:white;padding:0.7rem 1.2rem;max-height:150px;overflow-y:auto;">';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.5rem;">Sujets à programmer ('+sujets.length+')</div>';
-    sujets.forEach(function(s){
-      h += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--gris-clair);">';
-      h += '<div style="flex:1;min-width:0;font-size:0.78rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(s.titre||'')+'</div>';
-      h += '<input type="date" id="cale-prog-'+s.id+'" style="width:130px;flex-shrink:0;font-size:0.7rem;padding:2px 5px;border:1px solid var(--gris-bord);border-radius:4px;">';
-      h += '<button data-id="'+s.id+'" onclick="_caleProgrammerSujet(this.dataset.id)" style="font-size:0.62rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;flex-shrink:0;">Programmer</button>';
-      h += '</div>';
-    });
-    h += '</div>';
-    zone.innerHTML = h;
-  }).catch(function(){ zone.innerHTML=''; });
-}
-
-function _caleProgrammerSujet(sujetId){
-  var input = document.getElementById('cale-prog-'+sujetId);
-  var val = input ? input.value : '';
-  if(!val){ notif('Choisis une date'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
-    method:'PATCH', headers:authH, body:JSON.stringify({date_cible:val})
-  }).then(function(r){
-    if(r.ok){ notif('Sujet programmé ✓','succes'); osCalendrierEditoRender(); }
-    else notif('Erreur','erreur');
-  });
-}
-
-function osOuvrirPostReseauModal(datePreremplie){
-  var existing = document.getElementById('post-reseau-modal-overlay');
-  if(existing) existing.parentNode.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.id = 'post-reseau-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
-  card.innerHTML =
-    '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">📱 Planifier un post réseaux</div>'
-    +'<button onclick="document.getElementById(\'post-reseau-modal-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
-    +'</div>'
-    +'<div style="padding:1.2rem 1.5rem;">'
-    +'<div class="form-grid" style="margin-bottom:1rem;">'
-    +'<div class="form-group full"><label>Contenu / légende</label><textarea id="pr-contenu" style="min-height:70px;" placeholder="Ce que dit le post..."></textarea></div>'
-    +'<div class="form-group"><label>Plateforme</label><select id="pr-plateforme"><option value="instagram">📸 Instagram</option><option value="facebook">👍 Facebook</option><option value="tiktok">🎵 TikTok</option><option value="threads">🧵 Threads</option></select></div>'
-    +'<div class="form-group"><label>Date</label><input type="date" id="pr-date" value="'+(datePreremplie||'')+'"></div>'
-    +'<div class="form-group full"><label>Article lié (optionnel)</label><select id="pr-article"><option value="">— Aucun —</option></select></div>'
-    +'</div>'
-    +'<div class="btn-row">'
-    +'<button class="btn" onclick="osEnregistrerPostReseau()">Enregistrer</button>'
-    +'</div>'
-    +'</div>';
-
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
-  _calePeuplerArticlesRecents();
-}
-
-function _calePeuplerArticlesRecents(){
-  var sel = document.getElementById('pr-article');
-  if(!sel) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var redacId = window._redacActiveId;
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&order=updated_at.desc&limit=20&select=id,titre';
-  if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
-  fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(arts){
-    arts = (!arts||arts.code) ? [] : arts;
-    arts.forEach(function(a){
-      var opt = document.createElement('option');
-      opt.value = a.id; opt.textContent = a.titre||a.id;
-      sel.appendChild(opt);
-    });
-  }).catch(function(){});
-}
-
-function osEnregistrerPostReseau(){
-  var contenu = ((document.getElementById('pr-contenu')||{}).value||'').trim();
-  var plateforme = (document.getElementById('pr-plateforme')||{}).value||'instagram';
-  var date = (document.getElementById('pr-date')||{}).value||'';
-  var articleId = (document.getElementById('pr-article')||{}).value||null;
-  if(!contenu || !date){ notif('Contenu et date obligatoires'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var payload = {
-    id:'RS-'+Date.now(),
-    contenu:contenu,
-    plateforme:plateforme,
-    date_prevue:date,
-    statut:'prevu',
-    article_id:articleId||null,
-    redaction_id:window._redacActiveId||null,
-    created_by:getUserId()
-  };
-  fetch(SB_URL+'/rest/v1/posts_reseaux',{method:'POST',headers:authH,body:JSON.stringify(payload)})
-  .then(function(r){
-    if(r.ok){
-      notif('Post réseaux planifié ✓','succes');
-      var overlay = document.getElementById('post-reseau-modal-overlay');
-      if(overlay) overlay.remove();
-      osCalendrierEditoRender();
-    } else notif('Erreur','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
-}
-
-// Couleurs reprises telles quelles d'ailleurs dans l'app (badge "en-relecture", teinte
-// "communicant", bleu "rédaction centrale"...) plutôt qu'inventées pour l'occasion —
-// chaque action rapide garde le langage visuel de l'app qu'elle ouvre.
 function _osRedacActionsRapides(role, roleRedac){
   var actions = {
     redacteur: [
@@ -670,6 +243,8 @@ function osRedacChefEdito(zone, redacId){
     if(artBloques.length) h += '<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#A32D2D;"><i class="ti ti-alert-triangle" style="vertical-align:-2px;margin-right:3px;"></i>'+artBloques.length+' article(s) bloqué(s) en correction depuis +5 jours</div>';
     if(artValides.length) h += '<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;"><i class="ti ti-circle-check" style="vertical-align:-2px;margin-right:3px;"></i>'+artValides.length+' article(s) validé(s) en attente de publication</div>';
 
+    if(osEstMobile()){ zone.innerHTML = h + _osRedacEditoMobile(articles, statDef) + '</div>'; return; }
+
     // Filtres statut
     h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
     ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(s){
@@ -715,8 +290,33 @@ function osRedacChefEdito(zone, redacId){
 }
 
 function osRedacEditoFiltre(statut){
-  var rows = document.querySelectorAll('#redac-edito-table tbody tr');
+  var rows = document.querySelectorAll('#redac-edito-table [data-statut]');
   rows.forEach(function(r){ r.style.display = (statut==='tous'||r.dataset.statut===statut) ? '' : 'none'; });
+  document.querySelectorAll('.re-filtres button').forEach(function(b){ b.classList.toggle('actif', b.dataset.f === statut); });
+}
+
+// Suivi éditorial sur téléphone : filtres en onglets, une carte par article
+function _osRedacEditoMobile(articles, statDef){
+  var h = '<div class="re-filtres"><button type="button" class="actif" data-f="tous" onclick="osRedacEditoFiltre(this.dataset.f)">Tous '+articles.length+'</button>';
+  ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(st){
+    var n = articles.filter(function(a){ return a.statut===st; }).length;
+    if(n) h += '<button type="button" data-f="'+st+'" onclick="osRedacEditoFiltre(this.dataset.f)">'+statDef[st].l+' '+n+'</button>';
+  });
+  h += '</div><div id="redac-edito-table" class="re-liste">';
+  articles.forEach(function(a){
+    var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
+    var age = Math.floor((Date.now()-new Date(a.updated_at))/86400000);
+    var bloque = (a.statut==='en-relecture'||a.statut==='corrige') && age>5;
+    h += '<div class="re-carte'+(bloque?' re-bloque':'')+'" data-statut="'+esc(a.statut||'')+'">'
+      +'<div class="re-haut"><span class="re-statut" style="background:'+sd.bg+';color:'+sd.c+';">'+sd.l+'</span><span class="re-date">'+(bloque?'<i class="ti ti-alert-triangle"></i> ':'')+_maDateCourte(a.updated_at)+'</span></div>'
+      +'<div class="re-titre">'+esc(a.titre||'Sans titre')+'</div>'
+      +'<div class="re-auteur">'+esc(a.auteur||'Auteur inconnu')+'</div>'
+      +'<div class="re-actions"><button type="button" data-id="'+esc(a.id)+'" onclick="benvOuvrirArticle(this.dataset.id)"><i class="ti ti-eye"></i>Ouvrir</button>'
+      +((a.statut==='valide'||a.statut==='valide_central') && _osArticlePubliable(a) ? '<button type="button" class="re-publier" data-id="'+esc(a.id)+'" onclick="publierArticle(this.dataset.id)"><i class="ti ti-send"></i>Publier</button>' : '')
+      +'</div></div>';
+  });
+  if(!articles.length) h += '<div class="rm-vide">Aucun article pour cette rédaction.</div>';
+  return h + '</div>';
 }
 
 function osRedacOuvrirFicheMembre(membreId, redacId){
@@ -729,6 +329,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
 
   var card = document.createElement('div');
+  card.className = 'redac-fiche-carte';
   card.style.cssText = 'background:white;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
   card.innerHTML = osLoadingHtml();
   overlay.appendChild(card);
@@ -772,7 +373,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       var h = '';
 
       // Header
-      h += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
+      h += '<div class="redac-fiche-tete" style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
       h += '<div style="position:relative;flex-shrink:0;">';
       h += renderAvatarHTML(membre, 50, {});
       h += '<span style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(membreId)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);"></span>';
@@ -780,9 +381,8 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       h += '<div style="flex:1;">';
       h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
       h += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+esc(membre.email||'')+'</div>';
-      if(membre.fonction) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">'+esc(membre.fonction)+'</div>';
       h += '</div>';
-      h += '<button onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;">×</button>';
+      h += '<button class="redac-fiche-fermer" onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;"><i class="ti ti-x"></i></button>';
       h += '</div>';
 
       // Badges + stats
@@ -792,7 +392,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       var fonctShort = fonctionShort(membre.fonction);
       if(fonctShort) h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:#D5E8D4;color:#155724;">'+esc(fonctShort)+'</span>';
       h += '</div>';
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;">';
+      h += '<div class="redac-fiche-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;">';
       [
         [arts.length,'Articles','var(--encre)'],
         [publis,'Publiés','#27AE60'],
@@ -1194,7 +794,22 @@ function osSujetSupprimerDepuisRedac(sujetId){
 // ── Nouveau sujet (chef/admin) — remplace l'ancien outil "briefing" (multi-sujets,
 // sélecteur de rédaction redondant, export PDF) par un formulaire simple à un seul
 // sujet, rattaché automatiquement à la rédaction déjà active.
+// Qui peut créer un sujet dans la rédaction affichée :
+//  'chef'     admin ou rédac chef : le sujet est publié tout de suite
+//  'proposer' membre, si la rédaction l'autorise avec validation : le sujet attend
+//  'publier'  membre, si la rédaction l'autorise sans validation
+//  null       personne d'autre
+function osSujetsDroit(){
+  var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
+  if(getUserRole() === 'admin' || (lien && lien.role_redac === 'redac_chef')) return 'chef';
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id === window._redacActiveId; });
+  if(lien && redac && redac.sujets_proposes_membres) return redac.sujets_validation === false ? 'publier' : 'proposer';
+  return null;
+}
+
 function osOuvrirNouveauSujetModal(){
+  var droit = osSujetsDroit();
+  if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
   var existing = document.getElementById('nouveau-sujet-overlay');
   if(existing) existing.remove();
 
@@ -1206,7 +821,7 @@ function osOuvrirNouveauSujetModal(){
   card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;';
   card.innerHTML =
     '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">📌 Nouveau sujet</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-pin"></i> '+(droit==='chef'?'Nouveau sujet':'Proposer un sujet')+'</div>'
     +'<button onclick="document.getElementById(\'nouveau-sujet-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
     +'</div>'
     +'<div style="padding:1.2rem 1.5rem;">'
@@ -1217,8 +832,9 @@ function osOuvrirNouveauSujetModal(){
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ns-rubrique" placeholder="Ex : Municipales, Culture..."></div>'
     +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ns-note" style="min-height:70px;" placeholder="De quoi ça parle, pourquoi c\'est intéressant..."></textarea></div>'
     +'</div>'
+    +(droit==='proposer' ? '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">Ton sujet sera visible par l\'équipe une fois validé par le rédac chef.</div>' : '')
     +'<div class="btn-row">'
-    +'<button class="btn" onclick="osCreerNouveauSujet()">Publier le sujet</button>'
+    +'<button class="btn" onclick="osCreerNouveauSujet()">'+(droit==='proposer'?'Envoyer la proposition':'Publier le sujet')+'</button>'
     +'</div>'
     +'</div>';
 
@@ -1236,13 +852,16 @@ function osCreerNouveauSujet(){
   var rubrique = ((document.getElementById('ns-rubrique')||{}).value||'').trim();
   var note = ((document.getElementById('ns-note')||{}).value||'').trim();
 
+  var droit = osSujetsDroit();
+  if(!droit) return;
+  var aValider = droit === 'proposer';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var payload = {
     id: 'BRF-'+Date.now(),
     titre: titre,
     type: type,
     priorite: priorite,
-    statut: 'ouvert',
+    statut: aValider ? 'propose' : 'ouvert',
     note: note||null,
     rubrique: rubrique||null,
     redaction_id: window._redacActiveId||null,
@@ -1251,11 +870,109 @@ function osCreerNouveauSujet(){
   fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif('Sujet publié ✓','succes');
+      notif(aValider ? 'Proposition envoyée au rédac chef' : 'Sujet publié','succes');
       var overlay = document.getElementById('nouveau-sujet-overlay');
       if(overlay) overlay.remove();
+      if(aValider) _osSujetPrevenirChefs(payload);
       osRedactionsChangerOnglet('sujets');
-    } else notif('Erreur','erreur');
+    } else notif(aValider ? 'Impossible d\'envoyer la proposition' : 'Erreur','erreur');
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
+// ===== PROPOSITIONS DE SUJETS =====
+// Un membre propose un sujet (si la rédaction l'autorise, voir ses Réglages) : il reste
+// au statut 'propose', invisible des listes (qui ne lisent que ouvert / en_cours), jusqu'à
+// ce qu'un rédac chef ou un admin le publie ou le refuse.
+function _osSujetEmail(o){
+  return _emailCompo(Object.assign({ boutons:[{label:'Ouvrir les sujets', url:'https://compo.ipsummedia.fr'}] }, o));
+}
+function _osSujetPrevenirChefs(sujet){
+  var auteur = getUserNomComplet() || 'Un membre';
+  var redac = (window._redactionsData||[]).find(function(r){ return r.id === sujet.redaction_id; });
+  _cpInvitGestionnaires({redaction_id: sujet.redaction_id}).then(function(chefs){
+    chefs.forEach(function(c){
+      var html = _osSujetEmail({ accent:'bleu', etiquette:'SUJET PROPOSÉ', titre:esc(sujet.titre),
+        bonjour:'Bonjour '+esc(c.prenom||'')+',',
+        texte:esc(auteur)+' propose ce sujet'+(redac?' pour la rédaction '+esc(redac.nom):'')+'. Il attend ta validation avant d\'être visible par l\'équipe.',
+        description:sujet.note||'',
+        boutons:[{label:'Valider ou refuser', url:'https://compo.ipsummedia.fr'}],
+        pourquoi:'Tu reçois cet email car tu es rédac chef ou admin de cette rédaction.' });
+      var chat = '💡 *Nouveau sujet proposé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » par '+_chatSansMiseEnForme(auteur)+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
+      notifierPersonnel(c.id, c.canal_notif, chat, 'sujet', function(){
+        envoyerEmailResend(c.email, '[Ipsum Média] Sujet proposé · '+sujet.titre, html, 'sujet');
+      });
+    });
+  }).catch(function(){});
+}
+function _osSujetPrevenirAuteur(sujet, accepte){
+  if(!sujet.created_by || sujet.created_by === getUserId()) return;
+  _cpInvitChargerMembres([sujet.created_by]).then(function(ms){
+    var m = ms.find(function(x){ return x.id === sujet.created_by; }); if(!m || !m.email) return;
+    var html = accepte
+      ? _osSujetEmail({ accent:'vert', etiquette:'SUJET PUBLIÉ', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
+          texte:'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
+          pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' })
+      : _osSujetEmail({ accent:'ambre', etiquette:'SUJET NON RETENU', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
+          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition ! Tu peux en parler avec ton rédac chef pour en savoir plus.',
+          boutons:[], pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
+    var chat = accepte
+      ? '✅ *Ton sujet est publié*\n« '+_chatSansMiseEnForme(sujet.titre)+' » est visible par l\'équipe, tu peux le réserver.'
+      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !';
+    notifierPersonnel(m.id, m.canal_notif, chat, 'sujet', function(){
+      envoyerEmailResend(m.email, '[Ipsum Média] '+(accepte?'Sujet publié':'Sujet non retenu')+' · '+sujet.titre, html, 'sujet');
+    });
+  }).catch(function(){});
+}
+
+// Encart en haut de l'onglet Sujets : propositions à valider (rédac chef, admin) ou mes
+// propositions en attente (membre)
+function osSujetsChargerPropositions(zone){
+  if(!zone || !window._redacActiveId) return;
+  var chef = osSujetsDroit() === 'chef';
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.propose&redaction_id=eq.'+encodeURIComponent(window._redacActiveId)
+    +(chef ? '' : '&created_by=eq.'+encodeURIComponent(getUserId()))+'&order=created_at.desc&select=*';
+  fetch(url,{headers:authH}).then(function(r){ return r.json(); }).then(function(props){
+    if(!Array.isArray(props) || !props.length){ zone.innerHTML = ''; return; }
+    window._sujetsPropositions = props;
+    var auteurs = {};
+    (window._membresData||[]).forEach(function(m){ auteurs[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
+    var h = '<div class="sujets-propositions" style="background:#FFF6DB;border:1px solid #F3DFA2;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#8A6400;margin-bottom:0.5rem;"><i class="ti ti-bulb"></i> '
+      +(chef ? 'Propositions à valider ('+props.length+')' : 'Mes propositions en attente ('+props.length+')')+'</div>';
+    props.forEach(function(s){
+      h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
+        +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>'
+        +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
+        +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+new Date(s.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'
+        +(chef
+          ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ti ti-check"></i> Publier</button>'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)" style="font-size:0.72rem;padding:5px 12px;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;"><i class="ti ti-pencil"></i> Modifier</button>'
+            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)" style="font-size:0.72rem;padding:5px 12px;background:white;color:#A32D2D;border:1px solid #F1C2C2;border-radius:6px;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>'
+            +'</div>'
+          : '<div style="font-size:0.7rem;color:#8A6400;margin-top:4px;"><i class="ti ti-clock"></i> En attente de validation</div>')
+        +'</div>';
+    });
+    h += '</div>';
+    zone.innerHTML = h;
+  }).catch(function(){ zone.innerHTML = ''; });
+}
+
+function osSujetValiderProposition(sujetId, accepte){
+  var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
+  if(!s) return;
+  if(!accepte && !confirm('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var req = accepte
+    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut:'ouvert'})})
+    : fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH});
+  req.then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');
+    _osSujetPrevenirAuteur(s, accepte);
+    window._sujetsPropositionsAttente = (window._sujetsPropositionsAttente||[]).filter(function(x){ return x.id !== sujetId; });
+    osRedactionsChangerOnglet('sujets');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
@@ -1459,7 +1176,7 @@ function osVeilleSupprimerFlux(fluxId){
 // ── Modifier un sujet existant (chef/admin) — même formulaire que la création,
 // pré-rempli, en PATCH plutôt qu'en POST.
 function osSujetOuvrirModifier(sujetId){
-  var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
+  var sujet = (window._sujetsData||[]).concat(window._sujetsPropositions||[]).find(function(s){ return s.id===sujetId; });
   if(!sujet) return;
   var existing = document.getElementById('modifier-sujet-overlay');
   if(existing) existing.remove();
@@ -1646,7 +1363,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
 
   var h = '';
   // Header rédac
-  h += '<div style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
+  h += '<div class="redac-bandeau" style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
   h += '<div style="flex:1;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:white;">'+esc(redac.nom)+'</div>';
   if(redac.departement) h += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;color:rgba(255,255,255,0.7);">'+esc(redac.departement)+'</div>';
   h += '</div>';
@@ -1712,7 +1429,27 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   });
   h += '</div>';
 
-  if(_redacSousOnglet==='membres'){
+  if(_redacSousOnglet==='membres' && osEstMobile()){
+    // Téléphone : une carte par membre, rôle et retrait en dessous du nom
+    h += '<div class="rm-liste">';
+    membresRedac.forEach(function(m){
+      var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
+      var rr = lien ? lien.role_redac : 'redacteur';
+      var nbArts = (window._tousArticles||_articlesRedacData).filter(function(a){ return a.auteur_id === m.id && a.redaction_id === redacId; }).length;
+      h += '<div class="rm-carte">'
+        +'<button type="button" class="rm-tete" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacOuvrirFicheMembre(this.dataset.mid,this.dataset.rid)">'
+        +'<span class="rm-avatar">'+renderAvatarHTML(m, 40, {})+'<span data-presence-id="'+m.id+'" class="rm-presence" style="background:'+(osEstEnLigne(m.id)?'#27AE60':'#A8A29E')+';"></span></span>'
+        +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+nbArts+' article'+(nbArts>1?'s':'')+'</span></span>'
+        +'<i class="ti ti-chevron-right"></i></button>'
+        +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
+        +[['redacteur','Rédacteur·rice'],['correcteur','Correcteur·rice'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
+        +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
+        +'</div>';
+    });
+    if(!membresRedac.length) h += '<div class="rm-vide">Aucun membre dans cette rédaction.</div>';
+    h += '</div>';
+  }
+  else if(_redacSousOnglet==='membres'){
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;">';
     h += '<div style="padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;">Membres</span>';
@@ -1732,10 +1469,10 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       });
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(m, 26, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
-      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">✕</button></td>';
+      h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="event.stopPropagation();osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" title="Retirer de la rédaction" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-user-minus"></i></button></td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
@@ -1747,13 +1484,13 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += osRedacReglagesForm(redac);
   }
   else {
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += '<div class="redac-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
     function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
     h += sc2(membresRedac.length,'Membres',null,null);
     h += sc2(artsPublies.length,'Publiés','#27AE60','redac-stat-pub');
     h += sc2(artsMois.length,'Ce mois','#EA5B1C','redac-stat-mois');
     h += '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += '<div class="redac-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
     h += sc2(artsRedac.filter(function(a){return a.statut!=='publie';}).length,'En cours','#1A5276','redac-stat-encours');
     h += sc2(participationsRedac.length,'Participations','#7D3C98',null);
     h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',null);
@@ -1810,6 +1547,18 @@ function osRedacReglagesForm(redac){
   });
   h += '</div></div>';
 
+  if('sujets_proposes_membres' in redac){
+  h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Propositions de sujets</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Permet à tous les membres de la rédaction de proposer des idées de sujets, pas seulement au rédac chef.</div>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:0.6rem;"><input type="checkbox" id="redac-reg-sujets_proposes_membres" '+(redac.sujets_proposes_membres?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Les membres peuvent proposer des sujets</span></span></label>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-sujets_validation" '+(redac.sujets_validation!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Validation du rédac chef avant publication</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">sinon, les sujets proposés sont visibles tout de suite</span></span></label>';
+  h += '</div>';
+  }
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1830,10 +1579,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok'];
+  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','sujets_proposes_membres','sujets_validation'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
+  var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
+    // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
+    // en base, sinon tout l'enregistrement serait refusé
+    if(cle.indexOf('sujets_') === 0 && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   var btn = document.getElementById('redac-reg-submit');
@@ -2074,7 +1827,10 @@ function _osRedacOngletsListe(){
       var seen = [];
       try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
       var nouveaux = sujetsData.filter(function(s){ return seen.indexOf(s.id) === -1; });
-      o.badge = _railBadgeNombre(nouveaux.length);
+      var propositions = osSujetsDroit() === 'chef' ? (window._sujetsPropositionsAttente || []).filter(function(s){
+        return !window._redacActiveId || s.redaction_id === window._redacActiveId;
+      }).length : 0;
+      o.badge = _railBadgeNombre(nouveaux.length + propositions);
     }
     if(o.id === 'recrutement'){
       var annonces = window._recrutementAnnonces || [];
@@ -2202,6 +1958,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     var zoneSujets = document.getElementById('redac-sujets-zone');
     var finSujetsTab = function(){ _osForcerRepaint(document.getElementById('win-redactions')); };
     if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac, finSujetsTab);
+    osSujetsChargerPropositions(document.getElementById('sujets-propositions-zone'));
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac'){
@@ -2372,7 +2129,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
       h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(mb, 26, {})+'<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select onchange="osRedacChefChangerRole(\''+mb.id+'\',\''+redac.id+'\',this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
+      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+mb.id+'" data-rid="'+redac.id+'" data-avant="'+esc(mr.role_redac||'redacteur')+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
         +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
         +'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
@@ -2583,18 +2340,24 @@ function osAdminRetirerMembreRedac(membreId, redacId){
 
 // ---- ACTIONS RÉDAC CHEF ----
 function osRedacChefChangerRole(membreId, redacId, nouveauRole){
+  // Remet les menus de ce membre sur le rôle d'avant quand le changement n'a pas pu se faire
+  function annuler(message){
+    document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ if(sel.dataset.avant) sel.value = sel.dataset.avant; });
+    notif(message, 'erreur');
+  }
   function appliquer(){
-    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
-    .then(function(r){
-      if(r.ok){
-        // Mettre à jour le cache local immédiatement
-        var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
-        if(lien) lien.role_redac = nouveauRole;
-        notif('Rôle mis à jour ✓','succes');
-      } else notif('Erreur mise à jour');
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id',{method:'PATCH',headers:authH,body:JSON.stringify({role_redac:nouveauRole})})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(lignes){
+      if(!Array.isArray(lignes) || !lignes.length){ annuler('Le rôle n\'a pas pu être changé'); return; }
+      // Mettre à jour le cache local immédiatement
+      var lien = (_membresRedactionsData||[]).find(function(l){ return l.membre_id===membreId && l.redaction_id===redacId; });
+      if(lien) lien.role_redac = nouveauRole;
+      document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ sel.dataset.avant = nouveauRole; });
+      notif('Rôle mis à jour','succes');
     })
-    .catch(function(){ notif('Erreur réseau'); });
+    .catch(function(){ annuler('Erreur réseau, rôle inchangé'); });
   }
 
   // Un chef non-admin qui se retire lui-même son statut perd instantanément l'écran
@@ -2607,9 +2370,7 @@ function osRedacChefChangerRole(membreId, redacId, nouveauRole){
     .then(function(chefs){
       var autresChefs = (chefs||[]).filter(function(l){ return l.membre_id !== membreId; });
       if(autresChefs.length === 0){
-        notif('Impossible : tu es le seul chef de cette rédaction. Nomme d\'abord quelqu\'un d\'autre chef.','erreur');
-        var sel = document.querySelector('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]');
-        if(sel) sel.value = 'redac_chef';
+        annuler('Impossible : tu es le seul chef de cette rédaction. Nomme d\'abord quelqu\'un d\'autre chef.');
         return;
       }
       appliquer();

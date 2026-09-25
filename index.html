@@ -9,6 +9,13 @@
      Google peut quand même lister l'URL nue (sans jamais voir cette balise). -->
 <meta name="robots" content="noindex, nofollow">
 <title>Compo · Ipsum Média</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#F5F5F4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Compo">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -960,7 +967,7 @@
     <div class="art-preview" id="art-preview"></div>
     <div class="btn-row">
       <button class="btn" onclick="genMd('lect')">Copier le texte</button>
-      <button class="btn sec" onclick="genererVisuelsDepuisLecture()">🎨 Générer les visuels</button>
+      <button class="btn sec" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i> Générer les visuels</button>
       <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
       <button id="lect-btn-modifier" class="btn sec" style="display:none" onclick="chargerDansRedaction(currentDoc)">Modifier</button>
     </div>

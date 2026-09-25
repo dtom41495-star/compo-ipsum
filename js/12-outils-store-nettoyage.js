@@ -1653,7 +1653,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
-  { id:'calendrier-edito', icon:'<i class="ti ti-calendar-event"></i>', label:'Calendrier édito', color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
   { id:'app-dub',        icon:'<i class="ti ti-scissors"></i>', label:'Raccourcisseur', color:'#993C1D', desc:'Raccourcit un lien avec Dub. Accès accordé au cas par cas depuis la fiche bénévole (quota mensuel limité).' },
   { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
@@ -1676,10 +1675,10 @@ var ALL_APPS_CATALOGUE = [
 
 // Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','visuels-pro','tutos','projets','boutique','mail','signatures','veille'],
-  correcteur: ['mes-articles','redactions','calendrier-edito','notes','compo-store','newsletter','tutos','projets','boutique','mail','signatures','veille'],
-  redac_chef: ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','projets','agenda','boutique','mail','signatures','veille'],
-  admin:      ['redaction','mes-articles','redactions','calendrier-edito','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
+  redacteur: ['redaction','mes-articles','redactions','notes','compo-store','visuels-pro','tutos','projets','boutique','mail','signatures','veille'],
+  correcteur: ['mes-articles','redactions','notes','compo-store','newsletter','tutos','projets','boutique','mail','signatures','veille'],
+  redac_chef: ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','projets','agenda','boutique','mail','signatures','veille'],
+  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
   communicant: ['app-com','notes','compo-store','boutique','mail','signatures'],

@@ -602,10 +602,13 @@ function osSujetsCharger(callback){
   // sujets internes à des rédactions dont on n'est pas membre (osRedacChargerSujets, la
   // version affichée dans l'onglet "Ma rédac", filtre déjà correctement — ce n'était que
   // ce chemin-ci, desktop/notifications, qui ne le faisait pas).
-  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id',{headers:authH})
+  var chefIds = [];
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(rows){
-    var mesRedacIds = (Array.isArray(rows)?rows:[]).map(function(r){return r.redaction_id;});
+    rows = Array.isArray(rows) ? rows : [];
+    var mesRedacIds = rows.map(function(r){return r.redaction_id;});
+    chefIds = rows.filter(function(r){ return r.role_redac === 'redac_chef'; }).map(function(r){ return r.redaction_id; });
     if(!mesRedacIds.length) return [];
     var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=*&redaction_id=in.('+mesRedacIds.join(',')+')';
     return fetch(url,{headers:authH}).then(function(r){ return r.json(); });
@@ -625,8 +628,15 @@ function osSujetsCharger(callback){
     // Mettre à jour le dock dot
     var dot = document.getElementById('dock-dot-sujets');
     if(dot) dot.classList.toggle('visible', _sujetsData.length > 0);
-    
-    if(callback) callback(_sujetsData);
+
+    // Propositions de sujets en attente, comptées dans la pastille des rédac chefs et admins
+    var admin = getUserRole() === 'admin';
+    if(!admin && !chefIds.length){ window._sujetsPropositionsAttente = []; if(callback) callback(_sujetsData); return; }
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.propose&select=id,redaction_id'+(admin ? '' : '&redaction_id=in.('+chefIds.join(',')+')'),{headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(p){ window._sujetsPropositionsAttente = Array.isArray(p) ? p : []; })
+    .catch(function(){ window._sujetsPropositionsAttente = []; })
+    .then(function(){ if(callback) callback(_sujetsData); });
   }).catch(function(){ _sujetsData = []; });
 }
 

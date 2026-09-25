@@ -1019,6 +1019,8 @@ var MA_VUES = {
 // précis avant que son rôle ne change (ex: passé rédacteur/communicant depuis) doit
 // quand même pouvoir retrouver l'onglet. window._aDesCorrectionsAssignees est vérifié
 // et mis à jour par osMesArticlesRender() avant le premier rendu du rail.
+var MA_VUES_COURTES = { brouillons:'Brouillons', tous:'Tous' };
+
 function _maVuesAutorisees(){
   var role = getUserRole();
   var ids = ['mes','brouillons'];
@@ -1034,6 +1036,19 @@ function _maRailRender(){
   if(!rail) return;
   var autorisees = _maVuesAutorisees();
   if(autorisees.indexOf(_maOnglet) === -1) _maOnglet = 'mes';
+
+  // Sur téléphone : une rangée d'onglets en haut plutôt qu'une colonne à gauche
+  if(osEstMobile()){
+    rail.className = 'ma-onglets-mobile';
+    rail.innerHTML = autorisees.map(function(id){
+      return '<button type="button" data-vue="'+id+'" class="'+(_maOnglet===id?'actif':'')+(id==='secours'?' ma-onglet-alerte':'')+'" onclick="osMesArticlesChangerOnglet(this.dataset.vue)">'
+        +(MA_VUES_COURTES[id]||MA_VUES[id].label)+'</button>';
+    }).join('');
+    var actif = rail.querySelector('.actif');
+    if(actif && actif.scrollIntoView) actif.scrollIntoView({block:'nearest', inline:'center'});
+    return;
+  }
+  rail.className = '';
 
   function bouton(id, estSousItem){
     var v = MA_VUES[id];
@@ -1073,6 +1088,7 @@ function osMesArticlesRender(){
   if(!wc){ setTimeout(osMesArticlesRender, 200); return; }
   wc.innerHTML = '';
   wc.style.cssText = 'display:flex;height:100%;overflow:hidden;background:#F7F8FA;';
+  wc.classList.add('ma-app');
 
   // ── RAIL (gauche) ──
   var rail = document.createElement('div');
@@ -1086,6 +1102,7 @@ function osMesArticlesRender(){
   main.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;';
 
   var hdr = document.createElement('div');
+  hdr.className = 'ma-entete';
   hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
 
   // Ligne 1 : titre de la vue + contrôles
@@ -1343,6 +1360,7 @@ function maOsSupprimerBrouillonLocal(id){
 }
 
 function maOsMakeCard(doc, uid, role){
+  if(osEstMobile()) return _maCarteMobile(doc, uid, role);
   var s   = doc.statut||'brouillon';
   var estAuteur     = doc.auteur_id && doc.auteur_id===uid;
   var estCorrecteur = doc.correcteur_id && doc.correcteur_id===uid;
@@ -1384,7 +1402,7 @@ function maOsMakeCard(doc, uid, role){
   // Note refus
   var noteHtml='';
   if(estRefuse&&doc.note_interne){
-    noteHtml='<div style="font-size:.7rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 9px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;">💬 '+esc(doc.note_interne)+'</div>';
+    noteHtml='<div style="font-size:.7rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 9px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;"><i class="ti ti-message-circle" style="vertical-align:-1px;"></i> '+esc(doc.note_interne)+'</div>';
   }
 
   // Titre + tags, dans le prolongement l'un de l'autre (avant : deux lignes séparées) —
@@ -1417,13 +1435,13 @@ function maOsMakeCard(doc, uid, role){
   var actHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">';
   // Modifier si auteur + brouillon
   if(estAuteur&&(s==='brouillon'))
-    actHtml+='<button style="'+_maBtn('rouge')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')">✏️ Modifier</button>';
+    actHtml+='<button style="'+_maBtn('rouge')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i> Modifier</button>';
   // Corriger + Refuser — correcteur désigné OU admin (pas les deux)
   var peutCorriger = (estCorrecteur && s==='en-relecture') ||
                      (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
   if(peutCorriger){
-    actHtml+='<button style="'+_maBtn('vert')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')">🔍 Corriger</button>';
-    actHtml+='<button style="'+_maBtn('red-out')+'" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)">✕ Refuser</button>';
+    actHtml+='<button style="'+_maBtn('vert')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i> Corriger</button>';
+    actHtml+='<button style="'+_maBtn('red-out')+'" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
   }
   // Voir diff
   if((doc.titre_original||doc.corps_original)&&estAuteur){
@@ -1432,10 +1450,80 @@ function maOsMakeCard(doc, uid, role){
       +(nbCommentaires?' · '+nbCommentaires+' <i class="ti ti-message-circle"></i>':'')+'</button>';
   }
   // Lire
-  actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">👁 Lire</button>';
+  actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i> Lire</button>';
   actHtml+='</div>';
 
   card.innerHTML = noteHtml + ligneHtml + actHtml;
+  return card;
+}
+
+// Carte d'article sur téléphone : statut et date en haut, titre lisible, une ligne
+// d'infos, puis les actions en pleine largeur. Toucher la carte ouvre l'article.
+var MA_STATUT_MOBILE = {
+  brouillon:        ['Brouillon',          '#92400E','#FEF3C7'],
+  'en-relecture':   ['En relecture',       '#1D4ED8','#DBEAFE'],
+  corrige:          ['Corrigé',            '#0F766E','#CCFBF1'],
+  valide:           ['Validé',             '#C2410C','#FFEDD5'],
+  valide_central:   ['Validé (centrale)',  '#1E3A8A','#E0E7FF'],
+  publie:           ['Publié',             '#047857','#D1FAE5'],
+  refuse:           ['À retravailler',     '#B91C1C','#FEE2E2']
+};
+
+function _maDateCourte(dateStr){
+  if(!dateStr) return '';
+  var d = new Date(dateStr), auj = new Date();
+  var jours = Math.floor((new Date(auj.getFullYear(),auj.getMonth(),auj.getDate()) - new Date(d.getFullYear(),d.getMonth(),d.getDate())) / 86400000);
+  if(jours <= 0) return 'Aujourd\'hui';
+  if(jours === 1) return 'Hier';
+  if(jours < 7) return 'Il y a '+jours+' jours';
+  return d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+}
+
+function _maCarteMobile(doc, uid, role){
+  var s = doc.statut||'brouillon';
+  var estAuteur     = doc.auteur_id && doc.auteur_id===uid;
+  var estCorrecteur = doc.correcteur_id && doc.correcteur_id===uid;
+  var estRefuse     = s==='brouillon' && doc.note_interne;
+  var st = MA_STATUT_MOBILE[estRefuse ? 'refuse' : s] || MA_STATUT_MOBILE.brouillon;
+
+  var card = document.createElement('div');
+  card.className = 'ma-carte';
+  var actionParDefaut = (estAuteur && s==='brouillon') ? 'edition' : 'lecture';
+  card.onclick = function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
+
+  var infos = [];
+  if(doc.rubrique) infos.push(esc(doc.rubrique));
+  if(doc.type==='breve') infos.push('Brève');
+  if(doc.auteur && !estAuteur) infos.push(esc(doc.auteur));
+  if(doc.vues_substack!=null) infos.push(doc.vues_substack.toLocaleString('fr-FR')+' vues');
+
+  var extra = '';
+  if(estRefuse) extra += '<div class="ma-carte-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>';
+  if(_maOnglet==='corriger') extra += '<div class="ma-carte-info"><i class="ti ti-user-search"></i>'+(doc.correcteur ? 'Correction : '+esc(doc.correcteur) : 'Aucun correcteur')+'</div>';
+  var nl = _maNewsletterMap[doc.id];
+  if(nl) extra += '<div class="ma-carte-info"><i class="ti ti-mail"></i>Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR')+'</div>';
+  else if(doc.redaction_id && (s==='valide'||s==='publie')) extra += '<div class="ma-carte-info"><i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+'</div>';
+
+  var actions = '';
+  if(estAuteur && s==='brouillon')
+    actions += '<button class="ma-btn ma-btn-principal" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i>Modifier</button>';
+  var peutCorriger = (estCorrecteur && s==='en-relecture') || (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
+  if(peutCorriger){
+    actions += '<button class="ma-btn ma-btn-vert" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
+    actions += '<button class="ma-btn ma-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i>Refuser</button>';
+  }
+  if((doc.titre_original||doc.corps_original) && estAuteur){
+    var nbCom = _maCommentairesCountMap[doc.id]||0;
+    actions += '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCom?' ('+nbCom+')':'')+'</button>';
+  }
+  if(!actions) actions = '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
+
+  card.innerHTML = '<div class="ma-carte-haut"><span class="ma-statut" style="color:'+st[1]+';background:'+st[2]+';">'+st[0]+'</span>'
+    +'<span class="ma-carte-date">'+_maDateCourte(doc.updated_at||doc.created_at)+'</span></div>'
+    +'<div class="ma-carte-titre">'+esc(doc.titre||'Sans titre')+'</div>'
+    +(infos.length ? '<div class="ma-carte-meta">'+infos.join(' · ')+'</div>' : '')
+    +extra
+    +'<div class="ma-carte-actions">'+actions+'</div>';
   return card;
 }
 

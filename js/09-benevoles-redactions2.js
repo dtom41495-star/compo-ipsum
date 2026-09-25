@@ -1829,6 +1829,12 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '</div>';
   h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
   h += '</div>';
+  // Membre autorisé à proposer des sujets (réglage de la rédaction)
+  var droitSujet = typeof osSujetsDroit === 'function' ? osSujetsDroit() : null;
+  if(droitSujet === 'proposer' || droitSujet === 'publier'){
+    h += '<div class="sujets-outils-chef" style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">'
+      +'<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ti ti-bulb"></i> Proposer un sujet</button></div>';
+  }
   if(isChefOuAdmin || getUserRole()==='admin'){
     h += '<div class="sujets-outils-chef" style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
     if(isChefOuAdmin){
@@ -1842,6 +1848,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   }
   h += '</div>';
   h += '<button id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';" style="display:none;font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
+  h += '<div id="sujets-propositions-zone"></div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
