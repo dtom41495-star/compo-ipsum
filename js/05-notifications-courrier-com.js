@@ -1758,7 +1758,8 @@ function _creerAppTuile(app, epingle){
   return icon;
 }
 
-function osStartMenuRender(){
+// Applications accessibles au membre connecté (menu démarrer, accueil mobile)
+function osAppsAccessibles(){
   var role2 = getUserRole();
   var fonctions2 = getUserFonction();
   var allApps;
@@ -1775,14 +1776,17 @@ function osStartMenuRender(){
       return true;
     });
   }
-  var epinglesIds = (window._userApps||[]).map(function(a){ return a.id; });
-
   var appsAff = allApps.slice();
   if(!appsAff.find(function(a){ return a.id==='compo-store'; })){
     var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
     if(storeApp) appsAff.push(storeApp);
   }
-  appsAff = appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
+  return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
+}
+
+function osStartMenuRender(){
+  var appsAff = osAppsAccessibles();
+  var epinglesIds = (window._userApps||[]).map(function(a){ return a.id; });
 
   var pinnedApps = appsAff.filter(function(a){ return epinglesIds.indexOf(a.id)!==-1; });
   if(!pinnedApps.length) pinnedApps = appsAff.slice(0,6);

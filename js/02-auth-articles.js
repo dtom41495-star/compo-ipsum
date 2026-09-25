@@ -338,14 +338,16 @@ function chargerDepuisURL(){
       _redacOnglet = 'profil';
       if(_windows['redactions']){ osFocusWindow('redactions'); osRedactionsChangerOnglet('profil'); }
       else osOpenWindow('redactions');
-      setTimeout(function(){
+      // Attendre que le profil soit affiché (jusqu'à 15 s). Pas de défilement forcé :
+      // le bouton est en haut du profil.
+      var essais = 0;
+      (function attendreBouton(){
         var btn = document.getElementById('redac-carte-btn');
-        if(!btn) return;
-        btn.scrollIntoView({behavior:'smooth', block:'center'});
+        if(!btn){ if(++essais < 30) setTimeout(attendreBouton, 500); return; }
         btn.style.outline = '3px solid #E8461E'; btn.style.outlineOffset = '3px';
         setTimeout(function(){ btn.style.outline = ''; btn.style.outlineOffset = ''; }, 6000);
         notif('Clique sur « Carte d\'adhérent » pour afficher et imprimer ta carte');
-      }, 1200);
+      })();
     }, 1500); // attendre que la session soit chargée
   }
 }
