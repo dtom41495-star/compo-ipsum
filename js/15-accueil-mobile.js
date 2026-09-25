@@ -162,6 +162,8 @@ function osAccueilMobileRendre(){
       var dnd = e.target.closest('.acc-statut');
       if(dnd){ osToggleDND(); return; }
       if(e.target.closest('.acc-quitter') && confirm('Te déconnecter de Compo ?')) seDeconnecter();
+      if(e.target.closest('.acc-installer-ok')){ osInstallerCompo(); return; }
+      if(e.target.closest('.acc-installer-non')){ _accueilInstallPlusTard(); return; }
     });
     desktop.appendChild(zone);
   }
@@ -205,6 +207,11 @@ function osAccueilMobileRendre(){
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
     +'</div>';
+  if(_accueilProposerInstall()){
+    h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'
+      +'<div class="acc-installer-txt"><strong>Installe Compo sur ton téléphone</strong><span>Une icône sur ton écran d\'accueil, comme une vraie appli.</span>'
+      +'<div class="acc-installer-btns"><button type="button" class="acc-installer-ok">Installer</button><button type="button" class="acc-installer-non">Plus tard</button></div></div></div>';
+  }
   if(cartes) h += '<div class="acc-a-faire">'+cartes+'</div>';
   if(grande) h += '<div class="acc-tuiles">'+_accueilTuile(grande.app, true, grande.sous)+'</div>';
 
@@ -227,6 +234,68 @@ function osAccueilMobileRendre(){
   zone.innerHTML = h;
   zone.scrollTop = defil;
   try{ osDNDMajUI(); }catch(e){}
+}
+
+// ---- Installer Compo sur l'écran d'accueil du téléphone ----
+var _accInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _accInstallPrompt = e;
+  if(osEstMobile()) osAccueilMobileRendre();
+});
+window.addEventListener('appinstalled', function(){
+  _accInstallPrompt = null;
+  try{ localStorage.setItem('compo_installee', '1'); }catch(e){}
+  osAccueilMobileRendre();
+});
+function _accueilEstInstallee(){
+  return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+}
+function _accueilEstIOS(){
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+function _accueilProposerInstall(){
+  if(_accueilEstInstallee()) return false;
+  try{
+    if(localStorage.getItem('compo_installee')) return false;
+    var plusTard = +localStorage.getItem('compo_install_plus_tard') || 0;
+    if(Date.now() - plusTard < 14*24*3600*1000) return false;
+  }catch(e){}
+  return true;
+}
+function _accueilInstallPlusTard(){
+  try{ localStorage.setItem('compo_install_plus_tard', String(Date.now())); }catch(e){}
+  osAccueilMobileRendre();
+}
+function osInstallerCompo(){
+  // Android (Chrome, Edge…) : la fenêtre d'installation du téléphone
+  if(_accInstallPrompt){
+    var invite = _accInstallPrompt;
+    _accInstallPrompt = null;
+    invite.prompt();
+    if(invite.userChoice) invite.userChoice.then(function(r){
+      if(r && r.outcome === 'accepted'){ try{ localStorage.setItem('compo_installee', '1'); }catch(e){} }
+      osAccueilMobileRendre();
+    });
+    return;
+  }
+  // iPhone, ou navigateur sans installation automatique : la marche à suivre
+  var etapes = _accueilEstIOS()
+    ? [['share-2', 'Touche le bouton <strong>Partager</strong>, en bas de l\'écran (en haut sur iPad).'],
+       ['square-plus', 'Choisis <strong>Sur l\'écran d\'accueil</strong> (fais défiler la liste si besoin).'],
+       ['check', 'Touche <strong>Ajouter</strong>. Compo apparaît avec les autres applis.']]
+    : [['dots-vertical', 'Ouvre le <strong>menu du navigateur</strong> (les trois points, en haut à droite).'],
+       ['device-mobile-plus', 'Choisis <strong>Installer l\'application</strong> ou <strong>Ajouter à l\'écran d\'accueil</strong>.'],
+       ['check', 'Confirme. Compo apparaît avec les autres applis.']];
+  var ov = document.createElement('div');
+  ov.className = 'acc-menu-voile';
+  ov.innerHTML = '<div class="acc-menu acc-installer-aide"><div class="acc-menu-poignee"></div>'
+    +'<div class="acc-installer-aide-titre">Installer Compo</div>'
+    + etapes.map(function(e, i){ return '<div class="acc-installer-etape"><span class="acc-installer-num">'+(i+1)+'</span><i class="ti ti-'+e[0]+'"></i><span>'+e[1]+'</span></div>'; }).join('')
+    +(_accueilEstIOS() ? '<div class="acc-installer-note">Tu devras te reconnecter une fois dans l\'appli installée.</div>' : '')
+    +'<button type="button" class="acc-installer-fermer">J\'ai compris</button></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov || e.target.closest('.acc-installer-fermer')) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 // ---- Bouton « Accueil » dans les fenêtres, et bouton retour du téléphone ----

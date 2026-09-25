@@ -1,0 +1,16 @@
+{
+  "name": "Compo · Ipsum Média",
+  "short_name": "Compo",
+  "description": "L'espace des bénévoles d'Ipsum Média",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F5F4",
+  "theme_color": "#F5F5F4",
+  "icons": [
+    { "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/compo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/compo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

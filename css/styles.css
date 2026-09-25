@@ -3819,3 +3819,21 @@ input:focus,select:focus,textarea:focus{
   #winpage-lecture .btn-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
   #winpage-lecture .btn-row .btn { width: 100%; min-height: 44px; margin: 0 !important; }
 }
+
+/* ===== INSTALLER COMPO SUR LE TÉLÉPHONE ===== */
+@media (max-width: 768px) {
+  .acc-installer { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid #FDBA74; border-radius: 16px; padding: 14px; margin-bottom: 16px; }
+  .acc-installer img { width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0; }
+  .acc-installer-txt { flex: 1; min-width: 0; }
+  .acc-installer-txt strong { display: block; font: 700 16px Poppins, 'DM Sans', sans-serif; color: #1A1A2E; }
+  .acc-installer-txt span { display: block; margin-top: 2px; font-size: 14px; color: #6B7280; line-height: 1.35; }
+  .acc-installer-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .acc-installer-btns button { height: 40px; padding: 0 16px; border-radius: 12px; font: 600 14px 'DM Sans', Arial, sans-serif; cursor: pointer; border: 1px solid #E7E5E4; background: #fff; color: #1A1A2E; }
+  .acc-installer-btns .acc-installer-ok { background: #E8461E; border-color: #E8461E; color: #fff; }
+  .acc-installer-aide-titre { font: 700 18px Poppins, 'DM Sans', sans-serif; color: #1A1A2E; margin: 6px 0 12px; }
+  .acc-installer-etape { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 15px; color: #1A1A2E; line-height: 1.4; }
+  .acc-installer-etape > i { font-size: 24px; color: #E8461E; flex-shrink: 0; }
+  .acc-installer-num { width: 26px; height: 26px; border-radius: 50%; background: #1A1A2E; color: #fff; font: 700 13px 'DM Sans', Arial, sans-serif; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .acc-installer-note { margin-top: 6px; font-size: 13px; color: #6B7280; }
+  .acc-installer-aide .acc-installer-fermer { justify-content: center; width: 100%; height: 48px; margin-top: 14px; border: none; border-radius: 14px; background: #1A1A2E; color: #fff; font: 700 15px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+}
