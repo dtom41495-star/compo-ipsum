@@ -495,6 +495,9 @@ function _accueilMenusMaRedac(onglet){
       {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
     ]};
   }
+  if(onglet === 'redac' && chef && _redacSousOnglet === 'membres' && ctx.redacId){
+    return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ osRedacChefAjouterMembre(ctx.redacId); }} };
+  }
   return {};
 }
 
@@ -570,6 +573,12 @@ function _accueilRetourDepuis(pageId, win){
 var _osRedactionsChangerOngletAvantAccueil = osRedactionsChangerOnglet;
 osRedactionsChangerOnglet = function(onglet){
   _osRedactionsChangerOngletAvantAccueil.apply(this, arguments);
+  if(osEstMobile()) _accueilPreparerMaRedac();
+};
+
+var _osRedacChangerSousOngletRedacAvantAccueil = osRedacChangerSousOngletRedac;
+osRedacChangerSousOngletRedac = function(){
+  _osRedacChangerSousOngletRedacAvantAccueil.apply(this, arguments);
   if(osEstMobile()) _accueilPreparerMaRedac();
 };
 

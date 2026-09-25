@@ -243,6 +243,8 @@ function osRedacChefEdito(zone, redacId){
     if(artBloques.length) h += '<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#A32D2D;"><i class="ti ti-alert-triangle" style="vertical-align:-2px;margin-right:3px;"></i>'+artBloques.length+' article(s) bloqué(s) en correction depuis +5 jours</div>';
     if(artValides.length) h += '<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;"><i class="ti ti-circle-check" style="vertical-align:-2px;margin-right:3px;"></i>'+artValides.length+' article(s) validé(s) en attente de publication</div>';
 
+    if(osEstMobile()){ zone.innerHTML = h + _osRedacEditoMobile(articles, statDef) + '</div>'; return; }
+
     // Filtres statut
     h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
     ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(s){
@@ -288,8 +290,33 @@ function osRedacChefEdito(zone, redacId){
 }
 
 function osRedacEditoFiltre(statut){
-  var rows = document.querySelectorAll('#redac-edito-table tbody tr');
+  var rows = document.querySelectorAll('#redac-edito-table [data-statut]');
   rows.forEach(function(r){ r.style.display = (statut==='tous'||r.dataset.statut===statut) ? '' : 'none'; });
+  document.querySelectorAll('.re-filtres button').forEach(function(b){ b.classList.toggle('actif', b.dataset.f === statut); });
+}
+
+// Suivi éditorial sur téléphone : filtres en onglets, une carte par article
+function _osRedacEditoMobile(articles, statDef){
+  var h = '<div class="re-filtres"><button type="button" class="actif" data-f="tous" onclick="osRedacEditoFiltre(this.dataset.f)">Tous '+articles.length+'</button>';
+  ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(st){
+    var n = articles.filter(function(a){ return a.statut===st; }).length;
+    if(n) h += '<button type="button" data-f="'+st+'" onclick="osRedacEditoFiltre(this.dataset.f)">'+statDef[st].l+' '+n+'</button>';
+  });
+  h += '</div><div id="redac-edito-table" class="re-liste">';
+  articles.forEach(function(a){
+    var sd = statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
+    var age = Math.floor((Date.now()-new Date(a.updated_at))/86400000);
+    var bloque = (a.statut==='en-relecture'||a.statut==='corrige') && age>5;
+    h += '<div class="re-carte'+(bloque?' re-bloque':'')+'" data-statut="'+esc(a.statut||'')+'">'
+      +'<div class="re-haut"><span class="re-statut" style="background:'+sd.bg+';color:'+sd.c+';">'+sd.l+'</span><span class="re-date">'+(bloque?'<i class="ti ti-alert-triangle"></i> ':'')+_maDateCourte(a.updated_at)+'</span></div>'
+      +'<div class="re-titre">'+esc(a.titre||'Sans titre')+'</div>'
+      +'<div class="re-auteur">'+esc(a.auteur||'Auteur inconnu')+'</div>'
+      +'<div class="re-actions"><button type="button" data-id="'+esc(a.id)+'" onclick="benvOuvrirArticle(this.dataset.id)"><i class="ti ti-eye"></i>Ouvrir</button>'
+      +((a.statut==='valide'||a.statut==='valide_central') && _osArticlePubliable(a) ? '<button type="button" class="re-publier" data-id="'+esc(a.id)+'" onclick="publierArticle(this.dataset.id)"><i class="ti ti-send"></i>Publier</button>' : '')
+      +'</div></div>';
+  });
+  if(!articles.length) h += '<div class="rm-vide">Aucun article pour cette rédaction.</div>';
+  return h + '</div>';
 }
 
 function osRedacOuvrirFicheMembre(membreId, redacId){
@@ -302,6 +329,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
 
   var card = document.createElement('div');
+  card.className = 'redac-fiche-carte';
   card.style.cssText = 'background:white;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
   card.innerHTML = osLoadingHtml();
   overlay.appendChild(card);
@@ -345,7 +373,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       var h = '';
 
       // Header
-      h += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
+      h += '<div class="redac-fiche-tete" style="background:var(--encre-fixe);padding:1.3rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:1rem;">';
       h += '<div style="position:relative;flex-shrink:0;">';
       h += renderAvatarHTML(membre, 50, {});
       h += '<span style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:'+(osEstEnLigne(membreId)?'#27AE60':'#888')+';border:2px solid var(--encre-fixe);"></span>';
@@ -353,9 +381,8 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       h += '<div style="flex:1;">';
       h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
       h += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+esc(membre.email||'')+'</div>';
-      if(membre.fonction) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">'+esc(membre.fonction)+'</div>';
       h += '</div>';
-      h += '<button onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;">×</button>';
+      h += '<button class="redac-fiche-fermer" onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;"><i class="ti ti-x"></i></button>';
       h += '</div>';
 
       // Badges + stats
@@ -365,7 +392,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       var fonctShort = fonctionShort(membre.fonction);
       if(fonctShort) h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:3px;background:#D5E8D4;color:#155724;">'+esc(fonctShort)+'</span>';
       h += '</div>';
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;">';
+      h += '<div class="redac-fiche-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;">';
       [
         [arts.length,'Articles','var(--encre)'],
         [publis,'Publiés','#27AE60'],
@@ -1336,7 +1363,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
 
   var h = '';
   // Header rédac
-  h += '<div style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
+  h += '<div class="redac-bandeau" style="background:'+couleurRedac+';border-radius:14px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
   h += '<div style="flex:1;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:white;">'+esc(redac.nom)+'</div>';
   if(redac.departement) h += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;color:rgba(255,255,255,0.7);">'+esc(redac.departement)+'</div>';
   h += '</div>';
@@ -1402,7 +1429,27 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   });
   h += '</div>';
 
-  if(_redacSousOnglet==='membres'){
+  if(_redacSousOnglet==='membres' && osEstMobile()){
+    // Téléphone : une carte par membre, rôle et retrait en dessous du nom
+    h += '<div class="rm-liste">';
+    membresRedac.forEach(function(m){
+      var lien = membresLiens.find(function(mr){ return mr.membre_id === m.id; });
+      var rr = lien ? lien.role_redac : 'redacteur';
+      var nbArts = (window._tousArticles||_articlesRedacData).filter(function(a){ return a.auteur_id === m.id && a.redaction_id === redacId; }).length;
+      h += '<div class="rm-carte">'
+        +'<button type="button" class="rm-tete" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacOuvrirFicheMembre(this.dataset.mid,this.dataset.rid)">'
+        +'<span class="rm-avatar">'+renderAvatarHTML(m, 40, {})+'<span data-presence-id="'+m.id+'" class="rm-presence" style="background:'+(osEstEnLigne(m.id)?'#27AE60':'#A8A29E')+';"></span></span>'
+        +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+nbArts+' article'+(nbArts>1?'s':'')+'</span></span>'
+        +'<i class="ti ti-chevron-right"></i></button>'
+        +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
+        +[['redacteur','Rédacteur·rice'],['correcteur','Correcteur·rice'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
+        +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
+        +'</div>';
+    });
+    if(!membresRedac.length) h += '<div class="rm-vide">Aucun membre dans cette rédaction.</div>';
+    h += '</div>';
+  }
+  else if(_redacSousOnglet==='membres'){
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;">';
     h += '<div style="padding:0.8rem 1.2rem;border-bottom:0.5px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;">Membres</span>';
@@ -1437,13 +1484,13 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += osRedacReglagesForm(redac);
   }
   else {
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += '<div class="redac-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
     function sc2(n,l,c,id){ return '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem;text-align:center;"><div '+(id?'id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-size:1.3rem;font-weight:800;color:'+(c||'var(--encre)')+'">'+n+'</div><div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--gris);margin-top:2px;">'+l+'</div></div>'; }
     h += sc2(membresRedac.length,'Membres',null,null);
     h += sc2(artsPublies.length,'Publiés','#27AE60','redac-stat-pub');
     h += sc2(artsMois.length,'Ce mois','#EA5B1C','redac-stat-mois');
     h += '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
+    h += '<div class="redac-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.7rem;">';
     h += sc2(artsRedac.filter(function(a){return a.statut!=='publie';}).length,'En cours','#1A5276','redac-stat-encours');
     h += sc2(participationsRedac.length,'Participations','#7D3C98',null);
     h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',null);
