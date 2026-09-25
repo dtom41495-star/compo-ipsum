@@ -2937,6 +2937,7 @@ function osCarnetOuvrirFiche(id){
   html += '</div>'; // corps
 
   card.innerHTML = html;
+  osPanneauMobileOuvrir(card, 'Retour aux contacts');
 
   // Charger l'historique et les CPs
   osCarnetChargerHistorique(c.id);

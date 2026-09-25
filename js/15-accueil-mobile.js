@@ -254,3 +254,17 @@ window.addEventListener('resize', function(){
 });
 setInterval(function(){ if(osEstMobile() && getUserId()) _accueilChargerCompteurs(); }, 2*60*1000);
 setInterval(function(){ if(osEstMobile() && !Object.keys(window._windows||{}).length) osAccueilMobileRendre(); }, 20*1000);
+
+// Fiche détaillée affichée à côté d'une liste sur ordinateur (Bénévoles, Carnet de
+// sources) : sur téléphone, elle s'ouvre par-dessus la liste, avec un bouton retour.
+function osPanneauMobileOuvrir(panneau, libelleRetour){
+  if(!panneau || !osEstMobile()) return;
+  panneau.classList.add('panneau-mobile-ouvert');
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'panneau-mobile-retour';
+  btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+esc(libelleRetour || 'Retour');
+  btn.addEventListener('click', function(){ panneau.classList.remove('panneau-mobile-ouvert'); });
+  panneau.insertBefore(btn, panneau.firstChild);
+  panneau.scrollTop = 0;
+}

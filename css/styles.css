@@ -3476,3 +3476,71 @@ input:focus,select:focus,textarea:focus{
   .acc-btn-accueil { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 14px 0 8px; border-radius: 12px; background: #fff; border: 1px solid #E7E5E4; font: 700 14px 'DM Sans', Arial, sans-serif; color: #1A1A2E; flex-shrink: 0; cursor: pointer; }
   .acc-btn-accueil i { font-size: 20px; }
 }
+
+/* ===== APPLICATIONS SUR TÉLÉPHONE ===== */
+.panneau-mobile-retour { display: none; }
+@media (max-width: 768px) {
+  /* Menus de gauche (Ma rédac', Bénévoles, Paramètres) : rangée d'onglets en haut */
+  .mobile-onglets-page { flex-direction: column !important; }
+  .mobile-onglets {
+    display: flex !important; width: 100% !important; flex-direction: row !important; flex-wrap: nowrap !important;
+    overflow-x: auto !important; overflow-y: hidden !important; flex-shrink: 0 !important;
+    align-items: center !important; gap: 6px !important; padding: 8px 12px !important;
+    border-right: none !important; border-bottom: 1px solid var(--gris-bord) !important;
+    box-shadow: none !important; scrollbar-width: none;
+  }
+  .mobile-onglets::-webkit-scrollbar { display: none; }
+  .mobile-onglets > div:not(#redac-cps-groupe), .mobile-onglets .dnd-toggle-btn { display: none !important; }
+  #redac-cps-groupe { display: contents !important; }
+  .mobile-onglets button {
+    width: auto !important; flex: 0 0 auto !important; white-space: nowrap !important;
+    min-height: 40px !important; padding: 0 14px !important; border-radius: 999px !important;
+    font-size: 14px !important; border-left: none !important;
+  }
+  .mobile-onglets button:not(.active):not([style*="var(--rouge)"]) { background: #fff !important; border: 1px solid var(--gris-bord) !important; }
+
+  /* Agenda : vues sur toute la largeur, « + Événement » en bouton flottant */
+  .agenda-entete { flex-wrap: wrap; padding: 0.6rem 0.8rem !important; }
+  .agenda-entete-titre { display: none; }
+  .agenda-vues { flex: 1; }
+  .agenda-vues button { flex: 1; min-height: 40px; font-size: 14px !important; }
+  #agenda-filtres { padding: 0.3rem 0.8rem 0.6rem !important; }
+  #agenda-filtres button { min-height: 36px; font-size: 13px !important; padding: 0 12px !important; white-space: nowrap; }
+  .agenda-btn-nouveau {
+    position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 20;
+    height: 56px; padding: 0 22px !important; border-radius: 28px !important;
+    font-size: 15px !important; box-shadow: 0 8px 20px rgba(232,70,30,0.35);
+  }
+
+  /* Ma rédac' : boutons du profil sous le nom */
+  .redac-profil-tete { flex-wrap: wrap; }
+  .redac-profil-actions { width: 100%; justify-content: flex-start !important; }
+  .redac-profil-actions button { min-height: 40px; font-size: 13px !important; }
+
+  /* Paramètres : lignes qui passent à la ligne, avatars à la largeur de l'écran */
+  .params-sidebar { padding: 8px 12px !important; }
+  .params-section-btn.active { border: 1px solid var(--rouge) !important; }
+  .params-content { padding: 1rem !important; }
+  .params-row { flex-wrap: wrap; }
+  .params-action { flex-shrink: 1 !important; max-width: 100%; flex-wrap: wrap; }
+  #params-avatar-grid { max-width: 100% !important; }
+
+  /* Bénévoles : filtres qui défilent du doigt, chiffres sur 3 colonnes */
+  .benv-filtres { overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0.8rem !important; }
+  .benv-filtres > * { flex-shrink: 0; }
+  .benv-filtres button { min-height: 36px; font-size: 13px !important; white-space: nowrap; }
+  .benv-stats-grille { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+  /* Fiches à côté des listes (Bénévoles, Carnet de sources) : plein écran à la demande */
+  #benv-detail-panel, #carnet-detail-panel { display: none; }
+  #benv-detail-panel.panneau-mobile-ouvert, #carnet-detail-panel.panneau-mobile-ouvert {
+    display: block; position: fixed; top: 60px; left: 0; right: 0; bottom: 0;
+    width: 100% !important; z-index: 30; border-left: none !important;
+  }
+  .panneau-mobile-retour {
+    display: flex; align-items: center; gap: 4px; position: sticky; top: 0; z-index: 2;
+    width: 100%; min-height: 48px; padding: 0 12px; border: none; border-bottom: 1px solid var(--gris-bord);
+    background: #fff; font: 700 14px 'DM Sans', Arial, sans-serif; color: var(--encre); cursor: pointer;
+  }
+  .panneau-mobile-retour i { font-size: 20px; }
+}

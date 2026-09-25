@@ -671,15 +671,15 @@ function osAgendaRender(){
   hdr.style.cssText = 'flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);';
 
   // Ligne 1 : titre + vues + bouton
-  var ligne1 = '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;">';
-  ligne1 += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda Ipsum Média</div>';
-  ligne1 += '<div style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
+  var ligne1 = '<div class="agenda-entete" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;">';
+  ligne1 += '<div class="agenda-entete-titre" style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda Ipsum Média</div>';
+  ligne1 += '<div class="agenda-vues" style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
     +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
     +'<button onclick="osAgendaSetVue(\'semaine\')" id="agenda-btn-semaine" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Semaine</button>'
     +'<button onclick="osAgendaSetVue(\'jour\')" id="agenda-btn-jour" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Jour</button>'
     +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Mois</button>'
     +'</div>';
-  if(isChefOuAdmin) ligne1 += '<button onclick="osAgendaNouvelEvenement()" style="font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
+  if(isChefOuAdmin) ligne1 += '<button class="agenda-btn-nouveau" onclick="osAgendaNouvelEvenement()" style="font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
   ligne1 += '</div>';
 
   // Ligne 2 : filtres par type

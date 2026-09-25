@@ -725,6 +725,7 @@ function osBenevolesOuvrirFiche(membreId){
   html += '</div>';
 
   card.innerHTML = html;
+  osPanneauMobileOuvrir(card, 'Retour à l\'équipe');
 
   // Brancher tous les événements via addEventListener
   card.querySelectorAll('.benv-role-btn').forEach(function(btn){
