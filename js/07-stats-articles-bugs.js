@@ -47,6 +47,7 @@ function osStatsAppRender(){
   wc.innerHTML = '';
 
   var outer = document.createElement('div');
+  outer.className = 'stats-outer';
   outer.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
   var isAdmin = getUserRole() === 'admin';
@@ -58,19 +59,23 @@ function osStatsAppRender(){
 
   if(isAdmin){
     var rail = document.createElement('div');
+    rail.className = 'stats-rail';
     rail.style.cssText = 'width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
     onglets.forEach(function(o){
       var btn = document.createElement('button');
       var actif = _statsOnglet === o.id;
+      if(actif) btn.className = 'actif';
       btn.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;';
       btn.innerHTML = '<i class="ti '+o.icon+'"></i>'+o.label;
       btn.onclick = function(){ _statsOnglet = o.id; osStatsAppRender(); };
       rail.appendChild(btn);
     });
     outer.appendChild(rail);
+    if(osEstMobile()) setTimeout(function(){ var b = rail.querySelector('.actif'); if(b && b.scrollIntoView) b.scrollIntoView({block:'nearest', inline:'center'}); }, 0);
   }
 
   var contentOuter = document.createElement('div');
+  contentOuter.className = 'stats-contenu';
   contentOuter.style.cssText = 'flex:1;min-width:0;overflow-y:auto;'+(_statsOnglet==='vue'?'background:#F7F8FA;':'background:var(--fond-page,#F5F3EF);');
   outer.appendChild(contentOuter);
 
@@ -216,14 +221,17 @@ function _statsRenderVueEnsemble(zone){
     hdr.style.cssText = 'padding:0.7rem 1.2rem 0.6rem;background:white;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
 
     var hdrLeft = document.createElement('div');
-    hdrLeft.innerHTML = '<div style="font-family:Arial,monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gris);">Ipsum Média · Tableau de bord</div>'+
+    hdrLeft.className = 'stats-hdr-g';
+    hdrLeft.innerHTML = '<div class="stats-surtitre" style="font-family:Arial,monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gris);">Ipsum Média · Tableau de bord</div>'+
       '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">'+last.mois+'</div>';
 
     var hdrRight = document.createElement('div');
+    hdrRight.className = 'stats-hdr-d';
     hdrRight.style.cssText = 'display:flex;align-items:center;gap:0.6rem;';
 
     // Sélecteur de mois
     var select = document.createElement('select');
+    select.className = 'stats-mois';
     select.style.cssText = 'background:white;border:1px solid var(--gris-bord);color:var(--encre);border-radius:6px;padding:4px 8px;font-family:Space Mono,monospace;font-size:0.65rem;cursor:pointer;';
     data.slice().reverse().forEach(function(d,i){
       var opt = document.createElement('option');
@@ -268,6 +276,7 @@ function _statsRenderVueEnsemble(zone){
 
     // KPIs - compact
     var kpiZone = document.createElement('div');
+    kpiZone.className = 'stats-kpis';
     kpiZone.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;padding:0.6rem 1.2rem;flex-shrink:0;';
 
     var kpis = [
@@ -301,6 +310,7 @@ function _statsRenderVueEnsemble(zone){
 
     // Zone prédictions
     var predZone = document.createElement('div');
+    predZone.className = 'stats-preds';
     predZone.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;padding:0 1.2rem 0.5rem;flex-shrink:0;';
 
     // Calculs stats avancées
@@ -366,10 +376,12 @@ function _statsRenderVueEnsemble(zone){
 
     // Charts zone - grille 3 colonnes sur 1 ligne
     var charts = document.createElement('div');
+    charts.className = 'stats-graphes';
     charts.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.5rem;padding:0 1.2rem 0.8rem;flex:1;min-height:0;overflow:hidden;';
 
     // 1. Courbe totale
     var cTotal = document.createElement('div');
+    cTotal.className = 'stats-g-courbe';
     cTotal.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.6rem;display:flex;flex-direction:column;min-height:0;box-shadow:0 1px 2px rgba(0,0,0,0.04);';
     cTotal.innerHTML = '<div style="font-family:Arial,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;flex-shrink:0;">Evolution vues totales</div>';
     var canvas = document.createElement('canvas');
@@ -379,12 +391,14 @@ function _statsRenderVueEnsemble(zone){
 
     // 2. Jauge
     var cJauge = document.createElement('div');
+    cJauge.className = 'stats-g-jauge';
     cJauge.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.6rem;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:visible;box-shadow:0 1px 2px rgba(0,0,0,0.04);';
     cJauge.innerHTML = '<div style="font-family:Arial,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;align-self:flex-start;">Performance</div>';
     charts.appendChild(cJauge);
 
     // 3. Plateformes
     var cPlat = document.createElement('div');
+    cPlat.className = 'stats-g-plat';
     cPlat.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.6rem;display:flex;flex-direction:column;min-height:0;box-shadow:0 1px 2px rgba(0,0,0,0.04);';
     cPlat.innerHTML = '<div style="font-family:Arial,monospace;font-size:0.5rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;flex-shrink:0;">Plateformes</div>';
     var platBars = document.createElement('div');
@@ -465,7 +479,7 @@ function statsDrawCurve(canvas, data, activeIdx){
     // Label tous les 4 mois
     if(i%4===0 || i===data.length-1){
       ctx.fillStyle='rgba(0,0,0,0.4)';
-      ctx.font='7px monospace'; ctx.textAlign='center';
+      ctx.font=(osEstMobile()?'11px':'7px')+' monospace'; ctx.textAlign='center';
       ctx.fillText(data[i].mois.split(' ')[0], p.x, H-1);
     }
   });
@@ -601,16 +615,20 @@ function statsDrawPlatforms(container, last){
   var maxP=Math.max.apply(null,platforms.map(function(p){return p.val;}))||1;
   platforms.forEach(function(p){
     var row=document.createElement('div');
+    row.className='stats-plat-ligne';
     row.style.cssText='display:flex;align-items:center;gap:0.4rem;';
     var name=document.createElement('div');
+    name.className='stats-plat-nom';
     name.style.cssText='font-family:Space Mono,monospace;font-size:0.55rem;color:var(--encre);width:58px;flex-shrink:0;';
     name.textContent=p.label;
     var track=document.createElement('div');
+    track.className='stats-plat-barre';
     track.style.cssText='flex:1;height:5px;background:var(--gris-clair);border-radius:3px;overflow:hidden;';
     var fill=document.createElement('div');
     fill.style.cssText='height:100%;width:0;border-radius:3px;background:'+p.color+';transition:width 1s cubic-bezier(0.34,1.2,0.64,1);';
     track.appendChild(fill);
     var val=document.createElement('div');
+    val.className='stats-plat-val';
     val.style.cssText='font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);width:38px;text-align:right;flex-shrink:0;';
     val.textContent=statsFormatNum(p.val);
     row.appendChild(name);row.appendChild(track);row.appendChild(val);
@@ -627,7 +645,7 @@ function statsPreRemplirFormulaire(d){
   var vals = [d.mois, d.periode||'', d.vues_newsletter||0, d.vues_articles||0, d.vues_youtube||0, d.vues_threads||0, d.vues_facebook||0, d.vues_tiktok||0, d.vues_instagram||0, d.note||''];
   ids.forEach(function(id,i){ var el=document.getElementById(id); if(el) el.value=vals[i]; });
   var btn = document.getElementById('stats-save-btn');
-  if(btn) btn.textContent = 'Mettre a jour';
+  if(btn) btn.textContent = 'Mettre à jour';
 }
 
 // ===== VUES PAR ARTICLE (import PDF stats Substack) =====
@@ -890,7 +908,7 @@ function _statsRenderChiffresMois(zone){
     var btnSave=document.createElement('button');
     btnSave.className='btn';
     btnSave.id='stats-save-btn';
-    btnSave.textContent=_statsEditId?'Mettre a jour':'Enregistrer le mois';
+    btnSave.textContent=_statsEditId?'Mettre à jour':'Enregistrer le mois';
     btnSave.onclick=function(){
       var mois=document.getElementById('sf-mois').value.trim();
       if(!mois){notif('Le champ Mois est requis');return;}
@@ -916,13 +934,13 @@ function _statsRenderChiffresMois(zone){
       fetch(url,{method:method,headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),body:JSON.stringify(row)})
       .then(function(r){
         if(r.ok){
-          notif(_statsEditId?'Stats mises a jour !':'Stats de '+mois+' enregistrees !');
+          notif(_statsEditId?'Stats mises à jour !':'Stats de '+mois+' enregistrées !');
           _statsEditId=null;
           fields.forEach(function(f){var el=document.getElementById(f.id);if(el)el.value='';});
           _statsRenderChiffresMois(zone);
         } else notif('Erreur enregistrement');
         btnSave.disabled=false;btnSave.textContent='Enregistrer le mois';
-      }).catch(function(){notif('Erreur reseau');btnSave.disabled=false;btnSave.textContent='Enregistrer le mois';});
+      }).catch(function(){notif('Erreur réseau');btnSave.disabled=false;btnSave.textContent='Enregistrer le mois';});
     };
 
     var btnReset=document.createElement('button');
@@ -952,18 +970,21 @@ function _statsRenderChiffresMois(zone){
         _statsEditId=dd.id;
         statsPreRemplirFormulaire(dd);
         window.scrollTo(0,0);
-        var moisEl=document.getElementById('sf-mois');if(moisEl)moisEl.focus();
+        var moisEl=document.getElementById('sf-mois');
+        if(moisEl){ if(moisEl.scrollIntoView) moisEl.scrollIntoView({block:'center'}); moisEl.focus(); }
       };})(d);
 
       var btnDel=document.createElement('button');
+      btnDel.className='stats-hist-suppr';
+      btnDel.title='Supprimer ce mois';
       btnDel.style.cssText='background:transparent;border:none;color:rgba(0,0,0,0.2);cursor:pointer;font-size:0.85rem;padding:0;';
-      btnDel.textContent='×';
+      btnDel.innerHTML='<i class="ti ti-trash"></i>';
       btnDel.onmouseover=function(){this.style.color='#FF5F57';};
       btnDel.onmouseout=function(){this.style.color='rgba(0,0,0,0.2)';};
       btnDel.onclick=(function(dd){return function(){
         if(!confirm('Supprimer '+dd.mois+' ?')) return;
         fetch(SB_URL+'/rest/v1/stats_mensuelles?id=eq.'+dd.id,{method:'DELETE',headers:SB_HEADERS})
-        .then(function(r){if(r.ok){notif(dd.mois+' supprime');_statsRenderChiffresMois(zone);}});
+        .then(function(r){if(r.ok){notif(dd.mois+' supprimé');_statsRenderChiffresMois(zone);}});
       };})(d);
 
       acts.appendChild(btnEd);acts.appendChild(btnDel);

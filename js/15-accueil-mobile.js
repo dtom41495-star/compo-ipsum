@@ -321,6 +321,9 @@ function _accueilPreparerFenetre(win){
     });
     barre.insertBefore(btn, barre.firstChild);
   }
+  // Pas d'emoji dans les titres des applis sur téléphone
+  var titreFen = win.querySelector('.os-titlebar-title');
+  if(titreFen && osEstMobile()) titreFen.textContent = titreFen.textContent.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '');
   if(osEstMobile() && !_accSansHistorique){
     try{ history.pushState({compoFenetre:pageId}, ''); }catch(e){}
   }
@@ -396,6 +399,8 @@ function _accueilAgrandirTexte(racine){
   var elements = [racine].concat(Array.prototype.slice.call(racine.querySelectorAll('*')));
   elements.forEach(function(el){
     if(el.dataset && el.dataset.accTexte) return;
+    // Texte des dessins (jauges, graphiques) : sa taille suit celle du dessin
+    if(el instanceof SVGElement) return;
     var aDuTexte = false;
     for(var i = 0; i < el.childNodes.length; i++){
       var n = el.childNodes[i];
