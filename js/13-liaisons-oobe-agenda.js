@@ -1620,8 +1620,7 @@ function osAgendaOuvrirDetail(ev){
         iz += '</div>';
       }
 
-      // Inscrits externes (sans compte Compo) — rempli séparément juste après ce
-      // rendu, via l'Edge Function (la table n'a aucune policy RLS, voir la migration).
+      // Inscrits externes (sans compte Compo) — rempli séparément juste après ce rendu.
       if(ev.ouvert_externes) iz += '<div id="agenda-externes-zone" style="'+SEPARATEUR+'"></div>';
 
       // Ajouter un participant manuellement
@@ -1673,8 +1672,7 @@ function osAgendaFermerDetail(){
   osAgendaCharger();
 }
 
-// Inscrits externes : passe par agenda-inscription-externe (action 'lister'), jamais par
-// un fetch REST direct — la table n'a aucune policy RLS, seule cette fonction y a accès.
+// Inscrits externes : chargés via la fonction agenda-inscription-externe.
 function osAgendaChargerInscritsExternes(evId){
   var zoneExt = document.getElementById('agenda-externes-zone');
   if(!zoneExt) return;
