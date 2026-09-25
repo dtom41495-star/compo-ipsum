@@ -1282,6 +1282,18 @@ function _osAfficherSelecteurRedaction(liens, estOuvertureInitiale){
 
 function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParRedac, estOuvertureInitiale){
     effectifsParRedac = effectifsParRedac || {};
+    // Choisir une rédaction ne fait que changer de rédaction : Ma rédac' n'est pas ouverte
+    // d'office (elle se met à jour si elle l'est déjà), l'accueil mobile non plus
+    function choisir(redacId){
+      var ov = document.getElementById('redac-select-overlay');
+      if(ov) ov.remove();
+      osRedactionsChoisirRedac(redacId);
+      if(typeof osAccueilMobileRendre === 'function') osAccueilMobileRendre();
+    }
+    if(typeof osEstMobile === 'function' && osEstMobile()){
+      _osSelecteurRedactionMobile(redactions, liens, effectifsParRedac, choisir);
+      return;
+    }
     var overlay = document.createElement('div');
     overlay.id = 'redac-select-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(13,13,26,0.55);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;';
@@ -1290,8 +1302,8 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
     card.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:2.5rem;max-width:480px;width:100%;';
 
     var icon = document.createElement('div');
-    icon.style.cssText = 'font-size:2.5rem;text-align:center;margin-bottom:1rem;';
-    icon.textContent = '🗞️';
+    icon.style.cssText = 'font-size:2.5rem;text-align:center;margin-bottom:1rem;color:white;';
+    icon.innerHTML = '<i class="ti ti-news"></i>';
 
     var title = document.createElement('div');
     title.style.cssText = 'font-family:Poppins,sans-serif;font-size:1.4rem;font-weight:800;color:white;text-align:center;margin-bottom:0.5rem;';
@@ -1328,11 +1340,7 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
         +'</div></div>'
         +'<div style="color:rgba(255,255,255,0.3);font-size:1rem;flex-shrink:0;">→</div>';
 
-      btn.onclick = function(){
-        overlay.remove();
-        osRedactionsChoisirRedac(lien.redaction_id);
-        osOpenWindow('redactions');
-      };
+      btn.onclick = function(){ choisir(lien.redaction_id); };
       card.appendChild(btn);
     });
 
@@ -1620,7 +1628,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   // cadre, cette zone n'est jamais que le prolongement blanc du bandeau.
   var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
   if(actionsRedac.length){
-    h += '<div style="background:white;padding:0.9rem 1rem;border-radius:0 0 14px 14px;">';
+    h += '<div class="redac-actions-rapides" style="background:white;padding:0.9rem 1rem;border-radius:0 0 14px 14px;">';
     h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.5rem;"><i class="ti ti-bolt" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Actions rapides</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.55rem;">';
     actionsRedac.forEach(function(a){
@@ -1812,7 +1820,7 @@ function osNettoyerSujetsPublies(){
 
 function osRedactionsMembre_OngletSujets(uid, roleRedac){
   var isChefOuAdmin = getUserRole()==='admin' || roleRedac==='redac_chef';
-  var h = '<div style="display:flex;align-items:stretch;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.8rem;">';
+  var h = '<div class="sujets-entete" style="display:flex;align-items:stretch;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.8rem;">';
   h += '<div style="flex:1;min-width:230px;display:flex;align-items:center;gap:0.7rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.6rem 0.8rem;">';
   h += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
   h += '<div style="flex:1;min-width:0;">';
@@ -1822,7 +1830,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
   h += '</div>';
   if(isChefOuAdmin || getUserRole()==='admin'){
-    h += '<div style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
+    h += '<div class="sujets-outils-chef" style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
     if(isChefOuAdmin){
       h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">+ Nouveau sujet</button>';
     }
@@ -1888,13 +1896,21 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     var nomMoi = getUserNomComplet();
     var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
     var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
-    var h = '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
+    var h = '';
+    // Sur téléphone : onglets « À prendre » / « En cours »
+    var nbLibres = sujets.filter(function(s){ return !(s.statut==='en_cours' && s.responsable); }).length;
+    if(typeof osEstMobile === 'function' && osEstMobile()){
+      h += '<div class="sujets-onglets" data-choix="libres">'
+        +'<button type="button" class="actif" data-f="libres" onclick="_osSujetsFiltrer(this)">À prendre ('+nbLibres+')</button>'
+        +'<button type="button" data-f="pris" onclick="_osSujetsFiltrer(this)">En cours ('+(sujets.length-nbLibres)+')</button></div>';
+    }
+    h += '<div class="sujets-liste" data-filtre="libres" style="display:flex;flex-direction:column;gap:0.6rem;">';
     sujets.forEach(function(s){
       var artLie = articleParSujet[s.id];
       var prio = s.priorite||'normale';
       var isPris = s.statut==='en_cours' && s.responsable;
       var estMoi = s.responsable && s.responsable.trim()===nomMoi.trim();
-      h += '<div style="background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
+      h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" style="background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.3rem;">';
       h += '<div style="flex:1;font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>';
       h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
@@ -1902,7 +1918,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       if(s.cp_id) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:#1A5276;margin-bottom:0.3rem;"><i class="ti ti-paperclip" style="vertical-align:-2px;margin-right:3px;"></i>Communiqué lié</div>';
       if(s.note) h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">'+esc(s.note)+'</div>';
       if(s.rubrique) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+      h += '<div class="sujet-actions" style="display:flex;align-items:center;justify-content:space-between;">';
       if(isPris){
         // Sujet déjà pris — afficher qui s'en occupe
         h += '<div style="display:flex;align-items:center;gap:0.4rem;">'
