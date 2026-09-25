@@ -1742,8 +1742,8 @@ body {
 
 /* ===== THÈME SOMBRE ===== */
 :root.theme-dark {
-  --rouge: #FF6B3D;
-  --rouge-hover: #E8461E;
+  --rouge: #E8461E;
+  --rouge-hover: #D13D17;
   --rouge-clair: rgba(255,107,61,0.12);
   --encre: #E8E6E1;
   --blanc: #1A1A2E;
@@ -3815,7 +3815,7 @@ input:focus,select:focus,textarea:focus{
   .acc-installer-txt span { display: block; margin-top: 2px; font-size: 14px; color: #6B7280; line-height: 1.35; }
   .acc-installer-btns { display: flex; gap: 8px; margin-top: 10px; }
   .acc-installer-btns button { height: 40px; padding: 0 16px; border-radius: 12px; font: 600 14px 'DM Sans', Arial, sans-serif; cursor: pointer; border: 1px solid #E7E5E4; background: #fff; color: #1A1A2E; }
-  .acc-installer-btns .acc-installer-ok { background: #E8461E; border-color: #E8461E; color: #fff; }
+  #os-accueil-mobile .acc-installer-btns .acc-installer-ok { background: #E8461E; border-color: #E8461E; color: #fff; }
   .acc-installer-aide-titre { font: 700 18px Poppins, 'DM Sans', sans-serif; color: #1A1A2E; margin: 6px 0 12px; }
   .acc-installer-etape { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 15px; color: #1A1A2E; line-height: 1.4; }
   .acc-installer-etape > i { font-size: 24px; color: #E8461E; flex-shrink: 0; }
@@ -4014,3 +4014,6 @@ input:focus,select:focus,textarea:focus{
 }
 .redac-rail-etat .rh-etat { white-space: normal; border-radius: 10px; align-items: flex-start; }
 .redac-rail-etat .rh-etat .rh-point { margin-top: 4px; }
+
+/* Mode sombre : pas d'animation de couleur sur les éléments adaptés (js/19-mode-sombre.js) */
+:root.theme-dark [data-sombre] { transition-property: transform, opacity, width, height, box-shadow !important; }

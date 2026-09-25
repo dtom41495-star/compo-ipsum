@@ -1865,7 +1865,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
 
 function _railBadgeNombre(n){
   if(!n) return '';
-  return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#FF5F57;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
+  return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#DC2626;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
 }
 
 // Simple point, pas un nombre — pour Communiqués, où "il y en a un à lire" suffit
