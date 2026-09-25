@@ -2067,6 +2067,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
     // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").
     // Même logique que publierArticle(), qui gère le cas "publication depuis une liste".
+    if(nouveauStatut==='publie' && typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(doc.id);
     var sujetLie = doc.sujet_id || doc._sujet_id;
     if(nouveauStatut==='publie' && sujetLie){
       var authHSujet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});

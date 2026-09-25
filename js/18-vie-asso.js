@@ -152,3 +152,62 @@ function osBenvEcrire(membreId){
 
 // Le bouton « relancer » des fiches ouvre désormais le même message à personnaliser
 osBenevolesRelancer = function(membreId){ osBenvEcrire(membreId); };
+
+// ===== PREMIER ARTICLE PUBLIÉ =====
+// Au tout premier article publié d'un membre : un mot de félicitations pour lui, et un
+// signal aux rédac chefs de sa rédaction pour qu'ils pensent à le féliciter aussi.
+function osFeliciterPremierArticle(articleId){
+  if(!articleId) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  function lire(url){ return fetch(SB_URL+url,{headers:authH}).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; }); }
+  lire('/rest/v1/articles?id=eq.'+encodeURIComponent(articleId)+'&select=id,titre,auteur_id,redaction_id,lien_publication').then(function(a){
+    var art = a[0];
+    if(!art || !art.auteur_id) return;
+    lire('/rest/v1/membres?id=eq.'+encodeURIComponent(art.auteur_id)+'&select=id,prenom,nom,email,canal_notif').then(function(ms){
+      var auteur = ms[0];
+      if(!auteur) return;
+      var nomComplet = ((auteur.prenom||'')+' '+(auteur.nom||'')).trim();
+      // Premier article : aucun autre article publié à son nom (anciens articles sans auteur_id compris)
+      var filtre = 'auteur_id.eq.'+auteur.id+(nomComplet ? ',auteur.eq.'+encodeURIComponent('"'+nomComplet.replace(/"/g,'')+'"') : '');
+      lire('/rest/v1/articles?statut=eq.publie&or=('+filtre+')&select=id&limit=2').then(function(publies){
+        if(publies.length !== 1 || publies[0].id !== art.id) return;
+        var titre = art.titre || 'Sans titre';
+        var lien = art.lien_publication || 'https://compo.ipsummedia.fr/?article='+art.id;
+        var libelleLien = art.lien_publication ? 'Lire l\'article' : 'Voir sur Compo';
+
+        if(_osRedacNotifActive(art.redaction_id, 'notif_statut_article')){
+          notifierPersonnel(auteur.id, auteur.canal_notif,
+            '*Ton premier article est en ligne !*\nBravo '+_chatSansMiseEnForme(auteur.prenom||'')+' : « '+_chatSansMiseEnForme(titre)+' » vient d\'être publié. Merci pour ton travail !\n<'+lien+'|'+libelleLien+'>',
+            'publication', function(){
+              if(!auteur.email) return;
+              envoyerEmailResend(auteur.email, '[Ipsum Média] Ton premier article est en ligne !', _emailCompo({
+                accent:'vert', etiquette:'PREMIER ARTICLE', titre:'Ton premier article est en ligne !',
+                bonjour:'Bravo '+esc(auteur.prenom||'')+' !',
+                texte:'« '+esc(titre)+' » vient d\'être publié. C\'est une vraie étape : merci pour ton travail, et bienvenue parmi les auteurs d\'Ipsum Média.',
+                boutons:[{label:libelleLien, url:lien}, {label:'Trouver mon prochain sujet', url:'https://compo.ipsummedia.fr', secondaire:true}],
+                pourquoi:'Tu reçois cet email car ton premier article vient d\'être publié.' }), 'publication');
+            });
+        }
+
+        var ids = (window._membresRedactionsData||[]).filter(function(l){ return l.redaction_id === art.redaction_id && l.role_redac === 'redac_chef' && l.membre_id !== auteur.id; }).map(function(l){ return l.membre_id; });
+        var pChefs = ids.length ? lire('/rest/v1/membres?id=in.('+ids.join(',')+')&select=id,prenom,email,canal_notif')
+                                : lire('/rest/v1/membres?role=eq.admin&select=id,prenom,email,canal_notif').then(function(l){ return l.filter(function(m){ return m.id !== auteur.id; }); });
+        pChefs.then(function(chefs){
+          chefs.forEach(function(c){
+            notifierPersonnel(c.id, c.canal_notif,
+              '*Premier article publié*\n« '+_chatSansMiseEnForme(titre)+' » est le tout premier article de '+_chatSansMiseEnForme(nomComplet)+'. Un petit mot de félicitations lui fera plaisir !\n<'+lien+'|'+libelleLien+'>',
+              'publication', function(){
+                if(!c.email) return;
+                envoyerEmailResend(c.email, '[Ipsum Média] Premier article de '+nomComplet, _emailCompo({
+                  accent:'vert', etiquette:'PREMIER ARTICLE', titre:'Premier article publié pour '+esc(nomComplet),
+                  bonjour:'Bonjour '+esc(c.prenom||'')+',',
+                  texte:'« '+esc(titre)+' » est le tout premier article publié de '+esc(auteur.prenom||nomComplet)+'. Un petit mot de félicitations lui fera plaisir !',
+                  boutons:[{label:libelleLien, url:lien}],
+                  pourquoi:'Tu reçois cet email car tu es rédac chef de la rédaction concernée.' }), 'publication');
+              });
+          });
+        });
+      });
+    });
+  });
+}
