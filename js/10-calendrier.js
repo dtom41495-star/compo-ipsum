@@ -1248,14 +1248,16 @@ function osSujetOuvrirAssignation(sujetId){
 
   var overlay = document.createElement('div');
   overlay.id = 'sujet-assign-overlay';
+  overlay.className = 'sa-voile';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
   var modal = document.createElement('div');
+  modal.className = 'sa-feuille';
   modal.style.cssText = 'background:white;border-radius:12px;max-width:380px;width:100%;max-height:78vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:1.2rem;';
   modal.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">'
-    +'<div style="font-weight:700;font-size:0.85rem;color:var(--encre);">Attribuer « '+esc(sujet.titre||'')+' »</div>'
-    +'<button onclick="document.getElementById(\'sujet-assign-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
+    +'<div class="sa-titre" style="font-weight:700;font-size:0.85rem;color:var(--encre);">Attribuer « '+esc(sujet.titre||'')+' »</div>'
+    +'<button class="sa-fermer" title="Fermer" onclick="document.getElementById(\'sujet-assign-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;"><i class="ti ti-x"></i></button>'
     +'</div>'
-    +'<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.8rem;">Choisis à qui confier ce sujet — il apparaîtra directement chez cette personne comme « en cours », elle n\'a rien à réserver.</div>'
+    +'<div class="sa-aide" style="font-size:0.72rem;color:var(--gris);margin-bottom:0.8rem;">Choisis à qui confier ce sujet — il apparaîtra directement chez cette personne comme « en cours », elle n\'a rien à réserver.</div>'
     +'<div id="sujet-assign-liste">'+osLoadingHtml()+'</div>';
   overlay.appendChild(modal);
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
@@ -1266,7 +1268,7 @@ function osSujetOuvrirAssignation(sujetId){
   var zone = document.getElementById('sujet-assign-liste');
   if(!ids.length){ if(zone) zone.innerHTML = '<div style="text-align:center;color:var(--gris);font-size:0.78rem;padding:1rem;">Aucun membre dans cette rédaction.</div>'; return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&actif=eq.true&role=neq.interdit&select=id,prenom,nom,email,canal_notif&order=prenom.asc',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&actif=eq.true&role=neq.interdit&select=*&order=prenom.asc',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(membres){
     membres = (!membres||membres.code) ? [] : membres;
@@ -1274,10 +1276,13 @@ function osSujetOuvrirAssignation(sujetId){
     var z = document.getElementById('sujet-assign-liste');
     if(!z) return;
     if(!membres.length){ z.innerHTML = '<div style="text-align:center;color:var(--gris);font-size:0.78rem;padding:1rem;">Aucun membre disponible.</div>'; return; }
-    var h = '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+    // Recherche par nom dès qu'il y a du monde
+    var h = membres.length > 6 ? '<input type="search" class="sa-recherche" placeholder="Rechercher un membre" oninput="_osSujetAssignFiltrer(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.8rem;margin-bottom:0.5rem;">' : '';
+    h += '<div class="sa-liste" style="display:flex;flex-direction:column;gap:0.3rem;">';
     membres.forEach(function(m){
-      h += '<button data-mid="'+m.id+'" onclick="osSujetAssigner(\''+sujetId+'\',this.dataset.mid)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:white;font-size:0.8rem;text-align:left;cursor:pointer;box-sizing:border-box;color:var(--encre);">'
-        +esc((m.prenom||'')+' '+(m.nom||''))
+      var nom = ((m.prenom||'')+' '+(m.nom||'')).trim();
+      h += '<button class="sa-membre" data-mid="'+m.id+'" data-nom="'+esc(nom.toLowerCase())+'" onclick="osSujetAssigner(\''+sujetId+'\',this.dataset.mid)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:white;font-size:0.8rem;text-align:left;cursor:pointer;box-sizing:border-box;color:var(--encre);">'
+        +'<span class="sa-avatar">'+renderAvatarHTML(m, osEstMobile() ? 40 : 28, {})+'</span><span class="sa-nom">'+esc(nom)+'</span><i class="ti ti-chevron-right sa-chevron"></i>'
         +'</button>';
     });
     h += '</div>';
@@ -1286,6 +1291,11 @@ function osSujetOuvrirAssignation(sujetId){
     var z = document.getElementById('sujet-assign-liste');
     if(z) z.innerHTML = '<div style="text-align:center;color:var(--rouge);font-size:0.78rem;padding:1rem;">Erreur de chargement.</div>';
   });
+}
+
+function _osSujetAssignFiltrer(champ){
+  var q = (champ.value||'').trim().toLowerCase();
+  document.querySelectorAll('#sujet-assign-liste .sa-membre').forEach(function(b){ b.style.display = !q || b.dataset.nom.indexOf(q) !== -1 ? '' : 'none'; });
 }
 
 function osSujetAssigner(sujetId, membreId){

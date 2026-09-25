@@ -3909,3 +3909,20 @@ input:focus,select:focus,textarea:focus{
   .ga-bandeau button { width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,0.22); color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
   .ga-titre { font: 700 13px 'DM Sans', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #6B7280; margin-bottom: -4px; }
 }
+
+/* ===== ATTRIBUER UN SUJET ===== */
+.sa-avatar { display: flex; flex-shrink: 0; }
+.sa-nom { flex: 1; min-width: 0; }
+.sa-chevron { color: var(--gris); }
+@media (max-width: 768px) {
+  #sujet-assign-overlay.sa-voile { padding: 0 !important; align-items: flex-end !important; }
+  #sujet-assign-overlay .sa-feuille { max-width: none !important; max-height: 85vh !important; border-radius: 20px 20px 0 0 !important; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)) !important; }
+  #sujet-assign-overlay .sa-titre { font-size: 18px !important; line-height: 1.3; padding-right: 8px; }
+  #sujet-assign-overlay .sa-fermer { width: 44px; height: 44px; border-radius: 12px !important; background: #F5F5F4 !important; font-size: 22px !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #sujet-assign-overlay .sa-aide { font-size: 14px !important; line-height: 1.4; }
+  #sujet-assign-overlay .sa-recherche { height: 48px; font-size: 16px !important; border-radius: 12px !important; padding: 0 14px !important; }
+  #sujet-assign-overlay .sa-liste { gap: 8px !important; }
+  #sujet-assign-overlay .sa-membre { min-height: 60px; padding: 8px 14px !important; gap: 12px !important; border-radius: 14px !important; font-size: 16px !important; font-weight: 600; }
+  #sujet-assign-overlay .sa-membre:active { background: #FFF1EC !important; border-color: #E8461E !important; }
+  #sujet-assign-overlay .sa-chevron { font-size: 20px; }
+}
