@@ -179,3 +179,21 @@ function osRedacHorairesLireForm(){
   if(!auMoinsUn){ notif('Horaires : coche au moins un jour d\'ouverture','erreur'); return false; }
   return res;
 }
+
+// Pastille « Ouverte jusqu'à 18h » / « Fermée · rouvre lundi à 9h » pour la rédaction
+// affichée. Vide si la rédaction n'a pas d'horaires.
+function osRedacEtatTexte(redac){
+  if(!osRedacHorairesDefinis(redac)) return null;
+  var e = osRedacHorairesEtat(redac);
+  if(e.ouvert){
+    var f = e.fermeture ? _horairesPartiesParis(e.fermeture) : null;
+    return { ouvert:true, texte: f ? 'Ouverte jusqu\'à '+f.h+'h'+(f.mn ? String(f.mn).padStart(2,'0') : '') : 'Ouverte' };
+  }
+  return { ouvert:false, texte: e.prochaineOuverture ? 'Fermée · rouvre '+osHorairesQuandTexte(e.prochaineOuverture) : 'Fermée' };
+}
+function osRedacEtatHtml(redac, classe){
+  var e = osRedacEtatTexte(redac);
+  if(!e) return '';
+  return '<span class="rh-etat '+(e.ouvert ? 'rh-ouverte' : 'rh-fermee')+(classe ? ' '+classe : '')+'" title="Horaires d\'ouverture de la rédaction">'
+    +'<span class="rh-point"></span>'+esc(e.texte)+'</span>';
+}

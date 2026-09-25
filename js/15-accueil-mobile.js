@@ -209,6 +209,7 @@ function osAccueilMobileRendre(){
     +'<div class="acc-ligne-statut">'
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
+    +(redac && typeof osRedacEtatHtml === 'function' ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
     +'</div>';
   if(_accueilProposerInstall()){
     h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'

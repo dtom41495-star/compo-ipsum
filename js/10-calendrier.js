@@ -1840,6 +1840,12 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   onglets.filter(function(o){ return o.groupe==='cps'; }).forEach(function(o){ h += boutonOnglet(o); });
   h += '</div>';
   h += '<div style="flex:1;"></div>';
+  // Rédaction affichée et son état (ouverte / fermée) si elle a des horaires
+  if(redacRail && typeof osRedacEtatHtml === 'function' && osRedacEtatHtml(redacRail)){
+    h += '<div class="redac-rail-etat" style="padding:8px 10px 4px;">'
+      +'<div style="font-size:0.72rem;font-weight:700;color:var(--encre);margin-bottom:3px;">'+esc(redacRail.nom||'')+'</div>'
+      +osRedacEtatHtml(redacRail)+'</div>';
+  }
   // Bouton changer de rédaction si multi-redac
   var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
   if(mesLiensSidebar.length > 1){
@@ -1859,7 +1865,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
 
 function _railBadgeNombre(n){
   if(!n) return '';
-  return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#FF5F57;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
+  return '<span class="rail-badge" style="min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#DC2626;color:white;font-size:0.6rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto;">'+(n>99?'99+':n)+'</span>';
 }
 
 // Simple point, pas un nombre — pour Communiqués, où "il y en a un à lire" suffit
