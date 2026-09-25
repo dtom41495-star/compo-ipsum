@@ -275,6 +275,7 @@ function chargerDepuisURL(){
   var articleId = params.get('article');
   var communiqueId = params.get('communique');
   var agendaId = params.get('agenda');
+  var carte = params.get('carte');
 
   if(articleId){
     db.getArticle(articleId).then(function(doc){
@@ -326,6 +327,25 @@ function chargerDepuisURL(){
           setTimeout(function(){ osAgendaOuvrirDetail(ev); }, 400);
         }, 300);
       }).catch(function(){ notif('Erreur chargement événement'); });
+    }, 1500); // attendre que la session soit chargée
+  }
+
+  // ?carte=1 : lien de l'email « Ta carte de membre ». La carte s'ouvre dans une fenêtre
+  // à part, que le navigateur bloque si elle n'est pas ouverte par un clic : on ouvre
+  // donc Ma rédac' sur le profil, et on met en avant le bouton « Carte d'adhérent ».
+  if(carte){
+    setTimeout(function(){
+      _redacOnglet = 'profil';
+      if(_windows['redactions']){ osFocusWindow('redactions'); osRedactionsChangerOnglet('profil'); }
+      else osOpenWindow('redactions');
+      setTimeout(function(){
+        var btn = document.getElementById('redac-carte-btn');
+        if(!btn) return;
+        btn.scrollIntoView({behavior:'smooth', block:'center'});
+        btn.style.outline = '3px solid #E8461E'; btn.style.outlineOffset = '3px';
+        setTimeout(function(){ btn.style.outline = ''; btn.style.outlineOffset = ''; }, 6000);
+        notif('Clique sur « Carte d\'adhérent » pour afficher et imprimer ta carte');
+      }, 1200);
     }, 1500); // attendre que la session soit chargée
   }
 }
