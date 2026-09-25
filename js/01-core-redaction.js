@@ -1409,6 +1409,9 @@ function closeFS(){document.getElementById('fs-overlay').classList.remove('open'
 
 // ===== UTILS =====
 function genId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',n=new Date();let id='IPM-'+n.getFullYear().toString().slice(2)+pad(n.getMonth()+1)+'-';for(let i=0;i<4;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
+// Identifiant court d'un membre, imprimé sur sa carte d'adhérent (ex. IPS-4F2A91)
+function osIdentifiantMembre(id){ return 'IPS-'+String(id||'').replace(/[^a-f0-9]/gi,'').slice(0,6).toUpperCase(); }
+
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 // Couleur hexadécimale (#RGB ou #RRGGBB) -> rgba(), pour teinter un fond sans perdre

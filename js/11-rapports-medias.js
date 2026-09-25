@@ -522,16 +522,23 @@ function _benvFormatDate(d){
   return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
 }
 
+var _benvFiltreRole = 'tous', _benvRecherche = '';
 function osBenevolesFiltre(btn, role){
   document.querySelectorAll('#wincontent-benevoles .btn').forEach(function(b){ b.removeAttribute('id'); });
   btn.id = 'benv-filtre-actif';
-  var rows = document.querySelectorAll('#benv-cartes .benv-row');
-  rows.forEach(function(row){
-    if(role === 'tous' || row.dataset.role === role){
-      row.style.display = '';
-    } else {
-      row.style.display = 'none';
-    }
+  _benvFiltreRole = role;
+  _benvAppliquerFiltres();
+}
+// Recherche par nom, email ou identifiant de carte (« IPS-4F2A91 », « 4f2a91 »)
+function osBenevolesRechercher(texte){
+  _benvRecherche = String(texte||'').trim().toLowerCase().replace(/^ips-?/, '');
+  _benvAppliquerFiltres();
+}
+function _benvAppliquerFiltres(){
+  document.querySelectorAll('#benv-cartes .benv-row').forEach(function(row){
+    var okRole = _benvFiltreRole === 'tous' || row.dataset.role === _benvFiltreRole;
+    var okTexte = !_benvRecherche || (row.dataset.recherche||'').indexOf(_benvRecherche) !== -1;
+    row.style.display = okRole && okTexte ? '' : 'none';
   });
 }
 
@@ -564,6 +571,7 @@ function osBenevolesOuvrirFiche(membreId){
   html += '<div style="flex:1;">';
   html += '<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+(osEstEnLigne(m.id)?'rgba(39,174,96,0.2)':'rgba(255,255,255,0.08)')+';color:'+(osEstEnLigne(m.id)?'#5DCA8A':'rgba(255,255,255,0.4)')+';">'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'</span></div>';
   html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+esc(m.email||'')+'</div>';
+  html += '<div class="benv-identifiant" title="Identifiant imprimé sur sa carte d\'adhérent" style="font-family:Space Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.75);margin-top:3px;"><i class="ti ti-id"></i> '+osIdentifiantMembre(m.id)+'</div>';
   html += '</div>';
   html += '</div>';
 
@@ -595,8 +603,8 @@ function osBenevolesOuvrirFiche(membreId){
   // dans l'ancien tableau, colonnes "Publication" et "Dispo")
   var isVieAssoFiche = getUserRole() === 'admin' || getUserHasFonction('vie_asso');
   if(isVieAssoFiche){
-    var breveTxt = s.joursBreve===null ? '—' : (s.joursBreve+'j'+(s.joursBreve>7?' ⚠️':''));
-    var articleTxt = s.joursArticle===null ? '—' : (s.joursArticle+'j'+(s.joursArticle>30?' ⚠️':''));
+    var breveTxt = s.joursBreve===null ? '—' : (s.joursBreve+'j'+(s.joursBreve>7?' <i class="ti ti-alert-triangle" style="color:#B45309;"></i>':''));
+    var articleTxt = s.joursArticle===null ? '—' : (s.joursArticle+'j'+(s.joursArticle>30?' <i class="ti ti-alert-triangle" style="color:#B45309;"></i>':''));
     html += '<div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--gris-bord);">';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.4rem;">Fraîcheur de publication</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursBreve!==null&&s.joursBreve>7?'#A32D2D':'var(--encre)')+';margin-bottom:2px;">Dernière brève : '+breveTxt+'</div>';
@@ -658,7 +666,7 @@ function osBenevolesOuvrirFiche(membreId){
       html += '<div style="display:flex;align-items:center;gap:0.5rem;">';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0;white-space:nowrap;">Rédaction :</span>';
       if(s.sansRedaction){
-        html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:#FCEBEB;color:#A32D2D;">❗ Aucune rédaction — à rattacher</span>';
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:#FCEBEB;color:#A32D2D;"><i class="ti ti-unlink"></i> Aucune rédaction, à rattacher</span>';
       } else {
         var redacMembre = m.redaction || '—';
         var redacLabel = redacMembre.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join('-');
@@ -1080,7 +1088,7 @@ function osGenererCarteAdherent(m, s){
 
   var depuis = m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR',{month:'long',year:'numeric'}) : '';
   var saison = _osSaisonAssociative();
-  var identifiant = 'IPS-'+String(m.id||'').replace(/[^a-f0-9]/gi,'').slice(0,6).toUpperCase();
+  var identifiant = osIdentifiantMembre(m.id);
   var nomComplet = ((m.prenom||'')+' '+(m.nom||'')).trim();
 
   var win = window.open('','_blank','width=600,height=760');

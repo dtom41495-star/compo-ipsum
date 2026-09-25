@@ -381,6 +381,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       h += '<div style="flex:1;">';
       h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
       h += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+esc(membre.email||'')+'</div>';
+      h += '<div title="Identifiant imprimé sur sa carte d\'adhérent" style="font-family:Space Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.7);margin-top:3px;"><i class="ti ti-id"></i> '+osIdentifiantMembre(membre.id)+'</div>';
       h += '</div>';
       h += '<button class="redac-fiche-fermer" onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;"><i class="ti ti-x"></i></button>';
       h += '</div>';

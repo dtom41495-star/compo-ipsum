@@ -327,6 +327,8 @@ function osBenevolesDashRender(){
     sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
     sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
+    _benvFiltreRole='tous'; _benvRecherche='';
+    sh+='<input type="search" id="benv-recherche" class="benv-recherche" placeholder="Nom ou identifiant (IPS-…)" oninput="osBenevolesRechercher(this.value)" style="width:180px;font-size:0.72rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;outline:none;">';
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<button onclick="osBenevolesExporterPDF()" title="Document PDF listant l\'équipe, inactifs en tête" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Exporter PDF</button>';
     sh+='<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
@@ -348,7 +350,8 @@ function osBenevolesDashRender(){
       var statBg=estInactif?'#FCEBEB':'#EAF3DE',statCo=estInactif?'#A32D2D':'#27500A';
       // On distingue qui a déclaré l'inactivité : la vie asso, ou le membre lui-même.
       var statLbl=m.marque_inactif?'Inactif (vie asso)':(m.dnd?'Indisponible':'Actif');
-      sh+='<div class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'#ea5b1c\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'var(--gris-bord)\'" style="background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 0.8rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:0.55rem;">';
+      var recherche=((m.prenom||'')+' '+(m.nom||'')+' '+(m.email||'')+' '+osIdentifiantMembre(m.id).slice(4)).toLowerCase();
+      sh+='<div class="benv-row" data-role="'+(m.role||'')+'" data-membre-id="'+esc(m.id)+'" data-recherche="'+esc(recherche)+'" onclick="osBenevolesOuvrirFiche(\''+m.id+'\')" onmouseover="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'#ea5b1c\'" onmouseout="if(!this.classList.contains(\'benv-row-active\'))this.style.borderColor=\'var(--gris-bord)\'" style="background:white;border:1.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 0.8rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:0.55rem;">';
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m,32,{})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
