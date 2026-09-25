@@ -1293,6 +1293,51 @@ function osSujetOuvrirAssignation(sujetId){
   });
 }
 
+// Réponse à la relance « Tu gardes ce sujet ? » (lien reçu par email ou Chat)
+function osSujetRepondreRelance(sujetId, choix){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,responsable,redaction_id',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    var s = Array.isArray(d) && d[0];
+    if(!s){ notif('Sujet introuvable','erreur'); return; }
+    if(s.statut !== 'en_cours'){ notif('Ce sujet n\'est plus réservé : il a déjà été libéré ou publié.'); return; }
+    var moi = (getUserNomComplet()||'').trim().toLowerCase();
+    var chef = getUserRole() === 'admin' || (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === getUserId() && l.redaction_id === s.redaction_id && l.role_redac === 'redac_chef'; });
+    if((s.responsable||'').trim().toLowerCase() !== moi && !chef){ notif('Ce sujet est réservé par '+(s.responsable||'quelqu\'un d\'autre')+'.'); return; }
+
+    var ov = document.createElement('div');
+    ov.className = 'sr-voile';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.innerHTML = '<div class="sr-boite" style="background:white;border-radius:14px;max-width:400px;width:100%;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);margin-bottom:0.3rem;">Tu gardes ce sujet ?</div>'
+      +'<div style="font-size:0.85rem;color:var(--encre);font-weight:600;margin-bottom:0.3rem;">'+esc(s.titre||'')+'</div>'
+      +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1rem;">Si tu le libères, il sera de nouveau proposé à toute la rédaction.</div>'
+      +'<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">'
+      +'<button class="sr-garder" style="flex:1;min-height:44px;border:none;border-radius:10px;background:'+(choix==='liberer'?'white':'var(--rouge)')+';color:'+(choix==='liberer'?'var(--encre)':'white')+';'+(choix==='liberer'?'border:1px solid var(--gris-bord);':'')+'font-weight:600;font-size:0.85rem;cursor:pointer;"><i class="ti ti-bookmark"></i> Je le garde</button>'
+      +'<button class="sr-liberer" style="flex:1;min-height:44px;border-radius:10px;background:'+(choix==='liberer'?'var(--rouge)':'white')+';color:'+(choix==='liberer'?'white':'var(--encre)')+';border:'+(choix==='liberer'?'none':'1px solid var(--gris-bord)')+';font-weight:600;font-size:0.85rem;cursor:pointer;"><i class="ti ti-bookmark-off"></i> Je le libère</button>'
+      +'</div>'
+      +'<button class="sr-annuler" style="width:100%;margin-top:0.5rem;min-height:40px;border:none;background:none;color:var(--gris);font-size:0.8rem;cursor:pointer;">Plus tard</button>'
+      +'</div>';
+    document.body.appendChild(ov);
+    function fermer(){ ov.remove(); }
+    function envoyer(champs, message){
+      var hMin = Object.assign({}, authH, {'Prefer':'return=minimal'});
+      fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(s.id),{method:'PATCH',headers:hMin,body:JSON.stringify(champs)})
+      .then(function(r){
+        fermer();
+        if(!r.ok){ notif('Impossible d\'enregistrer ta réponse','erreur'); return; }
+        notif(message,'succes');
+        if(_windows['redactions'] && _redacOnglet === 'sujets') osRedactionsChangerOnglet('sujets');
+      }).catch(function(){ fermer(); notif('Erreur réseau','erreur'); });
+    }
+    ov.addEventListener('click', function(e){ if(e.target === ov) fermer(); });
+    ov.querySelector('.sr-annuler').onclick = fermer;
+    ov.querySelector('.sr-garder').onclick = function(){ envoyer({reserve_le:new Date().toISOString(), relance_le:null}, 'C\'est noté, tu gardes ce sujet'); };
+    ov.querySelector('.sr-liberer').onclick = function(){ envoyer({statut:'ouvert', responsable:null}, 'Sujet libéré, merci'); };
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
+}
+
 function _osSujetAssignFiltrer(champ){
   var q = (champ.value||'').trim().toLowerCase();
   document.querySelectorAll('#sujet-assign-liste .sa-membre').forEach(function(b){ b.style.display = !q || b.dataset.nom.indexOf(q) !== -1 ? '' : 'none'; });
@@ -1563,6 +1608,24 @@ function osRedacReglagesForm(redac){
 
   if('horaires' in redac) h += osRedacHorairesFormHtml(redac);
 
+  if('relance_articles' in redac){
+  h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Relances automatiques</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Compo relance tout seul ce qui reste bloqué, aux heures d\'ouverture de la rédaction.</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
+  [
+    {cle:'relance_articles', titre:'Articles en attente', desc:'relecture sans suite depuis 3 jours ouvrés : le correcteur, puis toi 2 jours après. Corrigé mais pas validé depuis 3 jours : toi'},
+    {cle:'relance_sujets', titre:'Sujets réservés sans article', desc:'après 10 jours, la personne doit dire si elle le garde. Sans réponse 3 jours plus tard, le sujet est libéré'},
+    {cle:'relance_invitations', titre:'Invitations presse sans volontaire', desc:'48 h avant la date limite de réponse, les membres de la rédaction et toi'}
+  ].forEach(function(o){
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">';
+    h += '<input type="checkbox" id="redac-reg-'+o.cle+'" '+(redac[o.cle]!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">';
+    h += '<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">'+o.titre+'</span><span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+o.desc+'</span></span>';
+    h += '</label>';
+  });
+  h += '</div></div>';
+  }
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1583,14 +1646,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','sujets_proposes_membres','sujets_validation'];
+  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
     // en base, sinon tout l'enregistrement serait refusé
-    if(cle.indexOf('sujets_') === 0 && !(cle in redacAvant)) return;
+    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0) && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   if('horaires' in redacAvant){

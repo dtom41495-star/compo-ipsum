@@ -276,6 +276,10 @@ function chargerDepuisURL(){
   var communiqueId = params.get('communique');
   var agendaId = params.get('agenda');
   var carte = params.get('carte');
+  var sujetRelance = params.get('sujet');
+
+  // ?sujet=…&choix=garder|liberer : réponse à « Tu gardes ce sujet ? »
+  if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
 
   if(articleId){
     db.getArticle(articleId).then(function(doc){
