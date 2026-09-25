@@ -2429,11 +2429,12 @@ function _sigRenderEcranSignature(screen){
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:white;">'+esc(doc.titre)+'</div>'
     +'<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:2px;">Signature demandée à '+esc(sig.nom)+'</div>'
     +'</div>'
-    +'<div id="sig-view-wrap" style="flex:1;overflow:auto;display:flex;justify-content:center;padding:0.8rem;background:#E6E4E0;">'
-    +'<div style="position:relative;" id="sig-view-page"><canvas id="sig-view-canvas" style="max-width:100%;display:block;box-shadow:0 4px 16px rgba(0,0,0,0.15);"></canvas></div>'
-    +'</div>'
+    +'<div class="sig-lecture-barre"><span id="sig-lecture-info"><i class="ti ti-file-text"></i> Lis le document en entier avant de signer</span>'
+    +'<span class="sig-lecture-actions"><button id="sig-aller-signature" class="sig-lecture-btn" onclick="_sigAllerALaSignature()" hidden><i class="ti ti-arrow-down"></i> Ma signature</button>'
+    +'<a class="sig-lecture-btn" href="'+esc(doc.pdf_original_url)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ouvrir le PDF</a></span></div>'
+    +'<div id="sig-view-wrap" class="sig-lecture-pages"><div class="sig-lecture-chargement">Chargement du document...</div></div>'
     +'<div style="padding:0.9rem 1rem;background:white;border-top:1px solid var(--gris-bord);flex-shrink:0;">'
-    +'<input id="sig-mention-input" type="text" maxlength="60" placeholder="Mention (optionnel) — ex : Lu et approuvé" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.82rem;box-sizing:border-box;margin-bottom:0.6rem;">'
+    +'<input id="sig-mention-input" type="text" maxlength="60" placeholder="Mention (optionnel), ex : Lu et approuvé" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.82rem;box-sizing:border-box;margin-bottom:0.6rem;">'
     +(sig.membre_id
       ? '<div class="se-choix">'
         +'<button class="se-choix-btn se-choix-principal" onclick="osSigElecOuvrir()"><i class="ti ti-qrcode"></i><span><strong>Signer avec ma carte de membre</strong><small>Signature électronique</small></span></button>'
@@ -2442,30 +2443,51 @@ function _sigRenderEcranSignature(screen){
       : '<button onclick="_sigOuvrirPadSignature()" style="width:100%;padding:0.9rem;background:#E8461E;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;"><i class="ti ti-signature"></i> Signer le document</button>')
     +'</div>';
 
+  // Toutes les pages sont affichées, pour savoir ce qu'on signe ; la zone de signature
+  // est marquée sur sa page
   function charger(){
     fetch(doc.pdf_original_url).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
       return pdfjsLib.getDocument({data:buf}).promise;
     }).then(function(pdfDoc){
-      return pdfDoc.getPage(sig.page);
-    }).then(function(page){
       var wrapEl = document.getElementById('sig-view-wrap');
-      var wrapWidth = wrapEl.clientWidth - 20;
-      var baseViewport = page.getViewport({scale:1});
-      var scale = Math.min(wrapWidth / baseViewport.width, 1.6);
-      var viewport = page.getViewport({scale:scale});
-      var canvas = document.getElementById('sig-view-canvas');
-      canvas.width = viewport.width; canvas.height = viewport.height;
-      var pageDiv = document.getElementById('sig-view-page');
-      pageDiv.style.width = viewport.width+'px';
-      pageDiv.style.height = viewport.height+'px';
-      var ctx = canvas.getContext('2d');
-      return page.render({canvasContext:ctx, viewport:viewport}).promise;
-    }).then(function(){
-      var pageDiv = document.getElementById('sig-view-page');
-      var marque = document.createElement('div');
-      marque.style.cssText = 'position:absolute;left:'+(sig.pos_x*100)+'%;top:'+(sig.pos_y*100)+'%;width:'+(sig.largeur*100)+'%;height:'+(sig.hauteur*100)+'%;border:2px dashed #E8461E;background:rgba(232,70,30,0.1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#993C1D;font-family:Space Mono,monospace;text-align:center;';
-      marque.textContent = 'Ta signature ici';
-      pageDiv.appendChild(marque);
+      if(!wrapEl) return;
+      var n = pdfDoc.numPages;
+      wrapEl.innerHTML = '';
+      var info = document.getElementById('sig-lecture-info');
+      if(info) info.innerHTML = '<i class="ti ti-file-text"></i> '+n+' page'+(n>1?'s':'')+' · ta signature est page '+sig.page;
+      var btn = document.getElementById('sig-aller-signature');
+      if(btn && n > 1) btn.hidden = false;
+      var largeur = wrapEl.clientWidth - 20;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var chaine = Promise.resolve();
+      for(var i = 1; i <= n; i++) (function(num){
+        var bloc = document.createElement('div');
+        bloc.className = 'sig-lecture-page';
+        bloc.innerHTML = '<div class="sig-lecture-num">Page '+num+' / '+n+(num === sig.page ? ' · ta signature' : '')+'</div>'
+          +'<div class="sig-lecture-feuille" id="sig-page-'+num+'"><canvas></canvas></div>';
+        wrapEl.appendChild(bloc);
+        chaine = chaine.then(function(){ return pdfDoc.getPage(num); }).then(function(page){
+          var base = page.getViewport({scale:1});
+          var viewport = page.getViewport({scale:Math.min(largeur / base.width, 1.6)});
+          var feuille = document.getElementById('sig-page-'+num);
+          if(!feuille) return;
+          var canvas = feuille.querySelector('canvas');
+          canvas.width = Math.floor(viewport.width*dpr); canvas.height = Math.floor(viewport.height*dpr);
+          feuille.style.width = viewport.width+'px';
+          feuille.style.height = viewport.height+'px';
+          var ctx = canvas.getContext('2d');
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          return page.render({canvasContext:ctx, viewport:viewport}).promise.then(function(){
+            if(num !== sig.page) return;
+            var marque = document.createElement('div');
+            marque.id = 'sig-zone-marque';
+            marque.style.cssText = 'position:absolute;left:'+(sig.pos_x*100)+'%;top:'+(sig.pos_y*100)+'%;width:'+(sig.largeur*100)+'%;height:'+(sig.hauteur*100)+'%;border:2px dashed #E8461E;background:rgba(232,70,30,0.1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#993C1D;font-family:Space Mono,monospace;text-align:center;';
+            marque.textContent = 'Ta signature ici';
+            feuille.appendChild(marque);
+          });
+        });
+      })(i);
+      return chaine;
     }).catch(function(){
       var wrapEl = document.getElementById('sig-view-wrap');
       if(wrapEl) wrapEl.innerHTML = '<div style="color:var(--rouge);font-size:0.8rem;padding:2rem;text-align:center;">Impossible d\'afficher le document.</div>';
@@ -2473,6 +2495,11 @@ function _sigRenderEcranSignature(screen){
   }
 
   _sigChargerPdfJs(charger);
+}
+
+function _sigAllerALaSignature(){
+  var cible = document.getElementById('sig-zone-marque') || document.getElementById('sig-page-'+(_sigCourantSignataire && _sigCourantSignataire.page));
+  if(cible) cible.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 function _sigOuvrirPadSignature(){
