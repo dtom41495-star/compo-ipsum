@@ -276,6 +276,10 @@ function chargerDepuisURL(){
   var communiqueId = params.get('communique');
   var agendaId = params.get('agenda');
   var carte = params.get('carte');
+  var sujetRelance = params.get('sujet');
+
+  // ?sujet=…&choix=garder|liberer : réponse à « Tu gardes ce sujet ? »
+  if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
 
   if(articleId){
     db.getArticle(articleId).then(function(doc){
@@ -1239,29 +1243,56 @@ function ouvrirAssignation(){
   var list = document.getElementById('assign-membres-list');
   list.innerHTML = osLoadingHtml();
 
-  fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc', {
-    headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(membres){
+  _assignRemplirListe(list);
+}
+
+// Liste des correcteurs de la modale « Envoyer en correction », le plus disponible en tête
+function _assignRemplirListe(list){
+  var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
+  var redacArticle = _assignDoc.redaction_id || window._redacActiveId || null;
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc', { headers: authH }).then(function(r){ return r.json(); }),
+    // Charge de chacun : articles qu'il a déjà en relecture
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.en-relecture&correcteur_id=not.is.null&select=id,correcteur_id', { headers: authH }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ])
+  .then(function(res){
+    var membres = res[0], enCours = Array.isArray(res[1]) ? res[1] : [];
     if(!membres || !membres.length){
       list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun membre trouvé.</p>';
       return;
     }
     list.innerHTML = '';
+    var charge = {};
+    enCours.forEach(function(a){ if(a.id !== _assignDoc.id) charge[a.correcteur_id] = (charge[a.correcteur_id]||0) + 1; });
+    var liens = window._membresRedactionsData || [];
+    function correcteurDeLaRedac(m){ return !!redacArticle && liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === redacArticle && l.role_redac === 'correcteur'; }); }
     // Exclure l'auteur actuel
     var nomAuteur = getUserNomComplet();
-    membres.filter(function(m){
-      return (m.role === 'correcteur' || m.role === 'admin') &&
-             !m.marque_inactif && !m.dnd &&
+    var candidats = membres.filter(function(m){
+      return (m.role === 'correcteur' || m.role === 'admin' || correcteurDeLaRedac(m)) &&
+             !m.marque_inactif && !m.dnd && m.role !== 'interdit' &&
              (m.prenom + ' ' + m.nom) !== nomAuteur;
-    }).forEach(function(m){
+    });
+    // Suggestion : le moins chargé, de préférence correcteur de la rédaction de l'article,
+    // puis correcteur plutôt qu'admin, puis connecté en ce moment
+    candidats.sort(function(a, b){
+      return (charge[a.id]||0) - (charge[b.id]||0)
+        || (correcteurDeLaRedac(b) ? 1 : 0) - (correcteurDeLaRedac(a) ? 1 : 0)
+        || (b.role === 'correcteur' ? 1 : 0) - (a.role === 'correcteur' ? 1 : 0)
+        || (osEstEnLigne(b.id) ? 1 : 0) - (osEstEnLigne(a.id) ? 1 : 0);
+    });
+    candidats.forEach(function(m, i){
+      var n = charge[m.id] || 0;
       var el = document.createElement('div');
       el.className = 'assign-membre';
+      var role = m.role === 'admin' ? 'Admin' : 'Correcteur·rice';
       el.innerHTML =
         '<div>' +
-          '<div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)+'</div>' +
-          '<div class="assign-membre-role">'+esc(m.role)+'</div>' +
+          '<div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)
+            +(i === 0 ? ' <span class="assign-suggere" style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#E3F6EA;color:#1E7A45;font-size:0.68rem;font-weight:700;vertical-align:1px;">Suggéré</span>' : '')+'</div>' +
+          '<div class="assign-membre-role">'+role+(correcteurDeLaRedac(m) ? ' de la rédaction' : '')+' · '
+            +(n ? n+' article'+(n>1?'s':'')+' en relecture' : 'aucun article en relecture')
+            +(osEstEnLigne(m.id) ? ' · en ligne' : '')+'</div>' +
         '</div>';
       el.onclick = (function(membre){ return function(){
         document.querySelectorAll('.assign-membre').forEach(function(b){ b.classList.remove('selected'); });
@@ -1270,6 +1301,7 @@ function ouvrirAssignation(){
         _assignCorrecteurId = membre.id;
       }; })(m);
       list.appendChild(el);
+      if(i === 0) el.onclick();
     });
     if(!list.children.length){
       list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun correcteur disponible.</p>';
@@ -1478,28 +1510,7 @@ function ouvrirAssignationDepuisDoc(doc){
 
   var list = document.getElementById('assign-membres-list');
   list.innerHTML = osLoadingHtml();
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc',{headers:SB_HEADERS})
-  .then(function(r){return r.json();})
-  .then(function(membres){
-    if(!membres||!membres.length){ list.innerHTML='<p style="color:var(--gris);">Aucun membre.</p>'; return; }
-    list.innerHTML='';
-    var nomAuteur = getUserNomComplet();
-    membres.filter(function(m){
-      return (m.role==='correcteur'||m.role==='admin') && !m.marque_inactif && !m.dnd && (m.prenom+' '+m.nom)!==nomAuteur;
-    }).forEach(function(m){
-      var el=document.createElement('div');
-      el.className='assign-membre';
-      el.innerHTML='<div><div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)+'</div><div class="assign-membre-role">'+esc(m.role)+'</div></div>';
-      el.onclick=(function(membre){return function(){
-        document.querySelectorAll('.assign-membre').forEach(function(b){b.classList.remove('selected');});
-        el.classList.add('selected');
-        _assignCorrecteur=membre.prenom+' '+membre.nom;
-        _assignCorrecteurId=membre.id;
-      };})(m);
-      list.appendChild(el);
-    });
-    if(!list.children.length) list.innerHTML='<p style="color:var(--gris);">Aucun correcteur disponible.</p>';
-  }).catch(function(){ list.innerHTML='<p style="color:var(--rouge);">Erreur chargement.</p>'; });
+  _assignRemplirListe(list);
 }
 
 
@@ -2056,6 +2067,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
     // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").
     // Même logique que publierArticle(), qui gère le cas "publication depuis une liste".
+    if(nouveauStatut==='publie' && typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(doc.id);
     var sujetLie = doc.sujet_id || doc._sujet_id;
     if(nouveauStatut==='publie' && sujetLie){
       var authHSujet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});

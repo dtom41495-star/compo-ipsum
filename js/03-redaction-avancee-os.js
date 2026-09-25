@@ -727,8 +727,9 @@ function _publierArticleReel(id){
     body: JSON.stringify({statut:'publie', publie_le: new Date().toISOString()})
   }).then(function(r){
     if(r.ok){
-      notif('Article marque comme publie !');
+      notif('Article marqué comme publié','succes');
       benvMajActivite();
+      if(typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(id);
       // Ajouter dans historique
       fetch(SB_URL+'/rest/v1/historique', {
         method: 'POST',
