@@ -3783,3 +3783,39 @@ input:focus,select:focus,textarea:focus{
   .acc-menu button:first-of-type { border-top: none; }
   .acc-menu button i { font-size: 22px; color: #6B7280; width: 24px; }
 }
+
+/* ===== MES ARTICLES SUR TÉLÉPHONE ===== */
+.ma-onglets-mobile, .ma-carte { display: none; }
+@media (max-width: 768px) {
+  .ma-app { flex-direction: column !important; background: #F5F5F4 !important; }
+  .ma-app .ma-entete { display: none !important; }
+  .ma-app #ma-os-list { padding: 0.9rem 1rem 6.5rem !important; }
+  .ma-onglets-mobile { display: flex !important; flex-direction: row !important; gap: 8px !important; width: auto !important; padding: 12px 16px !important; background: #fff !important; border-right: none !important; border-bottom: 1px solid #E7E5E4 !important; overflow-x: auto !important; overflow-y: hidden !important; flex-shrink: 0; scrollbar-width: none; }
+  .ma-onglets-mobile::-webkit-scrollbar { display: none; }
+  .ma-onglets-mobile button { flex-shrink: 0; height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid #E7E5E4; background: #fff; color: #1A1A2E; font: 600 14px 'DM Sans', Arial, sans-serif; white-space: nowrap; cursor: pointer; }
+  .ma-onglets-mobile button.actif { background: #1A1A2E; border-color: #1A1A2E; color: #fff; }
+  .ma-onglets-mobile button.ma-onglet-alerte:not(.actif) { background: #FFF7ED; border-color: #FDBA74; color: #9A3412; }
+  .ma-carte { display: block; background: #fff; border: 1px solid #E7E5E4; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; cursor: pointer; }
+  .ma-carte:active { background: #FAFAF9; }
+  .ma-carte-haut { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .ma-statut { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 13px; font: 700 12px 'DM Sans', Arial, sans-serif; }
+  .ma-carte-date { font-size: 13px; color: #6B7280; white-space: nowrap; }
+  .ma-carte-titre { font: 700 17px/1.3 Poppins, 'DM Sans', sans-serif; color: #1A1A2E; }
+  .ma-carte-meta { margin-top: 4px; font-size: 14px; color: #6B7280; }
+  .ma-carte-note { display: flex; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #FEF2F2; color: #991B1B; font-size: 14px; line-height: 1.4; }
+  .ma-carte-note i { font-size: 18px; flex-shrink: 0; }
+  .ma-carte-info { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; color: #57534E; }
+  .ma-carte-info i { font-size: 16px; color: #A8A29E; }
+  .ma-carte-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .ma-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border-radius: 12px; border: 1px solid #E7E5E4; background: #fff; color: #1A1A2E; font: 600 14px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+  .ma-btn i { font-size: 18px; }
+  .ma-btn-principal { background: #E8461E; border-color: #E8461E; color: #fff; }
+  .ma-btn-vert { background: #059669; border-color: #059669; color: #fff; }
+  .ma-btn-refus { color: #B91C1C; border-color: #FECACA; }
+}
+@media (max-width: 768px) {
+  #winpage-lecture > .page-title, #winpage-lecture > .page-sub, #winpage-lecture [id="l-codeid"] { display: none !important; }
+  #winpage-lecture [id="lect-content"] > div:first-child { margin-bottom: 1rem !important; }
+  #winpage-lecture .btn-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #winpage-lecture .btn-row .btn { width: 100%; min-height: 44px; margin: 0 !important; }
+}

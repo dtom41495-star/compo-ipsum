@@ -231,6 +231,7 @@ function osAccueilMobileRendre(){
 
 // ---- Bouton « Accueil » dans les fenêtres, et bouton retour du téléphone ----
 var _accIgnorerRetour = false;
+var _accSansHistorique = false; // retour à la liste : l'entrée d'historique existe déjà
 function _accueilPreparerFenetre(win){
   if(!win || win.dataset.accPret) return;
   win.dataset.accPret = '1';
@@ -240,17 +241,18 @@ function _accueilPreparerFenetre(win){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'acc-btn-accueil';
-    btn.innerHTML = '<i class="ti ti-chevron-left"></i>Accueil';
+    btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+(ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil');
     btn.addEventListener('click', function(e){
       e.stopPropagation();
-      osCloseWindow(pageId);
+      _accueilRetourDepuis(pageId, win);
       if(history.state && history.state.compoFenetre){ _accIgnorerRetour = true; history.back(); }
     });
     barre.insertBefore(btn, barre.firstChild);
   }
-  if(osEstMobile()){
+  if(osEstMobile() && !_accSansHistorique){
     try{ history.pushState({compoFenetre:pageId}, ''); }catch(e){}
   }
+  _accSansHistorique = false;
   if(pageId === 'redactions' && osEstMobile()) setTimeout(_accueilPreparerMaRedac, 0);
 }
 window.addEventListener('popstate', function(){
@@ -259,7 +261,7 @@ window.addEventListener('popstate', function(){
   var ouvertes = Object.keys(window._windows||{});
   if(!ouvertes.length) return;
   var id = ouvertes[ouvertes.length-1];
-  osCloseWindow(id);
+  _accueilRetourDepuis(id, document.getElementById('win-'+id));
   // Fermeture refusée (article non enregistré) : on remet l'entrée d'historique, pour que
   // le prochain « retour » ne quitte pas Compo
   setTimeout(function(){ if(_windows[id]){ try{ history.pushState({compoFenetre:id}, ''); }catch(e){} } }, 400);
@@ -435,10 +437,13 @@ function _accueilPreparerMaRedac(){
   win.classList.add('redac-directe');
   var titre = win.querySelector('.os-titlebar-title');
   if(titre) titre.textContent = ACCUEIL_REDAC_TITRES[onglet] || 'Ma rédac\'';
-  // Menu « … » dans la barre de titre, et bouton flottant, propres à l'onglet
+  _accueilActionsFenetre(win, _accueilMenusMaRedac(onglet));
+}
+
+// Menu « … » dans la barre de titre, et bouton flottant, propres à l'écran affiché
+function _accueilActionsFenetre(win, conf){
   var ancien = win.querySelector('.acc-btn-menu'); if(ancien) ancien.remove();
   var ancienF = win.querySelector('.acc-flottant'); if(ancienF) ancienF.remove();
-  var conf = _accueilMenusMaRedac(onglet);
   var barre = win.querySelector('.os-titlebar');
   if(conf.menu && barre){
     var b = document.createElement('button');
@@ -454,6 +459,42 @@ function _accueilPreparerMaRedac(){
     f.addEventListener('click', conf.flottant.action);
     win.appendChild(f);
   }
+}
+
+// Mes articles sur téléphone : « Nouvel article » en bas, « Actualiser » dans le menu
+function _accueilPreparerMesArticles(){
+  if(!osEstMobile()) return;
+  var app = document.querySelector('.os-window .ma-app');
+  var win = app && app.closest('.os-window');
+  if(!win) return;
+  _accueilActionsFenetre(win, {
+    menu:[{icon:'refresh', label:'Actualiser', action:function(){ osMesArticlesCharger(); }}],
+    flottant:{icon:'plus', label:'Nouvel article', action:function(){ osOuvrirNouvelArticle(); }}
+  });
+}
+var _osMesArticlesRenderAvantAccueil = osMesArticlesRender;
+osMesArticlesRender = function(){
+  _osMesArticlesRenderAvantAccueil.apply(this, arguments);
+  setTimeout(_accueilPreparerMesArticles, 0);
+};
+
+// Sur téléphone une seule appli est ouverte à la fois : un article ouvert depuis Mes
+// articles remplace la liste. Le bouton retour y ramène au lieu de revenir à l'accueil.
+var ACCUEIL_RETOUR_VERS = { 'mes-articles':'Mes articles', 'app-correction':'Corrections' };
+var _osOpenWindowAvantAccueil = osOpenWindow;
+osOpenWindow = function(pageId){
+  var precedente = osEstMobile() ? Object.keys(window._windows||{}).filter(function(id){ return id !== pageId; }).pop() : null;
+  var res = _osOpenWindowAvantAccueil.apply(this, arguments);
+  var win = document.getElementById('win-'+pageId);
+  if(win && precedente && ACCUEIL_RETOUR_VERS[precedente] && !win.dataset.accPret){
+    win.dataset.accRetour = precedente;
+  }
+  return res;
+};
+function _accueilRetourDepuis(pageId, win){
+  var vers = win && win.dataset.accRetour;
+  osCloseWindow(pageId);
+  if(vers && !_windows[pageId]) setTimeout(function(){ if(!_windows[pageId]){ _accSansHistorique = true; osOpenWindow(vers); } }, 0);
 }
 
 // Changer d'onglet depuis l'intérieur (ex. « Voir tous » dans le profil) met à jour le titre
