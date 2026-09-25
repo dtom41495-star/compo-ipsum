@@ -1369,7 +1369,7 @@ function closeFS(){document.getElementById('fs-overlay').classList.remove('open'
 
 // ===== UTILS =====
 function genId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',n=new Date();let id='IPM-'+n.getFullYear().toString().slice(2)+pad(n.getMonth()+1)+'-';for(let i=0;i<4;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 // Couleur hexadécimale (#RGB ou #RRGGBB) -> rgba(), pour teinter un fond sans perdre
 // la transparence. Les couleurs de rédaction sont saisies en hexa dans l'admin.
