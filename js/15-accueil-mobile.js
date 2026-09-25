@@ -268,3 +268,47 @@ function osPanneauMobileOuvrir(panneau, libelleRetour){
   panneau.insertBefore(btn, panneau.firstChild);
   panneau.scrollTop = 0;
 }
+
+// Texte trop petit pour un téléphone : beaucoup de libellés sont écrits en 8 à 10 px
+// (styles en ligne). Sur mobile, tout texte des applications passe à 12 px au minimum.
+var ACCUEIL_TEXTE_MIN = 12;
+function _accueilAgrandirTexte(racine){
+  if(!osEstMobile() || !racine || racine.nodeType !== 1) return;
+  var elements = [racine].concat(Array.prototype.slice.call(racine.querySelectorAll('*')));
+  elements.forEach(function(el){
+    if(el.dataset && el.dataset.accTexte) return;
+    var aDuTexte = false;
+    for(var i = 0; i < el.childNodes.length; i++){
+      var n = el.childNodes[i];
+      if(n.nodeType === 3 && n.textContent.trim()){ aDuTexte = true; break; }
+    }
+    if(!aDuTexte) return;
+    var taille = parseFloat(getComputedStyle(el).fontSize);
+    if(taille && taille < ACCUEIL_TEXTE_MIN){
+      el.style.setProperty('font-size', ACCUEIL_TEXTE_MIN+'px', 'important');
+      el.dataset.accTexte = '1';
+    }
+  });
+}
+(function(){
+  var enAttente = [];
+  var prevu = false;
+  var obs = new MutationObserver(function(muts){
+    if(!osEstMobile()) return;
+    muts.forEach(function(m){ m.addedNodes.forEach(function(n){ if(n.nodeType === 1) enAttente.push(n); }); });
+    if(prevu) return;
+    prevu = true;
+    // Regroupé à la frame suivante : une appli qui reconstruit sa page d'un coup ne
+    // déclenche qu'un passage
+    requestAnimationFrame(function(){
+      prevu = false;
+      var lot = enAttente; enAttente = [];
+      lot.forEach(function(n){ if(n.isConnected) _accueilAgrandirTexte(n); });
+    });
+  });
+  function brancher(){
+    var ws = document.getElementById('os-workspace');
+    if(ws) obs.observe(ws, {childList:true, subtree:true});
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', brancher); else brancher();
+})();

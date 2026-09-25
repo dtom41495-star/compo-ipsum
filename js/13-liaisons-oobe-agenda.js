@@ -877,6 +877,7 @@ function agendaCardHTML(ev, uid, isAdmin){
   }
 
   var card = document.createElement('div');
+  card.className = 'agenda-carte';
   card.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.9rem 1rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;transition:background 0.1s;background:white;'+(isAnnule?'opacity:0.55;':'')+(isInscrit?'border-left:3px solid #2E9E5B;':'');
   card.onmouseover = function(){this.style.background='var(--gris-clair)';};
   card.onmouseout  = function(){this.style.background='white';};
@@ -915,6 +916,7 @@ function agendaCardHTML(ev, uid, isAdmin){
   var macaron = _agendaMacaronHTML(ev, monStatut);
   if(macaron){
     var cote = document.createElement('div');
+    cote.className = 'agenda-carte-macaron';
     cote.style.cssText = 'flex-shrink:0;';
     cote.innerHTML = macaron;
     card.appendChild(cote);

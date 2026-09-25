@@ -3544,3 +3544,18 @@ input:focus,select:focus,textarea:focus{
   }
   .panneau-mobile-retour i { font-size: 20px; }
 }
+
+/* ===== TÉLÉPHONE : TAILLE DES BOUTONS ET DU TEXTE ===== */
+@media (max-width: 768px) {
+  /* Boutons assez grands pour un doigt */
+  .os-window-content button, .os-window-content .btn { min-height: 36px; min-width: 36px; }
+  /* Champs de saisie : 16 px évite le zoom automatique de l'iPhone quand on les touche */
+  .os-window-content input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+  .os-window-content select { min-height: 44px; font-size: 16px !important; }
+  .os-window-content textarea { font-size: 16px !important; }
+  .os-window-content input[type=checkbox], .os-window-content input[type=radio] { width: 20px; height: 20px; }
+
+  /* Agenda : l'étiquette « places restantes » passe sous le titre */
+  .agenda-carte { flex-wrap: wrap; }
+  .agenda-carte-macaron { width: 100%; padding-left: calc(46px + 0.8rem); }
+}
