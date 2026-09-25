@@ -2214,10 +2214,17 @@ function osLancer(){
       // Plusieurs rédacs — fetch les noms des rédactions puis afficher l'overlay
       window._redacActiveId = null;
       var redacIds = liens.map(function(l){ return l.redaction_id; });
-      fetch(SB_URL+'/rest/v1/redactions?id=in.('+redacIds.join(',')+')'+'&select=id,nom,couleur',{headers:authH})
+      fetch(SB_URL+'/rest/v1/redactions?id=in.('+redacIds.join(',')+')'+'&select=*',{headers:authH})
       .then(function(r){ return r.json(); })
       .then(function(redactions){
-        window._redactionsData = redactions&&!redactions.code ? redactions : [];
+        // Complète la liste déjà chargée plutôt que de la remplacer : elle sert aussi aux
+        // réglages de chaque rédaction et aux rédactions dont la personne n'est pas membre
+        var liste = window._redactionsData || [];
+        (redactions && !redactions.code ? redactions : []).forEach(function(r){
+          var existante = liste.find(function(x){ return x.id === r.id; });
+          if(existante) Object.assign(existante, r); else liste.push(r);
+        });
+        window._redactionsData = liste;
         _osAfficherSelecteurRedaction(liens, true);
       }).catch(function(){
         _osAfficherSelecteurRedaction(liens, true);
