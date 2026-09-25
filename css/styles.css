@@ -4017,3 +4017,8 @@ input:focus,select:focus,textarea:focus{
 
 /* Mode sombre : pas d'animation de couleur sur les éléments adaptés (js/19-mode-sombre.js) */
 :root.theme-dark [data-sombre] { transition-property: transform, opacity, width, height, box-shadow !important; }
+@media (max-width: 768px) {
+  .benv-filtres { flex-wrap: wrap; overflow-x: visible !important; }
+  .benv-filtres .benv-recherche { width: 100% !important; min-height: 44px; font-size: 16px !important; border-radius: 12px !important; padding: 0 14px !important; box-sizing: border-box; }
+}
+.benv-filtres { flex-wrap: wrap; row-gap: 0.4rem !important; }
