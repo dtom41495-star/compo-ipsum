@@ -2206,31 +2206,41 @@ function _osCpEmailShell(titreInterne, corpsHtml){
 // Carte HTML d'un CP pour les emails — une invitation presse (date/lieu/réponse
 // requise) n'a pas les mêmes infos utiles qu'un communiqué classique, donc rendu
 // différent selon cp.type. Ajoute aussi le lien PDF quand le CP en a un.
-function _osCpEmailCarte(cp){
-  var estInvitation = cp.type === 'invitation_presse';
-  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
-  var h = '<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #E8461E;">';
-  if(estInvitation) h += '<div style="display:inline-block;font-size:0.6rem;text-transform:uppercase;letter-spacing:.06em;color:#7D3C98;background:#F3E8FA;padding:2px 8px;border-radius:10px;margin-bottom:6px;">📅 Invitation presse</div><br>';
-  h += '<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(cp.titre||'Sans titre')+'</div>';
-  // cp.source est le champ réellement rempli au formulaire ("Mairie de Castres,
-  // Préfecture...") — cp.organisation existe aussi en base mais n'est peuplé que
-  // pour certains CPs liés à un contact, source en repli sinon.
-  var entite = cp.source || cp.organisation;
-  if(entite) h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">'+esc(entite)+'</div>';
-  if(estInvitation){
-    if(cp.date_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:6px;">🗓️ '+esc(new Date(cp.date_evenement).toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'}))+'</div>';
-    if(cp.lieu_evenement) h += '<div style="font-size:0.8rem;color:#374151;margin-top:2px;">📍 '+esc(cp.lieu_evenement)+'</div>';
-    if(cp.reponse_requise) h += '<div style="font-size:0.78rem;color:#991B1B;background:#FEE2E2;padding:4px 8px;border-radius:6px;margin-top:6px;display:inline-block;">Réponse requise'+(cp.date_reponse?' avant le '+esc(new Date(cp.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})):'')+'</div>';
-  } else if(dateStr){
-    h += '<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">📅 '+dateStr+'</div>';
+// Carte compacte d'un communiqué dans le récapitulatif (modèle _emailCompo, aperçu validé
+// par Tom) : source et date, titre, début du texte, pièces jointes, lien. Pour une
+// invitation presse : étiquette violette et ligne "date à heure · lieu".
+function _emailCarteCpCompacte(cp){
+  var estInvit = cp.type === 'invitation_presse';
+  var src = cp.source || cp.organisation || '';
+  var dateCp = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+  var entete = '<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">'
+    +(estInvit?'<span style="color:#6B2F8A;">Invitation presse</span>'+(src||dateCp?' · ':''):'')
+    +esc(src)+(src&&dateCp?' · ':'')+esc(dateCp)+'</div>';
+  var corps = String(cp.corps||'').replace(/\s+/g,' ').trim();
+  var extrait = corps ? '<div style="font:400 13.5px/1.55 '+EMAIL_POLICE+';color:#44403C;margin-top:6px;">'+esc(corps.length>200 ? corps.substring(0,200).replace(/\s+\S*$/,'')+'…' : corps)+'</div>' : '';
+  var infos = '';
+  if(estInvit && (cp.date_evenement || cp.lieu_evenement)){
+    var morceaux = [];
+    if(cp.date_evenement){
+      var d = new Date(cp.date_evenement);
+      var j = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+      morceaux.push(j.charAt(0).toUpperCase()+j.slice(1)+' à '+_cpInvitHeure(d));
+    }
+    if(cp.lieu_evenement) morceaux.push(esc(cp.lieu_evenement));
+    infos = '<div style="font:600 13px/1.5 '+EMAIL_POLICE+';color:#6B2F8A;margin-top:6px;">'+morceaux.join(' · ')+'</div>';
   }
-  if(cp.corps) h += '<p style="font-size:0.85rem;color:#374151;margin:0.6rem 0 0;white-space:pre-wrap;">'+esc(cp.corps).substring(0,300)+(cp.corps.length>300?'…':'')+'</p>';
-  (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).forEach(function(f){
-    h += '<div style="margin-top:0.4rem;"><a href="'+esc(f.url)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 '+esc(f.nom)+'</a></div>';
-  });
-  if(cp.fichier_pdf) h += '<div style="margin-top:0.4rem;"><a href="'+esc(cp.fichier_pdf)+'" style="font-size:0.75rem;color:#0C447C;text-decoration:none;font-weight:600;">📎 Voir le PDF</a></div>';
-  h += '</div>';
-  return h;
+  var pj = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); })
+    .map(function(f){ return {nom:f.nom, url:f.url}; });
+  if(cp.fichier_pdf) pj.push({nom:'PDF du communiqué', url:cp.fichier_pdf});
+  var pieces = pj.map(function(f){
+    return '<a href="'+esc(f.url)+'" style="display:inline-block;margin:8px 8px 0 0;padding:5px 10px;border:1px solid '+EMAIL_COUL.bord+';border-radius:6px;font:600 12px/1.2 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';text-decoration:none;">'+esc(f.nom||'Pièce jointe')+'</a>';
+  }).join('');
+  var lien = '<div style="margin-top:8px;"><a href="'+CP_INVIT_LIEN+encodeURIComponent(cp.id)+'" style="font:600 13px '+EMAIL_POLICE+';color:'+EMAIL_COUL.rouge+';text-decoration:none;">'+(estInvit?'Voir l\'invitation':'Lire le communiqué')+'</a></div>';
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;border-collapse:separate;margin-bottom:10px;">'
+    +'<tr><td style="padding:14px 16px;">'+entete
+    +'<div style="font:700 15px/1.3 Arial, Helvetica, sans-serif;color:'+EMAIL_COUL.encre+';">'+esc(cp.titre||'Sans titre')+'</div>'
+    +extrait+infos+(pieces?'<div>'+pieces+'</div>':'')+lien
+    +'</td></tr></table>';
 }
 
 function cpsEnvoyerNotifsManuelles(){
@@ -2312,7 +2322,12 @@ function cpsEnvoyerNotifsManuelles(){
           return '📨 *'+liste.length+' '+(liste.length>1?'nouveaux communiqués':'nouveau communiqué')+'*\n'
             + liste.map(function(cp){
                 var src = _chatSansMiseEnForme(cp.source||cp.organisation);
-                return '• '+(src?src+' : ':'')+'« '+_chatSansMiseEnForme(cp.titre||'Sans titre')+' »'+(cp.type==='invitation_presse'?' (invitation presse)':'');
+                var invit = '';
+                if(cp.type==='invitation_presse'){
+                  var dEv = cp.date_evenement ? new Date(cp.date_evenement) : null;
+                  invit = ' (invitation presse'+(dEv?', '+dEv.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' à '+_cpInvitHeure(dEv):'')+')';
+                }
+                return '• '+(src?src+' : ':'')+'« '+_chatSansMiseEnForme(cp.titre||'Sans titre')+' »'+invit;
               }).join('\n')
             + '\n<https://compo.ipsummedia.fr|Voir les communiqués>';
         }
@@ -2360,12 +2375,14 @@ function cpsEnvoyerNotifsManuelles(){
           // Ni un envoi ni un échec : on passe simplement au destinataire suivant.
           if(osEstEnLigne(m.id)){ setTimeout(function(){ envoyerProchain(idx+1); }, 0); return; }
           var nbLibelle = sesCps.length+' '+(sesCps.length>1?'nouveaux communiqués':'nouveau communiqué');
-          var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1rem;">Bonjour '+esc(m.prenom||'')+', '+nbLibelle+' sur Compo :</p>'
-            +sesCps.map(_osCpEmailCarte).join('')
-            +'<div style="margin-top:1.2rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>'
-            +'<hr style="border:none;border-top:1px solid #E5E7EB;margin:1.2rem 0 0.8rem;"><p style="color:#9CA3AF;font-size:0.72rem;">Tu reçois cet email car '+esc(sesRaisons.join(', ') || 'tu es abonné·e aux communiqués')+'.</p>';
-          var html = _osCpEmailShell('📰 '+nbLibelle, corps);
-          envoyerEmailResend(m.email, '[Compo] '+nbLibelle, html, 'cp')
+          var html = _emailCompo({ accent:'neutre', etiquette:nbLibelle.toUpperCase(),
+            titre:'Du nouveau dans les communiqués',
+            bonjour:'Bonjour '+esc(m.prenom||'')+',',
+            texte:(sesCps.length>1 ? 'Voici les communiqués arrivés' : 'Voici le communiqué arrivé')+' depuis le dernier envoi. De quoi trouver ton prochain sujet ?',
+            contenu:sesCps.map(_emailCarteCpCompacte).join(''),
+            boutons:[{label:'Voir tous les communiqués', url:'https://compo.ipsummedia.fr'}],
+            pourquoi:'Tu reçois cet email car '+esc(sesRaisons.join(', ') || 'tu es abonné·e aux communiqués')+'.' });
+          envoyerEmailResend(m.email, '[Ipsum Média] '+nbLibelle, html, 'cp')
           .then(function(r){
             if(r && r.ok !== false) nb++;
             else { echecs.push(m.email); console.warn('Échec envoi CP à '+m.email, r); }

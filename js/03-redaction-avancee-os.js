@@ -1249,11 +1249,12 @@ function osEnteteEmailLogo(titreHtml){
 // "ne pas répondre" qui renvoie vers contact@ipsummedia.fr (l'adresse d'envoi ne reçoit
 // pas les réponses). Tableaux + styles en ligne : seuls compatibles avec les clients mail.
 // Pas de police d'icônes ni de SVG en email : des libellés texte à la place.
-var EMAIL_COUL = { encre:'#1C1917', gris:'#78716C', bord:'#E7E5E4', rouge:'#E8461E' };
+var EMAIL_COUL = { encre:'#1A1A2E', gris:'#6B7280', bord:'#E7E5E4', rouge:'#E8461E' };
 var EMAIL_ACCENTS = {
-  neutre:{ c:'#44403C', bg:'#F5F5F4' }, vert:{ c:'#1E7A45', bg:'#E3F6EA' }, ambre:{ c:'#8A6400', bg:'#FFF6DB' },
+  neutre:{ c:'#E8461E', bg:'#FDEEE8' }, vert:{ c:'#1E7A45', bg:'#E3F6EA' }, ambre:{ c:'#8A6400', bg:'#FFF6DB' },
   rouge:{ c:'#B42318', bg:'#FDECEC' }, bleu:{ c:'#1A5276', bg:'#E6F0F8' }, violet:{ c:'#6B2F8A', bg:'#F3E8FA' }
 };
+var EMAIL_LIEN_CONTACT = '<a href="mailto:contact@ipsummedia.fr" style="color:#E8461E;font-weight:600;text-decoration:none;">contact@ipsummedia.fr</a>';
 var EMAIL_POLICE = "'DM Sans', Arial, Helvetica, sans-serif";
 function _emailLigneInfo(label, valeur){
   return '<tr><td style="padding:7px 0;border-top:1px solid '+EMAIL_COUL.bord+';width:70px;vertical-align:top;font:600 10px/1.6 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:'+EMAIL_COUL.gris+';">'+label+'</td>'
@@ -1269,7 +1270,8 @@ function _emailBouton(label, url, secondaire){
   return '<a href="'+esc(url)+'" style="display:inline-block;padding:12px 22px;border-radius:8px;font:600 14px/1 '+EMAIL_POLICE+';text-decoration:none;'
     +(secondaire ? 'background:#fff;color:'+EMAIL_COUL.encre+';border:1px solid '+EMAIL_COUL.bord+';' : 'background:'+EMAIL_COUL.rouge+';color:#fff;')+'">'+label+'</a>';
 }
-// o : { accent, etiquette, titre, bonjour, texte, contenu, apresCarte, boutons:[{label,url,secondaire}], pourquoi }
+// o : { accent, etiquette, titre, bonjour, texte, avantCarte, contenu, description, apresCarte, boutons:[{label,url,secondaire}], pourquoi }
+// description : texte brut (échappé ici), affiché en citation sous la carte.
 // Les textes sont du HTML : échapper (esc) tout contenu variable avant de le passer.
 function _emailCompo(o){
   var a = EMAIL_ACCENTS[o.accent||'neutre'] || EMAIL_ACCENTS.neutre;
@@ -1283,13 +1285,15 @@ function _emailCompo(o){
     +'<tr><td style="padding:10px 28px 4px;font:400 15px/1.6 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';">'
       +(o.bonjour?'<p style="margin:0 0 10px;">'+o.bonjour+'</p>':'')+(o.texte?'<p style="margin:0;">'+o.texte+'</p>':'')
     +'</td></tr>'
+    +(o.avantCarte?'<tr><td style="padding:14px 28px 0;">'+o.avantCarte+'</td></tr>':'')
     +(o.contenu?'<tr><td style="padding:16px 28px 0;">'+o.contenu+'</td></tr>':'')
+    +(o.description?'<tr><td style="padding:14px 28px 0;"><div style="border-left:3px solid '+EMAIL_COUL.bord+';padding:2px 0 2px 12px;font:400 14px/1.6 '+EMAIL_POLICE+';color:#44403C;">'+esc(o.description).replace(/\n/g,'<br>')+'</div></td></tr>':'')
     +(o.apresCarte?'<tr><td style="padding:14px 28px 0;font:400 14px/1.6 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';">'+o.apresCarte+'</td></tr>':'')
     +(o.boutons && o.boutons.length ? '<tr><td style="padding:22px 28px 4px;">'+o.boutons.map(function(b){ return _emailBouton(b.label, b.url, b.secondaire); }).join('<span style="display:inline-block;width:8px;"></span>')+'</td></tr>' : '')
     +'<tr><td style="padding:26px 28px 24px;"><div style="border-top:1px solid '+EMAIL_COUL.bord+';padding-top:14px;font:400 12px/1.55 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';">'
       +(o.pourquoi?o.pourquoi+'<br>':'')
       +'Cet email est envoyé automatiquement, merci de ne pas y répondre. Pour nous écrire : <a href="mailto:contact@ipsummedia.fr" style="color:'+EMAIL_COUL.gris+';text-decoration:underline;">contact@ipsummedia.fr</a><br>'
-      +'Ipsum Média · association de médias locaux'
+      +'Ipsum Média · association de médias locaux du Tarn'
     +'</div></td></tr>'
     +'</table></td></tr></table>';
 }

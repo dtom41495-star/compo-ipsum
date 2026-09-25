@@ -1613,7 +1613,7 @@ function osAgendaOuvrirDetail(ev){
             +'<span style="font-family:DM Sans,sans-serif;font-size:0.56rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
             +presenceHtml
             +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="'+BTN_ICONE+'border:1px solid var(--gris-bord);color:#1A5276;"><i class="ti ti-clipboard-list"></i></button>':'')
-            +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscription(\''+insc.id+'\')" title="Valider l\'inscription" style="'+BTN_ICONE+'border:1px solid #B7DFC2;color:#155724;"><i class="ti ti-check"></i></button>':'')
+            +(insc.statut==='en_attente'?'<button onclick="osAgendaValiderInscr(\''+insc.id+'\',\''+ev.id+'\')" title="Valider l\'inscription" style="'+BTN_ICONE+'border:1px solid #B7DFC2;color:#155724;"><i class="ti ti-check"></i></button>':'')
             +'<button onclick="osAgendaAdminDesinscrire(\''+insc.id+'\',\''+ev.id+'\')" title="Retirer de l\'événement" style="'+BTN_ICONE+'border:1px solid #F1C2C2;color:#A32D2D;"><i class="ti ti-x"></i></button>'
             +'</div>';
         });
@@ -1746,6 +1746,118 @@ function _osAgendaNotifierEquipeInscription(ev, nomInscrit, statut){
   }).catch(function(){});
 }
 
+// ===== EMAILS DE L'AGENDA =====
+// Modèle commun _emailCompo (aperçus validés par Tom, 25/09) : même carte « date / heure
+// / lieu / visio » avec le badge date, tutoiement pour les membres, vouvoiement pour les
+// personnes extérieures (inscrits par le lien public, contact d'une interview).
+var AGENDA_LIEN = 'https://compo.ipsummedia.fr?agenda=';
+var AGENDA_LIEN_PUBLIC = 'https://compo.ipsummedia.fr/inscription.html?event=';
+
+function _osAgendaHeures(ev){
+  var f = function(x){ return new Date(x).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); };
+  return f(ev.date_debut)+(ev.date_fin ? ' – '+f(ev.date_fin) : '');
+}
+// "lundi 5 octobre", pour les objets d'email et les messages Chat
+function _osAgendaJour(ev){
+  return new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+}
+function _osAgendaLienGoogle(ev){
+  var d = new Date(ev.date_debut);
+  var fin = ev.date_fin ? new Date(ev.date_fin) : new Date(d.getTime()+3600000);
+  function f(x){ return x.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''); }
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    +'&text='+encodeURIComponent(ev.titre||'Événement Ipsum Média')
+    +'&dates='+f(d)+'/'+f(fin)
+    +(ev.lieu ? '&location='+encodeURIComponent(ev.lieu) : '')
+    +(ev.lien_visio ? '&details='+encodeURIComponent('Visio : '+ev.lien_visio) : '');
+}
+function _osAgendaLigneInfo(label, valeur, ancienne){
+  return _emailLigneInfo(label, ancienne
+    ? '<span style="color:'+EMAIL_COUL.gris+';text-decoration:line-through;">'+ancienne+'</span><br><strong style="color:#1E7A45;">'+valeur+'</strong>'
+    : valeur);
+}
+// o : { changements:{date,heure,lieu} (anciennes valeurs, barrées), extra (lignes en plus), sansVisio }
+function _osAgendaCarteEmail(ev, o){
+  o = o || {};
+  var ch = o.changements || {};
+  var d = new Date(ev.date_debut);
+  var t = AGENDA_TYPES[ev.type] || AGENDA_TYPES.autre;
+  var redac = ev.redaction_id ? (window._redactionsData||[]).find(function(r){ return r.id===ev.redaction_id; }) : null;
+  var rows = _osAgendaLigneInfo('Date', esc(_cpInvitDateLongue(d)), ch.date)
+    + _osAgendaLigneInfo('Heure', _osAgendaHeures(ev), ch.heure)
+    + (ev.lieu ? _osAgendaLigneInfo('Lieu', esc(ev.lieu), ch.lieu) : '')
+    + (ev.lien_visio && !o.sansVisio ? _emailLigneInfo('Visio', '<a href="'+esc(ev.lien_visio)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">Rejoindre la visio</a>') : '')
+    + (o.extra || '');
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;border-collapse:separate;">'
+    +'<tr><td style="padding:14px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+    +'<td style="width:62px;vertical-align:top;padding-right:14px;">'+_emailBadgeDate(d)+'</td>'
+    +'<td style="vertical-align:top;">'
+      +'<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">'+esc(t.l)+(redac&&redac.nom?' · '+esc(redac.nom):'')+'</div>'
+      +'<div style="font:700 17px/1.3 Arial, Helvetica, sans-serif;color:'+EMAIL_COUL.encre+';margin-bottom:8px;">'+esc(ev.titre||'')+'</div>'
+      +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'+rows+'</table>'
+    +'</td></tr></table></td></tr></table>';
+}
+// Ligne "Places" de l'invitation : "12 places · inscription soumise à validation"
+function _osAgendaLignePlaces(ev){
+  var morceaux = [];
+  if(ev.places_max) morceaux.push(ev.places_max+' place'+(ev.places_max>1?'s':''));
+  if(ev.validation_admin) morceaux.push('inscription soumise à validation');
+  if(!morceaux.length) return '';
+  var txt = morceaux.join(' · ');
+  return _emailLigneInfo('Places', txt.charAt(0).toUpperCase()+txt.slice(1));
+}
+// Chat : 2e ligne commune "lundi 5 octobre à 14:00 · lieu"
+function _osAgendaLigneChat(ev){
+  var h = new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  var j = _osAgendaJour(ev);
+  return j.charAt(0).toUpperCase()+j.slice(1)+' à '+h+(ev.lieu?' · '+_chatSansMiseEnForme(ev.lieu):'');
+}
+
+// Tous les inscrits d'un événement, membres et externes, sans doublon d'adresse.
+// statuts : statuts d'inscription retenus pour les membres (ex. ['confirme']).
+// Renvoie [{email, prenom, externe}].
+function _osAgendaDestinataires(ev, statuts){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var pMembres = fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+ev.id+'&statut=in.('+statuts.join(',')+')&select=membre_id',{headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(inscrs){
+      if(!Array.isArray(inscrs) || !inscrs.length) return [];
+      var ids = inscrs.map(function(i){ return i.membre_id; });
+      return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')&select=email,prenom&email=not.is.null',{headers:authH})
+        .then(function(r){ return r.json(); })
+        .then(function(ms){ return (Array.isArray(ms)?ms:[]).map(function(m){ return {email:m.email, prenom:m.prenom||'', externe:false}; }); });
+    }).catch(function(){ return []; });
+  var pExternes = !ev.ouvert_externes ? Promise.resolve([]) :
+    fetch(SB_URL+'/functions/v1/agenda-inscription-externe', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+      body:JSON.stringify({ action:'lister', evenementId: ev.id })
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){ return ((data&&data.inscrits)||[]).filter(function(i){ return i.email; }).map(function(i){ return {email:i.email, prenom:i.nom||'', externe:true}; }); })
+      .catch(function(){ return []; });
+  return Promise.all([pMembres, pExternes]).then(function(res){
+    var vus = {};
+    return res[0].concat(res[1]).filter(function(d){
+      var k = String(d.email).toLowerCase();
+      if(vus[k]) return false; vus[k] = true; return true;
+    });
+  });
+}
+// Envoi un par un (200 ms d'écart, pour ne pas saturer Resend).
+// construire(d) -> {sujet, html} ; fin(nbEnvoyes) appelé à la fin.
+function _osAgendaEnvoyerSerie(dests, construire, fin){
+  var nb = 0;
+  function suivant(idx){
+    if(idx >= dests.length){ if(fin) fin(nb); return; }
+    var m = construire(dests[idx]);
+    envoyerEmailResend(dests[idx].email, m.sujet, m.html, 'agenda')
+      .then(function(r){ if(r && r.ok!==false) nb++; })
+      .catch(function(){})
+      .finally(function(){ setTimeout(function(){ suivant(idx+1); }, 200); });
+  }
+  suivant(0);
+}
+
 function osAgendaSInscrire(evId){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
@@ -1784,8 +1896,39 @@ function osAgendaSInscrire(evId){
       notif('Demande d\'inscription envoyée ✓ — en attente de validation','succes');
       _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'en_attente');
     }
+    if(ev && new Date(ev.date_debut) > new Date()) _osAgendaConfirmerInscriptionMembre(ev, statutInitial);
     if(ev) osAgendaOuvrirDetail(ev);
   }).catch(function(){ notif('Erreur réseau'); });
+}
+
+// 12. Le membre qui vient de s'inscrire lui-même reçoit une confirmation (Chat ou email
+// selon son réglage). Si l'événement demande une validation : "Demande envoyée", et il
+// recevra "Inscription confirmée" une fois acceptée.
+function _osAgendaConfirmerInscriptionMembre(ev, statut){
+  var uid = getUserId();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=email,prenom,canal_notif',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(ms){
+    var m = Array.isArray(ms) && ms[0];
+    if(!m || !m.email) return;
+    var attente = statut === 'en_attente';
+    var html = _emailCompo({ accent:'vert', etiquette: attente?'DEMANDE ENVOYÉE':'INSCRIPTION ENREGISTRÉE',
+      titre: attente ? 'C\'est noté, ta demande est envoyée' : 'C\'est noté, tu es inscrit·e',
+      bonjour:'Bonjour '+esc(m.prenom||'')+',',
+      texte: attente
+        ? 'Ta demande d\'inscription est bien enregistrée. Cet événement demande une validation : tu recevras un second email une fois ta demande acceptée.'
+        : 'Ton inscription est bien enregistrée.',
+      contenu:_osAgendaCarteEmail(ev),
+      boutons:[{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev)},{label:'Voir l\'événement', url:AGENDA_LIEN+ev.id, secondaire:true}],
+      pourquoi:'Tu reçois cet email car tu viens de t\'inscrire à cet événement.' });
+    var chat = (attente ? '📝 *Demande d\'inscription envoyée*\n' : '✅ *Tu es inscrit·e*\n')
+      +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
+      +'<'+AGENDA_LIEN+ev.id+'|Voir l\'événement>';
+    notifierPersonnel(uid, m.canal_notif, chat, 'agenda', function(){
+      envoyerEmailResend(m.email, '[Ipsum Média] '+(attente?'Demande envoyée':'Tu es inscrit·e')+' · '+(ev.titre||''), html, 'agenda').catch(function(){});
+    });
+  }).catch(function(){});
 }
 
 function osAgendaAjouterParticipant(evId){
@@ -1881,16 +2024,19 @@ function osAgendaAdminDesinscrire(inscrId, evId){
         .then(function(membres){
           var m = membres&&membres[0];
           if(!m||!m.email) return;
-          var evTitre = ev?esc(ev.titre||''):'Événement';
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +osEnteteEmailLogo('ℹ️ Désinscription')
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Tu as été désinscrit(e) de <strong>'+evTitre+'</strong> par un administrateur.</p>'
-            +'</div></div>';
-          var chatTexte = 'ℹ️ Tu as été désinscrit(e) de "'+(ev?ev.titre||'':'Événement')+'" par un administrateur. https://compo.ipsummedia.fr';
+          if(!ev) return;
+          var html = _emailCompo({ accent:'rouge', etiquette:'DÉSINSCRIPTION', titre:'Tu ne fais plus partie des inscrits',
+            bonjour:'Bonjour '+esc(m.prenom||'')+',',
+            texte:'Un responsable de l\'association t\'a retiré·e de la liste des participants de cet événement.',
+            contenu:_osAgendaCarteEmail(ev),
+            apresCarte:'Si c\'est une erreur, écris-nous à '+EMAIL_LIEN_CONTACT+'.',
+            boutons:[{label:'Voir l\'événement', url:AGENDA_LIEN+ev.id}],
+            pourquoi:'Tu reçois cet email car tu étais inscrit·e à cet événement.' });
+          var chatTexte = 'ℹ️ *Tu as été désinscrit·e d\'un événement*\n'
+            +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
+            +'Si c\'est une erreur, écris-nous à contact@ipsummedia.fr';
           notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-            envoyerEmailResend(m.email,'[Compo] Désinscription : '+evTitre,html,'agenda').catch(function(){});
+            envoyerEmailResend(m.email,'[Ipsum Média] Désinscription · '+(ev.titre||''),html,'agenda').catch(function(){});
           });
         }).catch(function(){});
       }
@@ -2088,13 +2234,6 @@ function osInvitationPresseCrediterHeures(){
   }).catch(function(){});
 }
 
-function osAgendaValiderInscription(inscrId){
-  var ev = _agendaEvenements.find(function(e){
-    return (window._agendaInscriptionsDetail||[]).some(function(i){return i.id===inscrId && i.evenement_id===e.id;});
-  });
-  osAgendaValiderInscr(inscrId, ev?ev.id:null);
-}
-
 function osAgendaEnvoyerNotif(evId, titre, btnEl){
   var envoyerMail = (document.getElementById('ag-notif-email')||{}).checked !== false;
   if(!envoyerMail){ notif('Notification désactivée'); return; }
@@ -2124,69 +2263,24 @@ function osAgendaEnvoyerNotif(evId, titre, btnEl){
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
   if(!ev){ notif('Événement introuvable'); terminerEnvoi('Événement introuvable'); return; }
 
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  // Lien public (inscription.html) pour les destinataires externes — ils n'ont pas de
-  // compte Compo, le lien interne les enverrait juste sur l'écran de connexion Google.
-  var lienPublic = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'inscription.html?event=' + encodeURIComponent(evId);
-
-  var pMembres = fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=eq.confirme&select=membre_id',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(inscriptions){
-      if(!inscriptions||!inscriptions.length) return [];
-      var ids = inscriptions.map(function(i){return i.membre_id;});
-      return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom,nom&email=not.is.null',{headers:authH})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          return (membres||[]).map(function(m){ return {email:m.email, nom:m.prenom||'', externe:false}; });
-        });
-    }).catch(function(){ return []; });
-
-  var pExternes = (ev.ouvert_externes ? fetch(SB_URL+'/functions/v1/agenda-inscription-externe', {
-    method:'POST',
-    headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
-    body: JSON.stringify({ action:'lister', evenementId: evId })
-  }).then(function(r){return r.json();}) : Promise.resolve({inscrits:[]}))
-    .then(function(data){
-      return ((data&&data.inscrits)||[]).map(function(e){ return {email:e.email, nom:e.nom||'', externe:true}; });
-    }).catch(function(){ return []; });
-
-  Promise.all([pMembres, pExternes]).then(function(res){
-    var destinataires = res[0].concat(res[1]);
+  _osAgendaDestinataires(ev, ['confirme']).then(function(destinataires){
     if(!destinataires.length){ notif('Aucun inscrit à notifier'); terminerEnvoi('Aucun inscrit'); return; }
-    var debut = new Date(ev.date_debut);
-    var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
-    var nb = 0;
-    function envoyerProchain(idx){
-      if(idx >= destinataires.length){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); terminerEnvoi(nb+' rappel(s) envoyé(s) ✓'); return; }
-      var d = destinataires[idx];
-      var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-        +'<div style="background:#1A1A2E;padding:1.2rem 1.5rem;text-align:center;">'
-        +'<img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" style="height:84px;margin-bottom:0.6rem;">'
-        +'<h1 style="color:white;font-size:1rem;margin:0;">'+t.icon+' Rappel : '+esc(titre)+'</h1>'
-        +'</div>'
-        +'<div style="padding:1.2rem 1.5rem;">'
-        +'<p style="font-size:0.9rem;">Bonjour '+esc(d.nom)+',</p>'
-        +'<p>Rappel pour l\'événement <strong>'+esc(titre)+'</strong> :</p>'
-        +'<ul style="font-size:0.85rem;">'
-        +'<li>📅 '+dateStr+'</li>'
-        +'<li>🕐 '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</li>'
-        +(ev.lieu?'<li>📍 '+esc(ev.lieu)+'</li>':'')
-        +(ev.lien_visio?'<li>🔗 <a href="'+esc(ev.lien_visio)+'">Lien visio</a></li>':'')
-        +'</ul>'
-        +(ev.description?'<p style="font-size:0.82rem;color:#666;">'+esc(ev.description)+'</p>':'')
-        +'<a href="'+(d.externe?esc(lienPublic):'https://compo.ipsummedia.fr?agenda='+ev.id)+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">'+(d.externe?'Voir l\'événement':'Voir sur Compo')+'</a>'
-        +'</div></div>';
-      envoyerEmailResend(d.email, '[Compo] Rappel : '+titre, html, 'agenda')
-      .then(function(r){ if(r&&r.ok!==false) nb++; })
-      .catch(function(){})
-      .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
-    }
-    envoyerProchain(0);
+    var heure = new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    _osAgendaEnvoyerSerie(destinataires, function(d){
+      var ext = d.externe;
+      return {
+        sujet:'[Ipsum Média] Rappel · '+(ev.titre||'')+' · '+_osAgendaJour(ev)+' à '+heure,
+        html:_emailCompo({ accent:'ambre', etiquette:'RAPPEL', titre:'On se voit bientôt : '+esc(ev.titre||''),
+          bonjour:'Bonjour'+(d.prenom?' '+esc(d.prenom):'')+',',
+          texte: ext ? 'Petit rappel pour l\'événement auquel vous êtes inscrit·e.' : 'Petit rappel pour l\'événement auquel tu es inscrit·e.',
+          contenu:_osAgendaCarteEmail(ev), description:ev.description||'',
+          boutons:[{label:'Voir l\'événement', url: ext ? AGENDA_LIEN_PUBLIC+encodeURIComponent(ev.id) : AGENDA_LIEN+ev.id},
+                   {label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
+          pourquoi: ext ? 'Vous recevez cet email car vous êtes inscrit·e à cet événement.' : 'Tu reçois cet email car tu es inscrit·e à cet événement.' })
+      };
+    }, function(nb){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); terminerEnvoi(nb+' rappel(s) envoyé(s) ✓'); });
   }).catch(function(){ notif('Erreur envoi','erreur'); terminerEnvoi('Erreur envoi'); });
 }
-
 
 function osAgendaValiderInscr(inscrId, evId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
@@ -2227,21 +2321,18 @@ function osAgendaValiderInscr(inscrId, evId){
           .then(function(membres){
             var m = membres && membres[0];
             if(!m || !m.email) return;
-            var evTitre = ev ? esc(ev.titre||'') : 'Événement';
-            var debut = ev ? new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '';
-            var heureStr = ev ? new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
-            var html = '<div style="font-family:sans-serif;max-width:500px;">'
-              +osEnteteEmailLogo('✅ Inscription confirmée')
-              +'<div style="padding:1rem 1.5rem;">'
-              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-              +'<p>Ta demande d\'inscription à <strong>'+evTitre+'</strong> a été <strong style="color:#155724;">acceptée</strong>.</p>'
-              +(debut?'<p>📅 '+debut+(heureStr?' à '+heureStr:'')+'</p>':'')
-              +(ev&&ev.lieu?'<p>📍 '+esc(ev.lieu)+'</p>':'')
-              +'<a href="https://compo.ipsummedia.fr'+(ev?'?agenda='+ev.id:'')+'" style="display:inline-block;background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
-              +'</div></div>';
-            var chatTexte = '✅ Ta demande d\'inscription à "'+(ev?ev.titre||'':'Événement')+'" a été acceptée.'+(debut?' 📅 '+debut+(heureStr?' à '+heureStr:''):'')+(ev&&ev.lieu?' 📍 '+ev.lieu:'')+' https://compo.ipsummedia.fr';
+            if(!ev) return;
+            var html = _emailCompo({ accent:'vert', etiquette:'INSCRIPTION CONFIRMÉE', titre:'C\'est bon, ta place est réservée',
+              bonjour:'Bonjour '+esc(m.prenom||'')+',',
+              texte:'Ta demande d\'inscription a été acceptée. À bientôt !',
+              contenu:_osAgendaCarteEmail(ev),
+              boutons:[{label:'Voir l\'événement', url:AGENDA_LIEN+ev.id},{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
+              pourquoi:'Tu reçois cet email car tu avais demandé à t\'inscrire à cet événement.' });
+            var chatTexte = '✅ *Ton inscription est confirmée*\n'
+              +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
+              +'<'+AGENDA_LIEN+ev.id+'|Voir l\'événement>';
             notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-              envoyerEmailResend(m.email, '[Compo] Inscription confirmée : '+evTitre, html, 'agenda').catch(function(){});
+              envoyerEmailResend(m.email, '[Ipsum Média] Inscription confirmée · '+(ev.titre||''), html, 'agenda').catch(function(){});
             });
           }).catch(function(){});
         }
@@ -2270,17 +2361,19 @@ function osAgendaRefuserInscr(inscrId, evId){
           .then(function(membres){
             var m = membres && membres[0];
             if(!m || !m.email) return;
-            var evTitre = ev ? esc(ev.titre||'') : 'Événement';
-            var html = '<div style="font-family:sans-serif;max-width:500px;">'
-              +osEnteteEmailLogo('❌ Inscription non retenue')
-              +'<div style="padding:1rem 1.5rem;">'
-              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-              +'<p>Nous n\'avons pas pu retenir ta demande d\'inscription à <strong>'+evTitre+'</strong>.</p>'
-              +'<p style="color:#666;font-size:0.82rem;">Si tu as des questions, contacte un administrateur sur Compo.</p>'
-              +'</div></div>';
-            var chatTexte = '❌ Nous n\'avons pas pu retenir ta demande d\'inscription à "'+(ev?ev.titre||'':'Événement')+'". Si tu as des questions, contacte un administrateur sur Compo. https://compo.ipsummedia.fr';
+            if(!ev) return;
+            var html = _emailCompo({ accent:'rouge', etiquette:'INSCRIPTION NON RETENUE', titre:'Ta demande n\'a pas pu être retenue',
+              bonjour:'Bonjour '+esc(m.prenom||'')+',',
+              texte:'Nous n\'avons pas pu retenir ta demande d\'inscription pour cet événement, souvent faute de places. Ce n\'est que partie remise.',
+              contenu:_osAgendaCarteEmail(ev),
+              apresCarte:'Une question ? Écris-nous à '+EMAIL_LIEN_CONTACT+'.',
+              boutons:[{label:'Voir les autres événements', url:'https://compo.ipsummedia.fr'}],
+              pourquoi:'Tu reçois cet email car tu avais demandé à t\'inscrire à cet événement.' });
+            var chatTexte = 'ℹ️ *Ta demande d\'inscription n\'a pas pu être retenue*\n'
+              +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
+              +'Une question ? Écris-nous à contact@ipsummedia.fr';
             notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-              envoyerEmailResend(m.email, '[Compo] Inscription non retenue : '+evTitre, html, 'agenda').catch(function(){});
+              envoyerEmailResend(m.email, '[Ipsum Média] Inscription non retenue · '+(ev.titre||''), html, 'agenda').catch(function(){});
             });
           }).catch(function(){});
         }
@@ -2357,36 +2450,28 @@ function osAgendaSupprimer(evId){
 }
 
 function osAgendaEnvoyerEmailAnnulation(evId){
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  var ev = (_agendaEvenements||[]).find(function(e){ return e.id===evId; });
   if(!ev) return;
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+evId+'&statut=neq.refuse&select=membre_id',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(inscrs){
-    if(!inscrs||!inscrs.length) return;
-    var ids = inscrs.map(function(i){return i.membre_id;});
-    return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.join(',')+')'+'&select=email,prenom&email=not.is.null',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(membres){
-      if(!membres||!membres.length) return;
-      var nb = 0;
-      function envoyerProchain(idx){
-        if(idx >= membres.length){ if(nb) notif(nb+' membre(s) notifié(s) de l\'annulation','succes'); return; }
-        var m = membres[idx];
-        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-          +osEnteteEmailLogo('Événement annulé')
-          +'<div style="padding:1.2rem 1.5rem;">'
-          +'<p>Bonjour '+esc(m.prenom||'')+',</p>'
-          +'<p>L\'événement <strong>'+esc(ev.titre||'')+'</strong> prévu le '+new Date(ev.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' a été annulé.</p>'
-          +'<p style="color:#666;font-size:0.88rem;">Pour consulter l\'agenda à jour : <a href="https://compo.ipsummedia.fr?agenda='+ev.id+'">voir sur Compo</a></p>'
-          +'</div></div>';
-        envoyerEmailResend(m.email,'[Ipsum] Événement annulé : '+ev.titre,html,'agenda')
-        .then(function(r){ if(r&&r.ok!==false) nb++; })
-        .catch(function(){})
-        .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
-      }
-      envoyerProchain(0);
-    });
+  _osAgendaDestinataires(ev, ['confirme','en_attente']).then(function(dests){
+    // Le contact d'une interview n'est pas "inscrit", mais il attend le rendez-vous
+    if(ev.contact_email && !dests.some(function(d){ return d.email.toLowerCase()===ev.contact_email.toLowerCase(); })){
+      dests.push({email:ev.contact_email, prenom:ev.contact_nom||'', externe:true});
+    }
+    if(!dests.length) return;
+    _osAgendaEnvoyerSerie(dests, function(d){
+      var ext = d.externe;
+      return {
+        sujet:'[Ipsum Média] Annulé · '+(ev.titre||'')+' · '+_osAgendaJour(ev),
+        html:_emailCompo({ accent:'rouge', etiquette:'ÉVÉNEMENT ANNULÉ', titre:'Annulation : '+esc(ev.titre||''),
+          bonjour:'Bonjour'+(d.prenom?' '+esc(d.prenom):'')+',',
+          texte: ext ? 'L\'événement auquel vous étiez inscrit·e n\'aura pas lieu. Pensez à le retirer de votre agenda.'
+                     : 'L\'événement auquel tu étais inscrit·e n\'aura pas lieu. Pense à le retirer de ton agenda.',
+          contenu:_osAgendaCarteEmail(ev, {sansVisio:true}),
+          boutons: ext ? [] : [{label:'Voir l\'agenda', url:'https://compo.ipsummedia.fr'}],
+          pourquoi: ext ? 'Vous recevez cet email car vous étiez inscrit·e à cet événement ou attendu·e par Ipsum Média.'
+                        : 'Tu reçois cet email car tu étais inscrit·e à cet événement.' })
+      };
+    }, function(nb){ if(nb) notif(nb+' personne(s) prévenue(s) de l\'annulation','succes'); });
   }).catch(function(){});
 }
 
@@ -2775,6 +2860,9 @@ function osAgendaSauvegarder(evId){
   };
 
   var isEdit = !!evId;
+  // Copie de l'événement avant modification, pour prévenir les inscrits si la date,
+  // l'heure ou le lieu changent
+  var evAvant = isEdit ? Object.assign({}, (_agendaEvenements||[]).find(function(e){ return e.id===evId; })||{}) : null;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   var url = isEdit
     ? SB_URL+'/rest/v1/agenda_evenements?id=eq.'+evId
@@ -2799,30 +2887,62 @@ function osAgendaSauvegarder(evId){
       osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
       if(payload.contact_email) osAgendaPrevenirContactExterne(evSauve);
     }
+    if(isEdit && evAvant && evAvant.id && evAvant.statut!=='annule' && new Date(payload.date_debut) > new Date()){
+      _osAgendaPrevenirModification(evAvant, evSauve);
+    }
   }).catch(function(){ notif('Erreur sauvegarde'); });
+}
+
+// 11. Date, heure ou lieu changés : tous les inscrits (membres + externes) sont prévenus,
+// avec les anciennes valeurs barrées. Rien ne part si seuls le titre, la description...
+// ont changé.
+function _osAgendaPrevenirModification(avant, apres){
+  var jour = function(x){ return x ? new Date(x).toDateString() : ''; };
+  var ch = {};
+  if(jour(avant.date_debut) !== jour(apres.date_debut)) ch.date = esc(_cpInvitDateLongue(new Date(avant.date_debut)));
+  if(_osAgendaHeures(avant) !== _osAgendaHeures(apres)) ch.heure = _osAgendaHeures(avant);
+  if((avant.lieu||'') !== (apres.lieu||'')) ch.lieu = avant.lieu ? esc(avant.lieu) : 'Non précisé';
+  var quoi = [];
+  if(ch.date) quoi.push('la date');
+  if(ch.heure) quoi.push('l\'horaire');
+  if(ch.lieu) quoi.push('le lieu');
+  if(!quoi.length) return;
+  var phrase = quoi.length === 1 ? quoi[0] : quoi.slice(0,-1).join(', ')+' et '+quoi[quoi.length-1];
+  phrase = phrase.charAt(0).toUpperCase()+phrase.slice(1);
+  var verbe = quoi.length > 1 ? 'ont changé' : 'a changé';
+  _osAgendaDestinataires(apres, ['confirme','en_attente']).then(function(dests){
+    if(!dests.length) return;
+    _osAgendaEnvoyerSerie(dests, function(d){
+      var ext = d.externe;
+      return {
+        sujet:'[Ipsum Média] Changement · '+(apres.titre||''),
+        html:_emailCompo({ accent:'ambre', etiquette:'CHANGEMENT', titre:'Changement : '+esc(apres.titre||''),
+          bonjour:'Bonjour'+(d.prenom?' '+esc(d.prenom):'')+',',
+          texte:phrase+' de cet événement '+verbe+'. Voici les nouvelles informations.',
+          contenu:_osAgendaCarteEmail(apres, {changements:ch}),
+          boutons:[{label:'Voir l\'événement', url: ext ? AGENDA_LIEN_PUBLIC+encodeURIComponent(apres.id) : AGENDA_LIEN+apres.id},
+                   {label:'Mettre à jour mon agenda', url:_osAgendaLienGoogle(apres), secondaire:true}],
+          pourquoi: ext ? 'Vous recevez cet email car vous êtes inscrit·e à cet événement.' : 'Tu reçois cet email car tu es inscrit·e à cet événement.' })
+      };
+    }, function(nb){ if(nb) notif(nb+' inscrit(s) prévenu(s) du changement','succes'); });
+  }).catch(function(){});
 }
 
 // Prévient automatiquement la personne externe concernée (interview, appel...) —
 // distinct des invitations internes : ce n'est pas un·e bénévole de l'appli, juste
 // un email de courtoisie avec les infos pratiques du rendez-vous.
 function osAgendaPrevenirContactExterne(ev){
-  var debut = new Date(ev.date_debut);
-  var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-    +osEnteteEmailLogo('🎤 '+esc(ev.titre||''))
-    +'<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">'
-    +'<p style="margin:0 0 0.8rem;">Bonjour'+(ev.contact_nom?' '+esc(ev.contact_nom):'')+',</p>'
-    +'<p style="margin:0 0 0.8rem;">'+esc(ev.organisateur||'Un membre d\'Ipsum Média')+' souhaite s\'entretenir avec vous. Voici les informations pratiques :</p>'
-    +'<p style="margin:0 0 0.5rem;"><strong>📅</strong> '+dateStr+'</p>'
-    +'<p style="margin:0 0 0.5rem;"><strong>🕐</strong> '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</p>'
-    +(ev.lieu?'<p style="margin:0 0 0.5rem;"><strong>📍</strong> '+esc(ev.lieu)+'</p>':'')
-    +(ev.lien_visio?'<p style="margin:0;"><strong>🔗</strong> <a href="'+esc(ev.lien_visio)+'">Lien de connexion</a></p>':'')
-    +'</div>'
-    +(ev.description?'<div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:0.88rem;color:#333;line-height:1.6;">'+esc(ev.description).replace(/\n/g,'<br>')+'</div>':'')
-    +'<div style="padding:1rem 1.5rem;font-size:0.8rem;color:#666;">Merci de nous prévenir en répondant à cet email en cas d\'empêchement.</div>'
-    +'</div>';
-  envoyerEmailResend(ev.contact_email, '[Ipsum Média] '+ev.titre, html, 'agenda').then(function(r){
+  var interview = ev.type === 'interview';
+  var html = _emailCompo({ accent:'bleu', etiquette:'RENDEZ-VOUS',
+    titre: interview ? 'Votre interview avec Ipsum Média' : 'Votre rendez-vous avec Ipsum Média',
+    bonjour:'Bonjour'+(ev.contact_nom?' '+esc(ev.contact_nom):'')+',',
+    texte:(ev.organisateur ? esc(ev.organisateur)+', d\'Ipsum Média,' : 'Un membre d\'Ipsum Média')+' souhaite s\'entretenir avec vous. Voici les informations pratiques.',
+    contenu:_osAgendaCarteEmail(ev),
+    apresCarte:'Un empêchement ? Prévenez-nous à '+EMAIL_LIEN_CONTACT+'.',
+    boutons:[{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
+    pourquoi:'Vous recevez cet email car un membre d\'Ipsum Média a programmé un rendez-vous avec vous.' });
+  var heure = new Date(ev.date_debut).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  envoyerEmailResend(ev.contact_email, 'Votre rendez-vous avec Ipsum Média · '+_osAgendaJour(ev)+' à '+heure, html, 'agenda').then(function(r){
     if(r && r.ok) notif('Email envoyé à '+ev.contact_email);
     else notif('Erreur envoi email au contact','erreur');
   });
@@ -2834,32 +2954,25 @@ function osAgendaEnvoyerInvitations(ev, roles, fonctions){
   .then(function(r){return r.json();})
   .then(function(membres){
     if(!membres||membres.code) return;
+    // Rien de coché = toute l'équipe. Sinon : les membres qui ont un des rôles cochés OU
+    // une des fonctions cochées. Avant, cocher seulement des fonctions invitait tout le
+    // monde (aucun rôle coché valait "tous les rôles"), et m.fonction, qui est une liste,
+    // était comparé comme une chaîne : un membre à plusieurs fonctions n'était jamais ciblé.
+    var toutLeMonde = !roles.length && !fonctions.length;
     var cibles = membres.filter(function(m){
       if(!m.email) return false;
-      var roleOk = !roles.length || roles.indexOf(m.role)!==-1;
-      var fonctOk = !fonctions.length || fonctions.indexOf(m.fonction)!==-1;
-      return roleOk || fonctOk;
+      if(toutLeMonde) return true;
+      if(roles.indexOf(m.role)!==-1) return true;
+      return fonctionArray(m.fonction).some(function(f){ return fonctions.indexOf(f)!==-1; });
     });
-    var debut = new Date(ev.date_debut);
-    var dateStr = debut.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    var heureStr = debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
     cibles.forEach(function(m){
-      var html = '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;">'
-        +osEnteteEmailLogo(t.icon+' '+esc(ev.titre||''))
-        +'<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #eee;">'
-        +'<p style="color:#888;font-size:0.78rem;margin:0 0 0.8rem;">'+t.l+'</p>'
-        +'<p style="margin:0 0 0.5rem;"><strong>📅</strong> '+dateStr+'</p>'
-        +'<p style="margin:0 0 0.5rem;"><strong>🕐</strong> '+heureStr+(ev.date_fin?' → '+new Date(ev.date_fin).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'')+'</p>'
-        +(ev.lieu?'<p style="margin:0 0 0.5rem;"><strong>📍</strong> '+esc(ev.lieu)+'</p>':'')
-        +(ev.lien_visio?'<p style="margin:0;"><strong>🔗</strong> <a href="'+esc(ev.lien_visio)+'">Rejoindre en visio</a></p>':'')
-        +'</div>'
-        +(ev.description?'<div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:0.88rem;color:#333;line-height:1.6;">'+esc(ev.description).replace(/\n/g,'<br>')+'</div>':'')
-        +'<div style="padding:1rem 1.5rem;text-align:center;">'
-        +(ev.places_max?'<p style="font-size:0.8rem;color:#666;margin-bottom:1rem;">Places limitées : '+ev.places_max+(ev.validation_admin?' · Inscription soumise à validation':'')+'</p>':'')
-        +'<a href="https://compo.ipsummedia.fr?agenda='+ev.id+'" style="background:#E8461E;color:white;padding:0.6rem 1.5rem;text-decoration:none;border-radius:6px;font-weight:600;">Voir l\'événement et s\'inscrire</a>'
-        +'</div></div>';
-      envoyerEmailResend(m.email,'[Agenda] '+t.icon+' '+ev.titre,html,'agenda');
+      var html = _emailCompo({ accent:'neutre', etiquette:'INVITATION', titre:'Tu es invité·e : '+esc(ev.titre||''),
+        bonjour:'Bonjour '+esc(m.prenom||'')+',',
+        texte:'Un nouvel événement vient d\'être ajouté à l\'agenda de l\'association. Inscris-toi si tu peux venir.',
+        contenu:_osAgendaCarteEmail(ev, {extra:_osAgendaLignePlaces(ev)}), description:ev.description||'',
+        boutons:[{label:'Je m\'inscris', url:AGENDA_LIEN+ev.id},{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
+        pourquoi:'Tu reçois cet email car tu fais partie des personnes invitées à cet événement.' });
+      envoyerEmailResend(m.email,'[Ipsum Média] Invitation · '+(ev.titre||'')+' · '+_osAgendaJour(ev),html,'agenda');
     });
     notif('Invitations envoyées à '+cibles.length+' bénévole(s)');
   });
