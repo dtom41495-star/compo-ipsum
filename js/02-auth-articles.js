@@ -104,7 +104,7 @@ var db = {
     })
     .then(function(data){
       // PostgREST renvoie 200 avec un tableau vide si le WHERE (id) ne matche
-      // aucune ligne visible pour ce rôle (RLS) — sans ça on croirait la sauvegarde
+      // aucune ligne visible pour ce rôle — sans ça on croirait la sauvegarde
       // réussie (et on enverrait la notif/email) alors que rien n'a été écrit.
       if(!Array.isArray(data) || !data.length){
         throw new Error('Aucune ligne mise à jour — vérifie les droits (RLS) ou que l\'article existe toujours.');
@@ -1569,10 +1569,8 @@ function osClearAutosave(){
 function chargerDansRedaction(doc){
   if(!doc) return;
   // Porte d'entrée de l'éditeur complet, quel que soit le chemin qui y mène (bouton
-  // Modifier de la fiche membre, "Mes articles", lien partagé…) : sans ce garde ici,
-  // chaque appelant devait revérifier lui-même qui a le droit d'éditer, et l'un d'eux
-  // (le bouton Modifier de la page de lecture) ne le faisait pas — n'importe quel membre
-  // pouvait ouvrir et modifier le brouillon de n'importe qui d'autre.
+  // Modifier de la fiche membre, "Mes articles", lien partagé…) : on vérifie ici qui a
+  // le droit d'éditer.
   var perm = _osPermissionsModalAction(doc);
   if(!perm.peutModifier && !perm.peutCorriger){
     notif('Tu n\'es pas autorisé·e à modifier cet article — réservé à l\'auteur·rice, au correcteur·rice, au rédac chef ou à un·e admin.', 'erreur');

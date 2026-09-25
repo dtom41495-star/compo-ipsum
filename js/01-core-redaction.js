@@ -1162,8 +1162,7 @@ function renderLecture(){
   // validé (brouillon, en-relecture, corrigé) — même règle que partout ailleurs dans
   // Compo pour cette action. Visible seulement une fois l'article ouvert en lecture.
   var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
-  // Le clic est de toute façon revérifié dans chargerDansRedaction — ce garde-ci n'est
-  // qu'un confort d'affichage, pas la barrière de sécurité elle-même.
+  // Le clic est de toute façon revérifié dans chargerDansRedaction.
   var btnModifier = document.getElementById('lect-btn-modifier');
   if(btnModifier){
     var permLect = _osPermissionsModalAction(doc);
@@ -1194,8 +1193,7 @@ function renderLecture(){
     if(preview) rLectureAfficherCpSource(doc, preview);
   }
   // Commentaires du correcteur, en encart après chaque paragraphe — uniquement pour
-  // l'auteur (filtré côté client, même logique que le bouton Supprimer ci-dessus ; la
-  // lecture de commentaires_articles est ouverte à tout membre authentifié côté RLS).
+  // l'auteur.
   if(estAuteurLect && doc.id) rLectureAfficherCommentaires(doc);
 }
 function rLectureAfficherCommentaires(doc){

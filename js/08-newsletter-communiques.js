@@ -23,9 +23,8 @@ function nlChargerDepuisBase(redactionIdChoisi){
   }
 
   _nlRedactionActive = redactionId;
-  // "Marquer comme envoyée" écrit dans newsletters/newsletter_articles (RLS réservée
-  // admin + rédac chef de CETTE rédaction) — masqué pour les autres plutôt que de
-  // laisser cliquer sur un bouton qui échouera silencieusement côté serveur.
+  // "Marquer comme envoyée" : réservé à l'admin et au rédac chef de CETTE rédaction,
+  // masqué pour les autres.
   var monLienIci = mesLiens.find(function(mr){ return mr.redaction_id===redactionId; });
   var peutEnvoyer = getUserRole()==='admin' || (monLienIci && monLienIci.role_redac==='redac_chef');
   var btnEnvoyee = document.getElementById('nl-btn-envoyee');

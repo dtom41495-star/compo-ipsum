@@ -2361,7 +2361,7 @@ function osOpenWindow(pageId){
   setTimeout(osDockMajFenetresOuvertes, 50);
 }
 
-// Vérification RLS en arrière-plan toutes les 5 minutes
+// Vérification du rôle en arrière-plan toutes les 5 minutes
 setInterval(function(){
   var uid = getUserId();
   if(!uid || !_session) return;

@@ -1008,7 +1008,7 @@ function _reserverSujetConfirme(sujet, authH){
   fermerModalSujet();
 
   // Passer en en_cours dans la base avec l'auth correcte — on vérifie que l'écriture
-  // a bien abouti avant d'annoncer un succès : sinon (RLS, réseau...) l'utilisateur se
+  // a bien abouti avant d'annoncer un succès : sinon (droits, réseau...) l'utilisateur se
   // retrouvait à rédiger un article pour un sujet resté "libre" en base, avec le bouton
   // Réserver toujours cliquable au retour sur la liste.
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujet.id), {

@@ -1141,10 +1141,7 @@ function osRedactionsRender(){
 
   // Les articles "toutes rédactions" ne doivent jamais partir sur le fil sans filtre pour
   // un non-admin — seul le sélecteur multi-rédactions en a besoin, et seulement pour SES
-  // propres rédactions (comptage "en cours" par rédaction dont on est membre). Avant ce
-  // correctif, cette requête n'avait aucun filtre : chaque membre recevait côté client les
-  // titres/statuts de TOUS les articles de TOUTES les rédactions, y compris les brouillons
-  // d'une rédaction à laquelle il n'appartient pas — visible via window._tousArticles.
+  // propres rédactions (comptage "en cours" par rédaction dont on est membre).
   // La vraie vue admin (stats globales) a son propre fetch dédié, gated sur role==='admin',
   // dans osRedactionsRenderAdmin — ce fetch-ci n'a donc jamais besoin d'être global pour elle.
   var pMesRedacIds = (role === 'admin')
