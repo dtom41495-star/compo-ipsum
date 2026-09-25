@@ -812,6 +812,7 @@ function osOuvrirNouveauSujetModal(){
   if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
   var existing = document.getElementById('nouveau-sujet-overlay');
   if(existing) existing.remove();
+  _doublonsCache = null; // données fraîches pour la détection de doublons
 
   var overlay = document.createElement('div');
   overlay.id = 'nouveau-sujet-overlay';
@@ -826,7 +827,8 @@ function osOuvrirNouveauSujetModal(){
     +'</div>'
     +'<div style="padding:1.2rem 1.5rem;">'
     +'<div class="form-grid" style="margin-bottom:1rem;">'
-    +'<div class="form-group full"><label>Titre *</label><input type="text" id="ns-titre" placeholder="Ex : Interview du maire sur le budget 2026"></div>'
+    +'<div class="form-group full"><label>Titre *</label><input type="text" id="ns-titre" oninput="osVerifierDoublonSujet()" placeholder="Ex : Interview du maire sur le budget 2026">'
+    +'<div id="ns-doublon-alerte" style="display:none;margin-top:0.5rem;background:#FFFBEB;border:1px solid #F3DFA2;border-radius:10px;padding:0.6rem 0.8rem;"></div></div>'
     +'<div class="form-group"><label>Type</label><select id="ns-type"><option value="article">Article</option><option value="breve">Brève</option><option value="reportage">Reportage</option><option value="interview">Interview</option></select></div>'
     +'<div class="form-group"><label>Priorité</label><select id="ns-priorite"><option value="normale" selected>Normale</option><option value="urgente">Urgente</option><option value="faible">Faible</option></select></div>'
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ns-rubrique" placeholder="Ex : Municipales, Culture..."></div>'

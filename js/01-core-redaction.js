@@ -430,16 +430,18 @@ function _doublonsCharger(){
   }
   return Promise.all([
     // Sujets encore ouverts ou déjà réservés par quelqu'un
-    get('/rest/v1/briefing?statut=in.(ouvert,en_cours)&select=id,titre,statut,responsable'),
+    get('/rest/v1/briefing?statut=in.(ouvert,en_cours,propose)&select=id,titre,statut,responsable'),
     // Articles pas encore publiés — c'est là que se cache le doublon en train de s'écrire
-    get('/rest/v1/articles?statut=neq.publie&select=id,titre,auteur,auteur_id,statut')
+    get('/rest/v1/articles?statut=neq.publie&select=id,titre,auteur,auteur_id,statut'),
+    // Articles publiés ces 4 derniers mois : utiles quand on propose un nouveau sujet
+    get('/rest/v1/articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(new Date(Date.now()-120*86400000).toISOString())+'&select=id,titre,auteur,updated_at')
   ]).then(function(res){
-    _doublonsCache = { sujets:res[0], articles:res[1], charge_a: Date.now() };
+    _doublonsCache = { sujets:res[0], articles:res[1], publies:res[2], charge_a: Date.now() };
     return _doublonsCache;
   });
 }
 
-function _doublonsChercher(titre, cache, idArticleCourant){
+function _doublonsChercher(titre, cache, idArticleCourant, avecPublies){
   var mots = _doublonsNormaliser(titre);
   if(mots.length < 2) return [];   // trop court pour conclure quoi que ce soit
   var trouves = [];
@@ -452,6 +454,7 @@ function _doublonsChercher(titre, cache, idArticleCourant){
         quoi: 'sujet',
         detail: s.statut === 'en_cours' && s.responsable
           ? 'sujet réservé par '+s.responsable
+          : s.statut === 'propose' ? 'proposition en attente de validation'
           : 'sujet ouvert, pas encore pris'
       });
     }
@@ -469,7 +472,44 @@ function _doublonsChercher(titre, cache, idArticleCourant){
     }
   });
 
+  if(avecPublies) (cache.publies||[]).forEach(function(a){
+    var r = _doublonsScore(mots, _doublonsNormaliser(a.titre));
+    if(r.communs >= 2 && r.score >= 0.5){
+      trouves.push({ score: r.score, titre: a.titre, quoi: 'publie',
+        detail: 'déjà publié'+(a.updated_at ? ' le '+new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) : '')+(a.auteur ? ' par '+a.auteur : '') });
+    }
+  });
+
   return trouves.sort(function(x,y){ return y.score - x.score; }).slice(0,3);
+}
+
+// Même vérification dans la fenêtre « Nouveau sujet » / « Proposer un sujet »
+var _doublonsSujetTimer = null;
+function osVerifierDoublonSujet(){
+  if(_doublonsSujetTimer) clearTimeout(_doublonsSujetTimer);
+  _doublonsSujetTimer = setTimeout(function(){
+    var champ = document.getElementById('ns-titre');
+    var zone = document.getElementById('ns-doublon-alerte');
+    if(!champ || !zone) return;
+    var titre = champ.value.trim();
+    if(titre.length < 10){ zone.style.display = 'none'; return; }
+    _doublonsCharger().then(function(cache){
+      if(champ.value.trim() !== titre) return; // la saisie a continué entre-temps
+      var trouves = _doublonsChercher(titre, cache, null, true);
+      if(!trouves.length){ zone.style.display = 'none'; return; }
+      var h = '<div style="display:flex;align-items:flex-start;gap:0.7rem;">'
+        +'<div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#FFF3CD;color:#856404;font-size:0.95rem;"><i class="ti ti-alert-triangle"></i></div>'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.8rem;color:var(--encre);">Ce sujet existe peut-être déjà</div>';
+      trouves.forEach(function(t){
+        h += '<div style="font-size:0.75rem;color:var(--gris);margin-top:3px;">« '+esc(t.titre)+' » : '+esc(t.detail)+'</div>';
+      });
+      h += '<div style="font-size:0.7rem;color:var(--gris);margin-top:5px;font-style:italic;">Tu peux quand même le créer si l\'angle est différent.</div>'
+        +'</div></div>';
+      zone.innerHTML = h;
+      zone.style.display = 'block';
+    });
+  }, 500);
 }
 
 // Remet l'avertissement à zéro quand on change d'article — sans ça, un « ignorer »
