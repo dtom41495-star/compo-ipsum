@@ -814,11 +814,11 @@ function osParamsRender(){
   wc.innerHTML = '';
   
   var app = document.createElement('div');
-  app.className = 'params-app';
+  app.className = 'params-app mobile-onglets-page';
   
   // Sidebar
   var sidebar = document.createElement('div');
-  sidebar.className = 'params-sidebar';
+  sidebar.className = 'params-sidebar mobile-onglets';
   var sideTitle = document.createElement('div');
   sideTitle.className = 'params-sidebar-title';
   sideTitle.textContent = 'Paramètres';

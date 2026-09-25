@@ -281,6 +281,7 @@ function osBenevolesDashRender(){
     var actifCount=statsMembres.filter(function(s){return !s.inactif;}).length;
     var app=document.createElement('div');
     // Rail vertical à gauche — même principe que Ma Rédac' et l'appli Admin.
+    app.className='mobile-onglets-page';
     app.style.cssText='display:flex;height:100%;overflow:hidden;';
     var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'},{id:'organigramme',icon:'ti-sitemap',label:'Organigramme'}];
     if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
@@ -289,6 +290,7 @@ function osBenevolesDashRender(){
     // Admin, pas ici : cette appli est dédiée à la vie associative.
     var rail=document.createElement('div');
     rail.id='benv-sidebar-rail';
+    rail.className='mobile-onglets';
     rail.style.cssText='width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
     rail.innerHTML='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Vie associative</div>';
     var tabContents={};
@@ -317,14 +319,14 @@ function osBenevolesDashRender(){
     function statCard(n,label,color){return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.4rem;color:'+(color||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div></div>';}
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
     var nouveauxCeMois = membres.filter(function(m){ return m.created_at && new Date(m.created_at) >= debutMoisBenv; }).length;
-    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
+    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div class="benv-stats-grille" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
     sh+=statCard(actifCount,'Disponibles','#0F6E56');
     sh+=statCard(artDuMois.length,'Articles touchés','var(--encre)');
     sh+=statCard(artCorrection.length,'En correction','#1A5276');
     sh+=statCard(artPublies.length,'Publiés total','var(--rouge)');
     sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
-    sh+='<div style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
+    sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
     ['Tous','Rédacteur','Correcteur','Admin'].forEach(function(r){sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+r.toLowerCase()+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<button onclick="osBenevolesExporterPDF()" title="Document PDF listant l\'équipe, inactifs en tête" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Exporter PDF</button>';
     sh+='<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
@@ -1559,7 +1561,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   // _osRedacRenderContenu) couvre aussi tout résidu, sur ce montage ou un autre.
   h += '<div style="border:1px solid var(--gris-bord);border-radius:14px;">';
   h += '<div style="background:'+fondHeader+';padding:1.1rem 1.2rem 1.5rem;border-radius:14px 14px 0 0;">';
-  h += '<div style="display:flex;align-items:flex-start;gap:0.9rem;">';
+  h += '<div class="redac-profil-tete" style="display:flex;align-items:flex-start;gap:0.9rem;">';
   h += '<div style="position:relative;flex-shrink:0;cursor:pointer;" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
   h += renderAvatarHTML(membre, 46, {rc:['rgba(255,255,255,0.16)','white'], bord:'border:1.5px solid rgba(255,255,255,0.3);'});
   h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span>';
@@ -1586,7 +1588,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '</div>';
   // Boutons utilitaires, nommés par ce qu'ils produisent (avant : "Carte", "Bilan")
   var BTN_BANDEAU = 'font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.7rem;padding:5px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;';
-  h += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">';
+  h += '<div class="redac-profil-actions" style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">';
   h += '<button id="redac-carte-btn" title="Télécharger ma carte d\'adhérent" style="'+BTN_BANDEAU+'"><i class="ti ti-id"></i>Carte d\'adhérent</button>';
   h += '<button id="redac-bilan-btn" title="Mon bilan de l\'année" style="'+BTN_BANDEAU+'"><i class="ti ti-report-analytics"></i>Bilan annuel</button>';
   h += '</div>';

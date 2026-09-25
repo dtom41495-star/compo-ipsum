@@ -1956,10 +1956,12 @@ function osGestionAppsRender(){
     // Rail vertical à gauche — même principe que Ma Rédac' (icône + libellé toujours
     // visibles, onglet actif en rouge), contenu à droite.
     var layout = document.createElement('div');
+    layout.className = 'mobile-onglets-page';
     layout.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
     var rail = document.createElement('div');
     rail.id = 'admin-sidebar-rail';
+    rail.className = 'mobile-onglets';
     rail.style.cssText = 'width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
     rail.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Administration</div>'
       + [['apps','ti-apps','Apps',''],
@@ -2937,6 +2939,7 @@ function osCarnetOuvrirFiche(id){
   html += '</div>'; // corps
 
   card.innerHTML = html;
+  osPanneauMobileOuvrir(card, 'Retour aux contacts');
 
   // Charger l'historique et les CPs
   osCarnetChargerHistorique(c.id);

@@ -1983,14 +1983,14 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   // Sidebar onglets + contenu — le rail est construit une seule fois ; changer d'onglet
   // (osRedactionsChangerOnglet) ne touche plus qu'à la zone de contenu, pour éviter que
   // tout le panneau (rail compris) ne clignote/disparaisse à chaque clic.
-  var h = '<div style="display:flex;height:100%;overflow:hidden;">';
+  var h = '<div class="mobile-onglets-page" style="display:flex;height:100%;overflow:hidden;">';
 
   // Sidebar — rail élargi (icône + libellé toujours visible), en verre teinté à la
   // couleur de la rédaction active. NB : le flou ne porte pas sur le bureau (la fenêtre
   // est quasi opaque), l'effet vient de la translucidité + du liseré clair à droite.
   var redacRail = (window._redactionsData||[]).find(function(r){ return r.id === redacId; });
   var coulRail = (redacRail && redacRail.couleur) || '#EA5B1C';
-  h += '<div id="redac-sidebar-rail" style="width:170px;flex-shrink:0;'
+  h += '<div id="redac-sidebar-rail" class="mobile-onglets" style="width:170px;flex-shrink:0;'
     +'background:linear-gradient(180deg,'+_osHexRgba(coulRail,0.14)+' 0%,rgba(255,255,255,0.5) 55%,rgba(255,255,255,0.5) 100%);'
     +'backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);'
     +'border-right:1px solid '+_osHexRgba(coulRail,0.28)+';'
