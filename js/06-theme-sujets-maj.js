@@ -130,7 +130,7 @@ function osVerifierNouvelleVersion(){
     }
     _compoNouvelleVersionSignalee = true;
     _compoVersionChangeeEnAttente = false;
-    notifPersistante('Une nouvelle version de Compo est disponible.', 'info', 'Recharger', function(){ location.reload(); }, '🔄');
+    notifPersistante('Une nouvelle version de Compo est disponible.', 'info', 'Recharger', function(){ location.reload(); }, 'refresh');
     // Si le bureau est déjà vide (personne n'a rouvert d'app depuis), programmer le rechargement auto
     _planifierMajBureauInactif();
   });
@@ -179,6 +179,8 @@ function _dismissToast(toast){
   if(toast._timer) clearTimeout(toast._timer);
   toast.style.transform = 'translateX(120%) scale(0.95)';
   toast.style.opacity   = '0';
+  toast.classList.remove('show');
+  toast.classList.add('hide');
   setTimeout(function(){
     if(toast.parentNode) toast.parentNode.removeChild(toast);
   }, 380);
