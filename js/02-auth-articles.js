@@ -396,9 +396,6 @@ function afficherCPDansLecteur(cp){
     var fields = [
       ['Sujet', cp.objet],
       ['Organisation', cp.organisation],
-      ['Contact', cp.contact ? cp.contact.nom : null],
-      ['Email', cp.contact ? cp.contact.email : null],
-      ['Tel', cp.contact ? cp.contact.tel : null],
       ['Recu le', cp.date_reception],
       ['Embargo', cp.embargo]
     ];

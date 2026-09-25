@@ -598,9 +598,6 @@ function renderCpLies(){
   if(cpLies.length===1){
     const cp=cpLies[0];
     let html='<div class="cp-meta-inline"><strong>Infos du communiqué</strong><br>';
-    if(cp.contact.nom)html+='Contact : '+esc(cp.contact.nom)+'<br>';
-    if(cp.contact.email)html+='Email : <a href="mailto:'+esc(cp.contact.email)+'">'+esc(cp.contact.email)+'</a><br>';
-    if(cp.contact.tel)html+='Tél : '+esc(cp.contact.tel)+'<br>';
     if(cp.embargo)html+='⚠️ Embargo jusqu\'au : <strong>'+cp.embargo+'</strong><br>';
     if(cp.date_reception)html+='Reçu le : '+cp.date_reception+'<br>';
     html+='</div>';
@@ -1498,9 +1495,6 @@ function loadLectCP(event){
       var fields = [
         ['Sujet', cp.objet],
         ['Organisation', cp.organisation],
-        ['Contact', cp.contact ? cp.contact.nom : null],
-        ['Email', cp.contact ? cp.contact.email : null],
-        ['Tel', cp.contact ? cp.contact.tel : null],
         ['Recu le', cp.date_reception],
         ['Embargo', cp.embargo],
         ['Enregistre le', cp.cree_le ? new Date(cp.cree_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : null]
