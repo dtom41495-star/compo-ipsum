@@ -4103,27 +4103,30 @@ input:focus,select:focus,textarea:focus{
 .os-online-redac { font-size: 0.68rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .os-online-vide { padding: 16px 14px; font-size: 0.78rem; color: rgba(255,255,255,0.55); }
 
-/* Mes articles (ordinateur) : cartes façon sommaire de journal */
-.mac { background: white; border: 1px solid var(--gris-bord); border-radius: 10px; padding: 0.75rem 1rem 0.7rem; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; font-family: 'DM Sans', sans-serif; }
-.mac:hover { border-color: rgba(232,70,30,0.35); box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
-.mac-haut { display: flex; align-items: center; gap: 0.6rem; font-size: 0.66rem; min-width: 0; }
-.mac-statut { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
-.mac-statut i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-.mac-surtitre { color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.mac-date { margin-left: auto; color: var(--gris); white-space: nowrap; flex-shrink: 0; }
+
+/* Mes articles (ordinateur) : même esprit que les cartes sur téléphone */
+.mac { background: white; border: 1px solid #E7E5E4; border-radius: 14px; padding: 0.85rem 1.05rem 0.8rem; margin-bottom: 0.6rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; font-family: 'DM Sans', sans-serif; }
+.mac:hover { border-color: rgba(232,70,30,0.4); box-shadow: 0 4px 14px rgba(232,70,30,0.08); }
+.mac-haut { display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem; min-width: 0; }
+.mac-statut { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; font-weight: 700; font-size: 0.68rem; white-space: nowrap; flex-shrink: 0; }
+.mac-surtitre { color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mac-date { margin-left: auto; color: #6B7280; white-space: nowrap; flex-shrink: 0; }
 .mac-retard { color: #B91C1C; font-weight: 600; }
-.mac-titre { font: 700 1.02rem/1.3 Bitter, Georgia, serif; color: var(--encre); margin: 0.3rem 0 0.45rem; }
-.mac-bas { display: flex; align-items: center; gap: 0.8rem; min-height: 28px; }
-.mac-infos { flex: 1; min-width: 0; font-size: 0.7rem; color: var(--gris); }
-.mac-alerte { color: #B91C1C; font-weight: 600; }
-.mac-actions { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
-.mac-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 0.7rem; border-radius: 7px; border: 1px solid var(--gris-bord); background: white; color: var(--encre); font: 600 0.7rem 'DM Sans', sans-serif; cursor: pointer; }
-.mac-btn:hover { border-color: var(--encre); }
-.mac-btn-principal { background: var(--encre); border-color: var(--encre); color: white; }
-.mac-btn-principal:hover { background: #2D2D4A; }
-.mac-btn-refus { color: #B91C1C; }
+.mac-titre { font: 700 1.05rem/1.3 Bitter, Georgia, serif; color: var(--encre); margin: 0.45rem 0 0.5rem; }
+.mac-bas { display: flex; align-items: center; gap: 0.8rem; min-height: 32px; }
+.mac-infos { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; font-size: 0.72rem; color: #57534E; }
+.mac-infos > span { display: inline-flex; align-items: center; gap: 4px; }
+.mac-infos i { font-size: 0.95rem; color: #A8A29E; }
+.mac-alerte { color: #B91C1C; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.mac-infos .mac-alerte i { color: #B91C1C; }
+.mac-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.mac-btn { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 0.85rem; border-radius: 9px; border: 1px solid #E7E5E4; background: white; color: var(--encre); font: 600 0.74rem 'DM Sans', sans-serif; cursor: pointer; transition: filter 0.15s, border-color 0.15s; }
+.mac-btn i { font-size: 1rem; }
+.mac-btn:hover { border-color: #A8A29E; }
+.mac-btn-principal { background: #E8461E; border-color: #E8461E; color: white; }
+.mac-btn-vert { background: #059669; border-color: #059669; color: white; }
+.mac-btn-principal:hover, .mac-btn-vert:hover { filter: brightness(1.08); border-color: transparent; }
+.mac-btn-refus { color: #B91C1C; border-color: #FECACA; }
 .mac-btn-refus:hover { border-color: #B91C1C; }
-.mac-btn-lien { border-color: transparent; background: transparent; color: var(--gris); }
-.mac-btn-lien:hover { border-color: transparent; color: var(--encre); text-decoration: underline; }
-.mac-note { display: flex; gap: 6px; align-items: flex-start; font-size: 0.72rem; line-height: 1.45; color: #991B1B; border-left: 3px solid #DC2626; padding: 2px 0 2px 8px; margin-bottom: 0.45rem; }
-.theme-dark .mac-btn-principal { background: #E8E6E1 !important; border-color: #E8E6E1 !important; color: #1A1A2E !important; }
+.mac-note { display: flex; gap: 8px; align-items: flex-start; font-size: 0.76rem; line-height: 1.45; color: #991B1B; background: #FEF2F2; border-radius: 10px; padding: 8px 11px; margin-bottom: 0.55rem; }
+.mac-note i { font-size: 1rem; flex-shrink: 0; }

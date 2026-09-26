@@ -1404,14 +1404,14 @@ function maOsMakeCard(doc, uid, role){
   // Ligne d'infos, en texte simple
   var infos = [];
   var signes = _maNbSignes(doc.corps);
-  if(signes) infos.push(signes.toLocaleString('fr-FR')+' signes');
+  if(signes) infos.push('<i class="ti ti-text-size"></i>'+signes.toLocaleString('fr-FR')+' signes');
   var delaiRelecture = estAuteur && s==='en-relecture' && typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(doc.redaction_id) : null;
-  if(delaiRelecture) infos.push(esc(delaiRelecture));
-  if(_maOnglet==='corriger') infos.push(doc.correcteur ? 'SR : '+esc(doc.correcteur) : '<span class="mac-alerte">Aucun SR désigné</span>');
+  if(delaiRelecture) infos.push('<i class="ti ti-clock"></i>'+esc(delaiRelecture));
+  if(_maOnglet==='corriger') infos.push(doc.correcteur ? '<i class="ti ti-user-search"></i>SR : '+esc(doc.correcteur) : '<span class="mac-alerte"><i class="ti ti-user-search"></i>Aucun SR désigné</span>');
   var nl = _maNewsletterMap[doc.id];
-  if(nl) infos.push('Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR'));
-  else if(doc.redaction_id && (s==='valide'||s==='publie')) infos.push('Newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
-  if(doc.vues_substack!=null) infos.push(doc.vues_substack.toLocaleString('fr-FR')+' vues');
+  if(nl) infos.push('<i class="ti ti-mail"></i>Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR'));
+  else if(doc.redaction_id && (s==='valide'||s==='publie')) infos.push('<i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
+  if(doc.vues_substack!=null) infos.push('<i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+' vues');
 
   // Date : discrète, en rouge seulement quand un papier non publié traîne
   var dateRef = doc.updated_at||doc.created_at;
@@ -1427,22 +1427,22 @@ function maOsMakeCard(doc, uid, role){
   var peutCorriger = (estCorrecteur && s==='en-relecture') ||
                      (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
   if(peutCorriger){
-    actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
-    actions += '<button class="mac-btn mac-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)">Refuser</button>';
+    actions += '<button class="mac-btn mac-btn-vert" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
+    actions += '<button class="mac-btn mac-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i>Refuser</button>';
   }
   if((doc.titre_original||doc.corps_original)&&estAuteur){
     var nbCommentaires = _maCommentairesCountMap[doc.id]||0;
     actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCommentaires?' ('+nbCommentaires+')':'')+'</button>';
   }
-  actions += '<button class="mac-btn mac-btn-lien" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">Lire</button>';
+  actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
 
   card.innerHTML =
     (estRefuse && doc.note_interne ? '<div class="mac-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>' : '')
-    +'<div class="mac-haut"><span class="mac-statut" style="color:'+st[1]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'><i style="background:'+st[1]+';"></i>'+st[0]+'</span>'
+    +'<div class="mac-haut"><span class="mac-statut" style="color:'+st[1]+';background:'+st[2]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'>'+st[0]+'</span>'
     +(surtitre.length ? '<span class="mac-surtitre">'+surtitre.join(' · ')+'</span>' : '')
     +'<span class="mac-date'+(enRetard?' mac-retard':'')+'"'+(enRetard?' title="Pas bougé depuis '+jours+' jours"':'')+'>'+dateTxt+'</span></div>'
     +'<div class="mac-titre">'+esc(doc.titre||'Sans titre')+'</div>'
-    +'<div class="mac-bas"><span class="mac-infos">'+infos.join(' · ')+'</span><span class="mac-actions">'+actions+'</span></div>';
+    +'<div class="mac-bas"><span class="mac-infos">'+infos.map(function(x){ return '<span>'+x+'</span>'; }).join('')+'</span><span class="mac-actions">'+actions+'</span></div>';
   return card;
 }
 
