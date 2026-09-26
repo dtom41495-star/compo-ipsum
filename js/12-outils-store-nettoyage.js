@@ -1637,7 +1637,7 @@ function osNettoyageSupprimerSujet(id){
 
 // Toutes les apps disponibles dans le système (catalogue complet)
 var ALL_APPS_CATALOGUE = [
-  { id:'redaction',      icon:'<i class="ti ti-pencil"></i>', label:'Rédiger',        color:'#E8461E', roles:['redacteur','admin'] },
+  { id:'redaction',      icon:'<i class="ti ti-pencil"></i>', label:'Rédiger',        color:'#E8461E', roles:['redacteur','correcteur','admin'] },
   { id:'mes-articles',   icon:'<i class="ti ti-article"></i>', label:'Articles',       color:'#993C1D', roles:['redacteur','correcteur','admin'] },
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
@@ -1673,11 +1673,13 @@ var ALL_APPS_CATALOGUE = [
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
 
-// Profils prédéfinis — carnet exclu de rédacteur et correcteur par défaut
+// Profils prédéfinis : les applis de la barre du bas (8 au plus). Agenda, Veille, Guide et
+// Stats n'y sont pas : leurs icônes sont toujours sur le bureau. Les autres applis
+// s'ajoutent depuis le Compo Store.
 var PROFILS_PREDEFINIS = {
-  redacteur: ['redaction','mes-articles','redactions','notes','compo-store','visuels-pro','tutos','projets','boutique','mail','signatures','veille'],
-  correcteur: ['mes-articles','redactions','notes','compo-store','newsletter','tutos','projets','boutique','mail','signatures','veille'],
-  redac_chef: ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','tutos','projets','agenda','boutique','mail','signatures','veille'],
+  redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','notes','signatures','compo-store'],
+  correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
+  redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
   admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
@@ -1914,8 +1916,8 @@ function osAfficherSessionNonConfiguree(){
 function _initialiserAppsParDefaut(userId, role){
   role = role || getUserRole() || 'redacteur';
   var ids = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
-  // Apps épinglées par défaut : les 6 premières du profil
-  var epinglees = ids.slice(0, 6);
+  // Apps épinglées par défaut : tout le profil (8 au plus)
+  var epinglees = ids.slice(0, 8);
   var rows = ids.map(function(id){
     return { membre_id: userId, app_id: id, epingle: epinglees.includes(id) };
   });

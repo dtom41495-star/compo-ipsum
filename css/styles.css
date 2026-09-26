@@ -4276,3 +4276,10 @@ input:focus,select:focus,textarea:focus{
 }
 #page-redaction .stats-bar, #winpage-redaction .stats-bar { font-family: 'DM Sans', sans-serif; font-size: 0.74rem; }
 #lisib-label { font-family: 'DM Sans', sans-serif; font-size: 0.7rem !important; }
+
+/* Création de compte : choix des applis */
+#oobe-step-2 .oobe-sub { font-family: 'DM Sans', sans-serif; font-size: 0.8rem; line-height: 1.5; letter-spacing: 0; }
+.oobe-app-icon { color: rgba(255,255,255,0.75); }
+.oobe-app-card.selected .oobe-app-icon { color: #FF8A5C; }
+.oobe-compteur { font-family: 'DM Sans', sans-serif; font-size: 0.76rem; color: rgba(255,255,255,0.6); margin: -0.4rem 0 0.8rem; }
+.oobe-compteur strong { color: #FF8A5C; }
