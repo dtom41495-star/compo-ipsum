@@ -1337,7 +1337,7 @@ function osSujetRepondreRelance(sujetId, choix){
     ov.addEventListener('click', function(e){ if(e.target === ov) fermer(); });
     ov.querySelector('.sr-annuler').onclick = fermer;
     ov.querySelector('.sr-garder').onclick = function(){ envoyer({reserve_le:new Date().toISOString(), relance_le:null}, 'C\'est noté, tu gardes ce sujet'); };
-    ov.querySelector('.sr-liberer').onclick = function(){ envoyer({statut:'ouvert', responsable:null}, 'Sujet libéré, merci'); };
+    ov.querySelector('.sr-liberer').onclick = function(){ fermer(); osSujetSeDesengager(s.id); };
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
@@ -1587,6 +1587,7 @@ function osRedacReglagesForm(redac){
     {cle:'notif_sujet_attribue', titre:'Sujet attribué', desc:'au membre assigné'},
     {cle:'notif_validation_centrale_ok', titre:'Validation centrale obtenue', desc:'aux chefs de la rédaction'}
   ];
+  if('notif_sujet_libere' in redac) notifOptions.push({cle:'notif_sujet_libere', titre:'Sujet libéré', desc:'prévient les rédac chefs quand quelqu\'un se désengage d\'un sujet'});
   h += '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
   notifOptions.forEach(function(o){
     var coche = redac[o.cle] !== false;
@@ -1649,14 +1650,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
+  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
     // en base, sinon tout l'enregistrement serait refusé
-    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0) && !(cle in redacAvant)) return;
+    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   if('horaires' in redacAvant){

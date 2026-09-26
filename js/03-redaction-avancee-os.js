@@ -803,18 +803,7 @@ function _publierArticleReel(id){
 
 function brfAbandonnerSujet(){
   var btn = document.getElementById('r-abandon-sujet');
-  if(!btn || !btn.dataset.sujetId) return;
-  var id = btn.dataset.sujetId;
-  if(!confirm('Remettre ce sujet dans la liste pour les autres ?')) return;
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(id), {
-    method: 'PATCH',
-    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
-    body: JSON.stringify({statut:'ouvert'})
-  }).then(function(){
-    btn.style.display = 'none';
-    btn.dataset.sujetId = '';
-    notif('Sujet remis dans la liste');
-  }).catch(function(){ notif('Erreur'); });
+  if(btn && btn.dataset.sujetId) osSujetSeDesengager(btn.dataset.sujetId);
 }
 
 function osRedacVoirSujetLie(){
@@ -904,6 +893,15 @@ function ouvrirModalSujet(sujet){
       boutonReserver.onclick = reserverSujetModal;
     }
     if(blocPris) blocPris.style.display = 'none';
+  }
+
+  // Se désengager (son propre sujet) ou libérer (rédac chef, sujet de quelqu'un d'autre)
+  var boutonDesengager = document.getElementById('sujet-modal-desengager-btn');
+  if(boutonDesengager){
+    var peutLiberer = estDejaPris && !estMoi && typeof _sdEstChef === 'function' && _sdEstChef(sujet.redaction_id);
+    boutonDesengager.style.display = (estMoi || peutLiberer) ? 'inline-flex' : 'none';
+    boutonDesengager.textContent = estMoi ? 'Me désengager' : 'Libérer le sujet';
+    boutonDesengager.onclick = function(){ osSujetSeDesengager(sujet.id); };
   }
 
   var modal = document.getElementById('modal-sujet');

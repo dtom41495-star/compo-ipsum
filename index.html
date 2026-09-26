@@ -786,7 +786,7 @@
         <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
         <div style="display:flex;gap:0.5rem;flex-shrink:0;">
           <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
-          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
+          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Me désengager</button>
         </div>
       </div>
 
@@ -1438,6 +1438,7 @@
     <div id="sujet-modal-pris" style="display:none;margin:0 1.4rem 1rem;padding:0.6rem 0.9rem;background:#FFF3CD;border:1px solid #856404;border-radius:6px;font-size:0.78rem;color:#856404;"></div>
     <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
       <button id="sujet-modal-reserver-btn" class="btn" onclick="reserverSujetModal()">Réserver et rédiger</button>
+      <button id="sujet-modal-desengager-btn" class="btn sec" style="display:none;">Me désengager</button>
       <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
     </div>
   </div>

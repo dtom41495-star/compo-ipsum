@@ -128,6 +128,7 @@ function _sdConfirmer(btn){
     // Article ouvert dans l'éditeur
     if(typeof currentDoc !== 'undefined' && currentDoc && (currentDoc.sujet_id === s.id || currentDoc._sujet_id === s.id)){
       delete currentDoc._sujet_id; currentDoc.sujet_id = null;
+      if(typeof rArticleAfficherSujetLie === 'function') rArticleAfficherSujetLie(null);
     }
     var bandeau = document.getElementById('r-abandon-sujet');
     if(bandeau && bandeau.dataset.sujetId === s.id){ bandeau.style.display = 'none'; bandeau.dataset.sujetId = ''; }

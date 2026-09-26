@@ -1940,7 +1940,10 @@ function osRedacChargerSujets(zone, roleRedac, callback){
         // Si c'est moi, proposer d'écrire l'article ou d'abandonner
         if(estMoi){
           h += '<button data-sid="'+s.id+'" onclick="osRedacRedigerSujet(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;"><i class="ti ti-pencil" style="vertical-align:-2px;margin-right:3px;"></i>Rédiger</button>'
-            +'<button data-sid="'+s.id+'" onclick="brfAbandonnerSujetDepuisRedac(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;">Abandonner</button>';
+            +'<button data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;"><i class="ti ti-bookmark-off" style="vertical-align:-2px;margin-right:3px;"></i>Me désengager</button>';
+        }
+        if(isChefOuAdmin && !estMoi){
+          h += '<button data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;"><i class="ti ti-bookmark-off" style="vertical-align:-2px;margin-right:3px;"></i>Libérer</button>';
         }
         if(isChefOuAdmin){
           h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>'
@@ -1975,14 +1978,5 @@ function osRedacChargerSujets(zone, roleRedac, callback){
   });
 }
 
-function brfAbandonnerSujetDepuisRedac(sujetId){
-  if(!confirm('Abandonner ce sujet ? Il redeviendra disponible pour les autres.')) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{
-    method:'PATCH', headers:authH,
-    body:JSON.stringify({statut:'ouvert', responsable:null})
-  }).then(function(r){
-    if(r.ok){ notif('Sujet abandonné'); osRedactionsRender(); }
-    else notif('Erreur','erreur');
-  });
-}
+// Ancien point d'entrée, gardé pour les boutons déjà affichés : même fenêtre que partout
+function brfAbandonnerSujetDepuisRedac(sujetId){ osSujetSeDesengager(sujetId); }

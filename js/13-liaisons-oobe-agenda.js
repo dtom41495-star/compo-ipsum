@@ -150,6 +150,7 @@ function rArticleAfficherSujetLie(sujetId){
       +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">Sujet lié</div>'
       +'<div style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(s?esc(s.titre||sujetId):'Sujet introuvable')+'</div>'
       +'</div>'
+      +(s ? '<button data-sid="'+esc(s.id)+'" onclick="osSujetSeDesengager(this.dataset.sid)" title="Me désengager de ce sujet" style="background:none;border:0.5px solid #856404;color:#856404;border-radius:4px;cursor:pointer;font-size:0.62rem;padding:3px 8px;">Me désengager</button>' : '')
       +'<button onclick="rArticleOuvrirChangerSujet()" style="background:none;border:0.5px solid var(--gris-bord);color:var(--encre);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:3px 8px;">Changer</button>'
       +'</div>';
   }).catch(function(){});
