@@ -1183,49 +1183,81 @@ function _lectAfficherContenu(){
   if(cont) cont.style.display = 'block';
 }
 
+// Lecture d'un article, mise en page comme l'article publié. La page est reconstruite à
+// chaque ouverture (la vue des corrections la remplace entièrement).
 function renderLecture(){
-  const doc=currentDoc;
+  var doc = currentDoc;
+  if(!doc) return;
   _lectAfficherContenu();
-  document.getElementById('l-codeid').innerHTML='<span class="code-id">'+doc.id+'</span>';
-  document.getElementById('l-statbadge').innerHTML=bStat(doc.statut);
-  document.getElementById('l-urgbadge').innerHTML=doc.urgence?bUrg(doc.urgence):'';
-  document.getElementById('l-fraicheur').innerHTML=badgeFraicheur(doc.modifie_le||doc.cree_le, doc.statut);
-  // Supprimer — admin sur tout ; auteur sur son article tant qu'il n'est pas encore
-  // validé (brouillon, en-relecture, corrigé) — même règle que partout ailleurs dans
-  // Compo pour cette action. Visible seulement une fois l'article ouvert en lecture.
-  var estAuteurLect = doc.auteur_id && doc.auteur_id === getUserId();
-  // Le clic est de toute façon revérifié dans chargerDansRedaction.
-  var btnModifier = document.getElementById('lect-btn-modifier');
-  if(btnModifier){
-    var permLect = _osPermissionsModalAction(doc);
-    btnModifier.style.display = (permLect.peutModifier || permLect.peutCorriger) ? '' : 'none';
+  var cont = document.getElementById('lect-content');
+  if(!cont) return;
+  var uid = getUserId();
+  var s = doc.statut || 'brouillon';
+  var estAuteurLect = doc.auteur_id && doc.auteur_id === uid;
+  var estRefuse = s === 'brouillon' && doc.note_interne;
+  var st = (window.MA_STATUT_MOBILE||{})[estRefuse ? 'refuse' : s] || ['', '', ''];
+
+  // Barre du haut : où en est l'article, et ce qu'on peut en faire
+  var perm = _osPermissionsModalAction(doc);
+  var peutEcrire = perm.peutModifier || perm.peutCorriger;
+  var libModifier = perm.peutCorriger && !perm.peutModifier ? 'Corriger' : 'Modifier';
+  var etat = [];
+  if(doc.correcteur && s !== 'brouillon') etat.push('<i class="ti ti-user-check"></i> '+(s === 'en-relecture' ? 'Au SR chez ' : 'Relu par ')+esc(doc.correcteur));
+  if(doc.urgence === 'urgent') etat.push('<span class="lx-urgent"><i class="ti ti-flame"></i> Urgent</span>');
+  var dateRef = doc.modifie_le || doc.updated_at || doc.cree_le;
+  if(dateRef) etat.push((s === 'publie' ? 'Publié ' : 'Modifié ')+_maDateCourte(dateRef).replace(/^([A-Z])/, function(c){ return c.toLowerCase(); }));
+  if(s === 'publie' && doc.lien_publication) etat.push('<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Voir en ligne</a>');
+
+  var h = '<div class="lx-barre">'
+    +'<div class="lx-etat">'+(st[0] ? '<span class="mac-statut" style="color:'+st[1]+';background:'+st[2]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'>'+st[0]+'</span>' : '')
+      +'<span class="lx-etat-infos">'+etat.join('<span class="lx-sep"> · </span>')+'</span></div>'
+    +'<div class="lx-actions">'
+      +(peutEcrire ? '<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="chargerDansRedaction(currentDoc)"><i class="ti ti-pencil"></i><span>'+libModifier+'</span></button>' : '')
+      +'<button class="mac-btn" onclick="genMd(\'lect\')" title="Copier le texte pour Substack"><i class="ti ti-copy"></i><span>Copier</span></button>'
+      +'<button class="mac-btn" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i><span>Visuels</span></button>'
+      +'<button class="mac-btn" onclick="exporterPDF()"><i class="ti ti-file-type-pdf"></i><span>PDF</span></button>'
+    +'</div></div>';
+
+  // L'article
+  var surtitre = [];
+  if(doc.rubrique) surtitre.push(esc(doc.rubrique));
+  if(doc.type === 'breve') surtitre.push('Brève');
+  var signes = typeof _maNbSignes === 'function' ? _maNbSignes(doc.corps) : 0;
+  var mots = String(doc.corps||'').trim() ? String(doc.corps).trim().split(/\s+/).length : 0;
+  var dateArt = doc.cree_le || doc.created_at;
+  var a = '';
+  if(estRefuse) a += '<div class="mac-note"><i class="ti ti-message-circle"></i><span><strong>Remarque du SR :</strong> '+esc(doc.note_interne)+'</span></div>';
+  if(surtitre.length) a += '<div class="lx-surtitre">'+surtitre.join(' · ')+'</div>';
+  a += '<h1 class="lx-titre">'+esc(doc.titre||'Sans titre')+'</h1>';
+  if(doc.chapeau) a += '<p class="lx-chapo">'+esc(doc.chapeau)+'</p>';
+  a += '<div class="lx-signature"><div><strong>Par '+esc(doc.auteur||'—')+'</strong>'+(doc.redaction ? ' · Rédaction '+esc(String(doc.redaction).replace(/^Rédaction\s+/i,'')) : '')+'</div>'
+    +'<div class="lx-signature-infos">'
+      +(dateArt ? new Date(dateArt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '')
+      +(mots ? '<span class="lx-sep"> · </span>'+Math.max(1, Math.round(mots/200))+' min de lecture' : '')
+      +(signes ? '<span class="lx-sep"> · </span>'+signes.toLocaleString('fr-FR')+' signes' : '')
+    +'</div></div>';
+  if(doc.image) a += '<figure class="lx-figure"><img class="art-img" src="'+esc(doc.image)+'" alt="'+esc(doc.image_legende||'')+'">'+(doc.image_legende ? '<figcaption>'+esc(doc.image_legende)+'</figcaption>' : '')+'</figure>';
+  a += '<div class="art-corps lx-corps">'+mdVersHtml(doc.corps)+'</div>';
+  var pied = '';
+  if(doc.tags && doc.tags.length) pied += '<div class="lx-pied-ligne"><span class="lx-pied-titre">Mots-clés</span><span class="lx-tags">'+doc.tags.map(function(t){ return '<span>'+esc(t)+'</span>'; }).join('')+'</span></div>';
+  if(doc.sources && doc.sources.length) pied += '<div class="lx-pied-ligne"><span class="lx-pied-titre">Sources</span><span>'+doc.sources.map(function(x){ return esc(x); }).join('<br>')+'</span></div>';
+  if(doc.date_publication) pied += '<div class="lx-pied-ligne"><span class="lx-pied-titre">Publication prévue</span><span>'+new Date(doc.date_publication+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).replace(/ 1 /,' 1er ')+'</span></div>';
+  if(doc.communiques && doc.communiques.length){
+    pied += '<div class="lx-pied-ligne"><span class="lx-pied-titre">Communiqués</span><span>'+doc.communiques.map(function(cp){ return '<strong>'+esc(cp.objet)+'</strong> ('+esc(cp.organisation)+')'+(cp.embargo ? ', embargo : '+esc(cp.embargo) : ''); }).join('<br>')+'</span></div>';
+    window._corrCPs = doc.communiques;
   }
-  var zoneSuppr = document.getElementById('lect-suppr-zone');
-  if(zoneSuppr){
-    var statutsSupprimablesAuteur = ['brouillon','en-relecture','corrige'];
-    var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && statutsSupprimablesAuteur.indexOf(doc.statut||'brouillon')!==-1);
-    zoneSuppr.innerHTML = peutSupprimerLect
-      ? '<button class="btn sec" style="color:#A32D2D;border-color:#A32D2D;" onclick="maOsSupprimer(\''+doc.id+'\')"><i class="ti ti-trash"></i> Supprimer</button>'
-      : '';
-  }
-  let h='<div class="art-titre">'+esc(doc.titre)+'</div>';
-  if(doc.chapeau)h+='<div class="art-chapeau">'+esc(doc.chapeau)+'</div>';
-  if(doc.image)h+='<img class="art-img" src="'+doc.image+'" alt="'+(doc.image_legende||'')+'">'+(doc.image_legende?'<div style="font-family:\'Arial\',monospace;font-size:0.68rem;color:var(--gris);margin-bottom:1rem;">'+esc(doc.image_legende)+'</div>':'');
-  h+='<div class="art-meta"><span>Par '+esc(doc.auteur)+'</span>'+(doc.redaction?'<span>'+esc(doc.redaction)+'</span>':'')+(doc.rubrique?'<span>'+esc(doc.rubrique)+'</span>':'')+(doc.tags&&doc.tags.length?'<span>'+doc.tags.map(t=>esc(t)).join(' · ')+'</span>':'')+'<span>'+new Date(doc.cree_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</span>'+(doc.date_publication?'<span>Pub. prévue : '+doc.date_publication+'</span>':'')+'</div>';
-  h+='<div class="art-corps">'+mdVersHtml(doc.corps)+'</div>';
-  if(doc.sources&&doc.sources.length)h+='<div class="art-sources"><strong>Sources</strong><br>'+doc.sources.map(s=>esc(s)).join('<br>')+'</div>';
-  if(doc.communiques&&doc.communiques.length){
-    h+='<div class="art-cp-block">Communiqués sources : '+doc.communiques.map(cp=>'<strong>'+esc(cp.objet)+'</strong> ('+esc(cp.organisation)+')'+(cp.embargo?' | Embargo : '+cp.embargo:'')).join(' · ')+'</div>';
-    window._corrCPs=doc.communiques;
-  }
-  document.getElementById('art-preview').innerHTML=h;
-  // Afficher le CP source principal si lié
-  if(doc.cp_id){
-    var preview = document.getElementById('art-preview');
-    if(preview) rLectureAfficherCpSource(doc, preview);
-  }
-  // Commentaires du correcteur, en encart après chaque paragraphe — uniquement pour
-  // l'auteur.
+  if(pied) a += '<div class="lx-pied">'+pied+'</div>';
+
+  // Supprimer : admin sur tout, auteur·rice tant que l'article n'est pas bon à publier
+  var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && ['brouillon','en-relecture','corrige'].indexOf(s)!==-1);
+
+  cont.innerHTML = h
+    +'<article class="art-preview lx-article" id="art-preview">'+a+'</article>'
+    +'<div class="lx-bas">'+(peutSupprimerLect ? '<button class="mac-btn mac-btn-refus" onclick="maOsSupprimer(\''+esc(doc.id)+'\')"><i class="ti ti-trash"></i> Supprimer l\'article</button>' : '')+'</div>'
+    +'<div class="md-out" id="md-lect"></div>';
+
+  if(doc.cp_id) rLectureAfficherCpSource(doc, document.getElementById('art-preview'));
+  // Commentaires du SR, en encart après chaque paragraphe — uniquement pour l'auteur·rice
   if(estAuteurLect && doc.id) rLectureAfficherCommentaires(doc);
 }
 function rLectureAfficherCommentaires(doc){

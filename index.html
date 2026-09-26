@@ -948,32 +948,14 @@
 
 <!-- LECTURE -->
 <div class="page" id="page-lecture">
-  <div class="page-title">Lire un article</div>
-  <div class="page-sub">Prévisualise un article et prépare-le pour Substack</div>
-  <!-- Écran d'attente : cette page n'est plus alimentée par un import de fichier JSON
-       (reliquat de la v1), mais par un clic sur « Lire » depuis Mes Articles. -->
+  <!-- Écran d'attente : l'article s'ouvre depuis Mes articles (bouton « Lire ») -->
   <div id="lect-vide" style="padding:2.5rem 1rem;text-align:center;color:var(--gris);">
     <div style="font-size:2rem;margin-bottom:0.6rem;color:var(--gris-bord);"><i class="ti ti-eye"></i></div>
     <div style="font-size:0.85rem;">Aucun article ouvert.</div>
-    <div style="font-size:0.78rem;margin-top:4px;">Ouvre-en un depuis <strong>Mes Articles</strong>, bouton « Lire ».</div>
+    <div style="font-size:0.78rem;margin-top:4px;">Ouvre-en un depuis <strong>Mes articles</strong>, bouton « Lire ».</div>
   </div>
-  <div id="lect-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
-      <div id="l-codeid"></div><div id="l-statbadge"></div><div id="l-urgbadge"></div><div id="l-fraicheur"></div>
-    </div>
-    <div class="art-preview" id="art-preview"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="genMd('lect')">Copier le texte</button>
-      <button class="btn sec" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i> Générer les visuels</button>
-      <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
-      <button id="lect-btn-modifier" class="btn sec" style="display:none" onclick="chargerDansRedaction(currentDoc)">Modifier</button>
-    </div>
-    <!-- Sur sa propre ligne, sous la rangée principale — jamais collé aux autres
-         boutons, pour éviter un clic malheureux. Rempli par renderLecture, visible
-         seulement une fois l'article ouvert (pas de suppression "à l'aveugle"). -->
-    <div id="lect-suppr-zone" style="margin-top:0.6rem;"></div>
-    <div class="md-out" id="md-lect"></div>
-  </div>
+  <!-- Rempli par renderLecture (article) ou renderDiffLecture (corrections) -->
+  <div id="lect-content" style="display:none"></div>
 </div>
 
 <!-- ÉDITION -->
