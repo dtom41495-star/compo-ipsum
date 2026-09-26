@@ -83,7 +83,7 @@ function osConstruireRattrapage(callback){
     });
     arr(2).forEach(function(a){
       if(a.statut==='publie'){
-        items.push({cle:'publie:'+a.id, section:'Rédaction', titre:'Ton article est publié', desc:a.titre||'Sans titre', lien:a.lien_publication||null, image:a.image||null, legende:a.image_legende||'', priorite:1});
+        items.push({cle:'publie:'+a.id, section:'Rédaction', titre:'Ton article est en ligne', desc:a.titre||'Sans titre', lien:a.lien_publication||null, image:a.image||null, legende:a.image_legende||'', priorite:1});
       } else if(a.statut==='brouillon' && a.note_interne){
         items.push({cle:'refuse:'+a.id+':'+(a.updated_at||''), section:'Rédaction', titre:'Ton article a été renvoyé', desc:a.note_interne, priorite:1});
       }
@@ -328,8 +328,8 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'🔍 À corriger', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
-    correction:'Correction', lecture:'Lecture', edition:'Édition',
+    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'Secrétariat de rédaction', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    correction:'Relecture', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
@@ -1653,7 +1653,7 @@ function osSpotlightSearch(q){
   if(!res) return;
   var pages = [
     {id:'redaction',label:'Rédaction',icon:'✍️'},
-    {id:'app-correction',label:'Correction',icon:'🔍'},
+    {id:'app-correction',label:'Secrétariat de rédaction',icon:'<i class="ti ti-file-search"></i>'},
     {id:'visuels-pro',label:'Visuels',icon:'🎨'},
     {id:'newsletter',label:'Newsletter',icon:'📨'},
     {id:'log',label:'Journal',icon:'📜'},
@@ -1685,7 +1685,7 @@ function osToggleStartMenu(){
     var roleEl = document.getElementById('start-menu-role');
     if(nameEl) nameEl.textContent = getUserPrenom() + ' ' + getUserNom();
     if(roleEl){
-      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
+      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'SR (secrétaire de rédaction)',redac_chef:'Rédac en chef',communicant:'Communicant'};
       roleEl.textContent = roleLabels[getUserRole()] || getUserRole();
     }
     var search = document.getElementById('sm-search');
@@ -1948,7 +1948,7 @@ function osRenderNotifCenter(){
   }
   content.innerHTML = '';
 
-  var types = { ticket:'🚨 Assistance', correction:'🔍 Correction', publication:'✅ Publication', sujet:'📌 Sujets à rédiger', suppression:'🗑️ Demandes de suppression', info:'ℹ️ Info' };
+  var types = { ticket:'🚨 Assistance', correction:'🔍 Relecture (SR)', publication:'✅ Mise en ligne', sujet:'📌 Sujets à rédiger', suppression:'🗑️ Demandes de suppression', info:'ℹ️ Info' };
   var grouped = {};
   _ncItems.forEach(function(item, idx){
     var t = item.type || 'info';
@@ -2499,7 +2499,7 @@ function osAppComCharger(){
     var h = '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
     arts.forEach(function(a){
       var d = a.updated_at?new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'}):'';
-      var statutBadge = a.statut==='publie'?'<span style="font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#D4EDDA;color:#155724;font-weight:600;">Publié</span>':'<span style="font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#D6EAF8;color:#1A5276;font-weight:600;">Validé</span>';
+      var statutBadge = a.statut==='publie'?'<span style="font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#D4EDDA;color:#155724;font-weight:600;">En ligne</span>':'<span style="font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#D6EAF8;color:#1A5276;font-weight:600;">Bon à publier</span>';
 
       h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.8rem;">';
@@ -2901,32 +2901,20 @@ function osNotifierComArticleValide(article){
     var rubrique= article.rubrique||'';
     var auteur  = article.auteur||'';
 
-    var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-      +osEnteteEmailLogo('🎨 Nouvel article à illustrer')
-      +'<div style="background:#F7F8FA;padding:1.5rem;">'
-      +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #E8461E;">'
-      +'<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Titre</div>'
-      +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
-      +(rubrique?'<div style="font-size:0.7rem;color:#E8461E;margin-top:4px;">'+esc(rubrique)+'</div>':'')
-      +(auteur?'<div style="font-size:0.7rem;color:#6B7280;margin-top:2px;">Par '+esc(auteur)+'</div>':'')
-      +'</div>'
-      +(chapeau?'<div style="margin-bottom:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Chapeau</div><div style="font-size:0.85rem;color:#374151;font-style:italic;">'+esc(chapeau)+'</div></div>':'')
-      +(corps?'<div style="margin-bottom:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Extrait</div><div style="font-size:0.78rem;color:#6B7280;">'+esc(corps)+(article.corps&&article.corps.length>300?'…':'')+'</div></div>':'')
-      +'<div style="background:#EEF2FF;border-radius:8px;padding:1rem;">'
-      +'<div style="font-size:0.7rem;font-weight:700;color:#3730A3;margin-bottom:8px;">✅ Visuels à créer</div>'
-      +'<ul style="margin:0;padding-left:1.2rem;font-size:0.8rem;color:#374151;line-height:1.8;">'
-      +'<li>Post Instagram (carré 1080×1080)</li>'
-      +'<li>Story Instagram (1080×1920)</li>'
-      +'</ul></div>'
-      +(article.image?'<div style="margin-top:1rem;"><div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Image de l\'article</div><img src="'+esc(_driveImgSrc(article.image))+'" style="max-width:100%;border-radius:6px;" alt="Image article"></div>':'')
-      +'<div style="margin-top:1.2rem;text-align:center;">'
-      +'<a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS → Visuels</a>'
-      +'</div></div></div>';
+    var emailHtml = _emailCompo({
+      accent:'violet', etiquette:'VISUELS', titre:'Un article à illustrer',
+      texte:'Cet article vient de passer en bon à publier et a besoin de visuels : un post Instagram carré (1080 × 1080) et une story (1080 × 1920).',
+      contenu:_emailCarteArticle(article),
+      description:chapeau || corps,
+      apresCarte:(article.image ? '<img src="'+esc(_driveImgSrc(article.image))+'" style="max-width:100%;border-radius:8px;display:block;" alt="Image de l\'article">' : ''),
+      boutons:[{ label:'Ouvrir Visuels dans Compo', url:'https://compo.ipsummedia.fr' }],
+      pourquoi:'Tu reçois cet email car tu fais partie de l\'équipe communication.'
+    });
 
     // Envoyer à chaque membre com
     membresCom.forEach(function(m){
       if(!m.email) return;
-      envoyerEmailResend(m.email, '🎨 Article à illustrer : '+titre, emailHtml, 'com-visuels');
+      envoyerEmailResend(m.email, '[Ipsum Média] Article à illustrer : '+titre, emailHtml, 'com-visuels');
     });
     // Pas de téléchargement automatique du brief — le bouton dédié dans l'app Com
     // (osAppComBrief) permet toujours de le télécharger à la demande.
@@ -2963,23 +2951,19 @@ function osNotifierValidateursCentraux(article){
       var titre  = article.titre||'Sans titre';
       var auteur = article.auteur||'';
       var lien   = genererLien(article.id);
-      var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-        +osEnteteEmailLogo('🛡️ Validation centrale requise')
-        +'<div style="background:#F7F8FA;padding:1.5rem;">'
-        +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #0B3D91;">'
-        +'<div style="font-size:0.6rem;text-transform:uppercase;color:#9CA3AF;margin-bottom:4px;">Article validé localement, en attente de la rédaction centrale</div>'
-        +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
-        +(auteur?'<div style="font-size:0.7rem;color:#6B7280;margin-top:2px;">Par '+esc(auteur)+'</div>':'')
-        +'</div>'
-        +'<div style="margin-top:1.2rem;text-align:center;">'
-        +'<a href="'+esc(lien)+'" style="background:#0B3D91;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir l\'article</a>'
-        +'</div></div></div>';
+      var emailHtml = _emailCompo({
+        accent:'bleu', etiquette:'VALIDATION CENTRALE', titre:'Un article attend ton bon à publier',
+        texte:'Cet article est bon à publier pour sa rédaction. Il attend maintenant le bon à publier de la rédaction centrale avant d\'être mis en ligne.',
+        contenu:_emailCarteArticle(article),
+        boutons:[{ label:'Ouvrir l\'article', url:lien }],
+        pourquoi:'Tu reçois cet email car tu valides les articles pour la rédaction centrale.'
+      });
 
       destinataires.forEach(function(m){
         // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
         // moment-là — inutile de doubler avec un email pour cette personne précise.
         if(osEstEnLigne(m.id)) return;
-        envoyerEmailResend(m.email, '🛡️ Validation centrale requise : '+titre, emailHtml, 'valide-central');
+        envoyerEmailResend(m.email, '[Ipsum Média] Bon à publier de la centrale attendu : '+titre, emailHtml, 'valide-central');
       });
     });
   }).catch(function(){});
@@ -2998,17 +2982,14 @@ function osNotifierValidationCentraleOK(article){
     if(!_osRedacNotifActive(article.redaction_id, 'notif_validation_centrale_ok')) return;
     var titre = article.titre||'Sans titre';
     var lien  = genererLien(article.id);
-    var emailHtml = '<div style="font-family:sans-serif;max-width:580px;margin:0 auto;">'
-      +osEnteteEmailLogo('✅ Validation centrale obtenue')
-      +'<div style="background:#F7F8FA;padding:1.5rem;">'
-      +'<div style="background:white;border-radius:8px;padding:1rem;margin-bottom:1rem;border-left:4px solid #155724;">'
-      +'<div style="font-size:1rem;font-weight:700;color:#111;">'+esc(titre)+'</div>'
-      +'<div style="font-size:0.78rem;color:#6B7280;margin-top:6px;">La rédaction centrale a validé cet article. Il peut maintenant être publié.</div>'
-      +'</div>'
-      +'<div style="margin-top:1.2rem;text-align:center;">'
-      +'<a href="'+esc(lien)+'" style="background:#155724;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir l\'article</a>'
-      +'</div></div></div>';
-    chefs.forEach(function(m){ envoyerEmailResend(m.email, '✅ Validation centrale obtenue : '+titre, emailHtml, 'valide-central-ok'); });
+    var emailHtml = _emailCompo({
+      accent:'vert', etiquette:'VALIDATION CENTRALE', titre:'Bon à publier de la centrale obtenu',
+      texte:'La rédaction centrale a donné son bon à publier. L\'article peut maintenant être mis en ligne.',
+      contenu:_emailCarteArticle(article),
+      boutons:[{ label:'Ouvrir l\'article', url:lien }],
+      pourquoi:'Tu reçois cet email car tu es rédac chef de cette rédaction.'
+    });
+    chefs.forEach(function(m){ envoyerEmailResend(m.email, '[Ipsum Média] Bon à publier de la centrale obtenu : '+titre, emailHtml, 'valide-central-ok'); });
   }).catch(function(){});
 }
 

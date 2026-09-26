@@ -120,39 +120,9 @@ var db = {
       return data;
     })
     .then(function(data){
-      // Création automatique du sujet correspondant.
-      // Un article écrit directement depuis Rédaction (sans partir d'un sujet existant
-      // ni d'un communiqué) doit malgré tout exister comme sujet : il apparaît alors
-      // dans la liste publique, au titre de l'article, marqué comme pris par son
-      // auteur — au lieu de vivre dans une liste « articles hors sujets » à part.
-      if(!estUneCreation || payload.sujet_id || payload.cp_id) return data;
-      var titreSujet = (payload.titre||'').trim();
-      if(!titreSujet) return data;
-      var sujetId = 'BRF-'+Date.now();
-      var hMin = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-      return fetch(SB_URL+'/rest/v1/briefing', {
-        method:'POST', headers:hMin,
-        body: JSON.stringify({
-          id: sujetId,
-          titre: titreSujet,
-          type: 'article',
-          priorite: 'normale',
-          statut: 'en_cours', // déjà pris : c'est son auteur qui l'écrit
-          responsable: payload.auteur || getUserNomComplet(),
-          redaction_id: payload.redaction_id || null,
-          created_by: payload.auteur_id || getUserId()
-        })
-      }).then(function(r){
-        if(!r.ok) return data;
-        return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
-          method:'PATCH', headers:hMin, body: JSON.stringify({ sujet_id: sujetId })
-        }).then(function(){
-          if(data[0]) data[0].sujet_id = sujetId;
-          if(currentDoc && currentDoc.id === articleId) currentDoc.sujet_id = sujetId;
-          return data;
-        });
-      // Un échec ici ne doit jamais faire échouer la sauvegarde de l'article lui-même.
-      }).catch(function(){ return data; });
+      // Plus de sujet créé automatiquement : un article part toujours d'un sujet choisi
+      // ou proposé avant d'écrire (voir js/22-rediger-sujet.js)
+      return data;
     })
     .then(function(data){
       // Garantit que l'indicateur sort toujours de l'état "en cours" (animé), même
@@ -363,7 +333,7 @@ function modalActionChoisir(action){
   // serait déclenchée autrement qu'en cliquant sur le bouton correspondant.
   var perm = _osPermissionsModalAction(_docFromURL);
   if(action === 'correction' && !perm.peutCorriger){
-    notif('Réservé aux correcteur·rices', 'erreur'); return;
+    notif('Réservé au secrétariat de rédaction', 'erreur'); return;
   }
   if(action === 'edition' && !perm.peutModifier){
     notif('Réservé à l\'auteur·rice, au rédac chef ou à un·e admin', 'erreur'); return;
@@ -544,13 +514,13 @@ function maFiltrerListe(){
     // ── Pipeline ──
     var articleEstCentralMA = !redacCentraleMA || doc.redaction_id === redacCentraleMA.id;
     var ETAPES = [
-      {id:'brouillon',     l:'Brouillon',     icon:'<i class="ti ti-pencil"></i>'},
-      {id:'en-relecture',  l:'Relecture',      icon:'<i class="ti ti-search"></i>'},
-      {id:'corrige',       l:'Corrigé',        icon:'<i class="ti ti-circle-check"></i>'},
-      {id:'valide',        l:'Validé',         icon:'<i class="ti ti-star"></i>'},
+      {id:'brouillon',     l:'En écriture',     icon:'<i class="ti ti-pencil"></i>'},
+      {id:'en-relecture',  l:'Au SR',      icon:'<i class="ti ti-search"></i>'},
+      {id:'corrige',       l:'Relu par le SR',        icon:'<i class="ti ti-circle-check"></i>'},
+      {id:'valide',        l:'Bon à publier',         icon:'<i class="ti ti-star"></i>'},
     ];
-    if(!articleEstCentralMA) ETAPES.push({id:'valide_central', l:'Réd. centrale', icon:'<i class="ti ti-shield-check"></i>'});
-    ETAPES.push({id:'publie', l:'Publié', icon:'<i class="ti ti-speakerphone"></i>'});
+    if(!articleEstCentralMA) ETAPES.push({id:'valide_central', l:'Bon à publier (centrale)', icon:'<i class="ti ti-shield-check"></i>'});
+    ETAPES.push({id:'publie', l:'En ligne', icon:'<i class="ti ti-speakerphone"></i>'});
     var idxActuel = ETAPES.findIndex(function(e){ return e.id===s; });
     // Refusé = brouillon avec note_interne
     var estRefuse = s==='brouillon' && doc.note_interne;
@@ -597,7 +567,7 @@ function maFiltrerListe(){
     // les deux plutôt que de fabriquer une identité de validateur qui n'existe pas.
     var correcteurHtml = '';
     if(doc.correcteur && (s==='en-relecture'||s==='corrige'||s==='valide'||s==='valide_central'||s==='publie')){
-      var libelleCorr = s==='en-relecture' ? 'En correction chez ' : (s==='corrige' ? 'Corrigé par ' : 'Validé par ');
+      var libelleCorr = s==='en-relecture' ? 'Au SR chez ' : 'Relu par ';
       correcteurHtml = '<div style="display:flex;align-items:center;gap:4px;font-size:.62rem;color:var(--gris);margin-top:2px;"><i class="ti ti-user-check"></i> '+esc(libelleCorr)+esc(doc.correcteur)+'</div>';
     }
 
@@ -652,13 +622,13 @@ function maRefuserArticle(id){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
     method:'PATCH',headers:authH,
-    body:JSON.stringify({statut:'brouillon',note_interne:note||'Article refusé — à retravailler'})
+    body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})
   }).then(function(r){
     if(r.ok){
       notif('Article renvoyé en brouillon','succes');
       // Mettre à jour le cache local
       var idx = _maArticlesCache.findIndex(function(a){ return a.id===id; });
-      if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article refusé — à retravailler'; }
+      if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article à reprendre'; }
       maFiltrerListe();
     } else notif('Erreur','erreur');
   });
@@ -875,7 +845,7 @@ function chargerProfilMembre(userId, contexte){
       if(snEl) snEl.textContent = membre.prenom + ' ' + membre.nom;
       var srEl = document.getElementById('start-menu-role');
       if(srEl){
-        var roleLabelsInit = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
+        var roleLabelsInit = {admin:'Admin',redacteur:'Rédacteur',correcteur:'SR (secrétaire de rédaction)',redac_chef:'Rédac en chef',communicant:'Communicant'};
         srEl.textContent = roleLabelsInit[membre.role] || membre.role;
       }
     } else {
@@ -1228,7 +1198,11 @@ function ouvrirAssignation(){
   var auteur = document.getElementById('r-auteur').value.trim();
   var titre = document.getElementById('r-titre').value.trim();
   var corps = document.getElementById('r-corps').value.trim();
-  if(!auteur||!titre||!corps){ notif('Remplis le titre et le contenu dabord'); return; }
+  if(!auteur||!titre||!corps){ notif('Remplis le titre et le contenu d\'abord'); return; }
+  if(!(currentDoc && (currentDoc.sujet_id || currentDoc._sujet_id))){
+    osRedigerChoisirSujet('lier', ouvrirAssignation);
+    return;
+  }
 
   _assignDoc = buildDoc();
   _assignDoc.statut = 'en-relecture';
@@ -1285,13 +1259,13 @@ function _assignRemplirListe(list){
       var n = charge[m.id] || 0;
       var el = document.createElement('div');
       el.className = 'assign-membre';
-      var role = m.role === 'admin' ? 'Admin' : 'Correcteur·rice';
+      var role = m.role === 'admin' ? 'Admin' : 'SR';
       el.innerHTML =
         '<div>' +
           '<div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)
             +(i === 0 ? ' <span class="assign-suggere" style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#E3F6EA;color:#1E7A45;font-size:0.68rem;font-weight:700;vertical-align:1px;">Suggéré</span>' : '')+'</div>' +
           '<div class="assign-membre-role">'+role+(correcteurDeLaRedac(m) ? ' de la rédaction' : '')+' · '
-            +(n ? n+' article'+(n>1?'s':'')+' en relecture' : 'aucun article en relecture')
+            +(n ? n+' article'+(n>1?'s':'')+' à relire' : 'aucun article à relire')
             +(osEstEnLigne(m.id) ? ' · en ligne' : '')+'</div>' +
         '</div>';
       el.onclick = (function(membre){ return function(){
@@ -1304,7 +1278,7 @@ function _assignRemplirListe(list){
       if(i === 0) el.onclick();
     });
     if(!list.children.length){
-      list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun correcteur disponible.</p>';
+      list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun SR disponible.</p>';
     }
   })
   .catch(function(){
@@ -1314,7 +1288,7 @@ function _assignRemplirListe(list){
 
 function assignValider(){
   if(!_assignDoc){ assignFermer(); return; }
-  if(!_assignCorrecteur){ notif('Choisis un correcteur'); return; }
+  if(!_assignCorrecteur){ notif('Choisis la personne qui va relire'); return; }
 
   var docId = _assignDoc.id;
   _assignDoc.correcteur = _assignCorrecteur;
@@ -1322,7 +1296,7 @@ function assignValider(){
   _assignDoc.statut = 'en-relecture';
   var _assignDoc2 = Object.assign({}, _assignDoc);
 
-  notif('Envoi en correction...');
+  notif('Envoi au SR...');
 
   var authH = Object.assign({}, SB_HEADERS, {
     'Authorization': 'Bearer ' + (_session && _session.access_token || ''),
@@ -1364,7 +1338,7 @@ function assignValider(){
     if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
 
     assignFermer();
-    notif('Envoyé en correction à ' + _assignDoc2.correcteur + ' ✓', 'succes');
+    notif('Envoyé au SR : ' + _assignDoc2.correcteur, 'succes');
     var delaiRelecture = typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(_assignDoc2.redaction_id) : null;
     if(delaiRelecture) setTimeout(function(){ osShowToast(delaiRelecture+'.', 'info', {icon:'clock'}); }, 600);
     osClearAutosave();
@@ -1383,30 +1357,30 @@ function assignValider(){
         // Réglage par rédaction, indépendant du canal choisi par la personne — s'il est
         // désactivé, ni le DM Chat ni l'email ne doivent partir.
         if(!_osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')) return;
+        var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(docId);
+        var parQui = _assignDoc2.auteur || 'Un·e rédacteur·rice';
         if(membre.canal_notif === 'chat'){
           // Canal choisi par la personne : part systématiquement, même connectée à
           // Compo — ce n'est pas un filet de secours comme l'email ci-dessous.
-          var messageChat = '🔍 Un article t\'attend en correction : "'+(_assignDoc2.titre||'Sans titre')+'" (assigné par '+(_assignDoc2.auteur||'un·e rédacteur·rice')+'). https://compo.ipsummedia.fr';
+          var messageChat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(_assignDoc2.titre||'Sans titre')+' », confié par '+_chatSansMiseEnForme(parQui)+'.\n<'+lienArt+'|Relire l\'article>';
           notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
         } else if(membre.email && !osEstEnLigne(_assignDoc2.correcteur_id)){
-          // Pas d'email si la notification urgente in-app suffit déjà (correcteur·rice connecté·e).
-          var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-            +osEnteteEmailLogo('Un article t\'attend en correction 🔍')
-            +'<div style="padding:1.2rem 1.5rem;">'
-            +'<p>Bonjour '+esc(membre.prenom)+',</p>'
-            +'<p><strong>'+esc(_assignDoc2.auteur||'Un rédacteur')+'</strong> t\'a assigné l\'article suivant à corriger :</p>'
-            +'<p style="font-size:1.1rem;font-weight:bold;padding:0.8rem;background:#F0EEE9;border-left:3px solid #E8461E;">'+esc(_assignDoc2.titre||'Sans titre')+'</p>'
-            +'<p style="font-family:monospace;font-size:0.72rem;color:#888;">ID : '+esc(docId)+'</p>'
-            +'<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'
-            +'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour corriger cet article.</p>'
-            +'</div></div>';
-          envoyerEmailResend(membre.email, '[Compo] Article à corriger : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
-            .catch(function(){ console.warn('Email correcteur non envoyé'); });
+          // Pas d'email si la notification urgente in-app suffit déjà (SR connecté·e).
+          var html = _emailCompo({
+            accent:'bleu', etiquette:'AU SR', titre:'Un article t\'attend',
+            bonjour:'Bonjour '+esc(membre.prenom||'')+',',
+            texte:'<strong>'+esc(parQui)+'</strong> te confie la relecture de cet article.',
+            contenu:_emailCarteArticle(_assignDoc2),
+            boutons:[{ label:'Relire l\'article', url:lienArt }],
+            pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
+          });
+          envoyerEmailResend(membre.email, '[Ipsum Média] Un article t\'attend au SR : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
+            .catch(function(){ console.warn('Email SR non envoyé'); });
         }
       }).catch(function(){});
     }
   }).catch(function(){
-    notif('Erreur envoi en correction');
+    notif('Erreur lors de l\'envoi au SR', 'erreur');
   });
 }
 
@@ -1585,7 +1559,7 @@ function chargerDansRedaction(doc){
   // le droit d'éditer.
   var perm = _osPermissionsModalAction(doc);
   if(!perm.peutModifier && !perm.peutCorriger){
-    notif('Tu n\'es pas autorisé·e à modifier cet article — réservé à l\'auteur·rice, au correcteur·rice, au rédac chef ou à un·e admin.', 'erreur');
+    notif('Tu n\'es pas autorisé·e à modifier cet article — réservé à l\'auteur·rice, au SR, au rédac chef ou à un·e admin.', 'erreur');
     return;
   }
   if(doc.statut === 'publie' && getUserRole() !== 'admin'){
@@ -1593,7 +1567,7 @@ function chargerDansRedaction(doc){
     return;
   }
   if(getUserRole() === 'redacteur' && (doc.statut === 'en-relecture' || doc.statut === 'corrige' || doc.statut === 'valide')){
-    notif('Article en cours de correction - modification impossible.');
+    notif('Article en cours de relecture par le SR : modification impossible pour l\'instant.');
     return;
   }
   go('redaction');
@@ -1732,12 +1706,10 @@ function rWorkflowMajInterface(doc){
   var attenteCentrale   = !!redacCentrale && !articleEstCentral;
   var estValCentral     = estValidateurCentral();
 
-  var STATUTS   = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},
-                   'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},
-                   corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},
-                   valide:{l:(attenteCentrale?'Validé — attente centrale':'Validé'),bg:'#D4EDDA',c:'#155724'},
-                   valide_central:{l:'Validé (centrale)',bg:'#D4EDDA',c:'#0B3D91'},
-                   publie:{l:'Publié',bg:'#D4EDDA',c:'#155724'}};
+  // Même vocabulaire et mêmes couleurs que les cartes de Mes articles
+  var stCarte = MA_STATUT_MOBILE[(statut==='brouillon' && doc && doc.note_interne) ? 'refuse' : statut];
+  var STATUTS = {};
+  if(stCarte) STATUTS[statut] = { l: stCarte[0]+(statut==='valide' && attenteCentrale ? ', en attente de la centrale' : ''), bg: stCarte[2], c: stCarte[1] };
   var cfg = STATUTS[statut]||{l:statut,bg:'#eee',c:'#555'};
 
   // Badge statut
@@ -2082,18 +2054,18 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
 // le bon destinataire) et celle affichée à l'auteur plus tard (corrige/valide/publie —
 // des étapes réalisées par quelqu'un d'autre, donc pas logique de les montrer à l'acteur).
 var STATUT_ARTICLE_CONFIGS = {
-  'en-relecture':{ icon:'🔍', tabler:'ti-search', titre:'Article envoyé en correction',
-    msg:'Ton article est maintenant entre les mains du correcteur. Tu seras notifié dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false, pourAuteur:false },
-  corrige:{ icon:'✅', tabler:'ti-circle-check', titre:'Article marqué comme corrigé',
-    msg:'Le rédacteur en chef va maintenant relire et valider l\'article avant publication.', couleur:'#0C5460', bg:'#D1ECF1', email:true, pourAuteur:true },
-  valide:{ icon:'⭐', tabler:'ti-confetti', titre:'Article validé !',
-    msg:'L\'article a été validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true, pourAuteur:true },
-  valide_central:{ icon:'🛡️', tabler:'ti-shield-check', titre:'Validé par la rédaction centrale',
-    msg:'La rédaction centrale a validé l\'article. Il peut maintenant être publié.', couleur:'#0B3D91', bg:'#D4EDDA', email:false, pourAuteur:true },
-  publie:{ icon:'📢', tabler:'ti-speakerphone', titre:'Article publié !',
-    msg:'L\'article est maintenant publié sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true, pourAuteur:true },
-  refuse:{ icon:'🔴', tabler:'ti-arrow-back-up', titre:'Article renvoyé au rédacteur',
-    msg:'Le rédacteur a été notifié par email avec le motif et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false, pourAuteur:false },
+  'en-relecture':{ tabler:'ti-send', titre:'Article envoyé au SR',
+    msg:'Le secrétariat de rédaction va relire ton article. Tu seras prévenu·e dès qu\'il sera relu.', couleur:'#1A5276', bg:'#D6EAF8', email:false, pourAuteur:false },
+  corrige:{ tabler:'ti-circle-check', titre:'Article relu par le SR',
+    msg:'Le rédac chef va maintenant le passer en bon à publier.', couleur:'#0C5460', bg:'#D1ECF1', email:true, pourAuteur:true },
+  valide:{ tabler:'ti-confetti', titre:'Article bon à publier !',
+    msg:'Le rédac chef a donné son bon à publier. L\'article sera bientôt mis en forme et mis en ligne. Bravo !', couleur:'#155724', bg:'#D4EDDA', email:true, pourAuteur:true },
+  valide_central:{ tabler:'ti-shield-check', titre:'Bon à publier de la rédaction centrale',
+    msg:'La rédaction centrale a donné son bon à publier. L\'article peut maintenant être mis en ligne.', couleur:'#0B3D91', bg:'#D4EDDA', email:false, pourAuteur:true },
+  publie:{ tabler:'ti-world-upload', titre:'Article en ligne !',
+    msg:'L\'article est en ligne sur Ipsum Média. Le travail est terminé. Félicitations !', couleur:'#1A1A2E', bg:'#D4EDDA', email:true, pourAuteur:true },
+  refuse:{ tabler:'ti-arrow-back-up', titre:'Article renvoyé à son auteur·rice',
+    msg:'L\'auteur·rice a été prévenu·e, avec ta remarque et le début de son article.', couleur:'#991B1B', bg:'#FEE2E2', email:false, pourAuteur:false },
 };
 
 // ── Popup + email sur changement de statut ─────────────────────────
@@ -2189,54 +2161,61 @@ function osVerifierNotifsAuteurArticles(){
   }).catch(function(){});
 }
 
+// Carte « article » des emails : rubrique, titre, auteur
+function _emailCarteArticle(doc){
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;border-collapse:separate;">'
+    +'<tr><td style="padding:14px 16px;">'
+    +(doc.rubrique ? '<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.rouge+';margin-bottom:2px;">'+esc(doc.rubrique)+'</div>' : '')
+    +'<div style="font:700 18px/1.3 Georgia, serif;color:'+EMAIL_COUL.encre+';">'+esc(doc.titre||'Sans titre')+'</div>'
+    +(doc.auteur ? '<div style="font:400 13px/1.5 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-top:4px;">par '+esc(doc.auteur)+'</div>' : '')
+    +'</td></tr></table>';
+}
+// Début du texte de l'article, sans mise en forme, pour les emails
+function _emailExtraitArticle(doc){
+  if(!doc || !doc.corps) return '';
+  // Paragraphes seulement : les intertitres (## …) ne se colleraient pas au texte
+  var t = String(doc.corps).replace(/<[^>]*>/g,' ').split('\n').filter(function(l){ return l.trim() && !/^\s*#/.test(l); })
+    .join(' ').replace(/[*_>`~]/g,'').replace(/\s+/g,' ').trim();
+  return t.length > 420 ? t.slice(0, 420).replace(/\s+\S*$/,'')+' […]' : t;
+}
+
+var ARTICLE_MAILS_STATUT = {
+  corrige:{ accent:'bleu', etiquette:'RELU PAR LE SR', titre:'Ton article a été relu', sujet:'Ton article a été relu par le SR',
+    texte:'Le secrétariat de rédaction a relu ton article. Ton rédac chef va maintenant le passer en bon à publier.' },
+  valide:{ accent:'vert', etiquette:'BON À PUBLIER', titre:'Ton article est bon à publier', sujet:'Ton article est bon à publier',
+    texte:'Bonne nouvelle : ton rédac chef a donné son bon à publier. L\'article sera bientôt mis en forme et mis en ligne.' },
+  publie:{ accent:'neutre', etiquette:'EN LIGNE', titre:'Ton article est en ligne', sujet:'Ton article est en ligne',
+    texte:'Ton article est en ligne sur Ipsum Média. Merci pour ton travail !' }
+};
+
 function _osEmailStatutArticle(doc, statut, cfg){
+  var conf = ARTICLE_MAILS_STATUT[statut];
+  if(!conf) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom,canal_notif',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
     if(!_osRedacNotifActive(doc.redaction_id, 'notif_statut_article')) return;
-    var sujets = { corrige:'✅ Ton article a été corrigé — ', valide:'⭐ Ton article a été validé — ', publie:'📢 Ton article est publié — ' };
-    var intros = {
-      corrige:'Ton article a été relu et corrigé. Il est maintenant entre les mains du rédacteur en chef pour validation avant publication.',
-      valide:'Bonne nouvelle ! Ton article a été relu et validé par le rédacteur en chef. Il sera prochainement mis en forme et publié sur Substack.',
-      publie:'Félicitations ! Ton article est maintenant en ligne sur Ipsum Média.'
-    };
-    // Extrait : 15 premières lignes non vides du corps
-    var extrait = ''; var lignes = [];
-    if(doc.corps){
-      lignes = doc.corps.split('\n').filter(function(l){ return l.trim(); });
-      extrait = lignes.slice(0,15).join('\n');
-    }
-    var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
-      +osEnteteEmailLogo(cfg.icon+' Ipsum Média · Compo OS')
-      +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
-      +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
-      +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">'+intros[statut]+'</p>'
-      +'<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1rem;">'
-      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.3rem;">Article</div>'
-      +'<div style="font-weight:700;font-size:.92rem;color:#1A1A2E;">'+esc(doc.titre||'Sans titre')+'</div>'
-      +(doc.rubrique?'<div style="font-size:.7rem;color:#6B7280;margin-top:.2rem;">'+esc(doc.rubrique)+'</div>':'')
-      +'</div>'
-      +(extrait
-        ? '<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1.2rem;">'
-          +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.6rem;">Début de l\'article</div>'
-          +'<div style="font-size:.82rem;color:#374151;line-height:1.65;white-space:pre-wrap;font-family:Georgia,serif;">'+esc(extrait)+(lignes.length>15?'\n[…]':'')+'</div>'
-          +'</div>'
-        : '')
-      +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:.55rem 1.4rem;border-radius:8px;text-decoration:none;font-size:.82rem;font-weight:600;">Ouvrir Compo OS →</a>'
-      +'</div>'
-      +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
-      +'</div>';
-    var chatTitres = { corrige:'✅ Ton article a été corrigé', valide:'⭐ Ton article a été validé', publie:'📢 Ton article est publié' };
-    var chatTexte = (chatTitres[statut]||'Mise à jour de ton article')+' : "'+(doc.titre||'Sans titre')+'". https://compo.ipsummedia.fr';
+    var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
+    var boutons = [{ label:'Ouvrir dans Compo', url:lienArt }];
+    if(statut==='publie' && doc.lien_publication){ boutons[0].secondaire = true; boutons.unshift({ label:'Voir l\'article en ligne', url:doc.lien_publication }); }
+    var html = _emailCompo({
+      accent:conf.accent, etiquette:conf.etiquette, titre:conf.titre,
+      bonjour:'Bonjour '+esc(m.prenom||'')+',', texte:conf.texte,
+      contenu:_emailCarteArticle(doc), description:_emailExtraitArticle(doc),
+      boutons:boutons,
+      pourquoi:'Tu reçois cet email car tu es l\'auteur·rice de cet article.'
+    });
+    var lienChat = (statut==='publie' && doc.lien_publication) ? doc.lien_publication : lienArt;
+    var chatTexte = '*'+conf.sujet+'*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »\n<'+lienChat+'|'+(statut==='publie' && doc.lien_publication ? 'Voir l\'article en ligne' : 'Ouvrir dans Compo')+'>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'statut_article', function(){
-      envoyerEmailResend(m.email, (sujets[statut]||'')+esc(doc.titre||''), html, 'statut_article');
+      envoyerEmailResend(m.email, '[Ipsum Média] '+conf.sujet+' : '+(doc.titre||''), html, 'statut_article');
     });
   }).catch(function(){});
 }
 
-// Email refus avec note + extrait
+// Article renvoyé à son auteur·rice, avec la remarque et le début du texte
 function _osEmailRefusArticle(doc, note){
   if(!doc.auteur_id) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -2245,37 +2224,22 @@ function _osEmailRefusArticle(doc, note){
   .then(function(data){
     var m = data&&data[0]; if(!m||!m.email) return;
     if(!_osRedacNotifActive(doc.redaction_id, 'notif_refus_article')) return;
-    var extrait = ''; var lignes = [];
-    if(doc.corps){
-      lignes = doc.corps.split('\n').filter(function(l){ return l.trim(); });
-      extrait = lignes.slice(0,15).join('\n');
-    }
-    var html = '<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">'
-      +osEnteteEmailLogo('📝 Article renvoyé en correction')
-      +'<div style="background:#F7F8FA;padding:1.4rem 1.5rem;">'
-      +'<p style="font-size:.9rem;color:#374151;margin:0 0 .8rem;">Bonjour '+(m.prenom||'')+',</p>'
-      +'<p style="font-size:.85rem;color:#374151;margin:0 0 1rem;">Ton article a été relu et nécessite des modifications avant d\'être validé.</p>'
-      +'<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:.8rem;">'
-      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.3rem;">Article</div>'
-      +'<div style="font-weight:700;font-size:.92rem;color:#1A1A2E;">'+esc(doc.titre||'Sans titre')+'</div>'
-      +'</div>'
-      +'<div style="background:#FEE2E2;border-left:3px solid #DC2626;padding:.8rem 1rem;border-radius:0 8px 8px 0;margin-bottom:1rem;">'
-      +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#991B1B;margin-bottom:.4rem;">Motif du refus</div>'
-      +'<div style="font-size:.85rem;color:#7F1D1D;font-style:italic;">'+esc(note||'Article à retravailler')+'</div>'
-      +'</div>'
-      +(extrait
-        ? '<div style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:.9rem 1rem;margin-bottom:1.2rem;">'
-          +'<div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:.6rem;">Début de l\'article</div>'
-          +'<div style="font-size:.82rem;color:#374151;line-height:1.65;white-space:pre-wrap;font-family:Georgia,serif;">'+esc(extrait)+(lignes.length>15?'\n[…]':'')+'</div>'
-          +'</div>'
-        : '')
-      +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#E8461E;color:white;padding:.55rem 1.4rem;border-radius:8px;text-decoration:none;font-size:.82rem;font-weight:600;">Modifier dans Compo OS →</a>'
-      +'</div>'
-      +'<div style="background:#F3F4F6;padding:.7rem 1.5rem;border-radius:0 0 8px 8px;font-size:.62rem;color:#9CA3AF;text-align:center;">Ipsum Média · contact@ipsummedia.fr</div>'
-      +'</div>';
-    var chatTexte = '📝 Ton article nécessite des modifications : "'+(doc.titre||'Sans titre')+'". Motif : '+(note||'à retravailler')+'. https://compo.ipsummedia.fr';
+    var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
+    var remarque = note || 'Article à reprendre';
+    var html = _emailCompo({
+      accent:'rouge', etiquette:'À REPRENDRE', titre:'Ton article est à reprendre',
+      bonjour:'Bonjour '+esc(m.prenom||'')+',',
+      texte:'Ton article a été relu : quelques modifications sont demandées avant qu\'il passe en bon à publier.',
+      contenu:_emailCarteArticle(doc)
+        +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="background:#FDECEC;border-radius:10px;padding:12px 14px;font:400 14px/1.55 '+EMAIL_POLICE+';color:#7F1D1D;">'
+        +'<div style="font:700 10px/1.4 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:#B42318;margin-bottom:4px;">Remarque</div>'+esc(remarque)+'</td></tr></table>',
+      description:_emailExtraitArticle(doc),
+      boutons:[{ label:'Reprendre l\'article', url:lienArt }],
+      pourquoi:'Tu reçois cet email car tu es l\'auteur·rice de cet article.'
+    });
+    var chatTexte = '*Ton article est à reprendre*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »\nRemarque : '+_chatSansMiseEnForme(remarque)+'\n<'+lienArt+'|Reprendre l\'article>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'refus_article', function(){
-      envoyerEmailResend(m.email, '📝 Ton article nécessite des modifications — '+esc(doc.titre||''), html, 'refus_article');
+      envoyerEmailResend(m.email, '[Ipsum Média] Ton article est à reprendre : '+(doc.titre||''), html, 'refus_article');
     });
   }).catch(function(){});
 }
@@ -2290,8 +2254,8 @@ function rWorkflowRenvoyer(){
   mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
   mo.innerHTML = '<div style="background:white;border-radius:12px;padding:1.4rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.2);">'
     +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;">Renvoyer au rédacteur</div>'
-    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Explique ce qui doit être corrigé. Un email avec le motif et le début de l\'article sera envoyé.</div>'
-    +'<textarea id="renvoi-msg" rows="4" placeholder="Ex : Le chapeau est trop long, retravailler l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Explique ce qui doit être repris. L\'auteur·rice recevra ta remarque avec le début de son article.</div>'
+    +'<textarea id="renvoi-msg" rows="4" placeholder="Ex : Le chapô est trop long, reprendre l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
     +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
     +'<button id="renvoi-ok" style="flex:1;padding:0.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Renvoyer</button>'
     +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'

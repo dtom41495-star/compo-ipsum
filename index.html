@@ -18,7 +18,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Figtree:wght@400;500;600;700&family=Bitter:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
@@ -380,18 +380,11 @@
           </svg>
           <div id="os-clock-date" style="font-family:Arial,sans-serif;font-size:0.6rem;color:rgba(255,255,255,0.5);text-shadow:0 1px 6px rgba(0,0,0,0.4);letter-spacing:0.08em;text-transform:uppercase;margin-top:6px;"></div>
         </div>
-        <!-- Séparateur vertical -->
-        <div style="width:1px;align-self:stretch;background:rgba(255,255,255,0.12);flex-shrink:0;"></div>
-        <!-- Membres en ligne -->
-        <div id="os-online-widget" style="text-align:center;min-width:76px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#4CAF50;box-shadow:0 0 8px rgba(76,175,80,0.8);flex-shrink:0;"></div>
-            <div style="font-family:Arial,sans-serif;font-size:0.52rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;">En ligne</div>
-          </div>
-          <div id="os-online-count" style="font-family:-apple-system,sans-serif;font-size:2rem;font-weight:700;color:white;text-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:1;text-align:center;">—</div>
-          <div id="os-online-names" style="font-family:Arial,sans-serif;font-size:0.5rem;color:rgba(255,255,255,0.35);margin-top:5px;max-width:90px;text-align:center;line-height:1.5;"></div>
-        </div>
       </div>
+      <!-- Personnes en ligne : badge discret, la liste s'ouvre au clic -->
+      <button type="button" id="os-online-pill" onclick="osEnLigneBasculer(event)" aria-haspopup="dialog" aria-expanded="false" title="Voir qui est en ligne">
+        <span class="os-online-point" aria-hidden="true"></span><span id="os-online-texte">En ligne</span>
+      </button>
     </div>
 
     <div id="os-redaction-label" style="position:absolute;bottom:72px;left:20px;pointer-events:none;user-select:none;display:none;">
@@ -668,7 +661,7 @@
 
   <!-- Commentaire correction -->
   <div id="r-commentaire-correction" style="display:none;flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #856404;padding:0.6rem 1rem;">
-    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"><i class="ti ti-message-circle"></i> Commentaire du correcteur</div>
+    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"><i class="ti ti-message-circle"></i> Remarque du SR</div>
     <div id="r-commentaire-txt" style="font-size:0.8rem;color:#5a3e00;"></div>
   </div>
 
@@ -683,6 +676,7 @@
     <div style="padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.2rem;">
 
       <!-- Auteur -->
+      <label id="r-auteur-label" for="r-auteur-select" style="display:none;font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:-0.85rem;">Signé par</label>
       <select id="r-auteur-select" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;display:none;box-sizing:border-box;"></select>
       <input type="text" id="r-auteur" placeholder="Auteur *" style="display:none;font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;box-sizing:border-box;">
 
@@ -700,7 +694,7 @@
       <div class="form-group">
         <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rubrique</label>
         <select id="r-rubrique" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;margin-top:0.35rem;box-sizing:border-box;">
-          <option value="">Rubrique</option>
+          <option value="">Choisir une rubrique</option>
           <option>Actu locale</option><option>Actu nationale</option><option>Reportage</option>
           <option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option>
         </select>
@@ -774,6 +768,12 @@
         <input type="date" id="r-datepub" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;margin-top:0.35rem;box-sizing:border-box;">
       </div>
 
+      <!-- Autres actions, rarement utiles : rangées ici plutôt que sous l'article -->
+      <div class="r-reglages-autres">
+        <button class="mac-btn" onclick="exporterArticleJSON()"><i class="ti ti-file-code"></i>Exporter (JSON)</button>
+        <button class="mac-btn mac-btn-refus" onclick="rToutEffacer()"><i class="ti ti-eraser"></i>Tout effacer</button>
+      </div>
+
     </div>
   </div>
 
@@ -786,7 +786,7 @@
         <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
         <div style="display:flex;gap:0.5rem;flex-shrink:0;">
           <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
-          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Abandonner</button>
+          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Me désengager</button>
         </div>
       </div>
 
@@ -825,13 +825,13 @@
 
       <!-- Chapeau -->
       <div id="rg-chapeau" class="form-group">
-        <textarea id="r-chapeau" placeholder="Introduction — accroche du lecteur" rows="2" spellcheck="true" lang="fr"
+        <textarea id="r-chapeau" placeholder="Chapô : l'essentiel en deux phrases, pour donner envie de lire la suite" rows="2" spellcheck="true" lang="fr"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"
           style="resize:none;overflow:hidden;width:100%;font-size:1.05rem;font-family:'DM Sans',sans-serif;color:var(--gris);border:none;border-radius:0;padding:0;background:transparent;outline:none;display:block;margin-bottom:1.4rem;line-height:1.5;"></textarea>
       </div>
 
       <!-- Toolbar formatage -->
-      <div style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
+      <div id="r-barre-outils" style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
         <button onclick="rFormat('bold')" title="Gras" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-weight:700;font-size:0.8rem;">B</button>
         <button onclick="rFormat('italic')" title="Italique" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-style:italic;font-size:0.8rem;">I</button>
         <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-quote"></i></button>
@@ -863,27 +863,24 @@
       </div>
 
       <!-- ACTIONS -->
-      <div id="r-actions-bas" style="padding:1rem 0 2rem;border-top:1px solid var(--gris-bord);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <div id="r-actions-redacteur" style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" onclick="ouvrirAssignation()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-send"></i> Envoyer en correction</button>
-          <button class="btn sec" onclick="rArticleLierCpSource()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-news"></i> Lier un CP</button>
-          <button class="btn sec" onclick="exporterArticle()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-share"></i> Partager</button>
-          <button class="btn sec" onclick="genererVisuelsDepuisRedaction()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-palette"></i> Visuels</button>
-          <button class="btn sec" onclick="ouvrirFS('r')" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-arrows-maximize"></i> Plein écran</button>
+      <div id="r-actions-bas">
+        <div id="r-actions-redacteur" class="r-actions-groupe">
+          <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="ouvrirAssignation()"><i class="ti ti-send"></i>Envoyer au SR</button>
+          <button class="mac-btn" onclick="rArticleLierCpSource()"><i class="ti ti-news"></i>Lier un communiqué</button>
+          <button class="mac-btn" onclick="exporterArticle()"><i class="ti ti-share"></i>Partager</button>
+          <button class="mac-btn" onclick="genererVisuelsDepuisRedaction()"><i class="ti ti-palette"></i>Visuels</button>
+          <button class="mac-btn" onclick="ouvrirFS('r')"><i class="ti ti-arrows-maximize"></i>Plein écran</button>
         </div>
-        <div id="r-actions-correcteur" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button onclick="rWorkflowAvancer('corrige')" style="background:#0C5460;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-circle-check"></i> Marquer comme corrigé</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer au rédacteur</button>
+        <div id="r-actions-correcteur" class="r-actions-groupe" style="display:none;">
+          <button class="mac-btn mac-btn-vert" data-sombre-ignore onclick="rWorkflowAvancer('corrige')"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
+          <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer au rédacteur</button>
         </div>
-        <div id="r-actions-chef" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button id="r-btn-valider" onclick="osDemanderBesoinVisuel()" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
-          <button id="r-btn-valider-central" onclick="rWorkflowAvancer('valide_central')" style="background:#0B3D91;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-shield-check"></i> Valider (rédaction centrale)</button>
-          <button id="r-btn-publier" onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>
+        <div id="r-actions-chef" class="r-actions-groupe" style="display:none;">
+          <button id="r-btn-valider" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osDemanderBesoinVisuel()"><i class="ti ti-check"></i>Bon à publier</button>
+          <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (centrale)</button>
+          <button id="r-btn-publier" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="rWorkflowAvancer('publie')"><i class="ti ti-world-upload"></i>Mettre en ligne</button>
+          <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer</button>
         </div>
-        <div style="flex:1;"></div>
-        <button onclick="exporterArticleJSON()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);cursor:pointer;"><i class="ti ti-file-code"></i> JSON</button>
-        <button onclick="resetRedaction()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:none;color:var(--gris);cursor:pointer;">Tout effacer</button>
       </div>
 
     </div>
@@ -920,7 +917,7 @@
   <!-- Header -->
   <div style="background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
     <div>
-      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">✅ Correction & Publication</div>
+      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-file-search"></i> Secrétariat de rédaction</div>
       <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="corr-subtitle">Chargement...</div>
     </div>
     <button onclick="osAppCorrectionCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">↺ Actualiser</button>
@@ -1001,11 +998,11 @@
       <div class="form-group full"><label>Texte</label><textarea id="e-corps"></textarea></div>
       <div class="form-group full"><label>Statut</label>
         <div class="status-row" id="e-statrow">
-          <button class="status-opt" onclick="setStatEdit('brouillon')">Brouillon</button>
-          <button class="status-opt" onclick="setStatEdit('en-relecture')">En relecture</button>
-          <button class="status-opt" onclick="setStatEdit('corrige')">Corrigé</button>
-          <button class="status-opt" onclick="setStatEdit('valide')">Validé</button>
-          <button class="status-opt" onclick="setStatEdit('publie')">Publié</button>
+          <button class="status-opt" onclick="setStatEdit('brouillon')">En écriture</button>
+          <button class="status-opt" onclick="setStatEdit('en-relecture')">Au SR</button>
+          <button class="status-opt" onclick="setStatEdit('corrige')">Relu par le SR</button>
+          <button class="status-opt" onclick="setStatEdit('valide')">Bon à publier</button>
+          <button class="status-opt" onclick="setStatEdit('publie')">En ligne</button>
         </div>
       </div>
     </div>
@@ -1224,11 +1221,11 @@
     <!-- Filtres statut -->
     <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.6rem;">
       <button class="statut-filtre active" data-filtre="tous" onclick="mesArticlesFiltrer(this)">Tous</button>
-      <button class="statut-filtre" data-filtre="brouillon" onclick="mesArticlesFiltrer(this)">Brouillon</button>
-      <button class="statut-filtre" data-filtre="en-relecture" onclick="mesArticlesFiltrer(this)">En relecture</button>
-      <button class="statut-filtre" data-filtre="corrige" onclick="mesArticlesFiltrer(this)">Corrigé</button>
-      <button class="statut-filtre" data-filtre="valide" onclick="mesArticlesFiltrer(this)">Validé</button>
-      <button class="statut-filtre" data-filtre="publie" onclick="mesArticlesFiltrer(this)">Publié</button>
+      <button class="statut-filtre" data-filtre="brouillon" onclick="mesArticlesFiltrer(this)">En écriture</button>
+      <button class="statut-filtre" data-filtre="en-relecture" onclick="mesArticlesFiltrer(this)">Au SR</button>
+      <button class="statut-filtre" data-filtre="corrige" onclick="mesArticlesFiltrer(this)">Relu par le SR</button>
+      <button class="statut-filtre" data-filtre="valide" onclick="mesArticlesFiltrer(this)">Bon à publier</button>
+      <button class="statut-filtre" data-filtre="publie" onclick="mesArticlesFiltrer(this)">En ligne</button>
     </div>
   </div>
 
@@ -1251,7 +1248,7 @@
     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.6rem;">
       <select id="ticket-destinataire" onchange="ticketToggleCorrecteur(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
         <option value="admin">Admin</option>
-        <option value="correcteur">Correcteur</option>
+        <option value="correcteur">Secrétaire de rédaction</option>
       </select>
       <select id="ticket-priorite" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
         <option value="normale">Normale</option>
@@ -1261,7 +1258,7 @@
     </div>
     <div id="ticket-correcteur-select" style="display:none;margin-bottom:0.6rem;">
       <select id="ticket-correcteur-id" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);width:100%;">
-        <option value="">Choisir un correcteur...</option>
+        <option value="">Choisir un SR...</option>
       </select>
     </div>
     <button class="btn" onclick="ticketCreer()">Envoyer</button>
@@ -1401,7 +1398,7 @@
         <div class="modal-action-icon">✏️</div>
         <div><div class="modal-action-label">Modifier l'article</div><div class="modal-action-desc">Édition libre du contenu</div></div>
       </button>
-      <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Correction et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, correcteur·rice, rédac chef, admin).</div>
+      <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Relecture et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, SR, rédac chef, admin).</div>
       <button class="modal-action-btn" onclick="modalActionFermer()" style="margin-top:0.4rem;border-color:transparent;">
         <div class="modal-action-icon">✕</div>
         <div><div class="modal-action-label" style="color:var(--gris);">Annuler</div></div>
@@ -1441,6 +1438,7 @@
     <div id="sujet-modal-pris" style="display:none;margin:0 1.4rem 1rem;padding:0.6rem 0.9rem;background:#FFF3CD;border:1px solid #856404;border-radius:6px;font-size:0.78rem;color:#856404;"></div>
     <div style="padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem;">
       <button id="sujet-modal-reserver-btn" class="btn" onclick="reserverSujetModal()">Réserver et rédiger</button>
+      <button id="sujet-modal-desengager-btn" class="btn sec" style="display:none;">Me désengager</button>
       <button class="btn sec" onclick="fermerModalSujet()">Fermer</button>
     </div>
   </div>
@@ -1461,9 +1459,9 @@
     <div class="bvn-group" style="margin-bottom:0.8rem;">
       <label>Ton rôle</label>
       <div style="display:flex;gap:0.5rem;margin-top:0.4rem;">
-        <button class="bvn-role-btn active" data-role="redacteur" onclick="bvnSetRole(this)">✍️ Rédacteur</button>
-        <button class="bvn-role-btn" data-role="correcteur" onclick="bvnSetRole(this)">🔍 Correcteur</button>
-        <button class="bvn-role-btn" data-role="admin" onclick="bvnSetRole(this)">⚙️ Admin</button>
+        <button class="bvn-role-btn active" data-role="redacteur" onclick="bvnSetRole(this)"><i class="ti ti-pencil"></i> Rédacteur</button>
+        <button class="bvn-role-btn" data-role="correcteur" onclick="bvnSetRole(this)"><i class="ti ti-file-search"></i> Secrétaire de rédaction</button>
+        <button class="bvn-role-btn" data-role="admin" onclick="bvnSetRole(this)"><i class="ti ti-settings"></i> Admin</button>
       </div>
     </div>
     <button class="bvn-btn" onclick="bvnValider()">Commencer →</button>
@@ -1488,14 +1486,14 @@
 <div id="modal-assign">
   <div class="assign-card">
     <div class="assign-header">
-      <div class="assign-titre">Envoyer en correction</div>
+      <div class="assign-titre">Envoyer au SR</div>
       <div class="assign-sub" id="assign-article-titre">—</div>
     </div>
     <div class="assign-body">
-      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Assigne cet article à un correcteur :</div>
+      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Choisis la personne du secrétariat de rédaction qui va relire cet article :</div>
       <div id="assign-membres-list"></div>
       <div class="assign-btn-row">
-        <button class="btn" onclick="assignValider()">Envoyer en correction</button>
+        <button class="btn" onclick="assignValider()">Envoyer au SR</button>
         <button class="btn sec" onclick="assignFermer()">Annuler</button>
       </div>
     </div>
@@ -1509,5 +1507,7 @@
 <script src="js/18-vie-asso.js"></script>
 <script src="js/19-mode-sombre.js"></script>
 <script src="js/20-signature-electronique.js"></script>
+<script src="js/21-sujets-desengagement.js"></script>
+<script src="js/22-rediger-sujet.js"></script>
 </body>
 </html>

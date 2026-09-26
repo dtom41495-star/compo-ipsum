@@ -81,7 +81,7 @@ function osTableauRender(){
       html += '<select id="tableau-roles" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);border-radius:4px;">';
       html += '<option value="tous">Tous les rôles</option>';
       html += '<option value="redacteur">Rédacteurs uniquement</option>';
-      html += '<option value="correcteur">Correcteurs uniquement</option>';
+      html += '<option value="correcteur">SR uniquement</option>';
       html += '</select>';
       html += '<input type="date" id="tableau-expire" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);border-radius:4px;" placeholder="Expire le...">';
       html += '</div>';
@@ -1286,7 +1286,7 @@ function osNettoyageRender(moisLimite){
     // Répartition par type ce mois
     var typesCount = {};
     emailsMois.forEach(function(e){ typesCount[e.type||'autre'] = (typesCount[e.type||'autre']||0)+1; });
-    var typeLabels = {cp:'CPs',correction:'Corrections',publication:'Publications',ticket:'Tickets',autre:'Autres'};
+    var typeLabels = {cp:'CPs',correction:'Relectures (SR)',publication:'Mises en ligne',ticket:'Tickets',autre:'Autres'};
 
     html += '<div style="background:'+(pctJour>=90?'#FCEBEB':pctJour>=70?'#FAEEDA':'white')+';border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1rem;">';
     html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.7rem;">';
@@ -1664,7 +1664,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture (v1)',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
   { id:'edition',        icon:'<i class="ti ti-pencil"></i>', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
   { id:'lire-cp',        icon:'<i class="ti ti-file-description"></i>', label:'Lire un CP (v1)',color:'#2C3E50', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'un communiqué de presse en fichier JSON local.' },
-  { id:'correction',     icon:'<i class="ti ti-pencil"></i>', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Correction.' },
+  { id:'correction',     icon:'<i class="ti ti-pencil"></i>', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Secrétariat de rédaction.' },
   // Apps Store
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
@@ -2130,7 +2130,7 @@ function osInviterMembreModal(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">'
     +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rôle *</label><select id="inv-role" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
     +'<option value="redacteur">Rédacteur</option>'
-    +'<option value="correcteur">Correcteur</option>'
+    +'<option value="correcteur">Secrétaire de rédaction</option>'
     +'<option value="communicant">Communicant</option>'
     +'<option value="admin">Admin</option>'
     +'</select></div>'
@@ -2503,7 +2503,7 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
       html += '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;">';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;">Profil :</span>';
       html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'redacteur\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #F5C4B3;border-radius:4px;background:#FFF5F0;color:#712B13;cursor:pointer;">Rédacteur</button>';
-      html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'correcteur\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #B5D4F4;border-radius:4px;background:#EFF6FD;color:#0C447C;cursor:pointer;">Correcteur</button>';
+      html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'correcteur\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #B5D4F4;border-radius:4px;background:#EFF6FD;color:#0C447C;cursor:pointer;">SR</button>';
       html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'admin\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #C0DD97;border-radius:4px;background:#F0F8E8;color:#27500A;cursor:pointer;">Admin</button>';
       html += '<span style="color:var(--gris-bord);margin:0 2px;">·</span>';
       html += '<button onclick="osGestionAppsSelectAll(\''+m.id+'\',true)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">Tout activer</button>';
@@ -2603,7 +2603,7 @@ function osGestionAppsSelectAll(membreId, activer){
 }
 
 function osGestionAppsAppliquerProfil(membreId, profil){
-  var labels = { redacteur:'Rédacteur', correcteur:'Correcteur', admin:'Admin' };
+  var labels = { redacteur:'Rédacteur', correcteur:'SR', admin:'Admin' };
   if(!confirm('Appliquer le profil "'+labels[profil]+'" à ce membre ?\nSes apps actuelles seront remplacées.')) return;
 
   var ids = PROFILS_PREDEFINIS[profil] || PROFILS_PREDEFINIS.redacteur;

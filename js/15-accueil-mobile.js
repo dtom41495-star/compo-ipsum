@@ -185,14 +185,14 @@ function osAccueilMobileRendre(){
 
   // Grande tuile : Rédiger, ou Corriger pour qui ne rédige pas
   var grande = parId['redaction'] ? {app:parId['redaction'], sous:'Nouvel article ou brève'}
-             : parId['app-correction'] ? {app:parId['app-correction'], sous:'Articles qui attendent une correction'} : null;
+             : parId['app-correction'] ? {app:parId['app-correction'], sous:'Articles qui attendent leur relecture'} : null;
   var dejaPlacees = {};
   if(grande) dejaPlacees[grande.app.id] = true;
   ACCUEIL_HORS_TUILES.forEach(function(id){ dejaPlacees[id] = true; });
 
   var c = _accueilCompteurs;
   var cartes = '';
-  if(c.aCorriger) cartes += '<button type="button" class="acc-alerte chaud" data-app="mes-articles"><span class="acc-n">'+c.aCorriger+'</span><span class="acc-l">article'+(c.aCorriger>1?'s':'')+'<br>à corriger</span></button>';
+  if(c.aCorriger) cartes += '<button type="button" class="acc-alerte chaud" data-app="mes-articles"><span class="acc-n">'+c.aCorriger+'</span><span class="acc-l">article'+(c.aCorriger>1?'s':'')+'<br>à relire (SR)</span></button>';
   var vol = (window._cpInvitAttente||{}).total || 0;
   if(vol) cartes += '<button type="button" class="acc-alerte chaud" data-app="cps-invitations"><span class="acc-n">'+vol+'</span><span class="acc-l">volontaire'+(vol>1?'s':'')+' pour une<br>invitation presse</span></button>';
   if(c.invitations) cartes += '<button type="button" class="acc-alerte" data-app="cps-invitations"><span class="acc-n">'+c.invitations+'</span><span class="acc-l">invitation'+(c.invitations>1?'s':'')+' presse<br>à pourvoir</span></button>';
@@ -564,7 +564,7 @@ osMesArticlesRender = function(){
 
 // Sur téléphone une seule appli est ouverte à la fois : un article ouvert depuis Mes
 // articles remplace la liste. Le bouton retour y ramène au lieu de revenir à l'accueil.
-var ACCUEIL_RETOUR_VERS = { 'mes-articles':'Mes articles', 'app-correction':'Corrections' };
+var ACCUEIL_RETOUR_VERS = { 'mes-articles':'Mes articles', 'app-correction':'Secrétariat de rédaction' };
 var _osOpenWindowAvantAccueil = osOpenWindow;
 osOpenWindow = function(pageId){
   var precedente = osEstMobile() ? Object.keys(window._windows||{}).filter(function(id){ return id !== pageId; }).pop() : null;

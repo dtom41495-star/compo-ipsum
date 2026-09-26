@@ -1694,21 +1694,78 @@ function _tresCotisationSauvegarder(){
 }
 
 
+// Badge « en ligne » du bureau : discret, la liste des personnes s'ouvre au clic
+function _osEnLigneListe(){
+  return Object.keys(_presenceData||{}).filter(function(id){ return osEstEnLigne(id); });
+}
+
 function osPresenceMajWidget(){
-  var membres = Object.keys(_presenceData||{});
-  var enLigne = membres.filter(function(id){ return osEstEnLigne(id); });
-  var countEl = document.getElementById('os-online-count');
-  var namesEl = document.getElementById('os-online-names');
-  if(countEl) countEl.textContent = enLigne.length;
-  if(namesEl && window._membresData){
-    var uid = getUserId();
-    var autres = enLigne.filter(function(id){return id!==uid;});
-    var noms = autres.slice(0,3).map(function(id){
-      var m = (_membresData||[]).find(function(x){return x.id===id;});
-      return m ? (m.prenom||'') : '';
+  var n = _osEnLigneListe().length;
+  var txt = document.getElementById('os-online-texte');
+  if(txt) txt.textContent = n+' en ligne';
+  if(document.getElementById('os-online-pop')) _osEnLigneRemplir();
+}
+
+function osEnLigneBasculer(e){
+  if(e) e.stopPropagation();
+  if(document.getElementById('os-online-pop')){ osEnLigneFermer(); return; }
+  var pill = document.getElementById('os-online-pill');
+  if(!pill) return;
+  var pop = document.createElement('div');
+  pop.id = 'os-online-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Personnes en ligne');
+  var r = pill.getBoundingClientRect();
+  pop.style.left = Math.max(8, r.left)+'px';
+  pop.style.bottom = (window.innerHeight - r.top + 8)+'px';
+  pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  document.body.appendChild(pop);
+  pill.setAttribute('aria-expanded', 'true');
+  _osEnLigneRemplir();
+  setTimeout(function(){
+    document.addEventListener('click', osEnLigneFermer);
+    document.addEventListener('keydown', _osEnLigneEchap);
+  }, 0);
+}
+
+function _osEnLigneEchap(e){ if(e.key === 'Escape') osEnLigneFermer(); }
+
+function osEnLigneFermer(){
+  var pop = document.getElementById('os-online-pop');
+  if(pop) pop.remove();
+  var pill = document.getElementById('os-online-pill');
+  if(pill) pill.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', osEnLigneFermer);
+  document.removeEventListener('keydown', _osEnLigneEchap);
+}
+
+function _osEnLigneRemplir(){
+  var pop = document.getElementById('os-online-pop');
+  if(!pop) return;
+  var uid = getUserId();
+  var membres = window._membresData || [];
+  var redacs = window._redactionsData || [];
+  var liens = window._membresRedactionsData || [];
+  var ids = _osEnLigneListe().sort(function(a, b){
+    if(a === uid) return -1; if(b === uid) return 1;
+    var ma = membres.find(function(x){ return x.id === a; }) || {}, mb = membres.find(function(x){ return x.id === b; }) || {};
+    return (ma.prenom||'').localeCompare(mb.prenom||'', 'fr');
+  });
+  var lignes = ids.map(function(id){
+    var m = membres.find(function(x){ return x.id === id; });
+    if(!m) return '';
+    var noms = liens.filter(function(l){ return l.membre_id === id; }).map(function(l){
+      var r = redacs.find(function(x){ return x.id === l.redaction_id; });
+      return r ? r.nom : '';
     }).filter(Boolean);
-    namesEl.textContent = noms.join(', ')+(autres.length>3?' +'+(autres.length-3):'');
-  }
+    return '<div class="os-online-ligne">'
+      +'<span class="os-online-avatar">'+renderAvatarHTML(m, 30, {})+'<span class="os-online-point"></span></span>'
+      +'<span class="os-online-infos"><span class="os-online-nom">'+esc((m.prenom||'')+' '+(m.nom||''))+(id === uid ? ' <span class="os-online-toi">toi</span>' : '')+'</span>'
+      +(noms.length ? '<span class="os-online-redac">'+esc(noms.join(' · '))+'</span>' : '')+'</span>'
+      +'</div>';
+  }).join('');
+  pop.innerHTML = '<div class="os-online-tete"><span class="os-online-point"></span> '+ids.length+' en ligne</div>'
+    +(lignes ? '<div class="os-online-liste">'+lignes+'</div>' : '<div class="os-online-vide">Personne pour le moment.</div>');
 }
 
 
@@ -2259,7 +2316,7 @@ function osSaveIndicateur(etat){
   var el = document.getElementById('win-save-indicator');
   if(!el) return;
   if(etat === 'modifie'){
-    el.textContent = '🟡 Modification en cours';
+    el.innerHTML = '<i class="ti ti-point-filled" style="vertical-align:-2px;"></i> Non enregistré';
     el.style.background = 'rgba(255,189,46,0.15)';
     el.style.color = '#856404';
     el.style.borderColor = 'rgba(255,189,46,0.3)';
@@ -2271,12 +2328,12 @@ function osSaveIndicateur(etat){
     el.style.color = '#1A5276';
     el.style.borderColor = 'rgba(26,82,118,0.3)';
   } else if(etat === 'sauvegarde'){
-    el.textContent = '🟢 Sauvegardé';
+    el.innerHTML = '<i class="ti ti-circle-check" style="vertical-align:-2px;"></i> Enregistré';
     el.style.background = 'rgba(39,174,96,0.15)';
     el.style.color = '#27AE60';
     el.style.borderColor = 'rgba(39,174,96,0.3)';
   } else if(etat === 'erreur'){
-    el.textContent = '🔴 Erreur de sauvegarde';
+    el.innerHTML = '<i class="ti ti-alert-circle" style="vertical-align:-2px;"></i> Non enregistré (erreur)';
     el.style.background = 'rgba(163,45,45,0.15)';
     el.style.color = '#A32D2D';
     el.style.borderColor = 'rgba(163,45,45,0.3)';
@@ -2287,10 +2344,12 @@ function osSaveIndicateur(etat){
 var _autoSaveTimer = null;
 var _autoSaveLastHash = '';
 
+// Empreinte de tout le texte : une correction au milieu, même sans changer la longueur,
+// ou une modification du chapô seul, doivent aussi déclencher la sauvegarde
 function _autoSaveHash(){
-  var t = (document.getElementById('r-titre')||{}).value||'';
-  var c = (document.getElementById('r-corps')||{}).value||'';
-  return t.length+':'+c.length+':'+t.substring(0,20)+c.substring(0,20);
+  return ['r-titre','r-chapeau','r-angle','r-auteur','r-corps'].map(function(id){
+    return (document.getElementById(id)||{}).value||'';
+  }).join('\u0001');
 }
 
 document.addEventListener('input', function(e){
@@ -2561,13 +2620,13 @@ function osVerifierNotifsWorkflow(){
     }
 
     aCorrections.forEach(function(a){
-      afficher('correction', a, 'Article à corriger', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('correction', a, 'Article à relire (SR)', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
     aPublication.forEach(function(a){
-      afficher('publication', a, 'Prêt à publier', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('publication', a, 'Bon à publier : à mettre en ligne', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
     aCentrale.forEach(function(a){
-      afficher('centrale', a, 'Validation centrale requise', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('centrale', a, 'Bon à publier de la centrale attendu', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
 
     try{ localStorage.setItem('compo_workflow_vus_ids', JSON.stringify(nouveauxVus.slice(-150))); }catch(e){}
