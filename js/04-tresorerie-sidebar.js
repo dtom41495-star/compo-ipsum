@@ -1694,21 +1694,78 @@ function _tresCotisationSauvegarder(){
 }
 
 
+// Badge « en ligne » du bureau : discret, la liste des personnes s'ouvre au clic
+function _osEnLigneListe(){
+  return Object.keys(_presenceData||{}).filter(function(id){ return osEstEnLigne(id); });
+}
+
 function osPresenceMajWidget(){
-  var membres = Object.keys(_presenceData||{});
-  var enLigne = membres.filter(function(id){ return osEstEnLigne(id); });
-  var countEl = document.getElementById('os-online-count');
-  var namesEl = document.getElementById('os-online-names');
-  if(countEl) countEl.textContent = enLigne.length;
-  if(namesEl && window._membresData){
-    var uid = getUserId();
-    var autres = enLigne.filter(function(id){return id!==uid;});
-    var noms = autres.slice(0,3).map(function(id){
-      var m = (_membresData||[]).find(function(x){return x.id===id;});
-      return m ? (m.prenom||'') : '';
+  var n = _osEnLigneListe().length;
+  var txt = document.getElementById('os-online-texte');
+  if(txt) txt.textContent = n+' en ligne';
+  if(document.getElementById('os-online-pop')) _osEnLigneRemplir();
+}
+
+function osEnLigneBasculer(e){
+  if(e) e.stopPropagation();
+  if(document.getElementById('os-online-pop')){ osEnLigneFermer(); return; }
+  var pill = document.getElementById('os-online-pill');
+  if(!pill) return;
+  var pop = document.createElement('div');
+  pop.id = 'os-online-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Personnes en ligne');
+  var r = pill.getBoundingClientRect();
+  pop.style.left = Math.max(8, r.left)+'px';
+  pop.style.bottom = (window.innerHeight - r.top + 8)+'px';
+  pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  document.body.appendChild(pop);
+  pill.setAttribute('aria-expanded', 'true');
+  _osEnLigneRemplir();
+  setTimeout(function(){
+    document.addEventListener('click', osEnLigneFermer);
+    document.addEventListener('keydown', _osEnLigneEchap);
+  }, 0);
+}
+
+function _osEnLigneEchap(e){ if(e.key === 'Escape') osEnLigneFermer(); }
+
+function osEnLigneFermer(){
+  var pop = document.getElementById('os-online-pop');
+  if(pop) pop.remove();
+  var pill = document.getElementById('os-online-pill');
+  if(pill) pill.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', osEnLigneFermer);
+  document.removeEventListener('keydown', _osEnLigneEchap);
+}
+
+function _osEnLigneRemplir(){
+  var pop = document.getElementById('os-online-pop');
+  if(!pop) return;
+  var uid = getUserId();
+  var membres = window._membresData || [];
+  var redacs = window._redactionsData || [];
+  var liens = window._membresRedactionsData || [];
+  var ids = _osEnLigneListe().sort(function(a, b){
+    if(a === uid) return -1; if(b === uid) return 1;
+    var ma = membres.find(function(x){ return x.id === a; }) || {}, mb = membres.find(function(x){ return x.id === b; }) || {};
+    return (ma.prenom||'').localeCompare(mb.prenom||'', 'fr');
+  });
+  var lignes = ids.map(function(id){
+    var m = membres.find(function(x){ return x.id === id; });
+    if(!m) return '';
+    var noms = liens.filter(function(l){ return l.membre_id === id; }).map(function(l){
+      var r = redacs.find(function(x){ return x.id === l.redaction_id; });
+      return r ? r.nom : '';
     }).filter(Boolean);
-    namesEl.textContent = noms.join(', ')+(autres.length>3?' +'+(autres.length-3):'');
-  }
+    return '<div class="os-online-ligne">'
+      +'<span class="os-online-avatar">'+renderAvatarHTML(m, 30, {})+'<span class="os-online-point"></span></span>'
+      +'<span class="os-online-infos"><span class="os-online-nom">'+esc((m.prenom||'')+' '+(m.nom||''))+(id === uid ? ' <span class="os-online-toi">toi</span>' : '')+'</span>'
+      +(noms.length ? '<span class="os-online-redac">'+esc(noms.join(' · '))+'</span>' : '')+'</span>'
+      +'</div>';
+  }).join('');
+  pop.innerHTML = '<div class="os-online-tete"><span class="os-online-point"></span> '+ids.length+' en ligne</div>'
+    +(lignes ? '<div class="os-online-liste">'+lignes+'</div>' : '<div class="os-online-vide">Personne pour le moment.</div>');
 }
 
 

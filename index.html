@@ -380,18 +380,11 @@
           </svg>
           <div id="os-clock-date" style="font-family:Arial,sans-serif;font-size:0.6rem;color:rgba(255,255,255,0.5);text-shadow:0 1px 6px rgba(0,0,0,0.4);letter-spacing:0.08em;text-transform:uppercase;margin-top:6px;"></div>
         </div>
-        <!-- Séparateur vertical -->
-        <div style="width:1px;align-self:stretch;background:rgba(255,255,255,0.12);flex-shrink:0;"></div>
-        <!-- Membres en ligne -->
-        <div id="os-online-widget" style="text-align:center;min-width:76px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#4CAF50;box-shadow:0 0 8px rgba(76,175,80,0.8);flex-shrink:0;"></div>
-            <div style="font-family:Arial,sans-serif;font-size:0.52rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;">En ligne</div>
-          </div>
-          <div id="os-online-count" style="font-family:-apple-system,sans-serif;font-size:2rem;font-weight:700;color:white;text-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:1;text-align:center;">—</div>
-          <div id="os-online-names" style="font-family:Arial,sans-serif;font-size:0.5rem;color:rgba(255,255,255,0.35);margin-top:5px;max-width:90px;text-align:center;line-height:1.5;"></div>
-        </div>
       </div>
+      <!-- Personnes en ligne : badge discret, la liste s'ouvre au clic -->
+      <button type="button" id="os-online-pill" onclick="osEnLigneBasculer(event)" aria-haspopup="dialog" aria-expanded="false" title="Voir qui est en ligne">
+        <span class="os-online-point" aria-hidden="true"></span><span id="os-online-texte">En ligne</span>
+      </button>
     </div>
 
     <div id="os-redaction-label" style="position:absolute;bottom:72px;left:20px;pointer-events:none;user-select:none;display:none;">
