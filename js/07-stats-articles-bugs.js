@@ -1387,108 +1387,81 @@ function maOsMakeCard(doc, uid, role){
   var estCorrecteur = doc.correcteur_id && doc.correcteur_id===uid;
   var estRefuse     = s==='brouillon' && doc.note_interne;
 
+  var st = MA_STATUT_MOBILE[estRefuse ? 'refuse' : s] || MA_STATUT_MOBILE.brouillon;
   var card = document.createElement('div');
-  card.style.cssText = 'background:white;border:1px solid #E5E7EB;border-radius:10px;padding:.55rem .8rem;margin-bottom:.4rem;transition:box-shadow .15s,border-color .15s;cursor:pointer;';
-  card.onmouseover=function(){this.style.borderColor='rgba(232,70,30,.35)';this.style.boxShadow='0 3px 12px rgba(232,70,30,.08)';};
-  card.onmouseout =function(){this.style.borderColor='#E5E7EB';this.style.boxShadow='';};
+  card.className = 'mac';
   // Clic sur la carte (hors boutons d'action) = ouvrir l'article, en édition si
   // l'auteur peut encore le modifier, sinon en lecture.
   var actionParDefaut = (estAuteur && s==='brouillon') ? 'edition' : 'lecture';
   card.onclick=function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
 
-  // ── PIPELINE — réduit à une petite barre alignée à droite (avant : bandeau pleine
-  // largeur avec libellé + "prochaine étape", qui prenait 3 lignes à lui seul) ──
-  var redacCentraleMOC = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
-  var articleEstCentralMOC = !redacCentraleMOC || doc.redaction_id === redacCentraleMOC.id;
-  var ETAPES=[
-    {id:'brouillon',l:'Brouillon',c1:'#F59E0B',c2:'#FCD34D'},
-    {id:'en-relecture',l:'En relecture',c1:'#2E86C1',c2:'#85C1E9'},
-    {id:'corrige',l:'Corrigé',c1:'#0C9C8D',c2:'#58D6C4'},
-    {id:'valide',l:'Validé',c1:'#E8461E',c2:'#F5B041'},
-  ];
-  if(!articleEstCentralMOC) ETAPES.push({id:'valide_central',l:'Réd. centrale',c1:'#0B3D91',c2:'#5B7CD9'});
-  ETAPES.push({id:'publie',l:'Publié',c1:'#059669',c2:'#34D399'});
-  var idx=ETAPES.findIndex(function(e){return e.id===s;});
-  if(idx<0) idx=0;
-  var etapeActuelle=ETAPES[idx];
-  var pct=Math.round(((idx+1)/ETAPES.length)*100);
-  var gc1=estRefuse?'#DC2626':etapeActuelle.c1, gc2=estRefuse?'#F87171':etapeActuelle.c2;
-  var statutHtml='<div style="flex-shrink:0;text-align:right;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.6rem;white-space:nowrap;background:linear-gradient(90deg,'+gc1+','+gc2+');-webkit-background-clip:text;background-clip:text;color:transparent;">'
-      +(estRefuse?'Refusé':esc(etapeActuelle.l))+'</div>'
-    +'<div style="width:38px;height:5px;border-radius:3px;background:#EEF0F2;overflow:hidden;margin:3px 0 0 auto;">'
-    +'<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,'+gc1+','+gc2+');"></div>'
-    +'</div></div>';
+  // Surtitre : statut, puis rubrique et auteur, comme dans un sommaire de journal
+  var surtitre = [];
+  if(doc.rubrique) surtitre.push(esc(doc.rubrique));
+  if(doc.type==='breve') surtitre.push('Brève');
+  if(doc.auteur && !estAuteur) surtitre.push('par '+esc(doc.auteur));
 
-  // Note refus
-  var noteHtml='';
-  if(estRefuse&&doc.note_interne){
-    noteHtml='<div style="font-size:.7rem;background:#FEE2E2;border-left:3px solid #DC2626;padding:4px 9px;border-radius:0 6px 6px 0;color:#991B1B;margin-bottom:.4rem;"><i class="ti ti-message-circle" style="vertical-align:-1px;"></i> '+esc(doc.note_interne)+'</div>';
-  }
-
-  // Titre + tags, dans le prolongement l'un de l'autre (avant : deux lignes séparées) —
-  // et le statut réduit ci-dessus, aligné à droite sur cette même ligne.
-  var age=badgeFraicheur(doc.updated_at||doc.created_at, s);
+  // Ligne d'infos, en texte simple
+  var infos = [];
+  var signes = _maNbSignes(doc.corps);
+  if(signes) infos.push(signes.toLocaleString('fr-FR')+' signes');
   var delaiRelecture = estAuteur && s==='en-relecture' && typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(doc.redaction_id) : null;
-  var tagsHtml=(delaiRelecture?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#3730A3;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-clock"></i>'+esc(delaiRelecture)+'</span>':'')+(doc.rubrique?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#F3F4F6;color:#6B7280;">'+esc(doc.rubrique)+'</span>':'')
-    +(doc.type==='breve'?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#EEF2FF;color:#4338CA;">Brève</span>':'')
-    +(doc.vues_substack!=null?'<span title="Vues Substack" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+'</span>':'')
-    +(doc.auteur&&!estAuteur?'<span style="font-size:.58rem;color:var(--gris);">'+esc(doc.auteur)+'</span>':'')
-    +(_maOnglet==='corriger'
-        ?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;display:inline-flex;align-items:center;gap:3px;background:'+(doc.correcteur?'#E8F4F8':'#FEE2E2')+';color:'+(doc.correcteur?'#0C5460':'#991B1B')+';"><i class="ti ti-user-search"></i>'+(doc.correcteur?esc(doc.correcteur):'Aucun correcteur')+'</span>'
-        :'')
-    +(_maNewsletterMap[doc.id]
-        ?'<span title="'+esc(_maNewsletterMap[doc.id].titre||'')+'" style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FDEBD0;color:#784212;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-mail"></i>Envoyée le '+new Date(_maNewsletterMap[doc.id].date_envoi).toLocaleDateString('fr-FR')+'</span>'
-        :(doc.redaction_id&&(s==='valide'||s==='publie')
-          ?'<span style="font-size:.58rem;padding:2px 7px;border-radius:10px;background:#FFF9C4;color:#7A6A00;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+'</span>'
-          :''))
-    +age;
-  var ligneHtml='<div style="display:flex;align-items:flex-start;gap:.6rem;margin-bottom:.4rem;">'
-    +'<div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;">'
-      +'<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:.88rem;color:var(--encre);">'+esc(doc.titre||'Sans titre')+'</span>'
-      +tagsHtml
-    +'</div>'
-    +statutHtml
-    +'</div>';
+  if(delaiRelecture) infos.push(esc(delaiRelecture));
+  if(_maOnglet==='corriger') infos.push(doc.correcteur ? 'SR : '+esc(doc.correcteur) : '<span class="mac-alerte">Aucun SR désigné</span>');
+  var nl = _maNewsletterMap[doc.id];
+  if(nl) infos.push('Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR'));
+  else if(doc.redaction_id && (s==='valide'||s==='publie')) infos.push('Newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
+  if(doc.vues_substack!=null) infos.push(doc.vues_substack.toLocaleString('fr-FR')+' vues');
 
-  // Actions — Supprimer ne vit plus ici : déplacé dans la page de lecture de l'article
-  // (renderLecture), pour qu'il faille d'abord ouvrir/relire l'article avant de pouvoir
-  // le supprimer, plutôt qu'un clic rapide et malheureux depuis la liste.
-  var actHtml='<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">';
-  // Modifier si auteur + brouillon
-  if(estAuteur&&(s==='brouillon'))
-    actHtml+='<button style="'+_maBtn('rouge')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i> Modifier</button>';
-  // Corriger + Refuser — correcteur désigné OU admin (pas les deux)
+  // Date : discrète, en rouge seulement quand un papier non publié traîne
+  var dateRef = doc.updated_at||doc.created_at;
+  var jours = dateRef ? Math.floor((Date.now()-new Date(dateRef).getTime())/86400000) : 0;
+  var enRetard = s!=='publie' && jours > 5;
+  var dateTxt = _maDateCourte(dateRef);
+  if(s==='publie') dateTxt = 'Publié '+dateTxt.charAt(0).toLowerCase()+dateTxt.slice(1);
+
+  // Une seule action mise en avant, le reste en discret
+  var actions = '';
+  if(estAuteur && s==='brouillon')
+    actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i>Modifier</button>';
   var peutCorriger = (estCorrecteur && s==='en-relecture') ||
                      (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
   if(peutCorriger){
-    actHtml+='<button style="'+_maBtn('vert')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i> Corriger</button>';
-    actHtml+='<button style="'+_maBtn('red-out')+'" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
+    actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
+    actions += '<button class="mac-btn mac-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)">Refuser</button>';
   }
-  // Voir diff
   if((doc.titre_original||doc.corps_original)&&estAuteur){
     var nbCommentaires = _maCommentairesCountMap[doc.id]||0;
-    actHtml+='<button style="'+_maBtn('violet')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-search"></i> Diff'
-      +(nbCommentaires?' · '+nbCommentaires+' <i class="ti ti-message-circle"></i>':'')+'</button>';
+    actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCommentaires?' ('+nbCommentaires+')':'')+'</button>';
   }
-  // Lire
-  actHtml+='<button style="'+_maBtn('sec')+'" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i> Lire</button>';
-  actHtml+='</div>';
+  actions += '<button class="mac-btn mac-btn-lien" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')">Lire</button>';
 
-  card.innerHTML = noteHtml + ligneHtml + actHtml;
+  card.innerHTML =
+    (estRefuse && doc.note_interne ? '<div class="mac-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>' : '')
+    +'<div class="mac-haut"><span class="mac-statut" style="color:'+st[1]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'><i style="background:'+st[1]+';"></i>'+st[0]+'</span>'
+    +(surtitre.length ? '<span class="mac-surtitre">'+surtitre.join(' · ')+'</span>' : '')
+    +'<span class="mac-date'+(enRetard?' mac-retard':'')+'"'+(enRetard?' title="Pas bougé depuis '+jours+' jours"':'')+'>'+dateTxt+'</span></div>'
+    +'<div class="mac-titre">'+esc(doc.titre||'Sans titre')+'</div>'
+    +'<div class="mac-bas"><span class="mac-infos">'+infos.join(' · ')+'</span><span class="mac-actions">'+actions+'</span></div>';
   return card;
+}
+
+// Nombre de signes (espaces compris) du texte de l'article, sans la mise en forme
+function _maNbSignes(corps){
+  if(!corps) return 0;
+  return String(corps).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/[#*_>`~\[\]]/g, '').replace(/\s+/g, ' ').trim().length;
 }
 
 // Carte d'article sur téléphone : statut et date en haut, titre lisible, une ligne
 // d'infos, puis les actions en pleine largeur. Toucher la carte ouvre l'article.
 var MA_STATUT_MOBILE = {
-  brouillon:        ['Brouillon',          '#92400E','#FEF3C7'],
-  'en-relecture':   ['En relecture',       '#1D4ED8','#DBEAFE'],
-  corrige:          ['Corrigé',            '#0F766E','#CCFBF1'],
-  valide:           ['Validé',             '#C2410C','#FFEDD5'],
-  valide_central:   ['Validé (centrale)',  '#1E3A8A','#E0E7FF'],
-  publie:           ['Publié',             '#047857','#D1FAE5'],
-  refuse:           ['À retravailler',     '#B91C1C','#FEE2E2']
+  brouillon:        ['En écriture',            '#92400E','#FEF3C7'],
+  'en-relecture':   ['Au SR',                  '#1D4ED8','#DBEAFE', 'Chez le secrétariat de rédaction : relecture et correction'],
+  corrige:          ['Relu par le SR',         '#0F766E','#CCFBF1'],
+  valide:           ['Bon à publier',          '#C2410C','#FFEDD5'],
+  valide_central:   ['Bon à publier (siège)',  '#1E3A8A','#E0E7FF'],
+  publie:           ['En ligne',               '#047857','#D1FAE5'],
+  refuse:           ['À reprendre',            '#B91C1C','#FEE2E2']
 };
 
 function _maDateCourte(dateStr){
@@ -1518,6 +1491,8 @@ function _maCarteMobile(doc, uid, role){
   if(doc.type==='breve') infos.push('Brève');
   if(doc.auteur && !estAuteur) infos.push(esc(doc.auteur));
   if(doc.vues_substack!=null) infos.push(doc.vues_substack.toLocaleString('fr-FR')+' vues');
+  var signes = _maNbSignes(doc.corps);
+  if(signes) infos.push(signes.toLocaleString('fr-FR')+' signes');
 
   var extra = '';
   if(estRefuse) extra += '<div class="ma-carte-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>';
@@ -1542,7 +1517,7 @@ function _maCarteMobile(doc, uid, role){
   }
   if(!actions) actions = '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
 
-  card.innerHTML = '<div class="ma-carte-haut"><span class="ma-statut" style="color:'+st[1]+';background:'+st[2]+';">'+st[0]+'</span>'
+  card.innerHTML = '<div class="ma-carte-haut"><span class="ma-statut" style="color:'+st[1]+';background:'+st[2]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'>'+st[0]+'</span>'
     +'<span class="ma-carte-date">'+_maDateCourte(doc.updated_at||doc.created_at)+'</span></div>'
     +'<div class="ma-carte-titre">'+esc(doc.titre||'Sans titre')+'</div>'
     +(infos.length ? '<div class="ma-carte-meta">'+infos.join(' · ')+'</div>' : '')

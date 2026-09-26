@@ -3786,7 +3786,7 @@ input:focus,select:focus,textarea:focus{
   .ma-carte-haut { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
   .ma-statut { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 13px; font: 700 12px 'DM Sans', Arial, sans-serif; }
   .ma-carte-date { font-size: 13px; color: #6B7280; white-space: nowrap; }
-  .ma-carte-titre { font: 700 17px/1.3 Poppins, 'DM Sans', sans-serif; color: #1A1A2E; }
+  .ma-carte-titre { font: 700 17px/1.3 Bitter, Georgia, serif; color: #1A1A2E; }
   .ma-carte-meta { margin-top: 4px; font-size: 14px; color: #6B7280; }
   .ma-carte-note { display: flex; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #FEF2F2; color: #991B1B; font-size: 14px; line-height: 1.4; }
   .ma-carte-note i { font-size: 18px; flex-shrink: 0; }
@@ -4102,3 +4102,28 @@ input:focus,select:focus,textarea:focus{
 .os-online-toi { font-size: 0.62rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); margin-left: 3px; }
 .os-online-redac { font-size: 0.68rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .os-online-vide { padding: 16px 14px; font-size: 0.78rem; color: rgba(255,255,255,0.55); }
+
+/* Mes articles (ordinateur) : cartes façon sommaire de journal */
+.mac { background: white; border: 1px solid var(--gris-bord); border-radius: 10px; padding: 0.75rem 1rem 0.7rem; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; font-family: 'DM Sans', sans-serif; }
+.mac:hover { border-color: rgba(232,70,30,0.35); box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
+.mac-haut { display: flex; align-items: center; gap: 0.6rem; font-size: 0.66rem; min-width: 0; }
+.mac-statut { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
+.mac-statut i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.mac-surtitre { color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mac-date { margin-left: auto; color: var(--gris); white-space: nowrap; flex-shrink: 0; }
+.mac-retard { color: #B91C1C; font-weight: 600; }
+.mac-titre { font: 700 1.02rem/1.3 Bitter, Georgia, serif; color: var(--encre); margin: 0.3rem 0 0.45rem; }
+.mac-bas { display: flex; align-items: center; gap: 0.8rem; min-height: 28px; }
+.mac-infos { flex: 1; min-width: 0; font-size: 0.7rem; color: var(--gris); }
+.mac-alerte { color: #B91C1C; font-weight: 600; }
+.mac-actions { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+.mac-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 0.7rem; border-radius: 7px; border: 1px solid var(--gris-bord); background: white; color: var(--encre); font: 600 0.7rem 'DM Sans', sans-serif; cursor: pointer; }
+.mac-btn:hover { border-color: var(--encre); }
+.mac-btn-principal { background: var(--encre); border-color: var(--encre); color: white; }
+.mac-btn-principal:hover { background: #2D2D4A; }
+.mac-btn-refus { color: #B91C1C; }
+.mac-btn-refus:hover { border-color: #B91C1C; }
+.mac-btn-lien { border-color: transparent; background: transparent; color: var(--gris); }
+.mac-btn-lien:hover { border-color: transparent; color: var(--encre); text-decoration: underline; }
+.mac-note { display: flex; gap: 6px; align-items: flex-start; font-size: 0.72rem; line-height: 1.45; color: #991B1B; border-left: 3px solid #DC2626; padding: 2px 0 2px 8px; margin-bottom: 0.45rem; }
+.theme-dark .mac-btn-principal { background: #E8E6E1 !important; border-color: #E8E6E1 !important; color: #1A1A2E !important; }
