@@ -877,7 +877,7 @@
         </div>
         <div id="r-actions-chef" class="r-actions-groupe" style="display:none;">
           <button id="r-btn-valider" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osDemanderBesoinVisuel()"><i class="ti ti-check"></i>Bon à publier</button>
-          <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (siège)</button>
+          <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (centrale)</button>
           <button id="r-btn-publier" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="rWorkflowAvancer('publie')"><i class="ti ti-world-upload"></i>Mettre en ligne</button>
           <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer</button>
         </div>
@@ -917,7 +917,7 @@
   <!-- Header -->
   <div style="background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
     <div>
-      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">✅ Correction & Publication</div>
+      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-file-search"></i> Secrétariat de rédaction</div>
       <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="corr-subtitle">Chargement...</div>
     </div>
     <button onclick="osAppCorrectionCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">↺ Actualiser</button>
@@ -998,11 +998,11 @@
       <div class="form-group full"><label>Texte</label><textarea id="e-corps"></textarea></div>
       <div class="form-group full"><label>Statut</label>
         <div class="status-row" id="e-statrow">
-          <button class="status-opt" onclick="setStatEdit('brouillon')">Brouillon</button>
-          <button class="status-opt" onclick="setStatEdit('en-relecture')">En relecture</button>
-          <button class="status-opt" onclick="setStatEdit('corrige')">Corrigé</button>
-          <button class="status-opt" onclick="setStatEdit('valide')">Validé</button>
-          <button class="status-opt" onclick="setStatEdit('publie')">Publié</button>
+          <button class="status-opt" onclick="setStatEdit('brouillon')">En écriture</button>
+          <button class="status-opt" onclick="setStatEdit('en-relecture')">Au SR</button>
+          <button class="status-opt" onclick="setStatEdit('corrige')">Relu par le SR</button>
+          <button class="status-opt" onclick="setStatEdit('valide')">Bon à publier</button>
+          <button class="status-opt" onclick="setStatEdit('publie')">En ligne</button>
         </div>
       </div>
     </div>
@@ -1221,11 +1221,11 @@
     <!-- Filtres statut -->
     <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.6rem;">
       <button class="statut-filtre active" data-filtre="tous" onclick="mesArticlesFiltrer(this)">Tous</button>
-      <button class="statut-filtre" data-filtre="brouillon" onclick="mesArticlesFiltrer(this)">Brouillon</button>
-      <button class="statut-filtre" data-filtre="en-relecture" onclick="mesArticlesFiltrer(this)">En relecture</button>
-      <button class="statut-filtre" data-filtre="corrige" onclick="mesArticlesFiltrer(this)">Corrigé</button>
-      <button class="statut-filtre" data-filtre="valide" onclick="mesArticlesFiltrer(this)">Validé</button>
-      <button class="statut-filtre" data-filtre="publie" onclick="mesArticlesFiltrer(this)">Publié</button>
+      <button class="statut-filtre" data-filtre="brouillon" onclick="mesArticlesFiltrer(this)">En écriture</button>
+      <button class="statut-filtre" data-filtre="en-relecture" onclick="mesArticlesFiltrer(this)">Au SR</button>
+      <button class="statut-filtre" data-filtre="corrige" onclick="mesArticlesFiltrer(this)">Relu par le SR</button>
+      <button class="statut-filtre" data-filtre="valide" onclick="mesArticlesFiltrer(this)">Bon à publier</button>
+      <button class="statut-filtre" data-filtre="publie" onclick="mesArticlesFiltrer(this)">En ligne</button>
     </div>
   </div>
 
@@ -1248,7 +1248,7 @@
     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.6rem;">
       <select id="ticket-destinataire" onchange="ticketToggleCorrecteur(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
         <option value="admin">Admin</option>
-        <option value="correcteur">Correcteur</option>
+        <option value="correcteur">Secrétaire de rédaction</option>
       </select>
       <select id="ticket-priorite" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
         <option value="normale">Normale</option>
@@ -1258,7 +1258,7 @@
     </div>
     <div id="ticket-correcteur-select" style="display:none;margin-bottom:0.6rem;">
       <select id="ticket-correcteur-id" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);width:100%;">
-        <option value="">Choisir un correcteur...</option>
+        <option value="">Choisir un SR...</option>
       </select>
     </div>
     <button class="btn" onclick="ticketCreer()">Envoyer</button>
@@ -1398,7 +1398,7 @@
         <div class="modal-action-icon">✏️</div>
         <div><div class="modal-action-label">Modifier l'article</div><div class="modal-action-desc">Édition libre du contenu</div></div>
       </button>
-      <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Correction et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, correcteur·rice, rédac chef, admin).</div>
+      <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Relecture et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, SR, rédac chef, admin).</div>
       <button class="modal-action-btn" onclick="modalActionFermer()" style="margin-top:0.4rem;border-color:transparent;">
         <div class="modal-action-icon">✕</div>
         <div><div class="modal-action-label" style="color:var(--gris);">Annuler</div></div>
@@ -1458,9 +1458,9 @@
     <div class="bvn-group" style="margin-bottom:0.8rem;">
       <label>Ton rôle</label>
       <div style="display:flex;gap:0.5rem;margin-top:0.4rem;">
-        <button class="bvn-role-btn active" data-role="redacteur" onclick="bvnSetRole(this)">✍️ Rédacteur</button>
-        <button class="bvn-role-btn" data-role="correcteur" onclick="bvnSetRole(this)">🔍 Correcteur</button>
-        <button class="bvn-role-btn" data-role="admin" onclick="bvnSetRole(this)">⚙️ Admin</button>
+        <button class="bvn-role-btn active" data-role="redacteur" onclick="bvnSetRole(this)"><i class="ti ti-pencil"></i> Rédacteur</button>
+        <button class="bvn-role-btn" data-role="correcteur" onclick="bvnSetRole(this)"><i class="ti ti-file-search"></i> Secrétaire de rédaction</button>
+        <button class="bvn-role-btn" data-role="admin" onclick="bvnSetRole(this)"><i class="ti ti-settings"></i> Admin</button>
       </div>
     </div>
     <button class="bvn-btn" onclick="bvnValider()">Commencer →</button>
@@ -1485,14 +1485,14 @@
 <div id="modal-assign">
   <div class="assign-card">
     <div class="assign-header">
-      <div class="assign-titre">Envoyer en correction</div>
+      <div class="assign-titre">Envoyer au SR</div>
       <div class="assign-sub" id="assign-article-titre">—</div>
     </div>
     <div class="assign-body">
-      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Assigne cet article à un correcteur :</div>
+      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Choisis la personne du secrétariat de rédaction qui va relire cet article :</div>
       <div id="assign-membres-list"></div>
       <div class="assign-btn-row">
-        <button class="btn" onclick="assignValider()">Envoyer en correction</button>
+        <button class="btn" onclick="assignValider()">Envoyer au SR</button>
         <button class="btn sec" onclick="assignFermer()">Annuler</button>
       </div>
     </div>

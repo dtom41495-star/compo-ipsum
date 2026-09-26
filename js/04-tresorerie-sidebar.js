@@ -2620,13 +2620,13 @@ function osVerifierNotifsWorkflow(){
     }
 
     aCorrections.forEach(function(a){
-      afficher('correction', a, 'Article à corriger', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('correction', a, 'Article à relire (SR)', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
     aPublication.forEach(function(a){
-      afficher('publication', a, 'Prêt à publier', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('publication', a, 'Bon à publier : à mettre en ligne', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
     aCentrale.forEach(function(a){
-      afficher('centrale', a, 'Validation centrale requise', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+      afficher('centrale', a, 'Bon à publier de la centrale attendu', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
 
     try{ localStorage.setItem('compo_workflow_vus_ids', JSON.stringify(nouveauxVus.slice(-150))); }catch(e){}

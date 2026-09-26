@@ -2775,7 +2775,7 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div style="'+CARTE+'">';
   html += '<div style="'+TITRE_SECTION+'">Qui est invité</div>';
   html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;">Tout coché ou tout décoché = toute l\'équipe.</div>';
-  html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'Correcteurs', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
+  html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'SR', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
   html += '</div>';
 

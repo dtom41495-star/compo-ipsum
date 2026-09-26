@@ -588,7 +588,7 @@ function renderDiffLecture(doc){
   // Note du correcteur
   if(doc.note_interne){
     html += '<div style="margin-top:1rem;padding:0.8rem 1rem;background:#EAF3DE;border-left:3px solid #27500A;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:#27500A;margin-bottom:0.3rem;">Note du correcteur</div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:#27500A;margin-bottom:0.3rem;">Remarque du SR</div>';
     html += '<div style="font-size:0.88rem;">' + esc(doc.note_interne) + '</div>';
     html += '</div>';
   }
@@ -679,7 +679,7 @@ function rDiffAfficherCommentaires(doc, container){
     var paragraphes = (doc.corps||'').split(/\n{2,}/);
     var bloc = document.createElement('div');
     bloc.style.cssText = 'margin-top:1.5rem;';
-    bloc.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;"><i class="ti ti-message-circle"></i> Commentaires du correcteur</div>';
+    bloc.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.5rem;"><i class="ti ti-message-circle"></i> Commentaires du SR</div>';
     rows.forEach(function(c){
       var auteurNom = c.membres ? ((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim() : '';
       var extrait = (paragraphes[c.bloc_index]||'').trim();
@@ -727,7 +727,7 @@ function _publierArticleReel(id){
     body: JSON.stringify({statut:'publie', publie_le: new Date().toISOString()})
   }).then(function(r){
     if(r.ok){
-      notif('Article marqué comme publié','succes');
+      notif('Article mis en ligne','succes');
       benvMajActivite();
       if(typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(id);
       // Ajouter dans historique
@@ -738,7 +738,7 @@ function _publierArticleReel(id){
       }).catch(function(){});
 
       // Email au rédacteur via auteur_id
-      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=titre,auteur,auteur_id,sujet_id,redaction_id', {
+      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=id,titre,auteur,auteur_id,sujet_id,redaction_id,rubrique,corps,lien_publication', {
         headers: SB_HEADERS
       })
       .then(function(r){ return r.json(); })
@@ -786,21 +786,9 @@ function _publierArticleReel(id){
             });
           }
           
-          if(membre && membre.email && _osRedacNotifActive(article.redaction_id, 'notif_statut_article')){
-            var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
-              osEnteteEmailLogo('Ton article a ete publie !')+
-              '<div style="padding:1.2rem 1.5rem;">'+
-              '<p>Bonjour '+membre.prenom+',</p>'+
-              '<p>Ton article <strong>"'+article.titre+'"</strong> a ete valide et publie sur Substack par la redaction en chef.</p>'+
-              '<p>Bravo pour ce travail !</p>'+
-              '<p style="color:#155724;background:#D4EDDA;padding:0.8rem;border-left:3px solid #155724;">'+
-              'Retrouve ton article publie depuis <a href="https://compo.ipsummedia.fr">Compo</a>.</p>'+
-              '</div></div>';
-            var chatTexte = '📢 Ton article est publié : "'+(article.titre||'')+'". Bravo pour ce travail ! https://compo.ipsummedia.fr';
-            notifierPersonnel(membre.id, membre.canal_notif, chatTexte, 'publication', function(){
-              envoyerEmailResend(membre.email, '[Compo] Ton article est publie : '+article.titre, html, 'publication')
-                .catch(function(){ console.warn('Email publication non envoye'); });
-            });
+          if(membre){
+            // Même email / message Chat que la mise en ligne depuis l'éditeur
+            _osEmailStatutArticle(Object.assign({}, article, { id:id, auteur_id:membre.id }), 'publie');
           } else {
             console.warn('[Email pub] Membre non trouve pour auteur:', article.auteur, 'id:', article.auteur_id);
           }
@@ -1414,7 +1402,7 @@ function ticketCreer(){
       destId = corrSel.value;
       destCanalNotif = opt.dataset.canalNotif || null;
     } else {
-      notif('Choisis un correcteur');
+      notif('Choisis la personne qui va relire');
       return;
     }
   }
@@ -1785,7 +1773,7 @@ function chargerListeCorrecteurs(){
   .then(function(r){ return r.json(); })
   .then(function(membres){
     if(!membres || !membres.length) return;
-    sel.innerHTML = '<option value="">Choisir un correcteur...</option>';
+    sel.innerHTML = '<option value="">Choisir un SR...</option>';
     membres.forEach(function(m){
       var opt = document.createElement('option');
       opt.value = m.id;
@@ -1999,7 +1987,7 @@ var DOCK_APPS = {
     { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
   ],
   correcteur: [
-    { id:'app-correction', icon:'🔍', label:'Correction', color:'#1A5276' },
+    { id:'app-correction', icon:'<i class="ti ti-file-search"></i>', label:'Secrétariat de rédaction', color:'#1A5276' },
       { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
     { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
@@ -2010,7 +1998,7 @@ var DOCK_APPS = {
   admin: [
     { id:'redaction', icon:'✍️', label:'Rédiger', color:'#E8461E' },
     { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
-    { id:'app-correction', icon:'🔍', label:'Corrections', color:'#1A5276' },
+    { id:'app-correction', icon:'<i class="ti ti-file-search"></i>', label:'Secrétariat de rédaction', color:'#1A5276' },
       { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
     { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
     { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
@@ -2240,7 +2228,7 @@ function osAfficherUserWatermark(){
   if(!nomEl || !roleEl) return;
   var nom = (getUserPrenom()+' '+getUserNom()).trim();
   if(!nom) return;
-  var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'Correcteur',redac_chef:'Rédac en chef',communicant:'Communicant'};
+  var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'SR (secrétaire de rédaction)',redac_chef:'Rédac en chef',communicant:'Communicant'};
   // Le watermark entier a pointer-events:none (élément purement décoratif, pour ne
   // jamais gêner un clic sur le bureau en-dessous) — on le réactive seulement sur le
   // nom, pas sur le bloc entier, pour garder ce comportement partout ailleurs.

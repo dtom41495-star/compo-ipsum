@@ -1027,7 +1027,7 @@ var MA_VUES = {
   mes:                  { icon:'ti-file-text',    label:'Mes articles' },
   brouillons:           { icon:'ti-notebook',     label:'Mes brouillons' },
   secours:              { icon:'ti-device-floppy',label:'Non sauvegardés' },
-  corriger:             { icon:'ti-search',       label:'À corriger' },
+  corriger:             { icon:'ti-search',       label:'À relire (SR)' },
   tous:                 { icon:'ti-list-details', label:'Tous les articles' },
   'validation-centrale':{ icon:'ti-shield-check', label:'Validation centrale' }
 };
@@ -1263,7 +1263,7 @@ function maOsChargerCommentaires(arts){
 }
 
 var MA_STATUTS_ORDRE  = ['brouillon','en-relecture','corrige','valide','valide_central','publie'];
-var MA_STATUTS_LABELS = {brouillon:'Brouillon','en-relecture':'En relecture',corrige:'Corrigé',valide:'Validé',valide_central:'Validé (rédaction centrale)',publie:'Publié'};
+var MA_STATUTS_LABELS = {brouillon:'En écriture','en-relecture':'Au SR',corrige:'Relu par le SR',valide:'Bon à publier',valide_central:'Bon à publier (centrale)',publie:'En ligne'};
 
 function maOsFiltre(){
   var list   = document.getElementById('ma-os-list');
@@ -1459,7 +1459,7 @@ var MA_STATUT_MOBILE = {
   'en-relecture':   ['Au SR',                  '#1D4ED8','#DBEAFE', 'Chez le secrétariat de rédaction : relecture et correction'],
   corrige:          ['Relu par le SR',         '#0F766E','#CCFBF1'],
   valide:           ['Bon à publier',          '#C2410C','#FFEDD5'],
-  valide_central:   ['Bon à publier (siège)',  '#1E3A8A','#E0E7FF'],
+  valide_central:   ['Bon à publier (centrale)',  '#1E3A8A','#E0E7FF'],
   publie:           ['En ligne',               '#047857','#D1FAE5'],
   refuse:           ['À reprendre',            '#B91C1C','#FEE2E2']
 };
@@ -1496,7 +1496,7 @@ function _maCarteMobile(doc, uid, role){
 
   var extra = '';
   if(estRefuse) extra += '<div class="ma-carte-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>';
-  if(_maOnglet==='corriger') extra += '<div class="ma-carte-info"><i class="ti ti-user-search"></i>'+(doc.correcteur ? 'Correction : '+esc(doc.correcteur) : 'Aucun correcteur')+'</div>';
+  if(_maOnglet==='corriger') extra += '<div class="ma-carte-info"><i class="ti ti-user-search"></i>'+(doc.correcteur ? 'SR : '+esc(doc.correcteur) : 'Aucun SR désigné')+'</div>';
   var delai = estAuteur && s==='en-relecture' && typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(doc.redaction_id) : null;
   if(delai) extra += '<div class="ma-carte-info"><i class="ti ti-clock"></i>'+esc(delai)+'</div>';
   var nl = _maNewsletterMap[doc.id];
@@ -1542,9 +1542,9 @@ function maOsRefuser(id){
   var mo = document.createElement('div');
   mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
   mo.innerHTML = '<div style="background:white;border-radius:12px;padding:1.4rem;width:min(460px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.2);">'
-    +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;">Refuser l\'article</div>'
-    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Motif du refus, visible par le rédacteur (optionnel).</div>'
-    +'<textarea id="refus-motif" rows="4" placeholder="Ex : Le chapeau est trop long, retravailler l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
+    +'<div style="font-weight:700;font-size:0.92rem;color:var(--encre);margin-bottom:4px;">Renvoyer l\'article à son auteur·rice</div>'
+    +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.9rem;">Ce qui doit être repris : l\'auteur·rice recevra ta remarque (facultatif).</div>'
+    +'<textarea id="refus-motif" rows="4" placeholder="Ex : Le chapô est trop long, reprendre l\'angle..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>'
     +'<div style="display:flex;gap:0.5rem;margin-top:0.8rem;">'
     +'<button id="refus-ok" style="flex:1;padding:0.5rem;background:#A32D2D;color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Refuser</button>'
     +'<button id="refus-annuler" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
@@ -1562,12 +1562,12 @@ function maOsRefuser(id){
 
 function _maOsRefuserConfirme(id, note){
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à retravailler'})})
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})})
   .then(function(r){
     if(r.ok){
       notif('Article renvoyé en brouillon','succes');
       var a=_maCache.find(function(x){return x.id===id;});
-      if(a){a.statut='brouillon';a.note_interne=note||'Article à retravailler';}
+      if(a){a.statut='brouillon';a.note_interne=note||'Article à reprendre';}
       // Email au rédacteur avec motif + extrait
       _osEmailRefusArticle(a||{id:id,auteur_id:null}, note);
       // Popup

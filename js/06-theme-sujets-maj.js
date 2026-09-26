@@ -358,7 +358,7 @@ function osChargerNotifsDemarrage(){
     .then(function(arts){
       if(arts && !arts.code){
         arts.forEach(function(a){
-          allNotifs.push({msg:'A corriger : '+a.titre, type:'correction', action:function(){ osOpenWindow('app-correction'); }});
+          allNotifs.push({msg:'À relire (SR) : '+a.titre, type:'correction', action:function(){ osOpenWindow('app-correction'); }});
         });
       }
       tryFlush();
@@ -899,7 +899,7 @@ function osParamsRenderSection(section, container){
     // certains envois si la notification in-app suffit déjà).
     var rowCanal = document.createElement('div');
     rowCanal.className = 'params-row';
-    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles <span class="badge-beta">Bêta</span></div><div class="params-label-sub">Comment tu veux recevoir "tu es assigné à ceci", "ton article est publié"...</div></div>'
+    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles <span class="badge-beta">Bêta</span></div><div class="params-label-sub">Comment tu veux recevoir « un article t\'attend au SR », « ton article est en ligne »...</div></div>'
       + '<div style="display:flex;align-items:center;gap:8px;">'
       + '<span id="canal-notif-label-off" style="font-size:0.72rem;color:var(--gris);">Email</span>'
       + '<label class="compo-toggle"><input type="checkbox" id="params-canal-notif" onchange="osChoisirCanalNotif(this.checked?\'chat\':\'email\')"><span class="track"></span><span class="thumb"></span></label>'

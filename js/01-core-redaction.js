@@ -973,7 +973,7 @@ function osDiffSection(label, avant, apres){
   h+='<div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gris);font-weight:700;margin-bottom:0.5rem;">'+label+'</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">';
   h+='<div style="background:#FFF5F5;border:1px solid #FECACA;border-radius:8px;padding:0.8rem;font-size:0.82rem;line-height:1.6;"><div style="font-size:0.58rem;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Original</div><div>'+esc(avant||'—')+'</div></div>';
-  h+='<div style="background:#F0FFF4;border:1px solid #A7F3D0;border-radius:8px;padding:0.8rem;font-size:0.82rem;line-height:1.6;"><div style="font-size:0.58rem;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Corrigé</div><div>'+esc(apres||'—')+'</div></div>';
+  h+='<div style="background:#F0FFF4;border:1px solid #A7F3D0;border-radius:8px;padding:0.8rem;font-size:0.82rem;line-height:1.6;"><div style="font-size:0.58rem;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Relu par le SR</div><div>'+esc(apres||'—')+'</div></div>';
   h+='</div>';
   if(avant&&apres&&avant!==apres){
     h+='<div style="background:white;border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem;margin-top:0.5rem;font-size:0.82rem;line-height:1.6;">';
@@ -992,7 +992,7 @@ function osMontrerDiff(article){
   mo.style.cssText='background:white;border-radius:16px;width:min(900px,96vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;';
   mo.innerHTML='<div style="background:var(--encre-fixe);padding:1.1rem 1.4rem;display:flex;align-items:center;gap:.8rem;">'
     +'<div style="font-size:1.2rem;">🔍</div>'
-    +'<div style="flex:1;"><div style="font-weight:700;color:white;font-size:.95rem;">Modifications du correcteur</div>'
+    +'<div style="flex:1;"><div style="font-weight:700;color:white;font-size:.95rem;">Modifications du SR</div>'
     +'<div style="font-size:.68rem;color:rgba(255,255,255,.5);margin-top:2px;">'+esc(article.titre||'')+(article.correcteur?' · '+esc(article.correcteur):'')+'</div></div>'
     +'<button id="dfc" style="background:rgba(255,255,255,.12);border:none;color:white;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1.1rem;">×</button></div>'
     +'<div style="padding:.7rem 1.4rem;background:#FAFAFA;border-bottom:1px solid var(--gris-bord);display:flex;gap:1rem;font-size:.72rem;flex-wrap:wrap;">'
@@ -1003,7 +1003,7 @@ function osMontrerDiff(article){
     +osDiffSection('Titre',article.titre_original,article.titre)
     +osDiffSection('Chapeau',article.chapeau_original,article.chapeau)
     +osDiffSection('Corps',article.corps_original,article.corps)
-    +(article.note_interne?'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:.9rem 1rem;margin-top:.5rem;"><div style="font-size:.62rem;font-weight:700;color:#4338CA;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">📝 Note du correcteur</div><div style="font-size:.82rem;color:#374151;">'+esc(article.note_interne)+'</div></div>':'')
+    +(article.note_interne?'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:.9rem 1rem;margin-top:.5rem;"><div style="font-size:.62rem;font-weight:700;color:#4338CA;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;"><i class="ti ti-message-circle"></i> Remarque du SR</div><div style="font-size:.82rem;color:#374151;">'+esc(article.note_interne)+'</div></div>':'')
     +'</div>'
     +'<div style="padding:1rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;justify-content:flex-end;background:#FAFAFA;">'
     +'<button id="dfa" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">✓ Accepter les modifications</button>'
@@ -1033,11 +1033,11 @@ function osAppCorrectionCharger(){
 
   // Onglets selon rôle
   var onglets = [];
-  if(isChef) onglets.push({id:'brouillons', label:'📝 Brouillons', desc:'À envoyer en correction'});
-  onglets.push({id:'relecture', label:'🔍 En relecture', desc:'À corriger'});
+  if(isChef) onglets.push({id:'brouillons', label:'En écriture', desc:'À envoyer au SR'});
+  onglets.push({id:'relecture', label:'Au SR', desc:'À relire'});
   if(isChef){
-    onglets.push({id:'corriges', label:'✅ Corrigés', desc:'À valider'});
-    onglets.push({id:'valides', label:'🚀 Validés', desc:'À publier'});
+    onglets.push({id:'corriges', label:'Relus par le SR', desc:'À passer en bon à publier'});
+    onglets.push({id:'valides', label:'Bon à publier', desc:'À mettre en ligne'});
   }
 
   if(!_corrOnglet || !onglets.find(function(o){return o.id===_corrOnglet;})){
@@ -1081,11 +1081,11 @@ function osAppCorrectionCharger(){
     }
 
     var STATUT_CONF = {
-      brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},
-      'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},
-      corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},
-      valide:{l:'Validé',bg:'#D4EDDA',c:'#155724'},
-      publie:{l:'Publié',bg:'#D4EDDA',c:'#155724'}
+      brouillon:{l:'En écriture',bg:'#FFF3CD',c:'#856404'},
+      'en-relecture':{l:'Au SR',bg:'#D6EAF8',c:'#1A5276'},
+      corrige:{l:'Relu par le SR',bg:'#D1ECF1',c:'#0C5460'},
+      valide:{l:'Bon à publier',bg:'#D4EDDA',c:'#155724'},
+      publie:{l:'En ligne',bg:'#D4EDDA',c:'#155724'}
     };
 
     var h = '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
@@ -1113,19 +1113,19 @@ function osAppCorrectionCharger(){
       h += '<button data-id="'+a.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')" style="font-size:0.68rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--encre);">Lire</button>';
 
       if(_corrOnglet==='brouillons' && isChef){
-        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'en-relecture\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#1A5276;color:white;cursor:pointer;font-weight:600;">→ Envoyer en correction</button>';
+        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'en-relecture\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#1A5276;color:white;cursor:pointer;font-weight:600;"><i class="ti ti-send"></i> Envoyer au SR</button>';
       }
       if(_corrOnglet==='relecture'){
-        h += '<button data-id="'+a.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#0C5460;color:white;cursor:pointer;font-weight:600;">✏️ Corriger</button>';
-        if(isChef) h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;">↩ Renvoyer</button>';
+        h += '<button data-id="'+a.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#0C5460;color:white;cursor:pointer;font-weight:600;"><i class="ti ti-pencil"></i> Corriger</button>';
+        if(isChef) h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>';
       }
       if(_corrOnglet==='corriges' && isChef){
-        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'valide\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#155724;color:white;cursor:pointer;font-weight:600;">✓ Valider</button>';
-        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;">↩ Renvoyer</button>';
+        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'valide\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#155724;color:white;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Bon à publier</button>';
+        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>';
       }
       if(_corrOnglet==='valides' && isChef){
-        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'publie\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#E8461E;color:white;cursor:pointer;font-weight:600;">🚀 Publier</button>';
-        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;">↩ Renvoyer</button>';
+        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionAvancer(this.dataset.id,\'publie\')" style="font-size:0.68rem;padding:4px 10px;border:none;border-radius:6px;background:#E8461E;color:white;cursor:pointer;font-weight:600;"><i class="ti ti-world-upload"></i> Mettre en ligne</button>';
+        h += '<button data-id="'+a.id+'" onclick="osAppCorrectionRenvoyer(this.dataset.id)" style="font-size:0.68rem;padding:4px 10px;border:1px solid #856404;border-radius:6px;background:transparent;color:#856404;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>';
       }
       h += '</div></div>';
     });
@@ -1141,7 +1141,7 @@ function osAppCorrectionAvancer(id, nouveauStatut){
     body:JSON.stringify({statut:nouveauStatut})
   }).then(function(r){
     if(r.ok){
-      var labels = {'en-relecture':'Envoyé en correction ✓','corrige':'Marqué corrigé ✓','valide':'Validé ✓','publie':'Publié 🚀'};
+      var labels = {'en-relecture':'Envoyé au SR','corrige':'Marqué comme relu','valide':'Passé en bon à publier','publie':'Mis en ligne'};
       notif(labels[nouveauStatut]||'Mis à jour','succes');
       osAppCorrectionCharger();
       // Notifier la com si article validé
@@ -1483,7 +1483,7 @@ function diff(a,b){
   });
   return r;
 }
-function bStat(s){const l={brouillon:'Brouillon','en-relecture':'En relecture',corrige:'Corrigé',valide:'Validé ✓',publie:'Publié'};return '<span class="badge b-'+s+'">'+(l[s]||s)+'</span>';}
+function bStat(s){const l={brouillon:'En écriture','en-relecture':'Au SR',corrige:'Relu par le SR',valide:'Bon à publier',publie:'En ligne'};return '<span class="badge b-'+s+'">'+(l[s]||s)+'</span>';}
 function bUrg(u){const l={normal:'Normal',moyen:'Moyen',urgent:'🔴 Urgent'};return '<span class="badge b-'+u+'">'+(l[u]||u)+'</span>';}
 function renderHist(id,hist){
   const el=document.getElementById(id);
@@ -1804,10 +1804,10 @@ function nlPublierArticlesSelectionnes(){
     var publiables = aPublier.filter(function(a){ return _osArticlePubliable(a); });
     publiables.forEach(function(a){ _publierArticleReel(a.id); });
     if(publiables.length){
-      notif(publiables.length+' article'+(publiables.length>1?'s':'')+' passé'+(publiables.length>1?'s':'')+' en publié ✓','succes');
+      notif(publiables.length+' article'+(publiables.length>1?'s':'')+' mis en ligne','succes');
     }
     if(bloques.length){
-      notif(bloques.length+' article'+(bloques.length>1?'s':'')+' pas publié'+(bloques.length>1?'s':'')+' (validation rédaction centrale requise) : '+bloques.map(function(a){return a.titre;}).join(', '), 'alerte');
+      notif(bloques.length+' article'+(bloques.length>1?'s':'')+' pas mis en ligne (bon à publier de la rédaction centrale requis) : '+bloques.map(function(a){return a.titre;}).join(', '), 'alerte');
     }
   }).catch(function(){});
 }
