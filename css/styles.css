@@ -4169,3 +4169,23 @@ input:focus,select:focus,textarea:focus{
 .sd-mot small { font-weight: 400; color: var(--gris); }
 .sd-mot textarea { min-height: 0 !important; resize: none; font: 400 0.84rem/1.45 'DM Sans', sans-serif; padding: 0.6rem 0.75rem; border: 1px solid var(--gris-bord); border-radius: 10px; color: var(--encre); background: white; box-sizing: border-box; width: 100%; }
 @media (max-width: 768px) { .sd-mot textarea { font-size: 16px; } }
+
+/* Rédiger : choix du sujet */
+.rs-boite { width: 520px; }
+.rs-recherche { width: 100%; box-sizing: border-box; padding: 0.6rem 0.8rem; border: 1px solid var(--gris-bord); border-radius: 10px; font: 400 0.85rem 'DM Sans', sans-serif; }
+.rs-section { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gris); margin: 0.9rem 0 0.4rem; }
+.rs-section:first-child { margin-top: 0; }
+.rs-sujet { display: grid; grid-template-columns: 1fr auto; gap: 2px 0.8rem; width: 100%; text-align: left; padding: 0.7rem 0.85rem; margin-bottom: 0.45rem; border: 1px solid var(--gris-bord); border-radius: 12px; background: white; cursor: pointer; font-family: 'DM Sans', sans-serif; color: var(--encre); }
+.rs-sujet:hover { border-color: rgba(232,70,30,0.45); background: #FFFAF8; }
+.rs-sujet-titre { grid-column: 1; font: 700 0.95rem/1.3 Bitter, Georgia, serif; }
+.rs-sujet-note { grid-column: 1; font-size: 0.74rem; color: var(--gris); line-height: 1.4; }
+.rs-sujet-info { grid-column: 1; font-size: 0.7rem; color: var(--gris); display: flex; gap: 0.4rem; align-items: center; }
+.rs-attente { color: #8A6400; }
+.rs-urgent { color: #B91C1C; }
+.rs-sujet-action { grid-column: 2; grid-row: 1 / span 3; align-self: center; font-size: 0.74rem; font-weight: 700; color: #E8461E; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+.rs-nouveau { display: flex; flex-direction: column; gap: 0.4rem; padding-top: 0.8rem; border-top: 1px solid var(--gris-bord); margin-top: 0.4rem; }
+@media (max-width: 768px) {
+  .rs-sujet { grid-template-columns: 1fr; }
+  .rs-sujet-action { grid-column: 1; grid-row: auto; margin-top: 4px; }
+  .rs-recherche { font-size: 16px; }
+}

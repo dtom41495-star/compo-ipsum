@@ -1480,8 +1480,10 @@ function cpsCréerArticle(cpId){
   };
   fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payloadSujet)}).catch(function(){});
 
-  // Ouvrir la rédaction avec le CP pré-rempli
+  // Ouvrir la rédaction avec le CP pré-rempli (le sujet vient d'être créé ci-dessus)
+  window._rsOuvertureInterne = true;
   osOpenWindow('redaction');
+  window._rsOuvertureInterne = false;
   setTimeout(function(){
     resetRedaction();
     osPopulerSelectRedaction();

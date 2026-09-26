@@ -794,20 +794,8 @@ function rChangerRedaction(){
 
 
 function osOuvrirNouvelArticle(){
-  osOpenWindow('redaction');
-  var _attente = 0;
-  function _attendre(){
-    _attente += 100;
-    // Attendre que le cache des rédactions soit prêt (max 3s)
-    if((!window._redactionsData || !window._redactionsData.length) && _attente < 3000){
-      setTimeout(_attendre, 100);
-      return;
-    }
-    resetRedaction();
-    osPopulerSelectRedaction();
-    preremplirAuteur();
-  }
-  setTimeout(_attendre, 150);
+  // Un nouvel article part toujours d'un sujet (voir js/22-rediger-sujet.js)
+  osRedigerChoisirSujet('nouveau');
 }
 
 // « Tout effacer » : jamais sans confirmation, le texte non enregistré serait perdu

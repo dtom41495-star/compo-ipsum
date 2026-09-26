@@ -808,7 +808,8 @@ function osSujetsDroit(){
   return null;
 }
 
-function osOuvrirNouveauSujetModal(){
+function osOuvrirNouveauSujetModal(opts){
+  window._nsOpts = opts || null; // depuis Rédiger : titre pré-rempli, et on écrit juste après
   var droit = osSujetsDroit();
   if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
   var existing = document.getElementById('nouveau-sujet-overlay');
@@ -835,16 +836,16 @@ function osOuvrirNouveauSujetModal(){
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ns-rubrique" placeholder="Ex : Municipales, Culture..."></div>'
     +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ns-note" style="min-height:70px;" placeholder="De quoi ça parle, pourquoi c\'est intéressant..."></textarea></div>'
     +'</div>'
-    +(droit==='proposer' ? '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">Ton sujet sera visible par l\'équipe une fois validé par le rédac chef.</div>' : '')
+    +(droit==='proposer' ? '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">'+(opts && opts.apres ? 'Le sujet te sera réservé : tu peux écrire tout de suite. Il sera visible par l\'équipe une fois validé par le rédac chef.' : 'Ton sujet sera visible par l\'équipe une fois validé par le rédac chef.')+'</div>' : '')
     +'<div class="btn-row">'
-    +'<button class="btn" onclick="osCreerNouveauSujet()">'+(droit==='proposer'?'Envoyer la proposition':'Publier le sujet')+'</button>'
+    +'<button class="btn" onclick="osCreerNouveauSujet()">'+(opts && opts.apres ? (droit==='proposer'?'Proposer et écrire':'Créer et écrire') : (droit==='proposer'?'Envoyer la proposition':'Publier le sujet'))+'</button>'
     +'</div>'
     +'</div>';
 
   overlay.appendChild(card);
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
-  setTimeout(function(){ var t=document.getElementById('ns-titre'); if(t) t.focus(); }, 50);
+  setTimeout(function(){ var t=document.getElementById('ns-titre'); if(t){ if(opts && opts.titre) t.value = opts.titre; t.focus(); } }, 50);
 }
 
 function osCreerNouveauSujet(){
@@ -870,13 +871,18 @@ function osCreerNouveauSujet(){
     redaction_id: window._redacActiveId||null,
     created_by: getUserId()
   };
+  // Depuis Rédiger : le sujet est réservé d'office à son auteur·rice (même en attente de validation)
+  var apres = window._nsOpts && window._nsOpts.apres;
+  if(apres){ payload.responsable = getUserNomComplet(); if(!aValider) payload.statut = 'en_cours'; }
   fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif(aValider ? 'Proposition envoyée au rédac chef' : 'Sujet publié','succes');
+      notif(aValider ? (apres ? 'Proposition envoyée au rédac chef : tu peux écrire' : 'Proposition envoyée au rédac chef') : (apres ? 'Sujet créé' : 'Sujet publié'),'succes');
       var overlay = document.getElementById('nouveau-sujet-overlay');
       if(overlay) overlay.remove();
       if(aValider) _osSujetPrevenirChefs(payload);
+      window._nsOpts = null;
+      if(apres){ apres(payload); return; }
       osRedactionsChangerOnglet('sujets');
     } else notif(aValider ? 'Impossible d\'envoyer la proposition' : 'Erreur','erreur');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
@@ -913,13 +919,13 @@ function _osSujetPrevenirAuteur(sujet, accepte){
     var m = ms.find(function(x){ return x.id === sujet.created_by; }); if(!m || !m.email) return;
     var html = accepte
       ? _osSujetEmail({ accent:'vert', etiquette:'SUJET PUBLIÉ', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
-          texte:'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
+          texte: sujet.responsable ? 'Ton sujet a été validé : il te reste réservé, tu peux continuer ton article.' : 'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
           pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' })
       : _osSujetEmail({ accent:'ambre', etiquette:'SUJET NON RETENU', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
-          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition ! Tu peux en parler avec ton rédac chef pour en savoir plus.',
+          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition ! Tu peux en parler avec ton rédac chef pour en savoir plus.'+(sujet.responsable ? ' Si tu avais commencé à écrire, ton brouillon est gardé dans Mes brouillons.' : ''),
           boutons:[], pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
     var chat = accepte
-      ? '✅ *Ton sujet est publié*\n« '+_chatSansMiseEnForme(sujet.titre)+' » est visible par l\'équipe, tu peux le réserver.'
+      ? '✅ *Ton sujet est validé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » '+(sujet.responsable ? 'te reste réservé, tu peux continuer ton article.' : 'est visible par l\'équipe, tu peux le réserver.')
       : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !';
     notifierPersonnel(m.id, m.canal_notif, chat, 'sujet', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] '+(accepte?'Sujet publié':'Sujet non retenu')+' · '+sujet.titre, html, 'sujet');
@@ -968,8 +974,10 @@ function osSujetValiderProposition(sujetId, accepte){
   if(!accepte && !confirm('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.')) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var req = accepte
-    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut:'ouvert'})})
-    : fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH});
+    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert'})})
+    // Refus : le brouillon éventuel est gardé, mais détaché du sujet avant sa suppression
+    : fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){})
+        .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); });
   req.then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
     notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');

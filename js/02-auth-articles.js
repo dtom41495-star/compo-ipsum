@@ -120,39 +120,9 @@ var db = {
       return data;
     })
     .then(function(data){
-      // Création automatique du sujet correspondant.
-      // Un article écrit directement depuis Rédaction (sans partir d'un sujet existant
-      // ni d'un communiqué) doit malgré tout exister comme sujet : il apparaît alors
-      // dans la liste publique, au titre de l'article, marqué comme pris par son
-      // auteur — au lieu de vivre dans une liste « articles hors sujets » à part.
-      if(!estUneCreation || payload.sujet_id || payload.cp_id) return data;
-      var titreSujet = (payload.titre||'').trim();
-      if(!titreSujet) return data;
-      var sujetId = 'BRF-'+Date.now();
-      var hMin = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-      return fetch(SB_URL+'/rest/v1/briefing', {
-        method:'POST', headers:hMin,
-        body: JSON.stringify({
-          id: sujetId,
-          titre: titreSujet,
-          type: 'article',
-          priorite: 'normale',
-          statut: 'en_cours', // déjà pris : c'est son auteur qui l'écrit
-          responsable: payload.auteur || getUserNomComplet(),
-          redaction_id: payload.redaction_id || null,
-          created_by: payload.auteur_id || getUserId()
-        })
-      }).then(function(r){
-        if(!r.ok) return data;
-        return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
-          method:'PATCH', headers:hMin, body: JSON.stringify({ sujet_id: sujetId })
-        }).then(function(){
-          if(data[0]) data[0].sujet_id = sujetId;
-          if(currentDoc && currentDoc.id === articleId) currentDoc.sujet_id = sujetId;
-          return data;
-        });
-      // Un échec ici ne doit jamais faire échouer la sauvegarde de l'article lui-même.
-      }).catch(function(){ return data; });
+      // Plus de sujet créé automatiquement : un article part toujours d'un sujet choisi
+      // ou proposé avant d'écrire (voir js/22-rediger-sujet.js)
+      return data;
     })
     .then(function(data){
       // Garantit que l'indicateur sort toujours de l'état "en cours" (animé), même
@@ -1228,7 +1198,11 @@ function ouvrirAssignation(){
   var auteur = document.getElementById('r-auteur').value.trim();
   var titre = document.getElementById('r-titre').value.trim();
   var corps = document.getElementById('r-corps').value.trim();
-  if(!auteur||!titre||!corps){ notif('Remplis le titre et le contenu dabord'); return; }
+  if(!auteur||!titre||!corps){ notif('Remplis le titre et le contenu d\'abord'); return; }
+  if(!(currentDoc && (currentDoc.sujet_id || currentDoc._sujet_id))){
+    osRedigerChoisirSujet('lier', ouvrirAssignation);
+    return;
+  }
 
   _assignDoc = buildDoc();
   _assignDoc.statut = 'en-relecture';
