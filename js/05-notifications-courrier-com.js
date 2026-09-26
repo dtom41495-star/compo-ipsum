@@ -335,7 +335,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
     snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'app-dub':'✂️ Raccourcisseur'
+    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'flouter':'Flouter une photo', 'app-dub':'✂️ Raccourcisseur'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])

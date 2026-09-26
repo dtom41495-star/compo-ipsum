@@ -1656,6 +1656,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
   { id:'app-dub',        icon:'<i class="ti ti-scissors"></i>', label:'Raccourcisseur', color:'#993C1D', desc:'Raccourcit un lien avec Dub. Accès accordé au cas par cas depuis la fiche bénévole (quota mensuel limité).' },
   { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
+  { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
@@ -1677,7 +1678,7 @@ var ALL_APPS_CATALOGUE = [
 // Stats n'y sont pas : leurs icônes sont toujours sur le bureau. Les autres applis
 // s'ajoutent depuis le Compo Store.
 var PROFILS_PREDEFINIS = {
-  redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','notes','signatures','compo-store'],
+  redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','flouter','notes','compo-store'],
   correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
   redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
   admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
