@@ -4151,3 +4151,21 @@ input:focus,select:focus,textarea:focus{
 #r-corps-live h2, #r-corps-live h3 { font-family: Bitter, Georgia, serif !important; font-weight: 700 !important; }
 #r-sujet-lie-zone:empty { display: none; }
 #r-cp-source-zone:not(:has(#r-cp-source-affichage:not([style*="display:none"]):not([style*="display: none"]))) { display: none; }
+
+/* Se désengager d'un sujet */
+.sd-sujet { display: flex; flex-direction: column; gap: 2px; padding: 0.8rem 0.95rem; border: 1px solid var(--gris-bord); border-radius: 12px; }
+.sd-sujet span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); }
+.sd-sujet strong { font: 700 1rem/1.3 Bitter, Georgia, serif; color: var(--encre); }
+.sd-sujet em { font-style: normal; font-size: 0.76rem; color: var(--gris); }
+.sd-choix { display: flex; flex-direction: column; gap: 0.4rem; }
+.sd-choix-titre { font-size: 0.72rem; font-weight: 700; color: var(--encre); }
+.sd-option { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.75rem; border: 1px solid var(--gris-bord); border-radius: 10px; cursor: pointer; text-transform: none; letter-spacing: normal; font-weight: 400; }
+.sd-option:has(input:checked) { border-color: #E8461E; background: #FFF7F4; }
+.sd-option input { accent-color: #E8461E; width: 18px; height: 18px; margin: 1px 0 0; flex-shrink: 0; }
+.sd-option span { display: flex; flex-direction: column; gap: 1px; font-size: 0.8rem; color: var(--encre); }
+.sd-option small { font-size: 0.72rem; color: var(--gris); }
+.sd-mot { display: flex; flex-direction: column; gap: 0.35rem; text-transform: none; letter-spacing: normal; font-weight: 400; }
+.sd-mot > span { font-size: 0.78rem; font-weight: 600; color: var(--encre); }
+.sd-mot small { font-weight: 400; color: var(--gris); }
+.sd-mot textarea { min-height: 0 !important; resize: none; font: 400 0.84rem/1.45 'DM Sans', sans-serif; padding: 0.6rem 0.75rem; border: 1px solid var(--gris-bord); border-radius: 10px; color: var(--encre); background: white; box-sizing: border-box; width: 100%; }
+@media (max-width: 768px) { .sd-mot textarea { font-size: 16px; } }
