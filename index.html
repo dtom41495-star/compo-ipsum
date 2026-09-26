@@ -236,7 +236,8 @@
     <!-- Étape 2 : Apps (le thème n'est plus proposé ici — sombre est en bêta, réglable depuis les paramètres) -->
     <div class="oobe-step" id="oobe-step-2">
       <div class="oobe-title">Tes apps</div>
-      <div class="oobe-sub">Choisis ce que tu veux dans le dock (max 8)</div>
+      <div class="oobe-sub">Choisis les applis de ta barre du bas (8 au maximum). Agenda, Veille, Guide et Stats sont toujours sur le bureau, et les autres applis s'ajoutent plus tard depuis le Compo Store.</div>
+      <div class="oobe-compteur" id="oobe-compteur"></div>
       <div class="oobe-apps-grid" id="oobe-apps-grid"></div>
       <button class="oobe-btn" onclick="oobeTerminer()">C'est parti 🚀</button>
       <button class="oobe-btn-sec" onclick="oobeTerminer()">Passer cette étape</button>
@@ -646,17 +647,17 @@
 <div class="page" id="page-redaction" style="padding:0!important;max-width:none!important;margin:0!important;display:flex;flex-direction:column;min-height:100%;background:white;">
 
   <!-- BARRE HAUTE fixe — allégée : le reste des réglages est dans le panneau latéral -->
-  <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0.6rem 1rem;border-bottom:1px solid var(--gris-bord);background:white;flex-wrap:wrap;">
-    <div style="display:flex;border:1px solid var(--gris-bord);border-radius:20px;overflow:hidden;flex-shrink:0;">
-      <button class="toggle-btn active" id="tb-article" onclick="setType('article')" style="font-size:0.68rem;padding:5px 14px;border-radius:0;">Article</button>
-      <button class="toggle-btn" id="tb-breve" onclick="setType('breve')" style="font-size:0.68rem;padding:5px 14px;border-radius:0;">Brève</button>
+  <div class="r-barre-haut">
+    <div class="r-type" role="group" aria-label="Type de papier">
+      <button class="toggle-btn active" id="tb-article" onclick="setType('article')">Article</button>
+      <button class="toggle-btn" id="tb-breve" onclick="setType('breve')">Brève</button>
     </div>
     <!-- Input caché pour compatibilité buildDoc -->
     <input type="hidden" id="r-redaction" value="">
     <div style="flex:1;"></div>
     <div id="r-statut-badge" style="display:none;font-size:0.62rem;padding:4px 12px;border-radius:20px;font-weight:600;"></div>
-    <button onclick="rOuvrirReglages()" title="Réglages de l'article" style="width:34px;height:34px;border:1px solid var(--gris-bord);border-radius:10px;background:white;cursor:pointer;color:var(--encre);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-adjustments-horizontal"></i></button>
-    <button onclick="sauvegarderCloud()" style="background:#E8461E;color:white;border:none;border-radius:20px;padding:7px 18px;font-size:0.72rem;font-weight:600;cursor:pointer;flex-shrink:0;"><i class="ti ti-cloud-upload"></i> Sauvegarder</button>
+    <button class="mac-btn" onclick="rOuvrirReglages()" title="Réglages de l'article"><i class="ti ti-adjustments-horizontal"></i><span class="r-lib">Réglages</span></button>
+    <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="sauvegarderCloud()"><i class="ti ti-cloud-upload"></i>Enregistrer</button>
   </div>
 
   <!-- Commentaire correction -->
@@ -675,6 +676,7 @@
     </div>
     <div style="padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.2rem;">
 
+      <div class="rg-section">Publication</div>
       <!-- Auteur -->
       <label id="r-auteur-label" for="r-auteur-select" style="display:none;font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:-0.85rem;">Signé par</label>
       <select id="r-auteur-select" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;display:none;box-sizing:border-box;"></select>
@@ -710,13 +712,13 @@
         </div>
       </div>
 
-      <!-- Angle -->
-      <div class="form-group" id="rg-angle">
-        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Angle éditorial</label>
-        <input type="text" id="r-angle" placeholder="Ton point de vue sur le sujet" spellcheck="true" lang="fr"
-          style="width:100%;font-size:0.82rem;font-family:'DM Sans',sans-serif;color:var(--encre);border:1px solid var(--gris-bord);border-radius:8px;padding:6px 10px;background:white;outline:none;margin-top:0.35rem;box-sizing:border-box;">
+      <!-- Date -->
+      <div class="form-group">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Date de publication souhaitée</label>
+        <input type="date" id="r-datepub" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;margin-top:0.35rem;box-sizing:border-box;">
       </div>
 
+      <div class="rg-section">Sujet et sources</div>
       <!-- CP source lié -->
       <div id="r-cp-source-zone">
         <div id="r-cp-source-affichage" style="display:none;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;align-items:center;gap:0.7rem;">
@@ -732,7 +734,25 @@
 
       <!-- Sujet lié — permet de corriger le lien si l'article a été rattaché au
            mauvais sujet (créé automatiquement, ou choisi par erreur). -->
-      <div id="r-sujet-lie-zone" style="margin-top:0.6rem;"></div>
+      <div id="r-sujet-lie-zone"></div>
+
+      <!-- Sources -->
+      <div class="form-group" id="rg-sources">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
+        <div class="sources-list" id="sources-list" style="margin-top:0.35rem;">
+          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>
+        </div>
+        <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
+      </div>
+
+      <div class="rg-section">Contenu</div>
+      <!-- Angle -->
+      <div class="form-group" id="rg-angle">
+        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Angle éditorial</label>
+        <input type="text" id="r-angle" placeholder="Ton point de vue sur le sujet" spellcheck="true" lang="fr"
+          style="width:100%;font-size:0.82rem;font-family:'DM Sans',sans-serif;color:var(--encre);border:1px solid var(--gris-bord);border-radius:8px;padding:6px 10px;background:white;outline:none;margin-top:0.35rem;box-sizing:border-box;">
+      </div>
+
 
       <!-- Image -->
       <div class="form-group">
@@ -753,21 +773,6 @@
         <div class="tags-wrap" id="tags-wrap" style="margin-top:0.35rem;"><input type="text" class="tag-input" id="tag-input" placeholder="Ajouter + Entrée" onkeydown="addTag(event)"></div>
       </div>
 
-      <!-- Sources -->
-      <div class="form-group" id="rg-sources">
-        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
-        <div class="sources-list" id="sources-list" style="margin-top:0.35rem;">
-          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>
-        </div>
-        <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
-      </div>
-
-      <!-- Date -->
-      <div class="form-group">
-        <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Date de publication souhaitée</label>
-        <input type="date" id="r-datepub" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;margin-top:0.35rem;box-sizing:border-box;">
-      </div>
-
       <!-- Autres actions, rarement utiles : rangées ici plutôt que sous l'article -->
       <div class="r-reglages-autres">
         <button class="mac-btn" onclick="exporterArticleJSON()"><i class="ti ti-file-code"></i>Exporter (JSON)</button>
@@ -782,12 +787,11 @@
     <div style="max-width:720px;width:100%;margin:0 auto;padding:2.5rem 2rem 1.5rem;box-sizing:border-box;">
 
       <!-- Abandon sujet -->
-      <div id="r-abandon-sujet" style="display:none;background:#FFF3CD;border:1.5px solid #856404;padding:0.6rem 1rem;border-radius:8px;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.2rem;">
-        <span style="font-size:0.65rem;color:#856404;"><i class="ti ti-pin"></i> Sujet réservé — les autres ne le voient plus</span>
-        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
-          <button onclick="osRedacVoirSujetLie()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:#856404;color:white;cursor:pointer;border-radius:4px;">Voir le sujet</button>
-          <button onclick="brfAbandonnerSujet()" style="font-size:0.62rem;padding:3px 10px;border:1px solid #856404;background:transparent;color:#856404;cursor:pointer;border-radius:4px;">Me désengager</button>
-        </div>
+      <div id="r-abandon-sujet" class="r-sujet-bandeau" style="display:none;">
+        <i class="ti ti-bookmark"></i>
+        <div class="r-sujet-texte"><span class="r-sujet-label">Sujet réservé pour toi</span><span class="r-sujet-nom" id="r-sujet-bandeau-titre"></span></div>
+        <button class="r-sujet-lien" onclick="osRedacVoirSujetLie()">Voir le sujet</button>
+        <button class="r-sujet-lien r-sujet-lien-discret" onclick="brfAbandonnerSujet()">Me désengager</button>
       </div>
 
       <!-- Lien partage -->
@@ -948,32 +952,14 @@
 
 <!-- LECTURE -->
 <div class="page" id="page-lecture">
-  <div class="page-title">Lire un article</div>
-  <div class="page-sub">Prévisualise un article et prépare-le pour Substack</div>
-  <!-- Écran d'attente : cette page n'est plus alimentée par un import de fichier JSON
-       (reliquat de la v1), mais par un clic sur « Lire » depuis Mes Articles. -->
+  <!-- Écran d'attente : l'article s'ouvre depuis Mes articles (bouton « Lire ») -->
   <div id="lect-vide" style="padding:2.5rem 1rem;text-align:center;color:var(--gris);">
     <div style="font-size:2rem;margin-bottom:0.6rem;color:var(--gris-bord);"><i class="ti ti-eye"></i></div>
     <div style="font-size:0.85rem;">Aucun article ouvert.</div>
-    <div style="font-size:0.78rem;margin-top:4px;">Ouvre-en un depuis <strong>Mes Articles</strong>, bouton « Lire ».</div>
+    <div style="font-size:0.78rem;margin-top:4px;">Ouvre-en un depuis <strong>Mes articles</strong>, bouton « Lire ».</div>
   </div>
-  <div id="lect-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
-      <div id="l-codeid"></div><div id="l-statbadge"></div><div id="l-urgbadge"></div><div id="l-fraicheur"></div>
-    </div>
-    <div class="art-preview" id="art-preview"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="genMd('lect')">Copier le texte</button>
-      <button class="btn sec" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i> Générer les visuels</button>
-      <button class="btn sec" onclick="exporterPDF()">Exporter en PDF</button>
-      <button id="lect-btn-modifier" class="btn sec" style="display:none" onclick="chargerDansRedaction(currentDoc)">Modifier</button>
-    </div>
-    <!-- Sur sa propre ligne, sous la rangée principale — jamais collé aux autres
-         boutons, pour éviter un clic malheureux. Rempli par renderLecture, visible
-         seulement une fois l'article ouvert (pas de suppression "à l'aveugle"). -->
-    <div id="lect-suppr-zone" style="margin-top:0.6rem;"></div>
-    <div class="md-out" id="md-lect"></div>
-  </div>
+  <!-- Rempli par renderLecture (article) ou renderDiffLecture (corrections) -->
+  <div id="lect-content" style="display:none"></div>
 </div>
 
 <!-- ÉDITION -->
@@ -1509,5 +1495,6 @@
 <script src="js/20-signature-electronique.js"></script>
 <script src="js/21-sujets-desengagement.js"></script>
 <script src="js/22-rediger-sujet.js"></script>
+<script src="js/23-flouter.js"></script>
 </body>
 </html>

@@ -335,7 +335,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
     newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
     snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'app-dub':'✂️ Raccourcisseur'
+    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'flouter':'Flouter une photo', 'app-dub':'✂️ Raccourcisseur'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -380,11 +380,11 @@ function _osOpenWindowExecuter(pageId){
   if(pageId === 'redaction'){
     saveIndicator = document.createElement('div');
     saveIndicator.id = 'win-save-indicator';
-    saveIndicator.style.cssText = 'font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:8px;background:rgba(0,0,0,0.05);color:var(--gris);border:0.5px solid var(--gris-bord);white-space:nowrap;flex-shrink:0;';
+    saveIndicator.style.cssText = 'font-family:DM Sans,sans-serif;font-size:0.68rem;font-weight:600;padding:2px 9px;border-radius:999px;background:rgba(0,0,0,0.05);color:var(--gris);border:0.5px solid var(--gris-bord);white-space:nowrap;flex-shrink:0;';
     // Neutre par défaut — il ne faut pas afficher "Sauvegardé" avant de savoir si le
     // document chargé l'est réellement (un nouveau brouillon vide ne l'est pas encore) ;
     // mesArticlesOuvrir passe explicitement à "sauvegardé" pour un article déjà en base.
-    saveIndicator.textContent = '⚪ Non enregistré';
+    saveIndicator.innerHTML = '<i class="ti ti-point" style="vertical-align:-2px;"></i> Non enregistré';
     // Forcer le chargement des rédactions si cache vide
     if(!window._redactionsData || !window._redactionsData.length){
       var authHR = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});

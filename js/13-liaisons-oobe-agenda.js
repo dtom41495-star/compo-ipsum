@@ -381,14 +381,21 @@ function oobeOuvrir(userId, role){
 
   // Construire la grille d'apps seulement si pas préconfigurées
   if(!window._oobeAppsPreconfigurees){
+    // Pas les applis toujours présentes sur le bureau, ni les anciennes versions
+    var SUR_LE_BUREAU = ['agenda','veille','tutos','stats-dashboard'];
     var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
-      return a.roles.includes(role);
+      var r = a.roles||[];
+      return (r.includes(role) || (role === 'redac_chef' && r.includes('redacteur'))) && SUR_LE_BUREAU.indexOf(a.id) === -1 && !a.legacy && !/\(v1\)/.test(a.label);
     });
     var profil = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
+    _oobeAppsSelectionnees.clear();
     profil.forEach(function(id){
-      _oobeAppsSelectionnees.add(id);
+      if(_oobeAppsSelectionnees.size < 8 && appsDisponibles.some(function(a){ return a.id === id; })) _oobeAppsSelectionnees.add(id);
     });
 
+    var compteur = document.getElementById('oobe-compteur');
+    function majCompteur(){ if(compteur) compteur.innerHTML = '<strong>'+_oobeAppsSelectionnees.size+'</strong> / 8 applis choisies'; }
+    majCompteur();
     var grid = document.getElementById('oobe-apps-grid');
     if(grid){
       grid.innerHTML = '';
@@ -401,10 +408,11 @@ function oobeOuvrir(userId, role){
             _oobeAppsSelectionnees.delete(app.id);
             card.classList.remove('selected');
           } else {
-            if(_oobeAppsSelectionnees.size >= 8){ notif('Max 8 apps'); return; }
+            if(_oobeAppsSelectionnees.size >= 8){ notif('8 applis au maximum : retires-en une pour en ajouter une autre'); return; }
             _oobeAppsSelectionnees.add(app.id);
             card.classList.add('selected');
           }
+          majCompteur();
         };
         grid.appendChild(card);
       });
