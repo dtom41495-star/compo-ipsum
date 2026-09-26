@@ -376,7 +376,7 @@ function rFermerReglages(){
 // ===== STATS =====
 function updateStats(){
   const v=document.getElementById('r-corps').value;
-  const s=v.length,mo=v.trim()?v.trim().split(/\s+/).length:0;
+  const s=(typeof _maNbSignes==='function')?_maNbSignes(v):v.length,mo=v.trim()?v.trim().split(/\s+/).length:0;
   const lec=Math.max(1,Math.round(mo/200)),ph=v.split(/[.!?]+/).filter(x=>x.trim()).length;
   const avg=ph>0?Math.round(mo/ph):0;
   const bar=document.getElementById('stats-bar');
@@ -808,6 +808,13 @@ function osOuvrirNouvelArticle(){
     preremplirAuteur();
   }
   setTimeout(_attendre, 150);
+}
+
+// « Tout effacer » : jamais sans confirmation, le texte non enregistré serait perdu
+function rToutEffacer(){
+  if(!confirm('Effacer tout le contenu de l\'éditeur ?\n\nCe qui n\'a pas été enregistré sera perdu. Un article déjà enregistré reste dans Mes articles.')) return;
+  if(typeof rFermerReglages === 'function') rFermerReglages();
+  resetRedaction();
 }
 
 function resetRedaction(){
@@ -2566,3 +2573,24 @@ function vproExporter(){
 
 // ===== RSS SUBSTACK =====
 var RSS_URL = 'https://ipsummedia.substack.com/feed';
+
+// Titre et chapô s'ajustent à leur contenu, y compris quand un article est chargé
+// ou effacé (le texte est alors posé sans événement de saisie)
+function rAjusterChamps(){
+  ['r-titre','r-chapeau'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el || !el.offsetParent) return;
+    var h = el.style.height;
+    el.style.height = 'auto';
+    var voulu = el.scrollHeight;
+    el.style.height = voulu > 0 ? voulu+'px' : h;
+  });
+}
+// Vérifié régulièrement : le texte peut changer sans événement (chargement, effacement)
+setInterval(function(){
+  var t = document.getElementById('r-titre');
+  if(!t || !t.offsetParent) return;
+  var c = document.getElementById('r-chapeau');
+  var cle = t.value+'\u0001'+(c ? c.value : '')+'\u0001'+t.clientWidth;
+  if(cle !== rAjusterChamps._cle){ rAjusterChamps._cle = cle; rAjusterChamps(); }
+}, 700);

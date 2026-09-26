@@ -2316,7 +2316,7 @@ function osSaveIndicateur(etat){
   var el = document.getElementById('win-save-indicator');
   if(!el) return;
   if(etat === 'modifie'){
-    el.textContent = '🟡 Modification en cours';
+    el.innerHTML = '<i class="ti ti-point-filled" style="vertical-align:-2px;"></i> Non enregistré';
     el.style.background = 'rgba(255,189,46,0.15)';
     el.style.color = '#856404';
     el.style.borderColor = 'rgba(255,189,46,0.3)';
@@ -2328,12 +2328,12 @@ function osSaveIndicateur(etat){
     el.style.color = '#1A5276';
     el.style.borderColor = 'rgba(26,82,118,0.3)';
   } else if(etat === 'sauvegarde'){
-    el.textContent = '🟢 Sauvegardé';
+    el.innerHTML = '<i class="ti ti-circle-check" style="vertical-align:-2px;"></i> Enregistré';
     el.style.background = 'rgba(39,174,96,0.15)';
     el.style.color = '#27AE60';
     el.style.borderColor = 'rgba(39,174,96,0.3)';
   } else if(etat === 'erreur'){
-    el.textContent = '🔴 Erreur de sauvegarde';
+    el.innerHTML = '<i class="ti ti-alert-circle" style="vertical-align:-2px;"></i> Non enregistré (erreur)';
     el.style.background = 'rgba(163,45,45,0.15)';
     el.style.color = '#A32D2D';
     el.style.borderColor = 'rgba(163,45,45,0.3)';
@@ -2344,10 +2344,12 @@ function osSaveIndicateur(etat){
 var _autoSaveTimer = null;
 var _autoSaveLastHash = '';
 
+// Empreinte de tout le texte : une correction au milieu, même sans changer la longueur,
+// ou une modification du chapô seul, doivent aussi déclencher la sauvegarde
 function _autoSaveHash(){
-  var t = (document.getElementById('r-titre')||{}).value||'';
-  var c = (document.getElementById('r-corps')||{}).value||'';
-  return t.length+':'+c.length+':'+t.substring(0,20)+c.substring(0,20);
+  return ['r-titre','r-chapeau','r-angle','r-auteur','r-corps'].map(function(id){
+    return (document.getElementById(id)||{}).value||'';
+  }).join('\u0001');
 }
 
 document.addEventListener('input', function(e){

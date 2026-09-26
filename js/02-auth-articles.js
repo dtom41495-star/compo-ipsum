@@ -1732,12 +1732,10 @@ function rWorkflowMajInterface(doc){
   var attenteCentrale   = !!redacCentrale && !articleEstCentral;
   var estValCentral     = estValidateurCentral();
 
-  var STATUTS   = {brouillon:{l:'Brouillon',bg:'#FFF3CD',c:'#856404'},
-                   'en-relecture':{l:'En relecture',bg:'#D6EAF8',c:'#1A5276'},
-                   corrige:{l:'Corrigé',bg:'#D1ECF1',c:'#0C5460'},
-                   valide:{l:(attenteCentrale?'Validé — attente centrale':'Validé'),bg:'#D4EDDA',c:'#155724'},
-                   valide_central:{l:'Validé (centrale)',bg:'#D4EDDA',c:'#0B3D91'},
-                   publie:{l:'Publié',bg:'#D4EDDA',c:'#155724'}};
+  // Même vocabulaire et mêmes couleurs que les cartes de Mes articles
+  var stCarte = MA_STATUT_MOBILE[(statut==='brouillon' && doc && doc.note_interne) ? 'refuse' : statut];
+  var STATUTS = {};
+  if(stCarte) STATUTS[statut] = { l: stCarte[0]+(statut==='valide' && attenteCentrale ? ', en attente du siège' : ''), bg: stCarte[2], c: stCarte[1] };
   var cfg = STATUTS[statut]||{l:statut,bg:'#eee',c:'#555'};
 
   // Badge statut

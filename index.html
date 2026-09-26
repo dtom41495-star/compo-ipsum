@@ -661,7 +661,7 @@
 
   <!-- Commentaire correction -->
   <div id="r-commentaire-correction" style="display:none;flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #856404;padding:0.6rem 1rem;">
-    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"><i class="ti ti-message-circle"></i> Commentaire du correcteur</div>
+    <div style="font-size:0.62rem;font-weight:700;color:#856404;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"><i class="ti ti-message-circle"></i> Remarque du SR</div>
     <div id="r-commentaire-txt" style="font-size:0.8rem;color:#5a3e00;"></div>
   </div>
 
@@ -676,6 +676,7 @@
     <div style="padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.2rem;">
 
       <!-- Auteur -->
+      <label id="r-auteur-label" for="r-auteur-select" style="display:none;font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:-0.85rem;">Signé par</label>
       <select id="r-auteur-select" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;display:none;box-sizing:border-box;"></select>
       <input type="text" id="r-auteur" placeholder="Auteur *" style="display:none;font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;box-sizing:border-box;">
 
@@ -693,7 +694,7 @@
       <div class="form-group">
         <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rubrique</label>
         <select id="r-rubrique" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);width:100%;margin-top:0.35rem;box-sizing:border-box;">
-          <option value="">Rubrique</option>
+          <option value="">Choisir une rubrique</option>
           <option>Actu locale</option><option>Actu nationale</option><option>Reportage</option>
           <option>Interview</option><option>Agenda</option><option>Culture</option><option>Sport</option>
         </select>
@@ -767,6 +768,12 @@
         <input type="date" id="r-datepub" style="font-size:0.82rem;padding:6px 10px;border:1px solid var(--gris-bord);border-radius:8px;width:100%;margin-top:0.35rem;box-sizing:border-box;">
       </div>
 
+      <!-- Autres actions, rarement utiles : rangées ici plutôt que sous l'article -->
+      <div class="r-reglages-autres">
+        <button class="mac-btn" onclick="exporterArticleJSON()"><i class="ti ti-file-code"></i>Exporter (JSON)</button>
+        <button class="mac-btn mac-btn-refus" onclick="rToutEffacer()"><i class="ti ti-eraser"></i>Tout effacer</button>
+      </div>
+
     </div>
   </div>
 
@@ -818,13 +825,13 @@
 
       <!-- Chapeau -->
       <div id="rg-chapeau" class="form-group">
-        <textarea id="r-chapeau" placeholder="Introduction — accroche du lecteur" rows="2" spellcheck="true" lang="fr"
+        <textarea id="r-chapeau" placeholder="Chapô : l'essentiel en deux phrases, pour donner envie de lire la suite" rows="2" spellcheck="true" lang="fr"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"
           style="resize:none;overflow:hidden;width:100%;font-size:1.05rem;font-family:'DM Sans',sans-serif;color:var(--gris);border:none;border-radius:0;padding:0;background:transparent;outline:none;display:block;margin-bottom:1.4rem;line-height:1.5;"></textarea>
       </div>
 
       <!-- Toolbar formatage -->
-      <div style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
+      <div id="r-barre-outils" style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
         <button onclick="rFormat('bold')" title="Gras" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-weight:700;font-size:0.8rem;">B</button>
         <button onclick="rFormat('italic')" title="Italique" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-style:italic;font-size:0.8rem;">I</button>
         <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-quote"></i></button>
@@ -856,27 +863,24 @@
       </div>
 
       <!-- ACTIONS -->
-      <div id="r-actions-bas" style="padding:1rem 0 2rem;border-top:1px solid var(--gris-bord);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <div id="r-actions-redacteur" style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" onclick="ouvrirAssignation()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-send"></i> Envoyer en correction</button>
-          <button class="btn sec" onclick="rArticleLierCpSource()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-news"></i> Lier un CP</button>
-          <button class="btn sec" onclick="exporterArticle()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-share"></i> Partager</button>
-          <button class="btn sec" onclick="genererVisuelsDepuisRedaction()" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-palette"></i> Visuels</button>
-          <button class="btn sec" onclick="ouvrirFS('r')" style="font-size:0.72rem;padding:5px 12px;"><i class="ti ti-arrows-maximize"></i> Plein écran</button>
+      <div id="r-actions-bas">
+        <div id="r-actions-redacteur" class="r-actions-groupe">
+          <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="ouvrirAssignation()"><i class="ti ti-send"></i>Envoyer au SR</button>
+          <button class="mac-btn" onclick="rArticleLierCpSource()"><i class="ti ti-news"></i>Lier un communiqué</button>
+          <button class="mac-btn" onclick="exporterArticle()"><i class="ti ti-share"></i>Partager</button>
+          <button class="mac-btn" onclick="genererVisuelsDepuisRedaction()"><i class="ti ti-palette"></i>Visuels</button>
+          <button class="mac-btn" onclick="ouvrirFS('r')"><i class="ti ti-arrows-maximize"></i>Plein écran</button>
         </div>
-        <div id="r-actions-correcteur" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button onclick="rWorkflowAvancer('corrige')" style="background:#0C5460;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-circle-check"></i> Marquer comme corrigé</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer au rédacteur</button>
+        <div id="r-actions-correcteur" class="r-actions-groupe" style="display:none;">
+          <button class="mac-btn mac-btn-vert" data-sombre-ignore onclick="rWorkflowAvancer('corrige')"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
+          <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer au rédacteur</button>
         </div>
-        <div id="r-actions-chef" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;">
-          <button id="r-btn-valider" onclick="osDemanderBesoinVisuel()" style="background:#155724;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Valider</button>
-          <button id="r-btn-valider-central" onclick="rWorkflowAvancer('valide_central')" style="background:#0B3D91;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-shield-check"></i> Valider (rédaction centrale)</button>
-          <button id="r-btn-publier" onclick="rWorkflowAvancer('publie')" style="background:#E8461E;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:0.72rem;font-weight:600;cursor:pointer;"><i class="ti ti-rocket"></i> Publier</button>
-          <button onclick="rWorkflowRenvoyer()" style="background:transparent;border:1px solid #856404;color:#856404;border-radius:7px;padding:5px 14px;font-size:0.72rem;cursor:pointer;"><i class="ti ti-corner-up-left"></i> Renvoyer</button>
+        <div id="r-actions-chef" class="r-actions-groupe" style="display:none;">
+          <button id="r-btn-valider" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osDemanderBesoinVisuel()"><i class="ti ti-check"></i>Bon à publier</button>
+          <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (siège)</button>
+          <button id="r-btn-publier" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="rWorkflowAvancer('publie')"><i class="ti ti-world-upload"></i>Mettre en ligne</button>
+          <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer</button>
         </div>
-        <div style="flex:1;"></div>
-        <button onclick="exporterArticleJSON()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;color:var(--gris);cursor:pointer;"><i class="ti ti-file-code"></i> JSON</button>
-        <button onclick="resetRedaction()" style="font-size:0.65rem;padding:4px 9px;background:transparent;border:none;color:var(--gris);cursor:pointer;">Tout effacer</button>
       </div>
 
     </div>

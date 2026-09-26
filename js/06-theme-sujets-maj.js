@@ -486,7 +486,7 @@ var TOUR_ETAPES = [
   {
     id: 'redaction', pageId: 'redaction', cible: '#r-titre',
     titre: '<i class="ti ti-pencil"></i> Rédiger un article',
-    texte: 'Ton article suit un circuit fixe : Brouillon → En relecture → Corrigé → Validé → Publié. Une fois prêt, clique sur "Envoyer en correction" pour le faire relire par un correcteur.'
+    texte: 'Ton article suit un circuit fixe : En écriture → Au SR → Relu par le SR → Bon à publier → En ligne. Une fois prêt, clique sur « Envoyer au SR » pour le faire relire par le secrétariat de rédaction.'
   }
 ];
 
