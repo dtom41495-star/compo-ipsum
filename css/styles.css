@@ -4238,3 +4238,41 @@ input:focus,select:focus,textarea:focus{
   .lx-pied-ligne { grid-template-columns: 1fr; gap: 0.2rem; }
   .lx-bas { padding: 0.5rem 1rem 2rem; }
 }
+
+/* Éditeur : barre du haut, bandeau du sujet, mise en forme, réglages */
+.r-barre-haut { flex-shrink: 0; display: flex; align-items: center; gap: 0.45rem; padding: 0.6rem 1rem; border-bottom: 1px solid var(--gris-bord); background: white; flex-wrap: wrap; }
+.r-type { display: inline-flex; padding: 3px; border-radius: 10px; background: #F4F2EF; flex-shrink: 0; }
+.r-type .toggle-btn { font: 600 0.76rem 'DM Sans', sans-serif !important; text-transform: none; letter-spacing: 0; padding: 5px 14px; border-radius: 8px !important; border: none; background: transparent; color: #6B7280; box-shadow: none !important; }
+.r-type .toggle-btn.active { background: white; color: var(--encre); box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important; }
+.r-barre-haut .mac-btn { border-radius: 9px !important; font-size: 0.76rem !important; }
+.r-sujet-bandeau { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.85rem; margin-bottom: 1.3rem; border-radius: 12px; background: #FFF8E6; border: 1px solid #F3DFA2; color: #6B4F00; font-family: 'DM Sans', sans-serif; }
+.r-sujet-bandeau > i { font-size: 1.1rem; color: #8A6400; flex-shrink: 0; }
+.r-sujet-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.r-sujet-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8A6400; }
+.r-sujet-nom { font: 700 0.86rem/1.3 Bitter, Georgia, serif; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-sujet-nom:empty { display: none; }
+.r-sujet-lien { flex-shrink: 0; background: white; border: 1px solid #F3DFA2; color: #6B4F00; border-radius: 8px; padding: 5px 10px; font: 600 0.72rem 'DM Sans', sans-serif; cursor: pointer; }
+.r-sujet-lien:hover { border-color: #8A6400; }
+.r-sujet-lien-discret { background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 2px; }
+#r-barre-outils { gap: 2px !important; padding: 5px 0 !important; }
+#r-barre-outils button { border: none !important; background: transparent !important; border-radius: 7px !important; min-width: 32px; height: 32px !important; color: #3F3F52; box-shadow: none !important; }
+#r-barre-outils button:hover { background: #F4F2EF !important; color: var(--encre); }
+#r-barre-outils > div { background: var(--gris-bord) !important; margin: 6px 4px !important; }
+#drawer-redac-reglages .rg-section { font: 700 0.95rem/1.3 Bitter, Georgia, serif; color: var(--encre); padding-top: 1rem; border-top: 1px solid var(--gris-bord); margin-bottom: -0.4rem; }
+#drawer-redac-reglages .rg-section:first-child { padding-top: 0; border-top: none; }
+#drawer-redac-reglages input[type="text"], #drawer-redac-reglages input[type="date"], #drawer-redac-reglages select { background: white !important; }
+#drawer-redac-reglages .urg-btn { text-transform: none; font: 600 0.76rem 'DM Sans', sans-serif; }
+#drawer-redac-reglages .tags-wrap { border-radius: 8px; border: 1.5px solid var(--md-outline); padding: 0.3rem 0.5rem; }
+#drawer-redac-reglages .tags-wrap .tag-input { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0.3rem !important; }
+#drawer-redac-reglages .src-item button { background: transparent; border: none; color: #9CA3AF; border-radius: 8px; }
+#drawer-redac-reglages .src-item button:hover { color: #B91C1C; background: #FDECEC; }
+#drawer-redac-reglages .add-link { font: 600 0.74rem 'DM Sans', sans-serif; text-decoration: none; }
+#drawer-redac-reglages .upload-zone { border-radius: 10px; border-width: 1.5px; }
+@media (max-width: 768px) {
+  .r-barre-haut .r-lib { display: none; }
+  .r-sujet-bandeau { flex-wrap: wrap; }
+  .r-sujet-texte { flex-basis: calc(100% - 2rem); }
+  .r-sujet-lien { flex: 1; text-align: center; }
+}
+#page-redaction .stats-bar, #winpage-redaction .stats-bar { font-family: 'DM Sans', sans-serif; font-size: 0.74rem; }
+#lisib-label { font-family: 'DM Sans', sans-serif; font-size: 0.7rem !important; }

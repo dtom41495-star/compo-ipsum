@@ -2613,4 +2613,7 @@ setInterval(function(){
   var c = document.getElementById('r-chapeau');
   var cle = t.value+'\u0001'+(c ? c.value : '')+'\u0001'+t.clientWidth;
   if(cle !== rAjusterChamps._cle){ rAjusterChamps._cle = cle; rAjusterChamps(); }
+  // Titre du sujet dans le bandeau « Sujet réservé pour toi »
+  var bandeau = document.getElementById('r-abandon-sujet'), nom = document.getElementById('r-sujet-bandeau-titre');
+  if(bandeau && nom && nom.textContent !== (bandeau.dataset.sujetTitre||'')) nom.textContent = bandeau.dataset.sujetTitre||'';
 }, 700);
