@@ -129,9 +129,9 @@ function _flForce(v){
   if(d && d.mode === _fl.mode){ d.force = _fl.force; _flDessiner(); }
 }
 function _flAnnuler(){ if(_fl.zones.length){ _fl.zones.pop(); _flDessiner(); } }
-function _flToutEffacer(){ if(_fl.zones.length && confirm('Retirer toutes les zones ?')){ _fl.zones = []; _flDessiner(); } }
+function _flToutEffacer(){ if(_fl.zones.length && osConfirmerPuis('Retirer toutes les zones ?', null, _flToutEffacer, this, arguments)){ _fl.zones = []; _flDessiner(); } }
 function _flNouvelle(){
-  if(_fl.zones.length && !confirm('Changer de photo ? Les zones tracées seront perdues.')) return;
+  if(_fl.zones.length && !osConfirmerPuis('Changer de photo ? Les zones tracées seront perdues.', null, _flNouvelle, this, arguments)) return;
   document.getElementById('fl-fichier').click();
 }
 
@@ -201,7 +201,7 @@ function _flBlob(){
 }
 function _flTelecharger(){
   if(!_fl || !_fl.image) return;
-  if(!_fl.zones.length && !confirm('Aucune zone floutée. Télécharger quand même la photo ?')) return;
+  if(!_fl.zones.length && !osConfirmerPuis('Aucune zone floutée. Télécharger quand même la photo ?', {oui:'Télécharger'}, _flTelecharger, this, arguments)) return;
   _flBlob().then(function(b){
     var a = document.createElement('a');
     a.href = URL.createObjectURL(b); a.download = _fl.nom+'-floute.jpg';

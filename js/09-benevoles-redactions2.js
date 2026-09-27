@@ -35,7 +35,7 @@ function osDemandeApprouver(demandeId, membreId, appsDemandees){
 }
 
 function osDemandeRefuser(demandeId){
-  if(!confirm('Refuser cette demande ?')) return;
+  if(!osConfirmerPuis('Refuser cette demande ?', null, osDemandeRefuser, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/membres_demandes?id=eq.'+encodeURIComponent(demandeId), {
     method:'PATCH',
     headers: Object.assign({}, SB_HEADERS, {
@@ -402,8 +402,8 @@ function osBenevolesDashRender(){
     eh+='<div style="background:var(--gris-clair);color:var(--gris);font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\'tous\')">Tous <strong>'+articles.length+'</strong></div>';
     eh+='</div>';
     eh+='</div>';
-    if(artBloques.length) eh+='<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.4rem;font-size:0.78rem;color:#A32D2D;">⚠️ '+artBloques.length+' article(s) bloqué(s) au SR depuis plus de 5 jours</div>';
-    if(artValides.length) eh+='<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;">✅ '+artValides.length+' article(s) bon(s) à publier, en attente de mise en ligne</div>';
+    if(artBloques.length) eh+='<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.4rem;font-size:0.78rem;color:#A32D2D;"><i class="ti ti-alert-triangle"></i> '+artBloques.length+' article(s) bloqué(s) au SR depuis plus de 5 jours</div>';
+    if(artValides.length) eh+='<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;"><i class="ti ti-circle-check"></i> '+artValides.length+' article(s) bon(s) à publier, en attente de mise en ligne</div>';
     eh+='</div>';
     eh+='<div style="flex:1;overflow-y:auto;" id="benv-edito-table"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--gris-clair);">';
     ['Titre','Auteur','Rédaction','Statut','Urgence','Fraîcheur',''].forEach(function(h){eh+='<th style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);padding:0.55rem 0.9rem;text-align:left;font-weight:500;white-space:nowrap;">'+h+'</th>';});
@@ -419,7 +419,7 @@ function osBenevolesDashRender(){
       var redacCouleur = redacArt ? (redacArt.couleur||'#EA5B1C') : '#888';
       var redacNom = redacArt ? redacArt.nom : (a.redaction||'—');
       eh+='<tr data-statut="'+esc(a.statut||'')+'" style="border-bottom:1px solid var(--gris-bord);'+(bloque?'background:#FFF8F8;':'')+'">';
-      eh+='<td style="padding:0.5rem 0.9rem;max-width:200px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(bloque?'⚠️ ':'')+esc(a.titre||'Sans titre')+'</div></td>';
+      eh+='<td style="padding:0.5rem 0.9rem;max-width:200px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(bloque?'<i class="ti ti-alert-triangle"></i> ':'')+esc(a.titre||'Sans titre')+'</div></td>';
       eh+='<td style="padding:0.5rem 0.9rem;font-size:0.78rem;color:var(--gris);white-space:nowrap;">'+esc(a.auteur||'—')+'</td>';
       eh+='<td style="padding:0.5rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+redacCouleur+'22;color:'+redacCouleur+';border:1px solid '+redacCouleur+'44;border-radius:3px;white-space:nowrap;">'+esc(redacNom)+'</span></td>';
       eh+='<td style="padding:0.5rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;">'+sd.l+'</span></td>';
@@ -469,7 +469,7 @@ function osBenevolesDashRender(){
             h += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
             h += '<div><div style="font-size:0.9rem;font-weight:700;color:var(--encre);">'+esc(c.nom)+'</div>';
             if(c.description) h += '<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">'+esc(c.description)+'</div>';
-            if(resp&&resp.membres) h += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:3px;">👑 '+esc(resp.membres.prenom+' '+resp.membres.nom)+'</div>';
+            if(resp&&resp.membres) h += '<div style="font-size:0.65rem;color:var(--rouge);margin-top:3px;"><i class="ti ti-crown"></i> '+esc(resp.membres.prenom+' '+resp.membres.nom)+'</div>';
             if(c.fonction_liee||c.redaction_id){
               h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">';
               if(c.fonction_liee) h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:rgba(234,91,28,0.1);color:var(--rouge);"><i class="ti ti-key"></i> '+esc(FONCTIONS_LABELS[c.fonction_liee]||c.fonction_liee)+'</span>';
@@ -493,7 +493,7 @@ function osBenevolesDashRender(){
             if(isAdmin){
               h += '<div style="display:flex;gap:4px;margin-top:0.7rem;border-top:1px solid var(--gris-bord);padding-top:0.6rem;">';
               h += '<button data-cid="'+c.id+'" onclick="osBenvCommissionGerer(this.dataset.cid)" style="flex:1;font-size:0.65rem;padding:3px 8px;border:1px solid var(--gris-bord);border-radius:5px;background:transparent;cursor:pointer;color:var(--encre);">Gérer</button>';
-              h += '<button data-cid="'+c.id+'" onclick="osBenvCommissionSupprimer(this.dataset.cid)" style="font-size:0.65rem;padding:3px 8px;border:1px solid #F5B7B1;border-radius:5px;background:transparent;cursor:pointer;color:#A32D2D;">✕</button>';
+              h += '<button data-cid="'+c.id+'" onclick="osBenvCommissionSupprimer(this.dataset.cid)" style="font-size:0.65rem;padding:3px 8px;border:1px solid #F5B7B1;border-radius:5px;background:transparent;cursor:pointer;color:#A32D2D;"><i class="ti ti-x"></i></button>';
               h += '</div>';
             }
             h += '</div></div>';
@@ -655,7 +655,7 @@ function osBenvCommissionSauvegarder(){
   fetch(SB_URL+'/rest/v1/commissions',{method:'POST',headers:authH,body:JSON.stringify({
     nom:nom.trim(),description:desc.trim()||null,couleur:couleur,fonction_liee:fonctionLiee,redaction_id:redactionId
   })})
-  .then(function(r){ if(r.ok){ notif('Commission créée ✓','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
+  .then(function(r){ if(r.ok){ notif('Commission créée','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
 }
 
 function osBenvCommissionGerer(id){
@@ -674,8 +674,8 @@ function osBenvCommissionGerer(id){
   box.style.cssText = 'background:white;border-radius:12px;padding:1.5rem;width:min(500px,90vw);max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);';
   var membresNonDedans = membres.filter(function(m){return liensIds.indexOf(m.id)===-1;});
   var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
-    +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);">🏛️ '+esc(comm.nom)+'</div>'
-    +'<button onclick="document.getElementById(\'benv-comm-gerer-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gris);">✕</button>'
+    +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-building-bank"></i> '+esc(comm.nom)+'</div>'
+    +'<button onclick="document.getElementById(\'benv-comm-gerer-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gris);"><i class="ti ti-x"></i></button>'
     +'</div>';
   // Fonction liée + rédaction — modifiables après coup, avec synchronisation
   // rétroactive des membres déjà présents (voir osBenvCommissionSauverReglages)
@@ -705,7 +705,7 @@ function osBenvCommissionGerer(id){
         +'<option value="membre"'+(l.role_commission==='membre'?' selected':'')+'>Membre</option>'
         +'<option value="responsable"'+(l.role_commission==='responsable'?' selected':'')+'>Responsable</option>'
         +'</select>'
-        +'<button data-lid="'+l.id+'" data-cid="'+id+'" data-mid="'+m.id+'" onclick="osBenvCommissionRetirerMembre(this.dataset.cid,this.dataset.lid,this.dataset.mid)" style="font-size:0.7rem;background:none;border:none;cursor:pointer;color:#A32D2D;" title="Retirer">✕</button>'
+        +'<button data-lid="'+l.id+'" data-cid="'+id+'" data-mid="'+m.id+'" onclick="osBenvCommissionRetirerMembre(this.dataset.cid,this.dataset.lid,this.dataset.mid)" style="font-size:0.7rem;background:none;border:none;cursor:pointer;color:#A32D2D;" title="Retirer"><i class="ti ti-x"></i></button>'
         +'</div>';
     });
   } else {
@@ -783,7 +783,7 @@ function osBenvCommissionSauverReglages(id){
     method:'PATCH', headers:authH, body: JSON.stringify({fonction_liee:nouvelleFonction, redaction_id:nouvelleRedaction})
   }).then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
-    notif('Réglages enregistrés ✓','succes');
+    notif('Réglages enregistrés','succes');
     var liens = (window._benvCommLiens||[]).filter(function(l){ return l.commission_id===id; });
     // Si la fonction liée change, la retirer d'abord aux membres actuels (avec le
     // garde-fou habituel : seulement si aucune autre commission ne la donne aussi),
@@ -810,7 +810,7 @@ function osBenvCommissionAjouterMembre(commId){
   fetch(SB_URL+'/rest/v1/commission_membres',{method:'POST',headers:authH,body:JSON.stringify({commission_id:commId,membre_id:membreId})})
   .then(function(r){
     if(r.ok){
-      notif('Membre ajouté ✓','succes');
+      notif('Membre ajouté','succes');
       _benvSyncFonctionCommission(commId, membreId, true);
       var m=document.getElementById('benv-comm-gerer-modal'); if(m) m.remove(); osBenevolesDashRender();
     }
@@ -833,11 +833,11 @@ function osBenvCommissionRetirerMembre(commId, lienId, membreId){
 function osBenvCommissionChangerRole(select){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/commission_membres?id=eq.'+select.dataset.lid,{method:'PATCH',headers:authH,body:JSON.stringify({role_commission:select.value})})
-  .then(function(r){ if(r.ok) notif('Rôle mis à jour ✓'); });
+  .then(function(r){ if(r.ok) notif('Rôle mis à jour'); });
 }
 
 function osBenvCommissionSupprimer(id){
-  if(!confirm('Supprimer cette commission et retirer tous ses membres ?')) return;
+  if(!osConfirmerPuis('Supprimer cette commission et retirer tous ses membres ?', null, osBenvCommissionSupprimer, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/commissions?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Commission supprimée'); osBenevolesDashRender(); } });
@@ -877,7 +877,7 @@ function osBenvAnnonceSauvegarder(){
   if(!titre.trim()){ notif('Le titre est obligatoire'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_annonces',{method:'POST',headers:authH,body:JSON.stringify({titre:titre.trim(),description:desc.trim()||null,commission_id:commId||null,email_contact:email.trim()||null,statut:'ouvert',created_by:getUserId()})})
-  .then(function(r){ if(r.ok){ notif('Annonce publiée ✓','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
+  .then(function(r){ if(r.ok){ notif('Annonce publiée','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
 }
 
 function osBenvAnnonceToggle(id, statutActuel){
@@ -933,7 +933,7 @@ function osBenvAnnonceVoirCandidatures(annonceId){
 function _osBenvRenderCandidBox(box, annonceId, candids){
   var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">';
   h += '<div style="font-weight:700;font-size:0.9rem;">Candidatures ('+candids.length+')</div>';
-  h += '<button onclick="document.getElementById(\'benv-candid-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);">✕</button>';
+  h += '<button onclick="document.getElementById(\'benv-candid-modal\').remove()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gris);"><i class="ti ti-x"></i></button>';
   h += '</div>';
   candids.forEach(function(c){
     var m = c.membres||{};
@@ -949,8 +949,8 @@ function _osBenvRenderCandidBox(box, annonceId, candids){
     if(c.message) h += '<div style="font-size:0.75rem;color:var(--gris);margin-top:6px;font-style:italic;">'+esc(c.message)+'</div>';
     if(c.statut==='en_attente'){
       h += '<div style="display:flex;gap:6px;margin-top:8px;">';
-      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'accepte\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✓ Accepter</button>';
-      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'refuse\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#721C24;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✕ Refuser</button>';
+      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'accepte\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#155724;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Accepter</button>';
+      h += '<button data-cid="'+c.id+'" data-mid="'+m.id+'" data-aid="'+annonceId+'" data-email="'+esc(m.email||'')+'" data-prenom="'+esc(m.prenom||'')+'" onclick="osBenvCandidatureTraiter(this.dataset.cid,this.dataset.mid,\'refuse\',this.dataset.email,this.dataset.prenom,this.dataset.aid)" style="flex:1;font-size:0.68rem;padding:4px;background:#721C24;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-x"></i> Refuser</button>';
       h += '</div>';
     }
     h += '</div>';
@@ -963,7 +963,7 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
   fetch(SB_URL+'/rest/v1/recrutement_candidatures?id=eq.'+candidatureId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:decision})})
   .then(function(r){
     if(r.ok){
-      notif(decision==='accepte'?'Candidature acceptée ✓':'Candidature refusée','succes');
+      notif(decision==='accepte'?'Candidature acceptée':'Candidature refusée','succes');
       // Email au candidat
       if(email){
         var sujet = decision==='accepte'?'✓ Ta candidature a été acceptée — Ipsum Média':'Ta candidature chez Ipsum Média';
@@ -1016,7 +1016,7 @@ function osBenvEnvoyerRecap(){
 
 function osEnvoyerNotifsSujets(){
   var btn = document.getElementById('btn-envoyer-sujets');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
+  if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
   notif('Préparation...');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -1032,12 +1032,12 @@ function osEnvoyerNotifsSujets(){
 
     if(!sujets.length){
       notif('Aucun nouveau sujet à notifier');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
       return;
     }
     if(!membres.length){
       notif('Aucun abonné aux sujets');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
       return;
     }
 
@@ -1071,10 +1071,10 @@ function osEnvoyerNotifsSujets(){
           method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
           body:JSON.stringify({notifie:true})
         }).catch(function(){});
-        var msg = nbSujets+' notification(s) envoyée(s) pour '+sujets.length+' sujet(s) ✓';
+        var msg = nbSujets+' notification(s) envoyée(s) pour '+sujets.length+' sujet(s)';
         if(echecsSujets.length) msg += ' ('+echecsSujets.length+' échec(s))';
         notif(msg, nbSujets>0?'succes':'alerte');
-        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
         return;
       }
       var m = membres[idx];
@@ -1106,7 +1106,7 @@ function osEnvoyerNotifsSujets(){
     envoyerSujetProchain(0);
   }).catch(function(){
     notif('Erreur envoi');
-    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+    if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
   });
 }
 
@@ -1226,7 +1226,7 @@ var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur', corre
 function osRedactionsRenderSelecteur(wc, uid, liens){
   var h = '<div style="padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;">';
   h += '<div style="text-align:center;">';
-  h += '<div style="font-size:2rem;margin-bottom:0.8rem;">🗞️</div>';
+  h += '<div style="font-size:2rem;margin-bottom:0.8rem;"><i class="ti ti-news"></i></div>';
   h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:var(--encre);margin-bottom:0.4rem;">Dans quelle rédaction veux-tu travailler ?</div>';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;">Tu es membre de '+liens.length+' rédactions</div>';
   h += '</div>';
@@ -1401,7 +1401,7 @@ function osRedacChargerRecrutement(zone, uid){
 }
 
 function osRedacSupprimerAnnonceRecrutement(annonceId, annonceTitre){
-  if(!confirm('Supprimer l\'annonce "'+annonceTitre+'" ? Les candidatures associées seront aussi supprimées.')) return;
+  if(!osConfirmerPuis('Supprimer l\'annonce "'+annonceTitre+'" ? Les candidatures associées seront aussi supprimées.', null, osRedacSupprimerAnnonceRecrutement, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_candidatures?annonce_id=eq.'+annonceId,{method:'DELETE',headers:authH})
   .then(function(){
@@ -1418,8 +1418,8 @@ function osRedacSupprimerAnnonceRecrutement(annonceId, annonceTitre){
 }
 
 function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
-  if(!confirm('Envoyer un email à tous les membres actifs pour l\'annonce "'+annonceTitre+'" ?')) return;
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
+  if(!osConfirmerPuis('Envoyer un email à tous les membres actifs pour l\'annonce "'+annonceTitre+'" ?', null, osRedacNotifierAnnonceRecrutement, this, arguments)) return;
+  if(btn){ btn.disabled = true; btn.textContent = 'Envoi...'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/recrutement_annonces?id=eq.'+annonceId+'&select=*',{headers:authH})
   .then(function(r){ return r.json(); })
@@ -1427,7 +1427,7 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
     var a = data && data[0];
     if(!a){
       notif('Annonce introuvable','erreur');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+      if(btn){ btn.disabled=false; btn.textContent='Notifier'; }
       return;
     }
     fetch(SB_URL+'/rest/v1/membres?select=id,email,prenom&actif=eq.true&email=not.is.null',{headers:SB_HEADERS})
@@ -1436,16 +1436,16 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
       destinataires = (destinataires||[]).filter(function(m){ return m.email && m.email.indexOf('@')!==-1; });
       if(!destinataires.length){
         notif('Aucun destinataire trouvé','alerte');
-        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+        if(btn){ btn.disabled=false; btn.textContent='Notifier'; }
         return;
       }
       var nb = 0, echecs = [];
       function envoyerProchain(idx){
         if(idx >= destinataires.length){
-          var msg = nb+' email(s) envoyé(s) ✓';
+          var msg = nb+' email(s) envoyé(s)';
           if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
           notif(msg, nb>0?'succes':'alerte');
-          if(btn){ btn.textContent = '✓ Envoyé'; }
+          if(btn){ btn.textContent = 'Envoyé'; }
           return;
         }
         var m = destinataires[idx];
@@ -1469,7 +1469,7 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
     });
   }).catch(function(){
     notif('Erreur','erreur');
-    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier'; }
+    if(btn){ btn.disabled=false; btn.textContent='Notifier'; }
   });
 }
 
@@ -1728,7 +1728,7 @@ function osChargerRecompensesProfil(uid){
     h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.6rem;"><i class="ti ti-medal" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Récompenses obtenues</div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
     noms.forEach(function(nom){
-      h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;">🏅 '+esc(nom)+'</span>';
+      h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;"><i class="ti ti-medal"></i> '+esc(nom)+'</span>';
     });
     h += '</div></div>';
     zone.innerHTML = h;
@@ -1741,7 +1741,7 @@ function osChargerRecompensesProfil(uid){
 // indéfiniment alors que l'article correspondant est bel et bien publié.
 function osNettoyerSujetsPublies(){
   var btn = document.getElementById('btn-nettoyer-sujets');
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ Recherche...'; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Recherche...'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   Promise.all([
@@ -1773,31 +1773,34 @@ function osNettoyerSujetsPublies(){
 
     function terminerAvecListe(sujets){
       if(!sujets.length){
-        notif('Aucun sujet à nettoyer — tout est déjà à jour ✓','succes');
-        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+        notif('Aucun sujet à nettoyer — tout est déjà à jour','succes');
+        if(btn){ btn.disabled=false; btn.textContent='Nettoyer les sujets publiés'; }
         return;
       }
       var noms = sujets.slice(0,5).map(function(s){return '• '+(s.titre||'Sans titre');}).join('\n')
         + (sujets.length>5 ? '\n… et '+(sujets.length-5)+' autre(s)' : '');
-      if(!confirm(sujets.length+' sujet(s) correspondant à un article déjà publié vont être supprimés définitivement :\n\n'+noms+'\n\nContinuer ?')){
-        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
-        return;
-      }
+      osConfirmer(sujets.length+' sujet(s) correspondant à un article déjà publié vont être supprimés définitivement\n'+noms, {oui:'Supprimer'}).then(function(ok){
+        if(ok) supprimerSujets(sujets);
+        else if(btn){ btn.disabled=false; btn.textContent='Nettoyer les sujets publiés'; }
+      });
+    }
+
+    function supprimerSujets(sujets){
       var ids = sujets.map(function(s){return s.id;});
       fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
         method:'DELETE', headers:Object.assign({},authH,{'Prefer':'return=minimal'})
       }).then(function(r){
         if(r.ok){
-          notif(ids.length+' sujet(s) supprimé(s) ✓','succes');
+          notif(ids.length+' sujet(s) supprimé(s)','succes');
           var zone = document.getElementById('redac-sujets-zone');
           if(zone) osRedacChargerSujets(zone, '');
         } else {
           notif('Erreur lors de la suppression','erreur');
         }
-        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+        if(btn){ btn.disabled=false; btn.textContent='Nettoyer les sujets publiés'; }
       }).catch(function(){
         notif('Erreur réseau','erreur');
-        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+        if(btn){ btn.disabled=false; btn.textContent='Nettoyer les sujets publiés'; }
       });
     }
 
@@ -1819,7 +1822,7 @@ function osNettoyerSujetsPublies(){
     }
   }).catch(function(){
     notif('Erreur réseau','erreur');
-    if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+    if(btn){ btn.disabled=false; btn.textContent='Nettoyer les sujets publiés'; }
   });
 }
 

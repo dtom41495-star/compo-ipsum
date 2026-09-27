@@ -41,7 +41,7 @@ function osRedacPublierAnnonce(){
   fetch(SB_URL+'/rest/v1/annonces',{method:'POST',headers:authH,body:JSON.stringify({message:msg.trim(),type:type,lien:lien||null,auteur:getUserNomComplet(),actif:true,redaction_id:window._redacActiveId||null})})
   .then(function(r){
     if(r.ok){
-      notif('Annonce publiée ✓','succes');
+      notif('Annonce publiée','succes');
       document.getElementById('redac-annonce-form').style.display='none';
       document.getElementById('redac-annonce-msg').value='';
       document.getElementById('redac-annonce-lien').value='';
@@ -493,7 +493,7 @@ function osRedacFicheOnglet(onglet){
 }
 
 function osRedacSupprimerAnnonce(id, el){
-  if(!confirm('Supprimer cette annonce ?')) return;
+  if(!osConfirmerPuis('Supprimer cette annonce ?', null, osRedacSupprimerAnnonce, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/annonces?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
   .then(function(r){ if(r.ok){ el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(function(){el.remove();},300); } });
@@ -739,6 +739,7 @@ function osRedacRedigerSujet(sujetId){
 function osRedacRedigerSujetNouveauBrouillon(sujetId){
   var sujet = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
   if(!sujet){ notif('Sujet introuvable','erreur'); return; }
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   var redacNom = '';
   if(window._redacActiveId && window._redactionsData){
     var redac = _redactionsData.find(function(r){return r.id===window._redacActiveId;});
@@ -780,7 +781,7 @@ function osRedacRedigerSujetNouveauBrouillon(sujetId){
 }
 
 function osSujetSupprimerDepuisRedac(sujetId){
-  if(!confirm('Supprimer ce sujet ?')) return;
+  if(!osConfirmerPuis('Supprimer ce sujet ?', null, osSujetSupprimerDepuisRedac, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{method:'DELETE',headers:authH})
   .then(function(r){
@@ -971,7 +972,7 @@ function osSujetsChargerPropositions(zone){
 function osSujetValiderProposition(sujetId, accepte){
   var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
   if(!s) return;
-  if(!accepte && !confirm('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.')) return;
+  if(!accepte && !osConfirmerPuis('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.', null, osSujetValiderProposition, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var req = accepte
     ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert'})})
@@ -1167,7 +1168,7 @@ function osVeilleAjouterFlux(){
   fetch(SB_URL+'/rest/v1/veille_flux',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,url:url,cree_par:getUserId()})})
   .then(function(r){
     if(r.ok){
-      notif('Flux ajouté ✓ — les premiers articles arriveront à la prochaine récupération','succes');
+      notif('Flux ajouté — les premiers articles arriveront à la prochaine récupération','succes');
       var ov = document.getElementById('veille-gestion-overlay'); if(ov) ov.remove();
       osVeilleRender();
     } else notif('Erreur','erreur');
@@ -1175,7 +1176,7 @@ function osVeilleAjouterFlux(){
 }
 
 function osVeilleSupprimerFlux(fluxId){
-  if(!confirm('Retirer ce flux ? Les articles déjà récupérés resteront visibles.')) return;
+  if(!osConfirmerPuis('Retirer ce flux ? Les articles déjà récupérés resteront visibles.', null, osVeilleSupprimerFlux, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/veille_flux?id=eq.'+fluxId,{method:'DELETE',headers:authH})
   .then(function(r){
@@ -1200,7 +1201,7 @@ function osSujetOuvrirModifier(sujetId){
   card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:popIn 0.2s ease forwards;';
   card.innerHTML =
     '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">✏️ Modifier le sujet</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-pencil"></i> Modifier le sujet</div>'
     +'<button onclick="document.getElementById(\'modifier-sujet-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
     +'</div>'
     +'<div style="padding:1.2rem 1.5rem;">'
@@ -1239,7 +1240,7 @@ function osModifierSujet(sujetId){
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId),{method:'PATCH',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif('Sujet modifié ✓','succes');
+      notif('Sujet modifié','succes');
       var overlay = document.getElementById('modifier-sujet-overlay');
       if(overlay) overlay.remove();
       osRedactionsChangerOnglet('sujets');
@@ -1364,7 +1365,7 @@ function osSujetAssigner(sujetId, membreId){
     body: JSON.stringify({statut:'en_cours', responsable:nom})
   }).then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
-    notif('Sujet attribué à '+nom+' ✓','succes');
+    notif('Sujet attribué à '+nom+'','succes');
     if(m.email){
       var sujet = (window._sujetsData||[]).find(function(s){ return s.id===sujetId; });
       var titreSujet = sujet ? sujet.titre : '';
@@ -1647,7 +1648,7 @@ function osRedacReglagesForm(redac){
   if(redac.est_centrale){
     h += '<div style="font-size:0.7rem;color:#0B3D91;background:#E6F1FB;padding:8px 10px;border-radius:6px;"><i class="ti ti-shield-check"></i> Rédaction centrale — seul un admin peut changer ce statut, depuis Gestion rédactions.</div>';
   }
-  h += '<button id="redac-reg-submit" onclick="osRedacChefEnregistrerReglages(\''+redac.id+'\')" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✓ Enregistrer</button>';
+  h += '<button id="redac-reg-submit" onclick="osRedacChefEnregistrerReglages(\''+redac.id+'\')" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Enregistrer</button>';
   h += '</div>';
   return h;
 }
@@ -1680,15 +1681,15 @@ function osRedacChefEnregistrerReglages(redacId){
     method:'PATCH', headers:authH,
     body:JSON.stringify(payload)
   }).then(function(r){
-    if(btn){ btn.disabled = false; btn.textContent = '✓ Enregistrer'; }
+    if(btn){ btn.disabled = false; btn.textContent = 'Enregistrer'; }
     if(r.ok){
-      notif('Rédaction mise à jour ✓','succes');
+      notif('Rédaction mise à jour','succes');
       var redacLocal = _redactionsData.find(function(x){ return x.id===redacId; });
       if(redacLocal) Object.assign(redacLocal, payload);
       osRedacChangerSousOngletRedac('reglages');
     } else notif('Erreur lors de l\'enregistrement','erreur');
   }).catch(function(){
-    if(btn){ btn.disabled = false; btn.textContent = '✓ Enregistrer'; }
+    if(btn){ btn.disabled = false; btn.textContent = 'Enregistrer'; }
     notif('Erreur réseau','erreur');
   });
 }
@@ -1803,7 +1804,7 @@ function osRedacEnvoyerRecapHebdo(redacId){
       }
       nb++;
     });
-    notif(nb+' notification(s) envoyée(s) à l\'équipe ✓','succes');
+    notif(nb+' notification(s) envoyée(s) à l\'équipe','succes');
     if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
   }).catch(function(){
     notif('Erreur lors de la génération du récap','erreur');
@@ -2399,7 +2400,7 @@ function osRedactionCreerModal(){
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
     fetch(SB_URL+'/rest/v1/redactions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,slug:slug,couleur:couleur,lien_substack:substack||null})})
     .then(function(r){
-      if(r.ok){ notif('Rédaction créée ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
+      if(r.ok){ notif('Rédaction créée','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
     }).catch(function(){ notif('Erreur réseau'); });
   });
@@ -2456,14 +2457,14 @@ function osRedactionEditerModal(redacId){
     etape1.then(function(){
       return fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null,est_centrale:centrale})});
     }).then(function(r){
-      if(r.ok){ notif('Rédaction mise à jour ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
+      if(r.ok){ notif('Rédaction mise à jour','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
     }).catch(function(){ notif('Erreur réseau'); });
   });
 }
 
 function osRedactionSupprimerConfirm(redacId, nom){
-  if(!confirm('Supprimer la rédaction "'+nom+'" ? Les membres ne seront pas supprimés.')) return;
+  if(!osConfirmerPuis('Supprimer la rédaction "'+nom+'" ? Les membres ne seront pas supprimés.', null, osRedactionSupprimerConfirm, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Rédaction supprimée','succes'); osRedactionsRender(); } else notif('Erreur suppression'); })
@@ -2494,13 +2495,13 @@ function osAdminAjouterMembreRedac(redacId){
     var roleRedac = modal.querySelector('#redac-add-role').value;
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
     fetch(SB_URL+'/rest/v1/membres_redactions',{method:'POST',headers:authH,body:JSON.stringify({membre_id:membreId,redaction_id:redacId,role_redac:roleRedac})})
-    .then(function(r){ if(r.ok){ notif('Membre ajouté ✓','succes'); document.body.removeChild(overlay); osRedactionsRender(); } else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); } })
+    .then(function(r){ if(r.ok){ notif('Membre ajouté','succes'); document.body.removeChild(overlay); osRedactionsRender(); } else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); } })
     .catch(function(){ notif('Erreur réseau'); });
   });
 }
 
 function osAdminRetirerMembreRedac(membreId, redacId){
-  if(!confirm('Retirer ce membre de la rédaction ?')) return;
+  if(!osConfirmerPuis('Retirer ce membre de la rédaction ?', null, osAdminRetirerMembreRedac, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId),{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Membre retiré','succes'); osRedactionsRender(); } else notif('Erreur'); })
@@ -2564,7 +2565,7 @@ function osBenevolesRelancer(membreId){
   if(!s || !s.membre.email){ notif('Pas d\'email pour ce membre'); return; }
   var m = s.membre;
   var viaChat = m.canal_notif === 'chat';
-  if(!confirm('Envoyer '+(viaChat?'un message Chat':'un email')+' de relance à '+m.prenom+' ?')) return;
+  if(!osConfirmerPuis('Envoyer '+(viaChat?'un message Chat':'un email')+' de relance à '+m.prenom+' ?', {oui:'Envoyer la relance'}, osBenevolesRelancer, this, arguments)) return;
   var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
     +osEnteteEmailLogo('Un petit rappel de la part de la rédac ✏️')
     +'<div style="padding:1.2rem 1.5rem;">'
@@ -2577,7 +2578,7 @@ function osBenevolesRelancer(membreId){
     notifierChatDM(membreId, chatTexte, 'relance').then(function(){ notif('Message Chat de relance envoyé à '+m.prenom+' ✓', 'succes'); });
   } else {
     envoyerEmailResend(m.email, '[Compo] Un peu de nouvelles ?', html, 'relance')
-      .then(function(){ notif('Email de relance envoyé à '+m.prenom+' ✓', 'succes'); })
+      .then(function(){ notif('Email de relance envoyé à '+m.prenom+'', 'succes'); })
       .catch(function(){ notif('Erreur envoi email'); });
   }
 }

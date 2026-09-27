@@ -54,6 +54,9 @@ var db = {
     // le lien fraîchement posé, et l'efface aussitôt. Le détachement volontaire d'un
     // sujet a son propre appel PATCH dédié ailleurs, pas celui-ci.
     if(payload.sujet_id === null) delete payload.sujet_id;
+    // L'éditeur (buildDoc) ne connaît ni le SR assigné ni le nom de la rédaction : sans
+    // ce garde, chaque enregistrement depuis l'éditeur effaçait le SR de l'article.
+    ['correcteur','correcteur_id','redaction'].forEach(function(k){ if(doc[k] === undefined) delete payload[k]; });
     var authHeaders = Object.assign({}, SB_HEADERS, {
       'Authorization': 'Bearer '+(_session&&_session.access_token||''),
       'Prefer': 'return=representation'
@@ -593,13 +596,13 @@ function maFiltrerListe(){
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
     }
     if(estCorrecteur && s==='en-relecture'){
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
     }
 
     // Corriger (admin) — article en relecture ou corrigé
     if(role==='admin' && (s==='en-relecture'||s==='corrige') && !estMonArticle){
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
     }
 
     // Lire
@@ -617,20 +620,21 @@ function maFiltrerListe(){
 }
 
 function maRefuserArticle(id){
-  var note = prompt('Motif du refus (visible par le rédacteur) :');
-  if(note === null) return; // annulé
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
-    method:'PATCH',headers:authH,
-    body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})
-  }).then(function(r){
-    if(r.ok){
-      notif('Article renvoyé en brouillon','succes');
-      // Mettre à jour le cache local
-      var idx = _maArticlesCache.findIndex(function(a){ return a.id===id; });
-      if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article à reprendre'; }
-      maFiltrerListe();
-    } else notif('Erreur','erreur');
+  osDemander('Motif du refus\nVisible par le rédacteur.', '', {oui:'Renvoyer à l\'auteur', long:true}).then(function(v){
+    if(v === null) return; var note = v;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
+      method:'PATCH',headers:authH,
+      body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})
+    }).then(function(r){
+      if(r.ok){
+        notif('Article renvoyé en brouillon','succes');
+        // Mettre à jour le cache local
+        var idx = _maArticlesCache.findIndex(function(a){ return a.id===id; });
+        if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article à reprendre'; }
+        maFiltrerListe();
+      } else notif('Erreur','erreur');
+    });
   });
 }
 
@@ -645,6 +649,13 @@ function mesArticlesOuvrir(id, action){
       tags: doc.tags||[], sources: doc.sources||[],
       cree_le: doc.created_at, modifie_le: doc.updated_at
     });
+    // Un autre article est ouvert dans l'éditeur : le mettre de côté AVANT de changer
+    // currentDoc, sinon son texte partait dans cet article-ci à la prochaine sauvegarde.
+    if(window._windows && _windows['redaction'] && !(currentDoc && currentDoc.id === docCompo.id)){
+      osRedactionMettreDeCote();
+      osClearAutosave();
+      if(action === 'lecture' || action === 'diff') osCloseWindowForce('redaction');
+    }
     currentDoc = docCompo;
     if(action === 'lecture'){
       go('lecture');
@@ -929,7 +940,7 @@ function osMotDePasseOublieEnvoyer(){
     body: JSON.stringify({ email: email })
   }).then(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#D4EDDA'; msgEl.style.color='#155724'; msgEl.textContent='Si un compte existe avec cet email, un lien de réinitialisation vient d’être envoyé.'; }
-    if(btn){ btn.textContent='Lien envoyé ✓'; }
+    if(btn){ btn.textContent='Lien envoyé'; }
   }).catch(function(){
     if(btn){ btn.disabled=false; btn.textContent='Envoyer le lien'; }
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau, réessaie.'; }
@@ -1070,7 +1081,7 @@ function lancerCompo(){
     '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
     // Logo
     +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);animation:popIn .35s cubic-bezier(.34,1.56,.64,1) forwards;">'
-    +'<span style="font-size:1.5rem;">📰</span></div>'
+    +'<span style="font-size:1.5rem;"><i class="ti ti-news"></i></span></div>'
     // Titre
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:#1A1A2E;letter-spacing:-.02em;">Compo OS</div>'
     // Etape courante
@@ -1538,12 +1549,12 @@ function osStartAutosave(){
       _autosaveClearLocalDraft(doc.id);
       // Indicateur discret
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = '✓ Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
+      if(ind){ ind.textContent = 'Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
     }).catch(function(){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = '⚠ Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
+      if(ind){ ind.textContent = 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
     }).finally(function(){ _autosaveInFlight = false; });
   }, 45000); // toutes les 45 secondes
 }
@@ -1570,6 +1581,7 @@ function chargerDansRedaction(doc){
     notif('Article en cours de relecture par le SR : modification impossible pour l\'instant.');
     return;
   }
+  if(!(currentDoc && currentDoc.id === doc.id)) osRedactionMettreDeCote();
   go('redaction');
   setTimeout(function(){
     osPopulerSelectRedaction();
@@ -1649,7 +1661,7 @@ function chargerDansRedaction(doc){
     // Afficher le lien de partage si l'article a déjà un ID en base
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv && doc.id){ shareDiv.style.display='block'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
+    if(shareDiv && doc.id){ shareDiv.style.display='flex'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
     notif('Article chargé : '+(doc.titre||'Sans titre'));
     // Mettre à jour le workflow
     rWorkflowMajInterface(doc);
@@ -1782,12 +1794,20 @@ function rWorkflowMajInterface(doc){
   // Dans la zone chef : quel(s) bouton(s) exactement — qui valide quoi dépend du rôle ET du statut.
   if(zChef && zChef.style.display==='flex'){
     var idxAvantValide = ['brouillon','en-relecture','corrige'].indexOf(statut);
+    var btnRelu       = document.getElementById('r-btn-relu');
     var btnValider    = document.getElementById('r-btn-valider');
     var btnValCentral = document.getElementById('r-btn-valider-central');
     var btnPublier    = document.getElementById('r-btn-publier');
-    if(btnValider)    btnValider.style.display    = (isChef && idxAvantValide>=0) ? '' : 'none';
+    // Une étape à la fois, dans l'ordre : relu, puis bon à publier, puis en ligne.
+    // Le rédac chef ou l'admin peut faire la relecture à la place du SR désigné.
+    var auSR = statut==='en-relecture';
+    if(btnRelu)       btnRelu.style.display       = (isChef && auSR) ? '' : 'none';
+    if(btnValider){
+      btnValider.style.display = (isChef && idxAvantValide>=0) ? '' : 'none';
+      btnValider.classList.toggle('mac-btn-vert', !auSR); // au SR : « Marquer comme relu » passe devant
+    }
     if(btnValCentral) btnValCentral.style.display = (estValCentral && attenteCentrale && statut==='valide') ? '' : 'none';
-    var peutPublier = articleEstCentral || (attenteCentrale && statut==='valide_central');
+    var peutPublier = (articleEstCentral && statut==='valide') || (attenteCentrale && statut==='valide_central');
     if(btnPublier)    btnPublier.style.display    = peutPublier ? '' : 'none';
   }
 }
@@ -1824,7 +1844,7 @@ function rEnregistrerLienPublication(dubLinkId){
       currentDoc.lien_publication = val||null;
       if(payload.vues_substack!=null) currentDoc.vues_substack = payload.vues_substack;
       if('dub_link_id' in payload) currentDoc.dub_link_id = payload.dub_link_id;
-      notif('Enregistré ✓','succes');
+      notif('Enregistré','succes');
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
       if(lpOuvrir) lpOuvrir.style.display = val ? '' : 'none';
       rWorkflowMajInterface(currentDoc);
@@ -1994,27 +2014,23 @@ function osDemanderBesoinVisuel(){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var titre = (document.getElementById('r-titre')&&document.getElementById('r-titre').value)||currentDoc.titre||'Sans titre';
   var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  overlay.innerHTML =
-    '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;">'
-    +'<div style="display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.5rem;border-left:4px solid #E8461E;">'
-    +'<div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.15rem;background:#FDECE7;color:#E8461E;"><i class="ti ti-photo"></i></div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.92rem;color:#1A1A2E;">Besoin d\'un visuel ?</div>'
-    +'</div>'
-    +'<div style="padding:1.1rem 1.5rem 1.3rem;">'
-    +'<div style="font-size:.86rem;font-weight:700;color:#1A1A2E;margin-bottom:.5rem;">«&nbsp;'+esc(titre)+'&nbsp;»</div>'
-    +'<div style="font-family:Figtree,sans-serif;font-size:.85rem;font-weight:500;color:#40404A;line-height:1.6;">Si oui, la com sera prévenue par email et l\'article apparaîtra dans l\'appli Com.</div>'
-    +'</div>'
-    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;gap:.5rem;">'
-    +'<button id="besoin-visuel-non" style="padding:.5rem 1.1rem;background:white;color:#40404A;border:1px solid #D1D5DB;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">Non, pas besoin</button>'
-    +'<button id="besoin-visuel-oui" style="padding:.5rem 1.1rem;background:#E8461E;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;"><i class="ti ti-photo"></i> Oui, prévenir la com</button>'
-    +'</div></div>';
+  overlay.className = 'se-overlay dlg-overlay';
+  overlay.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="besoin-visuel-titre"><div class="se-corps">'
+    +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-photo"></i></span><div>'
+    +'<div id="besoin-visuel-titre" class="dlg-question">Besoin d\'un visuel ?</div>'
+    +'<p class="se-texte">« '+esc(titre)+' »</p>'
+    +'<p class="se-aide dlg-details">Si oui, la com est prévenue par email et l\'article apparaît dans l\'appli Com.</p>'
+    +'</div></div>'
+    +'<div class="dlg-actions">'
+    +'<button type="button" class="se-btn-secondaire" id="besoin-visuel-non">Non, pas besoin</button>'
+    +'<button type="button" class="se-btn-principal" id="besoin-visuel-oui"><i class="ti ti-photo"></i> Oui, prévenir la com</button>'
+    +'</div></div></div>';
   document.body.appendChild(overlay);
   var fermer = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); };
   document.getElementById('besoin-visuel-oui').onclick = function(){ fermer(); rWorkflowAvancer('valide', true); };
   document.getElementById('besoin-visuel-non').onclick = function(){ fermer(); rWorkflowAvancer('valide', false); };
-  // Cliquer à côté de la modale annule la validation plutôt que de la forcer sans choix —
-  // « Valider » reste une action volontaire, pas quelque chose qu'on déclenche par erreur.
+  // Cliquer à côté annule la validation plutôt que de la forcer sans choix :
+  // « Bon à publier » reste une action volontaire.
   overlay.onclick = function(e){ if(e.target===overlay) fermer(); };
 }
 
@@ -2298,12 +2314,19 @@ function rFormat(type){
     case 'h3':     _rSetBlockType('H3');         return;
     case 'ul':     _rToggleList();               return;
     case 'link':
-      var texteSelectionne = window.getSelection().toString();
-      var url = prompt('URL du lien :', 'https://');
-      if(!url) return;
-      if(texteSelectionne) document.execCommand('createLink', false, url);
-      else document.execCommand('insertHTML', false, '<a href="'+esc(url)+'" target="_blank" rel="noopener">texte du lien</a>');
-      break;
+      // La fenêtre prend le focus : on retient la sélection pour la remettre ensuite
+      var selLien = window.getSelection();
+      var texteSelectionne = selLien.toString();
+      var plage = selLien.rangeCount ? selLien.getRangeAt(0).cloneRange() : null;
+      osDemander('Adresse du lien', 'https://', {oui:'Insérer le lien', icone:'link', type:'url'}).then(function(url){
+        if(!url || url === 'https://') return;
+        live.focus();
+        if(plage){ var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(plage); }
+        if(texteSelectionne) document.execCommand('createLink', false, url);
+        else document.execCommand('insertHTML', false, '<a href="'+esc(url)+'" target="_blank" rel="noopener">texte du lien</a>');
+        _rCorpsSync();
+      });
+      return;
     default: return;
   }
   _rCorpsSync();

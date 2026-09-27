@@ -69,7 +69,7 @@ function _recrutementOuvrirDetail(a, surface){
   if(estOuvert && !a.mesCandidature){
     actionsHtml += '<button onclick="_recrutementOuvrirCandidatureModal(\''+a.id+'\',\''+esc(a.titre).replace(/'/g,"\\'")+'\',\''+surface+'\')" style="padding:.6rem 1.3rem;background:var(--rouge);color:white;border:none;border-radius:9px;font-family:DM Sans,sans-serif;font-weight:700;font-size:.84rem;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:4px;"></i>Candidater</button>';
   } else if(a.mesCandidature){
-    var lbl = {en_attente:'⏳ Candidature en attente',accepte:'✓ Candidature acceptée',refuse:'✗ Candidature refusée'}[a.mesCandidature]||a.mesCandidature;
+    var lbl = {en_attente:'<i class="ti ti-hourglass"></i> Candidature en attente',accepte:'<i class="ti ti-check"></i> Candidature acceptée',refuse:'<i class="ti ti-x"></i> Candidature refusée'}[a.mesCandidature]||a.mesCandidature;
     actionsHtml += '<span style="font-size:.78rem;padding:.5rem 1rem;border-radius:8px;background:#EAF3DE;color:#155724;font-weight:600;">'+lbl+'</span>';
   }
   actionsHtml += (surface==='benv' ? _recrutementActionsBenv(a) : _recrutementActionsRedac(a));
@@ -83,8 +83,8 @@ function _recrutementOuvrirDetail(a, surface){
     +(a.commissions?'<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:3px 9px;margin-bottom:.6rem;">'+esc(a.commissions.nom)+'</span>':'')
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;line-height:1.3;color:var(--encre);">'+esc(a.titre)+'</div>'
     +'<div style="display:flex;gap:1rem;margin-top:.6rem;font-family:Space Mono,monospace;font-size:.65rem;color:var(--gris);flex-wrap:wrap;">'
-    +'<span>📅 Publié le '+dateStr+'</span>'
-    +(a.email_contact?'<span>✉ '+esc(a.email_contact)+'</span>':'')
+    +'<span><i class="ti ti-calendar"></i> Publié le '+dateStr+'</span>'
+    +(a.email_contact?'<span><i class="ti ti-mail"></i> '+esc(a.email_contact)+'</span>':'')
     +(!estOuvert?'<span>Fermé</span>':'')
     +'</div></div>'
     +'<div class="art-corps" style="padding:1.3rem 1.5rem;font-size:.86rem;">'+(a.description?mdVersHtml(a.description):'<span style="color:var(--gris);font-style:italic;">Pas de description.</span>')+'</div>'
@@ -163,7 +163,7 @@ function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
         modal.remove();
         var detailModal = document.getElementById('recrut-detail-modal');
         if(detailModal) detailModal.remove();
-        notif('Candidature envoyée ✓','succes');
+        notif('Candidature envoyée','succes');
         osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
         _recrutementConfirmerCandidat(annonceTitre);
         if(surface==='redac'){ _redacOnglet='recrutement'; osRedactionsRender(); }
@@ -183,7 +183,7 @@ function _recrutementEditorToolbarHTML(taId){
     +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'italic\')" title="Italique" style="width:28px;height:28px;font-style:italic;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">i</button>'
     +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'h3\')" title="Titre de section" style="width:28px;height:28px;font-size:0.62rem;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">H3</button>'
     +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'ul\')" title="Liste à puces" style="width:28px;height:28px;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">•—</button>'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'link\')" title="Lien" style="width:28px;height:28px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">🔗</button>'
+    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'link\')" title="Lien" style="width:28px;height:28px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);"><i class="ti ti-link"></i></button>'
     +'</div>';
 }
 function _recrutementFormat(taId, type){
@@ -196,9 +196,14 @@ function _recrutementFormat(taId, type){
     if(type==='bold'){ before='**'; after='**'; ph='texte en gras'; }
     else if(type==='italic'){ before='_'; after='_'; ph='texte en italique'; }
     else {
-      var url = prompt('URL du lien :','https://');
-      if(!url) return;
-      before='['; after='](' + url + ')'; ph='texte du lien';
+      osDemander('Adresse du lien', 'https://', {oui:'Insérer le lien', icone:'link', type:'url'}).then(function(url){
+        if(!url || url === 'https://') return;
+        var v = ta.value, texteLien = v.slice(s, e) || 'texte du lien';
+        ta.value = v.slice(0,s) + '[' + texteLien + '](' + url + ')' + v.slice(e);
+        ta.focus(); ta.setSelectionRange(s+1, s+1+texteLien.length);
+        _recrutementApercu(taId);
+      });
+      return;
     }
     var texte = sel || ph;
     ta.value = val.slice(0,s) + before+texte+after + val.slice(e);
@@ -301,20 +306,21 @@ function _rInsererMarqueursCommentaires(root, rows, editable){
 function rModifierCommentaire(id){
   var marker = document.querySelector('.r-comment-marker[data-comment-id="'+id+'"]');
   var texteActuel = marker ? marker.dataset.texte : '';
-  var nouveauTexte = prompt('Modifier le commentaire :', texteActuel);
-  if(nouveauTexte===null || !nouveauTexte.trim()) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
-    method:'PATCH', headers:authH, body:JSON.stringify({texte:nouveauTexte.trim()})
-  }).then(function(r){
-    if(r.ok){ notif('Commentaire modifié','succes'); rChargerCommentaires(currentDoc.id); }
-    else notif('Erreur — vérifie les droits','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  osDemander('Modifier le commentaire', texteActuel, {oui:'Enregistrer', long:true}).then(function(v){
+    var nouveauTexte = v; if(nouveauTexte===null || !nouveauTexte.trim()) return;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
+      method:'PATCH', headers:authH, body:JSON.stringify({texte:nouveauTexte.trim()})
+    }).then(function(r){
+      if(r.ok){ notif('Commentaire modifié','succes'); rChargerCommentaires(currentDoc.id); }
+      else notif('Erreur — vérifie les droits','erreur');
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+  });
 }
 // Supprime un commentaire qu'on a soi-même écrit — récupère aussi le cas "je me suis
 // trompé de paragraphe" : on supprime puis on repose le commentaire au bon endroit.
 function rSupprimerCommentaire(id){
-  if(!confirm('Supprimer ce commentaire ?')) return;
+  if(!osConfirmerPuis('Supprimer ce commentaire ?', null, rSupprimerCommentaire, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
     method:'DELETE', headers:authH
@@ -369,16 +375,17 @@ function rAjouterCommentaire(){
   if(!live || !bloc){ notif('Place le curseur dans le paragraphe à commenter'); return; }
   var idx = _rIndexDuBlocReel(live, bloc);
   if(idx < 0) return;
-  var texte = prompt('Ton commentaire sur ce paragraphe :');
-  if(!texte || !texte.trim()) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commentaires_articles', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({ article_id:currentDoc.id, bloc_index:idx, texte:texte.trim(), auteur_id:getUserId() })
-  }).then(function(r){
-    if(r.ok){ notif('Commentaire ajouté','succes'); rChargerCommentaires(currentDoc.id); }
-    else notif('Erreur — vérifie les droits','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  osDemander('Ton commentaire sur ce paragraphe', '', {oui:'Commenter', icone:'message-circle', long:true}).then(function(v){
+    var texte = v; if(!texte || !texte.trim()) return;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/commentaires_articles', {
+      method:'POST', headers:authH,
+      body: JSON.stringify({ article_id:currentDoc.id, bloc_index:idx, texte:texte.trim(), auteur_id:getUserId() })
+    }).then(function(r){
+      if(r.ok){ notif('Commentaire ajouté','succes'); rChargerCommentaires(currentDoc.id); }
+      else notif('Erreur — vérifie les droits','erreur');
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+  });
 }
 
 function _rPlacerCurseurDans(el){
@@ -706,7 +713,7 @@ function _osArticlePubliable(article){
 }
 
 function publierArticle(id){
-  if(!confirm('Marquer cet article comme publie sur Substack ?')) return;
+  if(!osConfirmerPuis('Marquer cet article comme publie sur Substack ?', {oui:'Marquer publié'}, publierArticle, this, arguments)) return;
   var authHChk = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id', {headers:authHChk})
   .then(function(r){ return r.json(); })
@@ -1975,61 +1982,61 @@ var _osReady = false;
 
 var DOCK_APPS = {
   redacteur: [
-    { id:'redaction', icon:'✍️', label:'Rédiger', color:'#E8461E' },
-    { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
-      { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
-    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
-    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
-    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
-    { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
-    { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
+    { id:'redaction', icon:'<i class="ti ti-writing"></i>', label:'Rédiger', color:'#E8461E' },
+    { id:'mes-articles', icon:'<i class="ti ti-news"></i>', label:'Mes Articles', color:'#856404' },
+      { id:'carnet', icon:'<i class="ti ti-address-book"></i>', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'<i class="ti ti-notes"></i>', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer', color:'#A32D2D' },
+    { id:'compo-store', icon:'<i class="ti ti-building-store"></i>', label:'Store', color:'#0F6E56' },
+    { id:'visuels-pro', icon:'<i class="ti ti-palette"></i>', label:'Visuels', color:'#155724' },
+    { id:'tutos', icon:'<i class="ti ti-book"></i>', label:'Guide', color:'#4A235A' },
   ],
   correcteur: [
     { id:'app-correction', icon:'<i class="ti ti-file-search"></i>', label:'Secrétariat de rédaction', color:'#1A5276' },
-      { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
-    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
-    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
-    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
-    { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
-    { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
+      { id:'carnet', icon:'<i class="ti ti-address-book"></i>', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'<i class="ti ti-notes"></i>', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer', color:'#A32D2D' },
+    { id:'compo-store', icon:'<i class="ti ti-building-store"></i>', label:'Store', color:'#0F6E56' },
+    { id:'newsletter', icon:'<i class="ti ti-mail-forward"></i>', label:'Newsletter', color:'#155724' },
+    { id:'tutos', icon:'<i class="ti ti-book"></i>', label:'Guide', color:'#4A235A' },
   ],
   admin: [
-    { id:'redaction', icon:'✍️', label:'Rédiger', color:'#E8461E' },
-    { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
+    { id:'redaction', icon:'<i class="ti ti-writing"></i>', label:'Rédiger', color:'#E8461E' },
+    { id:'mes-articles', icon:'<i class="ti ti-news"></i>', label:'Mes Articles', color:'#856404' },
     { id:'app-correction', icon:'<i class="ti ti-file-search"></i>', label:'Secrétariat de rédaction', color:'#1A5276' },
-      { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
-    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
-    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
-    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
-    { id:'cps-admin', icon:'📰', label:'CPs', color:'#4A235A' },
-    { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
-    { id:'newsletter', icon:'📨', label:'Newsletter', color:'#155724' },
-    { id:'stats-dashboard', icon:'📊', label:'Stats', color:'#0D0D1A' },
-    { id:'benevoles', icon:'👥', label:'Bénévoles', color:'#0F6E56' },
-    { id:'gestion-apps', icon:'⚙️', label:'Admin', color:'#2C3E50' },
-    { id:'nettoyage', icon:'🧹', label:'Nettoyage', color:'#721C24' },
-    { id:'log', icon:'📜', label:'Journal', color:'#2C3E50' },
+      { id:'carnet', icon:'<i class="ti ti-address-book"></i>', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'<i class="ti ti-notes"></i>', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer', color:'#A32D2D' },
+    { id:'compo-store', icon:'<i class="ti ti-building-store"></i>', label:'Store', color:'#0F6E56' },
+    { id:'cps-admin', icon:'<i class="ti ti-news"></i>', label:'CPs', color:'#4A235A' },
+    { id:'visuels-pro', icon:'<i class="ti ti-palette"></i>', label:'Visuels', color:'#155724' },
+    { id:'newsletter', icon:'<i class="ti ti-mail-forward"></i>', label:'Newsletter', color:'#155724' },
+    { id:'stats-dashboard', icon:'<i class="ti ti-chart-bar"></i>', label:'Stats', color:'#0D0D1A' },
+    { id:'benevoles', icon:'<i class="ti ti-users"></i>', label:'Bénévoles', color:'#0F6E56' },
+    { id:'gestion-apps', icon:'<i class="ti ti-settings"></i>', label:'Admin', color:'#2C3E50' },
+    { id:'nettoyage', icon:'<i class="ti ti-eraser"></i>', label:'Nettoyage', color:'#721C24' },
+    { id:'log', icon:'<i class="ti ti-list-details"></i>', label:'Journal', color:'#2C3E50' },
   ],
   redac_chef: [
-    { id:'redaction', icon:'✍️', label:'Rédiger', color:'#E8461E' },
-    { id:'mes-articles', icon:'📰', label:'Mes Articles', color:'#856404' },
-    { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
-    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
-    { id:'magneto', icon:'🎙️', label:'Enregistrer', color:'#A32D2D' },
-    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
-    { id:'cps-admin', icon:'📋', label:'CPs', color:'#4A235A' },
-    { id:'visuels-pro', icon:'🎨', label:'Visuels', color:'#155724' },
-    { id:'agenda', icon:'📅', label:'Agenda', color:'#1A5276' },
-    { id:'tutos', icon:'📖', label:'Guide', color:'#4A235A' },
+    { id:'redaction', icon:'<i class="ti ti-writing"></i>', label:'Rédiger', color:'#E8461E' },
+    { id:'mes-articles', icon:'<i class="ti ti-news"></i>', label:'Mes Articles', color:'#856404' },
+    { id:'carnet', icon:'<i class="ti ti-address-book"></i>', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'<i class="ti ti-notes"></i>', label:'Notes', color:'#856404' },
+    { id:'magneto', icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer', color:'#A32D2D' },
+    { id:'compo-store', icon:'<i class="ti ti-building-store"></i>', label:'Store', color:'#0F6E56' },
+    { id:'cps-admin', icon:'<i class="ti ti-clipboard-list"></i>', label:'CPs', color:'#4A235A' },
+    { id:'visuels-pro', icon:'<i class="ti ti-palette"></i>', label:'Visuels', color:'#155724' },
+    { id:'agenda', icon:'<i class="ti ti-calendar"></i>', label:'Agenda', color:'#1A5276' },
+    { id:'tutos', icon:'<i class="ti ti-book"></i>', label:'Guide', color:'#4A235A' },
   ],
   // Bénévoles qui ne font pas de rédaction — uniquement de la communication.
   // Volontairement sans redaction/mes-articles/redactions/cps* : ni articles à
   // écrire, ni communiqués de presse à recevoir (ça ne les concerne pas).
   communicant: [
-    { id:'app-com', icon:'📣', label:'Com', color:'#7D3C98' },
-    { id:'carnet', icon:'📇', label:'Sources', color:'#0C5460' },
-    { id:'notes', icon:'📝', label:'Notes', color:'#856404' },
-    { id:'compo-store', icon:'🏪', label:'Store', color:'#0F6E56' },
+    { id:'app-com', icon:'<i class="ti ti-speakerphone"></i>', label:'Com', color:'#7D3C98' },
+    { id:'carnet', icon:'<i class="ti ti-address-book"></i>', label:'Sources', color:'#0C5460' },
+    { id:'notes', icon:'<i class="ti ti-notes"></i>', label:'Notes', color:'#856404' },
+    { id:'compo-store', icon:'<i class="ti ti-building-store"></i>', label:'Store', color:'#0F6E56' },
   ]
 };
 

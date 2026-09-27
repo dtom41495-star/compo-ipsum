@@ -1,6 +1,6 @@
 // ===== TABLEAU D'AFFICHAGE (ANNONCES INTERNES) =====
 
-var ANNONCE_ICONS2 = { info:'ℹ️', alerte:'⚠️', succes:'✅', reunion:'📅', urgent:'🚨' };
+var ANNONCE_ICONS2 = { info:'<i class="ti ti-info-circle"></i>', alerte:'<i class="ti ti-alert-triangle"></i>', succes:'<i class="ti ti-circle-check"></i>', reunion:'<i class="ti ti-calendar"></i>', urgent:'<i class="ti ti-urgent"></i>' };
 var ANNONCE_COLORS = {
   info:    { bg:'#E6F1FB', c:'#0C447C', border:'#378ADD' },
   alerte:  { bg:'#FCEBEB', c:'#A32D2D', border:'#E24B4A' },
@@ -86,7 +86,7 @@ function osTableauRender(){
       html += '<input type="date" id="tableau-expire" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);border-radius:4px;" placeholder="Expire le...">';
       html += '</div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.6rem;">';
-      html += '<label for="tableau-epingle" style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--encre);">📌 Épingler cette annonce</label>';
+      html += '<label for="tableau-epingle" style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--encre);"><i class="ti ti-pin"></i> Épingler cette annonce</label>';
       html += '<label class="compo-toggle"><input type="checkbox" id="tableau-epingle"><span class="track"></span><span class="thumb"></span></label>';
       html += '</div>';
       html += '<textarea id="tableau-message" rows="2" placeholder="Ton message pour l\'équipe..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);font-family:DM Sans,sans-serif;font-size:0.88rem;resize:vertical;box-sizing:border-box;margin-bottom:0.6rem;border-radius:4px;"></textarea>';
@@ -102,7 +102,7 @@ function osTableauRender(){
 
     if(!visibles.length){
       html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);">';
-      html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;">📢</div>';
+      html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-speakerphone"></i></div>';
       html += '<div style="font-size:0.88rem;">Aucune annonce pour le moment.</div>';
       html += '</div>';
     } else {
@@ -121,9 +121,9 @@ function osTableauRender(){
 
         // Ligne top : icône + type + épinglé + rôle cible
         html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap;">';
-        html += '<span style="font-size:1rem;">'+(ANNONCE_ICONS2[a.type]||'ℹ️')+'</span>';
+        html += '<span style="font-size:1rem;">'+(ANNONCE_ICONS2[a.type]||'<i class="ti ti-info-circle"></i>')+'</span>';
         html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;font-weight:500;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+(a.type||'info')+'</span>';
-        if(a.epingle) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--rouge);font-weight:500;">📌 Épinglé</span>';
+        if(a.epingle) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--rouge);font-weight:500;"><i class="ti ti-pin"></i> Épinglé</span>';
         if(a.roles_cibles && a.roles_cibles !== 'tous') html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;background:var(--gris-clair);color:var(--gris);padding:1px 6px;border-radius:10px;">'+esc(a.roles_cibles)+' uniquement</span>';
         if(a.expire_le) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:10px;">Expire le '+new Date(a.expire_le).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</span>';
         html += '</div>';
@@ -268,7 +268,7 @@ function osTableauEditer(id){
 }
 
 function osTableauArchiver(id, btn){
-  if(!confirm('Archiver cette annonce pour tout le monde ?')) return;
+  if(!osConfirmerPuis('Archiver cette annonce pour tout le monde ?', null, osTableauArchiver, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/annonces?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
     headers: Object.assign({}, SB_HEADERS, {
@@ -333,7 +333,7 @@ function osTableauChargerArchives(){
       try { dateStr = new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); } catch(e){}
       html += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem;opacity:0.7;">';
       html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem;">';
-      html += '<span style="font-size:0.9rem;">'+(ANNONCE_ICONS2[a.type]||'ℹ️')+'</span>';
+      html += '<span style="font-size:0.9rem;">'+(ANNONCE_ICONS2[a.type]||'<i class="ti ti-info-circle"></i>')+'</span>';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(a.type||'info')+'</span>';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:auto;">'+dateStr+'</span>';
       html += '</div>';
@@ -428,7 +428,7 @@ function osMinuteurRender(){
   // Boutons
   + '<div style="display:flex;gap:0.7rem;">'
   + '<button id="min-btn-start" onclick="osMinuteurToggle()" style="background:var(--rouge);color:white;border:none;border-radius:10px;padding:0.7rem 2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;cursor:pointer;min-width:120px;">▶ Démarrer</button>'
-  + '<button onclick="osMinuteurReset()" style="background:var(--gris-clair);color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 1.2rem;font-family:Space Mono,monospace;font-size:0.8rem;cursor:pointer;">↺ Reset</button>'
+  + '<button onclick="osMinuteurReset()" style="background:var(--gris-clair);color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 1.2rem;font-family:Space Mono,monospace;font-size:0.8rem;cursor:pointer;"><i class="ti ti-refresh"></i> Reset</button>'
   + '</div>'
 
   // Laps (chrono)
@@ -469,7 +469,7 @@ function osMinuteurToggle(){
     }
     _minuteurDepart = Date.now() - (_minuteurPause||0);
     _minuteurInterval = setInterval(osMinuteurTick, 100);
-    if(btn) btn.innerHTML = '⏸ Pause';
+    if(btn) btn.innerHTML = '<i class="ti ti-player-pause"></i> Pause';
   }
 }
 
@@ -490,7 +490,7 @@ function osMinuteurTick(){
       var btn = document.getElementById('min-btn-start');
       if(btn) btn.innerHTML = '▶ Démarrer';
       if(aff) aff.style.color = 'var(--rouge)';
-      notif('⏰ Minuteur terminé !');
+      notif('Minuteur terminé !');
     }
   }
 }
@@ -568,7 +568,7 @@ function osTitresRender(){
     '<div style="display:flex;flex-direction:column;height:100%;padding:1rem 1.2rem;gap:0.8rem;">'
     + '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);">Résumé ou chapeau de l\'article</div>'
     + '<textarea id="titres-input" placeholder="Ex : La mairie de Castres a inauguré sa nouvelle médiathèque samedi. Environ 500 personnes étaient présentes pour l\'occasion…" style="flex:1;resize:none;border:1.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem;font-family:DM Sans,sans-serif;font-size:0.85rem;line-height:1.7;outline:none;max-height:180px;"></textarea>'
-    + '<button onclick="osTitresGenerer()" id="titres-btn" style="background:var(--rouge);color:white;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;align-self:flex-start;">🎲 Générer 5 titres</button>'
+    + '<button onclick="osTitresGenerer()" id="titres-btn" style="background:var(--rouge);color:white;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;align-self:flex-start;"><i class="ti ti-dice"></i> Générer 5 titres</button>'
     + '<div id="titres-resultat" style="flex:1;overflow-y:auto;"></div>'
     + '</div>';
 }
@@ -580,7 +580,7 @@ function osTitresGenerer(){
   if(!input||!input.value.trim()){ notif('Saisis un résumé'); return; }
 
   btn.disabled = true;
-  btn.textContent = '⏳ Génération…';
+  btn.textContent = 'Génération…';
   res.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);padding:1rem;text-align:center;">Claude réfléchit…</div>';
 
   fetch('https://api.anthropic.com/v1/messages', {
@@ -602,7 +602,7 @@ function osTitresGenerer(){
   .then(function(r){ return r.json(); })
   .then(function(data){
     btn.disabled = false;
-    btn.textContent = '🎲 Générer 5 titres';
+    btn.textContent = 'Générer 5 titres';
     var text = data.content && data.content[0] ? data.content[0].text : '';
     if(!text){ res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur de génération.</div>'; return; }
     var titres = text.split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
@@ -618,7 +618,7 @@ function osTitresGenerer(){
   })
   .catch(function(){
     btn.disabled = false;
-    btn.textContent = '🎲 Générer 5 titres';
+    btn.textContent = 'Générer 5 titres';
     res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur réseau.</div>';
   });
 }
@@ -627,7 +627,7 @@ function osTitresCopier(el, titre){
   navigator.clipboard.writeText(titre).then(function(){
     el.style.background = 'var(--gris-clair)';
     var span = el.querySelector('span');
-    if(span) span.textContent = '✓ Copié !';
+    if(span) span.textContent = 'Copié !';
     setTimeout(function(){
       el.style.background = 'white';
       if(span) span.textContent = 'Copier';
@@ -657,7 +657,7 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
   function menuItem(label, fn){
     var item = document.createElement('div');
     item.style.cssText = 'padding:0.5rem 1rem;font-size:0.82rem;color:rgba(255,255,255,0.85);cursor:pointer;font-family:DM Sans,sans-serif;';
-    item.textContent = label;
+    item.innerHTML = label;
     item.onmouseover = function(){ item.style.background='rgba(255,255,255,0.1)'; };
     item.onmouseout  = function(){ item.style.background=''; };
     item.onclick = function(e){ e.stopPropagation(); fn(); if(menu.parentNode) menu.parentNode.removeChild(menu); };
@@ -672,17 +672,17 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
 
   // Épingler / désépingler
   if(estEpingle){
-    menu.appendChild(menuItem('📌 Retirer du dock', function(){
+    menu.appendChild(menuItem('<i class="ti ti-pin"></i> Retirer du dock', function(){
       osLaunchpadToggleEpingle(app.id, false);
     }));
   } else {
     var dockCount = (window._userApps||[]).length;
     if(dockCount < 8){
-      menu.appendChild(menuItem('📌 Épingler dans le dock', function(){
+      menu.appendChild(menuItem('<i class="ti ti-pin"></i> Épingler dans le dock', function(){
         osLaunchpadToggleEpingle(app.id, true);
       }));
     } else {
-      menu.appendChild(menuItem('📌 Dock plein (max 8)', function(){}));
+      menu.appendChild(menuItem('<i class="ti ti-pin"></i> Dock plein (max 8)', function(){}));
     }
   }
 
@@ -741,68 +741,38 @@ function osStoreRender(){
     var installees = (!data||data.code) ? [] : data.map(function(d){ return d.app_id; });
     var storeApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.store; });
 
-    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
-
-    // Header
-    html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
-    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">🏪 Compo Store</div>';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Mini-apps optionnelles — installe ce qui t\'est utile.</div>';
-    html += '</div>';
-
-    // Grille d'apps
-    html += '<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
-
-    storeApps.forEach(function(app){
+    function carte(app, ancien){
       var installe = installees.includes(app.id);
-      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;">';
-      html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
-      html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+app.icon+'</div>';
-      html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(app.label)+'</div>';
-      if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
-      html += '</div></div>';
-      html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.55;flex:1;">'+esc(app.desc||'')+'</div>';
-      if(installe){
-        html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
-      } else {
-        html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--rouge);border-radius:6px;background:var(--rouge);color:white;cursor:pointer;width:100%;">+ Installer</button>';
-      }
-      html += '</div>';
-    });
+      return '<div class="st-carte'+(ancien ? ' st-ancien' : '')+'">'
+        +'<div class="st-haut"><div class="st-icone" data-sombre-ignore style="background:'+app.color+';">'+app.icon+'</div>'
+        +'<div class="st-noms"><div class="st-nom">'+esc(app.label)+'</div>'
+        +(installe ? '<div class="st-installee"><i class="ti ti-circle-check"></i>Installée</div>' : '')
+        +'</div></div>'
+        +'<div class="st-desc">'+esc(app.desc||(ancien ? 'Outil de la première version de Compo, qui fonctionne avec des fichiers JSON.' : ''))+'</div>'
+        +(installe
+          ? '<button class="mac-btn st-bouton" data-app="'+esc(app.id)+'" onclick="osStoreDesinstaller(this.dataset.app)">Désinstaller</button>'
+          : '<button class="mac-btn '+(ancien ? '' : 'mac-btn-principal ')+'st-bouton" data-sombre-ignore data-app="'+esc(app.id)+'" onclick="osStoreInstaller(this.dataset.app)"><i class="ti ti-download"></i>Installer</button>')
+        +'</div>';
+    }
 
-    html += '</div>';
+    var html = '<div class="st">';
+    html += '<div class="cpa-entete"><div class="cpa-titres"><h2 class="cpa-titre">Compo Store</h2>'
+      +'<div class="cpa-sous">Des applis en plus, à installer selon ce qui te sert. Tu peux les retirer quand tu veux.</div></div></div>';
+    html += '<div class="st-grille">'+storeApps.map(function(a){ return carte(a, false); }).join('')+'</div>';
 
-    // Section outils v1 (legacy)
+    // Outils de la première version, repliés : rarement utiles
     var role = getUserRole();
     var legacyApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.legacy && a.roles.includes(role); });
     if(legacyApps.length){
-      html += '<div style="margin-top:1.2rem;">';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.7rem;display:flex;align-items:center;gap:0.5rem;">';
-      html += '<span>Outils v1</span><span style="flex:1;height:1px;background:var(--gris-bord);"></span><span>Ancienne version — fichiers JSON</span></div>';
-      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
-      legacyApps.forEach(function(app){
-        var installe = installees.includes(app.id);
-        html += '<div style="background:#FAFAFA;border:0.5px dashed var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;opacity:0.85;">';
-        html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
-        html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;opacity:0.7;">'+app.icon+'</div>';
-        html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--gris);">'+esc(app.label)+'</div>';
-        if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
-        html += '</div></div>';
-        html += '<div style="font-size:0.75rem;color:var(--gris);line-height:1.5;flex:1;">'+esc(app.desc||'Outil de la v1 fonctionnant avec des fichiers JSON locaux.')+'</div>';
-        if(installe){
-          html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
-        } else {
-          html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">+ Installer</button>';
-        }
-        html += '</div>';
-      });
-      html += '</div></div>';
+      var ouvert = legacyApps.some(function(a){ return installees.includes(a.id); });
+      html += '<details class="st-anciens"'+(ouvert ? ' open' : '')+'><summary><i class="ti ti-chevron-right"></i>Anciens outils <span>'+legacyApps.length+'</span></summary>'
+        +'<p class="st-anciens-aide">Ils viennent de la première version de Compo et fonctionnent avec des fichiers JSON. Leurs fonctions existent maintenant dans les applis principales.</p>'
+        +'<div class="st-grille">'+legacyApps.map(function(a){ return carte(a, true); }).join('')+'</div></details>';
     }
-
-    html += '</div></div>';
+    html += '</div>';
     wc.innerHTML = html;
   }).catch(function(){
-    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+    wc.innerHTML = '<div class="cpa-vide"><i class="ti ti-wifi-off"></i>Impossible de charger le Store. Vérifie ta connexion.</div>';
   });
 }
 
@@ -829,7 +799,7 @@ function osStoreInstaller(appId){
         }
         osBuildDock();
       }
-      notif((app?app.label:appId)+' installée !'+(epingle?' Épinglée dans le dock.':' Accessible via le Launchpad.'));
+      notif((app?app.label:appId)+' installée'+(epingle?', ajoutée au dock':', à retrouver dans toutes les applis'),'succes');
       osStoreRender();
     }
   }).catch(function(){ notif('Erreur installation'); });
@@ -838,7 +808,7 @@ function osStoreInstaller(appId){
 function osStoreDesinstaller(appId){
   var uid = getUserId(); if(!uid) return;
   var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
-  if(!confirm('Désinstaller '+(app?app.label:appId)+' ?')) return;
+  if(!osConfirmerPuis('Désinstaller '+(app?app.label:appId)+' ?', null, osStoreDesinstaller, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+uid+'&app_id=eq.'+encodeURIComponent(appId), {
     method:'DELETE',
     headers: Object.assign({}, SB_HEADERS, {
@@ -846,7 +816,7 @@ function osStoreDesinstaller(appId){
     })
   }).then(function(r){
     if(r.ok){
-      notif((app?app.label:appId)+' désinstallée.');
+      notif((app?app.label:appId)+' désinstallée','succes');
       if(window._userApps){
         window._userApps = window._userApps.filter(function(a){ return a.id !== appId; });
         osBuildDock();
@@ -873,6 +843,7 @@ var _notesDebounce = {};
 var _notesData = [];
 var _noteSelectionnee = null;
 var _notesFiltreCouleur = 'Toutes';
+var _notesRecherche = '';
 
 function osNotesSetCouleurFiltre(c){
   _notesFiltreCouleur = c;
@@ -894,116 +865,92 @@ function osNotesRender(){
   .then(function(r){ return r.json(); })
   .then(function(notes){
     _notesData = (!notes||notes.code) ? [] : notes;
-    _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+    _noteSelectionnee = (_notesData.length && !_notesEstMobile()) ? _notesData[0].id : null;
     osNotesBuildUI(wc);
   }).catch(function(){
     wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
   });
 }
 
+function _notesEstMobile(){ return window.innerWidth < 700; }
+
+function _notesFiltrees(){
+  var q = (_notesRecherche||'').trim().toLowerCase();
+  return _notesData.filter(function(n){
+    var okCouleur = _notesFiltreCouleur === 'Toutes' || (n.couleur||'blanc') === _notesFiltreCouleur;
+    var okTexte = !q || (n.titre||'').toLowerCase().indexOf(q) >= 0 || (n.contenu||'').toLowerCase().indexOf(q) >= 0;
+    return okCouleur && okTexte;
+  }).sort(function(a,b){ return new Date(b.updated_at) - new Date(a.updated_at); });
+}
+
+function _notesLigneHtml(n){
+  var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
+  var extrait = (n.contenu||'').replace(/\s+/g,' ').trim();
+  return '<button type="button" class="nt-ligne'+(n.id === _noteSelectionnee ? ' actif' : '')+'" data-id="'+esc(n.id)+'" onclick="osNotesSelectionner(this.dataset.id)">'
+    +'<span class="nt-point" data-sombre-ignore style="background:'+col.dot+';"></span>'
+    +'<span class="nt-ligne-corps"><span class="nt-ligne-titre">'+esc(n.titre||'Sans titre')+'</span>'
+    +'<span class="nt-ligne-extrait">'+(extrait ? esc(extrait.slice(0,90)) : '<em>Vide</em>')+'</span></span>'
+    +'<span class="nt-ligne-date">'+_benvFormatDate(new Date(n.updated_at))+'</span>'
+    +'</button>';
+}
+
+function osNotesFiltrer(){
+  var i = document.getElementById('notes-recherche');
+  _notesRecherche = i ? i.value : '';
+  var liste = document.getElementById('notes-liste');
+  if(liste) _notesRafraichirListe(liste);
+}
+
 function osNotesBuildUI(wc){
-  var isMobile = window.innerWidth < 700;
-  var html = '<div style="display:flex;height:100%;overflow:hidden;">';
+  var mobile = _notesEstMobile();
+  var html = '<div class="nt">';
 
-  // Rail couleurs — même style que le rail Ma Rédac' / Sources
-  if(!isMobile){
-    html += '<div id="notes-couleur-rail" style="width:130px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;overflow-y:auto;">';
-    var couleursRail = [
-      {id:'Toutes', label:'Toutes', dot:null},
-      {id:'jaune',  label:'Jaune',  dot:NOTE_COULEURS.jaune.dot},
-      {id:'rose',   label:'Rose',   dot:NOTE_COULEURS.rose.dot},
-      {id:'vert',   label:'Vert',   dot:NOTE_COULEURS.vert.dot},
-      {id:'bleu',   label:'Bleu',   dot:NOTE_COULEURS.bleu.dot},
-      {id:'orange', label:'Orange', dot:NOTE_COULEURS.orange.dot},
-      {id:'blanc',  label:'Blanc',  dot:NOTE_COULEURS.blanc.dot}
-    ];
-    couleursRail.forEach(function(c){
-      var actif = _notesFiltreCouleur === c.id;
-      var pastille = c.dot ? '<span style="width:11px;height:11px;border-radius:50%;background:'+c.dot+';flex-shrink:0;border:1px solid rgba(0,0,0,0.1);"></span>' : '<i class="ti ti-list"></i>';
-      html += '<button onclick="osNotesSetCouleurFiltre(\''+c.id+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+pastille+'</span>'+c.label+'</button>';
-    });
-    html += '</div>';
-  }
-
-  // Colonne — liste des notes
-  var notesFiltrees = _notesFiltreCouleur === 'Toutes' ? _notesData : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
-  // display: une seule fois — un style="display:none;...;display:flex;..." avec les deux
-  // déclarations dans le même attribut se résout toujours en flex (la dernière gagne),
-  // ce qui annulait silencieusement le masquage mobile.
-  var sidebarCachee = isMobile && _noteSelectionnee;
-  html += '<div id="notes-sidebar" style="display:'+(sidebarCachee?'none':'flex')+';width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);flex-direction:column;background:var(--gris-clair);">';
-  html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
-  html += '<span id="notes-compteur" style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
-  html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:Space Mono,monospace;cursor:pointer;">+ Nouvelle</button>';
+  // Colonne des notes (masquée sur téléphone quand une note est ouverte)
+  html += '<div id="notes-sidebar" class="nt-colonne"'+(mobile && _noteSelectionnee ? ' hidden' : '')+'>';
+  html += '<div class="nt-tete"><div class="nt-titre-app">Mes notes <span id="notes-compteur"></span></div>'
+    +'<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osNoteNouvelle()"><i class="ti ti-plus"></i>Nouvelle</button></div>';
+  html += '<label class="cx-recherche nt-recherche"><i class="ti ti-search"></i><input type="search" data-sombre-ignore id="notes-recherche" placeholder="Chercher dans mes notes" value="'+esc(_notesRecherche||'')+'" oninput="osNotesFiltrer()"></label>';
+  html += '<div class="nt-couleurs" role="group" aria-label="Filtrer par couleur">'
+    +'<button type="button" class="nt-filtre'+(_notesFiltreCouleur === 'Toutes' ? ' actif' : '')+'" onclick="osNotesSetCouleurFiltre(\'Toutes\')">Toutes</button>';
+  Object.keys(NOTE_COULEURS).forEach(function(c){
+    html += '<button type="button" class="nt-filtre nt-filtre-point'+(_notesFiltreCouleur === c ? ' actif' : '')+'" onclick="osNotesSetCouleurFiltre(\''+c+'\')" title="'+c.charAt(0).toUpperCase()+c.slice(1)+'" aria-label="'+c+'"><span data-sombre-ignore style="background:'+NOTE_COULEURS[c].dot+';"></span></button>';
+  });
   html += '</div>';
-  html += '<div style="flex:1;overflow-y:auto;" id="notes-liste">';
+  html += '<div id="notes-liste" class="nt-liste"></div>';
+  html += '</div>';
 
-  if(!notesFiltrees.length){
-    html += '<div style="padding:1rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+(_notesData.length?'Aucune note de cette couleur.':'Aucune note.<br>Crée ta première !')+'</div>';
+  // Éditeur
+  html += '<div id="notes-editor-zone" class="nt-editeur-zone"'+(mobile && !_noteSelectionnee ? ' hidden' : '')+'>';
+  var note = _noteSelectionnee && _notesData.find(function(n){ return n.id === _noteSelectionnee; });
+  if(note){
+    html += osNotesEditorHTML(note);
   } else {
-    notesFiltrees.forEach(function(n){
-      var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
-      var actif = n.id === _noteSelectionnee;
-      var dateStr = _benvFormatDate(new Date(n.updated_at));
-      html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-      html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
-      html += '</div>';
-    });
+    html += '<div class="cx-fiche-vide"><i class="ti ti-notes"></i>'+(_notesData.length ? 'Choisis une note ou crée-en une.' : 'Pas encore de note.<br>Idées de sujets, contacts, bouts de phrases : tout ce qui te sert.')+'</div>';
   }
-
-  html += '</div></div>'; // liste + sidebar
-
-  // Zone d'édition — même piège que notes-sidebar plus haut : un seul display:, jamais deux.
-  var editeurCache = isMobile && !_noteSelectionnee;
-  html += '<div style="display:'+(editeurCache?'none':'flex')+';flex:1;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
-
-  if(_noteSelectionnee){
-    var note = _notesData.find(function(n){ return n.id === _noteSelectionnee; });
-    // Bouton retour mobile
-    if(isMobile){
-      html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);background:var(--gris-clair);flex-shrink:0;">'
-        +'<button onclick="osNotesRetourListe()" style="background:none;border:none;font-size:0.8rem;cursor:pointer;color:var(--encre);font-family:Space Mono,monospace;padding:2px 0;">← Mes notes</button>'
-        +'</div>';
-    }
-    if(note) html += osNotesEditorHTML(note);
-  } else {
-    html += '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gris);font-size:0.85rem;flex-direction:column;gap:0.5rem;">';
-    html += '<div style="font-size:2rem;">📝</div>';
-    html += '<div>Sélectionne une note ou crée-en une</div>';
-    html += '</div>';
-  }
-
-  html += '</div>'; // editor zone
-  html += '</div>'; // flex main
+  html += '</div></div>';
 
   wc.innerHTML = html;
+  _notesRafraichirListe(document.getElementById('notes-liste'));
 }
 
 function osNotesEditorHTML(note){
   var col = NOTE_COULEURS[note.couleur] || NOTE_COULEURS.blanc;
-  var html = '';
-
-  // Toolbar de l'éditeur
-  html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.5rem;flex-shrink:0;background:'+col.bg+';">';
-
-  // Sélecteur couleur
+  var nid = esc(note.id);
+  var html = '<div class="nt-editeur" style="--nt-fond:'+col.bg+';">';
+  html += '<div class="nt-barre">';
+  if(_notesEstMobile()) html += '<button type="button" class="nt-retour" onclick="osNotesRetourListe()"><i class="ti ti-chevron-left"></i>Mes notes</button>';
+  html += '<div class="nt-pastilles" role="group" aria-label="Couleur de la note">';
   Object.keys(NOTE_COULEURS).forEach(function(c){
     var cc = NOTE_COULEURS[c];
-    html += '<button onclick="osNotesCouleur(\''+note.id+'\',\''+c+'\')" title="'+c+'" style="width:16px;height:16px;border-radius:50%;background:'+cc.bg+';border:2px solid '+cc.dot+';cursor:pointer;'+(note.couleur===c?'transform:scale(1.3);':'')+'"></button>';
+    html += '<button type="button" data-sombre-ignore class="nt-pastille'+((note.couleur||'blanc') === c ? ' actif' : '')+'" style="background:'+cc.bg+';border-color:'+cc.dot+';" onclick="osNotesCouleur(\''+nid+'\',\''+c+'\')" title="'+c.charAt(0).toUpperCase()+c.slice(1)+'" aria-label="Couleur '+c+'"></button>';
   });
-
-  html += '<div style="flex:1;"></div>';
-  html += '<span id="notes-status" style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);"></span>';
-  html += '<button onclick="osNoteSupprimer(\''+note.id+'\')" style="background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Supprimer">🗑️</button>';
   html += '</div>';
-
-  // Titre
-  html += '<input id="note-titre" type="text" value="'+esc(note.titre||'')+'" placeholder="Titre de la note" oninput="osNotesDebounce(\''+note.id+'\')" style="width:100%;padding:0.8rem 1rem;border:none;border-bottom:1px solid var(--gris-bord);font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);background:'+col.bg+';outline:none;box-sizing:border-box;">';
-
-  // Contenu
-  html += '<textarea id="note-contenu" oninput="osNotesDebounce(\''+note.id+'\')" placeholder="Écris ta note ici..." style="flex:1;width:100%;padding:1rem;border:none;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;color:var(--encre);background:'+col.bg+';outline:none;resize:none;box-sizing:border-box;overflow-y:auto;">'+esc(note.contenu||'')+'</textarea>';
-
+  html += '<span id="notes-status" class="nt-statut"></span>';
+  html += '<button type="button" class="mac-btn cpc-icone nt-supprimer" onclick="osNoteSupprimer(\''+nid+'\')" title="Supprimer la note" aria-label="Supprimer la note"><i class="ti ti-trash"></i></button>';
+  html += '</div>';
+  html += '<input id="note-titre" class="nt-champ-titre" type="text" value="'+esc(note.titre||'')+'" placeholder="Titre" oninput="osNotesDebounce(\''+nid+'\')">';
+  html += '<textarea id="note-contenu" class="nt-champ-texte" oninput="osNotesDebounce(\''+nid+'\')" placeholder="Écris ta note ici…">'+esc(note.contenu||'')+'</textarea>';
+  html += '</div>';
   return html;
 }
 
@@ -1062,7 +1009,7 @@ function osNoteNouvelle(){
     if(r.ok){
       _notesData.unshift(payload);
       _noteSelectionnee = id;
-      _notesFiltreCouleur = 'Toutes'; // sinon la nouvelle note (jaune) peut disparaître d'un filtre actif
+      _notesFiltreCouleur = 'Toutes'; _notesRecherche = ''; // sinon la nouvelle note peut disparaître d'un filtre actif
       var wc = document.getElementById('wincontent-notes');
       if(wc) osNotesBuildUI(wc);
       setTimeout(function(){
@@ -1076,7 +1023,7 @@ function osNoteNouvelle(){
 function osNotesDebounce(id){
   // Indicateur "en cours"
   var st = document.getElementById('notes-status');
-  if(st) st.textContent = '...';
+  if(st) st.textContent = 'Enregistrement…';
 
   if(_notesDebounce[id]) clearTimeout(_notesDebounce[id]);
   _notesDebounce[id] = setTimeout(function(){
@@ -1105,7 +1052,7 @@ function osNotesSauvegarder(id){
   }).then(function(r){
     var st = document.getElementById('notes-status');
     if(r.ok){
-      if(st) st.textContent = '✓ Sauvegardé';
+      if(st) st.innerHTML = '<i class="ti ti-check"></i>Enregistré';
       setTimeout(function(){ if(st) st.textContent = ''; }, 2000);
       // Mettre à jour le cache local
       var idx = _notesData.findIndex(function(n){ return n.id === id; });
@@ -1118,11 +1065,11 @@ function osNotesSauvegarder(id){
         if(liste) _notesRafraichirListe(liste);
       }
     } else {
-      if(st) st.textContent = '⚠️ Erreur';
+      if(st) st.textContent = 'Erreur';
     }
   }).catch(function(){
     var st = document.getElementById('notes-status');
-    if(st) st.textContent = '⚠️ Hors ligne';
+    if(st) st.textContent = 'Hors ligne';
   });
 }
 
@@ -1131,27 +1078,14 @@ function osNotesSauvegarder(id){
 // osNotesBuildUI : sans ça, un enregistrement sous filtre de couleur actif repeuplait
 // la liste avec toutes les notes, et une note modifiée gardait son ancienne position.
 function _notesRafraichirListe(liste){
-  var notesFiltrees = _notesFiltreCouleur === 'Toutes'
-    ? _notesData.slice()
-    : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
-  notesFiltrees.sort(function(a,b){ return new Date(b.updated_at) - new Date(a.updated_at); });
-
-  var html = '';
-  notesFiltrees.forEach(function(n){
-    var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
-    var actif = n.id === _noteSelectionnee;
-    var dateStr = _benvFormatDate(new Date(n.updated_at));
-    html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-    html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
-    html += '</div>';
-  });
-  liste.innerHTML = html;
-
-  // Le compteur vit hors de #notes-liste : sans cette mise à jour il affichait encore
-  // le nombre d'avant le filtrage.
+  if(!liste) return;
+  var notes = _notesFiltrees();
+  liste.innerHTML = notes.length
+    ? notes.map(_notesLigneHtml).join('')
+    : '<div class="nt-vide">'+(_notesData.length ? 'Aucune note ne correspond.' : 'Aucune note pour l\'instant.')+'</div>';
+  // Le compteur vit hors de #notes-liste
   var compteur = document.getElementById('notes-compteur');
-  if(compteur) compteur.textContent = notesFiltrees.length+' note(s)';
+  if(compteur) compteur.textContent = notes.length || '';
 }
 
 function osNotesCouleur(id, couleur){
@@ -1185,7 +1119,7 @@ function osNotesCouleur(id, couleur){
 }
 
 function osNoteSupprimer(id){
-  if(!confirm('Supprimer cette note définitivement ?')) return;
+  if(!osConfirmerPuis('Supprimer cette note définitivement ?', null, osNoteSupprimer, this, arguments)) return;
   var uid = getUserId(); if(!uid) return;
   fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), {
     method:'DELETE',
@@ -1195,7 +1129,7 @@ function osNoteSupprimer(id){
   }).then(function(r){
     if(r.ok){
       _notesData = _notesData.filter(function(n){ return n.id !== id; });
-      _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+      _noteSelectionnee = (_notesData.length && !_notesEstMobile()) ? _notesData[0].id : null;
       var wc = document.getElementById('wincontent-notes');
       if(wc) osNotesBuildUI(wc);
       notif('Note supprimée');
@@ -1290,7 +1224,7 @@ function osNettoyageRender(moisLimite){
 
     html += '<div style="background:'+(pctJour>=90?'#FCEBEB':pctJour>=70?'#FAEEDA':'white')+';border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1rem;">';
     html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.7rem;">';
-    html += '<span style="font-size:1.2rem;">✉️</span>';
+    html += '<span style="font-size:1.2rem;"><i class="ti ti-mail"></i></span>';
     html += '<div style="flex:1;">';
     html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">Quota email Resend</div>';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);">Plan gratuit — 100 emails/jour · 3 000/mois</div>';
@@ -1318,9 +1252,9 @@ function osNettoyageRender(moisLimite){
     html += '</div>';
 
     if(pctJour >= 90){
-      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;font-weight:500;">⚠️ Quota journalier presque atteint — évite d\'envoyer d\'autres emails aujourd\'hui.</div>';
+      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;font-weight:500;"><i class="ti ti-alert-triangle"></i> Quota journalier presque atteint — évite d\'envoyer d\'autres emails aujourd\'hui.</div>';
     } else if(pctJour >= 70){
-      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#633806;">⚡ '+( 100 - emailsJour.length)+' emails restants aujourd\'hui.</div>';
+      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#633806;"><i class="ti ti-bolt"></i> '+( 100 - emailsJour.length)+' emails restants aujourd\'hui.</div>';
     }
     html += '</div>';
 
@@ -1344,37 +1278,37 @@ function osNettoyageRender(moisLimite){
     }
 
     // Sections
-    html += section('📝', 'Brouillons anciens', artBrouillons.length,
+    html += section('<i class="ti ti-notes"></i>', 'Brouillons anciens', artBrouillons.length,
       artBrouillons.length+' article(s) brouillon non modifié(s) depuis +'+moisLimite+' mois',
       artBrouillons.length > 0 ? 'var(--rouge)' : 'var(--gris)',
       'Supprimer', 'nett-art-brouillons', artBrouillons.length === 0);
 
-    html += section('🖼️', 'Images base64 en base', artAvecB64.length,
+    html += section('<i class="ti ti-photo"></i>', 'Images base64 en base', artAvecB64.length,
       'Images encodées directement dans la BDD (~'+formatTaille(tailleB64Arts)+') — à migrer vers Storage',
       artAvecB64.length > 0 ? '#856404' : 'var(--gris)',
       'Nettoyer', 'nett-art-b64', artAvecB64.length === 0);
 
-    html += section('📰', 'CPs brouillons anciens', cpsBrouillons.length,
+    html += section('<i class="ti ti-news"></i>', 'CPs brouillons anciens', cpsBrouillons.length,
       cpsBrouillons.length+' communiqué(s) brouillon depuis +'+moisLimite+' mois',
       cpsBrouillons.length > 0 ? 'var(--rouge)' : 'var(--gris)',
       'Supprimer', 'nett-cps-brouillons', cpsBrouillons.length === 0);
 
-    html += section('📎', 'PDFs base64 en base', cpsB64.length,
+    html += section('<i class="ti ti-paperclip"></i>', 'PDFs base64 en base', cpsB64.length,
       'PDFs encodés en base64 dans la BDD (~'+formatTaille(tailleB64CPs)+') — colonne fichier_b64 résiduelle',
       cpsB64.length > 0 ? '#856404' : 'var(--gris)',
       'Vider', 'nett-cps-b64', cpsB64.length === 0);
 
-    html += section('📜', 'Historique des actions', histVieux.length,
+    html += section('<i class="ti ti-list-details"></i>', 'Historique des actions', histVieux.length,
       histVieux.length+' entrée(s) de log de plus de 6 mois',
       histVieux.length > 50 ? 'var(--rouge)' : 'var(--gris)',
       'Purger', 'nett-historique', histVieux.length === 0);
 
-    html += section('📢', 'Annonces archivées', annonces.length,
+    html += section('<i class="ti ti-speakerphone"></i>', 'Annonces archivées', annonces.length,
       annonces.length+' annonce(s) archivée(s) (actif=false)',
       annonces.length > 0 ? 'var(--gris)' : 'var(--gris)',
       'Vider', 'nett-annonces', annonces.length === 0);
 
-    html += section('💬', 'Historique contacts', contactHist.length,
+    html += section('<i class="ti ti-message-circle"></i>', 'Historique contacts', contactHist.length,
       'Total des échanges enregistrés dans le carnet de sources',
       'var(--gris)',
       '', 'nett-contact-hist', true); // info seulement, pas de suppression
@@ -1447,7 +1381,7 @@ function osNettoyageAction(btnId){
 
   if(btnId === 'nett-art-brouillons'){
     if(!d.artBrouillons.length) return;
-    if(!confirm('Supprimer définitivement '+d.artBrouillons.length+' brouillon(s) ancien(s) ?\nCette action est irréversible.')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.artBrouillons.length+' brouillon(s) ancien(s) ?\nCette action est irréversible.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.artBrouillons.map(function(a){ return a.id; });
     _nettSupprimerParLots('/rest/v1/articles', 'id', ids, headers, function(ok){
       notif(ok ? ids.length+' brouillon(s) supprimé(s) !' : 'Erreur suppression');
@@ -1457,7 +1391,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-art-b64'){
     if(!d.artAvecB64.length) return;
-    if(!confirm('Vider le champ image (base64) de '+d.artAvecB64.length+' article(s) ?\nLes images en Storage ne sont pas touchées.')) return;
+    if(!osConfirmerPuis('Vider le champ image (base64) de '+d.artAvecB64.length+' article(s) ?\nLes images en Storage ne sont pas touchées.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.artAvecB64.map(function(a){ return a.id; });
     _nettViderChampParLots('/rest/v1/articles', 'id', ids, {image: null}, headers, function(ok){
       notif(ok ? 'Images base64 supprimées !' : 'Erreur');
@@ -1467,7 +1401,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-cps-brouillons'){
     if(!d.cpsBrouillons.length) return;
-    if(!confirm('Supprimer définitivement '+d.cpsBrouillons.length+' CP(s) brouillon(s) ancien(s) ?')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.cpsBrouillons.length+' CP(s) brouillon(s) ancien(s) ?', null, osNettoyageAction, this, arguments)) return;
     var ids = d.cpsBrouillons.map(function(c){ return c.id; });
     _nettSupprimerParLots('/rest/v1/communiques', 'id', ids, headers, function(ok){
       notif(ok ? ids.length+' CP(s) supprimé(s) !' : 'Erreur');
@@ -1477,7 +1411,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-cps-b64'){
     if(!d.cpsB64.length) return;
-    if(!confirm('Vider la colonne fichier_b64 de '+d.cpsB64.length+' communiqué(s) ?\nLes PDFs en Storage (fichier_pdf) ne sont pas touchés.')) return;
+    if(!osConfirmerPuis('Vider la colonne fichier_b64 de '+d.cpsB64.length+' communiqué(s) ?\nLes PDFs en Storage (fichier_pdf) ne sont pas touchés.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.cpsB64.map(function(c){ return c.id; });
     _nettViderChampParLots('/rest/v1/communiques', 'id', ids, {fichier_b64: null}, headers, function(ok){
       notif(ok ? 'Base64 CPs vidé !' : 'Erreur');
@@ -1487,7 +1421,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-historique'){
     if(!d.histVieux.length) return;
-    if(!confirm('Supprimer '+d.histVieux.length+' entrée(s) de log de plus de 6 mois ?')) return;
+    if(!osConfirmerPuis('Supprimer '+d.histVieux.length+' entrée(s) de log de plus de 6 mois ?', null, osNettoyageAction, this, arguments)) return;
     var cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - 6);
     fetch(SB_URL+'/rest/v1/historique?created_at=lt.'+cutoff.toISOString(), {
@@ -1500,7 +1434,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-annonces'){
     if(!d.annonces.length) return;
-    if(!confirm('Supprimer définitivement '+d.annonces.length+' annonce(s) archivée(s) ?')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.annonces.length+' annonce(s) archivée(s) ?', null, osNettoyageAction, this, arguments)) return;
     fetch(SB_URL+'/rest/v1/annonces?actif=eq.false', {
       method:'DELETE', headers:headers
     }).then(function(r){
@@ -1576,7 +1510,7 @@ function osNettoyageRechercherArticles(){
 }
 
 function osNettoyageSupprimerArticle(id){
-  if(!confirm('Supprimer définitivement cet article (et son historique) ?\nCette action est irréversible.')) return;
+  if(!osConfirmerPuis('Supprimer définitivement cet article (et son historique) ?\nCette action est irréversible.', null, osNettoyageSupprimerArticle, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   // Nettoyer l'historique lié d'abord — sinon on laisse des lignes orphelines
   // (ou la suppression de l'article échoue si une contrainte FK existe).
@@ -1619,7 +1553,7 @@ function osNettoyageRechercherSujets(){
 }
 
 function osNettoyageSupprimerSujet(id){
-  if(!confirm('Supprimer définitivement ce sujet ?\nLes articles qui y étaient liés perdront simplement ce lien (rien d\'autre ne change pour eux).\nCette action est irréversible.')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce sujet ?\nLes articles qui y étaient liés perdront simplement ce lien (rien d\'autre ne change pour eux).\nCette action est irréversible.', null, osNettoyageSupprimerSujet, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   // Détacher les articles qui pointent vers ce sujet avant de le supprimer —
   // sinon référence morte (ou rejet FK si une contrainte existe côté base).
@@ -1884,12 +1818,12 @@ function osAfficherSessionNonConfiguree(){
   screen.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;';
 
   screen.innerHTML =
-    '<div style="font-size:2.5rem;margin-bottom:0.5rem;">⏳</div>'
+    '<div style="font-size:2.5rem;margin-bottom:0.5rem;"><i class="ti ti-hourglass"></i></div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès en attente</div>'
     +'<div id="snc-msg" style="font-family:Space Mono,monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:380px;line-height:1.7;">Vérification en cours...</div>'
     +'<div style="margin-top:1.5rem;display:flex;gap:0.8rem;">'
     +'<button onclick="seDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>'
-    +'<button onclick="location.reload()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;">↻ Réessayer</button>'
+    +'<button onclick="location.reload()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;"><i class="ti ti-refresh"></i> Réessayer</button>'
     +'</div>';
 
   document.body.appendChild(screen);
@@ -2075,8 +2009,8 @@ function _osGestionDemandesRender(zone, membres, demandes){
     card.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(nom)+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · '+esc(apps.join(', '))+'</div></div>'
       +'<div style="display:flex;gap:0.4rem;">'
-      +'<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>'
-      +'<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button>'
+      +'<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;"><i class="ti ti-check"></i> Approuver</button>'
+      +'<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>'
       +'</div>';
     wrap.appendChild(card);
   });
@@ -2103,11 +2037,10 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'<div style="font-size:.62rem;color:var(--gris);">'+esc(m.email||'')+'</div>'
       +'</div>'
       +'<span style="font-size:.6rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+';font-weight:600;">'+esc(m.role||'')+'</span>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion">✉️</button>'
-      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google">📨</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe">🔑</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat">⏱️</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion"><i class="ti ti-mail"></i></button>'
+      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google"><i class="ti ti-mail-forward"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe"><i class="ti ti-key"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
 
@@ -2218,7 +2151,7 @@ function osInviterMembreValider(){
 
 function osRenvoyerInvitation(email, nom, btn){
   if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
-  if(!confirm('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?')) return;
+  if(!osConfirmerPuis('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?', {oui:'Renvoyer'}, osRenvoyerInvitation, this, arguments)) return;
   var texteOriginal = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
   var prenomSeul = (nom||'').split(' ')[0] || '';
@@ -2242,7 +2175,7 @@ function osRenvoyerInvitation(email, nom, btn){
 }
 
 function osDesactiverMembre(id, nom){
-  if(!confirm('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.')) return;
+  if(!osConfirmerPuis('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.', null, osDesactiverMembre, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
   .then(function(r){
@@ -2310,25 +2243,26 @@ function osResetMotDePasseMembreEnvoyer(membreId){
   });
 }
 
+// Créditer des heures à la main (activité hors article ou agenda : aide à un événement,
+// tenue d'un stand…). Ouvert depuis la fiche d'un bénévole, pour la vie associative.
 function osCrediterHeuresModal(id, nom){
+  var ancien = document.getElementById('crediter-heures-overlay');
+  if(ancien) ancien.remove();
   var ov = document.createElement('div');
   ov.id = 'crediter-heures-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
-    +'<div style="padding:1.2rem 1.5rem;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:var(--encre);">⏱️ Créditer des heures</div>'
-    +'<div style="font-size:.72rem;color:var(--gris);margin-top:2px;">Pour '+esc(nom)+' — pour une activité hors article/agenda</div>'
-    +'</div>'
-    +'<div style="padding:0 1.5rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;">'
-    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Durée (heures)</label><input id="cred-heures-duree" type="number" min="0.25" step="0.25" placeholder="Ex: 2.5" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
-    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Description</label><input id="cred-heures-desc" type="text" placeholder="Ex: Aide déménagement local" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
-    +'<div id="cred-heures-msg" style="display:none;font-size:.72rem;padding:6px 10px;border-radius:6px;"></div>'
-    +'</div>'
-    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
-    +'<button onclick="document.getElementById(\'crediter-heures-overlay\').remove()" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
-    +'<button id="cred-heures-btn" data-id="'+id+'" onclick="osCrediterHeuresEnvoyer(this.dataset.id)" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Créditer</button>'
-    +'</div>'
-    +'</div>';
+  ov.className = 'se-overlay';
+  ov.innerHTML = '<div class="se-boite" role="dialog" aria-modal="true" aria-labelledby="cred-heures-titre">'
+    +'<div class="se-entete"><div id="cred-heures-titre" class="se-titre"><i class="ti ti-clock-plus"></i> Créditer des heures</div>'
+    +'<button class="se-fermer" aria-label="Fermer" onclick="document.getElementById(\'crediter-heures-overlay\').remove()"><i class="ti ti-x"></i></button></div>'
+    +'<div class="se-corps">'
+    +'<p class="se-aide">Pour '+esc(nom)+', pour une activité qui n\'est pas déjà comptée (articles, relectures et événements de l\'agenda le sont automatiquement).</p>'
+    +'<div><label class="nlx-label" for="cred-heures-duree">Durée en heures</label><input id="cred-heures-duree" class="nlx-champ" type="number" min="0.25" step="0.25" placeholder="Ex : 2,5"></div>'
+    +'<div><label class="nlx-label" for="cred-heures-desc">Pour quoi ?</label><input id="cred-heures-desc" class="nlx-champ" type="text" placeholder="Ex : tenue du stand au forum des associations"></div>'
+    +'<div id="cred-heures-msg" class="se-erreur" style="display:none;"></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'crediter-heures-overlay\').remove()">Annuler</button>'
+    +'<button id="cred-heures-btn" class="se-btn-principal" data-id="'+esc(id)+'" onclick="osCrediterHeuresEnvoyer(this.dataset.id)">Créditer</button></div>'
+    +'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
   setTimeout(function(){ var el=document.getElementById('cred-heures-duree'); if(el) el.focus(); },50);
 }
@@ -2339,11 +2273,11 @@ function osCrediterHeuresEnvoyer(membreId){
   var msgEl = document.getElementById('cred-heures-msg');
   var btn = document.getElementById('cred-heures-btn');
   if(!dureeH || dureeH <= 0){
-    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Indique une durée valide.'; }
+    if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Indique une durée valide.'; }
     return;
   }
   var dureeMin = Math.round(dureeH * 60);
-  if(btn){ btn.disabled=true; btn.textContent='...'; }
+  if(btn){ btn.disabled=true; btn.textContent='Envoi…'; }
   if(msgEl) msgEl.style.display='none';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/heures_benevolat',{
@@ -2351,15 +2285,18 @@ function osCrediterHeuresEnvoyer(membreId){
     body:JSON.stringify({ membre_id:membreId, type:'manuel', duree_minutes:dureeMin, description:desc||null })
   }).then(function(r){
     if(!r.ok){
-      if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur lors du crédit.'; }
-      if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
-      return;
+      // Message précis de la base, utile pour comprendre un refus
+      return r.json().catch(function(){ return {}; }).then(function(e){
+        var detail = (e && (e.message || e.details)) || ('code '+r.status);
+        if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Les heures n\'ont pas été créditées ('+detail+').'; }
+        if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
+      });
     }
     var ov = document.getElementById('crediter-heures-overlay');
     if(ov) ov.remove();
-    notif('Heures créditées ✓','succes');
+    notif(String(dureeH).replace('.',',')+' h créditée'+(dureeH>=2?'s':''),'succes');
   }).catch(function(){
-    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
+    if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Erreur réseau. Vérifie ta connexion.'; }
     if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
   });
 }
@@ -2479,7 +2416,7 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
         html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="osGestionAppsToggleApp(\''+m.id+'\',\''+app.id+'\',this.checked)" style="accent-color:var(--rouge);width:14px;height:14px;flex-shrink:0;">';
         html += '<span style="font-size:0.82rem;">'+app.icon+'</span>';
         html += '<span style="font-size:0.72rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">'+esc(app.label)+'</span>';
-        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;">⚠</span>';
+        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;"><i class="ti ti-alert-triangle"></i></span>';
         html += '</label>';
       });
 
@@ -2607,7 +2544,7 @@ function osGestionAppsSelectAll(membreId, activer){
 
 function osGestionAppsAppliquerProfil(membreId, profil){
   var labels = { redacteur:'Rédacteur', correcteur:'SR', admin:'Admin' };
-  if(!confirm('Appliquer le profil "'+labels[profil]+'" à ce membre ?\nSes apps actuelles seront remplacées.')) return;
+  if(!osConfirmerPuis('Appliquer le profil "'+labels[profil]+'" à ce membre ?\nSes apps actuelles seront remplacées.', {oui:'Appliquer'}, osGestionAppsAppliquerProfil, this, arguments)) return;
 
   var ids = PROFILS_PREDEFINIS[profil] || PROFILS_PREDEFINIS.redacteur;
 
@@ -2645,7 +2582,8 @@ var CARNET_CAT_COLORS = {
   'Expert·e':     { bg:'#FBEAF0', c:'#72243E' },
   'Autre':        { bg:'#F1EFE8', c:'#5F5E5A' }
 };
-var CARNET_FIABILITE = { 1:'⚠️ Méfiance', 2:'~ Variable', 3:'✓ Fiable' };
+var CARNET_FIABILITE = { 1:'Méfiance', 2:'Variable', 3:'Fiable' };
+var CARNET_FIABILITE_ICONES = { 1:'alert-triangle', 2:'adjustments-horizontal', 3:'circle-check' };
 var CARNET_FIABILITE_COLORS = {
   1:{ bg:'#FCEBEB', c:'#A32D2D' },
   2:{ bg:'#FAEEDA', c:'#633806' },
@@ -2690,128 +2628,52 @@ var CARNET_CAT_ICONS = {
 };
 
 function osCarnetBuildUI(wc){
-  var isAdmin = getUserRole() === 'admin';
-  var uid = getUserId();
-  // canEdit global = admin seulement pour créer (tout le monde peut créer, mais modif/suppr = créateur ou admin)
-  var canEdit = true; // création ouverte à tous
+  var html = '<div class="cx">';
 
-  var html = '<div style="display:flex;height:100%;overflow:hidden;">';
-
-  // Rail catégories — même style que le rail Ma Rédac'
-  html += '<div id="carnet-sidebar-rail" style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;overflow-y:auto;">';
+  // Catégories : colonne sur ordinateur, pastilles qui défilent sur téléphone
+  html += '<nav class="cx-rail" id="carnet-sidebar-rail">';
   ['Tous'].concat(CARNET_CATS).forEach(function(cat){
-    var active = _carnetFiltreCategorie === cat;
-    html += '<button onclick="osCarnetSetCat(\''+cat+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(active?'var(--rouge)':'transparent')+';color:'+(active?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+CARNET_CAT_ICONS[cat]+'</span>'+cat+'</button>';
+    var n = cat === 'Tous' ? _carnetContacts.length : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
+    html += '<button type="button" class="cx-cat'+(_carnetFiltreCategorie === cat ? ' actif' : '')+'" data-cat="'+esc(cat)+'" onclick="osCarnetSetCat(this.dataset.cat)">'
+      +CARNET_CAT_ICONS[cat]+'<span>'+esc(cat)+'</span>'+(n ? '<em>'+n+'</em>' : '')+'</button>';
   });
-  html += '</div>';
+  html += '</nav>';
 
-  // Zone contenu
-  html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">';
-
-  // Toolbar
-  html += '<div style="padding:0.8rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;align-items:center;gap:0.6rem;">';
-  html += '<input type="text" id="carnet-search" placeholder="Rechercher un nom, une organisation…" oninput="osCarnetFiltrer()" style="flex:1;padding:0.4rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:DM Sans,sans-serif;outline:none;">';
-  if(canEdit){
-    html += '<button class="btn" onclick="osCarnetNouveauForm()" style="font-size:0.75rem;padding:0.35rem 0.8rem;white-space:nowrap;">+ Nouveau contact</button>';
-  }
-  html += '</div>';
-
-  // Liste contacts + fiche du contact sélectionné (intégrée directement, plus de popup)
-  html += '<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
-  html += '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">';
-  osCarnetRendreListe(html, wc, isAdmin, canEdit, uid);
-  return;
+  html += '<div class="cx-main">';
+  html += '<div class="cx-barre">'
+    +'<label class="cx-recherche"><i class="ti ti-search"></i><input type="search" data-sombre-ignore id="carnet-search" placeholder="Nom, organisation, poste…" value="'+esc(_carnetRecherche)+'" oninput="osCarnetFiltrer()"></label>'
+    +'<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osCarnetNouveauForm()"><i class="ti ti-plus"></i><span>Nouveau contact</span></button>'
+    +'</div>';
+  html += '<div class="cx-corps">'
+    +'<div id="carnet-liste" class="cx-liste"></div>'
+    +'<div id="carnet-detail-panel" class="cx-fiche">'+_carnetFicheVide()+'</div>'
+    +'</div>';
+  html += '</div></div>';
+  wc.innerHTML = html;
+  _rafraichirListeCarnet();
 }
 
-function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
-  // Filtrer
-  var contacts = _carnetContacts.filter(function(c){
-    var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
-    var q = _carnetRecherche.toLowerCase();
-    var matchQ = !q || (c.nom||'').toLowerCase().includes(q) || (c.organisation||'').toLowerCase().includes(q) || (c.poste||'').toLowerCase().includes(q);
-    return matchCat && matchQ;
-  });
+function _carnetFicheVide(){
+  return '<div class="cx-fiche-vide"><i class="ti ti-address-book"></i>Choisis un contact pour voir sa fiche.</div>';
+}
 
-  var html = baseHtml || '';
+function _carnetInitiales(c){
+  return ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
+}
 
-  if(!contacts.length){
-    html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);">';
-    html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;">📇</div>';
-    html += _carnetContacts.length ? '<div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div>' : '<div style="font-size:0.88rem;">Le carnet est vide.<br>Ajoute ton premier contact !</div>';
-    html += '</div>';
-  } else {
-    // Compteur
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.7rem;">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
-
-    contacts.forEach(function(c){
-      var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-      var fid = parseInt(c.fiabilite)||2;
-      var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-      var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-      var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
-      var peutModifier = isAdmin || (uid && c.cree_par === uid);
-
-      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
-
-      // Avatar
-      html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-
-      // Infos
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);margin-bottom:2px;">'+esc(c.nom||'')+'</div>';
-      html += '<div style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-      html += '<div style="display:flex;gap:0.3rem;margin-top:4px;flex-wrap:wrap;">';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+fcol.bg+';color:'+fcol.c+';">'+(CARNET_FIABILITE[fid]||'~')+'</span>';
-      html += '</div></div>';
-
-      // Droite
-      html += '<div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;">✉️ Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;">📞 '+esc(c.telephone)+'</a>';
-      if(peutModifier){
-        html += '<div style="display:flex;gap:4px;margin-top:4px;">';
-        html += '<button onclick="event.stopPropagation();osCarnetEditerDepuisFiche(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">✏️</button>';
-        html += '<button onclick="event.stopPropagation();osCarnetSupprimer(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid #ffaaaa;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
-        html += '</div>';
-      }
-      html += '</div>';
-
-      html += '</div>';
-    });
-  }
-
-  html += '</div>'; // fin #carnet-liste
-  html += '<div id="carnet-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
-    +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>'
-    +'</div>';
-  html += '</div></div>'; // fin ligne liste+fiche, fin zone-contenu
-
-  var wc2 = wc || document.getElementById('wincontent-carnet');
-  if(wc2){
-    // Remplacer seulement la liste si le header existe déjà
-    var liste = document.getElementById('carnet-liste');
-    if(liste){
-      liste.outerHTML = '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">'+html+'</div>';
-    } else {
-      wc2.innerHTML = html;
-    }
-  }
+function _carnetPastilles(c){
+  var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
+  var fid = parseInt(c.fiabilite)||2;
+  var fcol = CARNET_FIABILITE_COLORS[fid];
+  return '<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
+    +'<span class="cx-pastille" style="background:'+fcol.bg+';color:'+fcol.c+';"><i class="ti ti-'+CARNET_FIABILITE_ICONES[fid]+'"></i>'+CARNET_FIABILITE[fid]+'</span>';
 }
 
 function osCarnetSetCat(cat){
   _carnetFiltreCategorie = cat;
-  // Mettre à jour les boutons du rail
-  var wc = document.getElementById('wincontent-carnet');
-  if(wc){
-    wc.querySelectorAll('button[onclick^="osCarnetSetCat"]').forEach(function(btn){
-      var btnCat = btn.textContent.trim();
-      var active = btnCat === cat;
-      btn.style.background = active ? 'var(--rouge)' : 'transparent';
-      btn.style.color = active ? 'white' : 'var(--encre)';
-    });
-  }
+  document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
+    btn.classList.toggle('actif', btn.dataset.cat === cat);
+  });
   _rafraichirListeCarnet();
 }
 
@@ -2822,40 +2684,46 @@ function osCarnetFiltrer(){
 }
 
 function _rafraichirListeCarnet(){
-  var isAdmin = getUserRole() === 'admin';
   var liste = document.getElementById('carnet-liste');
   if(!liste) return;
+  var q = _carnetRecherche.trim().toLowerCase();
   var contacts = _carnetContacts.filter(function(c){
     var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
-    var q = _carnetRecherche.toLowerCase();
     var matchQ = !q || (c.nom||'').toLowerCase().includes(q) || (c.organisation||'').toLowerCase().includes(q) || (c.poste||'').toLowerCase().includes(q);
     return matchCat && matchQ;
   });
+  // Nombre de contacts par catégorie (change après un ajout ou une suppression)
+  document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
+    var cat = btn.dataset.cat;
+    var n = cat === 'Tous' ? _carnetContacts.length : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
+    var em = btn.querySelector('em');
+    if(n && !em){ em = document.createElement('em'); btn.appendChild(em); }
+    if(em){ if(n) em.textContent = n; else em.remove(); }
+  });
+  var actif = document.querySelector('#carnet-detail-panel [data-fiche-id]');
+  var idActif = actif ? actif.dataset.ficheId : null;
 
-  var html = '';
   if(!contacts.length){
-    html = '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2.5rem;margin-bottom:0.8rem;">📇</div><div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div></div>';
-  } else {
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.7rem;">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
-    contacts.forEach(function(c){
-      var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-      var fid = parseInt(c.fiabilite)||2;
-      var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-      var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-      var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
-      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
-      html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-      html += '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.88rem;color:var(--encre);margin-bottom:2px;">'+esc(c.nom||'')+'</div>';
-      html += '<div style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-      html += '<div style="display:flex;gap:0.3rem;margin-top:4px;flex-wrap:wrap;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+fcol.bg+';color:'+fcol.c+';">'+(CARNET_FIABILITE[fid]||'~')+'</span></div></div>';
-      html += '<div style="text-align:right;flex-shrink:0;">';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;">✉️ Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;">📞 '+esc(c.telephone)+'</a>';
-      html += '</div></div>';
-    });
+    liste.innerHTML = '<div class="cx-vide"><i class="ti ti-address-book"></i>'
+      +(_carnetContacts.length ? 'Aucun contact pour ce filtre.' : 'Le carnet est vide.<br>Ajoute le premier contact de la rédaction.')
+      +'</div>';
+    return;
   }
+  var html = '<div class="cx-compte">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
+  contacts.forEach(function(c){
+    var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
+    var fid = parseInt(c.fiabilite)||2;
+    var sousTitre = [c.poste, c.organisation].filter(Boolean).map(esc).join(' · ');
+    html += '<div class="cx-ligne'+(c.id === idActif ? ' actif' : '')+'" data-contact-id="'+esc(c.id)+'" onclick="osCarnetOuvrirFiche(this.dataset.contactId)">'
+      +'<div class="cx-avatar" style="background:'+col.bg+';color:'+col.c+';">'+esc(_carnetInitiales(c))+'</div>'
+      +'<div class="cx-ligne-infos"><div class="cx-nom">'+esc(c.nom||'')+'</div>'
+      +(sousTitre ? '<div class="cx-poste">'+sousTitre+'</div>' : '')
+      +'</div>'
+      +'<div class="cx-ligne-droite">'
+      +'<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
+      +'<span class="cx-fiab cx-fiab-'+fid+'" title="Fiabilité : '+CARNET_FIABILITE[fid]+'"></span>'
+      +'</div></div>';
+  });
   liste.innerHTML = html;
 }
 
@@ -2863,87 +2731,56 @@ function _rafraichirListeCarnet(){
 function osCarnetOuvrirFiche(id){
   var c = _carnetContacts.find(function(x){ return x.id === id; });
   if(!c) return;
-
   var card = document.getElementById('carnet-detail-panel');
   if(!card) return;
 
-  // Marquer l'item sélectionné dans la liste (fiche intégrée à droite, plus de popup)
-  document.querySelectorAll('.carnet-item').forEach(function(el){
-    var actif = el.dataset.contactId === id;
-    el.style.borderColor = actif ? 'var(--rouge)' : 'var(--gris-bord)';
-    el.style.background = actif ? 'rgba(234,91,28,0.05)' : 'white';
+  document.querySelectorAll('#carnet-liste .cx-ligne').forEach(function(el){
+    el.classList.toggle('actif', el.dataset.contactId === id);
   });
 
   var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-  var fid = parseInt(c.fiabilite)||2;
-  var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-  var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-  var isAdmin = getUserRole() === 'admin';
-  var uid = getUserId();
-  var peutModifier = isAdmin || (uid && c.cree_par === uid);
+  var peutModifier = getUserRole() === 'admin' || (getUserId() && c.cree_par === getUserId());
+  var cid = esc(c.id);
 
-  var html = '';
+  var html = '<div class="cx-fiche-contenu" data-fiche-id="'+cid+'">';
+  html += '<div class="cx-fiche-tete">'
+    +'<div class="cx-avatar cx-avatar-grand" style="background:'+col.bg+';color:'+col.c+';">'+esc(_carnetInitiales(c))+'</div>'
+    +'<div class="cx-fiche-titres"><div class="cx-fiche-nom">'+esc(c.nom||'')+'</div>'
+    +((c.poste||c.organisation) ? '<div class="cx-poste">'+[c.poste, c.organisation].filter(Boolean).map(esc).join(' · ')+'</div>' : '')
+    +'<div class="cx-pastilles">'+_carnetPastilles(c)+'</div></div>'
+    +'</div>';
 
-  // Header
-  html += '<div style="background:var(--encre-fixe);padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">';
-  html += '<div style="width:48px;height:48px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-  html += '<div style="flex:1;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(c.nom||'')+'</div>';
-  if(c.poste||c.organisation) html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:0.4rem;align-items:center;">';
-  if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">✏️ Modifier</button>';
-  if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">🗑️</button>';
-  html += '</div></div>';
-
-  // Corps
-  html += '<div style="padding:1.2rem 1.5rem;flex:1;">';
-
-  // Infos en grille
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem;">';
-  function ficheChamp(label, val, isLink, linkHref){
-    if(!val) return '';
-    var content = isLink ? '<a href="'+linkHref+'" style="color:var(--bleu);font-size:0.82rem;text-decoration:none;">'+esc(val)+'</a>' : '<span style="font-size:0.82rem;color:var(--encre);">'+esc(val)+'</span>';
-    return '<div style="background:var(--gris-clair);border-radius:6px;padding:0.6rem 0.8rem;"><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:3px;">'+label+'</div>'+content+'</div>';
-  }
-  html += ficheChamp('Email', c.email, true, 'mailto:'+c.email);
-  html += ficheChamp('Téléphone', c.telephone, true, 'tel:'+c.telephone);
-  html += ficheChamp('Catégorie', c.categorie);
-
-  // Fiabilité avec couleur
-  if(c.fiabilite){
-    html += '<div style="background:'+fcol.bg+';border-radius:6px;padding:0.6rem 0.8rem;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:3px;">Fiabilité</div>';
-    html += '<span style="font-size:0.82rem;color:'+fcol.c+';font-weight:600;">'+(CARNET_FIABILITE[fid]||'~')+'</span>';
-    html += '</div>';
+  html += '<div class="cx-fiche-actions">';
+  if(c.email) html += '<a class="mac-btn" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i>Écrire</a>';
+  if(c.telephone) html += '<a class="mac-btn" href="tel:'+esc(c.telephone.replace(/\s+/g,''))+'"><i class="ti ti-phone"></i>Appeler</a>';
+  html += '<button class="mac-btn" data-id="'+cid+'" onclick="osCarnetNouvelEchange(this.dataset.id)"><i class="ti ti-message-plus"></i>Noter un échange</button>';
+  if(peutModifier){
+    html += '<button class="mac-btn cpc-icone" data-id="'+cid+'" onclick="osCarnetEditerDepuisFiche(this.dataset.id)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
+      +'<button class="mac-btn mac-btn-refus cpc-icone" data-id="'+cid+'" onclick="osCarnetSupprimer(this.dataset.id)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
   }
   html += '</div>';
 
-  // Notes
+  if(c.email || c.telephone){
+    html += '<div class="cx-coordonnees">'
+      +(c.email ? '<div><i class="ti ti-mail"></i><a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a></div>' : '')
+      +(c.telephone ? '<div><i class="ti ti-phone"></i><a href="tel:'+esc(c.telephone.replace(/\s+/g,''))+'">'+esc(c.telephone)+'</a></div>' : '')
+      +'</div>';
+  }
+
   if(c.notes){
-    html += '<div style="background:var(--gris-clair);border-radius:6px;padding:0.7rem 0.9rem;margin-bottom:1rem;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Notes internes</div>';
-    html += '<div style="font-size:0.85rem;color:var(--encre);line-height:1.65;white-space:pre-wrap;">'+esc(c.notes)+'</div>';
-    html += '</div>';
+    html += '<div class="cx-section">Notes internes</div><div class="cx-notes">'+esc(c.notes)+'</div>';
   }
 
-  // Historique
-  html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.6rem;display:flex;align-items:center;justify-content:space-between;">';
-  html += '<span>Historique des échanges</span>';
-  html += '<button onclick="osCarnetNouvelEchange(\''+c.id+'\')" style="background:var(--rouge);color:white;border:none;border-radius:4px;padding:2px 8px;font-size:0.62rem;cursor:pointer;font-family:Space Mono,monospace;text-transform:uppercase;letter-spacing:0.05em;">+ Échange</button>';
+  html += '<div class="cx-section">Échanges</div>';
+  html += '<div id="carnet-historique-'+cid+'" class="cx-historique"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
+  html += '<div class="cx-section">Communiqués liés</div>';
+  html += '<div id="carnet-cps-'+cid+'"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
   html += '</div>';
-  html += '<div id="carnet-historique-'+c.id+'" style="min-height:40px;"><div style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);text-align:center;padding:0.8rem;"></div></div>';
-
-  // Communiqués liés
-  html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin:1rem 0 0.6rem;">Communiqués de presse liés</div>';
-  html += '<div id="carnet-cps-'+c.id+'" style="min-height:24px;"><div style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);text-align:center;padding:0.5rem;"></div></div>';
-
-  html += '</div>'; // corps
 
   card.innerHTML = html;
+  card.scrollTop = 0;
   osPanneauMobileOuvrir(card, 'Retour aux contacts');
 
-  // Charger l'historique et les CPs
   osCarnetChargerHistorique(c.id);
   osCarnetChargerCPs(c.id);
 }
@@ -2951,35 +2788,23 @@ function osCarnetOuvrirFiche(id){
 function osCarnetChargerCPs(contactId){
   var container = document.getElementById('carnet-cps-'+contactId);
   if(!container) return;
-
   fetch(SB_URL+'/rest/v1/communiques?contact_id=eq.'+encodeURIComponent(contactId)+'&select=id,titre,statut,date_cp,source,fichier_pdf,communique_fichiers(id)&order=date_cp.desc', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
-      container.innerHTML = '<div style="font-size:0.8rem;color:var(--gris);text-align:center;padding:0.6rem 0;">Aucun communiqué lié.</div>';
+      container.innerHTML = '<div class="cx-rien">Aucun communiqué lié.</div>';
       return;
     }
-    var html = '';
-    cps.forEach(function(cp){
+    container.innerHTML = cps.map(function(cp){
       var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
-      var statBg = cp.statut === 'publie' ? '#D4EDDA' : '#FFF3CD';
-      var statCo = cp.statut === 'publie' ? '#155724' : '#856404';
-      var statLbl = cp.statut === 'publie' ? 'Publié' : 'Brouillon';
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osCarnetOuvrirCP(\''+cp.id+'\')" onmouseover="this.style.opacity=\'0.75\'" onmouseout="this.style.opacity=\'1\'">';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-size:0.82rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📰 '+esc(cp.titre||'Sans titre')+'</div>';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+dateStr+'</div>';
-      html += '</div>';
-      html += '<div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0;">';
-      var nbFichiersContact = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
-      if(nbFichiersContact) html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:#E6F1FB;color:#0C447C;"><i class="ti ti-paperclip"></i> '+nbFichiersContact+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span>';
-      html += '</div>';
-      html += '</div>';
-    });
-    container.innerHTML = html;
+      var nbF = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+      return '<button type="button" class="cx-cp" data-id="'+esc(cp.id)+'" onclick="osCarnetOuvrirCP(this.dataset.id)">'
+        +'<i class="ti ti-news"></i><span class="cx-cp-titre">'+esc(cp.titre||'Sans titre')+'</span>'
+        +'<span class="cx-cp-meta">'+(cp.statut === 'publie' ? '' : '<b>Brouillon</b> · ')+dateStr+(nbF ? ' · <i class="ti ti-paperclip"></i>'+nbF : '')+'</span>'
+        +'</button>';
+    }).join('');
   }).catch(function(){
-    container.innerHTML = '<div style="font-size:0.78rem;color:var(--rouge);padding:0.4rem;">Erreur chargement.</div>';
+    container.innerHTML = '<div class="cx-rien">Impossible de charger les communiqués.</div>';
   });
 }
 
@@ -2995,64 +2820,54 @@ function osCarnetOuvrirCP(id){
 function osCarnetChargerHistorique(contactId){
   var container = document.getElementById('carnet-historique-'+contactId);
   if(!container) return;
-
   fetch(SB_URL+'/rest/v1/contacts_historique?contact_id=eq.'+encodeURIComponent(contactId)+'&select=*&order=created_at.desc', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(items){
     if(!items || items.code || !items.length){
-      container.innerHTML = '<div style="font-size:0.82rem;color:var(--gris);text-align:center;padding:1rem 0;">Aucun échange enregistré.</div>';
+      container.innerHTML = '<div class="cx-rien">Aucun échange noté pour l\'instant.</div>';
       return;
     }
-    var html = '';
-    items.forEach(function(h){
+    container.innerHTML = items.map(function(h){
       var dateStr = '';
       try { dateStr = new Date(h.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); } catch(e){}
-      html += '<div style="display:flex;gap:0.8rem;padding:0.55rem 0;border-bottom:0.5px solid var(--gris-bord);">';
-      html += '<div style="width:7px;height:7px;border-radius:50%;background:var(--rouge);flex-shrink:0;margin-top:5px;"></div>';
-      html += '<div style="flex:1;">';
-      html += '<div style="font-size:0.82rem;color:var(--encre);line-height:1.5;">';
-      html += '<span style="font-weight:600;">'+esc(h.type||'Échange')+'</span>';
-      if(h.note) html += ' — '+esc(h.note);
-      html += '</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">'+esc(h.auteur||'')+(dateStr?' · '+dateStr:'')+'</div>';
-      html += '</div></div>';
-    });
-    container.innerHTML = html;
+      return '<div class="cx-echange"><span class="cx-echange-point"></span><div>'
+        +'<div class="cx-echange-texte"><strong>'+esc(h.type||'Échange')+'</strong>'+(h.note ? ' · '+esc(h.note) : '')+'</div>'
+        +'<div class="cx-echange-meta">'+esc(h.auteur||'')+(dateStr ? ' · '+dateStr : '')+'</div>'
+        +'</div></div>';
+    }).join('');
   }).catch(function(){
-    container.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur chargement.</div>';
+    container.innerHTML = '<div class="cx-rien">Impossible de charger les échanges.</div>';
   });
 }
 
+// Fenêtres de saisie du carnet : même habillage que les autres fenêtres Compo
+function _carnetModale(idOverlay, titre, icone, corps){
+  var ancien = document.getElementById(idOverlay);
+  if(ancien) ancien.remove();
+  var ov = document.createElement('div');
+  ov.id = idOverlay;
+  ov.className = 'se-overlay';
+  ov.innerHTML = '<div class="se-boite cx-boite" role="dialog" aria-modal="true">'
+    +'<div class="se-entete"><div class="se-titre"><i class="ti ti-'+icone+'"></i> '+esc(titre)+'</div>'
+    +'<button class="se-fermer" aria-label="Fermer" onclick="document.getElementById(\''+idOverlay+'\').remove()"><i class="ti ti-x"></i></button></div>'
+    +'<div class="se-corps">'+corps+'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  var premier = ov.querySelector('input, select, textarea');
+  if(premier) setTimeout(function(){ premier.focus(); }, 30);
+  return ov;
+}
+
 function osCarnetNouvelEchange(contactId){
-  var existing = document.getElementById('carnet-echange-overlay');
-  if(existing) document.body.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.id = 'carnet-echange-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:12px;max-width:440px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,0.3);padding:1.4rem 1.6rem;';
-
-  var html = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:1rem;">Nouvel échange</div>';
-
-  html += '<div style="margin-bottom:0.7rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Type d\'échange</label>';
-  html += '<select id="echange-type" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  HIST_TYPES.forEach(function(t){ html += '<option>'+t+'</option>'; });
-  html += '</select></div>';
-
-  html += '<div style="margin-bottom:0.9rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Note (optionnel)</label>';
-  html += '<textarea id="echange-note" rows="3" placeholder="Résumé de l\'échange, suite à donner…" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:vertical;box-sizing:border-box;"></textarea></div>';
-
-  html += '<div style="display:flex;gap:0.5rem;">';
-  html += '<button class="btn" onclick="osCarnetSauverEchange(\''+contactId+'\')" style="font-size:0.78rem;">Enregistrer</button>';
-  html += '<button class="btn sec" onclick="document.body.removeChild(document.getElementById(\'carnet-echange-overlay\'))" style="font-size:0.78rem;">Annuler</button>';
-  html += '</div>';
-
-  card.innerHTML = html;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
+  var c = _carnetContacts.find(function(x){ return x.id === contactId; });
+  var corps = (c ? '<p class="se-aide">Avec '+esc(c.nom||'')+'</p>' : '')
+    +'<div><label class="nlx-label" for="echange-type">Type d\'échange</label><select id="echange-type" class="nlx-champ">'
+    +HIST_TYPES.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'</select></div>'
+    +'<div><label class="nlx-label" for="echange-note">Note <span>(facultatif)</span></label>'
+    +'<textarea id="echange-note" class="nlx-champ" rows="3" placeholder="Résumé de l\'échange, suite à donner…"></textarea></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'carnet-echange-overlay\').remove()">Annuler</button>'
+    +'<button class="se-btn-principal" data-id="'+esc(contactId)+'" onclick="osCarnetSauverEchange(this.dataset.id)">Enregistrer</button></div>';
+  _carnetModale('carnet-echange-overlay', 'Noter un échange', 'message-plus', corps);
 }
 
 function osCarnetSauverEchange(contactId){
@@ -3084,7 +2899,7 @@ function osCarnetSauverEchange(contactId){
 
       var ol = document.getElementById('carnet-echange-overlay');
       if(ol) document.body.removeChild(ol);
-      notif('Échange enregistré !');
+      notif('Échange enregistré','succes');
       osCarnetChargerHistorique(contactId);
       // Rafraîchir updated_at dans _carnetContacts
       var idx = _carnetContacts.findIndex(function(c){ return c.id === contactId; });
@@ -3107,67 +2922,26 @@ function osCarnetEditerDepuisFiche(id){
 }
 
 function osCarnetOuvrirForm(c){
-  var existing = document.getElementById('carnet-form-overlay');
-  if(existing) document.body.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.id = 'carnet-form-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);padding:1.5rem 1.7rem;';
-
-  var titre = c ? 'Modifier le contact' : 'Nouveau contact';
-  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">'+titre+'</div>';
-  html += '<button onclick="document.body.removeChild(document.getElementById(\'carnet-form-overlay\'))" style="background:transparent;border:none;color:var(--gris);font-size:1.2rem;cursor:pointer;line-height:1;">×</button>';
-  html += '</div>';
-
-  function champ(id, label, placeholder, val, full){
-    return '<div style="'+(full?'grid-column:1/-1;':'')+'">'
-      +'<label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">'+label+'</label>'
-      +'<input type="text" id="cf-'+id+'" placeholder="'+placeholder+'" value="'+esc(val||'')+'" style="width:100%;padding:0.45rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;box-sizing:border-box;">'
-      +'</div>';
+  function champ(id, label, placeholder, val, type){
+    return '<div><label class="nlx-label" for="cf-'+id+'">'+label+'</label>'
+      +'<input type="'+(type||'text')+'" id="cf-'+id+'" class="nlx-champ" placeholder="'+esc(placeholder)+'" value="'+esc(val||'')+'"></div>';
   }
-
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-bottom:0.7rem;">';
-  html += champ('nom', 'Nom *', 'Prénom Nom', c&&c.nom, true);
-  html += champ('organisation', 'Organisation', 'Mairie de Castres…', c&&c.organisation);
-  html += champ('poste', 'Poste', 'Directeur·rice, Président·e…', c&&c.poste);
-  html += champ('email', 'Email', 'contact@exemple.fr', c&&c.email);
-  html += champ('telephone', 'Téléphone', '06 12 34 56 78', c&&c.telephone);
-
-  // Catégorie
-  html += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Catégorie</label>';
-  html += '<select id="cf-categorie" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  CARNET_CATS.forEach(function(cat){
-    html += '<option'+(c&&c.categorie===cat?' selected':'')+'>'+cat+'</option>';
-  });
-  html += '</select></div>';
-
-  // Fiabilité
-  html += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Fiabilité</label>';
-  html += '<select id="cf-fiabilite" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  [1,2,3].forEach(function(v){
-    html += '<option value="'+v+'"'+(c&&parseInt(c.fiabilite)===v?' selected':'')+'>'+CARNET_FIABILITE[v]+'</option>';
-  });
-  html += '</select></div>';
-
-  html += '</div>'; // grid
-
-  // Notes
-  html += '<div style="margin-bottom:1rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Notes internes</label>';
-  html += '<textarea id="cf-notes" rows="3" placeholder="Préférences de contact, contexte, remarques…" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:vertical;box-sizing:border-box;">'+esc((c&&c.notes)||'')+'</textarea></div>';
-
-  html += '<div style="display:flex;gap:0.5rem;">';
-  html += '<button class="btn" onclick="osCarnetSauver()" style="font-size:0.8rem;">'+( c ? 'Enregistrer les modifications' : 'Créer le contact')+'</button>';
-  html += '<button class="btn sec" onclick="document.body.removeChild(document.getElementById(\'carnet-form-overlay\'))" style="font-size:0.8rem;">Annuler</button>';
-  html += '</div>';
-
-  card.innerHTML = html;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
+  var corps = champ('nom', 'Nom <span>(obligatoire)</span>', 'Prénom Nom', c&&c.nom)
+    +'<div class="cx-deux">'
+    +champ('organisation', 'Organisation', 'Mairie de Castres…', c&&c.organisation)
+    +champ('poste', 'Poste', 'Directeur·rice, président·e…', c&&c.poste)
+    +champ('email', 'Email', 'contact@exemple.fr', c&&c.email, 'email')
+    +champ('telephone', 'Téléphone', '06 12 34 56 78', c&&c.telephone, 'tel')
+    +'<div><label class="nlx-label" for="cf-categorie">Catégorie</label><select id="cf-categorie" class="nlx-champ">'
+    +CARNET_CATS.map(function(cat){ return '<option'+(c&&c.categorie===cat?' selected':'')+'>'+esc(cat)+'</option>'; }).join('')+'</select></div>'
+    +'<div><label class="nlx-label" for="cf-fiabilite">Fiabilité</label><select id="cf-fiabilite" class="nlx-champ">'
+    +[3,2,1].map(function(v){ return '<option value="'+v+'"'+((c ? parseInt(c.fiabilite)||2 : 2)===v?' selected':'')+'>'+CARNET_FIABILITE[v]+'</option>'; }).join('')+'</select></div>'
+    +'</div>'
+    +'<div><label class="nlx-label" for="cf-notes">Notes internes</label>'
+    +'<textarea id="cf-notes" class="nlx-champ" rows="3" placeholder="Préférences de contact, contexte, remarques…">'+esc((c&&c.notes)||'')+'</textarea></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'carnet-form-overlay\').remove()">Annuler</button>'
+    +'<button class="se-btn-principal" onclick="osCarnetSauver()">'+(c ? 'Enregistrer' : 'Créer le contact')+'</button></div>';
+  _carnetModale('carnet-form-overlay', c ? 'Modifier le contact' : 'Nouveau contact', c ? 'edit' : 'user-plus', corps);
 }
 
 function osCarnetSauver(){
@@ -3209,7 +2983,7 @@ function osCarnetSauver(){
     var contact = Array.isArray(data) ? data[0] : data;
     if(contact && contact.code){ notif('Erreur : '+(contact.message||contact.code)); return; }
 
-    notif(isNew ? 'Contact créé !' : 'Contact mis à jour !');
+    notif(isNew ? 'Contact créé' : 'Contact mis à jour','succes');
     var idEdite = _carnetEditId;
     var ol = document.getElementById('carnet-form-overlay');
     if(ol) document.body.removeChild(ol);
@@ -3230,7 +3004,7 @@ function osCarnetSauver(){
 }
 
 function osCarnetSupprimer(id){
-  if(!confirm('Supprimer définitivement ce contact et tout son historique ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce contact et tout son historique ?', null, osCarnetSupprimer, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(id), {
     method: 'DELETE',
     headers: Object.assign({}, SB_HEADERS, {
@@ -3240,7 +3014,7 @@ function osCarnetSupprimer(id){
     if(r.ok){
       notif('Contact supprimé');
       var panel = document.getElementById('carnet-detail-panel');
-      if(panel) panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>';
+      if(panel){ panel.innerHTML = _carnetFicheVide(); panel.classList.remove('panneau-mobile-ouvert'); }
       _carnetContacts = _carnetContacts.filter(function(c){ return c.id !== id; });
       _rafraichirListeCarnet();
     }

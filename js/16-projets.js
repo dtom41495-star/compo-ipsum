@@ -170,11 +170,11 @@ function _ipjRendreProjet(p, taches){
     +'</div>';
   mn.appendChild(hdr);
   hdr.querySelectorAll('[data-act]').forEach(function(b){
-    b.onclick = function(){
+    b.onclick = function actionProjet(){
       if(b.dataset.act === 'tache') _ipjFormTache(null, p);
       else if(b.dataset.act === 'modifier') _ipjFormProjet(p);
       else if(b.dataset.act === 'supprimer'){
-        if(!confirm('Supprimer le projet « '+(p.titre||'')+' » ?')) return;
+        if(!osConfirmerPuis('Supprimer le projet « '+(p.titre||'')+' » ?', null, actionProjet, this, arguments)) return;
         _ipjEcrire('/rest/v1/projets?id=eq.'+p.id, 'DELETE').then(function(){
           notif('Projet supprimé');
           _ipj.actif = null;
@@ -456,8 +456,8 @@ function _ipjDetailTache(t, p, peutGerer){
   var bMod = ov.querySelector('[data-act="modifier"]');
   if(bMod) bMod.onclick = function(){ ov.remove(); _ipjFormTache(t, p); };
   var bSup = ov.querySelector('[data-act="supprimer"]');
-  if(bSup) bSup.onclick = function(){
-    if(!confirm('Supprimer cette tâche ?')) return;
+  if(bSup) bSup.onclick = function supprimerTache(){
+    if(!osConfirmerPuis('Supprimer cette tâche ?', null, supprimerTache, this, arguments)) return;
     _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'DELETE').then(function(){ notif('Tâche supprimée'); ov.remove(); _ipjRecharger(p); });
   };
 }

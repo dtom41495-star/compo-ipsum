@@ -18,7 +18,7 @@ function nlChargerDepuisBase(redactionIdChoisi){
   var redactionId = redactionIdChoisi || window._redacActiveId || (mesLiens[0] && mesLiens[0].redaction_id) || null;
 
   if(!redactionId){
-    zone.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Aucune rédaction associée à ton compte.</div>';
+    zone.innerHTML = '<div class="nlx-vide">Aucune rédaction associée à ton compte.</div>';
     return;
   }
 
@@ -38,9 +38,8 @@ function nlChargerDepuisBase(redactionIdChoisi){
 
     var entete = '';
     if(mesLiens.length > 1){
-      entete += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
-      entete += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;">Rédaction</span>';
-      entete += '<select onchange="nlChargerDepuisBase(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:3px 7px;border:1px solid var(--gris-bord);border-radius:5px;">';
+      entete += '<div class="nlx-redac"><label class="nlx-label" for="nl-redac-choix">Rédaction</label>';
+      entete += '<select id="nl-redac-choix" class="nlx-champ" onchange="nlChargerDepuisBase(this.value)">';
       mesLiens.forEach(function(mr){
         var r = (_redactionsData||[]).find(function(x){ return x.id===mr.redaction_id; });
         entete += '<option value="'+mr.redaction_id+'"'+(mr.redaction_id===redactionId?' selected':'')+'>'+esc(r?r.nom:mr.redaction_id)+'</option>';
@@ -48,17 +47,17 @@ function nlChargerDepuisBase(redactionIdChoisi){
       entete += '</select></div>';
     }
     if(res.isFallback){
-      entete += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);background:#F0EEE9;border-radius:6px;padding:0.5rem 0.7rem;margin-bottom:0.6rem;">Aucun envoi précédent enregistré pour cette rédaction — affichage des 7 derniers jours.</div>';
+      entete += '<div class="nlx-info"><i class="ti ti-info-circle"></i>Aucun envoi enregistré pour cette rédaction : voici les 7 derniers jours.</div>';
     }
 
     if(!_nlArticlesBase.length){
-      zone.innerHTML = entete+'<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Rien de nouveau depuis le dernier envoi.</div>';
+      zone.innerHTML = entete+'<div class="nlx-vide"><i class="ti ti-mail-check"></i>Rien de nouveau depuis le dernier envoi.</div>';
       return;
     }
     zone.innerHTML = entete+'<div id="nl-base-liste"></div>';
     nlAfficherArticlesBase(document.getElementById('nl-base-liste'));
   }).catch(function(){
-    zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur de chargement</div>';
+    zone.innerHTML = '<div class="nlx-vide">Impossible de charger les contenus. Vérifie ta connexion.</div>';
   });
 }
 
@@ -66,73 +65,50 @@ function nlAfficherArticlesBase(zone){
   zone.innerHTML = '';
 
   var label = document.createElement('div');
-  label.style.cssText = 'font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
-  label.textContent = _nlArticlesBase.length+' contenu(s) depuis le dernier envoi — décoche ce que tu ne veux pas inclure';
+  label.className = 'nlx-sous-titre';
+  label.innerHTML = _nlArticlesBase.length+' contenu'+(_nlArticlesBase.length>1?'s':'')+' depuis le dernier envoi <span>Décoche ce que tu ne veux pas inclure</span>';
   zone.appendChild(label);
 
-  var STATUT = { valide:'#155724', publie:'#0C5460' };
-  var STATUT_BG = { valide:'#D4EDDA', publie:'#D1ECF1' };
+  var STATUT_LIB = { valide:'Bon à publier', publie:'En ligne' };
 
   _nlArticlesBase.forEach(function(art){
     var isSelected = _nlSelectionnes.some(function(s){ return s.id === art.id; });
 
-    var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:flex-start;gap:0.7rem;padding:0.7rem 0.8rem;'+
-      'border:1.5px solid '+(isSelected?'var(--rouge)':'var(--gris-bord)')+';'+
-      'border-radius:7px;margin-bottom:0.4rem;cursor:pointer;transition:border-color 0.15s;'+
-      'background:'+(isSelected?'rgba(232,70,30,0.04)':'white')+';';
+    var row = document.createElement('label');
+    row.className = 'nlx-choix'+(isSelected ? ' coche' : '');
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = isSelected;
-    cb.style.cssText = 'margin-top:3px;flex-shrink:0;accent-color:var(--rouge);width:16px;height:16px;cursor:pointer;';
 
     var body = document.createElement('div');
-    body.style.cssText = 'flex:1;min-width:0;';
-
-    var st = art.statut || 'valide';
+    body.className = 'nlx-choix-corps';
     var dateStr = art.updated_at ? new Date(art.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-
+    var breve = art.type === 'breve';
     body.innerHTML =
-      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem;">'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;background:'+STATUT_BG[st]+';color:'+STATUT[st]+';border:1px solid '+STATUT[st]+';">'+st+'</span>'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;background:#F0EEE9;color:var(--gris);border-radius:3px;">'+(art.type||'article')+'</span>'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+dateStr+'</span>'+
-      '</div>'+
-      '<div style="font-weight:700;font-size:0.85rem;color:var(--encre);">'+esc(art.titre||'Sans titre')+'</div>'+
-      (art.chapeau?'<div style="font-size:0.75rem;color:var(--gris);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(art.chapeau)+'</div>':'')+
-      '<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Par '+(art.auteur||'—')+'</div>';
+      '<div class="nlx-choix-titre">'+esc(art.titre||'Sans titre')+'</div>'+
+      '<div class="nl-item-meta"><span class="nl-item-type '+(breve ? 'nl-type-breve' : 'nl-type-article')+'">'+(breve ? 'Brève' : 'Article')+'</span>'+
+        esc(art.auteur||'?')+(dateStr ? ' · '+dateStr : '')+(STATUT_LIB[art.statut] ? ' · '+STATUT_LIB[art.statut] : '')+'</div>';
 
     row.appendChild(cb);
     row.appendChild(body);
 
-    // Toggle sélection
-    function toggle(){
+    cb.onchange = function(){
       var idx = _nlSelectionnes.findIndex(function(s){ return s.id === art.id; });
-      if(idx >= 0){
-        _nlSelectionnes.splice(idx, 1);
-        cb.checked = false;
-        row.style.borderColor = 'var(--gris-bord)';
-        row.style.background = 'white';
-      } else {
-        _nlSelectionnes.push(art);
-        cb.checked = true;
-        row.style.borderColor = 'var(--rouge)';
-        row.style.background = 'rgba(232,70,30,0.04)';
-      }
+      if(cb.checked && idx < 0) _nlSelectionnes.push(art);
+      if(!cb.checked && idx >= 0) _nlSelectionnes.splice(idx, 1);
+      row.classList.toggle('coche', cb.checked);
       nlMajArticlesListe();
-    }
-
-    row.onclick = function(e){ if(e.target !== cb) toggle(); };
-    cb.onchange = toggle;
+    };
     zone.appendChild(row);
   });
 
   // Bouton ajouter la sélection
   var btnAjouter = document.createElement('button');
-  btnAjouter.className = 'btn';
-  btnAjouter.style.cssText = 'width:100%;margin-top:0.5rem;font-size:0.8rem;';
-  btnAjouter.textContent = 'Ajouter les articles sélectionnés →';
+  btnAjouter.className = 'mac-btn mac-btn-principal nlx-ajouter';
+  btnAjouter.setAttribute('data-sombre-ignore', '');
+  zone.appendChild(btnAjouter);
+  nlMajArticlesListe();
   btnAjouter.onclick = function(){
     if(!_nlSelectionnes.length){ notif('Sélectionne au moins un article'); return; }
     // Convertir au format NL attendu par nlArticles
@@ -153,16 +129,19 @@ function nlAfficherArticlesBase(zone){
     nlRenderList();
     // Masquer la zone de sélection
     var z = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
-    if(z) z.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;">✓ '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
-    notif(nlArticles.length+' article(s) prets pour la newsletter !');
+    if(z) z.innerHTML = '<div class="nlx-info"><i class="ti ti-check"></i><span>'+nlArticles.length+' contenu'+(nlArticles.length>1?'s':'')+' dans la newsletter.</span><button class="nlx-lien" onclick="nlChargerDepuisBase()">Changer la sélection</button></div>';
+    notif(nlArticles.length+' contenu'+(nlArticles.length>1?'s':'')+' prêt'+(nlArticles.length>1?'s':'')+' pour la newsletter','succes');
   };
-  zone.appendChild(btnAjouter);
 }
 
 function nlMajArticlesListe(){
   // Mettre à jour le compteur
-  var btnAjouter = document.querySelector('#nl-base-articles .btn');
-  if(btnAjouter) btnAjouter.textContent = 'Ajouter les '+_nlSelectionnes.length+' articles sélectionnés →';
+  var btnAjouter = document.querySelector('#nl-base-articles .nlx-ajouter');
+  var n = _nlSelectionnes.length;
+  if(btnAjouter){
+    btnAjouter.disabled = !n;
+    btnAjouter.innerHTML = '<i class="ti ti-arrow-down"></i>'+(n ? 'Ajouter '+(n > 1 ? 'ces '+n+' contenus' : 'ce contenu') : 'Rien de coché');
+  }
 }
 
 
@@ -589,7 +568,7 @@ function cpsInvitationSeDeclarer(cpId, btn){
 // Le membre retire sa propre disponibilité. S'il était retenu, les responsables sont
 // prévenus pour trouver quelqu'un d'autre.
 function cpsInvitationSeRetirer(dispId, cpId, etaitRetenu){
-  if(etaitRetenu && !confirm('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?')) return;
+  if(etaitRetenu && !osConfirmerPuis('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?', {oui:'Me retirer', danger:true}, cpsInvitationSeRetirer, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:_cpInvitH()})
   .then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
@@ -638,7 +617,7 @@ function cpsInvitationRetenir(dispId, cpId, btn){
 
 // Ne pas retenir une personne disponible : elle est prévenue tout de suite.
 function cpsInvitationNePasRetenir(dispId, cpId, nom){
-  if(!confirm('Ne pas retenir '+(nom||'cette personne')+' ?\n\nUn message lui sera envoyé pour la prévenir.')) return;
+  if(!osConfirmerPuis('Ne pas retenir '+(nom||'cette personne')+' ?\n\nUn message lui sera envoyé pour la prévenir.', {oui:'Ne pas retenir'}, cpsInvitationNePasRetenir, this, arguments)) return;
   Promise.all([_cpInvitChargerCp(cpId), _cpInvitChargerDispos(cpId)]).then(function(res){
     var cp = res[0], dispos = res[1];
     var d = dispos.find(function(x){ return x.id === dispId; });
@@ -658,7 +637,7 @@ function cpsInvitationNePasRetenir(dispId, cpId, nom){
 // personne a déjà été prévenue qu'elle couvre, c'est à la personne qui annule de lui
 // expliquer — un email "finalement non" sans contexte serait pire.
 function cpsInvitationAnnulerChoix(dispId, cpId, nom){
-  if(!confirm((nom||'Cette personne')+' a déjà été prévenu·e qu\'il ou elle couvre cette invitation.\n\nAnnuler ce choix la remet simplement parmi les personnes disponibles, sans lui envoyer de message : pense à la prévenir toi-même.\n\nContinuer ?')) return;
+  if(!osConfirmerPuis((nom||'Cette personne')+' a déjà été prévenu·e qu\'il ou elle couvre cette invitation.\n\nAnnuler ce choix la remet simplement parmi les personnes disponibles, sans lui envoyer de message : pense à la prévenir toi-même.\n\nContinuer ?', {oui:'Annuler ce choix', non:'Garder'}, cpsInvitationAnnulerChoix, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'PATCH',headers:_cpInvitH(true),body:JSON.stringify({statut:'disponible'})})
   .then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
@@ -1261,67 +1240,42 @@ function cpsExportCSV(){
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a'); a.href=url; a.download='communiques_ipsum_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
   URL.revokeObjectURL(url);
-  notif('Export CSV téléchargé ✓','succes');
+  notif('Export CSV téléchargé','succes');
 }
 
 function cpsMakeCard(cp, isAdmin){
   var vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]');
   var nonLu = vus.indexOf(cp.id) === -1;
+  var estInvit = cp.type === 'invitation_presse';
 
+  // Même langage que les cartes de Mes articles (.mac) : une ligne d'état, le titre,
+  // l'essentiel, puis les infos à gauche et les actions à droite.
   var card = document.createElement('div');
-  card.style.cssText = 'background:'+(nonLu?'#FAF5FF':'white')+';border:1.5px solid '+(nonLu?'#C0A8D8':'var(--gris-bord)')+';border-left:'+(nonLu?'4px solid #7D3C98':'1.5px solid var(--gris-bord)')+';border-radius:8px;padding:1rem 1.2rem;margin-bottom:0.6rem;cursor:pointer;transition:border-color 0.15s;';
-  card.onmouseover = function(){ card.style.borderColor = 'var(--rouge)'; };
-  card.onmouseout  = function(){ card.style.borderColor = nonLu?'#C0A8D8':'var(--gris-bord)'; };
+  card.className = 'mac cpc'+(nonLu ? ' cpc-nonlu' : '');
   card.onclick = function(){
     // Marquer lu visuellement immédiatement
     nonLu = false;
-    card.style.background = 'white';
-    card.style.borderLeft = '1.5px solid var(--gris-bord)';
-    card.style.borderColor = 'var(--gris-bord)';
+    card.classList.remove('cpc-nonlu');
     var dot = card.querySelector('.cp-nonlu-dot');
     if(dot) dot.remove();
     cpsOuvrirDetail(cp);
   };
 
-  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) :
-                cp.created_at ? new Date(cp.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  var dRef = cp.date_cp || cp.created_at;
+  var dateStr = dRef ? new Date(dRef).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
 
-  var statutBadge = cp.statut === 'publie'
-    ? '<span style="background:#D4EDDA;color:#155724;border:1px solid #155724;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Publié</span>'
-    : '<span style="background:#FFF3CD;color:#856404;border:1px solid #856404;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Brouillon</span>';
-
-  var nonLuBadge = nonLu
-    ? '<span class="cp-nonlu-dot" style="background:#7D3C98;color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:3px;margin-left:4px;font-weight:700;">Nouveau</span>'
-    : '';
-
-  var nbFichiers = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
-  var pdfBadge = nbFichiers
-    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> '+nbFichiers+'</span>'
-    : '';
-
-  // Modifier/Supprimer réservés à l'appli Communiqués admin (isAdmin=true) — jamais
-  // dans les vues de Ma Rédac' (cartes, fil de veille), même pour un rédac chef.
-  var peutSupprimer = isAdmin;
-  var peutEditer = isAdmin;
-
-  var adminBtns = peutEditer ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
-    '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-pencil"></i> Modifier</button>' +
-    (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-send"></i> Publier</button>' : '') +
-    (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;"><i class="ti ti-trash"></i></button>' : '') +
-    '</div>') : '';
-
-  // Badge type invitation
-  var typeBadge = cp.type === 'invitation_presse'
-    ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
-    : '';
+  var haut = '';
+  if(nonLu) haut += '<span class="mac-statut cp-nonlu-dot" style="color:#6B2F8A;background:#F3E8FA;">Nouveau</span>';
+  if(cp.statut === 'brouillon') haut += '<span class="mac-statut" style="color:#92400E;background:#FEF3C7;" title="Pas encore visible par l\'équipe">Brouillon</span>';
+  haut += '<span class="mac-surtitre"><i class="ti ti-'+(estInvit ? 'microphone' : 'news')+'" style="vertical-align:-2px;"></i> '
+    +(estInvit ? 'Invitation presse' : 'Communiqué')+(cp.source ? ' · '+esc(cp.source) : '')+'</span>';
+  if(dateStr) haut += '<span class="mac-date">'+dateStr+'</span>';
 
   // Invitation presse : une ligne "quand · où", l'échéance de réponse, puis ma situation
-  // (macaron comme dans l'agenda) ou le bouton pour me proposer. Avant, le bouton
-  // "Je suis disponible" restait affiché même après s'être proposé : recliquer donnait
-  // "Erreur ou déjà déclaré".
+  // (macaron comme dans l'agenda) ou le bouton pour me proposer.
   var evInfos = '';
   var dispBtn = '';
-  if(cp.type === 'invitation_presse'){
+  if(estInvit){
     var morceauxEv = [];
     if(cp.date_evenement){
       var dEvC = new Date(cp.date_evenement);
@@ -1329,57 +1283,54 @@ function cpsMakeCard(cp, isAdmin){
       morceauxEv.push(jourC.charAt(0).toUpperCase()+jourC.slice(1)+' à '+_cpInvitHeure(dEvC));
     }
     if(cp.lieu_evenement) morceauxEv.push(esc(cp.lieu_evenement));
-    if(morceauxEv.length) evInfos += '<div style="display:flex;align-items:flex-start;gap:5px;font-family:DM Sans,sans-serif;font-size:0.76rem;font-weight:600;color:#6B2F8A;margin-bottom:0.3rem;"><i class="ti ti-microphone" style="font-size:0.9rem;margin-top:1px;flex-shrink:0;"></i><span>'+morceauxEv.join(' · ')+'</span></div>';
+    if(morceauxEv.length) evInfos += '<div class="cpc-evenement"><i class="ti ti-calendar-event"></i><span>'+morceauxEv.join(' · ')+'</span></div>';
     var etatC = _cpInvitEtat(cp, (window._cpsDisposParCp||{})[cp.id]);
     if(cp.date_reponse && !etatC.passe){
       var dRep = new Date(cp.date_reponse);
       if(dRep >= new Date(Date.now()-86400000)){
         var urgent = dRep < new Date(Date.now()+3*86400000);
-        evInfos += '<div style="display:flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.7rem;color:'+(urgent?'#B42318':'var(--gris)')+';font-weight:'+(urgent?'600':'400')+';margin-bottom:0.3rem;"><i class="ti ti-clock" style="font-size:0.85rem;"></i>Réponse avant le '+dRep.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
+        evInfos += '<div class="cpc-echeance'+(urgent ? ' cpc-urgent' : '')+'"><i class="ti ti-clock"></i>Réponse avant le '+dRep.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
       }
     }
     var macaronC = _cpInvitMacaronHTML(cp, etatC);
     var peutSeProposer = cp.statut === 'publie' && !etatC.moi && !etatC.passe && !etatC.complet;
-    if(macaronC || peutSeProposer){
-      dispBtn = '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem;" onclick="event.stopPropagation()">'
-        +(peutSeProposer ? '<button data-cp="'+esc(cp.id)+'" onclick="cpsInvitationSeDeclarer(this.dataset.cp,this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);border:none;color:white;border-radius:6px;cursor:pointer;"><i class="ti ti-hand-stop"></i> Je suis disponible</button>' : '')
-        +macaronC
-        +'</div>';
-    }
+    dispBtn = (macaronC || '')
+      +(peutSeProposer ? '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cp="'+esc(cp.id)+'" onclick="cpsInvitationSeDeclarer(this.dataset.cp,this)"><i class="ti ti-hand-stop"></i>Je suis disponible</button>' : '');
   }
 
-  // Boutons éditoriaux — Transformer en sujet / Créer article
+  // Infos à gauche : sujet lié, pièces jointes
+  var infos = [];
   var sujetLie = (window._cpsSujetsParCp||{})[cp.id];
-  var boutonSujet = sujetLie
-    ? (sujetLie.statut === 'en_cours'
-        ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;"><i class="ti ti-pencil"></i> Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
-        : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;"><i class="ti ti-pin"></i> Sujet créé — pas encore réservé</span>')
-    : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;"><i class="ti ti-pin"></i> Transformer en sujet</button>';
-  // Un bouton par fichier joint (nouveau système) + le PDF legacy éventuel — plutôt qu'un
-  // bouton unique "Télécharger PDF" qui ne pouvait pointer que vers un seul fichier.
-  var boutonsFichiers = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).map(function(f){
-    return '<button data-url="'+esc(_driveLienAuthuser(f.url))+'" onclick="window.open(this.dataset.url,\'_blank\')" title="'+esc(f.nom)+'" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="ti ti-'+(f.type==='image'?'photo':'download')+'"></i> '+esc(f.nom)+'</button>';
-  }).join('');
-  if(cp.fichier_pdf) boutonsFichiers += '<button data-url="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>';
+  if(sujetLie){
+    infos.push(sujetLie.statut === 'en_cours'
+      ? '<span><i class="ti ti-pencil"></i>Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
+      : '<span><i class="ti ti-pin"></i>Sujet créé, pas encore réservé</span>');
+  }
+  var nbFichiers = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+  if(nbFichiers) infos.push('<span><i class="ti ti-paperclip"></i>'+nbFichiers+' pièce'+(nbFichiers>1?'s':'')+' jointe'+(nbFichiers>1?'s':'')+'</span>');
 
-  var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
-    +boutonSujet
-    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;"><i class="ti ti-pencil"></i> Créer un article</button>'
-    +boutonsFichiers
-    +'</div>';
+  // Actions à droite. Modifier / Supprimer / Publier seulement dans l'appli
+  // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
+  var actions = dispBtn;
+  if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
+  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
+  if(isAdmin){
+    actions += '<button class="mac-btn cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
+      +'<button class="mac-btn mac-btn-refus cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminSupprimer(this.dataset.cpid)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
+    if(cp.statut === 'brouillon') actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="cpsAdminPublier(this.dataset.cpid)"><i class="ti ti-world-upload"></i>Publier</button>';
+  }
+
+  var extrait = (cp.corps||'').replace(/\s+/g,' ').trim();
 
   card.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
-      '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
-      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
-    '</div>' +
-    (cp.source ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.source)+'</div>' : '') +
-    (dateStr ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+dateStr+'</div>' : '') +
-    evInfos +
-    (cp.corps ? '<div style="font-size:0.8rem;color:var(--gris);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+esc(cp.corps)+'</div>' : '') +
-    dispBtn +
-    editBtns +
-    adminBtns;
+    '<div class="mac-haut">'+haut+'</div>'
+    +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
+    +evInfos
+    +(extrait ? '<div class="cpc-extrait">'+esc(extrait)+'</div>' : '')
+    +'<div class="mac-bas cpc-bas">'
+    +'<div class="mac-infos">'+infos.join('')+'</div>'
+    +'<div class="mac-actions cpc-actions" onclick="event.stopPropagation()">'+actions+'</div>'
+    +'</div>';
 
   return card;
 }
@@ -1416,7 +1367,7 @@ function cpsCréerSujet(cpId){
   .then(function(r){
     if(!r.ok){ notif('Erreur création sujet','erreur'); return; }
     if(estChefOuAdmin){
-      notif('Sujet créé dans le briefing ✓','succes');
+      notif('Sujet créé dans le briefing','succes');
       osOuvrirSujets();
     } else {
       notif('Sujet réservé — direction la rédaction !','succes');
@@ -1498,7 +1449,7 @@ function cpsCréerArticle(cpId){
     var abandonBtn = document.getElementById('r-abandon-sujet');
     if(abandonBtn){ abandonBtn.style.display='flex'; abandonBtn.dataset.sujetId=sujetId; abandonBtn.dataset.sujetTitre=titreSujet; }
     preremplirAuteur();
-    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom ✓','succes');
+    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom','succes');
   }, 350);
 }
 
@@ -1513,7 +1464,7 @@ function cpsOuvrirDetail(cp){
   window._cpEnAttente = window._cpEnAttente || {};
   window._cpEnAttente[winId] = cp;
   window._osTitlesOverride = window._osTitlesOverride || {};
-  window._osTitlesOverride[winId] = '📰 '+(cp.titre||cp.objet||'Communiqué').substring(0,45);
+  window._osTitlesOverride[winId] = (cp.titre||cp.objet||'Communiqué').substring(0,45);
 
   _osOpenWindowExecuter(winId);
 }
@@ -1592,7 +1543,7 @@ function osCpFenetreRender(winId){
       fichierWrap.innerHTML =
         '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
         +'<iframe src="'+esc(_driveLienPourIframe(f.url))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
     }
     body.appendChild(fichierWrap);
   });
@@ -1602,7 +1553,7 @@ function osCpFenetreRender(winId){
     pdfWrap.innerHTML =
       '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF (ancien format)</div>'
       +'<iframe src="'+esc(_driveLienPourIframe(cp.fichier_pdf))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
     body.appendChild(pdfWrap);
   } else if(cp.fichier_b64){
     var embedWrap = document.createElement('div');
@@ -1680,14 +1631,14 @@ function _cpsRenderFichiersListe(){
   _cpsFichiersExistants.forEach(function(f){
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#F3F4F6;border-radius:5px;">'
       +'<span><i class="ti ti-'+(f.type==='image'?'photo':'file-text')+'"></i> '+esc(f.nom)+'</span>'
-      +'<button type="button" data-id="'+f.id+'" onclick="_cpsSupprimerFichierExistant(this.dataset.id)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'<button type="button" data-id="'+f.id+'" onclick="_cpsSupprimerFichierExistant(this.dataset.id)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
   _cpsFichiersSelectionnes.forEach(function(f, i){
     var typeIcone = f.type && f.type.indexOf('image/')===0 ? 'photo' : 'file-text';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#FFF8E6;border-radius:5px;">'
       +'<span><i class="ti ti-'+typeIcone+'"></i> '+esc(f.name)+' <span style="color:var(--gris);">(à envoyer)</span></span>'
-      +'<button type="button" data-i="'+i+'" onclick="_cpsRetirerFichierSelectionne(this.dataset.i)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'<button type="button" data-i="'+i+'" onclick="_cpsRetirerFichierSelectionne(this.dataset.i)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
   zone.innerHTML = html;
@@ -1697,7 +1648,7 @@ function _cpsRetirerFichierSelectionne(i){
   _cpsRenderFichiersListe();
 }
 function _cpsSupprimerFichierExistant(id){
-  if(!confirm('Retirer ce fichier du communiqué ?')) return;
+  if(!osConfirmerPuis('Retirer ce fichier du communiqué ?', null, _cpsSupprimerFichierExistant, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/communique_fichiers?id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:authH })
   .then(function(r){
@@ -1995,7 +1946,7 @@ function cpsAdminSauvegarder(statut){
 // ---- ADMIN : Publier depuis la liste ----
 function cpsAdminPublier(id){
   // Publier n'envoie rien aux abonnés : l'envoi se fait à part, via "Notifier les abonnés".
-  if(!confirm('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».')) return;
+  if(!osConfirmerPuis('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».', null, cpsAdminPublier, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -2167,7 +2118,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
       if(r.ok){
         notif('Source retirée de tes abonnements');
         if(btn){
-          btn.textContent = '🔕 S\'abonner à cette source';
+          btn.textContent = 'S\'abonner à cette source';
           btn.style.background = '#E6F1FB'; btn.style.color = '#0C447C'; btn.style.borderColor = '#0C447C';
           btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, false, btn); };
         }
@@ -2182,7 +2133,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
       if(r.ok){
         notif('Abonné aux CPs de cette source !');
         if(btn){
-          btn.textContent = '🔔 Abonné';
+          btn.textContent = 'Abonné';
           btn.style.background = '#D4EDDA'; btn.style.color = '#155724'; btn.style.borderColor = '#155724';
           btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, true, btn); };
         }
@@ -2240,7 +2191,7 @@ function cpsAdminCharger(){
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
-      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué. Crée le premier !</div>';
+      liste.innerHTML = '<div class="cpa-vide"><i class="ti ti-news"></i><div>Aucun communiqué pour l\'instant.</div><button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="cpsAdminNouveauForm()"><i class="ti ti-plus"></i>Nouveau communiqué</button></div>';
       return;
     }
 
@@ -2251,16 +2202,18 @@ function cpsAdminCharger(){
     liste.innerHTML = '';
 
     // Barre filtres
+    var brouillons = cps.filter(function(c){ return c.statut === 'brouillon'; });
+    if(filtreActif === 'brouillon' && !brouillons.length) filtreActif = window._cpsAdminFiltreActif = 'tous';
     var barre = document.createElement('div');
-    barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;';
+    barre.className = 'cpa-filtres';
     [
-      {id:'tous', label:'📋 Tous ('+cps.length+')'},
-      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
-      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
-    ].forEach(function(f){
+      {id:'tous', label:'Tous', n:cps.length},
+      {id:'communique', label:'Communiqués', n:communiques.length},
+      {id:'invitation_presse', label:'Invitations', n:invitations.length}
+    ].concat(brouillons.length ? [{id:'brouillon', label:'Brouillons', n:brouillons.length}] : []).forEach(function(f){
       var btn = document.createElement('button');
-      btn.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
-      btn.textContent = f.label;
+      btn.className = 'cpa-filtre'+(filtreActif===f.id ? ' actif' : '');
+      btn.innerHTML = esc(f.label)+' <span>'+f.n+'</span>';
       btn.onclick = function(){ window._cpsAdminFiltreActif = f.id; cpsAdminCharger(); };
       barre.appendChild(btn);
     });
@@ -2268,6 +2221,7 @@ function cpsAdminCharger(){
 
     var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
       : filtreActif === 'communique' ? communiques
+      : filtreActif === 'brouillon' ? brouillons
       : cps;
 
     if(!cpsFiltres.length){
@@ -2341,7 +2295,7 @@ function _emailCarteCpCompacte(cp){
 
 function cpsEnvoyerNotifsManuelles(){
   var btn = document.getElementById('btn-envoyer-cps');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 se-tourne"></i>Envoi…'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   // Récupérer les CPs publiés non encore notifiés
@@ -2350,7 +2304,7 @@ function cpsEnvoyerNotifsManuelles(){
   .then(function(cps){
     if(!cps||cps.code||!cps.length){
       notif('Aucun nouveau CP à notifier');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
       return;
     }
 
@@ -2395,7 +2349,7 @@ function cpsEnvoyerNotifsManuelles(){
       var ids = Object.keys(parMembre);
       if(!ids.length){
         notif('Aucun destinataire (ni abonné, ni rédaction ciblée)');
-        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
         return;
       }
       // Filtrer directement en base sur les IDs concernés avec email valide
@@ -2406,7 +2360,7 @@ function cpsEnvoyerNotifsManuelles(){
         destinataires = destinataires.filter(function(m){ return m.email && m.email.includes('@'); });
         if(!destinataires.length){
           notif('Aucun destinataire trouvé');
-          if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+          if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
           return;
         }
 
@@ -2445,10 +2399,10 @@ function cpsEnvoyerNotifsManuelles(){
               method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
               body:JSON.stringify({notifie:true})
             }).catch(function(){});
-            var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s) ✓';
+            var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s)';
             if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
             notif(msg, nb>0?'succes':'alerte');
-            if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+            if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
             return;
           }
           var m = destinataires[idx];
@@ -2491,6 +2445,6 @@ function cpsEnvoyerNotifsManuelles(){
     });
   }).catch(function(){
     notif('Erreur envoi');
-    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
   });
 }

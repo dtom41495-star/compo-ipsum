@@ -146,7 +146,7 @@ function _osRenderGrilleAvatars(grid, actuel){
   var html = AVATARS_DISPONIBLES.map(function(a){
     return carte(a.id, a.label, '<svg viewBox="0 0 64 64" width="44" height="44"><use href="#avatar-'+a.id+'"></use></svg>');
   }).join('');
-  html += carte('', 'Aucun', '<div style="width:44px;height:44px;border-radius:50%;background:var(--gris-clair);display:flex;align-items:center;justify-content:center;color:var(--gris);font-size:1.2rem;">✕</div>');
+  html += carte('', 'Aucun', '<div style="width:44px;height:44px;border-radius:50%;background:var(--gris-clair);display:flex;align-items:center;justify-content:center;color:var(--gris);font-size:1.2rem;"><i class="ti ti-x"></i></div>');
   grid.innerHTML = html;
 }
 
@@ -329,7 +329,7 @@ function exportLog(){
 }
 
 function clearLog(){
-  if(confirm('Vider tout le journal ?')){localStorage.removeItem('ipsum_log');renderLog();}
+  osConfirmer('Vider tout le journal ?').then(function(ok){ if(ok){ localStorage.removeItem('ipsum_log'); renderLog(); } });
 }
 
 // ===== HORLOGE =====
@@ -606,17 +606,17 @@ function addTag(e){if(e.key!=='Enter')return;const v=e.target.value.trim();if(!v
 function rmTag(v){tags=tags.filter(t=>t!==v);renderTags();}
 function renderTags(){
   const w=document.getElementById('tags-wrap');w.innerHTML='';
-  tags.forEach(t=>{const s=document.createElement('span');s.className='tag';s.innerHTML=esc(t)+'<button onclick="rmTag(\''+esc(t)+'\')">✕</button>';w.appendChild(s);});
+  tags.forEach(t=>{const s=document.createElement('span');s.className='tag';s.innerHTML=esc(t)+'<button onclick="rmTag(\''+esc(t)+'\')"><i class="ti ti-x"></i></button>';w.appendChild(s);});
   const i=document.createElement('input');i.className='tag-input';i.id='tag-input';i.placeholder='Ajouter un mot-clé + Entrée';i.onkeydown=addTag;w.appendChild(i);
 }
 
 // ===== SOURCES =====
-function addSrc(){const l=document.getElementById('sources-list'),n=l.children.length+1;const d=document.createElement('div');d.className='src-item';d.innerHTML='<input type="text" placeholder="Source '+n+'"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button>';l.appendChild(d);}
+function addSrc(){const l=document.getElementById('sources-list'),n=l.children.length+1;const d=document.createElement('div');d.className='src-item';d.innerHTML='<input type="text" placeholder="Source '+n+'"><button onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button>';l.appendChild(d);}
 function rmSrc(b){b.parentElement.remove();}
 function getSrc(){return Array.from(document.querySelectorAll('#sources-list .src-item input')).map(i=>i.value.trim()).filter(Boolean);}
 
 // ===== COMMUNIQUÉS =====
-function loadCpPdf(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{window._cpPdf=ev.target.result;window._cpPdfNom=f.name;document.getElementById('cp-pdf-label').textContent='✓ '+f.name;notif('PDF ajouté');};r.readAsDataURL(f);}
+function loadCpPdf(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{window._cpPdf=ev.target.result;window._cpPdfNom=f.name;document.getElementById('cp-pdf-label').textContent=f.name;notif('PDF ajouté');};r.readAsDataURL(f);}
 
 function exporterCP(){
   const objet=document.getElementById('cp-objet').value.trim(),org=document.getElementById('cp-org').value.trim();
@@ -638,7 +638,7 @@ function renderCpLies(){
   if(cpLies.length===1){
     const cp=cpLies[0];
     let html='<div class="cp-meta-inline"><strong>Infos du communiqué</strong><br>';
-    if(cp.embargo)html+='⚠️ Embargo jusqu\'au : <strong>'+cp.embargo+'</strong><br>';
+    if(cp.embargo)html+='<i class="ti ti-alert-triangle"></i> Embargo jusqu\'au : <strong>'+cp.embargo+'</strong><br>';
     if(cp.date_reception)html+='Reçu le : '+cp.date_reception+'<br>';
     html+='</div>';
     meta.innerHTML=html;
@@ -655,6 +655,10 @@ function closeDrawer(){
 
 // ===== RÉDACTION =====
 function buildDoc(){
+  // Le texte tapé dans l'éditeur n'est recopié dans #r-corps qu'à chaque frappe, et pas
+  // pendant la saisie au clavier du téléphone (correcteur automatique) : sans cette
+  // recopie, les derniers mots pouvaient manquer à l'enregistrement.
+  if(typeof _rCorpsSync === 'function') _rCorpsSync();
   var docId = (currentDoc && currentDoc.id) ? currentDoc.id : genId();
   var docStatut = (currentDoc && currentDoc.statut) ? currentDoc.statut : 'brouillon';
 
@@ -727,7 +731,7 @@ function exporterArticle(){
       var lien=genererLien(doc.id);
       var shareDiv=document.getElementById('r-share-link');
       var shareUrl=document.getElementById('r-share-url');
-      if(shareDiv) shareDiv.style.display='block';
+      if(shareDiv) shareDiv.style.display='flex';
       if(shareUrl) shareUrl.textContent=lien;
       currentDoc = doc;
       notif('Article sauvegardé !', 'succes');
@@ -735,7 +739,7 @@ function exporterArticle(){
       var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
       var idx=drafts.findIndex(function(d){return d.id===doc.id;});
       if(idx>=0){ drafts.splice(idx,1); localStorage.setItem('ipsum_drafts',JSON.stringify(drafts)); }
-    }).catch(function(){ exporterFichier(doc,doc.id); notif('⚠️ Hors ligne - export JSON local'); });
+    }).catch(function(){ exporterFichier(doc,doc.id); notif('Hors ligne - export JSON local'); });
   }
 
   // Si une image a été choisie, l'uploader d'abord (direct Drive — jamais Supabase Storage)
@@ -800,7 +804,7 @@ function osOuvrirNouvelArticle(){
 
 // « Tout effacer » : jamais sans confirmation, le texte non enregistré serait perdu
 function rToutEffacer(){
-  if(!confirm('Effacer tout le contenu de l\'éditeur ?\n\nCe qui n\'a pas été enregistré sera perdu. Un article déjà enregistré reste dans Mes articles.')) return;
+  if(!osConfirmerPuis('Effacer tout le contenu de l\'éditeur ?\n\nCe qui n\'a pas été enregistré sera perdu. Un article déjà enregistré reste dans Mes articles.', null, rToutEffacer, this, arguments)) return;
   if(typeof rFermerReglages === 'function') rFermerReglages();
   resetRedaction();
 }
@@ -840,7 +844,7 @@ function resetRedaction(){
   if(zoneSujetLie) zoneSujetLie.innerHTML = '';
   var abandonBtnReset = document.getElementById('r-abandon-sujet');
   if(abandonBtnReset){ abandonBtnReset.style.display='none'; abandonBtnReset.dataset.sujetId=''; }
-  document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>';
+  document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button></div>';
   setUrg('normal');updateStats();
   osStartAutosave(); // Démarrer aussi pour les nouveaux articles (pas seulement les reprises)
 }
@@ -870,7 +874,7 @@ function sauvegarderBrouillon(){
     notif('Brouillon sauvegardé : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
-    notif('⚠️ Impossible de sauvegarder — vérifie ta connexion','erreur');
+    notif('Impossible de sauvegarder — vérifie ta connexion','erreur');
     osSaveIndicateur('erreur');
   });
 }
@@ -878,6 +882,7 @@ function sauvegarderBrouillon(){
 function reprendreBrouillon(id){
   const drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
   const doc=drafts.find(d=>d.id===id);if(!doc)return;
+  if(!(currentDoc && currentDoc.id === doc.id)) osRedactionMettreDeCote();
   currentDoc = doc; // Réutiliser l'id existant — sinon la prochaine sauvegarde crée un nouvel article
   go('redaction');
   setTimeout(()=>{
@@ -979,7 +984,7 @@ function osMontrerDiff(article){
   var mo=document.createElement('div');
   mo.style.cssText='background:white;border-radius:16px;width:min(900px,96vw);box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;';
   mo.innerHTML='<div style="background:var(--encre-fixe);padding:1.1rem 1.4rem;display:flex;align-items:center;gap:.8rem;">'
-    +'<div style="font-size:1.2rem;">🔍</div>'
+    +'<div style="font-size:1.2rem;"><i class="ti ti-search"></i></div>'
     +'<div style="flex:1;"><div style="font-weight:700;color:white;font-size:.95rem;">Modifications du SR</div>'
     +'<div style="font-size:.68rem;color:rgba(255,255,255,.5);margin-top:2px;">'+esc(article.titre||'')+(article.correcteur?' · '+esc(article.correcteur):'')+'</div></div>'
     +'<button id="dfc" style="background:rgba(255,255,255,.12);border:none;color:white;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1.1rem;">×</button></div>'
@@ -994,7 +999,7 @@ function osMontrerDiff(article){
     +(article.note_interne?'<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:.9rem 1rem;margin-top:.5rem;"><div style="font-size:.62rem;font-weight:700;color:#4338CA;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;"><i class="ti ti-message-circle"></i> Remarque du SR</div><div style="font-size:.82rem;color:#374151;">'+esc(article.note_interne)+'</div></div>':'')
     +'</div>'
     +'<div style="padding:1rem 1.4rem;border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;justify-content:flex-end;background:#FAFAFA;">'
-    +'<button id="dfa" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">✓ Accepter les modifications</button>'
+    +'<button id="dfa" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Accepter les modifications</button>'
     +'<button id="dfc2" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Fermer</button>'
     +'</div>';
   ov.appendChild(mo);ov.onclick=function(e){if(e.target===ov)ov.remove();};document.body.appendChild(ov);
@@ -1003,7 +1008,7 @@ function osMontrerDiff(article){
   document.getElementById('dfa').onclick=function(){
     var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
     fetch(SB_URL+'/rest/v1/articles?id=eq.'+article.id,{method:'PATCH',headers:authH,body:JSON.stringify({titre_original:null,chapeau_original:null,corps_original:null})})
-    .then(function(r){if(r.ok){notif('Modifications acceptées ✓','succes');ov.remove();}});
+    .then(function(r){if(r.ok){notif('Modifications acceptées','succes');ov.remove();}});
   };
 }
 
@@ -1080,7 +1085,7 @@ function osAppCorrectionCharger(){
     arts.forEach(function(a){
       var cfg = STATUT_CONF[a.statut]||{l:a.statut,bg:'#eee',c:'#555'};
       var d = a.updated_at?new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
-      var URG = {normal:'',moyen:'🟡',urgent:'🔴'};
+      var URG = {normal:'',moyen:'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E0A800;vertical-align:1px;"></span>',urgent:'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E24B4A;vertical-align:1px;"></span>'};
 
       h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.9rem 1rem;display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">';
 
@@ -1089,7 +1094,7 @@ function osAppCorrectionCharger(){
       h += '<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">'+(URG[a.urgence]||'')+' '+esc(a.titre||'Sans titre')+'</div>';
       h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:3px;">Par '+esc(a.auteur||'')+(a.rubrique?' · '+esc(a.rubrique):'')+(d?' · '+d:'')+'</div>';
       if(a.note_interne && (a.statut==='en-relecture'||a.statut==='brouillon')){
-        h += '<div style="font-size:0.68rem;background:#FFF3CD;border-left:3px solid #856404;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:5px;color:#856404;">💬 '+esc(a.note_interne)+'</div>';
+        h += '<div style="font-size:0.68rem;background:#FFF3CD;border-left:3px solid #856404;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:5px;color:#856404;"><i class="ti ti-message-circle"></i> '+esc(a.note_interne)+'</div>';
       }
       h += '</div>';
 
@@ -1167,7 +1172,7 @@ function osAppCorrectionConfirmerRenvoi(){
     if(r.ok){
       document.getElementById('corr-renvoi-modal').style.display='none';
       _corrArticleEnCours = null;
-      notif('Article renvoyé au rédacteur ✓','succes');
+      notif('Article renvoyé au rédacteur','succes');
       osAppCorrectionCharger();
     } else notif('Erreur','erreur');
   });
@@ -1316,7 +1321,7 @@ function exporterEdition(){
     var lien = genererLien(currentDoc.id);
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv) shareDiv.style.display = 'block';
+    if(shareDiv) shareDiv.style.display = 'flex';
     if(shareUrl) shareUrl.textContent = lien;
     notif('Article mis a jour dans le cloud !');
     // Mettre à jour brouillon local si présent
@@ -1504,7 +1509,7 @@ function diff(a,b){
   return r;
 }
 function bStat(s){const l={brouillon:'En écriture','en-relecture':'Au SR',corrige:'Relu par le SR',valide:'Bon à publier',publie:'En ligne'};return '<span class="badge b-'+s+'">'+(l[s]||s)+'</span>';}
-function bUrg(u){const l={normal:'Normal',moyen:'Moyen',urgent:'🔴 Urgent'};return '<span class="badge b-'+u+'">'+(l[u]||u)+'</span>';}
+function bUrg(u){const l={normal:'Normal',moyen:'Moyen',urgent:'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E24B4A;vertical-align:1px;"></span> Urgent'};return '<span class="badge b-'+u+'">'+(l[u]||u)+'</span>';}
 function renderHist(id,hist){
   const el=document.getElementById(id);
   if(!hist||!hist.length){el.innerHTML='<p style="font-size:0.78rem;color:var(--gris);font-family:\'Arial\',monospace;">Aucune modification enregistrée.</p>';return;}
@@ -1542,7 +1547,7 @@ function osCpOuvrirFenetre(cp){
   var titles = typeof osGetTitles === 'function' ? osGetTitles() : {};
   // Injecter dans la map des titres utilisée par _osOpenWindowExecuter
   if(window._osTitlesOverride === undefined) window._osTitlesOverride = {};
-  window._osTitlesOverride[winId] = '📰 '+(cp.objet||'Communiqué').substring(0,40);
+  window._osTitlesOverride[winId] = (cp.objet||'Communiqué').substring(0,40);
 
   _osOpenWindowExecuter(winId);
 }
@@ -1593,6 +1598,7 @@ function resetLectCP(){
 
 // Newsletter
 var nlArticles = [], nlDragIdx = null;
+var _nlMarkdown = ''; // texte de la newsletter générée, copié tel quel dans Substack
 
 // ===== NEWSLETTER — sélection automatique par rédaction =====
 // "Depuis quand" une newsletter part du dernier envoi RÉELLEMENT enregistré pour cette
@@ -1672,26 +1678,25 @@ function nlImporter(event){
 function nlRenderList(){
   var el = document.getElementById('nl-articles-list');
   if(!nlArticles.length){
-    el.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);padding:1rem;text-align:center;border:1.5px dashed var(--gris-bord);">Importe des articles valides ci-dessus.</div>';
+    el.innerHTML = '';
     document.getElementById('nl-apercu-section').style.display = 'none';
     return;
   }
-  var html = '';
+  var html = '<div class="nlx-sous-titre">Dans la newsletter, dans cet ordre <span>Glisse pour réordonner</span></div>';
   nlArticles.forEach(function(doc, i){
-    var tCls = doc.type === 'breve' ? 'nl-type-breve' : 'nl-type-article';
-    var tLbl = doc.type === 'breve' ? 'Breve' : 'Article';
+    var breve = doc.type === 'breve';
     html += '<div class="nl-item" draggable="true" id="nl-item-'+i+'"';
     html += ' ondragstart="nlDragStart('+i+')" ondragover="nlDragOver(event,'+i+')" ondrop="nlDrop('+i+')" ondragleave="nlDragLeave('+i+')">';
     html += '<span class="nl-item-num">'+(i+1)+'</span>';
-    html += '<div class="nl-item-info"><div class="nl-item-titre"><span class="nl-item-type '+tCls+'">'+tLbl+'</span>'+esc(doc.titre||'Sans titre')+'</div>';
-    html += '<div class="nl-item-meta">'+esc(doc.auteur||'?')+' - '+esc(doc.redaction||'')+'</div></div>';
+    html += '<div class="nl-item-info"><div class="nl-item-titre">'+esc(doc.titre||'Sans titre')+'</div>';
+    html += '<div class="nl-item-meta"><span class="nl-item-type '+(breve ? 'nl-type-breve' : 'nl-type-article')+'">'+(breve ? 'Brève' : 'Article')+'</span>'+esc(doc.auteur||'?')+'</div></div>';
     html += '<div class="nl-item-actions">';
-    if(i > 0) html += '<button class="nl-btn-up" onclick="nlMonter('+i+')">Haut</button>';
-    if(i < nlArticles.length-1) html += '<button class="nl-btn-down" onclick="nlDescendre('+i+')">Bas</button>';
-    html += '<button class="nl-btn-rm" onclick="nlRetirer('+i+')">Retirer</button>';
+    html += '<button onclick="nlMonter('+i+')" title="Monter" aria-label="Monter"'+(i === 0 ? ' disabled' : '')+'><i class="ti ti-arrow-up"></i></button>';
+    html += '<button onclick="nlDescendre('+i+')" title="Descendre" aria-label="Descendre"'+(i === nlArticles.length-1 ? ' disabled' : '')+'><i class="ti ti-arrow-down"></i></button>';
+    html += '<button class="nl-btn-rm" onclick="nlRetirer('+i+')" title="Retirer" aria-label="Retirer"><i class="ti ti-x"></i></button>';
     html += '</div></div>';
   });
-  el.innerHTML = html + '<div class="btn-row" style="margin-top:0.5rem;"><button class="btn" onclick="nlGenerer()">Generer la newsletter</button><button class="btn secondary" onclick="nlVider()">Tout vider</button></div>';
+  el.innerHTML = html + '<div class="nlx-actions"><button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="nlGenerer()"><i class="ti ti-eye"></i>Voir l\'aperçu</button><button class="mac-btn" onclick="nlVider()">Tout retirer</button></div>';
   document.getElementById('nl-apercu-section').style.display = 'none';
 }
 function nlMonter(i){ if(i<=0)return; var t=nlArticles[i];nlArticles[i]=nlArticles[i-1];nlArticles[i-1]=t;nlRenderList(); }
@@ -1709,38 +1714,54 @@ function nlDrop(i){
   nlDragIdx=null; nlRenderList();
 }
 function nlGenerer(){
-  if(!nlArticles.length){ notif('Aucun article a assembler'); return; }
+  if(!nlArticles.length){ notif('Aucun contenu à assembler'); return; }
   var titre = document.getElementById('nl-titre').value.trim();
   var edito = document.getElementById('nl-edito').value.trim();
   var dateStr = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  var md = (titre ? '# '+titre : '# Newsletter Ipsum Media - '+dateStr) + '\n\n---\n\n';
-  if(edito) md += '## Le mot de la redaction\n\n' + edito + '\n\n---\n\n';
+  var md = (titre ? '# '+titre : '# Newsletter Ipsum Média, '+dateStr) + '\n\n---\n\n';
+  if(edito) md += '## Le mot de la rédaction\n\n' + edito + '\n\n---\n\n';
   var arts = nlArticles.filter(function(d){ return d.type !== 'breve'; });
   var brvs = nlArticles.filter(function(d){ return d.type === 'breve'; });
   arts.forEach(function(doc, i){
-    md += (i===0 ? '## A la une' : '## '+(doc.rubrique||'Article')) + '\n\n### ' + doc.titre + '\n\n';
+    md += (i===0 ? '## À la une' : '## '+(doc.rubrique||'Article')) + '\n\n### ' + doc.titre + '\n\n';
     if(doc.chapeau) md += '*' + doc.chapeau + '*\n\n';
     md += doc.corps + '\n\n*Par ' + doc.auteur + (doc.redaction ? ' - '+doc.redaction : '') + '*\n\n---\n\n';
   });
   if(brvs.length){
-    md += '## Breves\n\n';
+    md += '## Brèves\n\n';
     brvs.forEach(function(doc){ md += '**'+doc.titre+'**\n\n'+doc.corps+'\n\n'; });
     md += '---\n\n';
   }
-  md += '*Newsletter Ipsum Media - '+dateStr+'*\n*contact@ipsummedia.fr*\n';
-  document.getElementById('nl-apercu').textContent = md;
+  md += '*Newsletter Ipsum Média, '+dateStr+'*\n*contact@ipsummedia.fr*\n';
+  _nlMarkdown = md;
+  // Aperçu mis en forme comme dans Substack ; le texte copié reste _nlMarkdown
+  document.getElementById('nl-apercu').innerHTML = _nlMdVersHtml(md);
   document.getElementById('nl-apercu-section').style.display = 'block';
   document.getElementById('nl-apercu-section').scrollIntoView({behavior:'smooth'});
   logAction('newsletter', 'Newsletter '+dateStr, 'newsletter');
-  notif('Newsletter generee - '+nlArticles.length+' contenus');
+  notif('Aperçu prêt : '+nlArticles.length+' contenu'+(nlArticles.length>1?'s':''), 'succes');
+}
+// Rendu de l'aperçu : juste ce que produit nlGenerer (titres, séparateurs, gras, italique)
+function _nlMdVersHtml(md){
+  function enLigne(t){
+    return esc(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  }
+  return md.split(/\n{2,}/).map(function(bloc){
+    bloc = bloc.trim();
+    if(!bloc) return '';
+    if(bloc === '---') return '<hr>';
+    var m = bloc.match(/^(#{1,3}) (.*)$/);
+    if(m) return '<h'+m[1].length+'>'+enLigne(m[2])+'</h'+m[1].length+'>';
+    return '<p>'+bloc.split('\n').map(enLigne).join('<br>')+'</p>';
+  }).join('');
 }
 function nlCopier(){
-  var md = document.getElementById('nl-apercu').textContent;
+  var md = _nlMarkdown;
   if(!md) return;
   _copierPourSubstack(md, 'Copié (mise en forme conservée) — colle dans Substack');
 }
 function nlExporter(){
-  var md = document.getElementById('nl-apercu').textContent;
+  var md = _nlMarkdown;
   if(!md) return;
   var blob = new Blob([md],{type:'text/markdown'});
   var url = URL.createObjectURL(blob);
@@ -1749,7 +1770,7 @@ function nlExporter(){
   a.download = 'newsletter-ipsum-'+new Date().toISOString().slice(0,10)+'.md';
   a.click();
   URL.revokeObjectURL(url);
-  notif('Fichier Markdown telecharge');
+  notif('Fichier téléchargé');
 }
 
 // Enregistre l'envoi (date + contenus inclus) — c'est ce qui permet de savoir plus tard
@@ -1757,13 +1778,13 @@ function nlExporter(){
 // prochain cycle (nlDernierEnvoi). Un clic déliberé, séparé de nlGenerer/nlCopier —
 // générer un aperçu ne veut pas dire que l'envoi a eu lieu.
 function nlMarquerEnvoyee(){
-  var md = document.getElementById('nl-apercu').textContent;
+  var md = _nlMarkdown;
   if(!md){ notif('Génère d\'abord la newsletter'); return; }
   if(!_nlRedactionActive){ notif('Aucune rédaction active'); return; }
   if(!nlArticles.length){ notif('Aucun contenu à enregistrer'); return; }
 
   var btn = document.getElementById('nl-btn-envoyee');
-  if(btn){ btn.disabled = true; btn.textContent = '...'; }
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 se-tourne"></i>Enregistrement…'; }
 
   var titreEl = document.getElementById('nl-titre');
   var titre = (titreEl && titreEl.value.trim()) || ('Newsletter — '+new Date().toLocaleDateString('fr-FR'));
@@ -1788,7 +1809,7 @@ function nlMarquerEnvoyee(){
     });
   })
   .then(function(){
-    notif('Newsletter marquée comme envoyée ✓','succes');
+    notif('Newsletter marquée comme envoyée','succes');
     nlPublierArticlesSelectionnes();
     // Si l'historique est ouvert, le rafraîchir pour montrer l'envoi tout juste fait
     var hist = document.getElementById('nl-historique');
@@ -1798,7 +1819,7 @@ function nlMarquerEnvoyee(){
     notif('Erreur — la newsletter n\'a pas pu être enregistrée','erreur');
   })
   .finally(function(){
-    if(btn){ btn.disabled = false; btn.textContent = '✓ Marquer comme envoyée'; }
+    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>Marquer comme envoyée'; }
   });
 }
 
@@ -1847,7 +1868,7 @@ function nlChargerHistorique(){
   if(!hist) return;
   var redactionId = _nlRedactionActive || window._redacActiveId;
   if(!redactionId){
-    hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune rédaction active.</div>';
+    hist.innerHTML = '<div class="nlx-vide">Aucune rédaction active.</div>';
     return;
   }
   hist.innerHTML = osLoadingHtml();
@@ -1859,27 +1880,24 @@ function nlChargerHistorique(){
   .then(function(rows){
     rows = (rows && !rows.code) ? rows : [];
     if(!rows.length){
-      hist.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucune newsletter envoyée pour l\'instant — c\'est normal si Compo vient de commencer à les enregistrer.</div>';
+      hist.innerHTML = '<div class="nlx-titre">Anciennes newsletters</div><div class="nlx-vide">Aucune newsletter enregistrée pour l\'instant.</div>';
       return;
     }
-    var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.6rem;">Archive des newsletters</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.7rem;">';
+    var h = '<div class="nlx-titre">Anciennes newsletters</div>';
+    h += '<div class="nlx-hist-grille">';
     rows.forEach(function(n, i){
       var contenus = (n.newsletter_articles||[]).slice().sort(function(a,b){ return (a.position||0)-(b.position||0); });
       var nb = contenus.length;
       var cardId = 'nl-hist-card-'+i;
-      h += '<div id="'+cardId+'" style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:0.8rem 0.9rem;cursor:pointer;transition:box-shadow .15s,border-color .15s;" '
-        +'onmouseover="this.style.borderColor=\'rgba(232,70,30,.35)\';this.style.boxShadow=\'0 3px 12px rgba(232,70,30,.08)\';" '
-        +'onmouseout="this.style.borderColor=\'#E5E7EB\';this.style.boxShadow=\'\';" '
-        +'onclick="nlToggleCarteHistorique(\''+cardId+'\')">'
-        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin-bottom:0.2rem;">'+esc(n.titre||'Sans titre')+'</div>'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-bottom:0.5rem;">'+new Date(n.date_envoi).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+nb+' contenu'+(nb>1?'s':'')+'</div>'
-        +'<ul class="nl-hist-sujets" style="display:none;list-style:none;font-size:0.72rem;color:var(--encre);border-top:1px solid var(--gris-bord);padding-top:0.5rem;margin-top:0.3rem;">'
+      h += '<div id="'+cardId+'" class="nlx-hist" onclick="nlToggleCarteHistorique(\''+cardId+'\')">'
+        +'<div class="nlx-hist-titre">'+esc(n.titre||'Sans titre')+'</div>'
+        +'<div class="nlx-hist-meta">'+new Date(n.date_envoi).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+nb+' contenu'+(nb>1?'s':'')+'</div>'
+        +'<ul class="nl-hist-sujets" style="display:none;">'
         +(contenus.length
-            ? contenus.map(function(c){ return c.articles ? '<li style="margin-bottom:0.3rem;">'+esc(c.articles.titre||'Sans titre')+(c.articles.auteur?' <span style="color:var(--gris);">— '+esc(c.articles.auteur)+'</span>':'')+'</li>' : ''; }).join('')
-            : '<li style="color:var(--gris);">Aucun contenu enregistré</li>')
+            ? contenus.map(function(c){ return c.articles ? '<li>'+esc(c.articles.titre||'Sans titre')+(c.articles.auteur?' <span>'+esc(c.articles.auteur)+'</span>':'')+'</li>' : ''; }).join('')
+            : '<li><span>Aucun contenu enregistré</span></li>')
         +'</ul>'
-        +'<div class="nl-hist-hint" style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--rouge);margin-top:0.3rem;">Voir les sujets ↓</div>'
+        +'<div class="nl-hist-hint">Voir le contenu</div>'
         +'</div>';
     });
     h += '</div>';
@@ -1897,7 +1915,7 @@ function nlToggleCarteHistorique(cardId){
   if(!ul) return;
   var ouvrir = ul.style.display === 'none';
   ul.style.display = ouvrir ? 'block' : 'none';
-  if(hint) hint.textContent = ouvrir ? 'Masquer les sujets ↑' : 'Voir les sujets ↓';
+  if(hint) hint.textContent = ouvrir ? 'Masquer' : 'Voir le contenu';
 }
 
 
@@ -2326,7 +2344,7 @@ function genererVisuelsDepuisRedaction(){
       if(inner) inner.textContent = titre.trim();
       if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
     }
-    notif('Titre importé dans Visuels ✓','succes');
+    notif('Titre importé dans Visuels','succes');
   }, 300);
 }
 
@@ -2349,7 +2367,7 @@ function genererVisuelsDepuisLecture(){
       if(inner) inner.textContent = titre;
       if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
     }
-    notif('Titre importé dans Visuels ✓','succes');
+    notif('Titre importé dans Visuels','succes');
   }, 300);
 }
 

@@ -139,16 +139,16 @@
 <!-- MODALE BIENVENUE TUTOS -->
 <div id="modal-tutos-welcome">
   <div class="tutos-welcome-card">
-    <div class="tutos-welcome-emoji">📖</div>
+    <div class="tutos-welcome-emoji"><i class="ti ti-book"></i></div>
     <div class="tutos-welcome-title">Découvre Compo OS !</div>
     <div class="tutos-welcome-desc">
       C est ta première connexion. Tu veux faire un tour guidé de l interface et des fonctionnalités ?
       <br><br>
-      Le guide est accessible à tout moment depuis l icône 📖 sur le bureau.
+      Le guide est accessible à tout moment depuis l icône <i class="ti ti-book"></i> sur le bureau.
     </div>
     <div class="tutos-welcome-btns">
       <button class="tutos-welcome-btn-primary" onclick="osTutosWelcomeAccepter()">
-        🚀 Oui, montre-moi !
+        <i class="ti ti-rocket"></i> Oui, montre-moi !
       </button>
       <button class="tutos-welcome-btn-secondary" onclick="osTutosWelcomeDecliner()">
         Non merci, je connais déjà
@@ -160,7 +160,7 @@
 <!-- BANNIÈRE HORS LIGNE -->
 <div id="os-offline-banner">
   <div class="offline-banner-text">
-    <span class="offline-banner-icon">📡</span>
+    <span class="offline-banner-icon"><i class="ti ti-rss"></i></span>
     <div>
       <strong>Mode hors ligne</strong> — Tu peux écrire de nouveaux articles.
       Pour travailler sur un existant, utilise <strong>"Brouillon"</strong> pour le sauvegarder d'abord.
@@ -212,7 +212,7 @@
 
     <!-- Étape 0 : Bienvenue -->
     <div class="oobe-step active" id="oobe-step-0">
-      <div class="oobe-title">Bienvenue sur Compo 👋</div>
+      <div class="oobe-title">Bienvenue sur Compo <i class="ti ti-hand-stop"></i></div>
       <div class="oobe-sub">Ipsum Média · Configuration initiale</div>
       <p style="color:rgba(255,255,255,0.6);font-size:0.88rem;line-height:1.7;margin-bottom:1.5rem;">
         On va configurer ton espace en quelques étapes. Ça prend moins de 2 minutes.
@@ -239,7 +239,7 @@
       <div class="oobe-sub">Choisis les applis de ta barre du bas (8 au maximum). Agenda, Veille, Guide et Stats sont toujours sur le bureau, et les autres applis s'ajoutent plus tard depuis le Compo Store.</div>
       <div class="oobe-compteur" id="oobe-compteur"></div>
       <div class="oobe-apps-grid" id="oobe-apps-grid"></div>
-      <button class="oobe-btn" onclick="oobeTerminer()">C'est parti 🚀</button>
+      <button class="oobe-btn" onclick="oobeTerminer()">C'est parti <i class="ti ti-rocket"></i></button>
       <button class="oobe-btn-sec" onclick="oobeTerminer()">Passer cette étape</button>
     </div>
 
@@ -315,8 +315,8 @@
   <div id="os-fs-tooltip">
     <div class="fs-tooltip-arrow"></div>
     <button class="fs-tooltip-close" onclick="osDismissTooltip()">×</button>
-    <div class="fs-tooltip-title">🖥️ Mode plein écran</div>
-    <div class="fs-tooltip-text">Clique sur <strong style="color:var(--rouge);">⛶ Plein écran</strong> en haut à droite pour revenir en mode fenêtré.</div>
+    <div class="fs-tooltip-title"><i class="ti ti-device-desktop"></i> Mode plein écran</div>
+    <div class="fs-tooltip-text">Clique sur <strong style="color:var(--rouge);"><i class="ti ti-maximize"></i> Plein écran</strong> en haut à droite pour revenir en mode fenêtré.</div>
   </div>
 
   <div id="os-apps-moved-tooltip">
@@ -446,7 +446,7 @@
 
 <!-- NOTIFICATION -->
 <div class="os-notif" id="os-notif">
-  <div class="os-notif-icon">💬</div>
+  <div class="os-notif-icon"><i class="ti ti-message-circle"></i></div>
   <div class="os-notif-body">
     <div class="os-notif-app">Compo</div>
     <div class="os-notif-msg" id="os-notif-msg"></div>
@@ -480,14 +480,14 @@
     <div class="form-group full">
       <label>Fichier PDF du communiqué</label>
       <div class="upload-zone" onclick="document.getElementById('cp-pdf').click()">
-        <div style="font-size:1.4rem;">📄</div>
+        <div style="font-size:1.4rem;"><i class="ti ti-file-text"></i></div>
         <p id="cp-pdf-label">Clique ici pour ajouter le PDF</p>
         <input type="file" id="cp-pdf" accept="*/*" style="display:none" onchange="loadCpPdf(event)">
       </div>
     </div>
   </div>
   <div id="cp-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;margin-bottom:0.5rem;">
-    <div style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">✅ Communiqué sauvegardé — Lien de partage</div>
+    <div style="font-family:Arial,sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;"><i class="ti ti-circle-check"></i> Communiqué sauvegardé — Lien de partage</div>
     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
       <code id="cp-share-url" style="font-size:0.75rem;color:var(--encre);flex:1;word-break:break-all;"></code>
       <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('cp-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
@@ -495,7 +495,7 @@
   </div>
   <div class="btn-row">
     <button class="btn" onclick="exporterCP()">Enregistrer le communiqué</button>
-    <button class="btn sec" onclick="exporterCPJSON()">📄 Exporter en JSON</button>
+    <button class="btn sec" onclick="exporterCPJSON()"><i class="ti ti-file-text"></i> Exporter en JSON</button>
     <button class="btn sec" onclick="resetCP()">Tout effacer</button>
   </div>
 </div>
@@ -505,15 +505,16 @@
 <!-- PAGE CPS ADMIN -->
 <div class="page" id="page-cps-admin">
   <!-- Accueil : masqué pendant la saisie d'un communiqué (voir _cpsAdminBasculerFormulaire) -->
-  <div id="cps-admin-accueil">
-  <div class="panel-title">📰 Gestion des communiqués</div>
-  <div class="panel-subtitle">Créer, publier et envoyer les communiqués aux membres abonnés</div>
-
-  <div style="display:flex;gap:0.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
-    <button class="btn" onclick="cpsAdminNouveauForm()" style="font-size:0.8rem;">+ Nouveau CP</button>
-    <button class="btn sec" onclick="cpsEnvoyerNotifsManuelles()" id="btn-envoyer-cps" style="font-size:0.8rem;">📨 Notifier les abonnés</button>
-    <button class="btn sec" onclick="cpsAdminCharger()" style="font-size:0.8rem;">🔄 Actualiser</button>
-  </div>
+  <div id="cps-admin-accueil" class="cpa-entete">
+    <div class="cpa-titres">
+      <h2 class="cpa-titre">Communiqués</h2>
+      <div class="cpa-sous">Créer, publier et envoyer les communiqués aux membres abonnés</div>
+    </div>
+    <div class="cpa-actions">
+      <button class="mac-btn cpc-icone" onclick="cpsAdminCharger()" title="Actualiser" aria-label="Actualiser"><i class="ti ti-refresh"></i></button>
+      <button class="mac-btn" onclick="cpsEnvoyerNotifsManuelles()" id="btn-envoyer-cps"><i class="ti ti-mail-forward"></i>Notifier les abonnés</button>
+      <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="cpsAdminNouveauForm()"><i class="ti ti-plus"></i>Nouveau communiqué</button>
+    </div>
   </div>
 
   <!-- Formulaire création / modification — même langage que le formulaire d'événement
@@ -672,7 +673,7 @@
   <div id="drawer-redac-reglages" style="display:none;position:absolute;top:0;right:0;height:100%;width:min(400px,90vw);background:var(--blanc);z-index:50;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;border-left:1px solid var(--gris-bord);">
     <div style="padding:1rem 1.3rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;background:var(--blanc);z-index:1;">
       <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);"><i class="ti ti-adjustments-horizontal"></i> Réglages de l'article</div>
-      <button onclick="rFermerReglages()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gris);line-height:1;">✕</button>
+      <button onclick="rFermerReglages()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gris);line-height:1;"><i class="ti ti-x"></i></button>
     </div>
     <div style="padding:1.2rem 1.3rem;display:flex;flex-direction:column;gap:1.2rem;">
 
@@ -728,7 +729,7 @@
             <div id="r-cp-source-org" style="font-size:0.6rem;color:var(--gris);"></div>
           </div>
           <button onclick="rArticleOuvrirCpACote()" title="Ouvrir le communiqué à côté de l'article" style="background:none;border:0.5px solid var(--bleu);color:var(--bleu);border-radius:4px;cursor:pointer;font-size:0.62rem;padding:2px 7px;"><i class="ti ti-layout-sidebar-right" style="vertical-align:-2px;margin-right:2px;"></i>Lire à côté</button>
-          <button onclick="rArticleDetacherCpSource()" title="Retirer le communiqué lié" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;">✕</button>
+          <button onclick="rArticleDetacherCpSource()" title="Retirer le communiqué lié" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;"><i class="ti ti-x"></i></button>
         </div>
       </div>
 
@@ -740,7 +741,7 @@
       <div class="form-group" id="rg-sources">
         <label style="font-size:0.68rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Sources</label>
         <div class="sources-list" id="sources-list" style="margin-top:0.35rem;">
-          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source">✕</button></div>
+          <div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button></div>
         </div>
         <button class="add-link" onclick="addSrc()">+ Ajouter une source</button>
       </div>
@@ -795,12 +796,10 @@
       </div>
 
       <!-- Lien partage -->
-      <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;border-radius:8px;margin-bottom:1.2rem;">
-        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-          <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
-          <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
-        </div>
+      <div id="r-share-link" class="r-partage" style="display:none;">
+        <i class="ti ti-link"></i>
+        <code id="r-share-url"></code>
+        <button type="button" class="mac-btn" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié','succes')})"><i class="ti ti-copy"></i>Copier le lien</button>
       </div>
 
       <!-- Lien de publication (URL externe réelle — Substack, etc.) + vues -->
@@ -880,6 +879,7 @@
           <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer au rédacteur</button>
         </div>
         <div id="r-actions-chef" class="r-actions-groupe" style="display:none;">
+          <button id="r-btn-relu" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="rWorkflowAvancer('corrige')"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
           <button id="r-btn-valider" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osDemanderBesoinVisuel()"><i class="ti ti-check"></i>Bon à publier</button>
           <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (centrale)</button>
           <button id="r-btn-publier" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="rWorkflowAvancer('publie')"><i class="ti ti-world-upload"></i>Mettre en ligne</button>
@@ -924,7 +924,7 @@
       <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-file-search"></i> Secrétariat de rédaction</div>
       <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="corr-subtitle">Chargement...</div>
     </div>
-    <button onclick="osAppCorrectionCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">↺ Actualiser</button>
+    <button onclick="osAppCorrectionCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>
   </div>
 
   <!-- Onglets selon rôle -->
@@ -938,7 +938,7 @@
   <!-- Modale commentaire renvoi -->
   <div id="corr-renvoi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:white;border-radius:12px;padding:1.5rem;width:min(480px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-      <div style="font-weight:700;font-size:0.9rem;color:var(--encre);margin-bottom:0.8rem;">↩ Renvoyer au rédacteur</div>
+      <div style="font-weight:700;font-size:0.9rem;color:var(--encre);margin-bottom:0.8rem;"><i class="ti ti-arrow-back-up"></i> Renvoyer au rédacteur</div>
       <div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">Explique ce qui doit être retravaillé — le rédacteur verra ce message.</div>
       <textarea id="corr-renvoi-commentaire" rows="4" placeholder="Ex: Le titre est trop vague, l'intro manque d'accroche..." style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:'DM Sans',sans-serif;resize:none;outline:none;box-sizing:border-box;"></textarea>
       <div style="display:flex;gap:0.5rem;margin-top:0.8rem;">
@@ -994,12 +994,12 @@
     </div>
     <div class="section-label">Communiqué source</div>
     <div id="e-cp-source-zone" style="margin-bottom:0.8rem;">
-      <div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;">📰 Lier un CP source</p></div>
+      <div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-news"></i> Lier un CP source</p></div>
     </div>
     <div class="section-label">Historique</div><div id="e-hist"></div>
     <div class="btn-row">
       <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
-      <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)">📄 Exporter en JSON</button>
+      <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)"><i class="ti ti-file-text"></i> Exporter en JSON</button>
       <button class="btn sec" onclick="genMd('edit')">Copier le texte</button>
     </div>
     <div class="md-out" id="md-edit"></div>
@@ -1076,7 +1076,7 @@
         <div class="vpro-section">
           <div class="vpro-section-title">Photo de fond</div>
           <div class="import-zone" onclick="document.getElementById('vpro-photo-input').click()" style="padding:0.6rem;">
-            <div class="iz-icon" style="font-size:1.4rem;">📷</div>
+            <div class="iz-icon" style="font-size:1.4rem;"><i class="ti ti-camera"></i></div>
             <p>Choisir une photo</p>
             <input type="file" id="vpro-photo-input" accept="image/*" style="display:none" onchange="vproLoadPhoto(event)">
           </div>
@@ -1202,7 +1202,7 @@
         <option value="titre_asc">Titre A→Z</option>
         <option value="titre_desc">Titre Z→A</option>
       </select>
-      <button class="btn sec" style="font-size:0.65rem;padding:0.35rem 0.8rem;flex-shrink:0;" onclick="chargerMesArticles()">↺ Actualiser</button>
+      <button class="btn sec" style="font-size:0.65rem;padding:0.35rem 0.8rem;flex-shrink:0;" onclick="chargerMesArticles()"><i class="ti ti-refresh"></i> Actualiser</button>
     </div>
     <!-- Filtres statut -->
     <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.6rem;">
@@ -1219,7 +1219,7 @@
 </div>
 
 <div class="page" id="page-tickets">
-  <div class="panel-title">Assistance 🚨</div>
+  <div class="panel-title">Assistance <i class="ti ti-urgent"></i></div>
   <div class="panel-subtitle">Besoin d aide ? Ouvre une demande d assistance.</div>
   <div style="background:white;border:1.5px solid var(--gris-bord);padding:1.2rem;margin-bottom:1.5rem;">
     <div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.8rem;">Nouveau ticket</div>
@@ -1282,7 +1282,7 @@
   <div class="panel-title">Lire un communiqué</div>
   <div class="panel-subtitle">Ouvre un communiqué enregistré pour consulter ses informations et son PDF</div>
   <div class="import-zone" onclick="document.getElementById('input-lire-cp').click()">
-    <div class="import-icon">📋</div>
+    <div class="import-icon"><i class="ti ti-clipboard-list"></i></div>
     <p>Clique ici pour ouvrir un communiqué enregistré</p>
     <input type="file" id="input-lire-cp" accept="*/*" style="display:none" onchange="loadLectCP(event)">
   </div>
@@ -1300,48 +1300,59 @@
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-    <span>Préparer la newsletter</span>
-    <span onclick="nlToggleHistorique()" style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--rouge);cursor:pointer;">📜 Historique</span>
-  </div>
-  <div class="panel-subtitle">Importe les articles validés, ordonne-les et génère la newsletter pour Substack</div>
-  <div id="nl-historique" style="display:none;margin-bottom:1rem;border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem 0.9rem;background:var(--gris-clair);"></div>
-  <div class="form-grid" style="margin-bottom:1rem;">
-    <div class="form-group full">
-      <label>Titre de l'édition</label>
-      <input type="text" id="nl-titre" placeholder="Newsletter du jeudi - Tarn">
+  <div class="cpa-entete">
+    <div class="cpa-titres">
+      <h2 class="cpa-titre">Newsletter</h2>
+      <div class="cpa-sous">Rassemble les contenus de la semaine, mets-les dans l'ordre et copie le tout dans Substack</div>
     </div>
-    <div class="form-group full">
-      <label>Date d'envoi</label>
-      <input type="date" id="nl-date-envoi">
-      <div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Aujourd'hui par défaut — change-la pour rattraper un envoi déjà parti avant (par exemple, à la main, avant cette mise à jour).</div>
-    </div>
-    <div class="form-group full">
-      <label>Mot de la rédaction (optionnel)</label>
-      <textarea id="nl-edito" style="min-height:90px;" placeholder="Quelques mots pour cette édition..."></textarea>
+    <div class="cpa-actions">
+      <button class="mac-btn" onclick="nlToggleHistorique()"><i class="ti ti-history"></i>Anciennes newsletters</button>
     </div>
   </div>
-  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
-    <span>Articles et brèves de la semaine</span>
-    <button class="btn" onclick="nlChargerDepuisBase()" style="font-size:0.75rem;padding:0.4rem 0.9rem;">☁️ Charger depuis la base</button>
+  <div id="nl-historique" class="nlx-carte" style="display:none;margin-bottom:0.8rem;"></div>
+
+  <div class="nlx-grille">
+    <div class="nlx-carte">
+      <div class="nlx-titre"><span class="nlx-etape">1</span>L'édition</div>
+      <div>
+        <label class="nlx-label" for="nl-titre">Titre</label>
+        <input type="text" id="nl-titre" class="nlx-champ" placeholder="Newsletter du jeudi, Tarn">
+      </div>
+      <div>
+        <label class="nlx-label" for="nl-date-envoi">Date d'envoi</label>
+        <input type="date" id="nl-date-envoi" class="nlx-champ">
+        <div class="nlx-aide">Aujourd'hui par défaut. Change-la pour enregistrer un envoi déjà parti.</div>
+      </div>
+      <div>
+        <label class="nlx-label" for="nl-edito">Mot de la rédaction <span>(facultatif)</span></label>
+        <textarea id="nl-edito" class="nlx-champ" rows="4" placeholder="Quelques mots pour cette édition…"></textarea>
+      </div>
+    </div>
+
+    <div class="nlx-carte">
+      <div class="nlx-titre nlx-titre-ligne">
+        <span><span class="nlx-etape">2</span>Les contenus</span>
+        <button class="mac-btn cpc-icone" onclick="nlChargerDepuisBase()" title="Recharger les contenus" aria-label="Recharger les contenus"><i class="ti ti-refresh"></i></button>
+      </div>
+      <div id="nl-base-articles"></div>
+      <div id="nl-articles-list"></div>
+    </div>
   </div>
-  <div id="nl-base-articles" style="margin-bottom:0.8rem;"></div>
-  <div id="nl-articles-list" style="margin-bottom:1.2rem;"></div>
-  <div id="nl-apercu-section" style="display:none;">
-    <hr style="border:none;border-top:1px solid var(--gris-bord);margin:1.5rem 0;">
-    <div class="section-label">Aperçu de la newsletter</div>
-    <div id="nl-apercu" style="border:1.5px solid var(--gris-bord);padding:1.3rem;background:white;font-size:0.87rem;line-height:1.8;white-space:pre-wrap;max-height:480px;overflow-y:auto;"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="nlCopier()">Copier pour Substack</button>
-      <button class="btn secondary" onclick="nlExporter()">Télécharger Markdown</button>
-      <button class="btn secondary" id="nl-btn-envoyee" onclick="nlMarquerEnvoyee()">✓ Marquer comme envoyée</button>
+
+  <div id="nl-apercu-section" class="nlx-carte" style="display:none;margin-top:0.8rem;">
+    <div class="nlx-titre"><span class="nlx-etape">3</span>Aperçu</div>
+    <div id="nl-apercu" class="nlx-apercu"></div>
+    <div class="nlx-actions">
+      <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="nlCopier()"><i class="ti ti-copy"></i>Copier pour Substack</button>
+      <button class="mac-btn" onclick="nlExporter()"><i class="ti ti-download"></i>Télécharger</button>
+      <button class="mac-btn mac-btn-vert" data-sombre-ignore id="nl-btn-envoyee" onclick="nlMarquerEnvoyee()"><i class="ti ti-check"></i>Marquer comme envoyée</button>
     </div>
   </div>
 </div>
 
 <!-- FULLSCREEN -->
 <div class="fs-overlay" id="fs-overlay">
-  <button class="fs-close" onclick="closeFS()">✕ Fermer</button>
+  <button class="fs-close" onclick="closeFS()"><i class="ti ti-x"></i> Fermer</button>
   <div class="fs-body" id="fs-body"></div>
 </div>
 
@@ -1373,20 +1384,20 @@
     <div class="modal-action-body">
       <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Que veux-tu faire avec cet article ?</div>
       <button class="modal-action-btn" onclick="modalActionChoisir('lecture')">
-        <div class="modal-action-icon">📰</div>
+        <div class="modal-action-icon"><i class="ti ti-news"></i></div>
         <div><div class="modal-action-label">Lire l'article</div><div class="modal-action-desc">Prévisualiser le contenu et exporter vers Substack</div></div>
       </button>
       <button class="modal-action-btn" id="modal-action-btn-correction" onclick="modalActionChoisir('correction')">
-        <div class="modal-action-icon">🔍</div>
+        <div class="modal-action-icon"><i class="ti ti-search"></i></div>
         <div><div class="modal-action-label">Corriger l'article</div><div class="modal-action-desc">Mode SR — annoter et valider les modifications</div></div>
       </button>
       <button class="modal-action-btn" id="modal-action-btn-edition" onclick="modalActionChoisir('edition')">
-        <div class="modal-action-icon">✏️</div>
+        <div class="modal-action-icon"><i class="ti ti-pencil"></i></div>
         <div><div class="modal-action-label">Modifier l'article</div><div class="modal-action-desc">Édition libre du contenu</div></div>
       </button>
       <div id="modal-action-restreint" style="display:none;font-size:0.68rem;color:var(--gris);padding:0.4rem 0.2rem 0;">Relecture et modification ne sont proposées qu'aux personnes habilitées pour cet article (auteur·rice, SR, rédac chef, admin).</div>
       <button class="modal-action-btn" onclick="modalActionFermer()" style="margin-top:0.4rem;border-color:transparent;">
-        <div class="modal-action-icon">✕</div>
+        <div class="modal-action-icon"><i class="ti ti-x"></i></div>
         <div><div class="modal-action-label" style="color:var(--gris);">Annuler</div></div>
       </button>
     </div>
@@ -1406,18 +1417,18 @@
       <div id="sujet-modal-cp-zone" style="margin-bottom:0.8rem;display:none;">
         <div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Communiqué source</div>
         <div id="sujet-modal-cp-bloc" style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 8px 8px 0;padding:0.7rem 1rem;display:flex;align-items:center;gap:0.7rem;cursor:pointer;" onclick="sujetModalLireCp()">
-          <span style="font-size:1rem;flex-shrink:0;">📰</span>
+          <span style="font-size:1rem;flex-shrink:0;"><i class="ti ti-news"></i></span>
           <div style="flex:1;min-width:0;">
             <div id="sujet-modal-cp-titre" style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
             <div id="sujet-modal-cp-org" style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);"></div>
           </div>
           <span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--rouge);flex-shrink:0;">Lire →</span>
         </div>
-        <button onclick="sujetModalDetacherCp()" style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);background:none;border:none;cursor:pointer;margin-top:4px;">✕ Retirer</button>
+        <button onclick="sujetModalDetacherCp()" style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);background:none;border:none;cursor:pointer;margin-top:4px;"><i class="ti ti-x"></i> Retirer</button>
       </div>
       <div id="sujet-modal-cp-btn-zone">
         <div class="import-zone" onclick="sujetModalLierCp()" style="padding:0.6rem;cursor:pointer;margin-bottom:0;">
-          <p style="margin:0;font-size:0.78rem;">📰 Lier un CP source à ce sujet</p>
+          <p style="margin:0;font-size:0.78rem;"><i class="ti ti-news"></i> Lier un CP source à ce sujet</p>
         </div>
       </div>
     </div>
@@ -1436,7 +1447,7 @@
 <div id="bienvenue">
   <div class="bvn-card">
     <img src="data:image/png;base64,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" class="bvn-logo" alt="Ipsum Media">
-    <div class="bvn-titre">Bienvenue sur Compo 👋</div>
+    <div class="bvn-titre">Bienvenue sur Compo <i class="ti ti-hand-stop"></i></div>
     <div class="bvn-sub">L'outil de rédaction interne d'Ipsum Média.<br>Commence par enregistrer ton prénom et ton nom.</div>
     <div class="bvn-row">
       <div class="bvn-group"><label>Prénom *</label><input type="text" id="bvn-prenom" placeholder="Marie" autocomplete="given-name"></div>
@@ -1496,5 +1507,6 @@
 <script src="js/21-sujets-desengagement.js"></script>
 <script src="js/22-rediger-sujet.js"></script>
 <script src="js/23-flouter.js"></script>
+<script src="js/24-dialogues.js"></script>
 </body>
 </html>

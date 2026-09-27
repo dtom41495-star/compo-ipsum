@@ -8,7 +8,7 @@ function osVisuelsProPreRemplir(){
     var inner = document.getElementById('vpro-titre-inner');
     if(inner) inner.textContent = titre;
     if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    notif('Titre importé depuis l\'article en cours ✓','succes');
+    notif('Titre importé depuis l\'article en cours','succes');
   }
   osVisuelsProAjouterBoutonImport();
 }
@@ -20,7 +20,7 @@ function osVisuelsProAjouterBoutonImport(){
   var btn = document.createElement('button');
   btn.id = 'vpro-import-btn';
   btn.style.cssText = 'margin-left:0.8rem;font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;';
-  btn.textContent = '↩ Importer depuis l\'article';
+  btn.textContent = 'Importer depuis l\'article';
   btn.onclick = function(){
     var titreRedac = document.getElementById('r-titre');
     var vproT = document.getElementById('vpro-titre');
@@ -29,7 +29,7 @@ function osVisuelsProAjouterBoutonImport(){
     var inner = document.getElementById('vpro-titre-inner');
     if(inner) inner.textContent = titreRedac.value.trim();
     if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    notif('Titre importé ✓','succes');
+    notif('Titre importé','succes');
   };
   zone.appendChild(btn);
 }
@@ -82,7 +82,7 @@ function osBoutiqueRender(){
     // Header
     h += '<div style="flex-shrink:0;background:linear-gradient(135deg,#7D3C98,#5B2C6F);padding:1.2rem 1.5rem;">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
-    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">🎁 Boutique Ipsum Média</div>';
+    h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;"><i class="ti ti-gift"></i> Boutique Ipsum Média</div>';
     h += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.6);margin-top:2px;">Échangez vos heures de bénévolat</div></div>';
     h += '<div style="text-align:right;">';
     h += '<div style="font-family:Poppins,sans-serif;font-size:1.6rem;font-weight:800;color:white;">'+soldeStr+'</div>';
@@ -98,15 +98,15 @@ function osBoutiqueRender(){
     // Alertes admin
     if(isAdmin && pending.length){
       h += '<div style="flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #FFEAA7;padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;" onclick="osBoutiqueVoirCommandes()">';
-      h += '<span>⏳</span><div style="flex:1;font-family:Space Mono,monospace;font-size:0.65rem;color:#856404;"><strong>'+pending.length+' commande(s) en attente</strong> de validation</div>';
+      h += '<span><i class="ti ti-hourglass"></i></span><div style="flex:1;font-family:Space Mono,monospace;font-size:0.65rem;color:#856404;"><strong>'+pending.length+' commande(s) en attente</strong> de validation</div>';
       h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#856404;">Gérer →</span></div>';
     }
 
     // Onglets
     h += '<div style="display:flex;border-bottom:1px solid var(--gris-bord);flex-shrink:0;background:white;">';
-    h += '<button onclick="osBoutiqueOnglet(\'catalogue\')" id="boutique-tab-cat" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;">🛍️ Catalogue</button>';
-    h += '<button onclick="osBoutiqueOnglet(\'commandes\')" id="boutique-tab-cmd" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">📦 Mes commandes</button>';
-    if(isAdmin) h += '<button onclick="osBoutiqueOnglet(\'admin\')" id="boutique-tab-adm" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;">⚙️ Gestion</button>';
+    h += '<button onclick="osBoutiqueOnglet(\'catalogue\')" id="boutique-tab-cat" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid var(--rouge);color:var(--encre);font-weight:600;margin-bottom:-1px;"><i class="ti ti-shopping-bag"></i> Catalogue</button>';
+    h += '<button onclick="osBoutiqueOnglet(\'commandes\')" id="boutique-tab-cmd" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;"><i class="ti ti-package"></i> Mes commandes</button>';
+    if(isAdmin) h += '<button onclick="osBoutiqueOnglet(\'admin\')" id="boutique-tab-adm" style="flex:1;padding:0.55rem;border:none;background:transparent;font-family:Space Mono,monospace;font-size:0.7rem;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--gris);margin-bottom:-1px;"><i class="ti ti-settings"></i> Gestion</button>';
     h += '</div>';
 
     // Panel catalogue
@@ -124,7 +124,7 @@ function osBoutiqueRender(){
           var stockOk = art.stock === null || art.stock > 0;
           var dejaCommande = commandes.some(function(c){return c.article_id===art.id && c.statut!=='refuse';});
           h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:0.5rem;opacity:'+(stockOk?'1':'0.5')+'">';
-          h += '<div style="font-size:1.5rem;text-align:center;">'+( art.nom.match(/^[\u{1F300}-\u{1F9FF}]/u)?art.nom.charAt(0):'🎁')+'</div>';
+          h += '<div style="font-size:1.5rem;text-align:center;">'+( art.nom.match(/^[\u{1F300}-\u{1F9FF}]/u)?art.nom.charAt(0):'<i class="ti ti-gift"></i>')+'</div>';
           h += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);text-align:center;">'+esc(art.nom.replace(/^[\u{1F300}-\u{1F9FF}]\s*/u,''))+'</div>';
           if(art.description) h += '<div style="font-size:0.75rem;color:var(--gris);text-align:center;line-height:1.3;">'+esc(art.description)+'</div>';
           h += '<div style="text-align:center;">';
@@ -132,7 +132,7 @@ function osBoutiqueRender(){
           if(art.stock !== null) h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.4rem;">'+art.stock+' dispo</span>';
           h += '</div>';
           if(dejaCommande){
-            h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:#155724;background:#D4EDDA;padding:4px 8px;border-radius:6px;">✓ Déjà commandé</div>';
+            h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:#155724;background:#D4EDDA;padding:4px 8px;border-radius:6px;"><i class="ti ti-check"></i> Déjà commandé</div>';
           } else if(!stockOk){
             h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);background:var(--gris-clair);padding:4px 8px;border-radius:6px;">Épuisé</div>';
           } else {
@@ -151,13 +151,13 @@ function osBoutiqueRender(){
     if(!mesCommandes.length){
       h += '<div style="text-align:center;padding:3rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Aucune commande pour le moment</div>';
     } else {
-      var stCmd = {en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},valide:{l:'Validé ✓',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Refusé',bg:'#FCEBEB',c:'#A32D2D'}};
+      var stCmd = {en_attente:{l:'En attente',bg:'#FFF3CD',c:'#856404'},valide:{l:'Validé <i class="ti ti-check"></i>',bg:'#D4EDDA',c:'#155724'},refuse:{l:'Refusé',bg:'#FCEBEB',c:'#A32D2D'}};
       mesCommandes.forEach(function(cmd){
         var artCmd = articles.find(function(a){return a.id===cmd.article_id;});
         var sc = stCmd[cmd.statut]||{l:cmd.statut,bg:'#eee',c:'#333'};
         var dateCmd = cmd.created_at ? new Date(cmd.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
         h += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:0.5px solid var(--gris-bord);">';
-        h += '<div style="font-size:1.2rem;">'+(artCmd?artCmd.nom.charAt(0):'🎁')+'</div>';
+        h += '<div style="font-size:1.2rem;">'+(artCmd?artCmd.nom.charAt(0):'<i class="ti ti-gift"></i>')+'</div>';
         h += '<div style="flex:1;">';
         h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(artCmd?artCmd.nom:'Article supprimé')+'</div>';
         h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+cmd.cout_heures+'h · '+dateCmd+'</div>';
@@ -182,13 +182,13 @@ function osBoutiqueRender(){
           var dateCmd = cmd.created_at ? new Date(cmd.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
           h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.6rem;">';
           h += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">';
-          h += '<div style="font-size:1rem;">'+(artCmd?artCmd.nom.charAt(0):'🎁')+'</div>';
+          h += '<div style="font-size:1rem;">'+(artCmd?artCmd.nom.charAt(0):'<i class="ti ti-gift"></i>')+'</div>';
           h += '<div style="flex:1;"><div style="font-weight:600;font-size:0.85rem;">'+esc(artCmd?artCmd.nom:'Inconnu')+'</div>';
           h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+memNom+' · '+cmd.cout_heures+'h · '+dateCmd+'</div></div>';
           h += '</div>';
           h += '<div style="display:flex;gap:0.5rem;">';
-          h += '<button onclick="osBoutiqueValider(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:6px;font-family:Space Mono,monospace;font-size:0.68rem;cursor:pointer;font-weight:600;">✓ Valider</button>';
-          h += '<button onclick="osBoutiqueRefuser(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:white;border:0.5px solid #F5B7B1;color:#A32D2D;border-radius:6px;font-family:Space Mono,monospace;font-size:0.68rem;cursor:pointer;">✕ Refuser</button>';
+          h += '<button onclick="osBoutiqueValider(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:6px;font-family:Space Mono,monospace;font-size:0.68rem;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Valider</button>';
+          h += '<button onclick="osBoutiqueRefuser(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:white;border:0.5px solid #F5B7B1;color:#A32D2D;border-radius:6px;font-family:Space Mono,monospace;font-size:0.68rem;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>';
           h += '</div></div>';
         });
       }
@@ -199,9 +199,9 @@ function osBoutiqueRender(){
         h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);'+(art.actif?'':'opacity:0.5;')+'">';
         h += '<div style="flex:1;font-size:0.82rem;">'+esc(art.nom)+'</div>';
         h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:#7D3C98;font-weight:600;">'+art.cout_heures+'h</span>';
-        h += '<button onclick="osBoutiqueOuvrirEditionArticle(\''+art.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">✏️</button>';
+        h += '<button onclick="osBoutiqueOuvrirEditionArticle(\''+art.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);"><i class="ti ti-pencil"></i></button>';
         h += '<button onclick="osBoutiqueToggleActif(\''+art.id+'\','+art.actif+')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">'+(art.actif?'Désactiver':'Activer')+'</button>';
-        h += '<button onclick="osBoutiqueSupprimerArticle(\''+art.id+'\',\''+esc(art.nom).replace(/\'/g,"\\'")+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;cursor:pointer;background:white;color:#A32D2D;">🗑️</button>';
+        h += '<button onclick="osBoutiqueSupprimerArticle(\''+art.id+'\',\''+esc(art.nom).replace(/\'/g,"\\'")+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;cursor:pointer;background:white;color:#A32D2D;"><i class="ti ti-trash"></i></button>';
         h += '</div>';
       });
       h += '</div></div>';
@@ -235,14 +235,14 @@ function osBoutiqueOnglet(onglet){
 
 function osBoutiqueCommander(articleId, nom, cout){
   if(window._boutiqueSolde < cout){ notif('Solde insuffisant — il vous faut '+cout+'h, vous avez '+window._boutiqueSolde+'h'); return; }
-  if(!confirm('Échanger '+cout+'h contre "'+nom+'" ?')) return;
+  if(!osConfirmerPuis('Échanger '+cout+'h contre "'+nom+'" ?', {oui:'Échanger'}, osBoutiqueCommander, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_commandes',{
     method:'POST', headers:authH,
     body:JSON.stringify({membre_id:getUserId(),article_id:articleId,cout_heures:cout,statut:'en_attente'})
   }).then(function(r){
     if(r.ok){
-      notif('Commande envoyée ✓ — en attente de validation','succes');
+      notif('Commande envoyée — en attente de validation','succes');
       osBoutiqueRender();
       // Email à l'admin
       var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -276,7 +276,7 @@ function osBoutiqueValider(cmdId){
     fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'valide'})})
     .then(function(r){
       if(!r.ok) return;
-      notif('Commande validée ✓','succes');
+      notif('Commande validée','succes');
       osBoutiqueRender();
       if(cmd){
         var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
@@ -303,37 +303,39 @@ function osBoutiqueValider(cmdId){
 }
 
 function osBoutiqueRefuser(cmdId){
-  var raison = prompt('Raison du refus (optionnel) :') || '';
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,article_id',{headers:authHGet})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var cmd = data&&data[0];
-    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse',message:raison||null})})
-    .then(function(r){
-      if(!r.ok) return;
-      notif('Commande refusée');
-      osBoutiqueRender();
-      if(cmd){
-        var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          var m = membres&&membres[0];
-          if(!m||!m.email) return;
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +osEnteteEmailLogo('❌ Commande non retenue')
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
-            +'</div></div>';
-          var chatTexte = '❌ Ta commande boutique "'+(art?art.nom:'')+'" n\'a pas pu être validée.'+(raison?' Raison : '+raison:'')+' https://compo.ipsummedia.fr';
-          notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
-            envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
-          });
-        }).catch(function(){});
-      }
+  osDemander('Refuser cette commande ?\nRaison du refus (facultatif), transmise au membre.', '', {oui:'Refuser la commande', danger:true, long:true}).then(function(v){
+    if(v === null) return; var raison = v.trim();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,article_id',{headers:authHGet})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var cmd = data&&data[0];
+      fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse',message:raison||null})})
+      .then(function(r){
+        if(!r.ok) return;
+        notif('Commande refusée');
+        osBoutiqueRender();
+        if(cmd){
+          var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
+          .then(function(r){return r.json();})
+          .then(function(membres){
+            var m = membres&&membres[0];
+            if(!m||!m.email) return;
+            var html = '<div style="font-family:sans-serif;max-width:500px;">'
+              +osEnteteEmailLogo('❌ Commande non retenue')
+              +'<div style="padding:1rem 1.5rem;">'
+              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+              +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
+              +'</div></div>';
+            var chatTexte = '❌ Ta commande boutique "'+(art?art.nom:'')+'" n\'a pas pu être validée.'+(raison?' Raison : '+raison:'')+' https://compo.ipsummedia.fr';
+            notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
+              envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
+            });
+          }).catch(function(){});
+        }
+      });
     });
   });
 }
@@ -345,7 +347,7 @@ function osBoutiqueToggleActif(articleId, actif){
 }
 
 function osBoutiqueSupprimerArticle(articleId, nom){
-  if(!confirm('Supprimer définitivement « '+nom+' » du catalogue ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement « '+nom+' » du catalogue ?', null, osBoutiqueSupprimerArticle, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+articleId,{method:'DELETE',headers:authH})
   .then(function(r){
@@ -367,7 +369,7 @@ function osBoutiqueOuvrirEditionArticle(articleId){
   card.style.cssText = 'background:white;border-radius:14px;width:min(420px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
   card.innerHTML =
     '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">✏️ Modifier l\'article</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-pencil"></i> Modifier l\'article</div>'
     +'<button onclick="document.getElementById(\'boutique-edit-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
     +'</div>'
     +'<div style="padding:1.2rem 1.5rem;">'
@@ -401,7 +403,7 @@ function osBoutiqueEnregistrerEditionArticle(articleId){
     body:JSON.stringify({nom:nom, cout_heures:cout, stock:stock, description:description||null})
   }).then(function(r){
     if(r.ok){
-      notif('Article mis à jour ✓','succes');
+      notif('Article mis à jour','succes');
       var overlay = document.getElementById('boutique-edit-overlay');
       if(overlay) overlay.remove();
       osBoutiqueRender();
@@ -440,9 +442,9 @@ function osLoadingHtml(retryFnName, timeoutMs){
 function osErreurHtml(retryCb, message){
   var cbStr = retryCb ? 'onclick="'+retryCb+'()"' : '';
   return '<div class="os-error">'
-    +'<div class="os-error-icon">🔌</div>'
+    +'<div class="os-error-icon"><i class="ti ti-plug-connected-x"></i></div>'
     +'<div class="os-error-msg">'+(message || 'Uh oh, ça n\'a pas marché')+'</div>'
-    +(retryCb ? '<button class="os-error-btn" '+cbStr+'>↺ Réessayer</button>' : '')
+    +(retryCb ? '<button class="os-error-btn" '+cbStr+'><i class="ti ti-refresh"></i> Réessayer</button>' : '')
     +'</div>';
 }
 
@@ -512,7 +514,7 @@ function _tresBuildUI(wc, txs, postes){
   var hdr = document.createElement('div');
   hdr.style.cssText = 'flex-shrink:0;background:linear-gradient(135deg,#0F6E56,#085041);padding:1rem 1.4rem;';
   hdr.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">'
-    +'<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:white;">💶 Trésorerie Ipsum Média</div>'
+    +'<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1rem;color:white;"><i class="ti ti-currency-euro"></i> Trésorerie Ipsum Média</div>'
     +'<div style="font-size:0.62rem;color:rgba(255,255,255,.5);margin-top:2px;">Exercice '+annee+'</div></div>'
     +'<div style="text-align:right;"><div style="font-family:Poppins,sans-serif;font-size:2rem;font-weight:800;color:'+(soldeActuel>=0?'white':'#FF8A80')+'">'+(soldeActuel>=0?'+':'')+soldeActuel.toFixed(2)+' €</div>'
     +'<div style="font-size:0.55rem;color:rgba(255,255,255,.45);text-transform:uppercase;">Solde cumulé</div></div></div>'
@@ -532,13 +534,13 @@ function _tresBuildUI(wc, txs, postes){
   var tabBar = document.createElement('div');
   tabBar.id = 'tres-tabbar';
   tabBar.style.cssText = 'display:flex;border-bottom:2px solid #E5E7EB;flex-shrink:0;background:white;overflow-x:auto;';
-  var TABS = [['mouvements','📋 Mouvements'],['ajouter','+ Ajouter'],['budget','📐 Budget'],['rapport','🏛 Rapport AG'],['cloture','📅 Clôture'],['notes_frais','💸 Notes de frais'],['rapprochement','🏦 Rapprochement'],['cotisations','👥 Cotisations'],['bilan','🖨 Bilan PDF']];
+  var TABS = [['mouvements','<i class="ti ti-clipboard-list"></i> Mouvements'],['ajouter','+ Ajouter'],['budget','<i class="ti ti-ruler"></i> Budget'],['rapport','<i class="ti ti-building-bank"></i> Rapport AG'],['cloture','<i class="ti ti-calendar"></i> Clôture'],['notes_frais','<i class="ti ti-receipt"></i> Notes de frais'],['rapprochement','<i class="ti ti-building-bank"></i> Rapprochement'],['cotisations','<i class="ti ti-users"></i> Cotisations'],['bilan','<i class="ti ti-printer"></i> Bilan PDF']];
   TABS.forEach(function(t){
     var btn = document.createElement('button');
     var a = _tresOnglet===t[0];
     btn.dataset.onglet = t[0];
     btn.style.cssText = 'flex-shrink:0;padding:.6rem .8rem;border:none;background:transparent;font-size:.68rem;cursor:pointer;border-bottom:2.5px solid '+(a?'var(--rouge)':'transparent')+';color:'+(a?'var(--encre)':'var(--gris)')+';font-weight:'+(a?'700':'400')+';margin-bottom:-2px;white-space:nowrap;';
-    btn.textContent = t[1];
+    btn.innerHTML = t[1];
     btn.onclick = (function(id){ return function(){ _tresChangerOnglet(id); }; })(t[0]);
     tabBar.appendChild(btn);
   });
@@ -606,7 +608,7 @@ function _tresRenderMouvements(zone, txsFilt, txsTous, annee){
 
   // Recherche
   var si = document.createElement('input');
-  si.type='text'; si.placeholder='🔍 Rechercher...'; si.value=_tresSearch;
+  si.type='text'; si.placeholder='Rechercher...'; si.value=_tresSearch;
   si.style.cssText='flex:1;min-width:120px;max-width:200px;padding:4px 10px;border:1px solid #D1D5DB;border-radius:20px;font-size:.72rem;';
   si.oninput=function(){_tresSearch=this.value;_tresBuildUI(zone.parentNode.parentNode,window._tresorerieData,window._tresorerieBudget);};
   fb.appendChild(si);
@@ -647,7 +649,7 @@ function _tresRenderMouvements(zone, txsFilt, txsTous, annee){
   // Import CSV
   var btnImp = document.createElement('button');
   btnImp.style.cssText='padding:4px 10px;border:1px solid #D1D5DB;border-radius:20px;font-size:.65rem;cursor:pointer;background:white;color:#6B7280;';
-  btnImp.textContent='⬆ Import CSV';
+  btnImp.textContent='Import CSV';
   btnImp.onclick=function(){ _tresModalImportCSV(); };
   fb.appendChild(btnImp);
 
@@ -692,9 +694,9 @@ function _tresRenderMouvements(zone, txsFilt, txsTous, annee){
       +'<div style="font-size:.75rem;font-weight:600;color:#059669;">'+(isC?parseFloat(t.credit).toFixed(2)+' €':'')+'</div>'
       +'<div style="font-size:.68rem;font-weight:700;color:'+sc+';">'+(t._solde!==undefined?t._solde.toFixed(2):'—')+'</div>'
       +'<div style="display:flex;gap:2px;">'
-      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresPointer(this.dataset.id)" title="'+(t.pointe?'Dé-pointer':'Pointer')+'" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:'+(t.pointe?'#059669':'#9CA3AF')+';padding:2px;">'+(t.pointe?'✔':'○')+'</button>'
-      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresEditer(this.dataset.id)" title="Modifier" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;">✏️</button>'
-      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresSupprimer(this.dataset.id)" title="Supprimer" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;">🗑️</button>'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresPointer(this.dataset.id)" title="'+(t.pointe?'Dé-pointer':'Pointer')+'" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:'+(t.pointe?'#059669':'#9CA3AF')+';padding:2px;">'+(t.pointe?'<i class="ti ti-check"></i>':'○')+'</button>'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresEditer(this.dataset.id)" title="Modifier" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;"><i class="ti ti-pencil"></i></button>'
+      +'<button data-id="'+t.id+'" onclick="event.stopPropagation();_tresSupprimer(this.dataset.id)" title="Supprimer" style="font-size:.75rem;background:none;border:none;cursor:pointer;color:#6B7280;padding:2px;"><i class="ti ti-trash"></i></button>'
       +'</div>';
     tbody.appendChild(row);
   });
@@ -729,7 +731,7 @@ function _tresEditer(id){
 }
 
 function _tresSupprimer(id){
-  if(!confirm('Supprimer ce mouvement ?')) return;
+  if(!osConfirmerPuis('Supprimer ce mouvement ?', null, _tresSupprimer, this, arguments)) return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Supprimé','succes'); osTresorerieRender(); } });
@@ -744,8 +746,8 @@ function _tresRenderFormulaire(zone, prefill){
 
   // Type de mouvement rapide
   h+='<div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">';
-  h+='<button onclick="_tresSetSens(\'credit\')" id="tres-btn-credit" style="flex:1;padding:.5rem;border:2px solid #059669;background:#F0FFF4;color:#059669;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">💚 Recette (entrée)</button>';
-  h+='<button onclick="_tresSetSens(\'debit\')" id="tres-btn-debit" style="flex:1;padding:.5rem;border:2px solid #E5E7EB;background:white;color:#6B7280;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">🔴 Dépense (sortie)</button>';
+  h+='<button onclick="_tresSetSens(\'credit\')" id="tres-btn-credit" style="flex:1;padding:.5rem;border:2px solid #059669;background:#F0FFF4;color:#059669;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;"><i class="ti ti-plus"></i> Recette (entrée)</button>';
+  h+='<button onclick="_tresSetSens(\'debit\')" id="tres-btn-debit" style="flex:1;padding:.5rem;border:2px solid #E5E7EB;background:white;color:#6B7280;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;"><i class="ti ti-minus"></i> Dépense (sortie)</button>';
   h+='</div>';
 
   function fld(label,id,type,val,placeholder){
@@ -816,7 +818,7 @@ function _tresSauvegarder(){
   var url=SB_URL+'/rest/v1/tresorerie_transactions'+(id?'?id=eq.'+id:'');
   fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({date:date,description:desc,type:type,debit:debit,credit:credit,moyen_paiement:moyen,remarques:rem,created_by:id?undefined:getUserId()})})
   .then(function(r){
-    if(r.ok){ notif(id?'Mis à jour ✓':'Enregistré ✓','succes'); _tresOnglet='mouvements'; osTresorerieRender(); }
+    if(r.ok){ notif(id?'Mis à jour':'Enregistré','succes'); _tresOnglet='mouvements'; osTresorerieRender(); }
     else notif('Erreur enregistrement','erreur');
   });
 }
@@ -826,7 +828,7 @@ function _tresModalImportCSV(){
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
   ov.innerHTML='<div style="background:white;border-radius:14px;padding:1.4rem;width:min(580px,94vw);box-shadow:0 16px 48px rgba(0,0,0,.25);">'
-    +'<div style="font-weight:700;font-size:.9rem;margin-bottom:.5rem;">⬆ Import relevé bancaire (CSV)</div>'
+    +'<div style="font-weight:700;font-size:.9rem;margin-bottom:.5rem;"><i class="ti ti-upload"></i> Import relevé bancaire (CSV)</div>'
     +'<div style="font-size:.72rem;color:#6B7280;margin-bottom:.8rem;">Colle le contenu de ton relevé CSV ci-dessous. Colonnes attendues (séparées par ; ou ,) :<br><code style="font-size:.65rem;background:#F3F4F6;padding:2px 5px;border-radius:3px;">Date ; Description ; Débit ; Crédit</code></div>'
     +'<textarea id="csv-import-area" rows="8" style="width:100%;padding:.6rem;border:1.5px solid #D1D5DB;border-radius:8px;font-size:.72rem;font-family:Space Mono,monospace;resize:vertical;box-sizing:border-box;" placeholder="18/06/2026;Virement HelloAsso;;120.00&#10;20/06/2026;Hébergement OVH;14.40;"></textarea>'
     +'<div style="display:flex;gap:.5rem;margin-top:.8rem;">'
@@ -875,7 +877,7 @@ function _tresParseCSV(raw){
       +'<span style="font-weight:600;color:'+(r.debit?'#DC2626':'#059669')+';">'+(r.debit?'-'+r.debit.toFixed(2):'+'+r.credit.toFixed(2))+' €</span></div>';}).join('')
     +'</div>'
     +'<div style="display:flex;gap:.5rem;">'
-    +'<button id="csv-confirm" style="flex:1;padding:.5rem;background:#059669;color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;">✓ Importer</button>'
+    +'<button id="csv-confirm" style="flex:1;padding:.5rem;background:#059669;color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;"><i class="ti ti-check"></i> Importer</button>'
     +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:.5rem 1rem;border:1px solid #D1D5DB;background:white;border-radius:8px;font-size:.78rem;cursor:pointer;color:#6B7280;">Annuler</button>'
     +'</div></div>';
   ov2.onclick=function(e){if(e.target===ov2)ov2.remove();};
@@ -903,7 +905,7 @@ function _tresExportCSV(txs){
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a'); a.href=url; a.download='tresorerie_ipsum_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
   URL.revokeObjectURL(url);
-  notif('Export CSV téléchargé ✓','succes');
+  notif('Export CSV téléchargé','succes');
 }
 
 // ── BUDGET PREVISIONNEL ──────────────────────────────────────────────
@@ -994,7 +996,7 @@ function _tresRenderBudget(zone, postes, txs, annee){
             +'<span style="font-size:.6rem;color:#9CA3AF;">'+d+'</span>'
             +'<span style="flex:1;font-size:.7rem;color:#374151;">'+esc(t.description||'')+'</span>'
             +'<span style="font-size:.7rem;font-weight:600;color:'+(isDepense?'#DC2626':'#059669')+';">'+mt.toFixed(2)+' €</span>'
-            +'<button data-pid="'+p.id+'" data-tid="'+t.id+'" onclick="osTresorerieBudgetDelierTx(this.dataset.pid,this.dataset.tid)" style="font-size:.6rem;background:none;border:none;cursor:pointer;color:#9CA3AF;" title="Délier">✕</button>'
+            +'<button data-pid="'+p.id+'" data-tid="'+t.id+'" onclick="osTresorerieBudgetDelierTx(this.dataset.pid,this.dataset.tid)" style="font-size:.6rem;background:none;border:none;cursor:pointer;color:#9CA3AF;" title="Délier"><i class="ti ti-x"></i></button>'
             +'</div>';
         });
       }
@@ -1012,15 +1014,15 @@ function _tresRenderBudget(zone, postes, txs, annee){
         h+='</select></div>';
       }
       h+='<div style="display:flex;gap:.4rem;margin-top:8px;justify-content:flex-end;">'
-        +'<button data-pid="'+p.id+'" onclick="_tresBudgetEditer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#F3F4F6;border:none;border-radius:4px;cursor:pointer;color:#6B7280;">✏️ Modifier</button>'
-        +'<button data-pid="'+p.id+'" onclick="_tresBudgetSupprimer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#FEE2E2;border:none;border-radius:4px;cursor:pointer;color:#DC2626;">🗑️ Supprimer</button>'
+        +'<button data-pid="'+p.id+'" onclick="_tresBudgetEditer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#F3F4F6;border:none;border-radius:4px;cursor:pointer;color:#6B7280;"><i class="ti ti-pencil"></i> Modifier</button>'
+        +'<button data-pid="'+p.id+'" onclick="_tresBudgetSupprimer(this.dataset.pid)" style="font-size:.62rem;padding:2px 8px;background:#FEE2E2;border:none;border-radius:4px;cursor:pointer;color:#DC2626;"><i class="ti ti-trash"></i> Supprimer</button>'
         +'</div></div>';
     });
     h+='</div>';
   }
 
-  renderSection('📈 Recettes prévues', rec, false, '#059669');
-  renderSection('📉 Dépenses prévues', dep, true,  '#DC2626');
+  renderSection('<i class="ti ti-trending-up"></i> Recettes prévues', rec, false, '#059669');
+  renderSection('<i class="ti ti-trending-down"></i> Dépenses prévues', dep, true,  '#DC2626');
   zone.innerHTML=h;
 }
 
@@ -1061,11 +1063,11 @@ function _tresBudgetSauvegarder(){
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var url=SB_URL+'/rest/v1/tresorerie_budget'+(id?'?id=eq.'+id:'');
   fetch(url,{method:id?'PATCH':'POST',headers:authH,body:JSON.stringify({poste:poste,categorie:cat,montant:mont,notes:notes,annee:_tresFiltreAnnee})})
-  .then(function(r){if(r.ok){notif('Enregistré ✓','succes');osTresorerieRender();}else notif('Erreur','erreur');});
+  .then(function(r){if(r.ok){notif('Enregistré','succes');osTresorerieRender();}else notif('Erreur','erreur');});
 }
 
 function _tresBudgetSupprimer(id){
-  if(!confirm('Supprimer ce poste ?'))return;
+  if(!osConfirmerPuis('Supprimer ce poste ?', null, _tresBudgetSupprimer, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){if(r.ok){notif('Poste supprimé','succes');osTresorerieRender();}});
@@ -1081,7 +1083,7 @@ function osTresorerieBudgetLierTx(posteId, txId){
   ids.push(txId);
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+posteId,{method:'PATCH',headers:authH,body:JSON.stringify({tx_ids:JSON.stringify(ids)})})
-  .then(function(r){if(r.ok){notif('Mouvement lié ✓','succes');osTresorerieRender();}});
+  .then(function(r){if(r.ok){notif('Mouvement lié','succes');osTresorerieRender();}});
 }
 
 function osTresorerieBudgetDelierTx(posteId, txId){
@@ -1115,9 +1117,9 @@ function _tresRenderRapport(zone, txs, postes, annee){
 
   var h='<div style="max-width:800px;">';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">'
-    +'<div><div style="font-size:1rem;font-weight:700;">🏛 Rapport financier AG '+annee+'</div>'
+    +'<div><div style="font-size:1rem;font-weight:700;"><i class="ti ti-building-bank"></i> Rapport financier AG '+annee+'</div>'
     +'<div style="font-size:.68rem;color:#9CA3AF;">Ipsum Média · Généré le '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div></div>'
-    +'<button onclick="_tresRapportPDF()" style="padding:.5rem 1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">🖨 Exporter PDF</button>'
+    +'<button onclick="_tresRapportPDF()" style="padding:.5rem 1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;"><i class="ti ti-printer"></i> Exporter PDF</button>'
     +'</div>';
 
   // Soldes résumé
@@ -1137,7 +1139,7 @@ function _tresRenderRapport(zone, txs, postes, annee){
 
   // Recettes
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">'
-    +'<div style="background:#059669;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;">📈 Recettes</div>'
+    +'<div style="background:#059669;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;"><i class="ti ti-trending-up"></i> Recettes</div>'
     +'<div>';
   Object.keys(parCatRec).sort(function(a,b){return parCatRec[b]-parCatRec[a];}).forEach(function(cat){
     var pct=Math.round(parCatRec[cat]/totalRec*100);
@@ -1152,7 +1154,7 @@ function _tresRenderRapport(zone, txs, postes, annee){
 
   // Dépenses
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;">'
-    +'<div style="background:#DC2626;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;">📉 Dépenses</div>'
+    +'<div style="background:#DC2626;padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:white;"><i class="ti ti-trending-down"></i> Dépenses</div>'
     +'<div>';
   Object.keys(parCatDep).sort(function(a,b){return parCatDep[b]-parCatDep[a];}).forEach(function(cat){
     var pct=Math.round(parCatDep[cat]/totalDep*100);
@@ -1176,7 +1178,7 @@ function _tresRenderRapport(zone, txs, postes, annee){
     parMois[m].dep+=parseFloat(t.debit)||0;
   });
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-bottom:1rem;">'
-    +'<div style="padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;border-bottom:1px solid #E5E7EB;">📅 Évolution mensuelle</div>'
+    +'<div style="padding:.6rem 1rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;border-bottom:1px solid #E5E7EB;"><i class="ti ti-calendar"></i> Évolution mensuelle</div>'
     +'<table style="width:100%;border-collapse:collapse;">'
     +'<tr style="background:#F9FAFB;"><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:left;font-weight:600;">Mois</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Recettes</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Dépenses</th><th style="padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;text-align:right;">Résultat</th></tr>';
   Object.keys(parMois).sort().forEach(function(m){
@@ -1207,7 +1209,7 @@ function _tresRapportPDF(){
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport AG</title>'
     +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:24px;color:#111827;}@media print{body{padding:0;}}</style>'
     +'</head><body>'
-    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer / PDF</button></div>'
+    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;"><i class="ti ti-printer"></i> Imprimer / PDF</button></div>'
     +zone.outerHTML
     +'</body></html>');
   win.document.close();
@@ -1242,9 +1244,9 @@ function osTresorerieBilan(txs, postes, annee){
   var css='*{margin:0;padding:0;box-sizing:border-box;}body{background:#F9FAFB;font-family:Arial,sans-serif;padding:28px 20px;color:#111827;}.doc{max-width:820px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);}.hdr{background:linear-gradient(135deg,#0F6E56,#085041);padding:28px 36px;}.hdr h1{font-size:1.3rem;font-weight:800;color:white;}.hdr p{font-size:.7rem;color:rgba(255,255,255,.6);margin-top:3px;}.body{padding:28px 36px;}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}.stat{background:#F3F4F6;border-radius:8px;padding:12px;text-align:center;}.sv{font-size:1.3rem;font-weight:800;}.sl{font-size:.58rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;}h2{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:#0F6E56;border-bottom:2px solid #0F6E56;padding-bottom:4px;margin:20px 0 10px;}table{width:100%;border-collapse:collapse;margin-bottom:20px;}tr:nth-child(even){background:#F9FAFB;}td,th{padding:6px 8px;font-size:.75rem;}th{font-size:.55rem;text-transform:uppercase;color:#9CA3AF;border-bottom:1px solid #E5E7EB;text-align:left;}.ftr{background:#F3F4F6;padding:16px 36px;display:flex;justify-content:space-between;border-top:1px solid #E5E7EB;font-size:.65rem;color:#9CA3AF;}@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}}';
   var html='<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Bilan '+annee+'</title><style>'+css+'</style></head><body>'
     +'<div class="np" style="max-width:820px;margin:0 auto 12px;text-align:right;">'
-    +'<button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;">🖨 Imprimer / PDF</button>'
+    +'<button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;"><i class="ti ti-printer"></i> Imprimer / PDF</button>'
     +'<button onclick="window.close()" style="background:#E5E7EB;color:#374151;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;">Fermer</button></div>'
-    +'<div class="doc"><div class="hdr"><h1>💶 Bilan de trésorerie '+annee+'</h1><p>Ipsum Média · Généré le '+today+'</p></div><div class="body">'
+    +'<div class="doc"><div class="hdr"><h1><i class="ti ti-currency-euro"></i> Bilan de trésorerie '+annee+'</h1><p>Ipsum Média · Généré le '+today+'</p></div><div class="body">'
     +'<div class="stats">'
     +'<div class="stat"><div class="sv" style="color:#059669;">+'+totalRec.toFixed(2)+' €</div><div class="sl">Recettes '+annee+'</div></div>'
     +'<div class="stat"><div class="sv" style="color:#DC2626;">-'+totalDep.toFixed(2)+' €</div><div class="sl">Dépenses '+annee+'</div></div>'
@@ -1277,7 +1279,7 @@ function osTresorerieBilan(txs, postes, annee){
     html+='<tr><td style="font-size:.7rem;color:#6B7280;">'+d+'</td><td>'+esc(t.description||'')+'</td><td style="font-size:.7rem;color:#6B7280;">'+esc(t.type||'')+'</td>'
       +'<td style="color:#DC2626;font-weight:600;">'+(t.debit?parseFloat(t.debit).toFixed(2)+' €':'')+'</td>'
       +'<td style="color:#059669;font-weight:600;">'+(t.credit?parseFloat(t.credit).toFixed(2)+' €':'')+'</td>'
-      +'<td style="text-align:center;">'+(t.pointe?'✔':'')+'</td></tr>';
+      +'<td style="text-align:center;">'+(t.pointe?'<i class="ti ti-check"></i>':'')+'</td></tr>';
   });
   html+='</table></div><div class="ftr"><span>Ipsum Média · contact@ipsummedia.fr</span><span>'+today+'</span></div></div></body></html>';
   win.document.write(html); win.document.close();
@@ -1303,7 +1305,7 @@ function _tresExportCloturePDF(annee){
     +'table{width:100%;border-collapse:collapse;margin-bottom:16px;}td,th{padding:6px 8px;font-size:.8rem;border-bottom:1px solid #E5E7EB;}th{font-size:.6rem;text-transform:uppercase;color:#9CA3AF;}'
     +'.sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;}.sig-box{border-top:1px solid #374151;padding-top:8px;font-size:.7rem;color:#6B7280;}'
     +'@media print{body{padding:20px;}button{display:none;}}</style></head><body>'
-    +'<div style="text-align:right;margin-bottom:16px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer</button></div>'
+    +'<div style="text-align:right;margin-bottom:16px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;"><i class="ti ti-printer"></i> Imprimer</button></div>'
     +'<div style="text-align:center;margin-bottom:24px;">'
     +'<div style="font-size:.7rem;color:#6B7280;text-transform:uppercase;letter-spacing:.1em;">Association Ipsum Média</div>'
     +'<h1>Procès-verbal de clôture<br>Exercice '+annee+'</h1>'
@@ -1342,7 +1344,7 @@ function _tresExportCotisPDF(annee){
     var cotMembre = cotTxs.find(function(t){return (t.description||'').toLowerCase().includes((m.prenom||'').toLowerCase())||(t.remarques||'').toLowerCase().includes((m.prenom||'').toLowerCase());});
     var aPaye = !!cotMembre;
     return '<tr><td>'+esc(nom)+'</td><td>'+esc(m.email||'')+'</td><td>'+esc(m.role||'')+'</td>'
-      +'<td style="text-align:center;font-weight:700;color:'+(aPaye?'#059669':'#DC2626')+'">'+(aPaye?'✅ '+parseFloat(cotMembre.credit||0).toFixed(2)+' €':'❌ Non payé')+'</td></tr>';
+      +'<td style="text-align:center;font-weight:700;color:'+(aPaye?'#059669':'#DC2626')+'">'+(aPaye?'<i class="ti ti-circle-check"></i> '+parseFloat(cotMembre.credit||0).toFixed(2)+' €':'<i class="ti ti-x"></i> Non payé')+'</td></tr>';
   }).join('');
   var nbPayes = cotTxs.length;
   var total = cotTxs.reduce(function(s,t){return s+(parseFloat(t.credit)||0);},0);
@@ -1350,7 +1352,7 @@ function _tresExportCotisPDF(annee){
     +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:36px;color:#111827;}'
     +'h1{font-size:1.2rem;font-weight:800;margin-bottom:4px;}table{width:100%;border-collapse:collapse;margin-top:16px;}td,th{padding:7px 10px;font-size:.78rem;border-bottom:1px solid #E5E7EB;}th{background:#F3F4F6;font-size:.6rem;text-transform:uppercase;color:#9CA3AF;}'
     +'@media print{button{display:none;}}</style></head><body>'
-    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">🖨 Imprimer</button></div>'
+    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;"><i class="ti ti-printer"></i> Imprimer</button></div>'
     +'<div style="text-align:center;margin-bottom:20px;">'
     +'<div style="font-size:.7rem;color:#6B7280;text-transform:uppercase;letter-spacing:.1em;">Association Ipsum Média</div>'
     +'<h1>Liste des cotisations '+annee+'</h1>'
@@ -1369,7 +1371,7 @@ function _tresRenderNotesFrais(zone){
   var totalRembourse = txs.filter(function(t){return t.pointe;}).reduce(function(s,t){return s+(parseFloat(t.debit)||0);},0);
   var h = '<div style="max-width:720px;">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
-    +'<div style="font-size:.95rem;font-weight:700;">💸 Notes de frais</div>'
+    +'<div style="font-size:.95rem;font-weight:700;"><i class="ti ti-receipt"></i> Notes de frais</div>'
     +'<button onclick="_tresNotesFraisForm()" style="padding:4px 14px;background:var(--rouge);color:white;border:none;border-radius:20px;font-size:.7rem;cursor:pointer;font-weight:600;">+ Nouvelle note</button>'
     +'</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.2rem;">'
@@ -1423,7 +1425,7 @@ function _tresRenderNotesFrais(zone){
           +'<span style="flex:1;font-size:.75rem;">'+esc(t.remarques||t.description||'')+'</span>'
           +'<span style="font-size:.75rem;font-weight:700;color:#DC2626;">'+parseFloat(t.debit).toFixed(2)+' €</span>'
           +'<span style="font-size:.68rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(t.pointe?'#D1FAE5':'#FEE2E2')+';color:'+(t.pointe?'#065F46':'#991B1B')+'">'+(t.pointe?'Remboursé':'En attente')+'</span>'
-          +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.65rem;padding:2px 8px;border:1px solid #D1D5DB;border-radius:6px;cursor:pointer;background:white;color:#6B7280;">'+(t.pointe?'↩ Annuler':'✓ Rembourser')+'</button>'
+          +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.65rem;padding:2px 8px;border:1px solid #D1D5DB;border-radius:6px;cursor:pointer;background:white;color:#6B7280;">'+(t.pointe?'<i class="ti ti-arrow-back-up"></i> Annuler':'<i class="ti ti-check"></i> Rembourser')+'</button>'
           +'</div>';
       });
       h+='</div>';
@@ -1444,7 +1446,7 @@ function _tresNotesFraisSauvegarder(){
   fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify({
     date:date,description:membre,type:'Note de frais',debit:montant,
     remarques:objet+(justif?' — '+justif:''),created_by:getUserId(),pointe:false
-  })}).then(function(r){if(r.ok){notif('Note de frais enregistrée ✓','succes');_tresOnglet='notes_frais';osTresorerieRender();}else notif('Erreur','erreur');});
+  })}).then(function(r){if(r.ok){notif('Note de frais enregistrée','succes');_tresOnglet='notes_frais';osTresorerieRender();}else notif('Erreur','erreur');});
 }
 
 // ── RAPPROCHEMENT BANCAIRE ───────────────────────────────────────────
@@ -1457,7 +1459,7 @@ function _tresRenderRapprochement(zone, txs, annee){
   var soldeBancaire=parseFloat(localStorage.getItem('compo_solde_bancaire_'+annee)||'NaN');
   var ecart=isNaN(soldeBancaire)?null:soldeBancaire-soldeCalc;
   var h='<div style="max-width:720px;">';
-  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">🏦 Rapprochement bancaire '+annee+'</div>';
+  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:1rem;"><i class="ti ti-building-bank"></i> Rapprochement bancaire '+annee+'</div>';
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">'
     +'<div style="font-size:.72rem;font-weight:600;margin-bottom:.4rem;">Solde réel du compte bancaire</div>'
     +'<div style="font-size:.65rem;color:#9CA3AF;margin-bottom:.7rem;">Saisis le solde affiché sur ton relevé bancaire au '+new Date().toLocaleDateString('fr-FR')+'</div>'
@@ -1475,14 +1477,14 @@ function _tresRenderRapprochement(zone, txs, annee){
     +'<div style="background:'+(ecart===null?'#F3F4F6':Math.abs(ecart)<0.01?'#F0FFF4':'#FFF5F5')+';border:1px solid '+(ecart===null?'#E5E7EB':Math.abs(ecart)<0.01?'#A7F3D0':'#FECACA')+';border-radius:10px;padding:.9rem;">'
     +'<div style="font-size:.58rem;text-transform:uppercase;color:#9CA3AF;">Écart</div>'
     +'<div style="font-size:1.3rem;font-weight:800;color:'+(ecart===null?'#9CA3AF':Math.abs(ecart)<0.01?'#059669':'#DC2626')+';margin-top:4px;">'
-    +(ecart===null?'—':Math.abs(ecart)<0.01?'✓ Équilibré':(ecart>=0?'+':'')+ecart.toFixed(2)+' €')+'</div></div></div>';
+    +(ecart===null?'—':Math.abs(ecart)<0.01?'<i class="ti ti-check"></i> Équilibré':(ecart>=0?'+':'')+ecart.toFixed(2)+' €')+'</div></div></div>';
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:1rem;">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:.7rem 1rem;background:#FFFBEB;border-bottom:1px solid #FDE68A;">'
-    +'<div style="font-size:.75rem;font-weight:600;color:#92400E;">⚠ Non pointées ('+nonPointes.length+')</div>'
+    +'<div style="font-size:.75rem;font-weight:600;color:#92400E;"><i class="ti ti-alert-triangle"></i> Non pointées ('+nonPointes.length+')</div>'
     +'<div style="font-size:.72rem;font-weight:600;color:#92400E;">'+(montantNonPointe>=0?'+':'')+montantNonPointe.toFixed(2)+' €</div>'
     +'</div>';
   if(!nonPointes.length){
-    h+='<div style="padding:1rem;text-align:center;font-size:.78rem;color:#059669;">✓ Toutes les transactions sont pointées !</div>';
+    h+='<div style="padding:1rem;text-align:center;font-size:.78rem;color:#059669;"><i class="ti ti-check"></i> Toutes les transactions sont pointées !</div>';
   } else {
     nonPointes.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(t){
       var d=t.date?new Date(t.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
@@ -1492,11 +1494,11 @@ function _tresRenderRapprochement(zone, txs, annee){
         +'<span style="flex:1;font-size:.75rem;">'+esc(t.description||'')+'</span>'
         +'<span style="font-size:.62rem;color:#6B7280;">'+esc(t.type||'')+'</span>'
         +'<span style="font-size:.75rem;font-weight:700;color:'+(isC?'#059669':'#DC2626')+'">'+(isC?'+'+parseFloat(t.credit).toFixed(2):'-'+parseFloat(t.debit).toFixed(2))+' €</span>'
-        +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.62rem;padding:2px 8px;border:1px solid #059669;border-radius:6px;cursor:pointer;background:white;color:#059669;white-space:nowrap;">✔ Pointer</button>'
+        +'<button data-id="'+t.id+'" onclick="_tresPointer(this.dataset.id)" style="font-size:.62rem;padding:2px 8px;border:1px solid #059669;border-radius:6px;cursor:pointer;background:white;color:#059669;white-space:nowrap;"><i class="ti ti-check"></i> Pointer</button>'
         +'</div>';
     });
     h+='<div style="padding:.6rem 1rem;background:#F9FAFB;text-align:right;">'
-      +'<button onclick="_tresPointerTout()" style="font-size:.68rem;padding:4px 12px;background:#059669;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✔ Tout pointer</button>'
+      +'<button onclick="_tresPointerTout()" style="font-size:.68rem;padding:4px 12px;background:#059669;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Tout pointer</button>'
       +'</div>';
   }
   h+='</div></div>';
@@ -1506,18 +1508,18 @@ function _tresSauvegarderSoldeBancaire(){
   var val=parseFloat((document.getElementById('solde-bancaire-input')||{}).value);
   if(isNaN(val)){notif('Saisis un montant valide');return;}
   try{localStorage.setItem('compo_solde_bancaire_'+_tresFiltreAnnee,val);}catch(e){}
-  notif('Solde bancaire enregistré ✓','succes');
+  notif('Solde bancaire enregistré','succes');
   _tresOnglet='rapprochement'; osTresorerieRender();
 }
 function _tresPointerTout(){
   var txs=(window._tresorerieData||[]).filter(function(t){return !t.pointe&&t.date&&t.date.substring(0,4)===String(_tresFiltreAnnee);});
   if(!txs.length)return;
-  if(!confirm('Pointer les '+txs.length+' transactions non pointées ?'))return;
+  if(!osConfirmerPuis('Pointer les '+txs.length+' transactions non pointées ?', null, _tresPointerTout, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var done=0;
   txs.forEach(function(t){
     fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+t.id,{method:'PATCH',headers:authH,body:JSON.stringify({pointe:true})})
-    .then(function(r){if(r.ok){t.pointe=true;done++;if(done===txs.length){notif(done+' transactions pointées ✓','succes');osTresorerieRender();}}});
+    .then(function(r){if(r.ok){t.pointe=true;done++;if(done===txs.length){notif(done+' transactions pointées','succes');osTresorerieRender();}}});
   });
 }
 
@@ -1539,20 +1541,20 @@ function _tresRenderCloture(zone, txs, postes, annee){
     {ok:postes.length>0,l:'Un budget prévisionnel existe',detail:postes.length===0?'Va dans Budget pour créer des postes':''},
   ];
   var h='<div style="max-width:720px;">';
-  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:.3rem;">📅 Clôture de l\'exercice '+annee+'</div>';
+  h+='<div style="font-size:.95rem;font-weight:700;margin-bottom:.3rem;"><i class="ti ti-calendar"></i> Clôture de l\'exercice '+annee+'</div>';
   h+='<div style="font-size:.72rem;color:#9CA3AF;margin-bottom:1.2rem;">Archiver l\'exercice '+annee+' et préparer l\'ouverture '+anneeProchaine+'</div>';
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
-  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;">✅ Checklist avant clôture</div>';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;"><i class="ti ti-circle-check"></i> Checklist avant clôture</div>';
   checks.forEach(function(c){
     h+='<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.4rem 0;border-bottom:1px solid #F3F4F6;">'
-      +'<span style="font-size:1rem;flex-shrink:0;">'+(c.ok?'✅':'⚠️')+'</span>'
+      +'<span style="font-size:1rem;flex-shrink:0;">'+(c.ok?'<i class="ti ti-circle-check"></i>':'<i class="ti ti-alert-triangle"></i>')+'</span>'
       +'<div><div style="font-size:.75rem;color:#374151;">'+c.l+'</div>'
       +(c.detail?'<div style="font-size:.65rem;color:#DC2626;">'+c.detail+'</div>':'')
       +'</div></div>';
   });
   h+='</div>';
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
-  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;">📊 Résumé exercice '+annee+'</div>';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.7rem;"><i class="ti ti-chart-bar"></i> Résumé exercice '+annee+'</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;">';
   [{l:'Report exercice précédent',v:(soldePrecedent>=0?'+':'')+soldePrecedent.toFixed(2)+' €',c:'#4338CA'},
    {l:'Recettes '+annee,v:'+'+totalRec.toFixed(2)+' €',c:'#059669'},
@@ -1568,40 +1570,40 @@ function _tresRenderCloture(zone, txs, postes, annee){
     +'<div style="font-size:.65rem;text-transform:uppercase;color:#4338CA;font-weight:700;">Solde à reporter en '+anneeProchaine+'</div>'
     +'<div style="font-size:1.5rem;font-weight:800;color:'+(soldeReporte>=0?'#059669':'#DC2626')+'">'+(soldeReporte>=0?'+':'')+soldeReporte.toFixed(2)+' €</div>'
     +'</div>';
-  h+='<button onclick="_tresExportCloturePDF('+annee+')" style="margin-top:.8rem;padding:.5rem 1.1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">🖨 Procès-verbal de clôture PDF</button>';
+  h+='<button onclick="_tresExportCloturePDF('+annee+')" style="margin-top:.8rem;padding:.5rem 1.1rem;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;"><i class="ti ti-printer"></i> Procès-verbal de clôture PDF</button>';
   h+='</div>';
   h+='<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:1rem;margin-bottom:1.2rem;">';
-  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.4rem;">📐 Budget '+anneeProchaine+'</div>';
+  h+='<div style="font-size:.72rem;font-weight:600;margin-bottom:.4rem;"><i class="ti ti-ruler"></i> Budget '+anneeProchaine+'</div>';
   h+='<div style="font-size:.65rem;color:#9CA3AF;margin-bottom:.7rem;">Copier le budget '+annee+' comme base pour '+anneeProchaine+'</div>';
   h+='<div style="display:flex;gap:.5rem;">'
-    +'<button onclick="_tresCopieBudget('+annee+','+anneeProchaine+')" style="padding:.5rem 1rem;background:#4338CA;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">📋 Copier budget '+annee+' → '+anneeProchaine+'</button>'
+    +'<button onclick="_tresCopieBudget('+annee+','+anneeProchaine+')" style="padding:.5rem 1rem;background:#4338CA;color:white;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;"><i class="ti ti-clipboard-list"></i> Copier budget '+annee+' → '+anneeProchaine+'</button>'
     +'<button onclick="_tresOngletGo(\'budget\')" style="padding:.5rem 1rem;background:transparent;border:1px solid #D1D5DB;border-radius:8px;font-size:.75rem;cursor:pointer;color:#6B7280;">Créer manuellement</button>'
     +'</div></div>';
   h+='<div style="background:#FFF3CD;border:2px solid #F39C12;border-radius:12px;padding:1rem;">';
-  h+='<div style="font-size:.78rem;font-weight:700;color:#92400E;margin-bottom:.4rem;">⚠️ Clôturer l\'exercice '+annee+'</div>';
+  h+='<div style="font-size:.78rem;font-weight:700;color:#92400E;margin-bottom:.4rem;"><i class="ti ti-alert-triangle"></i> Clôturer l\'exercice '+annee+'</div>';
   h+='<div style="font-size:.68rem;color:#92400E;margin-bottom:.8rem;">Crée une transaction de report ('+soldeReporte.toFixed(2)+' €) au 01/01/'+anneeProchaine+'. Aucune donnée supprimée.</div>';
-  h+='<button onclick="_tresCloturerExercice('+annee+','+soldeReporte+')" style="padding:.5rem 1.2rem;background:#F39C12;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">📅 Clôturer '+annee+' et reporter '+soldeReporte.toFixed(2)+' € en '+anneeProchaine+'</button>';
+  h+='<button onclick="_tresCloturerExercice('+annee+','+soldeReporte+')" style="padding:.5rem 1.2rem;background:#F39C12;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;"><i class="ti ti-calendar"></i> Clôturer '+annee+' et reporter '+soldeReporte.toFixed(2)+' € en '+anneeProchaine+'</button>';
   h+='</div></div>';
   zone.innerHTML=h;
 }
 function _tresCopieBudget(anneeSource, anneeCible){
   var postes=(window._tresorerieBudget||[]).filter(function(p){return !p.annee||p.annee===anneeSource;});
   if(!postes.length){notif('Aucun poste dans le budget '+anneeSource);return;}
-  if(!confirm('Copier '+postes.length+' postes vers '+anneeCible+' ?'))return;
+  if(!osConfirmerPuis('Copier '+postes.length+' postes vers '+anneeCible+' ?', null, _tresCopieBudget, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var done=0;
   postes.forEach(function(p){
     fetch(SB_URL+'/rest/v1/tresorerie_budget',{method:'POST',headers:authH,body:JSON.stringify({poste:p.poste,categorie:p.categorie,montant:p.montant,notes:p.notes||null,annee:anneeCible,tx_ids:'[]'})})
-    .then(function(r){done++;if(done===postes.length){notif(done+' postes copiés vers '+anneeCible+' ✓','succes');_tresFiltreAnnee=anneeCible;_tresOnglet='budget';osTresorerieRender();}});
+    .then(function(r){done++;if(done===postes.length){notif(done+' postes copiés vers '+anneeCible+'','succes');_tresFiltreAnnee=anneeCible;_tresOnglet='budget';osTresorerieRender();}});
   });
 }
 function _tresCloturerExercice(annee, solde){
-  if(!confirm('Clôturer '+annee+' et reporter '+solde.toFixed(2)+' € en '+(annee+1)+' ?'))return;
+  if(!osConfirmerPuis('Clôturer '+annee+' et reporter '+solde.toFixed(2)+' € en '+(annee+1)+' ?', null, _tresCloturerExercice, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var payload={date:(annee+1)+'-01-01',description:'Report exercice '+annee,type:'Autres recettes',remarques:'Clôture automatique',created_by:getUserId()};
   if(solde>=0)payload.credit=solde;else payload.debit=Math.abs(solde);
   fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify(payload)})
-  .then(function(r){if(r.ok){notif('Exercice '+annee+' clôturé ✓','succes');_tresFiltreAnnee=annee+1;_tresOnglet='mouvements';osTresorerieRender();}else notif('Erreur clôture','erreur');});
+  .then(function(r){if(r.ok){notif('Exercice '+annee+' clôturé','succes');_tresFiltreAnnee=annee+1;_tresOnglet='mouvements';osTresorerieRender();}else notif('Erreur clôture','erreur');});
 }
 
 // ── COTISATIONS ──────────────────────────────────────────────────────
@@ -1625,10 +1627,10 @@ function _tresRenderCotisations(zone){
   var pct=membres.length>0?Math.round(nPaye/membres.length*100):0;
   var h='<div style="max-width:720px;">';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'
-    +'<div><div style="font-size:.95rem;font-weight:700;">👥 Cotisations '+annee+'</div>'
+    +'<div><div style="font-size:.95rem;font-weight:700;"><i class="ti ti-users"></i> Cotisations '+annee+'</div>'
     +'<div style="font-size:.65rem;color:#9CA3AF;margin-top:1px;">'+nPaye+'/'+membres.length+' membres — '+totalCot.toFixed(2)+' € perçus</div></div>'
     +'<div style="display:flex;gap:.5rem;">'
-    +'<button onclick="_tresExportCotisPDF('+annee+')" style="padding:4px 12px;background:transparent;border:1px solid #D1D5DB;border-radius:20px;font-size:.7rem;cursor:pointer;color:#6B7280;font-weight:600;">🖨 Export PDF</button>'
+    +'<button onclick="_tresExportCotisPDF('+annee+')" style="padding:4px 12px;background:transparent;border:1px solid #D1D5DB;border-radius:20px;font-size:.7rem;cursor:pointer;color:#6B7280;font-weight:600;"><i class="ti ti-printer"></i> Export PDF</button>'
     +'<button onclick="_tresCotisationEnregistrer()" style="padding:4px 14px;background:var(--rouge);color:white;border:none;border-radius:20px;font-size:.7rem;cursor:pointer;font-weight:600;">+ Enregistrer paiement</button>'
     +'</div></div>';
   h+='<div style="background:#F3F4F6;border-radius:6px;height:8px;margin-bottom:1.2rem;overflow:hidden;">'
@@ -1671,7 +1673,7 @@ function _tresRenderCotisations(zone){
     var d=p&&p.date?new Date(p.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
     h+='<div style="display:grid;grid-template-columns:1fr 100px 90px 80px;padding:.5rem 1rem;border-bottom:1px solid #F3F4F6;align-items:center;">'
       +'<div style="font-size:.8rem;font-weight:500;">'+esc((m.prenom||'')+' '+(m.nom||''))+'<div style="font-size:.6rem;color:#9CA3AF;">'+esc(m.role||'')+'</div></div>'
-      +'<div><span style="font-size:.62rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(p?'#D1FAE5':'#FEE2E2')+';color:'+(p?'#065F46':'#991B1B')+'">'+(p?'✓ Payé':'En attente')+'</span></div>'
+      +'<div><span style="font-size:.62rem;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(p?'#D1FAE5':'#FEE2E2')+';color:'+(p?'#065F46':'#991B1B')+'">'+(p?'<i class="ti ti-check"></i> Payé':'En attente')+'</span></div>'
       +'<div style="font-size:.75rem;font-weight:600;color:'+(p?'#059669':'#9CA3AF')+'">'+(p?p.montant.toFixed(2)+' €':'—')+'</div>'
       +'<div style="font-size:.65rem;color:#9CA3AF;">'+d+'</div>'
       +'</div>';
@@ -1690,7 +1692,7 @@ function _tresCotisationSauvegarder(){
   fetch(SB_URL+'/rest/v1/tresorerie_transactions',{method:'POST',headers:authH,body:JSON.stringify({
     date:date,description:'Cotisation '+_tresFiltreAnnee+' — '+membre,
     type:'Cotisations',credit:montant,moyen_paiement:moyen,created_by:getUserId(),pointe:true
-  })}).then(function(r){if(r.ok){notif('Cotisation enregistrée ✓','succes');_tresOnglet='cotisations';osTresorerieRender();}else notif('Erreur','erreur');});
+  })}).then(function(r){if(r.ok){notif('Cotisation enregistrée','succes');_tresOnglet='cotisations';osTresorerieRender();}else notif('Erreur','erreur');});
 }
 
 
@@ -1861,7 +1863,7 @@ function osChargerWidgets(){
     var notifHtml = '';
     if(_ncItems && _ncItems.length){
       _ncItems.slice(0,5).forEach(function(n){
-        var ic = {succes:'✅',erreur:'❌',info:'ℹ️'}[n.type]||'🔔';
+        var ic = {succes:'<i class="ti ti-circle-check"></i>',erreur:'<i class="ti ti-x"></i>',info:'<i class="ti ti-info-circle"></i>'}[n.type]||'<i class="ti ti-bell"></i>';
         notifHtml += '<div style="display:flex;align-items:flex-start;gap:0.4rem;padding:0.3rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">'
           +'<span style="font-size:0.7rem;flex-shrink:0;margin-top:1px;">'+ic+'</span>'
           +'<div style="flex:1;"><div style="font-size:0.73rem;color:rgba(0,0,0,0.75);line-height:1.3;">'+esc(n.msg||'')+'</div>'
@@ -1874,14 +1876,14 @@ function osChargerWidgets(){
     notifW.style.cssText = 'background:rgba(255,255,255,0.7);border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:0.75rem 0.85rem;';
     notifW.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">'
       +'<div style="display:flex;align-items:center;gap:0.4rem;">'
-      +'<span style="font-size:0.8rem;">🔔</span>'
+      +'<span style="font-size:0.8rem;"><i class="ti ti-bell"></i></span>'
       +'<span style="font-family:Arial,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.4);font-weight:600;">Notifications</span>'
       +'</div>'
       +'<button onclick="osClearNotifs();osChargerWidgets();" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;background:transparent;border:0.5px solid rgba(0,0,0,0.15);border-radius:4px;cursor:pointer;color:rgba(0,0,0,0.4);">Effacer</button>'
       +'</div>'+notifHtml;
     container.appendChild(notifW);
     // Heures
-    widget('💰','Mes heures',
+    widget('<i class="ti ti-coin"></i>','Mes heures',
       '<div style="display:flex;gap:0.5rem;">'
       +'<div style="flex:1;text-align:center;background:rgba(0,0,0,0.05);border-radius:8px;padding:0.5rem;">'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.3rem;color:rgba(0,0,0,0.8);">'+totalStr+'</div>'
@@ -1896,7 +1898,7 @@ function osChargerWidgets(){
     var evHtml = '';
     if(evs.length){
       evs.forEach(function(ev){
-        var t = (typeof AGENDA_TYPES!=='undefined') ? (AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre) : {icon:'📌'};
+        var t = (typeof AGENDA_TYPES!=='undefined') ? (AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre) : {icon:'<i class="ti ti-pin"></i>'};
         var debut = new Date(ev.date_debut);
         var isAuj = debut.toDateString() === now.toDateString();
         evHtml += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">'
@@ -1910,7 +1912,7 @@ function osChargerWidgets(){
           +'</div></div>';
       });
     } else { evHtml = '<div style="font-family:Space Mono,monospace;font-size:0.63rem;color:rgba(0,0,0,0.35);text-align:center;padding:0.5rem;">Aucun événement à venir</div>'; }
-    widget('📅','Agenda', evHtml, function(){ osOpenWindow('agenda'); });
+    widget('<i class="ti ti-calendar"></i>','Agenda', evHtml, function(){ osOpenWindow('agenda'); });
     // Articles
     var artHtml = '';
     if(arts.length){
@@ -1923,12 +1925,12 @@ function osChargerWidgets(){
           +'</div>';
       });
     } else { artHtml = '<div style="font-family:Space Mono,monospace;font-size:0.63rem;color:rgba(0,0,0,0.35);text-align:center;padding:0.5rem;">Aucun article en cours</div>'; }
-    widget('📝','Mes articles', artHtml, function(){ osOpenWindow('mes-articles'); });
+    widget('<i class="ti ti-notes"></i>','Mes articles', artHtml, function(){ osOpenWindow('mes-articles'); });
     // Annonce
     if(annonces.length){
       var ann = annonces[0];
       var annC = {info:'#378ADD',alerte:'#E24B4A',succes:'#1D9E75'};
-      widget('📣','Annonce de la rédac',
+      widget('<i class="ti ti-speakerphone"></i>','Annonce de la rédac',
         '<div style="font-size:0.73rem;color:rgba(0,0,0,0.7);line-height:1.4;border-left:2px solid '+(annC[ann.type]||'var(--rouge)')+';padding-left:0.6rem;">'+esc(ann.message||'')+'</div>'
       );
     }
@@ -1944,7 +1946,7 @@ function osChargerWidgets(){
             +(p.commissions?'<div style="font-size:0.6rem;color:rgba(232,70,30,0.8);">'+esc(p.commissions.nom)+'</div>':'')
             +'</div>';
         }).join('');
-        widget('📢','Rejoindre l\'équipe', rHtml+'<div style="margin-top:6px;"><button onclick="osOuvrirRecrutement()" style="font-size:0.62rem;width:100%;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;cursor:pointer;font-weight:600;">Voir toutes les annonces →</button></div>');
+        widget('<i class="ti ti-speakerphone"></i>','Rejoindre l\'équipe', rHtml+'<div style="margin-top:6px;"><button onclick="osOuvrirRecrutement()" style="font-size:0.62rem;width:100%;padding:4px;background:rgba(232,70,30,0.1);border:1px solid rgba(232,70,30,0.2);border-radius:6px;color:#E8461E;cursor:pointer;font-weight:600;">Voir toutes les annonces →</button></div>');
       }).catch(function(){});
     })();
     // Widget Substack — derniers articles publiés de la rédaction active de l'utilisateur
@@ -1984,7 +1986,7 @@ function osChargerWidgets(){
     // Rafraîchir
     var btnR = document.createElement('button');
     btnR.style.cssText = 'font-family:Space Mono,monospace;font-size:0.6rem;padding:5px 0;background:transparent;border:0.5px solid rgba(0,0,0,0.12);border-radius:6px;color:rgba(0,0,0,0.4);cursor:pointer;width:100%;margin-top:0.2rem;';
-    btnR.textContent = '↻ Actualiser';
+    btnR.textContent = 'Actualiser';
     btnR.onclick = function(){ osChargerWidgets(); };
     container.appendChild(btnR);
   }).catch(function(){
@@ -2252,7 +2254,7 @@ function _afficherMenuDock(e, app, isPinned){
   items.push({ sep:true });
   if(isOpen){
     items.push({ label:'<i class="ti ti-arrow-bar-to-up"></i> Mettre au premier plan', action:function(){ osFocusWindow(app.id); } });
-    items.push({ label:'✕ Fermer', action:function(){ osCloseWindow(app.id); } });
+    items.push({ label:'<i class="ti ti-x"></i> Fermer', action:function(){ osCloseWindow(app.id); } });
     items.push({ sep:true });
   }
   if(isPinned){
@@ -2295,7 +2297,7 @@ function _afficherMenuDock(e, app, isPinned){
 function osPinglerApp(appId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'resolution=merge-duplicates,return=minimal'});
   fetch(SB_URL+'/rest/v1/membres_apps',{method:'POST',headers:authH,body:JSON.stringify({membre_id:getUserId(),app_id:appId,epingle:true})})
-  .then(function(r){ if(r.ok){ notif('App épinglée ✓','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
+  .then(function(r){ if(r.ok){ notif('App épinglée','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
 }
 
 function osDepinglerApp(appId){
