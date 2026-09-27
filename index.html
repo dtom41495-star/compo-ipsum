@@ -1301,41 +1301,52 @@
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
-    <span>Préparer la newsletter</span>
-    <span onclick="nlToggleHistorique()" style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--rouge);cursor:pointer;"><i class="ti ti-list-details"></i> Historique</span>
-  </div>
-  <div class="panel-subtitle">Importe les articles validés, ordonne-les et génère la newsletter pour Substack</div>
-  <div id="nl-historique" style="display:none;margin-bottom:1rem;border:1px solid var(--gris-bord);border-radius:8px;padding:0.8rem 0.9rem;background:var(--gris-clair);"></div>
-  <div class="form-grid" style="margin-bottom:1rem;">
-    <div class="form-group full">
-      <label>Titre de l'édition</label>
-      <input type="text" id="nl-titre" placeholder="Newsletter du jeudi - Tarn">
+  <div class="cpa-entete">
+    <div class="cpa-titres">
+      <h2 class="cpa-titre">Newsletter</h2>
+      <div class="cpa-sous">Rassemble les contenus de la semaine, mets-les dans l'ordre et copie le tout dans Substack</div>
     </div>
-    <div class="form-group full">
-      <label>Date d'envoi</label>
-      <input type="date" id="nl-date-envoi">
-      <div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Aujourd'hui par défaut — change-la pour rattraper un envoi déjà parti avant (par exemple, à la main, avant cette mise à jour).</div>
-    </div>
-    <div class="form-group full">
-      <label>Mot de la rédaction (optionnel)</label>
-      <textarea id="nl-edito" style="min-height:90px;" placeholder="Quelques mots pour cette édition..."></textarea>
+    <div class="cpa-actions">
+      <button class="mac-btn" onclick="nlToggleHistorique()"><i class="ti ti-history"></i>Anciennes newsletters</button>
     </div>
   </div>
-  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
-    <span>Articles et brèves de la semaine</span>
-    <button class="btn" onclick="nlChargerDepuisBase()" style="font-size:0.75rem;padding:0.4rem 0.9rem;"><i class="ti ti-cloud"></i> Charger depuis la base</button>
+  <div id="nl-historique" class="nlx-carte" style="display:none;margin-bottom:0.8rem;"></div>
+
+  <div class="nlx-grille">
+    <div class="nlx-carte">
+      <div class="nlx-titre"><span class="nlx-etape">1</span>L'édition</div>
+      <div>
+        <label class="nlx-label" for="nl-titre">Titre</label>
+        <input type="text" id="nl-titre" class="nlx-champ" placeholder="Newsletter du jeudi, Tarn">
+      </div>
+      <div>
+        <label class="nlx-label" for="nl-date-envoi">Date d'envoi</label>
+        <input type="date" id="nl-date-envoi" class="nlx-champ">
+        <div class="nlx-aide">Aujourd'hui par défaut. Change-la pour enregistrer un envoi déjà parti.</div>
+      </div>
+      <div>
+        <label class="nlx-label" for="nl-edito">Mot de la rédaction <span>(facultatif)</span></label>
+        <textarea id="nl-edito" class="nlx-champ" rows="4" placeholder="Quelques mots pour cette édition…"></textarea>
+      </div>
+    </div>
+
+    <div class="nlx-carte">
+      <div class="nlx-titre nlx-titre-ligne">
+        <span><span class="nlx-etape">2</span>Les contenus</span>
+        <button class="mac-btn cpc-icone" onclick="nlChargerDepuisBase()" title="Recharger les contenus" aria-label="Recharger les contenus"><i class="ti ti-refresh"></i></button>
+      </div>
+      <div id="nl-base-articles"></div>
+      <div id="nl-articles-list"></div>
+    </div>
   </div>
-  <div id="nl-base-articles" style="margin-bottom:0.8rem;"></div>
-  <div id="nl-articles-list" style="margin-bottom:1.2rem;"></div>
-  <div id="nl-apercu-section" style="display:none;">
-    <hr style="border:none;border-top:1px solid var(--gris-bord);margin:1.5rem 0;">
-    <div class="section-label">Aperçu de la newsletter</div>
-    <div id="nl-apercu" style="border:1.5px solid var(--gris-bord);padding:1.3rem;background:white;font-size:0.87rem;line-height:1.8;white-space:pre-wrap;max-height:480px;overflow-y:auto;"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="nlCopier()">Copier pour Substack</button>
-      <button class="btn secondary" onclick="nlExporter()">Télécharger Markdown</button>
-      <button class="btn secondary" id="nl-btn-envoyee" onclick="nlMarquerEnvoyee()"><i class="ti ti-check"></i> Marquer comme envoyée</button>
+
+  <div id="nl-apercu-section" class="nlx-carte" style="display:none;margin-top:0.8rem;">
+    <div class="nlx-titre"><span class="nlx-etape">3</span>Aperçu</div>
+    <div id="nl-apercu" class="nlx-apercu"></div>
+    <div class="nlx-actions">
+      <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="nlCopier()"><i class="ti ti-copy"></i>Copier pour Substack</button>
+      <button class="mac-btn" onclick="nlExporter()"><i class="ti ti-download"></i>Télécharger</button>
+      <button class="mac-btn mac-btn-vert" data-sombre-ignore id="nl-btn-envoyee" onclick="nlMarquerEnvoyee()"><i class="ti ti-check"></i>Marquer comme envoyée</button>
     </div>
   </div>
 </div>

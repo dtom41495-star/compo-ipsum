@@ -18,7 +18,7 @@ function nlChargerDepuisBase(redactionIdChoisi){
   var redactionId = redactionIdChoisi || window._redacActiveId || (mesLiens[0] && mesLiens[0].redaction_id) || null;
 
   if(!redactionId){
-    zone.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Aucune rédaction associée à ton compte.</div>';
+    zone.innerHTML = '<div class="nlx-vide">Aucune rédaction associée à ton compte.</div>';
     return;
   }
 
@@ -38,9 +38,8 @@ function nlChargerDepuisBase(redactionIdChoisi){
 
     var entete = '';
     if(mesLiens.length > 1){
-      entete += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
-      entete += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;">Rédaction</span>';
-      entete += '<select onchange="nlChargerDepuisBase(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:3px 7px;border:1px solid var(--gris-bord);border-radius:5px;">';
+      entete += '<div class="nlx-redac"><label class="nlx-label" for="nl-redac-choix">Rédaction</label>';
+      entete += '<select id="nl-redac-choix" class="nlx-champ" onchange="nlChargerDepuisBase(this.value)">';
       mesLiens.forEach(function(mr){
         var r = (_redactionsData||[]).find(function(x){ return x.id===mr.redaction_id; });
         entete += '<option value="'+mr.redaction_id+'"'+(mr.redaction_id===redactionId?' selected':'')+'>'+esc(r?r.nom:mr.redaction_id)+'</option>';
@@ -48,17 +47,17 @@ function nlChargerDepuisBase(redactionIdChoisi){
       entete += '</select></div>';
     }
     if(res.isFallback){
-      entete += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);background:#F0EEE9;border-radius:6px;padding:0.5rem 0.7rem;margin-bottom:0.6rem;">Aucun envoi précédent enregistré pour cette rédaction — affichage des 7 derniers jours.</div>';
+      entete += '<div class="nlx-info"><i class="ti ti-info-circle"></i>Aucun envoi enregistré pour cette rédaction : voici les 7 derniers jours.</div>';
     }
 
     if(!_nlArticlesBase.length){
-      zone.innerHTML = entete+'<div style="font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);padding:0.5rem;text-align:center;">Rien de nouveau depuis le dernier envoi.</div>';
+      zone.innerHTML = entete+'<div class="nlx-vide"><i class="ti ti-mail-check"></i>Rien de nouveau depuis le dernier envoi.</div>';
       return;
     }
     zone.innerHTML = entete+'<div id="nl-base-liste"></div>';
     nlAfficherArticlesBase(document.getElementById('nl-base-liste'));
   }).catch(function(){
-    zone.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur de chargement</div>';
+    zone.innerHTML = '<div class="nlx-vide">Impossible de charger les contenus. Vérifie ta connexion.</div>';
   });
 }
 
@@ -66,73 +65,50 @@ function nlAfficherArticlesBase(zone){
   zone.innerHTML = '';
 
   var label = document.createElement('div');
-  label.style.cssText = 'font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;';
-  label.textContent = _nlArticlesBase.length+' contenu(s) depuis le dernier envoi — décoche ce que tu ne veux pas inclure';
+  label.className = 'nlx-sous-titre';
+  label.innerHTML = _nlArticlesBase.length+' contenu'+(_nlArticlesBase.length>1?'s':'')+' depuis le dernier envoi <span>Décoche ce que tu ne veux pas inclure</span>';
   zone.appendChild(label);
 
-  var STATUT = { valide:'#155724', publie:'#0C5460' };
-  var STATUT_BG = { valide:'#D4EDDA', publie:'#D1ECF1' };
+  var STATUT_LIB = { valide:'Bon à publier', publie:'En ligne' };
 
   _nlArticlesBase.forEach(function(art){
     var isSelected = _nlSelectionnes.some(function(s){ return s.id === art.id; });
 
-    var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:flex-start;gap:0.7rem;padding:0.7rem 0.8rem;'+
-      'border:1.5px solid '+(isSelected?'var(--rouge)':'var(--gris-bord)')+';'+
-      'border-radius:7px;margin-bottom:0.4rem;cursor:pointer;transition:border-color 0.15s;'+
-      'background:'+(isSelected?'rgba(232,70,30,0.04)':'white')+';';
+    var row = document.createElement('label');
+    row.className = 'nlx-choix'+(isSelected ? ' coche' : '');
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = isSelected;
-    cb.style.cssText = 'margin-top:3px;flex-shrink:0;accent-color:var(--rouge);width:16px;height:16px;cursor:pointer;';
 
     var body = document.createElement('div');
-    body.style.cssText = 'flex:1;min-width:0;';
-
-    var st = art.statut || 'valide';
+    body.className = 'nlx-choix-corps';
     var dateStr = art.updated_at ? new Date(art.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-
+    var breve = art.type === 'breve';
     body.innerHTML =
-      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem;">'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;background:'+STATUT_BG[st]+';color:'+STATUT[st]+';border:1px solid '+STATUT[st]+';">'+st+'</span>'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;background:#F0EEE9;color:var(--gris);border-radius:3px;">'+(art.type||'article')+'</span>'+
-        '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+dateStr+'</span>'+
-      '</div>'+
-      '<div style="font-weight:700;font-size:0.85rem;color:var(--encre);">'+esc(art.titre||'Sans titre')+'</div>'+
-      (art.chapeau?'<div style="font-size:0.75rem;color:var(--gris);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(art.chapeau)+'</div>':'')+
-      '<div style="font-size:0.68rem;color:var(--gris);margin-top:2px;">Par '+(art.auteur||'—')+'</div>';
+      '<div class="nlx-choix-titre">'+esc(art.titre||'Sans titre')+'</div>'+
+      '<div class="nl-item-meta"><span class="nl-item-type '+(breve ? 'nl-type-breve' : 'nl-type-article')+'">'+(breve ? 'Brève' : 'Article')+'</span>'+
+        esc(art.auteur||'?')+(dateStr ? ' · '+dateStr : '')+(STATUT_LIB[art.statut] ? ' · '+STATUT_LIB[art.statut] : '')+'</div>';
 
     row.appendChild(cb);
     row.appendChild(body);
 
-    // Toggle sélection
-    function toggle(){
+    cb.onchange = function(){
       var idx = _nlSelectionnes.findIndex(function(s){ return s.id === art.id; });
-      if(idx >= 0){
-        _nlSelectionnes.splice(idx, 1);
-        cb.checked = false;
-        row.style.borderColor = 'var(--gris-bord)';
-        row.style.background = 'white';
-      } else {
-        _nlSelectionnes.push(art);
-        cb.checked = true;
-        row.style.borderColor = 'var(--rouge)';
-        row.style.background = 'rgba(232,70,30,0.04)';
-      }
+      if(cb.checked && idx < 0) _nlSelectionnes.push(art);
+      if(!cb.checked && idx >= 0) _nlSelectionnes.splice(idx, 1);
+      row.classList.toggle('coche', cb.checked);
       nlMajArticlesListe();
-    }
-
-    row.onclick = function(e){ if(e.target !== cb) toggle(); };
-    cb.onchange = toggle;
+    };
     zone.appendChild(row);
   });
 
   // Bouton ajouter la sélection
   var btnAjouter = document.createElement('button');
-  btnAjouter.className = 'btn';
-  btnAjouter.style.cssText = 'width:100%;margin-top:0.5rem;font-size:0.8rem;';
-  btnAjouter.textContent = 'Ajouter les articles sélectionnés →';
+  btnAjouter.className = 'mac-btn mac-btn-principal nlx-ajouter';
+  btnAjouter.setAttribute('data-sombre-ignore', '');
+  zone.appendChild(btnAjouter);
+  nlMajArticlesListe();
   btnAjouter.onclick = function(){
     if(!_nlSelectionnes.length){ notif('Sélectionne au moins un article'); return; }
     // Convertir au format NL attendu par nlArticles
@@ -153,16 +129,19 @@ function nlAfficherArticlesBase(zone){
     nlRenderList();
     // Masquer la zone de sélection
     var z = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
-    if(z) z.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;"><i class="ti ti-check"></i> '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
-    notif(nlArticles.length+' article(s) prets pour la newsletter !');
+    if(z) z.innerHTML = '<div class="nlx-info"><i class="ti ti-check"></i><span>'+nlArticles.length+' contenu'+(nlArticles.length>1?'s':'')+' dans la newsletter.</span><button class="nlx-lien" onclick="nlChargerDepuisBase()">Changer la sélection</button></div>';
+    notif(nlArticles.length+' contenu'+(nlArticles.length>1?'s':'')+' prêt'+(nlArticles.length>1?'s':'')+' pour la newsletter','succes');
   };
-  zone.appendChild(btnAjouter);
 }
 
 function nlMajArticlesListe(){
   // Mettre à jour le compteur
-  var btnAjouter = document.querySelector('#nl-base-articles .btn');
-  if(btnAjouter) btnAjouter.textContent = 'Ajouter les '+_nlSelectionnes.length+' articles sélectionnés →';
+  var btnAjouter = document.querySelector('#nl-base-articles .nlx-ajouter');
+  var n = _nlSelectionnes.length;
+  if(btnAjouter){
+    btnAjouter.disabled = !n;
+    btnAjouter.innerHTML = '<i class="ti ti-arrow-down"></i>'+(n ? 'Ajouter '+(n > 1 ? 'ces '+n+' contenus' : 'ce contenu') : 'Rien de coché');
+  }
 }
 
 
