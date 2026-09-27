@@ -2070,7 +2070,6 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion"><i class="ti ti-mail"></i></button>'
       +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google"><i class="ti ti-mail-forward"></i></button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe"><i class="ti ti-key"></i></button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat"><i class="ti ti-stopwatch"></i></button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
@@ -2274,25 +2273,26 @@ function osResetMotDePasseMembreEnvoyer(membreId){
   });
 }
 
+// Créditer des heures à la main (activité hors article ou agenda : aide à un événement,
+// tenue d'un stand…). Ouvert depuis la fiche d'un bénévole, pour la vie associative.
 function osCrediterHeuresModal(id, nom){
+  var ancien = document.getElementById('crediter-heures-overlay');
+  if(ancien) ancien.remove();
   var ov = document.createElement('div');
   ov.id = 'crediter-heures-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
-    +'<div style="padding:1.2rem 1.5rem;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:var(--encre);"><i class="ti ti-clock-plus"></i> Créditer des heures</div>'
-    +'<div style="font-size:.72rem;color:var(--gris);margin-top:2px;">Pour '+esc(nom)+' — pour une activité hors article/agenda</div>'
-    +'</div>'
-    +'<div style="padding:0 1.5rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;">'
-    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Durée (heures)</label><input id="cred-heures-duree" type="number" min="0.25" step="0.25" placeholder="Ex: 2.5" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
-    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Description</label><input id="cred-heures-desc" type="text" placeholder="Ex: Aide déménagement local" style="width:100%;margin-top:3px;padding:.55rem .8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:.85rem;box-sizing:border-box;outline:none;"></div>'
-    +'<div id="cred-heures-msg" style="display:none;font-size:.72rem;padding:6px 10px;border-radius:6px;"></div>'
-    +'</div>'
-    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
-    +'<button onclick="document.getElementById(\'crediter-heures-overlay\').remove()" style="padding:.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:.78rem;cursor:pointer;color:var(--gris);">Annuler</button>'
-    +'<button id="cred-heures-btn" data-id="'+id+'" onclick="osCrediterHeuresEnvoyer(this.dataset.id)" style="padding:.5rem 1.2rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">Créditer</button>'
-    +'</div>'
-    +'</div>';
+  ov.className = 'se-overlay';
+  ov.innerHTML = '<div class="se-boite" role="dialog" aria-modal="true" aria-labelledby="cred-heures-titre">'
+    +'<div class="se-entete"><div id="cred-heures-titre" class="se-titre"><i class="ti ti-clock-plus"></i> Créditer des heures</div>'
+    +'<button class="se-fermer" aria-label="Fermer" onclick="document.getElementById(\'crediter-heures-overlay\').remove()"><i class="ti ti-x"></i></button></div>'
+    +'<div class="se-corps">'
+    +'<p class="se-aide">Pour '+esc(nom)+', pour une activité qui n\'est pas déjà comptée (articles, relectures et événements de l\'agenda le sont automatiquement).</p>'
+    +'<div><label class="nlx-label" for="cred-heures-duree">Durée en heures</label><input id="cred-heures-duree" class="nlx-champ" type="number" min="0.25" step="0.25" placeholder="Ex : 2,5"></div>'
+    +'<div><label class="nlx-label" for="cred-heures-desc">Pour quoi ?</label><input id="cred-heures-desc" class="nlx-champ" type="text" placeholder="Ex : tenue du stand au forum des associations"></div>'
+    +'<div id="cred-heures-msg" class="se-erreur" style="display:none;"></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'crediter-heures-overlay\').remove()">Annuler</button>'
+    +'<button id="cred-heures-btn" class="se-btn-principal" data-id="'+esc(id)+'" onclick="osCrediterHeuresEnvoyer(this.dataset.id)">Créditer</button></div>'
+    +'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
   setTimeout(function(){ var el=document.getElementById('cred-heures-duree'); if(el) el.focus(); },50);
 }
@@ -2303,11 +2303,11 @@ function osCrediterHeuresEnvoyer(membreId){
   var msgEl = document.getElementById('cred-heures-msg');
   var btn = document.getElementById('cred-heures-btn');
   if(!dureeH || dureeH <= 0){
-    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Indique une durée valide.'; }
+    if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Indique une durée valide.'; }
     return;
   }
   var dureeMin = Math.round(dureeH * 60);
-  if(btn){ btn.disabled=true; btn.textContent='...'; }
+  if(btn){ btn.disabled=true; btn.textContent='Envoi…'; }
   if(msgEl) msgEl.style.display='none';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/heures_benevolat',{
@@ -2318,15 +2318,15 @@ function osCrediterHeuresEnvoyer(membreId){
       // Message précis de la base, utile pour comprendre un refus
       return r.json().catch(function(){ return {}; }).then(function(e){
         var detail = (e && (e.message || e.details)) || ('code '+r.status);
-        if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Les heures n\'ont pas été créditées ('+detail+').'; }
+        if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Les heures n\'ont pas été créditées ('+detail+').'; }
         if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
       });
     }
     var ov = document.getElementById('crediter-heures-overlay');
     if(ov) ov.remove();
-    notif('Heures créditées','succes');
+    notif(String(dureeH).replace('.',',')+' h créditée'+(dureeH>=2?'s':''),'succes');
   }).catch(function(){
-    if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
+    if(msgEl){ msgEl.style.display='flex'; msgEl.textContent='Erreur réseau. Vérifie ta connexion.'; }
     if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
   });
 }
