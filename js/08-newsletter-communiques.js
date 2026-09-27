@@ -1410,48 +1410,59 @@ function cpsMakeCard(cp, isAdmin){
   return card;
 }
 
+// Sujet créé depuis un communiqué, selon les réglages de la rédaction (osSujetsDroit),
+// comme le bouton « Nouveau sujet » :
+//  - rédac chef / admin : sujet libre pour l'équipe, ou réservé s'il écrit lui-même ;
+//  - membre autorisé à publier ses sujets : réservé à son nom ;
+//  - membre qui propose : envoyé au rédac chef, réservé, on peut écrire en attendant ;
+//  - sinon : seul le rédac chef crée les sujets, rien n'est créé.
+// Renvoie une promesse du sujet créé (ou null).
+function _cpsSujetDepuisCp(cp, pourEcrire){
+  var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : 'chef';
+  if(!droit){
+    notif('Dans ta rédaction, seul le rédac chef crée les sujets : parle-lui de ce communiqué.', 'alerte');
+    return Promise.resolve(null);
+  }
+  var statut = droit === 'proposer' ? 'propose' : ((droit === 'chef' && !pourEcrire) ? 'ouvert' : 'en_cours');
+  var sujet = {
+    id: 'BRF-'+Date.now(),
+    titre: cp.titre||cp.objet||'Sujet sans titre',
+    type: 'article',
+    priorite: 'normale',
+    statut: statut,
+    note: (cp.corps||'').substring(0,300)||null,
+    cp_id: cp.id,
+    redaction_id: window._redacActiveId||null,
+    created_by: getUserId()
+  };
+  if(statut !== 'ouvert') sujet.responsable = getUserNomComplet();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  return fetch(SB_URL+'/rest/v1/briefing',{ method:'POST', headers:authH, body:JSON.stringify(sujet) })
+  .then(function(r){
+    if(!r.ok){ notif(statut === 'propose' ? 'Impossible d\'envoyer la proposition' : 'Impossible de créer le sujet','erreur'); return null; }
+    if(statut === 'propose' && typeof _osSujetPrevenirChefs === 'function') _osSujetPrevenirChefs(sujet);
+    return sujet;
+  }).catch(function(){ notif('Erreur réseau','erreur'); return null; });
+}
+
 function cpsCréerSujet(cpId){
   var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
-
-  // Admin/chef : sujet créé ouvert, à distribuer à l'équipe.
-  // Rédacteur/correcteur : sujet créé ET réservé directement pour eux, direction la rédaction.
-  var role = getUserRole();
-  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
-  var estChefOuAdmin = role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
-
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var sujetId = 'BRF-'+Date.now();
-  var titre = cp.titre||cp.objet||'Sujet sans titre';
-  var note = (cp.corps||'').substring(0,300)||null;
-  var payload = {
-    id:sujetId,
-    titre:titre,
-    type:'article',
-    priorite:'normale',
-    statut: estChefOuAdmin ? 'ouvert' : 'en_cours',
-    note:note,
-    cp_id:cp.id,
-    redaction_id:window._redacActiveId||null,
-    created_by:getUserId()
-  };
-  if(!estChefOuAdmin) payload.responsable = getUserNomComplet();
-
-  fetch(SB_URL+'/rest/v1/briefing',{ method:'POST', headers:authH, body:JSON.stringify(payload) })
-  .then(function(r){
-    if(!r.ok){ notif('Erreur création sujet','erreur'); return; }
-    if(estChefOuAdmin){
-      notif('Sujet créé dans le briefing','succes');
+  _cpsSujetDepuisCp(cp, false).then(function(sujet){
+    if(!sujet) return;
+    if(sujet.statut === 'ouvert'){
+      notif('Sujet créé : il est visible par l\'équipe','succes');
       osOuvrirSujets();
-    } else {
-      notif('Sujet réservé — direction la rédaction !','succes');
-      cpsDémarrerRedactionDepuisSujet(sujetId, titre, note, cp);
+      return;
     }
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+    notif(sujet.statut === 'propose' ? 'Sujet proposé au rédac chef : tu peux commencer à écrire' : 'Sujet réservé à ton nom : à toi d\'écrire !','succes');
+    cpsDémarrerRedactionDepuisSujet(sujet.id, sujet.titre, sujet.note, cp);
+  });
 }
 
 function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   var redacNom = '';
   if(window._redacActiveId && window._redactionsData){
     var redac = _redactionsData.find(function(r){return r.id===window._redacActiveId;});
@@ -1494,18 +1505,43 @@ function cpsCréerArticle(cpId){
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
 
-  // Créer d'office un sujet réservé à la personne qui écrit — visible dans l'onglet Sujets
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var sujetId = 'BRF-'+Date.now();
-  var titreSujet = cp.titre||cp.objet||'Sujet sans titre';
-  var payloadSujet = {
-    id:sujetId, titre:titreSujet, type:'article', priorite:'normale',
-    statut:'en_cours', responsable:getUserNomComplet(),
-    note:(cp.corps||'').substring(0,300)||null,
-    cp_id:cp.id, redaction_id:window._redacActiveId||null, created_by:getUserId()
-  };
-  fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payloadSujet)}).catch(function(){});
+  // Un sujet pour cet article, selon les réglages de la rédaction (voir _cpsSujetDepuisCp),
+  // puis l'éditeur pré-rempli avec le communiqué
+  // Un sujet existe déjà pour ce communiqué : on le reprend plutôt que d'en créer un autre
+  var existant = (window._cpsSujetsParCp||{})[cp.id];
+  var moi = (getUserNomComplet()||'').trim().toLowerCase();
+  if(existant && existant.statut === 'en_cours' && (existant.responsable||'').trim().toLowerCase() !== moi){
+    notif('Ce communiqué est déjà traité : sujet réservé par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
+    return;
+  }
+  if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose')){
+    _cpsOuvrirEditeurDepuisCp(cp, { id:existant.id, titre:cp.titre||cp.objet||'', statut:existant.statut });
+    return;
+  }
+  if(existant && existant.statut === 'ouvert'){
+    // Sujet libre : on le réserve au passage, seulement s'il l'est toujours
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(existant.id)+'&statut=eq.ouvert', {
+      method:'PATCH', headers:authH, body:JSON.stringify({ statut:'en_cours', responsable:getUserNomComplet() })
+    }).then(function(r){ return r.json().then(function(d){ return r.ok && Array.isArray(d) && d.length; }); })
+    .then(function(ok){
+      if(!ok){ notif('Trop tard : ce sujet vient d\'être réservé par quelqu\'un d\'autre.', 'erreur'); return; }
+      existant.statut = 'en_cours'; existant.responsable = getUserNomComplet();
+      _cpsOuvrirEditeurDepuisCp(cp, { id:existant.id, titre:cp.titre||cp.objet||'', statut:'en_cours' });
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+    return;
+  }
+  _cpsSujetDepuisCp(cp, true).then(function(sujet){
+    if(!sujet) return;
+    window._cpsSujetsParCp = window._cpsSujetsParCp || {};
+    window._cpsSujetsParCp[cp.id] = { id:sujet.id, cp_id:cp.id, statut:sujet.statut, responsable:sujet.responsable };
+    _cpsOuvrirEditeurDepuisCp(cp, sujet);
+  });
+}
 
+function _cpsOuvrirEditeurDepuisCp(cp, sujet){
+  var sujetId = sujet.id, titreSujet = sujet.titre;
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   // Ouvrir la rédaction avec le CP pré-rempli (le sujet vient d'être créé ci-dessus)
   window._rsOuvertureInterne = true;
   osOpenWindow('redaction');
@@ -1524,7 +1560,7 @@ function cpsCréerArticle(cpId){
     var abandonBtn = document.getElementById('r-abandon-sujet');
     if(abandonBtn){ abandonBtn.style.display='flex'; abandonBtn.dataset.sujetId=sujetId; abandonBtn.dataset.sujetTitre=titreSujet; }
     preremplirAuteur();
-    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom','succes');
+    notif(sujet.statut === 'propose' ? 'Sujet proposé au rédac chef : tu peux écrire en attendant' : 'Article commencé à partir du communiqué, sujet réservé à ton nom','succes');
   }, 350);
 }
 
