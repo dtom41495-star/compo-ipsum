@@ -739,6 +739,7 @@ function osRedacRedigerSujet(sujetId){
 function osRedacRedigerSujetNouveauBrouillon(sujetId){
   var sujet = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
   if(!sujet){ notif('Sujet introuvable','erreur'); return; }
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   var redacNom = '';
   if(window._redacActiveId && window._redactionsData){
     var redac = _redactionsData.find(function(r){return r.id===window._redacActiveId;});

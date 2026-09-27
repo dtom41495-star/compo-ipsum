@@ -459,7 +459,10 @@ function _osOpenWindowExecuter(pageId){
   // Sur mobile : fermer toutes les autres fenêtres
   if(isMobile){
     Object.keys(_windows).forEach(function(pid){
-      if(pid !== pageId) osCloseWindow(pid);
+      if(pid === pageId) return;
+      // L'éditeur n'interrompt plus le changement d'appli : le brouillon est mis de côté
+      if(pid === 'redaction'){ osRedactionMettreDeCote(); osCloseWindowForce(pid); }
+      else osCloseWindow(pid);
     });
   }
 
@@ -711,6 +714,33 @@ function osChronoStop(type){
   }).catch(function(){});
 }
 
+// Met de côté l'article ouvert dans l'éditeur avant qu'il soit remplacé ou fermé sans
+// que la personne l'ait demandé (changement d'appli sur téléphone, ouverture d'un autre
+// article) : enregistré dans Mes articles s'il a un titre, sinon gardé sur l'appareil.
+// Sans ça, l'article suivant prenait la place du brouillon dans l'éditeur et la question
+// « Enregistrer avant de fermer ? » s'appliquait alors au mauvais article.
+function osRedactionMettreDeCote(){
+  if(!_windows['redaction'] || !osRedactionADesModifs()) return false;
+  var doc;
+  try { doc = buildDoc(); } catch(e){ return false; }
+  if(!doc || !doc.id) return false;
+  osClearAutosave();
+  var nom = (doc.titre||'').trim() ? '« '+doc.titre.trim()+' »' : 'Ton brouillon';
+  if(!(doc.titre||'').trim()){
+    _autosaveFallbackLocal(doc);
+    notif(nom+' est gardé sur cet appareil (Mes articles, Non sauvegardés)');
+    return true;
+  }
+  db.sauvegarderArticle(doc).then(function(){
+    _autosaveClearLocalDraft(doc.id);
+    notif(nom+' est enregistré dans Mes articles', 'succes');
+  }).catch(function(){
+    _autosaveFallbackLocal(doc);
+    notif(nom+' est gardé sur cet appareil : pas de connexion', 'alerte');
+  });
+  return true;
+}
+
 function osCloseWindow(pageId){
   // Vérifier si l'article en cours a des modifications non sauvegardées.
   // NB : le chrono de bénévolat est arrêté dans osCloseWindowForce(), pas ici — sinon
@@ -751,85 +781,42 @@ function osRedactionADesModifs(){
 }
 
 function osSavePrompt(pageId){
-  // Supprimer modale existante si présente
   var existing = document.getElementById('os-save-prompt');
-  if(existing) existing.parentNode.removeChild(existing);
+  if(existing) existing.remove();
+  var titre = ((document.getElementById('r-titre')||{}).value||'').trim();
 
-  var overlay = document.createElement('div');
-  overlay.id = 'os-save-prompt';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);'+
-    'backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var ov = document.createElement('div');
+  ov.id = 'os-save-prompt';
+  ov.className = 'se-overlay dlg-overlay';
+  ov.innerHTML = '<div class="se-boite dlg-boite" role="alertdialog" aria-modal="true" aria-labelledby="save-prompt-titre"><div class="se-corps">'
+    +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-device-floppy"></i></span><div>'
+    +'<div id="save-prompt-titre" class="dlg-question">Enregistrer avant de fermer ?</div>'
+    +'<p class="se-aide dlg-details">'+(titre ? '« '+esc(titre)+' » a' : 'Ton article a')+' des modifications qui ne sont pas encore enregistrées.</p>'
+    +'</div></div>'
+    +'<div class="se-actions">'
+    +'<button type="button" class="se-btn-principal" data-action="enregistrer"><i class="ti ti-cloud-upload"></i> Enregistrer et fermer</button>'
+    +'<button type="button" class="se-btn-secondaire" data-action="revenir">Revenir à l\'article</button>'
+    +'<button type="button" class="se-btn-lien dlg-perdre" data-action="perdre">Fermer sans enregistrer</button>'
+    +'</div></div></div>';
 
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:16px;padding:2rem;max-width:380px;width:100%;'+
-    'box-shadow:0 24px 60px rgba(0,0,0,0.4);text-align:center;'+
-    'animation:slideInUp 0.3s cubic-bezier(0.34,1.2,0.64,1);';
-
-  var ico = document.createElement('div');
-  ico.style.cssText = 'font-size:2.8rem;margin-bottom:0.8rem;color:var(--bleu);';
-  ico.innerHTML = '<i class="ti ti-device-floppy"></i>';
-
-  var title = document.createElement('div');
-  title.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;'+
-    'color:var(--encre);margin-bottom:0.5rem;';
-  title.textContent = 'Enregistrer avant de fermer ?';
-
-  var desc = document.createElement('div');
-  desc.style.cssText = 'font-size:0.85rem;color:var(--gris);line-height:1.6;margin-bottom:1.4rem;';
-  desc.textContent = 'Ton article a des modifications non enregistrées. Tu veux les sauvegarder avant de fermer ?';
-
-  var btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;';
-
-  // Bouton enregistrer dans le cloud
-  var btnCloud = document.createElement('button');
-  btnCloud.className = 'btn';
-  btnCloud.style.cssText = 'width:100%;padding:0.8rem;font-size:0.88rem;background:linear-gradient(135deg,#1A5276,#2980B9);';
-  btnCloud.textContent = 'Enregistrer dans le cloud';
-  btnCloud.onclick = function(){
-    document.body.removeChild(overlay);
+  function fermer(){ document.removeEventListener('keydown', clavier, true); if(ov.parentNode) ov.remove(); }
+  function clavier(e){ if(e.key === 'Escape'){ e.preventDefault(); fermer(); } }
+  ov.querySelector('[data-action="enregistrer"]').onclick = function(){
+    fermer();
     sauvegarderCloud();
     setTimeout(function(){ osCloseWindowForce(pageId); }, 800);
   };
-
-  // Bouton fermer sans sauvegarder
-  var btnDiscard = document.createElement('button');
-  btnDiscard.style.cssText = 'width:100%;padding:0.6rem;font-size:0.8rem;background:transparent;'+
-    'border:none;color:rgba(0,0,0,0.35);cursor:pointer;font-family:DM Sans,sans-serif;'+
-    'transition:color 0.15s;';
-  btnDiscard.textContent = 'Fermer sans enregistrer';
-  btnDiscard.onmouseover = function(){ this.style.color='#FF5F57'; };
-  btnDiscard.onmouseout  = function(){ this.style.color='rgba(0,0,0,0.35)'; };
-  btnDiscard.onclick = function(){
+  ov.querySelector('[data-action="revenir"]').onclick = fermer;
+  ov.querySelector('[data-action="perdre"]').onclick = function(){
     _autosaveClearLocalDraft(currentDoc && currentDoc.id);
     osClearAutosave();
-    document.body.removeChild(overlay);
+    fermer();
     osCloseWindowForce(pageId);
   };
-
-  // Bouton annuler
-  var btnCancel = document.createElement('button');
-  btnCancel.style.cssText = 'width:100%;padding:0.5rem;font-size:0.78rem;background:transparent;'+
-    'border:none;color:var(--gris);cursor:pointer;font-family:DM Sans,sans-serif;';
-  btnCancel.textContent = '← Revenir à l article';
-  btnCancel.onclick = function(){ document.body.removeChild(overlay); };
-
-  btnRow.appendChild(btnCloud);
-  btnRow.appendChild(btnDiscard);
-  btnRow.appendChild(btnCancel);
-
-  card.appendChild(ico);
-  card.appendChild(title);
-  card.appendChild(desc);
-  card.appendChild(btnRow);
-  overlay.appendChild(card);
-
-  // Fermer en cliquant sur le fond
-  overlay.onclick = function(e){
-    if(e.target === overlay) document.body.removeChild(overlay);
-  };
-
-  document.body.appendChild(overlay);
+  ov.addEventListener('click', function(e){ if(e.target === ov) fermer(); });
+  document.addEventListener('keydown', clavier, true);
+  document.body.appendChild(ov);
+  setTimeout(function(){ var b = ov.querySelector('[data-action="enregistrer"]'); if(b) b.focus(); }, 30);
 }
 
 function osCloseWindowForce(pageId){

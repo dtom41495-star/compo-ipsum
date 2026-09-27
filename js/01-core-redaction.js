@@ -727,7 +727,7 @@ function exporterArticle(){
       var lien=genererLien(doc.id);
       var shareDiv=document.getElementById('r-share-link');
       var shareUrl=document.getElementById('r-share-url');
-      if(shareDiv) shareDiv.style.display='block';
+      if(shareDiv) shareDiv.style.display='flex';
       if(shareUrl) shareUrl.textContent=lien;
       currentDoc = doc;
       notif('Article sauvegardé !', 'succes');
@@ -878,6 +878,7 @@ function sauvegarderBrouillon(){
 function reprendreBrouillon(id){
   const drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
   const doc=drafts.find(d=>d.id===id);if(!doc)return;
+  if(!(currentDoc && currentDoc.id === doc.id)) osRedactionMettreDeCote();
   currentDoc = doc; // Réutiliser l'id existant — sinon la prochaine sauvegarde crée un nouvel article
   go('redaction');
   setTimeout(()=>{
@@ -1316,7 +1317,7 @@ function exporterEdition(){
     var lien = genererLien(currentDoc.id);
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv) shareDiv.style.display = 'block';
+    if(shareDiv) shareDiv.style.display = 'flex';
     if(shareUrl) shareUrl.textContent = lien;
     notif('Article mis a jour dans le cloud !');
     // Mettre à jour brouillon local si présent

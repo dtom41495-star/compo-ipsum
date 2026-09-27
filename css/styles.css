@@ -4589,3 +4589,8 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .st { padding: 1rem 12px 2rem; }
   .st-grille { grid-template-columns: 1fr; }
 }
+.dlg-perdre { color: #B42318; }
+#r-share-link.r-partage { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.6rem 0.55rem 0.85rem; margin-bottom: 1.2rem; border: 1px solid #E7E5E4; border-radius: 12px; background: #FAFAF9; font-family: 'DM Sans', sans-serif; }
+.r-partage > i { color: #A8A29E; font-size: 1.05rem; flex-shrink: 0; }
+.r-partage code { flex: 1; min-width: 0; font: 0.76rem 'DM Sans', sans-serif; color: #57534E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; }
+.r-partage .mac-btn { flex-shrink: 0; height: 30px; }

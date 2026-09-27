@@ -796,12 +796,10 @@
       </div>
 
       <!-- Lien partage -->
-      <div id="r-share-link" style="display:none;background:var(--ajout);border:1.5px solid var(--ajout-txt);padding:0.8rem 1rem;border-radius:8px;margin-bottom:1.2rem;">
-        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ajout-txt);margin-bottom:0.4rem;">Lien de partage</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-          <code id="r-share-url" style="font-size:0.78rem;color:var(--encre);flex:1;word-break:break-all;"></code>
-          <button class="btn sec" style="padding:0.3rem 0.7rem;font-size:0.65rem;" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié !')})">Copier</button>
-        </div>
+      <div id="r-share-link" class="r-partage" style="display:none;">
+        <i class="ti ti-link"></i>
+        <code id="r-share-url"></code>
+        <button type="button" class="mac-btn" onclick="navigator.clipboard.writeText(document.getElementById('r-share-url').textContent).then(function(){notif('Lien copié','succes')})"><i class="ti ti-copy"></i>Copier le lien</button>
       </div>
 
       <!-- Lien de publication (URL externe réelle — Substack, etc.) + vues -->

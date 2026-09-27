@@ -646,6 +646,13 @@ function mesArticlesOuvrir(id, action){
       tags: doc.tags||[], sources: doc.sources||[],
       cree_le: doc.created_at, modifie_le: doc.updated_at
     });
+    // Un autre article est ouvert dans l'éditeur : le mettre de côté AVANT de changer
+    // currentDoc, sinon son texte partait dans cet article-ci à la prochaine sauvegarde.
+    if(window._windows && _windows['redaction'] && !(currentDoc && currentDoc.id === docCompo.id)){
+      osRedactionMettreDeCote();
+      osClearAutosave();
+      if(action === 'lecture' || action === 'diff') osCloseWindowForce('redaction');
+    }
     currentDoc = docCompo;
     if(action === 'lecture'){
       go('lecture');
@@ -1571,6 +1578,7 @@ function chargerDansRedaction(doc){
     notif('Article en cours de relecture par le SR : modification impossible pour l\'instant.');
     return;
   }
+  if(!(currentDoc && currentDoc.id === doc.id)) osRedactionMettreDeCote();
   go('redaction');
   setTimeout(function(){
     osPopulerSelectRedaction();
@@ -1650,7 +1658,7 @@ function chargerDansRedaction(doc){
     // Afficher le lien de partage si l'article a déjà un ID en base
     var shareDiv = document.getElementById('r-share-link');
     var shareUrl = document.getElementById('r-share-url');
-    if(shareDiv && doc.id){ shareDiv.style.display='block'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
+    if(shareDiv && doc.id){ shareDiv.style.display='flex'; if(shareUrl) shareUrl.textContent=genererLien(doc.id); }
     notif('Article chargé : '+(doc.titre||'Sans titre'));
     // Mettre à jour le workflow
     rWorkflowMajInterface(doc);
@@ -1995,27 +2003,23 @@ function osDemanderBesoinVisuel(){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var titre = (document.getElementById('r-titre')&&document.getElementById('r-titre').value)||currentDoc.titre||'Sans titre';
   var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  overlay.innerHTML =
-    '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;">'
-    +'<div style="display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.5rem;border-left:4px solid #E8461E;">'
-    +'<div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.15rem;background:#FDECE7;color:#E8461E;"><i class="ti ti-photo"></i></div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.92rem;color:#1A1A2E;">Besoin d\'un visuel ?</div>'
-    +'</div>'
-    +'<div style="padding:1.1rem 1.5rem 1.3rem;">'
-    +'<div style="font-size:.86rem;font-weight:700;color:#1A1A2E;margin-bottom:.5rem;">«&nbsp;'+esc(titre)+'&nbsp;»</div>'
-    +'<div style="font-family:Figtree,sans-serif;font-size:.85rem;font-weight:500;color:#40404A;line-height:1.6;">Si oui, la com sera prévenue par email et l\'article apparaîtra dans l\'appli Com.</div>'
-    +'</div>'
-    +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;gap:.5rem;">'
-    +'<button id="besoin-visuel-non" style="padding:.5rem 1.1rem;background:white;color:#40404A;border:1px solid #D1D5DB;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;">Non, pas besoin</button>'
-    +'<button id="besoin-visuel-oui" style="padding:.5rem 1.1rem;background:#E8461E;color:white;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;"><i class="ti ti-photo"></i> Oui, prévenir la com</button>'
-    +'</div></div>';
+  overlay.className = 'se-overlay dlg-overlay';
+  overlay.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="besoin-visuel-titre"><div class="se-corps">'
+    +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-photo"></i></span><div>'
+    +'<div id="besoin-visuel-titre" class="dlg-question">Besoin d\'un visuel ?</div>'
+    +'<p class="se-texte">« '+esc(titre)+' »</p>'
+    +'<p class="se-aide dlg-details">Si oui, la com est prévenue par email et l\'article apparaît dans l\'appli Com.</p>'
+    +'</div></div>'
+    +'<div class="dlg-actions">'
+    +'<button type="button" class="se-btn-secondaire" id="besoin-visuel-non">Non, pas besoin</button>'
+    +'<button type="button" class="se-btn-principal" id="besoin-visuel-oui"><i class="ti ti-photo"></i> Oui, prévenir la com</button>'
+    +'</div></div></div>';
   document.body.appendChild(overlay);
   var fermer = function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); };
   document.getElementById('besoin-visuel-oui').onclick = function(){ fermer(); rWorkflowAvancer('valide', true); };
   document.getElementById('besoin-visuel-non').onclick = function(){ fermer(); rWorkflowAvancer('valide', false); };
-  // Cliquer à côté de la modale annule la validation plutôt que de la forcer sans choix —
-  // « Valider » reste une action volontaire, pas quelque chose qu'on déclenche par erreur.
+  // Cliquer à côté annule la validation plutôt que de la forcer sans choix :
+  // « Bon à publier » reste une action volontaire.
   overlay.onclick = function(e){ if(e.target===overlay) fermer(); };
 }
 
