@@ -2316,7 +2316,7 @@ function osCrediterHeuresModal(id, nom){
   ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
   ov.innerHTML = '<div style="background:white;border-radius:14px;width:min(380px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;">'
     +'<div style="padding:1.2rem 1.5rem;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:var(--encre);">⏱️ Créditer des heures</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.95rem;color:var(--encre);"><i class="ti ti-clock-plus"></i> Créditer des heures</div>'
     +'<div style="font-size:.72rem;color:var(--gris);margin-top:2px;">Pour '+esc(nom)+' — pour une activité hors article/agenda</div>'
     +'</div>'
     +'<div style="padding:0 1.5rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;">'
@@ -2351,9 +2351,12 @@ function osCrediterHeuresEnvoyer(membreId){
     body:JSON.stringify({ membre_id:membreId, type:'manuel', duree_minutes:dureeMin, description:desc||null })
   }).then(function(r){
     if(!r.ok){
-      if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur lors du crédit.'; }
-      if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
-      return;
+      // Message précis de la base, utile pour comprendre un refus
+      return r.json().catch(function(){ return {}; }).then(function(e){
+        var detail = (e && (e.message || e.details)) || ('code '+r.status);
+        if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Les heures n\'ont pas été créditées ('+detail+').'; }
+        if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
+      });
     }
     var ov = document.getElementById('crediter-heures-overlay');
     if(ov) ov.remove();
