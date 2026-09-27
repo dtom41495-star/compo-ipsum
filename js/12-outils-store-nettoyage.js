@@ -741,68 +741,38 @@ function osStoreRender(){
     var installees = (!data||data.code) ? [] : data.map(function(d){ return d.app_id; });
     var storeApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.store; });
 
-    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
-
-    // Header
-    html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
-    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-building-store"></i> Compo Store</div>';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Mini-apps optionnelles — installe ce qui t\'est utile.</div>';
-    html += '</div>';
-
-    // Grille d'apps
-    html += '<div style="flex:1;overflow-y:auto;padding:1rem 1.4rem;">';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
-
-    storeApps.forEach(function(app){
+    function carte(app, ancien){
       var installe = installees.includes(app.id);
-      html += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;">';
-      html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
-      html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+app.icon+'</div>';
-      html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(app.label)+'</div>';
-      if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;"><i class="ti ti-check"></i> Installée</div>';
-      html += '</div></div>';
-      html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.55;flex:1;">'+esc(app.desc||'')+'</div>';
-      if(installe){
-        html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
-      } else {
-        html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--rouge);border-radius:6px;background:var(--rouge);color:white;cursor:pointer;width:100%;">+ Installer</button>';
-      }
-      html += '</div>';
-    });
+      return '<div class="st-carte'+(ancien ? ' st-ancien' : '')+'">'
+        +'<div class="st-haut"><div class="st-icone" data-sombre-ignore style="background:'+app.color+';">'+app.icon+'</div>'
+        +'<div class="st-noms"><div class="st-nom">'+esc(app.label)+'</div>'
+        +(installe ? '<div class="st-installee"><i class="ti ti-circle-check"></i>Installée</div>' : '')
+        +'</div></div>'
+        +'<div class="st-desc">'+esc(app.desc||(ancien ? 'Outil de la première version de Compo, qui fonctionne avec des fichiers JSON.' : ''))+'</div>'
+        +(installe
+          ? '<button class="mac-btn st-bouton" data-app="'+esc(app.id)+'" onclick="osStoreDesinstaller(this.dataset.app)">Désinstaller</button>'
+          : '<button class="mac-btn '+(ancien ? '' : 'mac-btn-principal ')+'st-bouton" data-sombre-ignore data-app="'+esc(app.id)+'" onclick="osStoreInstaller(this.dataset.app)"><i class="ti ti-download"></i>Installer</button>')
+        +'</div>';
+    }
 
-    html += '</div>';
+    var html = '<div class="st">';
+    html += '<div class="cpa-entete"><div class="cpa-titres"><h2 class="cpa-titre">Compo Store</h2>'
+      +'<div class="cpa-sous">Des applis en plus, à installer selon ce qui te sert. Tu peux les retirer quand tu veux.</div></div></div>';
+    html += '<div class="st-grille">'+storeApps.map(function(a){ return carte(a, false); }).join('')+'</div>';
 
-    // Section outils v1 (legacy)
+    // Outils de la première version, repliés : rarement utiles
     var role = getUserRole();
     var legacyApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.legacy && a.roles.includes(role); });
     if(legacyApps.length){
-      html += '<div style="margin-top:1.2rem;">';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.7rem;display:flex;align-items:center;gap:0.5rem;">';
-      html += '<span>Outils v1</span><span style="flex:1;height:1px;background:var(--gris-bord);"></span><span>Ancienne version — fichiers JSON</span></div>';
-      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.8rem;">';
-      legacyApps.forEach(function(app){
-        var installe = installees.includes(app.id);
-        html += '<div style="background:#FAFAFA;border:0.5px dashed var(--gris-bord);border-radius:10px;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:0.5rem;opacity:0.85;">';
-        html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
-        html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;opacity:0.7;">'+app.icon+'</div>';
-        html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--gris);">'+esc(app.label)+'</div>';
-        if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;"><i class="ti ti-check"></i> Installée</div>';
-        html += '</div></div>';
-        html += '<div style="font-size:0.75rem;color:var(--gris);line-height:1.5;flex:1;">'+esc(app.desc||'Outil de la v1 fonctionnant avec des fichiers JSON locaux.')+'</div>';
-        if(installe){
-          html += '<button onclick="osStoreDesinstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">Désinstaller</button>';
-        } else {
-          html += '<button onclick="osStoreInstaller(\''+app.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;width:100%;">+ Installer</button>';
-        }
-        html += '</div>';
-      });
-      html += '</div></div>';
+      var ouvert = legacyApps.some(function(a){ return installees.includes(a.id); });
+      html += '<details class="st-anciens"'+(ouvert ? ' open' : '')+'><summary><i class="ti ti-chevron-right"></i>Anciens outils <span>'+legacyApps.length+'</span></summary>'
+        +'<p class="st-anciens-aide">Ils viennent de la première version de Compo et fonctionnent avec des fichiers JSON. Leurs fonctions existent maintenant dans les applis principales.</p>'
+        +'<div class="st-grille">'+legacyApps.map(function(a){ return carte(a, true); }).join('')+'</div></details>';
     }
-
-    html += '</div></div>';
+    html += '</div>';
     wc.innerHTML = html;
   }).catch(function(){
-    wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
+    wc.innerHTML = '<div class="cpa-vide"><i class="ti ti-wifi-off"></i>Impossible de charger le Store. Vérifie ta connexion.</div>';
   });
 }
 
@@ -829,7 +799,7 @@ function osStoreInstaller(appId){
         }
         osBuildDock();
       }
-      notif((app?app.label:appId)+' installée !'+(epingle?' Épinglée dans le dock.':' Accessible via le Launchpad.'));
+      notif((app?app.label:appId)+' installée'+(epingle?', ajoutée au dock':', à retrouver dans toutes les applis'),'succes');
       osStoreRender();
     }
   }).catch(function(){ notif('Erreur installation'); });
@@ -846,7 +816,7 @@ function osStoreDesinstaller(appId){
     })
   }).then(function(r){
     if(r.ok){
-      notif((app?app.label:appId)+' désinstallée.');
+      notif((app?app.label:appId)+' désinstallée','succes');
       if(window._userApps){
         window._userApps = window._userApps.filter(function(a){ return a.id !== appId; });
         osBuildDock();
