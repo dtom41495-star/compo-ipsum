@@ -2094,8 +2094,8 @@ function osLancer(){
   // pour couvrir aussi l'écran de connexion. Pas la peine de les rappeler ici.
   osAfficherRedactionLabel();
   osAfficherUserWatermark();
-  setTimeout(osRequestFullscreen, 500);
-  setTimeout(osShowFsTooltip, 2000);
+  // Plus de plein écran automatique au lancement : gênant sur téléphone. Le bouton
+  // « Plein écran » de la barre des tâches reste là pour qui le veut sur ordinateur.
   setTimeout(osShowAppsMovedTooltip, 8500);
 
   setTimeout(function(){
