@@ -1862,10 +1862,12 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   h += '</div>';
   h += '<div style="flex:1;"></div>';
   // Rédaction affichée et son état (ouverte / fermée) si elle a des horaires
+  // Sur ordinateur, fermée ou pas encore lancée : bloc en couleur au lieu de la pastille grise
+  var bandeauRail = (redacRail && !(typeof osEstMobile === 'function' && osEstMobile()) && typeof osRedacBandeauFermeeHtml === 'function') ? osRedacBandeauFermeeHtml(redacRail, true) : '';
   if(redacRail && typeof osRedacEtatHtml === 'function' && osRedacEtatHtml(redacRail)){
     h += '<div class="redac-rail-etat" style="padding:8px 10px 4px;">'
       +'<div style="font-size:0.72rem;font-weight:700;color:var(--encre);margin-bottom:3px;">'+esc(redacRail.nom||'')+'</div>'
-      +osRedacEtatHtml(redacRail)+'</div>';
+      +(bandeauRail || osRedacEtatHtml(redacRail))+'</div>';
   }
   // Bouton changer de rédaction si multi-redac
   var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });
@@ -1974,9 +1976,6 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
 
   // Zone contenu — fond sombre comme dans la maquette
   var h = '<div class="redac-contenu" style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
-  // Rédaction fermée ou pas encore lancée : bandeau bien visible sur ordinateur
-  // (sur téléphone, il est sur l'accueil)
-  if(redac && !(typeof osEstMobile === 'function' && osEstMobile()) && typeof osRedacBandeauFermeeHtml === 'function') h += osRedacBandeauFermeeHtml(redac);
   // Zone alertes — chargées en async après render
   h += '<div id="redac-alertes-zone"></div>';
 
