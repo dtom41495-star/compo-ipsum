@@ -6,6 +6,7 @@
 <title>Inscription — Ipsum Média</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
 <style>
   :root{
     --rouge:#E8461E; --encre:#1A1A2E; --gris:#6B7280; --gris-clair:#F5F5F3; --gris-bord:#E5E5E0;
@@ -29,7 +30,7 @@
   button:disabled{opacity:0.6;cursor:default;}
   .site{display:none;}
   .etat{text-align:center;padding:2.5rem 1.6rem;}
-  .etat .picto{font-size:2.2rem;margin-bottom:0.8rem;}
+  .etat .picto{font-size:2.2rem;margin-bottom:0.8rem;color:#E8461E;}
   .etat .msg{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:0.4rem;}
   .etat .detail{font-size:0.85rem;color:var(--gris);}
   .confirmation{background:var(--vert-bg);color:var(--vert);border-radius:8px;padding:0.6rem 0.9rem;font-size:0.82rem;margin-top:0.8rem;display:none;}
@@ -40,7 +41,7 @@
 <body>
   <div class="carte" id="carte">
     <div class="etat" id="etat-chargement">
-      <div class="picto">⏳</div>
+      <div class="picto"><i class="ti ti-hourglass"></i></div>
       <div class="msg">Chargement…</div>
     </div>
   </div>
@@ -62,7 +63,7 @@ function appeler(action, donnees){
 }
 
 function etatErreur(titre, detail){
-  carte.innerHTML = '<div class="etat"><div class="picto">🤔</div><div class="msg">'+titre+'</div><div class="detail">'+(detail||'')+'</div></div>';
+  carte.innerHTML = '<div class="etat"><div class="picto"><i class="ti ti-mood-confuzed"></i></div><div class="msg">'+titre+'</div><div class="detail">'+(detail||'')+'</div></div>';
 }
 
 function formatDate(iso){
@@ -76,12 +77,12 @@ function formatDate(iso){
 function afficherFormulaire(ev){
   var html = '<div class="bandeau"><div class="marque">Ipsum Média</div><div class="titre-ev">'+escHtml(ev.titre)+'</div></div>';
   html += '<div class="corps">';
-  html += '<div class="info-ligne"><span class="puce">📅</span><span>'+formatDate(ev.date_debut)+'</span></div>';
-  if(ev.lieu) html += '<div class="info-ligne"><span class="puce">📍</span><span>'+escHtml(ev.lieu)+'</span></div>';
-  if(ev.lien_visio) html += '<div class="info-ligne"><span class="puce">🔗</span><span>Rendez-vous en visio (le lien te sera envoyé par email)</span></div>';
+  html += '<div class="info-ligne"><span class="puce"><i class="ti ti-calendar"></i></span><span>'+formatDate(ev.date_debut)+'</span></div>';
+  if(ev.lieu) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-map-pin"></i></span><span>'+escHtml(ev.lieu)+'</span></div>';
+  if(ev.lien_visio) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-link"></i></span><span>Rendez-vous en visio (le lien te sera envoyé par email)</span></div>';
 
   if(ev.complet){
-    html += '<div class="etat" style="padding:1.5rem 0 0.5rem;"><div class="picto">😔</div><div class="msg">Complet</div><div class="detail">Il n\'y a plus de place disponible pour cet événement.</div></div>';
+    html += '<div class="etat" style="padding:1.5rem 0 0.5rem;"><div class="picto"><i class="ti ti-mood-sad"></i></div><div class="msg">Complet</div><div class="detail">Il n\'y a plus de place disponible pour cet événement.</div></div>';
     html += '</div>';
     carte.innerHTML = html;
     return;
