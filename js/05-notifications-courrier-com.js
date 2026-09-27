@@ -1465,12 +1465,16 @@ function osGoogleScopeAccorde(scope){
 function osLoginGoogle(){
   var retour = location.origin + location.pathname;
   // access_type=offline + prompt=consent : sans ces deux paramètres, Google ne délivre
-  // aucun jeton de rafraîchissement et l'accès expirerait au bout d'une heure sans
-  // possibilité de le renouveler.
+  // aucun jeton de rafraîchissement. Mais une fois ce jeton obtenu et rangé côté serveur
+  // (_osGoogleRangerJeton), il reste valable : inutile de redemander l'accord à Drive à
+  // chaque connexion. On ne le redemande que la première fois sur cet appareil, ou si
+  // Google a retiré l'accès entre-temps (voir osGoogleAccessToken).
+  var accordDejaDonne = false;
+  try{ accordDejaDonne = localStorage.getItem('compo_google_accord') === '1'; }catch(e){}
   location.href = SB_URL+'/auth/v1/authorize?provider=google'
     +'&redirect_to='+encodeURIComponent(retour)
     +'&scopes='+encodeURIComponent(GOOGLE_SCOPES_CONNEXION.join(' '))
-    +'&access_type=offline&prompt=consent'
+    +'&access_type=offline'+(accordDejaDonne ? '' : '&prompt=consent')
     +'&hd=ipsummedia.fr';
 }
 
@@ -1544,7 +1548,9 @@ function _osGoogleRangerJeton(providerToken, providerRefreshToken){
       headers: _osHeadersFonction(),
       body: JSON.stringify({ action:'store', refreshToken: providerRefreshToken, scopes: scopes.join(' ') })
     }).then(function(r){
-      if(!r.ok) console.warn('[Google] jeton non enregistré côté serveur (HTTP '+r.status+')');
+      if(!r.ok){ console.warn('[Google] jeton non enregistré côté serveur (HTTP '+r.status+')'); return; }
+      // Accord à Drive rangé : les prochaines connexions ne le redemandent plus
+      try{ localStorage.setItem('compo_google_accord', '1'); }catch(e){}
     }).catch(function(e){ console.warn('[Google] jeton non enregistré :', e); });
   });
 }
@@ -1577,7 +1583,11 @@ function osGoogleAccessToken(){
   .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
   .then(function(res){
     if(!res.ok || !res.data.access_token){
-      if(res.data && res.data.reconnexionRequise) _googleAuth = null;
+      if(res.data && res.data.reconnexionRequise){
+        _googleAuth = null;
+        // Accès retiré côté Google : redemander l'accord à la prochaine connexion
+        try{ localStorage.removeItem('compo_google_accord'); }catch(e){}
+      }
       return null;
     }
     _googleAuth = {

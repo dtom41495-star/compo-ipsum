@@ -1309,7 +1309,9 @@ function osUploadSeConnecter(){
         }
       });
     }
-    _uploadTokenClient.requestAccessToken({ prompt: _uploadGoogleToken ? '' : 'consent' });
+    // Sans « consent » forcé : Google ne montre l'écran d'accord que la toute première
+    // fois, ensuite la connexion se fait d'un clic.
+    _uploadTokenClient.requestAccessToken({ prompt: '' });
   });
 }
 
