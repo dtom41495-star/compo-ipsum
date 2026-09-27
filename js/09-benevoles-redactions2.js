@@ -903,7 +903,7 @@ function osBenvEmailCandidature(annonceId, annonceTitre, candidatPrenom){
       +'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;"><strong>'+esc(candidatPrenom)+'</strong> a candidaté pour le poste <strong>'+esc(annonceTitre)+'</strong>.</p>'
       +'<p style="font-size:0.78rem;color:#6B7280;margin-top:0.8rem;">Connecte-toi à Compo OS → Bénévoles → Recrutement → Candidatures pour traiter cette candidature.</p>'
       +'</div></div>';
-    envoyerEmailResend(admin.email, sujet, corps);
+    envoyerEmailResend(admin.email, sujet, corps, 'recrutement');
   }).catch(function(){});
 }
 

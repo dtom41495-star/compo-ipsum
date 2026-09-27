@@ -982,7 +982,9 @@ function cpsCharger(){
 function cpsRendreListe(liste, cps){
   var filtreType   = window._cpsFiltreActif  || 'tous';
   var filtreDate   = window._cpsFiltreDateActif || 'tous';
-  var filtreVue    = window._cpsVueActif || 'liste';
+  var _cpsMobile   = typeof osEstMobile === 'function' && osEstMobile();
+  // Sur téléphone, toujours les cartes (le choix de présentation n'y est pas proposé)
+  var filtreVue    = _cpsMobile ? 'cartes' : (window._cpsVueActif || 'liste');
   // Sans accents ni casse : "elections" doit trouver "Élections".
   function _cpsSansAccent(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
   var rechercheVal = _cpsSansAccent(window._cpsRecherche);
@@ -1028,84 +1030,157 @@ function cpsRendreListe(liste, cps){
   var encadreAttente = _cpInvitEncadreAttente();
   if(encadreAttente) liste.appendChild(encadreAttente);
 
-  // ── Barre de recherche
-  var recherche = document.createElement('div');
-  recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
-  recherche.innerHTML = '<div style="position:relative;flex:1;">'
-    +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
-    +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
-    +'</div>'
-    +'<button class="cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
-  liste.appendChild(recherche);
-  var champRecherche = recherche.querySelector('#cps-search');
-  if(champRecherche) champRecherche.oninput = function(){
-    window._cpsRecherche = this.value;
-    var pos = this.selectionStart;
-    cpsRendreListe(liste, window._cpsData||[]);
-    // cpsRendreListe reconstruit toute la liste, champ de recherche compris : sans ceci
-    // le champ perdait le focus après chaque lettre tapée.
-    var nouveau = document.getElementById('cps-search');
-    if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
-  };
+  // Téléphone : barre au style des cartes (Gestion des CPs) ; ordinateur : inchangé
+  if(_cpsMobile){
+    // ── Barre : recherche, actualiser, export
+    var recherche = document.createElement('div');
+    recherche.className = 'cpr-barre';
+    recherche.innerHTML = '<label class="cx-recherche"><i class="ti ti-search"></i>'
+      +'<input id="cps-search" type="search" data-sombre-ignore placeholder="Chercher un communiqué, une organisation…" value="'+esc(window._cpsRecherche||'')+'"></label>'
+      +'<button class="mac-btn cpc-icone" onclick="cpsCharger()" title="Actualiser" aria-label="Actualiser"><i class="ti ti-refresh"></i></button>'
+      +'<button class="mac-btn cpc-icone cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en tableur (CSV)" aria-label="Exporter en tableur"><i class="ti ti-table-export"></i></button>';
+    liste.appendChild(recherche);
+    var champRecherche = recherche.querySelector('#cps-search');
+    if(champRecherche) champRecherche.oninput = function(){
+      window._cpsRecherche = this.value;
+      var pos = this.selectionStart;
+      cpsRendreListe(liste, window._cpsData||[]);
+      // cpsRendreListe reconstruit toute la liste, champ de recherche compris : sans ceci
+      // le champ perdait le focus après chaque lettre tapée.
+      var nouveau = document.getElementById('cps-search');
+      if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
+    };
 
-  // ── Filtres type
-  var barreType = document.createElement('div');
-  barreType.className = 'cps-filtres';
-  barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
-  [
-    {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
-    {id:'communique',      icon:'ti-news',            label:'CPs ('+communiques.length+')'},
-    {id:'invitation_presse',icon:'ti-microphone',     label:'Invits ('+invitations.length+')'},
-    {id:'non_lus',         icon:'ti-circle-filled',   label:'Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
-  ].forEach(function(f){
-    var btn = document.createElement('button');
-    var isActif = filtreType===f.id;
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
-      +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
-      +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
-    btn.innerHTML = (f.icon?'<i class="ti '+f.icon+'"></i> ':'')+esc(f.label);
-    btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-    barreType.appendChild(btn);
-  });
-  if(nonLus.length > 0){
-    var btnToutLu = document.createElement('button');
-    btnToutLu.className = 'cps-btn-tout-lu';
-    btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
-    btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
-    btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
-    barreType.appendChild(btnToutLu);
+    // ── Filtres type (mêmes pastilles que Gestion des CPs)
+    var barreType = document.createElement('div');
+    barreType.className = 'cpa-filtres cps-filtres';
+    [
+      {id:'tous',             label:'Tous',        n:cps.length},
+      {id:'communique',       label:'Communiqués', n:communiques.length},
+      {id:'invitation_presse',label:'Invitations', n:invitations.length},
+      {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0}
+    ].forEach(function(f){
+      var btn = document.createElement('button');
+      btn.className = 'cpa-filtre'+(filtreType===f.id ? ' actif' : '');
+      btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
+      btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      barreType.appendChild(btn);
+    });
+    if(nonLus.length > 0){
+      var btnToutLu = document.createElement('button');
+      btnToutLu.className = 'nlx-lien cps-btn-tout-lu';
+      btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
+      btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
+      barreType.appendChild(btnToutLu);
+    }
+    liste.appendChild(barreType);
+
+    // ── Période + présentation
+    var barreOpts = document.createElement('div');
+    barreOpts.className = 'cps-filtres cpr-options';
+    var leftDate = document.createElement('div');
+    leftDate.className = 'cpr-segments';
+    [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
+      var b = document.createElement('button');
+      b.className = filtreDate===f.id ? 'actif' : '';
+      b.textContent = f.l;
+      b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      leftDate.appendChild(b);
+    });
+    var rightVue = document.createElement('div');
+    rightVue.className = 'cpr-segments cps-vues';
+    [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
+      var b = document.createElement('button');
+      b.className = filtreVue===f.id ? 'actif' : '';
+      b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Par organisation',calendrier:'Calendrier'}[f.id];
+      b.setAttribute('aria-label', b.title);
+      b.innerHTML = '<i class="ti '+f.icon+'"></i>';
+      b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      rightVue.appendChild(b);
+    });
+    barreOpts.appendChild(leftDate);
+    barreOpts.appendChild(rightVue);
+    liste.appendChild(barreOpts);
+  } else {
+    // ── Barre de recherche
+    var recherche = document.createElement('div');
+    recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
+    recherche.innerHTML = '<div style="position:relative;flex:1;">'
+      +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
+      +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
+      +'</div>'
+      +'<button class="cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
+    liste.appendChild(recherche);
+    var champRecherche = recherche.querySelector('#cps-search');
+    if(champRecherche) champRecherche.oninput = function(){
+      window._cpsRecherche = this.value;
+      var pos = this.selectionStart;
+      cpsRendreListe(liste, window._cpsData||[]);
+      // cpsRendreListe reconstruit toute la liste, champ de recherche compris : sans ceci
+      // le champ perdait le focus après chaque lettre tapée.
+      var nouveau = document.getElementById('cps-search');
+      if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
+    };
+
+    // ── Filtres type
+    var barreType = document.createElement('div');
+    barreType.className = 'cps-filtres';
+    barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
+    [
+      {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
+      {id:'communique',      icon:'ti-news',            label:'CPs ('+communiques.length+')'},
+      {id:'invitation_presse',icon:'ti-microphone',     label:'Invits ('+invitations.length+')'},
+      {id:'non_lus',         icon:'ti-circle-filled',   label:'Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
+    ].forEach(function(f){
+      var btn = document.createElement('button');
+      var isActif = filtreType===f.id;
+      btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
+        +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
+        +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
+      btn.innerHTML = (f.icon?'<i class="ti '+f.icon+'"></i> ':'')+esc(f.label);
+      btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      barreType.appendChild(btn);
+    });
+    if(nonLus.length > 0){
+      var btnToutLu = document.createElement('button');
+      btnToutLu.className = 'cps-btn-tout-lu';
+      btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
+      btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
+      btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
+      barreType.appendChild(btnToutLu);
+    }
+    liste.appendChild(barreType);
+
+    // ── Filtres date + vue
+    var barreOpts = document.createElement('div');
+    barreOpts.className = 'cps-filtres';
+    barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
+    var leftDate = document.createElement('div');
+    leftDate.style.cssText = 'display:flex;gap:0.3rem;';
+    [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
+      var b = document.createElement('button');
+      var a = filtreDate===f.id;
+      b.style.cssText = 'font-size:0.6rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--encre-fixe)':'var(--gris-bord)')+';background:'+(a?'var(--encre-fixe)':'white')+';color:'+(a?'white':'var(--gris)')+';';
+      b.textContent = f.l;
+      b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      leftDate.appendChild(b);
+    });
+    var rightVue = document.createElement('div');
+    rightVue.className = 'cps-vues';
+    rightVue.style.cssText = 'display:flex;gap:0.3rem;';
+    [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
+      var b = document.createElement('button');
+      var a = filtreVue===f.id;
+      b.style.cssText = 'font-size:0.75rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';display:inline-flex;align-items:center;';
+      b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
+      b.innerHTML = '<i class="ti '+f.icon+'"></i>';
+      b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
+      rightVue.appendChild(b);
+    });
+    barreOpts.appendChild(leftDate);
+    barreOpts.appendChild(rightVue);
+    liste.appendChild(barreOpts);
   }
-  liste.appendChild(barreType);
-
-  // ── Filtres date + vue
-  var barreOpts = document.createElement('div');
-  barreOpts.className = 'cps-filtres';
-  barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
-  var leftDate = document.createElement('div');
-  leftDate.style.cssText = 'display:flex;gap:0.3rem;';
-  [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
-    var b = document.createElement('button');
-    var a = filtreDate===f.id;
-    b.style.cssText = 'font-size:0.6rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--encre-fixe)':'var(--gris-bord)')+';background:'+(a?'var(--encre-fixe)':'white')+';color:'+(a?'white':'var(--gris)')+';';
-    b.textContent = f.l;
-    b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-    leftDate.appendChild(b);
-  });
-  var rightVue = document.createElement('div');
-  rightVue.className = 'cps-vues';
-  rightVue.style.cssText = 'display:flex;gap:0.3rem;';
-  [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
-    var b = document.createElement('button');
-    var a = filtreVue===f.id;
-    b.style.cssText = 'font-size:0.75rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';display:inline-flex;align-items:center;';
-    b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
-    b.innerHTML = '<i class="ti '+f.icon+'"></i>';
-    b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-    rightVue.appendChild(b);
-  });
-  barreOpts.appendChild(leftDate);
-  barreOpts.appendChild(rightVue);
-  liste.appendChild(barreOpts);
 
   // ── RSVP urgents
   var rsvpUrgents = filtres.filter(function(c){ return c.reponse_requise && c.date_reponse && new Date(c.date_reponse)>new Date(); });
@@ -1335,48 +1410,60 @@ function cpsMakeCard(cp, isAdmin){
   return card;
 }
 
+// Sujet créé depuis un communiqué, selon les réglages de la rédaction (osSujetsDroit),
+// comme le bouton « Nouveau sujet » :
+//  - rédac chef / admin : sujet libre pour l'équipe, ou réservé s'il écrit lui-même ;
+//  - membre autorisé à publier ses sujets : réservé à son nom ;
+//  - membre qui propose : envoyé au rédac chef, réservé, on peut écrire en attendant ;
+//  - sinon : seul le rédac chef crée les sujets, rien n'est créé.
+// Renvoie une promesse du sujet créé (ou null).
+function _cpsSujetDepuisCp(cp, pourEcrire){
+  if(osRedacBloqueePourMoi(window._redacActiveId)) return Promise.resolve(null);
+  var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : 'chef';
+  if(!droit){
+    notif('Dans ta rédaction, seul le rédac chef crée les sujets : parle-lui de ce communiqué.', 'alerte');
+    return Promise.resolve(null);
+  }
+  var statut = droit === 'proposer' ? 'propose' : ((droit === 'chef' && !pourEcrire) ? 'ouvert' : 'en_cours');
+  var sujet = {
+    id: 'BRF-'+Date.now(),
+    titre: cp.titre||cp.objet||'Sujet sans titre',
+    type: 'article',
+    priorite: 'normale',
+    statut: statut,
+    note: (cp.corps||'').substring(0,300)||null,
+    cp_id: cp.id,
+    redaction_id: window._redacActiveId||null,
+    created_by: getUserId()
+  };
+  if(statut !== 'ouvert') sujet.responsable = getUserNomComplet();
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  return fetch(SB_URL+'/rest/v1/briefing',{ method:'POST', headers:authH, body:JSON.stringify(sujet) })
+  .then(function(r){
+    if(!r.ok){ notif(statut === 'propose' ? 'Impossible d\'envoyer la proposition' : 'Impossible de créer le sujet','erreur'); return null; }
+    if(statut === 'propose' && typeof _osSujetPrevenirChefs === 'function') _osSujetPrevenirChefs(sujet);
+    return sujet;
+  }).catch(function(){ notif('Erreur réseau','erreur'); return null; });
+}
+
 function cpsCréerSujet(cpId){
   var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
-
-  // Admin/chef : sujet créé ouvert, à distribuer à l'équipe.
-  // Rédacteur/correcteur : sujet créé ET réservé directement pour eux, direction la rédaction.
-  var role = getUserRole();
-  var monLien = (window._membresRedactionsData||[]).find(function(mr){ return mr.membre_id === getUserId() && mr.redaction_id === window._redacActiveId; });
-  var estChefOuAdmin = role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
-
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var sujetId = 'BRF-'+Date.now();
-  var titre = cp.titre||cp.objet||'Sujet sans titre';
-  var note = (cp.corps||'').substring(0,300)||null;
-  var payload = {
-    id:sujetId,
-    titre:titre,
-    type:'article',
-    priorite:'normale',
-    statut: estChefOuAdmin ? 'ouvert' : 'en_cours',
-    note:note,
-    cp_id:cp.id,
-    redaction_id:window._redacActiveId||null,
-    created_by:getUserId()
-  };
-  if(!estChefOuAdmin) payload.responsable = getUserNomComplet();
-
-  fetch(SB_URL+'/rest/v1/briefing',{ method:'POST', headers:authH, body:JSON.stringify(payload) })
-  .then(function(r){
-    if(!r.ok){ notif('Erreur création sujet','erreur'); return; }
-    if(estChefOuAdmin){
-      notif('Sujet créé dans le briefing','succes');
+  _cpsSujetDepuisCp(cp, false).then(function(sujet){
+    if(!sujet) return;
+    if(sujet.statut === 'ouvert'){
+      notif('Sujet créé : il est visible par l\'équipe','succes');
       osOuvrirSujets();
-    } else {
-      notif('Sujet réservé — direction la rédaction !','succes');
-      cpsDémarrerRedactionDepuisSujet(sujetId, titre, note, cp);
+      return;
     }
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+    notif(sujet.statut === 'propose' ? 'Sujet proposé au rédac chef : tu peux commencer à écrire' : 'Sujet réservé à ton nom : à toi d\'écrire !','succes');
+    cpsDémarrerRedactionDepuisSujet(sujet.id, sujet.titre, sujet.note, cp);
+  });
 }
 
 function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   var redacNom = '';
   if(window._redacActiveId && window._redactionsData){
     var redac = _redactionsData.find(function(r){return r.id===window._redacActiveId;});
@@ -1419,18 +1506,44 @@ function cpsCréerArticle(cpId){
   var cp = cps.find(function(c){return c.id===cpId;});
   if(!cp){ notif('CP introuvable','erreur'); return; }
 
-  // Créer d'office un sujet réservé à la personne qui écrit — visible dans l'onglet Sujets
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var sujetId = 'BRF-'+Date.now();
-  var titreSujet = cp.titre||cp.objet||'Sujet sans titre';
-  var payloadSujet = {
-    id:sujetId, titre:titreSujet, type:'article', priorite:'normale',
-    statut:'en_cours', responsable:getUserNomComplet(),
-    note:(cp.corps||'').substring(0,300)||null,
-    cp_id:cp.id, redaction_id:window._redacActiveId||null, created_by:getUserId()
-  };
-  fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payloadSujet)}).catch(function(){});
+  // Un sujet pour cet article, selon les réglages de la rédaction (voir _cpsSujetDepuisCp),
+  // puis l'éditeur pré-rempli avec le communiqué
+  if(osRedacBloqueePourMoi(window._redacActiveId)) return;
+  // Un sujet existe déjà pour ce communiqué : on le reprend plutôt que d'en créer un autre
+  var existant = (window._cpsSujetsParCp||{})[cp.id];
+  var moi = (getUserNomComplet()||'').trim().toLowerCase();
+  if(existant && existant.statut === 'en_cours' && (existant.responsable||'').trim().toLowerCase() !== moi){
+    notif('Ce communiqué est déjà traité : sujet réservé par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
+    return;
+  }
+  if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose')){
+    _cpsOuvrirEditeurDepuisCp(cp, { id:existant.id, titre:cp.titre||cp.objet||'', statut:existant.statut });
+    return;
+  }
+  if(existant && existant.statut === 'ouvert'){
+    // Sujet libre : on le réserve au passage, seulement s'il l'est toujours
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(existant.id)+'&statut=eq.ouvert', {
+      method:'PATCH', headers:authH, body:JSON.stringify({ statut:'en_cours', responsable:getUserNomComplet() })
+    }).then(function(r){ return r.json().then(function(d){ return r.ok && Array.isArray(d) && d.length; }); })
+    .then(function(ok){
+      if(!ok){ notif('Trop tard : ce sujet vient d\'être réservé par quelqu\'un d\'autre.', 'erreur'); return; }
+      existant.statut = 'en_cours'; existant.responsable = getUserNomComplet();
+      _cpsOuvrirEditeurDepuisCp(cp, { id:existant.id, titre:cp.titre||cp.objet||'', statut:'en_cours' });
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+    return;
+  }
+  _cpsSujetDepuisCp(cp, true).then(function(sujet){
+    if(!sujet) return;
+    window._cpsSujetsParCp = window._cpsSujetsParCp || {};
+    window._cpsSujetsParCp[cp.id] = { id:sujet.id, cp_id:cp.id, statut:sujet.statut, responsable:sujet.responsable };
+    _cpsOuvrirEditeurDepuisCp(cp, sujet);
+  });
+}
 
+function _cpsOuvrirEditeurDepuisCp(cp, sujet){
+  var sujetId = sujet.id, titreSujet = sujet.titre;
+  osRedactionMettreDeCote(); // un autre article était peut-être ouvert dans l'éditeur
   // Ouvrir la rédaction avec le CP pré-rempli (le sujet vient d'être créé ci-dessus)
   window._rsOuvertureInterne = true;
   osOpenWindow('redaction');
@@ -1449,7 +1562,7 @@ function cpsCréerArticle(cpId){
     var abandonBtn = document.getElementById('r-abandon-sujet');
     if(abandonBtn){ abandonBtn.style.display='flex'; abandonBtn.dataset.sujetId=sujetId; abandonBtn.dataset.sujetTitre=titreSujet; }
     preremplirAuteur();
-    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom','succes');
+    notif(sujet.statut === 'propose' ? 'Sujet proposé au rédac chef : tu peux écrire en attendant' : 'Article commencé à partir du communiqué, sujet réservé à ton nom','succes');
   }, 350);
 }
 

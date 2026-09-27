@@ -10,6 +10,10 @@ var db = {
 
   // Sauvegarder ou mettre à jour un article
   sauvegarderArticle: function(doc){
+    // Rédaction pas encore lancée : rien ne s'y enregistre, sauf pour ses rédac chefs et les admins
+    if(typeof osRedacBloqueePourMoi === 'function' && osRedacBloqueePourMoi(doc.redaction_id, true)){
+      return Promise.reject(new Error('Cette rédaction n\'est pas encore lancée : impossible d\'y enregistrer un article pour l\'instant.'));
+    }
     // Choc-point de tous les enregistrements d'article (manuel, auto-save, workflow,
     // resync hors-ligne...) — un seul endroit pour montrer l'animation "en cours".
     if(typeof osSaveIndicateur === 'function') osSaveIndicateur('encours');
