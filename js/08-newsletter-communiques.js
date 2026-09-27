@@ -1267,61 +1267,36 @@ function cpsExportCSV(){
 function cpsMakeCard(cp, isAdmin){
   var vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]');
   var nonLu = vus.indexOf(cp.id) === -1;
+  var estInvit = cp.type === 'invitation_presse';
 
+  // Même langage que les cartes de Mes articles (.mac) : une ligne d'état, le titre,
+  // l'essentiel, puis les infos à gauche et les actions à droite.
   var card = document.createElement('div');
-  card.style.cssText = 'background:'+(nonLu?'#FAF5FF':'white')+';border:1.5px solid '+(nonLu?'#C0A8D8':'var(--gris-bord)')+';border-left:'+(nonLu?'4px solid #7D3C98':'1.5px solid var(--gris-bord)')+';border-radius:8px;padding:1rem 1.2rem;margin-bottom:0.6rem;cursor:pointer;transition:border-color 0.15s;';
-  card.onmouseover = function(){ card.style.borderColor = 'var(--rouge)'; };
-  card.onmouseout  = function(){ card.style.borderColor = nonLu?'#C0A8D8':'var(--gris-bord)'; };
+  card.className = 'mac cpc'+(nonLu ? ' cpc-nonlu' : '');
   card.onclick = function(){
     // Marquer lu visuellement immédiatement
     nonLu = false;
-    card.style.background = 'white';
-    card.style.borderLeft = '1.5px solid var(--gris-bord)';
-    card.style.borderColor = 'var(--gris-bord)';
+    card.classList.remove('cpc-nonlu');
     var dot = card.querySelector('.cp-nonlu-dot');
     if(dot) dot.remove();
     cpsOuvrirDetail(cp);
   };
 
-  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) :
-                cp.created_at ? new Date(cp.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  var dRef = cp.date_cp || cp.created_at;
+  var dateStr = dRef ? new Date(dRef).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
 
-  var statutBadge = cp.statut === 'publie'
-    ? '<span style="background:#D4EDDA;color:#155724;border:1px solid #155724;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Publié</span>'
-    : '<span style="background:#FFF3CD;color:#856404;border:1px solid #856404;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;">Brouillon</span>';
-
-  var nonLuBadge = nonLu
-    ? '<span class="cp-nonlu-dot" style="background:#7D3C98;color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:3px;margin-left:4px;font-weight:700;">Nouveau</span>'
-    : '';
-
-  var nbFichiers = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
-  var pdfBadge = nbFichiers
-    ? '<span style="background:#E6F1FB;color:#0C447C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-paperclip" style="vertical-align:-1px;"></i> '+nbFichiers+'</span>'
-    : '';
-
-  // Modifier/Supprimer réservés à l'appli Communiqués admin (isAdmin=true) — jamais
-  // dans les vues de Ma Rédac' (cartes, fil de veille), même pour un rédac chef.
-  var peutSupprimer = isAdmin;
-  var peutEditer = isAdmin;
-
-  var adminBtns = peutEditer ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;" onclick="event.stopPropagation()">' +
-    '<button class="btn sec" onclick="cpsAdminEditer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-pencil"></i> Modifier</button>' +
-    (cp.statut === 'brouillon' ? '<button class="btn" onclick="cpsAdminPublier(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;"><i class="ti ti-send"></i> Publier</button>' : '') +
-    (peutSupprimer ? '<button class="btn sec" onclick="cpsAdminSupprimer(\''+cp.id+'\')" style="font-size:0.65rem;padding:0.25rem 0.6rem;color:#FF5F57;border-color:#FF5F57;"><i class="ti ti-trash"></i></button>' : '') +
-    '</div>') : '';
-
-  // Badge type invitation
-  var typeBadge = cp.type === 'invitation_presse'
-    ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
-    : '';
+  var haut = '';
+  if(nonLu) haut += '<span class="mac-statut cp-nonlu-dot" style="color:#6B2F8A;background:#F3E8FA;">Nouveau</span>';
+  if(cp.statut === 'brouillon') haut += '<span class="mac-statut" style="color:#92400E;background:#FEF3C7;" title="Pas encore visible par l\'équipe">Brouillon</span>';
+  haut += '<span class="mac-surtitre"><i class="ti ti-'+(estInvit ? 'microphone' : 'news')+'" style="vertical-align:-2px;"></i> '
+    +(estInvit ? 'Invitation presse' : 'Communiqué')+(cp.source ? ' · '+esc(cp.source) : '')+'</span>';
+  if(dateStr) haut += '<span class="mac-date">'+dateStr+'</span>';
 
   // Invitation presse : une ligne "quand · où", l'échéance de réponse, puis ma situation
-  // (macaron comme dans l'agenda) ou le bouton pour me proposer. Avant, le bouton
-  // "Je suis disponible" restait affiché même après s'être proposé : recliquer donnait
-  // "Erreur ou déjà déclaré".
+  // (macaron comme dans l'agenda) ou le bouton pour me proposer.
   var evInfos = '';
   var dispBtn = '';
-  if(cp.type === 'invitation_presse'){
+  if(estInvit){
     var morceauxEv = [];
     if(cp.date_evenement){
       var dEvC = new Date(cp.date_evenement);
@@ -1329,57 +1304,54 @@ function cpsMakeCard(cp, isAdmin){
       morceauxEv.push(jourC.charAt(0).toUpperCase()+jourC.slice(1)+' à '+_cpInvitHeure(dEvC));
     }
     if(cp.lieu_evenement) morceauxEv.push(esc(cp.lieu_evenement));
-    if(morceauxEv.length) evInfos += '<div style="display:flex;align-items:flex-start;gap:5px;font-family:DM Sans,sans-serif;font-size:0.76rem;font-weight:600;color:#6B2F8A;margin-bottom:0.3rem;"><i class="ti ti-microphone" style="font-size:0.9rem;margin-top:1px;flex-shrink:0;"></i><span>'+morceauxEv.join(' · ')+'</span></div>';
+    if(morceauxEv.length) evInfos += '<div class="cpc-evenement"><i class="ti ti-calendar-event"></i><span>'+morceauxEv.join(' · ')+'</span></div>';
     var etatC = _cpInvitEtat(cp, (window._cpsDisposParCp||{})[cp.id]);
     if(cp.date_reponse && !etatC.passe){
       var dRep = new Date(cp.date_reponse);
       if(dRep >= new Date(Date.now()-86400000)){
         var urgent = dRep < new Date(Date.now()+3*86400000);
-        evInfos += '<div style="display:flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.7rem;color:'+(urgent?'#B42318':'var(--gris)')+';font-weight:'+(urgent?'600':'400')+';margin-bottom:0.3rem;"><i class="ti ti-clock" style="font-size:0.85rem;"></i>Réponse avant le '+dRep.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
+        evInfos += '<div class="cpc-echeance'+(urgent ? ' cpc-urgent' : '')+'"><i class="ti ti-clock"></i>Réponse avant le '+dRep.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+'</div>';
       }
     }
     var macaronC = _cpInvitMacaronHTML(cp, etatC);
     var peutSeProposer = cp.statut === 'publie' && !etatC.moi && !etatC.passe && !etatC.complet;
-    if(macaronC || peutSeProposer){
-      dispBtn = '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem;" onclick="event.stopPropagation()">'
-        +(peutSeProposer ? '<button data-cp="'+esc(cp.id)+'" onclick="cpsInvitationSeDeclarer(this.dataset.cp,this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);border:none;color:white;border-radius:6px;cursor:pointer;"><i class="ti ti-hand-stop"></i> Je suis disponible</button>' : '')
-        +macaronC
-        +'</div>';
-    }
+    dispBtn = (macaronC || '')
+      +(peutSeProposer ? '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cp="'+esc(cp.id)+'" onclick="cpsInvitationSeDeclarer(this.dataset.cp,this)"><i class="ti ti-hand-stop"></i>Je suis disponible</button>' : '');
   }
 
-  // Boutons éditoriaux — Transformer en sujet / Créer article
+  // Infos à gauche : sujet lié, pièces jointes
+  var infos = [];
   var sujetLie = (window._cpsSujetsParCp||{})[cp.id];
-  var boutonSujet = sujetLie
-    ? (sujetLie.statut === 'en_cours'
-        ? '<span style="font-size:0.62rem;padding:3px 9px;background:#FFF3CD;border:1px solid #856404;color:#856404;border-radius:5px;"><i class="ti ti-pencil"></i> Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
-        : '<span style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;"><i class="ti ti-pin"></i> Sujet créé — pas encore réservé</span>')
-    : '<button data-cpid="'+cp.id+'" onclick="cpsCréerSujet(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#EAF3DE;border:1px solid #27500A;color:#27500A;border-radius:5px;cursor:pointer;"><i class="ti ti-pin"></i> Transformer en sujet</button>';
-  // Un bouton par fichier joint (nouveau système) + le PDF legacy éventuel — plutôt qu'un
-  // bouton unique "Télécharger PDF" qui ne pouvait pointer que vers un seul fichier.
-  var boutonsFichiers = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).map(function(f){
-    return '<button data-url="'+esc(_driveLienAuthuser(f.url))+'" onclick="window.open(this.dataset.url,\'_blank\')" title="'+esc(f.nom)+'" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="ti ti-'+(f.type==='image'?'photo':'download')+'"></i> '+esc(f.nom)+'</button>';
-  }).join('');
-  if(cp.fichier_pdf) boutonsFichiers += '<button data-url="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" onclick="window.open(this.dataset.url,\'_blank\')" style="font-size:0.62rem;padding:3px 9px;background:#E8F4F8;border:1px solid #0C447C;color:#0C447C;border-radius:5px;cursor:pointer;"><i class="ti ti-download"></i> Télécharger PDF</button>';
+  if(sujetLie){
+    infos.push(sujetLie.statut === 'en_cours'
+      ? '<span><i class="ti ti-pencil"></i>Réservé par '+esc(sujetLie.responsable||'?')+'</span>'
+      : '<span><i class="ti ti-pin"></i>Sujet créé, pas encore réservé</span>');
+  }
+  var nbFichiers = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+  if(nbFichiers) infos.push('<span><i class="ti ti-paperclip"></i>'+nbFichiers+' pièce'+(nbFichiers>1?'s':'')+' jointe'+(nbFichiers>1?'s':'')+'</span>');
 
-  var editBtns = '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;" onclick="event.stopPropagation()">'
-    +boutonSujet
-    +'<button data-cpid="'+cp.id+'" onclick="cpsCréerArticle(this.dataset.cpid)" style="font-size:0.62rem;padding:3px 9px;background:#D6EAF8;border:1px solid #1A5276;color:#1A5276;border-radius:5px;cursor:pointer;"><i class="ti ti-pencil"></i> Créer un article</button>'
-    +boutonsFichiers
-    +'</div>';
+  // Actions à droite. Modifier / Supprimer / Publier seulement dans l'appli
+  // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
+  var actions = dispBtn;
+  if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
+  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
+  if(isAdmin){
+    actions += '<button class="mac-btn cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
+      +'<button class="mac-btn mac-btn-refus cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminSupprimer(this.dataset.cpid)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
+    if(cp.statut === 'brouillon') actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="cpsAdminPublier(this.dataset.cpid)"><i class="ti ti-world-upload"></i>Publier</button>';
+  }
+
+  var extrait = (cp.corps||'').replace(/\s+/g,' ').trim();
 
   card.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
-      '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
-      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
-    '</div>' +
-    (cp.source ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.source)+'</div>' : '') +
-    (dateStr ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+dateStr+'</div>' : '') +
-    evInfos +
-    (cp.corps ? '<div style="font-size:0.8rem;color:var(--gris);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+esc(cp.corps)+'</div>' : '') +
-    dispBtn +
-    editBtns +
-    adminBtns;
+    '<div class="mac-haut">'+haut+'</div>'
+    +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
+    +evInfos
+    +(extrait ? '<div class="cpc-extrait">'+esc(extrait)+'</div>' : '')
+    +'<div class="mac-bas cpc-bas">'
+    +'<div class="mac-infos">'+infos.join('')+'</div>'
+    +'<div class="mac-actions cpc-actions" onclick="event.stopPropagation()">'+actions+'</div>'
+    +'</div>';
 
   return card;
 }
@@ -2240,7 +2212,7 @@ function cpsAdminCharger(){
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
-      liste.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;">Aucun communiqué. Crée le premier !</div>';
+      liste.innerHTML = '<div class="cpa-vide"><i class="ti ti-news"></i><div>Aucun communiqué pour l\'instant.</div><button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="cpsAdminNouveauForm()"><i class="ti ti-plus"></i>Nouveau communiqué</button></div>';
       return;
     }
 
@@ -2251,16 +2223,18 @@ function cpsAdminCharger(){
     liste.innerHTML = '';
 
     // Barre filtres
+    var brouillons = cps.filter(function(c){ return c.statut === 'brouillon'; });
+    if(filtreActif === 'brouillon' && !brouillons.length) filtreActif = window._cpsAdminFiltreActif = 'tous';
     var barre = document.createElement('div');
-    barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;';
+    barre.className = 'cpa-filtres';
     [
-      {id:'tous', label:'<i class="ti ti-clipboard-list"></i> Tous ('+cps.length+')'},
-      {id:'communique', label:'<i class="ti ti-news"></i> CPs ('+communiques.length+')'},
-      {id:'invitation_presse', label:'<i class="ti ti-microphone"></i> Invitations ('+invitations.length+')'}
-    ].forEach(function(f){
+      {id:'tous', label:'Tous', n:cps.length},
+      {id:'communique', label:'Communiqués', n:communiques.length},
+      {id:'invitation_presse', label:'Invitations', n:invitations.length}
+    ].concat(brouillons.length ? [{id:'brouillon', label:'Brouillons', n:brouillons.length}] : []).forEach(function(f){
       var btn = document.createElement('button');
-      btn.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
-      btn.innerHTML = f.label;
+      btn.className = 'cpa-filtre'+(filtreActif===f.id ? ' actif' : '');
+      btn.innerHTML = esc(f.label)+' <span>'+f.n+'</span>';
       btn.onclick = function(){ window._cpsAdminFiltreActif = f.id; cpsAdminCharger(); };
       barre.appendChild(btn);
     });
@@ -2268,6 +2242,7 @@ function cpsAdminCharger(){
 
     var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
       : filtreActif === 'communique' ? communiques
+      : filtreActif === 'brouillon' ? brouillons
       : cps;
 
     if(!cpsFiltres.length){
@@ -2341,7 +2316,7 @@ function _emailCarteCpCompacte(cp){
 
 function cpsEnvoyerNotifsManuelles(){
   var btn = document.getElementById('btn-envoyer-cps');
-  if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 se-tourne"></i>Envoi…'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   // Récupérer les CPs publiés non encore notifiés
@@ -2350,7 +2325,7 @@ function cpsEnvoyerNotifsManuelles(){
   .then(function(cps){
     if(!cps||cps.code||!cps.length){
       notif('Aucun nouveau CP à notifier');
-      if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
+      if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
       return;
     }
 
@@ -2395,7 +2370,7 @@ function cpsEnvoyerNotifsManuelles(){
       var ids = Object.keys(parMembre);
       if(!ids.length){
         notif('Aucun destinataire (ni abonné, ni rédaction ciblée)');
-        if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
         return;
       }
       // Filtrer directement en base sur les IDs concernés avec email valide
@@ -2406,7 +2381,7 @@ function cpsEnvoyerNotifsManuelles(){
         destinataires = destinataires.filter(function(m){ return m.email && m.email.includes('@'); });
         if(!destinataires.length){
           notif('Aucun destinataire trouvé');
-          if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
+          if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
           return;
         }
 
@@ -2448,7 +2423,7 @@ function cpsEnvoyerNotifsManuelles(){
             var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s)';
             if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
             notif(msg, nb>0?'succes':'alerte');
-            if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
+            if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
             return;
           }
           var m = destinataires[idx];
@@ -2491,6 +2466,6 @@ function cpsEnvoyerNotifsManuelles(){
     });
   }).catch(function(){
     notif('Erreur envoi');
-    if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i>Notifier les abonnés'; }
   });
 }
