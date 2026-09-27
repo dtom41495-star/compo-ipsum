@@ -4632,3 +4632,12 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .cpr-ligne .cx-pastille { margin-left: 16px; }
   .cpr-ligne .cx-pastille + .cx-pastille { margin-left: 0; }
 }
+
+/* Accueil téléphone : rédaction fermée ou pas encore lancée, bien visible */
+.acc-fermee { display: flex; align-items: flex-start; gap: 12px; margin: 10px 0 12px; padding: 14px 16px; border-radius: 16px; background: #FFF4E5; border: 1px solid #F5C98A; color: #7A4B00; font-family: 'DM Sans', Arial, sans-serif; }
+.acc-fermee > i { font-size: 26px; flex-shrink: 0; color: #C2410C; }
+.acc-fermee strong { display: block; font-size: 15px; line-height: 1.3; color: #7A3B00; }
+.acc-fermee span { display: block; font-size: 13px; line-height: 1.4; margin-top: 2px; }
+.acc-fermee.acc-pas-lancee { background: #F3E8FA; border-color: #D9B8EC; color: #5B2C6F; }
+.acc-fermee.acc-pas-lancee > i { color: #7D3C98; }
+.acc-fermee.acc-pas-lancee strong { color: #4A235A; }

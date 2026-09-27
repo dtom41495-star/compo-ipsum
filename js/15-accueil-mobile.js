@@ -202,6 +202,7 @@ function osAccueilMobileRendre(){
 
   // En-tête : toucher son nom ouvre son profil (et sa carte d'adhérent)
   var aMaRedac = _accueilApps().some(function(a){ return a.id.indexOf('redac:') === 0; });
+  var etatRedac = (redac && typeof osRedacEtatTexte === 'function') ? osRedacEtatTexte(redac) : null;
   var h = '<button type="button" class="acc-salut"'+(aMaRedac ? ' data-app="redac:profil"' : '')+'>'
     +'<span class="acc-avatar">'+avatar+'</span>'
     +'<span class="acc-salut-txt"><span class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</span>'
@@ -211,8 +212,17 @@ function osAccueilMobileRendre(){
     +'<div class="acc-ligne-statut">'
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
-    +(redac && typeof osRedacEtatHtml === 'function' ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
+    +(etatRedac && etatRedac.ouvert ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
     +'</div>';
+  // Rédaction fermée : un bandeau bien visible, pas une pastille qu'on confond avec « Disponible »
+  if(etatRedac && !etatRedac.ouvert){
+    var pasLancee = !!redac.pas_lancee;
+    h += '<div class="acc-fermee'+(pasLancee ? ' acc-pas-lancee' : '')+'" role="status">'
+      +'<i class="ti ti-'+(pasLancee ? 'hourglass' : 'clock-pause')+'"></i>'
+      +'<div><strong>'+(pasLancee ? esc(redac.nom)+' n\'est pas encore lancée' : esc(etatRedac.texte.replace(/^Fermée/, 'Rédaction fermée')))+'</strong>'
+      +'<span>'+(pasLancee ? 'Tu pourras y écrire et prendre des sujets dès son ouverture.' : 'Les notifications sur les articles et les sujets attendent la réouverture.')+'</span></div>'
+      +'</div>';
+  }
   if(_accueilProposerInstall()){
     h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'
       +'<div class="acc-installer-txt"><strong>Installe Compo sur ton téléphone</strong><span>Une icône sur ton écran d\'accueil, comme une vraie appli.</span>'
