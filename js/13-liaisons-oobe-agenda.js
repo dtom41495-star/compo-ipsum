@@ -32,7 +32,7 @@ function rArticleOuvrirCpACote(){
     window._cpEnAttente = window._cpEnAttente || {};
     window._cpEnAttente[winId] = cp;
     window._osTitlesOverride = window._osTitlesOverride || {};
-    window._osTitlesOverride[winId] = '📰 '+(cp.titre||cp.objet||'Communiqué').substring(0,45);
+    window._osTitlesOverride[winId] = (cp.titre||cp.objet||'Communiqué').substring(0,45);
     _osOpenWindowExecuter(winId);
     setTimeout(function(){
       osSnapWindow(winId, 'left');
@@ -233,7 +233,7 @@ function rArticleChoisirSujet(nouveauSujetId){
     }
     currentDoc.sujet_id = nouveauSujetId;
     rArticleAfficherSujetLie(nouveauSujetId);
-    notif('Sujet mis à jour ✓','succes');
+    notif('Sujet mis à jour','succes');
 
     // Réclamer le nouveau sujet pour l'auteur de l'article.
     fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId), {
@@ -270,7 +270,7 @@ function rLectureAfficherCpSource(doc, container){
     var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
     var bloc = document.createElement('div');
     bloc.style.cssText = 'background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.8rem 0;display:flex;align-items:center;gap:0.8rem;cursor:pointer;';
-    bloc.innerHTML = '<span style="font-size:1rem;flex-shrink:0;">📰</span>'
+    bloc.innerHTML = '<span style="font-size:1rem;flex-shrink:0;"><i class="ti ti-news"></i></span>'
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">CP source</div>'
       +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(cp.titre||cp.id)+'</div>'
@@ -298,13 +298,13 @@ function rEditionAfficherCpSource(doc){
     var zone = document.getElementById('e-cp-source-zone');
     if(!zone) return;
     zone.innerHTML = '<div style="display:flex;align-items:center;gap:0.8rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 1rem;">'
-      +'<span style="font-size:1rem;">📰</span>'
+      +'<span style="font-size:1rem;"><i class="ti ti-news"></i></span>'
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">CP source</div>'
       +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(cp.titre||cp.id)+'</div>'
       +(cp.source||cp.organisation ? '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+esc(cp.source||cp.organisation||'')+'</div>' : '')
       +'</div>'
-      +'<button onclick="rEditionDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;padding:2px 6px;" title="Retirer">✕</button>'
+      +'<button onclick="rEditionDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;padding:2px 6px;" title="Retirer"><i class="ti ti-x"></i></button>'
       +'</div>';
   }).catch(function(){});
 }
@@ -312,7 +312,7 @@ function rEditionAfficherCpSource(doc){
 function rEditionDetacherCpSource(){
   if(currentDoc) currentDoc.cp_id = null;
   var zone = document.getElementById('e-cp-source-zone');
-  if(zone) zone.innerHTML = '<div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;">📰 Lier un CP source</p></div>';
+  if(zone) zone.innerHTML = '<div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-news"></i> Lier un CP source</p></div>';
 }
 
 // ===== OOBE (PREMIÈRE CONNEXION) =====
@@ -651,15 +651,15 @@ var _agendaAnnee = new Date().getFullYear();
 var _agendaEvenements = [];
 
 var AGENDA_TYPES = {
-  reunion:          { l:'Réunion',           icon:'🗓️', bg:'#D6EAF8', c:'#1A5276' },
-  reportage:        { l:'Reportage',         icon:'📷', bg:'#FDEBD0', c:'#784212' },
-  interview:        { l:'Interview',         icon:'🎤', bg:'#F9EBEA', c:'#78281F' },
-  formation:        { l:'Formation',         icon:'🎓', bg:'#E8DAEF', c:'#512E5F' },
-  sortie:           { l:'Sortie',            icon:'🚶', bg:'#D4EDDA', c:'#155724' },
-  invitation_presse:{ l:'Invitation presse', icon:'📰', bg:'#FFF3CD', c:'#856404' },
-  bureau:           { l:'Bureau',            icon:'⚙️', bg:'#E8E8F0', c:'#1A1A2E' },
-  newsletter:       { l:'Newsletter',        icon:'📨', bg:'#D1ECF1', c:'#0C5460' },
-  autre:            { l:'Autre',             icon:'📌', bg:'#F1EFE8', c:'#444' }
+  reunion:          { l:'Réunion',           icon:'<i class="ti ti-calendar"></i>', bg:'#D6EAF8', c:'#1A5276' },
+  reportage:        { l:'Reportage',         icon:'<i class="ti ti-camera"></i>', bg:'#FDEBD0', c:'#784212' },
+  interview:        { l:'Interview',         icon:'<i class="ti ti-microphone"></i>', bg:'#F9EBEA', c:'#78281F' },
+  formation:        { l:'Formation',         icon:'<i class="ti ti-school"></i>', bg:'#E8DAEF', c:'#512E5F' },
+  sortie:           { l:'Sortie',            icon:'<i class="ti ti-walk"></i>', bg:'#D4EDDA', c:'#155724' },
+  invitation_presse:{ l:'Invitation presse', icon:'<i class="ti ti-news"></i>', bg:'#FFF3CD', c:'#856404' },
+  bureau:           { l:'Bureau',            icon:'<i class="ti ti-settings"></i>', bg:'#E8E8F0', c:'#1A1A2E' },
+  newsletter:       { l:'Newsletter',        icon:'<i class="ti ti-mail-forward"></i>', bg:'#D1ECF1', c:'#0C5460' },
+  autre:            { l:'Autre',             icon:'<i class="ti ti-pin"></i>', bg:'#F1EFE8', c:'#444' }
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
@@ -681,7 +681,7 @@ function osAgendaRender(){
 
   // Ligne 1 : titre + vues + bouton
   var ligne1 = '<div class="agenda-entete" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1.2rem;">';
-  ligne1 += '<div class="agenda-entete-titre" style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;">📅 Agenda Ipsum Média</div>';
+  ligne1 += '<div class="agenda-entete-titre" style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.92rem;color:var(--encre);flex:1;"><i class="ti ti-calendar"></i> Agenda Ipsum Média</div>';
   ligne1 += '<div class="agenda-vues" style="display:flex;gap:0.3rem;background:var(--gris-clair);border-radius:6px;padding:2px;">'
     +'<button onclick="osAgendaSetVue(\'liste\')" id="agenda-btn-liste" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:white;color:var(--encre);">Liste</button>'
     +'<button onclick="osAgendaSetVue(\'semaine\')" id="agenda-btn-semaine" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Semaine</button>'
@@ -914,9 +914,9 @@ function agendaCardHTML(ev, uid, isAdmin){
 
   // Méta
   var meta = '<div style="font-family:DM Sans,sans-serif;font-size:0.6rem;color:var(--gris);display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">';
-  meta += '<span>🕐 '+heureStr+'</span>';
-  if(ev.lieu) meta += '<span>📍 '+esc(ev.lieu)+'</span>';
-  if(ev.organisateur) meta += '<span>👤 '+esc(ev.organisateur)+'</span>';
+  meta += '<span><i class="ti ti-clock"></i> '+heureStr+'</span>';
+  if(ev.lieu) meta += '<span><i class="ti ti-map-pin"></i> '+esc(ev.lieu)+'</span>';
+  if(ev.organisateur) meta += '<span><i class="ti ti-user"></i> '+esc(ev.organisateur)+'</span>';
   meta += '</div>';
 
   content.innerHTML = badges + titre + meta;
@@ -1032,7 +1032,7 @@ function osAgendaRendreCalendrier(){
       var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
       var dot = document.createElement('div');
       dot.style.cssText = 'font-size:0.52rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;background:'+t.bg+';color:'+t.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;';
-      dot.textContent = t.icon+' '+ev.titre;
+      dot.innerHTML = t.icon+' '+esc(ev.titre||'');
       cell.appendChild(dot);
     });
     if(evsDuJour.length > 3){
@@ -1612,7 +1612,7 @@ function osAgendaOuvrirDetail(ev){
           var presenceHtml = '';
           if(insc.statut==='confirme' && evDejaCommence){
             var pEtat = insc.presence===true?'true':(insc.presence===false?'false':'null');
-            var pLabel = insc.presence===true?'✓ Présent':(insc.presence===false?'✕ Absent':'? Appel');
+            var pLabel = insc.presence===true?'<i class="ti ti-check"></i> Présent':(insc.presence===false?'<i class="ti ti-x"></i> Absent':'? Appel');
             var pCoul = insc.presence===true?'#155724':(insc.presence===false?'#A32D2D':'#856404');
             var pBg = insc.presence===true?'#D4EDDA':(insc.presence===false?'#FCEBEB':'#FFF3CD');
             presenceHtml = '<button id="presence-btn-'+insc.id+'" data-presence="'+pEtat+'" onclick="event.stopPropagation();osAgendaTogglePresence(\''+insc.id+'\',\''+ev.id+'\')" title="Faire l\'appel — clique pour changer" style="font-family:DM Sans,sans-serif;font-size:0.55rem;padding:2px 6px;border:0.5px solid '+pCoul+';border-radius:3px;background:'+pBg+';color:'+pCoul+';cursor:pointer;white-space:nowrap;">'+pLabel+'</button>';
@@ -1889,7 +1889,7 @@ function osAgendaSInscrire(evId){
     if(!data) return;
     var inscr = data && data[0];
     if(statutInitial === 'confirme'){
-      notif('Inscription confirmée ✓','succes');
+      notif('Inscription confirmée','succes');
       _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'confirme');
       if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
         var duree = ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
@@ -1902,7 +1902,7 @@ function osAgendaSInscrire(evId){
         }
       }
     } else {
-      notif('Demande d\'inscription envoyée ✓ — en attente de validation','succes');
+      notif('Demande d\'inscription envoyée — en attente de validation','succes');
       _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'en_attente');
     }
     if(ev && new Date(ev.date_debut) > new Date()) _osAgendaConfirmerInscriptionMembre(ev, statutInitial);
@@ -1970,7 +1970,7 @@ function osAgendaAjouterParticipant(evId){
       return r.json();
     }).then(function(data){
       if(!data) return;
-      notif('Participant ajouté ✓','succes');
+      notif('Participant ajouté','succes');
       var inscr = data && data[0];
       var ev = _agendaEvenements.find(function(e){return e.id===evId;});
       // Créditer directement CE membre si l'événement est déjà passé — osAgendaCreditHeuresAuto()
@@ -2024,7 +2024,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
     fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'DELETE',headers:authH})
     .then(function(r){
       if(!r.ok){ notif('Erreur','erreur'); return; }
-      notif('Membre désinscrit ✓','succes');
+      notif('Membre désinscrit','succes');
       fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=eq.'+inscrId,{method:'DELETE',headers:authH}).catch(function(){});
       if(insc){
         var ev = _agendaEvenements.find(function(e){ return e.id===(evId||insc.evenement_id); });
@@ -2287,7 +2287,7 @@ function osAgendaEnvoyerNotif(evId, titre, btnEl){
                    {label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
           pourquoi: ext ? 'Vous recevez cet email car vous êtes inscrit·e à cet événement.' : 'Tu reçois cet email car tu es inscrit·e à cet événement.' })
       };
-    }, function(nb){ notif(nb+' rappel(s) envoyé(s) ✓','succes'); terminerEnvoi(nb+' rappel(s) envoyé(s) ✓'); });
+    }, function(nb){ notif(nb+' rappel(s) envoyé(s)','succes'); terminerEnvoi(nb+' rappel(s) envoyé(s)'); });
   }).catch(function(){ notif('Erreur envoi','erreur'); terminerEnvoi('Erreur envoi'); });
 }
 
@@ -2302,7 +2302,7 @@ function osAgendaValiderInscr(inscrId, evId){
     return fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'confirme'})})
     .then(function(r){
       if(r.ok){
-        notif('Inscription confirmée ✓','succes');
+        notif('Inscription confirmée','succes');
         var ev = insc ? _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); }) : null;
         // Calculer et enregistrer les heures de bénévolat
         if(insc && ev && ev.date_debut){
@@ -2420,7 +2420,7 @@ function _osCopierTexte(texte, messageSucces){
 function osAgendaCopierLien(evId){
   var base = window.location.origin + window.location.pathname;
   var lien = base + '?agenda=' + encodeURIComponent(evId);
-  _osCopierTexte(lien, 'Lien copié ✓');
+  _osCopierTexte(lien, 'Lien copié');
 }
 
 // Lien vers inscription.html — page à part, aucun rapport avec ?agenda= (osAgendaCopierLien
@@ -2429,7 +2429,7 @@ function osAgendaCopierLien(evId){
 function osAgendaCopierLienExterne(evId){
   var base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
   var lien = base + 'inscription.html?event=' + encodeURIComponent(evId);
-  _osCopierTexte(lien, 'Lien public copié ✓');
+  _osCopierTexte(lien, 'Lien public copié');
 }
 
 function osAgendaAnnuler(evId){
@@ -2577,7 +2577,7 @@ function _osGenererOrdreMission(ev, membre, win){
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Ordre de mission — '+nomMembre+'</title><style>'+css+'</style></head><body>';
 
   // Boutons
-  html += '<div class="no-print"><button class="btn-print" onclick="window.print()">🖨 Imprimer / PDF</button><button class="btn-close" onclick="window.close()">Fermer</button></div>';
+  html += '<div class="no-print"><button class="btn-print" onclick="window.print()"><i class="ti ti-printer"></i> Imprimer / PDF</button><button class="btn-close" onclick="window.close()">Fermer</button></div>';
 
   html += '<div class="doc">';
 
@@ -2881,7 +2881,7 @@ function osAgendaSauvegarder(evId){
   .then(function(r){return r.json();})
   .then(function(data){
     var evSauve = isEdit ? Object.assign({},_agendaEvenements.find(function(e){return e.id===evId;})||{},payload) : (data&&data[0]?data[0]:payload);
-    notif((isEdit?'Événement modifié':'Événement créé')+' ✓','succes');
+    notif((isEdit?'Événement modifié':'Événement créé')+'','succes');
     window._agendaFormEvId = null;
     // Recharger puis atterrir sur la fiche de l'événement qu'on vient d'enregistrer —
     // on voit tout de suite le résultat, au lieu d'être renvoyé à la liste.

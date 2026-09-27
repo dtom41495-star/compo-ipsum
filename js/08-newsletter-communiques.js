@@ -153,7 +153,7 @@ function nlAfficherArticlesBase(zone){
     nlRenderList();
     // Masquer la zone de sélection
     var z = osGetEl('nl-base-articles') || document.getElementById('nl-base-articles');
-    if(z) z.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;">✓ '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
+    if(z) z.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);padding:0.3rem;"><i class="ti ti-check"></i> '+nlArticles.length+' article(s) ajouté(s). <span style="color:var(--rouge);cursor:pointer;" onclick="nlChargerDepuisBase()">Modifier la sélection</span></div>';
     notif(nlArticles.length+' article(s) prets pour la newsletter !');
   };
   zone.appendChild(btnAjouter);
@@ -1261,7 +1261,7 @@ function cpsExportCSV(){
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a'); a.href=url; a.download='communiques_ipsum_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
   URL.revokeObjectURL(url);
-  notif('Export CSV téléchargé ✓','succes');
+  notif('Export CSV téléchargé','succes');
 }
 
 function cpsMakeCard(cp, isAdmin){
@@ -1416,7 +1416,7 @@ function cpsCréerSujet(cpId){
   .then(function(r){
     if(!r.ok){ notif('Erreur création sujet','erreur'); return; }
     if(estChefOuAdmin){
-      notif('Sujet créé dans le briefing ✓','succes');
+      notif('Sujet créé dans le briefing','succes');
       osOuvrirSujets();
     } else {
       notif('Sujet réservé — direction la rédaction !','succes');
@@ -1498,7 +1498,7 @@ function cpsCréerArticle(cpId){
     var abandonBtn = document.getElementById('r-abandon-sujet');
     if(abandonBtn){ abandonBtn.style.display='flex'; abandonBtn.dataset.sujetId=sujetId; abandonBtn.dataset.sujetTitre=titreSujet; }
     preremplirAuteur();
-    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom ✓','succes');
+    notif('Rédaction pré-remplie depuis le CP — sujet réservé à ton nom','succes');
   }, 350);
 }
 
@@ -1513,7 +1513,7 @@ function cpsOuvrirDetail(cp){
   window._cpEnAttente = window._cpEnAttente || {};
   window._cpEnAttente[winId] = cp;
   window._osTitlesOverride = window._osTitlesOverride || {};
-  window._osTitlesOverride[winId] = '📰 '+(cp.titre||cp.objet||'Communiqué').substring(0,45);
+  window._osTitlesOverride[winId] = (cp.titre||cp.objet||'Communiqué').substring(0,45);
 
   _osOpenWindowExecuter(winId);
 }
@@ -1592,7 +1592,7 @@ function osCpFenetreRender(winId){
       fichierWrap.innerHTML =
         '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
         +'<iframe src="'+esc(_driveLienPourIframe(f.url))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
     }
     body.appendChild(fichierWrap);
   });
@@ -1602,7 +1602,7 @@ function osCpFenetreRender(winId){
     pdfWrap.innerHTML =
       '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF (ancien format)</div>'
       +'<iframe src="'+esc(_driveLienPourIframe(cp.fichier_pdf))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;">↗ Ouvrir dans un nouvel onglet</a>';
+      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
     body.appendChild(pdfWrap);
   } else if(cp.fichier_b64){
     var embedWrap = document.createElement('div');
@@ -1680,14 +1680,14 @@ function _cpsRenderFichiersListe(){
   _cpsFichiersExistants.forEach(function(f){
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#F3F4F6;border-radius:5px;">'
       +'<span><i class="ti ti-'+(f.type==='image'?'photo':'file-text')+'"></i> '+esc(f.nom)+'</span>'
-      +'<button type="button" data-id="'+f.id+'" onclick="_cpsSupprimerFichierExistant(this.dataset.id)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'<button type="button" data-id="'+f.id+'" onclick="_cpsSupprimerFichierExistant(this.dataset.id)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
   _cpsFichiersSelectionnes.forEach(function(f, i){
     var typeIcone = f.type && f.type.indexOf('image/')===0 ? 'photo' : 'file-text';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:0.76rem;padding:3px 8px;background:#FFF8E6;border-radius:5px;">'
       +'<span><i class="ti ti-'+typeIcone+'"></i> '+esc(f.name)+' <span style="color:var(--gris);">(à envoyer)</span></span>'
-      +'<button type="button" data-i="'+i+'" onclick="_cpsRetirerFichierSelectionne(this.dataset.i)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;">✕</button>'
+      +'<button type="button" data-i="'+i+'" onclick="_cpsRetirerFichierSelectionne(this.dataset.i)" style="background:none;border:none;color:#A32D2D;cursor:pointer;font-size:0.8rem;"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
   zone.innerHTML = html;
@@ -2167,7 +2167,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
       if(r.ok){
         notif('Source retirée de tes abonnements');
         if(btn){
-          btn.textContent = '🔕 S\'abonner à cette source';
+          btn.textContent = 'S\'abonner à cette source';
           btn.style.background = '#E6F1FB'; btn.style.color = '#0C447C'; btn.style.borderColor = '#0C447C';
           btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, false, btn); };
         }
@@ -2182,7 +2182,7 @@ function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
       if(r.ok){
         notif('Abonné aux CPs de cette source !');
         if(btn){
-          btn.textContent = '🔔 Abonné';
+          btn.textContent = 'Abonné';
           btn.style.background = '#D4EDDA'; btn.style.color = '#155724'; btn.style.borderColor = '#155724';
           btn.onclick = function(){ cpsBasculeAbonnementSource(contactId, true, btn); };
         }
@@ -2254,13 +2254,13 @@ function cpsAdminCharger(){
     var barre = document.createElement('div');
     barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;';
     [
-      {id:'tous', label:'📋 Tous ('+cps.length+')'},
-      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
-      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
+      {id:'tous', label:'<i class="ti ti-clipboard-list"></i> Tous ('+cps.length+')'},
+      {id:'communique', label:'<i class="ti ti-news"></i> CPs ('+communiques.length+')'},
+      {id:'invitation_presse', label:'<i class="ti ti-microphone"></i> Invitations ('+invitations.length+')'}
     ].forEach(function(f){
       var btn = document.createElement('button');
       btn.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
-      btn.textContent = f.label;
+      btn.innerHTML = f.label;
       btn.onclick = function(){ window._cpsAdminFiltreActif = f.id; cpsAdminCharger(); };
       barre.appendChild(btn);
     });
@@ -2341,7 +2341,7 @@ function _emailCarteCpCompacte(cp){
 
 function cpsEnvoyerNotifsManuelles(){
   var btn = document.getElementById('btn-envoyer-cps');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Envoi...'; }
+  if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   // Récupérer les CPs publiés non encore notifiés
@@ -2350,7 +2350,7 @@ function cpsEnvoyerNotifsManuelles(){
   .then(function(cps){
     if(!cps||cps.code||!cps.length){
       notif('Aucun nouveau CP à notifier');
-      if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+      if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
       return;
     }
 
@@ -2395,7 +2395,7 @@ function cpsEnvoyerNotifsManuelles(){
       var ids = Object.keys(parMembre);
       if(!ids.length){
         notif('Aucun destinataire (ni abonné, ni rédaction ciblée)');
-        if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+        if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
         return;
       }
       // Filtrer directement en base sur les IDs concernés avec email valide
@@ -2406,7 +2406,7 @@ function cpsEnvoyerNotifsManuelles(){
         destinataires = destinataires.filter(function(m){ return m.email && m.email.includes('@'); });
         if(!destinataires.length){
           notif('Aucun destinataire trouvé');
-          if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+          if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
           return;
         }
 
@@ -2445,10 +2445,10 @@ function cpsEnvoyerNotifsManuelles(){
               method:'PATCH', headers:Object.assign({},authH,{'Prefer':'return=minimal'}),
               body:JSON.stringify({notifie:true})
             }).catch(function(){});
-            var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s) ✓';
+            var msg = nb+' notification(s) envoyée(s) pour '+cps.length+' CP(s)';
             if(echecs.length) msg += ' ('+echecs.length+' échec(s))';
             notif(msg, nb>0?'succes':'alerte');
-            if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+            if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
             return;
           }
           var m = destinataires[idx];
@@ -2491,6 +2491,6 @@ function cpsEnvoyerNotifsManuelles(){
     });
   }).catch(function(){
     notif('Erreur envoi');
-    if(btn){ btn.disabled=false; btn.textContent='📨 Notifier les abonnés'; }
+    if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
   });
 }

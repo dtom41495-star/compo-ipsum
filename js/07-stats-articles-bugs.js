@@ -818,7 +818,7 @@ function _statsSubstackEnregistrer(articleId, vues, zone){
     body:JSON.stringify({vues_substack:vues, vues_substack_maj:new Date().toISOString()})
   }).then(function(r){
     if(r.ok){
-      notif('Vues enregistrées ✓','succes');
+      notif('Vues enregistrées','succes');
       zone.innerHTML = '';
       var liste = document.getElementById('stats-substack-liste');
       if(liste) _statsSubstackChargerListe(liste);
@@ -1736,7 +1736,7 @@ function bugAfficherFenetreErreur(rapport, critique){
     +'<div style="flex:1;min-width:0;">'
     +'<div style="font-weight:700;font-size:0.9rem;color:var(--encre);margin-bottom:0.35rem;">'+(critique?'Une erreur bloquante est survenue':'Une erreur est survenue')+'</div>'
     +'<div style="font-size:0.76rem;color:var(--gris);line-height:1.45;word-break:break-word;">'+esc(message.substring(0,220))+'</div>'
-    +(critique?'<div style="margin-top:0.7rem;background:#FCEBEB;border:1px solid #F5C6C6;border-radius:6px;padding:0.5rem 0.7rem;font-size:0.68rem;color:#A32D2D;">⚠️ Il est déconseillé de continuer sans recharger la page — certaines actions pourraient ne pas s\'enregistrer correctement.</div>':'')
+    +(critique?'<div style="margin-top:0.7rem;background:#FCEBEB;border:1px solid #F5C6C6;border-radius:6px;padding:0.5rem 0.7rem;font-size:0.68rem;color:#A32D2D;"><i class="ti ti-alert-triangle"></i> Il est déconseillé de continuer sans recharger la page — certaines actions pourraient ne pas s\'enregistrer correctement.</div>':'')
     +'<div style="margin-top:0.85rem;font-size:0.66rem;color:var(--gris);line-height:1.6;">Le bug a été transmis automatiquement à l\'équipe. Besoin d\'aide tout de suite ? <a href="mailto:'+ADMIN_EMAIL+'?subject='+encodeURIComponent('[Compo] '+message.substring(0,80))+'" style="color:#E8461E;">'+ADMIN_EMAIL+'</a> ou <a href="https://chat.google.com" target="_blank" rel="noopener" style="color:#E8461E;">via le Tchat</a>.</div>'
     +'</div>';
 
@@ -1793,7 +1793,7 @@ function osOuvrirBugs(){
 function osBugsRender(){
   var wc = document.getElementById('wincontent-bugs');
   if(!wc) return;
-  wc.innerHTML = '<div style="padding:1.2rem;"><div class="panel-title">🐛 Rapports de bugs</div><div class="panel-subtitle" style="margin-bottom:1rem;">Erreurs détectées automatiquement</div><div id="bugs-list" style="font-family:Space Mono,monospace;font-size:0.75rem;"></div></div>';
+  wc.innerHTML = '<div style="padding:1.2rem;"><div class="panel-title"><i class="ti ti-bug"></i> Rapports de bugs</div><div class="panel-subtitle" style="margin-bottom:1rem;">Erreurs détectées automatiquement</div><div id="bugs-list" style="font-family:Space Mono,monospace;font-size:0.75rem;"></div></div>';
 
   fetch(SB_URL+'/rest/v1/bug_reports?order=created_at.desc&limit=50&select=*', {
     headers: Object.assign({}, SB_HEADERS, {
@@ -1805,7 +1805,7 @@ function osBugsRender(){
     var list = document.getElementById('bugs-list');
     if(!list) return;
     if(!bugs || bugs.code || !bugs.length){
-      list.innerHTML = '<div style="color:var(--gris);padding:2rem;text-align:center;">✅ Aucun bug signalé</div>';
+      list.innerHTML = '<div style="color:var(--gris);padding:2rem;text-align:center;"><i class="ti ti-circle-check"></i> Aucun bug signalé</div>';
       return;
     }
     list.innerHTML = '';
@@ -1819,7 +1819,7 @@ function osBugsRender(){
           '<span style="color:var(--gris);font-size:0.62rem;">'+date+'</span>'+
         '</div>'+
         '<div style="color:var(--gris);font-size:0.62rem;margin-bottom:0.3rem;">'+
-          '👤 '+(b.user_nom||'Inconnu')+' · '+esc(b.user_role||'')+' · '+(b.page||'')+
+          '<i class="ti ti-user"></i> '+(b.user_nom||'Inconnu')+' · '+esc(b.user_role||'')+' · '+(b.page||'')+
         '</div>'+
         (b.stack ? '<details style="margin-top:0.4rem;"><summary style="color:var(--rouge);cursor:pointer;font-size:0.62rem;">Stack trace</summary><pre style="font-size:0.6rem;overflow-x:auto;color:var(--gris);white-space:pre-wrap;margin-top:0.3rem;">'+esc(b.stack.substring(0,500))+'</pre></details>' : '');
       list.appendChild(card);
@@ -2323,7 +2323,7 @@ function osSignatureEnvoyer(){
       }
     });
     if(_session) _seAppel('sceller', { documentId:docId }, _session.access_token).catch(function(){});
-    notif('Document envoyé à '+signataires.length+' signataire(s) ✓','succes');
+    notif('Document envoyé à '+signataires.length+' signataire(s)','succes');
     var overlay = document.getElementById('sig-creation-overlay');
     if(overlay) overlay.remove();
     osSignaturesRender();

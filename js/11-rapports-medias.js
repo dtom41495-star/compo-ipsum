@@ -417,7 +417,7 @@ function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
     body:JSON.stringify({marque_inactif:nouvelEtat})
   }).then(function(r){
     if(r.ok){
-      notif(nouvelEtat ? nomMembre+' marqué(e) inactif ✓' : nomMembre+' réactivé(e) ✓', 'succes');
+      notif(nouvelEtat ? nomMembre+' marqué(e) inactif' : nomMembre+' réactivé(e)', 'succes');
       if(nouvelEtat) _osNotifierVieAssoIndisponibilite(nomMembre, 'marqué(e) inactif par la vie associative');
       osBenevolesDashRender();
     } else {
@@ -442,7 +442,7 @@ function osBenevolesToggleDub(membreId, actif){
         method:'DELETE', headers:authH
       });
   req.then(function(r){
-    if(r.ok) notif(actif ? 'Accès Dub activé ✓' : 'Accès Dub désactivé', 'succes');
+    if(r.ok) notif(actif ? 'Accès Dub activé' : 'Accès Dub désactivé', 'succes');
     else notif('Erreur', 'erreur');
   }).catch(function(){ notif('Erreur réseau'); });
 }
@@ -475,7 +475,7 @@ function _osAfficherPopupInactif(){
   overlay.innerHTML =
     '<div style="background:white;border-radius:16px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.3);overflow:hidden;transform:scale(.92);animation:popIn .2s ease forwards;">'
     +'<div style="background:#FCEBEB;padding:1.4rem 1.6rem;border-bottom:3px solid rgba(163,45,45,.2);">'
-    +'<div style="font-size:2rem;margin-bottom:.4rem;">⏸️</div>'
+    +'<div style="font-size:2rem;margin-bottom:.4rem;"><i class="ti ti-player-pause"></i></div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:.98rem;color:#A32D2D;">Tu as été marqué(e) inactif(ve)</div>'
     +'</div>'
     +'<div style="padding:1.2rem 1.6rem;">'
@@ -641,7 +641,7 @@ function osBenevolesOuvrirFiche(membreId){
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Récompenses obtenues</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;">';
     s.recompenses.forEach(function(nom){
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;">🏅 '+esc(nom)+'</span>';
+      html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 9px;border-radius:20px;background:#F3E8FA;color:#5B2C6F;"><i class="ti ti-medal"></i> '+esc(nom)+'</span>';
     });
     html += '</div></div>';
   }
@@ -686,7 +686,7 @@ function osBenevolesOuvrirFiche(membreId){
         +f.label+'</label>';
     });
     html += '</div>';
-    html += '<button id="benv-btn-fonction-save" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.62rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;margin-top:2px;">✓ Enregistrer</button>';
+    html += '<button id="benv-btn-fonction-save" style="align-self:flex-start;font-family:Space Mono,monospace;font-size:0.62rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;margin-top:2px;"><i class="ti ti-check"></i> Enregistrer</button>';
     html += '</div>';
     if(!isSelf && isAdmin){
       // Rôle — admin sur les autres seulement (la condition ne se fiait avant qu'à
@@ -714,19 +714,19 @@ function osBenevolesOuvrirFiche(membreId){
   }
   html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
   // Bouton carte d'adhérent — toujours visible (self ou admin)
-  html += '<button id="benv-btn-carte" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--encre-fixe);border-radius:6px;background:var(--encre-fixe);color:white;cursor:pointer;">🪪 Carte d\'adhérent</button>';
-  html += '<button id="benv-btn-bilan" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #EA5B1C;border-radius:6px;background:#FFF5F2;color:#EA5B1C;cursor:pointer;">📋 Bilan annuel</button>';
-  html += '<button id="benv-btn-attestation" data-membre-id="'+esc(m.id)+'" title="Attestation d\'heures de bénévolat, à signer" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;">📜 Attestation</button>';
+  html += '<button id="benv-btn-carte" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--encre-fixe);border-radius:6px;background:var(--encre-fixe);color:white;cursor:pointer;"><i class="ti ti-id"></i> Carte d\'adhérent</button>';
+  html += '<button id="benv-btn-bilan" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #EA5B1C;border-radius:6px;background:#FFF5F2;color:#EA5B1C;cursor:pointer;"><i class="ti ti-clipboard-list"></i> Bilan annuel</button>';
+  html += '<button id="benv-btn-attestation" data-membre-id="'+esc(m.id)+'" title="Attestation d\'heures de bénévolat, à signer" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-certificate"></i> Attestation</button>';
   if(m.email){
-    html += '<button id="benv-btn-relancer" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);">✉️ Relancer</button>';
-    html += '<a href="mailto:'+esc(m.email)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);text-decoration:none;">📧 Email direct</a>';
+    html += '<button id="benv-btn-relancer" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-mail"></i> Relancer</button>';
+    html += '<a href="mailto:'+esc(m.email)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);text-decoration:none;"><i class="ti ti-mail"></i> Email direct</a>';
   }
   if(!isSelf){
     var estSuspendu = m.role === 'interdit';
     if(estSuspendu){
-      html += '<button id="benv-btn-reactiver" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #155724;border-radius:6px;background:#EAF3DE;color:#155724;cursor:pointer;">✓ Réactiver</button>';
+      html += '<button id="benv-btn-reactiver" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #155724;border-radius:6px;background:#EAF3DE;color:#155724;cursor:pointer;"><i class="ti ti-check"></i> Réactiver</button>';
     } else {
-      html += '<button id="benv-btn-suspendre" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #A32D2D;border-radius:6px;background:white;color:#A32D2D;cursor:pointer;">🚫 Suspendre</button>';
+      html += '<button id="benv-btn-suspendre" data-membre-id="'+esc(m.id)+'" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:0.4rem 0.9rem;border:0.5px solid #A32D2D;border-radius:6px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-ban"></i> Suspendre</button>';
     }
   }
   html += '</div>';
@@ -773,9 +773,9 @@ function osBenevolesOuvrirFiche(membreId){
         body: JSON.stringify({fonction: valeurs.length ? valeurs : null})
       }).then(function(r){
         if(r.ok){
-          btnFonctionSave.textContent = '✓ Enregistré';
+          btnFonctionSave.textContent = 'Enregistré';
           btnFonctionSave.style.background = '#27AE60';
-          notif('Fonctions mises à jour ✓', 'succes');
+          notif('Fonctions mises à jour', 'succes');
           // Si c'est le membre connecté, mettre à jour _membreCourantFonction en live
           if(_membreIdFonction === getUserId()){
             window._membreCourantFonction = valeurs;
@@ -795,14 +795,14 @@ function osBenevolesOuvrirFiche(membreId){
               lbl.style.color = 'var(--gris)';
             }
           });
-          setTimeout(function(){ btnFonctionSave.textContent='✓ Enregistrer'; btnFonctionSave.style.background='var(--rouge)'; btnFonctionSave.disabled=false; }, 2000);
+          setTimeout(function(){ btnFonctionSave.textContent='Enregistrer'; btnFonctionSave.style.background='var(--rouge)'; btnFonctionSave.disabled=false; }, 2000);
         } else {
           r.json().then(function(e){ console.error('Fonction PATCH error:', e); notif('Erreur : '+(e.message||e.hint||r.status)); }).catch(function(){ notif('Erreur '+r.status); });
-          btnFonctionSave.textContent = '✗ Erreur';
+          btnFonctionSave.textContent = 'Erreur';
           btnFonctionSave.style.background = '#A32D2D';
-          setTimeout(function(){ btnFonctionSave.textContent='✓ Enregistrer'; btnFonctionSave.style.background='var(--rouge)'; btnFonctionSave.disabled=false; }, 2000);
+          setTimeout(function(){ btnFonctionSave.textContent='Enregistrer'; btnFonctionSave.style.background='var(--rouge)'; btnFonctionSave.disabled=false; }, 2000);
         }
-      }).catch(function(e){ console.error('Fonction réseau:', e); notif('Erreur réseau'); btnFonctionSave.textContent='✓ Enregistrer'; btnFonctionSave.disabled=false; });
+      }).catch(function(e){ console.error('Fonction réseau:', e); notif('Erreur réseau'); btnFonctionSave.textContent='Enregistrer'; btnFonctionSave.disabled=false; });
     });
     // Style dynamique sur les checkboxes
     card.querySelectorAll('#benv-fonctions-wrap input[type=checkbox]').forEach(function(cb){
@@ -1327,7 +1327,7 @@ function osUploadMediasRender(){
   _osUploadEcranPrincipal(wc);
 }
 
-var UPLOAD_TYPE_ICONS = {video:'🎬', image:'🖼️', document:'📄', audio:'🎙️', autre:'📦'};
+var UPLOAD_TYPE_ICONS = {video:'<i class="ti ti-movie"></i>', image:'<i class="ti ti-photo"></i>', document:'<i class="ti ti-file-text"></i>', audio:'<i class="ti ti-microphone"></i>', autre:'<i class="ti ti-package"></i>'};
 
 function _uploadTypeDeFichier(mime){
   mime = mime || '';
@@ -1349,7 +1349,7 @@ var _uploadVueCourante = { dossiers: [], fichiers: [] }; // dernier résultat ch
 
 function _osUploadEcranPrincipal(wc){
   var h = '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;">📁 Fichiers de la rédaction</div>';
+  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.9rem;color:var(--encre);flex:1;"><i class="ti ti-folder"></i> Fichiers de la rédaction</div>';
   h += '<button onclick="osUploadOuvrirEnvoi()" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Envoyer</button>';
   h += osUploadTokenValide()
     ? '<button onclick="osUploadSeDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:var(--gris);cursor:pointer;">Déconnexion</button>'
@@ -1360,7 +1360,7 @@ function _osUploadEcranPrincipal(wc){
 
   h += '<div style="flex-shrink:0;background:white;border-bottom:1px solid var(--gris-bord);padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
   h += '<div id="upl-fil-ariane" style="flex:1;min-width:0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>';
-  h += '<input id="upl-recherche" type="text" placeholder="🔎 Filtrer ici..." oninput="_osUploadAppliquerFiltre()" style="width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;">';
+  h += '<input id="upl-recherche" type="text" placeholder="Filtrer ici..." oninput="_osUploadAppliquerFiltre()" style="width:200px;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;box-sizing:border-box;">';
   h += '</div>';
 
   h += '<div id="upl-panneau-envoi" style="display:none;flex-shrink:0;background:var(--gris-clair);border-bottom:1px solid var(--gris-bord);padding:1rem 1.2rem;"></div>';
@@ -1380,11 +1380,11 @@ function osUploadNaviguerVers(chemin){
 }
 
 function _osUploadNomRacine(racine){
-  if(racine === 'communiques') return '📰 Communiqués';
-  if(racine === 'images-articles') return '🖼️ Images-articles';
+  if(racine === 'communiques') return '<i class="ti ti-news"></i> Communiqués';
+  if(racine === 'images-articles') return '<i class="ti ti-photo"></i> Images-articles';
   if(racine && racine.indexOf('redac:') === 0){
     var redac = (window._redactionsData||[]).find(function(r){ return r.id===racine.slice(6); });
-    return redac ? '🗂️ '+redac.nom : '🗂️ ?';
+    return redac ? '<i class="ti ti-folders"></i> '+redac.nom : '<i class="ti ti-folders"></i> ?';
   }
   return racine;
 }
@@ -1393,7 +1393,7 @@ function _osUploadFilAriane(){
   var el = document.getElementById('upl-fil-ariane');
   if(!el) return;
   var chemin = _uploadExplorerChemin;
-  var parts = ['<a href="javascript:void(0)" onclick="osUploadNaviguerVers([])" style="color:var(--gris);text-decoration:none;">📁 Racine</a>'];
+  var parts = ['<a href="javascript:void(0)" onclick="osUploadNaviguerVers([])" style="color:var(--gris);text-decoration:none;"><i class="ti ti-folder"></i> Racine</a>'];
   for(var i=0; i<chemin.length; i++){
     var sousChemin = chemin.slice(0, i+1);
     var label = i===0 ? _osUploadNomRacine(chemin[0]) : esc(chemin[i]);
@@ -1450,11 +1450,11 @@ function _osUploadRenderRacine(zone){
   var peutVoirDiffusion = (role === 'admin' || role === 'redac_chef');
   var h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:0.4rem;">';
   if(peutVoirDiffusion){
-    h += _osUploadTuile('📰', 'Communiqués', 'osUploadNaviguerVers('+_uploadCheminJs(['communiques'])+')');
-    h += _osUploadTuile('🖼️', 'Images-articles', 'osUploadNaviguerVers('+_uploadCheminJs(['images-articles'])+')');
+    h += _osUploadTuile('<i class="ti ti-news"></i>', 'Communiqués', 'osUploadNaviguerVers('+_uploadCheminJs(['communiques'])+')');
+    h += _osUploadTuile('<i class="ti ti-photo"></i>', 'Images-articles', 'osUploadNaviguerVers('+_uploadCheminJs(['images-articles'])+')');
   }
   (window._redactionsData||[]).forEach(function(r){
-    h += _osUploadTuile('🗂️', r.nom, 'osUploadNaviguerVers('+_uploadCheminJs(['redac:'+r.id])+')');
+    h += _osUploadTuile('<i class="ti ti-folders"></i>', r.nom, 'osUploadNaviguerVers('+_uploadCheminJs(['redac:'+r.id])+')');
   });
   h += '</div>';
   zone.innerHTML = h;
@@ -1493,7 +1493,7 @@ function _osUploadChargerViaService(zone, racine, sousChemin){
 function _osUploadChargerPersonnel(zone, nomRacine, sousChemin){
   if(!osUploadTokenValide()){
     zone.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.8rem;">'
-      +'<div style="font-size:1.8rem;margin-bottom:0.6rem;">🔒</div>'
+      +'<div style="font-size:1.8rem;margin-bottom:0.6rem;"><i class="ti ti-lock"></i></div>'
       +'Ces fichiers sont privés — connecte-toi avec ton compte Google pour voir et gérer les tiens.'
       +'<div style="margin-top:0.8rem;"><button onclick="osUploadSeConnecter()" style="font-family:DM Sans,sans-serif;font-size:0.78rem;font-weight:600;padding:6px 14px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Se connecter avec Google</button></div>'
       +'</div>';
@@ -1526,7 +1526,7 @@ function _osUploadAfficherVue(zone, vue){
   }
   var h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:0.4rem;">';
   vue.dossiers.forEach(function(d){
-    h += _osUploadTuile('📁', d.nom, 'osUploadNaviguerVers('+_uploadCheminJs(_uploadExplorerChemin.concat([d.nom]))+')');
+    h += _osUploadTuile('<i class="ti ti-folder"></i>', d.nom, 'osUploadNaviguerVers('+_uploadCheminJs(_uploadExplorerChemin.concat([d.nom]))+')');
   });
   vue.fichiers.forEach(function(f){ h += _osUploadTuileFichier(f, vue.peutGerer); });
   h += '</div>';
@@ -1534,15 +1534,15 @@ function _osUploadAfficherVue(zone, vue){
 }
 
 var UPLOAD_TYPE_ICONS_MIME = [
-  { test:function(m){ return m.indexOf('video/')===0; }, icon:'🎬' },
-  { test:function(m){ return m.indexOf('image/')===0; }, icon:'🖼️' },
-  { test:function(m){ return m.indexOf('audio/')===0; }, icon:'🎙️' },
-  { test:function(m){ return m==='application/pdf'||m.indexOf('document')!==-1||m.indexOf('msword')!==-1||m.indexOf('officedocument')!==-1; }, icon:'📄' }
+  { test:function(m){ return m.indexOf('video/')===0; }, icon:'<i class="ti ti-movie"></i>' },
+  { test:function(m){ return m.indexOf('image/')===0; }, icon:'<i class="ti ti-photo"></i>' },
+  { test:function(m){ return m.indexOf('audio/')===0; }, icon:'<i class="ti ti-microphone"></i>' },
+  { test:function(m){ return m==='application/pdf'||m.indexOf('document')!==-1||m.indexOf('msword')!==-1||m.indexOf('officedocument')!==-1; }, icon:'<i class="ti ti-file-text"></i>' }
 ];
 function _uploadIconePourMime(mime){
   mime = mime||'';
   for(var i=0;i<UPLOAD_TYPE_ICONS_MIME.length;i++){ if(UPLOAD_TYPE_ICONS_MIME[i].test(mime)) return UPLOAD_TYPE_ICONS_MIME[i].icon; }
-  return '📦';
+  return '<i class="ti ti-package"></i>';
 }
 
 function _osUploadTuileFichier(f, peutGerer){
@@ -1550,8 +1550,8 @@ function _osUploadTuileFichier(f, peutGerer){
   var onclick = lienSur ? "window.open('"+lienSur.replace(/'/g,"\\'")+"','_blank')" : null;
   var actions = '';
   if(peutGerer){
-    actions += '<button title="Partager" onclick=\'_osUploadOuvrirPartage("'+f.id+'","'+esc(f.nom||'').replace(/"/g,'&quot;')+'")\' style="font-size:0.85rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">🔗</button>';
-    actions += '<button title="Supprimer" onclick="osUploadSupprimerFichier(\''+f.id+'\')" style="font-size:0.85rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
+    actions += '<button title="Partager" onclick=\'_osUploadOuvrirPartage("'+f.id+'","'+esc(f.nom||'').replace(/"/g,'&quot;')+'")\' style="font-size:0.85rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-link"></i></button>';
+    actions += '<button title="Supprimer" onclick="osUploadSupprimerFichier(\''+f.id+'\')" style="font-size:0.85rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
   }
   return _osUploadTuile(_uploadIconePourMime(f.mimeType), f.nom||'', onclick, actions);
 }
@@ -1696,7 +1696,7 @@ function osUploadRenderListeFichiers(){
   var zone = document.getElementById('upl-liste-fichiers');
   if(!zone) return;
   if(!_uploadFichiers.length){ zone.innerHTML=''; return; }
-  var STAT = {attente:{l:'En attente',c:'var(--gris)'},dossier:{l:'Préparation du dossier...',c:'#1A5276'},encours:{l:'Envoi en cours',c:'#1A5276'},termine:{l:'Envoyé ✓',c:'#155724'},erreur:{l:'Erreur',c:'#A32D2D'}};
+  var STAT = {attente:{l:'En attente',c:'var(--gris)'},dossier:{l:'Préparation du dossier...',c:'#1A5276'},encours:{l:'Envoi en cours',c:'#1A5276'},termine:{l:'Envoyé <i class="ti ti-check"></i>',c:'#155724'},erreur:{l:'Erreur',c:'#A32D2D'}};
   var h = '';
   _uploadFichiers.forEach(function(it){
     var sd = STAT[it.statut]||STAT.attente;
@@ -1880,7 +1880,7 @@ function _osMagnetoRenderStatut(){
   var zone = document.getElementById('mag-statut');
   var item = _magnetoEnvoiEnCours;
   if(!zone || !item) return;
-  var STAT = {attente:{l:'En attente',c:'var(--gris)'},dossier:{l:'Préparation du dossier...',c:'#1A5276'},encours:{l:'Envoi en cours…',c:'#1A5276'},termine:{l:'Envoyé ✓',c:'#155724'},erreur:{l:'Erreur d\'envoi',c:'#A32D2D'}};
+  var STAT = {attente:{l:'En attente',c:'var(--gris)'},dossier:{l:'Préparation du dossier...',c:'#1A5276'},encours:{l:'Envoi en cours…',c:'#1A5276'},termine:{l:'Envoyé <i class="ti ti-check"></i>',c:'#155724'},erreur:{l:'Erreur d\'envoi',c:'#A32D2D'}};
   var sd = STAT[item.statut]||STAT.attente;
   var h = '<div style="background:white;border:1px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;">';
   h += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">';
@@ -2084,7 +2084,7 @@ function osBenevolesChangerFonction(membreId, fonction){
     method:'PATCH', headers:headers,
     body:JSON.stringify({fonction: fonction||null})
   }).then(function(r){
-    if(r.ok) notif(fonction ? 'Fonction assignée ✓' : 'Fonction retirée', 'succes');
+    if(r.ok) notif(fonction ? 'Fonction assignée' : 'Fonction retirée', 'succes');
     else r.json().then(function(e){ console.error('Fonction PATCH error:', e); notif('Erreur : '+(e.message||e.hint||r.status)); });
   }).catch(function(e){ console.error('Fonction réseau:', e); notif('Erreur réseau'); });
 }

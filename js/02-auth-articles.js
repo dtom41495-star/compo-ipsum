@@ -593,13 +593,13 @@ function maFiltrerListe(){
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
     }
     if(estCorrecteur && s==='en-relecture'){
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
     }
 
     // Corriger (admin) — article en relecture ou corrigé
     if(role==='admin' && (s==='en-relecture'||s==='corrige') && !estMonArticle){
       actionsHtml += '<button class="ma-v2-btn ma-v2-btn-green" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-search"></i> Corriger</button>';
-      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)">✕ Refuser</button>';
+      actionsHtml += '<button class="ma-v2-btn ma-v2-btn-red" data-id="'+doc.id+'" onclick="maRefuserArticle(this.dataset.id)"><i class="ti ti-x"></i> Refuser</button>';
     }
 
     // Lire
@@ -930,7 +930,7 @@ function osMotDePasseOublieEnvoyer(){
     body: JSON.stringify({ email: email })
   }).then(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#D4EDDA'; msgEl.style.color='#155724'; msgEl.textContent='Si un compte existe avec cet email, un lien de réinitialisation vient d’être envoyé.'; }
-    if(btn){ btn.textContent='Lien envoyé ✓'; }
+    if(btn){ btn.textContent='Lien envoyé'; }
   }).catch(function(){
     if(btn){ btn.disabled=false; btn.textContent='Envoyer le lien'; }
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau, réessaie.'; }
@@ -1071,7 +1071,7 @@ function lancerCompo(){
     '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
     // Logo
     +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);animation:popIn .35s cubic-bezier(.34,1.56,.64,1) forwards;">'
-    +'<span style="font-size:1.5rem;">📰</span></div>'
+    +'<span style="font-size:1.5rem;"><i class="ti ti-news"></i></span></div>'
     // Titre
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:#1A1A2E;letter-spacing:-.02em;">Compo OS</div>'
     // Etape courante
@@ -1539,12 +1539,12 @@ function osStartAutosave(){
       _autosaveClearLocalDraft(doc.id);
       // Indicateur discret
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = '✓ Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
+      if(ind){ ind.textContent = 'Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
     }).catch(function(){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = '⚠ Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
+      if(ind){ ind.textContent = 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
     }).finally(function(){ _autosaveInFlight = false; });
   }, 45000); // toutes les 45 secondes
 }
@@ -1825,7 +1825,7 @@ function rEnregistrerLienPublication(dubLinkId){
       currentDoc.lien_publication = val||null;
       if(payload.vues_substack!=null) currentDoc.vues_substack = payload.vues_substack;
       if('dub_link_id' in payload) currentDoc.dub_link_id = payload.dub_link_id;
-      notif('Enregistré ✓','succes');
+      notif('Enregistré','succes');
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
       if(lpOuvrir) lpOuvrir.style.display = val ? '' : 'none';
       rWorkflowMajInterface(currentDoc);

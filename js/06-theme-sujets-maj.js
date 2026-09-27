@@ -551,7 +551,7 @@ function osTourPositionnerBulle(el, etape){
   if(texteEl) texteEl.innerHTML = typeof etape.texte === 'function' ? etape.texte() : etape.texte;
   if(compteurEl) compteurEl.textContent = (_tourIndex+1)+' / '+TOUR_ETAPES.length;
   if(btnPrec) btnPrec.style.visibility = _tourIndex === 0 ? 'hidden' : 'visible';
-  if(btnSuiv) btnSuiv.textContent = (_tourIndex === TOUR_ETAPES.length - 1) ? 'Terminé ✓' : 'Suivant →';
+  if(btnSuiv) btnSuiv.textContent = (_tourIndex === TOUR_ETAPES.length - 1) ? 'Terminé' : 'Suivant →';
 
   // Rendre visible hors-écran d'abord pour mesurer la taille réelle de la bulle
   // (son contenu — titre/texte — varie d'une étape à l'autre, donc sa hauteur aussi)
@@ -677,7 +677,7 @@ function osSujetsToggleNotif(activer){
     }),
     body: JSON.stringify({ notif_sujets: activer })
   }).then(function(r){
-    if(r.ok) notif(activer ? 'Abonné aux récaps de sujets ✓' : 'Désabonné', activer ? 'succes' : 'info');
+    if(r.ok) notif(activer ? 'Abonné aux récaps de sujets' : 'Désabonné', activer ? 'succes' : 'info');
     else notif('Erreur mise à jour');
   }).catch(function(){ notif('Erreur réseau'); });
 }
@@ -782,7 +782,7 @@ function sauvegarderCloud(){
     if(doc.image && typeof doc.image === 'string' && doc.image.startsWith('data:')) doc.image = null;
     db.sauvegarderArticle(doc).then(function(){
       currentDoc = doc; // Synchroniser pour que osRedactionADesModifs détecte correctement
-      notif('Article sauvegardé dans le cloud ✓','succes');
+      notif('Article sauvegardé dans le cloud','succes');
       benvMajActivite();
       var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
       var idx = drafts.findIndex(function(d){ return d.id === doc.id; });
@@ -837,10 +837,10 @@ function osParamsRender(){
   sidebar.appendChild(sideTitle);
   
   var sections = [
-    { id:'profil', icon:'👤', label:'Mon profil' },
-    { id:'apparence', icon:'🎨', label:'Apparence' },
-    { id:'accessibilite', icon:'♿', label:'Accessibilité' },
-    { id:'compte', icon:'🔑', label:'Compte' },
+    { id:'profil', icon:'<i class="ti ti-user"></i>', label:'Mon profil' },
+    { id:'apparence', icon:'<i class="ti ti-palette"></i>', label:'Apparence' },
+    { id:'accessibilite', icon:'<i class="ti ti-accessible"></i>', label:'Accessibilité' },
+    { id:'compte', icon:'<i class="ti ti-key"></i>', label:'Compte' },
   ];
   
   sections.forEach(function(s){
@@ -870,7 +870,7 @@ function osParamsRenderSection(section, container){
   container.innerHTML = '';
   
   if(section === 'profil'){
-    container.innerHTML = '<div class="params-section-title">👤 Mon profil</div><div class="params-section-sub">Informations liées à ton compte Compo</div>';
+    container.innerHTML = '<div class="params-section-title"><i class="ti ti-user"></i> Mon profil</div><div class="params-section-sub">Informations liées à ton compte Compo</div>';
     
     // Email — celui utilisé pour se connecter (plus de champ séparé, un seul mail pro pour tout)
     var rowEmail = document.createElement('div');
@@ -996,7 +996,7 @@ function osParamsRenderSection(section, container){
   }
   
   else if(section === 'apparence'){
-    container.innerHTML = '<div class="params-section-title">🎨 Apparence</div><div class="params-section-sub">Personnalise l\'interface Compo OS</div>';
+    container.innerHTML = '<div class="params-section-title"><i class="ti ti-palette"></i> Apparence</div><div class="params-section-sub">Personnalise l\'interface Compo OS</div>';
     
     // Thème clair/sombre
     var rowTheme = document.createElement('div');
@@ -1011,7 +1011,7 @@ function osParamsRenderSection(section, container){
     var btnClair = document.createElement('button');
     btnClair.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;'+
       (!isDark ? 'background:var(--rouge);color:white;border:2px solid var(--rouge);' : 'background:white;color:var(--gris);border:2px solid var(--gris-bord);');
-    btnClair.textContent = '☀️ Clair';
+    btnClair.textContent = 'Clair';
     btnClair.onclick = function(){
       osToggleTheme(false);
       btnClair.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
@@ -1021,7 +1021,7 @@ function osParamsRenderSection(section, container){
     var btnSombre = document.createElement('button');
     btnSombre.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;'+
       (isDark ? 'background:var(--rouge);color:white;border:2px solid var(--rouge);' : 'background:white;color:var(--gris);border:2px solid var(--gris-bord);');
-    btnSombre.textContent = '🌙 Sombre';
+    btnSombre.textContent = 'Sombre';
     btnSombre.onclick = function(){
       osToggleTheme(true);
       btnSombre.style.cssText = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
@@ -1055,7 +1055,7 @@ function osParamsRenderSection(section, container){
 
     var btnLeger = document.createElement('button');
     btnLeger.style.cssText = modeLegerActif ? legerStyleActif : legerStyleInactif;
-    btnLeger.textContent = '⚡ Allégé';
+    btnLeger.textContent = 'Allégé';
 
     btnNormal.onclick = function(){
       osAppliquerModeLeger(false);
@@ -1188,7 +1188,7 @@ function osParamsRenderSection(section, container){
   }
   
   else if(section === 'accessibilite'){
-    container.innerHTML = '<div class="params-section-title">♿ Accessibilité</div><div class="params-section-sub">Taille du texte et police adaptée à la malvoyance ou à la dyslexie</div>';
+    container.innerHTML = '<div class="params-section-title"><i class="ti ti-accessible"></i> Accessibilité</div><div class="params-section-sub">Taille du texte et police adaptée à la malvoyance ou à la dyslexie</div>';
 
     var accStyleActif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:var(--rouge);color:white;border:2px solid var(--rouge);';
     var accStyleInactif = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;transition:all 0.15s;background:white;color:var(--gris);border:2px solid var(--gris-bord);';
@@ -1269,7 +1269,7 @@ function osParamsRenderSection(section, container){
   }
 
   else if(section === 'compte'){
-    container.innerHTML = '<div class="params-section-title">🔑 Compte</div><div class="params-section-sub">Informations de ton compte</div>';
+    container.innerHTML = '<div class="params-section-title"><i class="ti ti-key"></i> Compte</div><div class="params-section-sub">Informations de ton compte</div>';
     
     var rowInfo = document.createElement('div');
     rowInfo.className = 'params-row';
@@ -1492,7 +1492,7 @@ function osSyncOfflineQueue(){
     currentDoc = cached;
     _autosaveClearLocalDraft(cached.id);
     osSaveIndicateur('sauvegarde');
-    notif('Article resynchronisé après reconnexion ✓','succes');
+    notif('Article resynchronisé après reconnexion','succes');
   }).catch(function(){ /* toujours pas fiable — nouvelle tentative au prochain "online" */ });
 }
 
@@ -1537,13 +1537,13 @@ function osSnakeRender(){
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;background:#0D0D1A;overflow:hidden;';
   wc.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;flex-shrink:0;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:white;">🐍 Presse Express</div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:white;"><i class="ti ti-bug"></i> Presse Express</div>'
     +'<div style="font-family:Space Mono,monospace;font-size:0.75rem;color:#FAC775;">Score : <span id="snake-score">0</span></div>'
     +'</div>'
     +'<div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;padding:0 1rem 1rem;">'
     +'<canvas id="snake-canvas" style="display:block;background:#15151F;border-radius:8px;"></canvas>'
     +'<div id="snake-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;background:rgba(13,13,26,0.92);">'
-    +'<div style="font-size:2rem;">🗞️</div>'
+    +'<div style="font-size:2rem;"><i class="ti ti-news"></i></div>'
     +'<div id="snake-overlay-title" style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;padding:0 1rem;">Attrape le journal !</div>'
     +'<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.5);text-align:center;max-width:220px;">Flèches ou ZQSD pour diriger le serpent.</div>'
     +'<button onclick="osSnakeDemarrer()" style="font-family:DM Sans,sans-serif;font-weight:600;font-size:0.82rem;padding:0.55rem 1.4rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;">Jouer</button>'
@@ -1675,7 +1675,7 @@ function osSnakeDessiner(){
   ctx.font = (cell*0.85)+'px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🗞️', (_snakeState.journal.x+0.5)*cell, (_snakeState.journal.y+0.5)*cell+1);
+  ctx.fillText('📰', (_snakeState.journal.x+0.5)*cell, (_snakeState.journal.y+0.5)*cell+1);
 
   _snakeState.serpent.forEach(function(seg, i){
     ctx.fillStyle = i===0 ? '#E8461E' : 'rgba(232,70,30,'+(0.9 - Math.min(i*0.03, 0.55))+')';

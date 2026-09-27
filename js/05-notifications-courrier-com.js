@@ -296,7 +296,7 @@ function osAfficherInterdit(){
   overlay.id = 'os-interdit-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:rgba(13,13,26,0.85);backdrop-filter:blur(8px);';
   overlay.innerHTML =
-    '<div style="font-size:5rem;">🚫</div>'
+    '<div style="font-size:5rem;"><i class="ti ti-ban"></i></div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès suspendu</div>'
     +'<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:340px;line-height:1.7;">Ton accès à Compo a été suspendu. Contacte l\'administrateur.</div>'
     +'<button onclick="seDeconnecter()" style="margin-top:0.5rem;font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>';
@@ -328,14 +328,14 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'🐛 Bugs', 'cps-admin':'📰 Gestion des CPs', 'stats-dashboard':'📊 Statistiques', 'app-correction':'Secrétariat de rédaction', params:'⚙️ Paramètres', agenda:'📅 Agenda', redaction:'Rédaction', benevoles:'👥 Tableau de bord bénévoles', tableau:'📢 Tableau d\'affichage', carnet:'📇 Carnet de sources', 'gestion-apps':'⚙️ Admin', 'nettoyage':'🧹 Nettoyage', 'notes':'📝 Mes notes', 'minuteur':'⏱️ Minuteur', 'compteur':'📏 Compteur', 'titres':'🎲 Générateur de titres', 'compo-store':'🏪 Compo Store', 'redactions':'🗞️ Ma rédac\'',
+    bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'titres':'Générateur de titres', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
     correction:'Relecture', lecture:'Lecture', edition:'Édition',
     comparaison:'Comparaison',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
-    newsletter:'Newsletter', communique:'📰 Nouveau communiqué', projets:'📋 Projets',
-    snake:'🐍 Presse Express', substack:'📰 Articles publiés', signatures:'Signatures',
-    'upload-medias':'📁 Fichiers', 'magneto':'🎙️ Enregistrer', 'flouter':'Flouter une photo', 'app-dub':'✂️ Raccourcisseur'
+    newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Projets',
+    snake:'Presse Express', substack:'Articles publiés', signatures:'Signatures',
+    'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
@@ -766,8 +766,8 @@ function osSavePrompt(pageId){
     'animation:slideInUp 0.3s cubic-bezier(0.34,1.2,0.64,1);';
 
   var ico = document.createElement('div');
-  ico.style.cssText = 'font-size:2.8rem;margin-bottom:0.8rem;';
-  ico.textContent = '💾';
+  ico.style.cssText = 'font-size:2.8rem;margin-bottom:0.8rem;color:var(--bleu);';
+  ico.innerHTML = '<i class="ti ti-device-floppy"></i>';
 
   var title = document.createElement('div');
   title.style.cssText = 'font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;'+
@@ -785,7 +785,7 @@ function osSavePrompt(pageId){
   var btnCloud = document.createElement('button');
   btnCloud.className = 'btn';
   btnCloud.style.cssText = 'width:100%;padding:0.8rem;font-size:0.88rem;background:linear-gradient(135deg,#1A5276,#2980B9);';
-  btnCloud.textContent = '☁️ Enregistrer dans le cloud';
+  btnCloud.textContent = 'Enregistrer dans le cloud';
   btnCloud.onclick = function(){
     document.body.removeChild(overlay);
     sauvegarderCloud();
@@ -977,7 +977,7 @@ function osMasquerDock(){
     btn = document.createElement('div');
     btn.id = 'os-dock-recall';
     btn.style.cssText = 'position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:99001;background:rgba(255,255,255,0.18);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:4px 14px;cursor:pointer;font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:5px;transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateX(-50%) translateY(20px);';
-    btn.innerHTML = '⬆ Dock';
+    btn.innerHTML = '<i class="ti ti-upload"></i> Dock';
     btn.onclick = function(){ osAfficherDockTemporaire(); };
     document.body.appendChild(btn);
   }
@@ -1652,11 +1652,11 @@ function osSpotlightSearch(q){
   var res = document.getElementById('spotlight-results');
   if(!res) return;
   var pages = [
-    {id:'redaction',label:'Rédaction',icon:'✍️'},
+    {id:'redaction',label:'Rédaction',icon:'<i class="ti ti-writing"></i>'},
     {id:'app-correction',label:'Secrétariat de rédaction',icon:'<i class="ti ti-file-search"></i>'},
-    {id:'visuels-pro',label:'Visuels',icon:'🎨'},
-    {id:'newsletter',label:'Newsletter',icon:'📨'},
-    {id:'log',label:'Journal',icon:'📜'},
+    {id:'visuels-pro',label:'Visuels',icon:'<i class="ti ti-palette"></i>'},
+    {id:'newsletter',label:'Newsletter',icon:'<i class="ti ti-mail-forward"></i>'},
+    {id:'log',label:'Journal',icon:'<i class="ti ti-list-details"></i>'},
   ];
   pages = pages.filter(function(p){ return p.id!=='visuels-pro' || window._visuelsProAccessible===true; });
   var filtered = q ? pages.filter(function(p){ return p.label.toLowerCase().includes(q.toLowerCase()); }) : pages;
@@ -1948,7 +1948,7 @@ function osRenderNotifCenter(){
   }
   content.innerHTML = '';
 
-  var types = { ticket:'🚨 Assistance', correction:'🔍 Relecture (SR)', publication:'✅ Mise en ligne', sujet:'📌 Sujets à rédiger', suppression:'🗑️ Demandes de suppression', info:'ℹ️ Info' };
+  var types = { ticket:'<i class="ti ti-urgent"></i> Assistance', correction:'<i class="ti ti-search"></i> Relecture (SR)', publication:'<i class="ti ti-circle-check"></i> Mise en ligne', sujet:'<i class="ti ti-pin"></i> Sujets à rédiger', suppression:'<i class="ti ti-trash"></i> Demandes de suppression', info:'<i class="ti ti-info-circle"></i> Info' };
   var grouped = {};
   _ncItems.forEach(function(item, idx){
     var t = item.type || 'info';
@@ -1959,7 +1959,7 @@ function osRenderNotifCenter(){
   Object.keys(grouped).forEach(function(type){
     var label = document.createElement('div');
     label.className = 'nc-section-label';
-    label.textContent = types[type] || type;
+    label.innerHTML = types[type] || esc(type);
     content.appendChild(label);
 
     grouped[type].forEach(function(entry){
@@ -2022,7 +2022,7 @@ function _detectNotifType(msg){
   var m = (msg||'').toLowerCase();
   if(/erreur|error|impossible|refus|échoué|fail/.test(m)) return 'erreur';
   if(/attention|alerte|quota|limite|⚠️/.test(m)) return 'alerte';
-  if(/sauvegardé|publié|envoyé|créé|ajouté|activé|installé|supprimé|✓|✅/.test(m)) return 'succes';
+  if(/sauvegardé|publié|envoyé|créé|ajouté|activé|installé|supprimé|enregistré|importé|validé|mis à jour|marqué|lié|téléchargé|copié|classé|traité|accepté|modifié|✓|✅/.test(m)) return 'succes';
   return 'info';
 }
 
@@ -2052,18 +2052,18 @@ function osAppCourrierRender(){
   // Header
   var hdr = document.createElement('div');
   hdr.style.cssText = 'background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
-  hdr.innerHTML = '<div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;">📬 Registre du courrier</div>'
+  hdr.innerHTML = '<div><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;"><i class="ti ti-inbox"></i> Registre du courrier</div>'
     +'<div style="font-size:0.62rem;color:var(--gris);margin-top:2px;" id="courrier-sub">Chargement...</div></div>'
-    +'<button onclick="osAppCourrierCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">↺ Actualiser</button>';
+    +'<button onclick="osAppCourrierCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>';
   wc.appendChild(hdr);
 
   // Onglets
   var tabs = document.createElement('div');
   tabs.style.cssText = 'display:flex;border-bottom:1px solid var(--gris-bord);background:white;padding:0 0.8rem;flex-shrink:0;';
   tabs.innerHTML = [
-    {id:'nouveau', l:'📄 Enregistrer'},
-    {id:'entrant', l:'📥 Entrants'},
-    {id:'sortant', l:'📤 Sortants'},
+    {id:'nouveau', l:'<i class="ti ti-file-text"></i> Enregistrer'},
+    {id:'entrant', l:'<i class="ti ti-inbox"></i> Entrants'},
+    {id:'sortant', l:'<i class="ti ti-send"></i> Sortants'},
   ].map(function(t){
     var a = t.id===_courrierOnglet;
     return '<button class="courrier-tab" data-t="'+t.id+'" onclick="osAppCourrierOnglet(\''+t.id+'\',this)" style="font-size:0.72rem;padding:0.6rem 0.9rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid '+(a?'var(--rouge)':'transparent')+';color:'+(a?'var(--rouge)':'var(--gris)')+';font-weight:'+(a?'700':'400')+';white-space:nowrap;margin-bottom:-1px;">'+t.l+'</button>';
@@ -2134,7 +2134,7 @@ function osAppCourrierCharger(){
       if(tr) h += '<div style="font-size:0.62rem;color:var(--gris);margin-top:4px;">Traité par '+esc(tr)+'</div>';
       h += '</div>';
       h += '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">';
-      if(c.statut==='en_attente') h += '<button data-id="'+c.id+'" onclick="osAppCourrierTraiter(this.dataset.id)" style="font-size:0.65rem;padding:3px 10px;background:#155724;color:white;border:none;border-radius:5px;cursor:pointer;">✓ Traité</button>';
+      if(c.statut==='en_attente') h += '<button data-id="'+c.id+'" onclick="osAppCourrierTraiter(this.dataset.id)" style="font-size:0.65rem;padding:3px 10px;background:#155724;color:white;border:none;border-radius:5px;cursor:pointer;"><i class="ti ti-check"></i> Traité</button>';
       if(c.statut!=='classe') h += '<button data-id="'+c.id+'" onclick="osAppCourrierStatut(this.dataset.id,\'classe\')" style="font-size:0.65rem;padding:3px 10px;background:transparent;border:1px solid var(--gris-bord);border-radius:5px;cursor:pointer;color:var(--gris);">Classer</button>';
       h += '</div></div></div>';
     });
@@ -2154,7 +2154,7 @@ function osAppCourrierFormulaire(zone){
 
     // Upload PDF
     +'<div style="border:2px dashed var(--gris-bord);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:1rem;transition:border-color .15s;" id="courrier-drop" onclick="document.getElementById(\'courrier-pdf-input\').click()" ondragover="event.preventDefault();this.style.borderColor=\'var(--rouge)\'" ondragleave="this.style.borderColor=\'var(--gris-bord)\'" ondrop="osAppCourrierDrop(event)">'
-    +'<div style="font-size:1.5rem;margin-bottom:0.4rem;">📄</div>'
+    +'<div style="font-size:1.5rem;margin-bottom:0.4rem;"><i class="ti ti-file-text"></i></div>'
     +'<div style="font-size:0.8rem;font-weight:600;color:var(--encre);" id="courrier-drop-label">Dépose le PDF ici ou clique pour l\'ouvrir</div>'
     +'<div style="font-size:0.65rem;color:var(--gris);margin-top:3px;">Format PDF uniquement</div>'
     +'<input type="file" id="courrier-pdf-input" accept="application/pdf" style="display:none" onchange="osAppCourrierFichierChoisi(this.files[0])">'
@@ -2163,9 +2163,9 @@ function osAppCourrierFormulaire(zone){
     // Formulaire
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">'
     +'<div><label style="font-size:0.65rem;color:var(--gris);">Direction *</label><select id="c-direction" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:0.82rem;margin-top:3px;">'
-    +'<option value="entrant">📥 Courrier entrant</option><option value="sortant">📤 Courrier sortant</option></select></div>'
+    +'<option value="entrant"><i class="ti ti-inbox"></i> Courrier entrant</option><option value="sortant"><i class="ti ti-send"></i> Courrier sortant</option></select></div>'
     +'<div><label style="font-size:0.65rem;color:var(--gris);">Nature *</label><select id="c-nature" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:0.82rem;margin-top:3px;">'
-    +'<option value="papier">📋 Courrier papier</option><option value="email">📧 Email</option></select></div>'
+    +'<option value="papier"><i class="ti ti-clipboard-list"></i> Courrier papier</option><option value="email"><i class="ti ti-mail"></i> Email</option></select></div>'
     +'<div style="grid-column:1/-1"><label style="font-size:0.65rem;color:var(--gris);">Objet *</label><input id="c-objet" type="text" placeholder="Ex: Demande de subvention DRAC 2026" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:0.82rem;margin-top:3px;box-sizing:border-box;"></div>'
     +'<div><label style="font-size:0.65rem;color:var(--gris);">Expéditeur</label><input id="c-expediteur" type="text" placeholder="Nom / organisme" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:0.82rem;margin-top:3px;box-sizing:border-box;"></div>'
     +'<div><label style="font-size:0.65rem;color:var(--gris);">Destinataire</label><input id="c-destinataire" type="text" placeholder="Nom / service" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:0.82rem;margin-top:3px;box-sizing:border-box;"></div>'
@@ -2176,7 +2176,7 @@ function osAppCourrierFormulaire(zone){
     +'</div>'
 
     +'<div style="display:flex;gap:0.6rem;margin-top:1.2rem;">'
-    +'<button onclick="osAppCourrierEnregistrer()" style="padding:0.55rem 1.4rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">📬 Enregistrer et tamponner</button>'
+    +'<button onclick="osAppCourrierEnregistrer()" style="padding:0.55rem 1.4rem;background:var(--rouge);color:white;border:none;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;"><i class="ti ti-inbox"></i> Enregistrer et tamponner</button>'
     +'<button onclick="osAppCourrierEnregistrerSansPDF()" style="padding:0.55rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Enregistrer sans PDF</button>'
     +'</div>'
     +'</div></div>';
@@ -2196,7 +2196,7 @@ function osAppCourrierFichierChoisi(f){
   window._courrierPdfFile = f;
   var lbl = document.getElementById('courrier-drop-label');
   var drop = document.getElementById('courrier-drop');
-  if(lbl) lbl.textContent = '✓ '+f.name+' ('+Math.round(f.size/1024)+' Ko)';
+  if(lbl) lbl.textContent = f.name+' ('+Math.round(f.size/1024)+' Ko)';
   if(drop){ drop.style.borderColor='var(--rouge)'; drop.style.background='rgba(232,70,30,0.04)'; }
 }
 
@@ -2350,7 +2350,7 @@ async function _osCourrierProcessPDF(file, ref, objet, dir, nature, date, expedi
     a.click();
     URL.revokeObjectURL(url);
 
-    notif('PDF tamponné téléchargé ✓','succes');
+    notif('PDF tamponné téléchargé','succes');
     osAppCourrierSauvegarderEnBase(ref, objet, dir, nature, date, expediteur, destinataire, traitePar, reponse, notes, null);
 
   }catch(e){
@@ -2373,7 +2373,7 @@ function osAppCourrierSauvegarderEnBase(ref, objet, dir, nature, date, expediteu
   fetch(SB_URL+'/rest/v1/courrier',{method:'POST',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif('Courrier '+ref+' enregistré ✓','succes');
+      notif('Courrier '+ref+' enregistré','succes');
       window._courrierPdfFile = null;
       _courrierOnglet = dir==='entrant'?'entrant':'sortant';
       osAppCourrierCharger();
@@ -2390,7 +2390,7 @@ function osAppCourrierTraiter(id){
     fetch(SB_URL+'/rest/v1/courrier?id=eq.'+id,{
       method:'PATCH', headers:authH,
       body:JSON.stringify({statut:'traite', reponse:reponse.trim()||null, traite_par:getUserId()})
-    }).then(function(r){ if(r.ok){ notif('Marqué comme traité ✓','succes'); osAppCourrierCharger(); } });
+    }).then(function(r){ if(r.ok){ notif('Marqué comme traité','succes'); osAppCourrierCharger(); } });
   });
 }
 
@@ -2399,7 +2399,7 @@ function osAppCourrierStatut(id, statut){
   fetch(SB_URL+'/rest/v1/courrier?id=eq.'+id,{
     method:'PATCH', headers:authH,
     body:JSON.stringify({statut:statut})
-  }).then(function(r){ if(r.ok){ notif('Classé ✓','succes'); osAppCourrierCharger(); } });
+  }).then(function(r){ if(r.ok){ notif('Classé','succes'); osAppCourrierCharger(); } });
 }
 
 // ===== APPLI COM =====
@@ -2564,7 +2564,7 @@ function osAppComStatut(id, statut){
     method:'PATCH', headers:authH,
     body:JSON.stringify({statut_com:statut})
   }).then(function(r){
-    if(r.ok){ notif('Statut mis à jour ✓','succes'); osAppComCharger(); }
+    if(r.ok){ notif('Statut mis à jour','succes'); osAppComCharger(); }
     else notif('Erreur — colonne statut_com manquante ?','erreur');
   });
 }
@@ -2646,7 +2646,7 @@ function _osComGenererBriefDoc(article, checklist){
     +'@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.np{display:none;}.img-wrap .dl{display:none;}}';
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Brief — '+esc(article.titre||'Sans titre')+'</title><style>'+css+'</style></head><body>'
     +'<div class="np" style="max-width:720px;margin:0 auto 12px;text-align:right;">'
-    +'<button onclick="window.print()" style="background:#7D3C98;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;">🖨 Imprimer / PDF</button>'
+    +'<button onclick="window.print()" style="background:#7D3C98;color:white;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;margin-right:6px;"><i class="ti ti-printer"></i> Imprimer / PDF</button>'
     +'<button onclick="window.close()" style="background:#E5E7EB;color:#374151;border:none;padding:7px 16px;border-radius:6px;font-size:.8rem;cursor:pointer;">Fermer</button></div>'
     +'<div class="doc">'
     +'<div class="hdr"><div class="eyebrow">Ipsum Média · Brief visuels</div><h1>'+esc(article.titre||'Sans titre')+'</h1></div>'
@@ -2739,7 +2739,7 @@ function osAppComEnvoyerVisuel(titreArticle, redacId){
     Promise.all(envois).then(function(resultats){
       var reussis = resultats.filter(Boolean).length;
       var echecs = resultats.length - reussis;
-      if(reussis) notif(reussis+' visuel(s) envoyé(s) ✓'+(echecs?' — '+echecs+' échec(s)':''), echecs?'alerte':'succes');
+      if(reussis) notif(reussis+' visuel(s) envoyé(s)'+(echecs?' — '+echecs+' échec(s)':''), echecs?'alerte':'succes');
       else notif('Aucun visuel envoyé — erreur Drive','erreur');
     });
   };
@@ -2790,7 +2790,7 @@ function osToggleDND(){
     if(r.ok){
       osDNDMajUI();
       osVerifierDispoVisuels();
-      notif(_dndActif ? '🔕 Mode Ne pas déranger activé' : '🟢 Tu es de nouveau disponible', _dndActif?'':'succes');
+      notif(_dndActif ? 'Mode Ne pas déranger activé' : 'Tu es de nouveau disponible', _dndActif?'':'succes');
       if(_dndActif) _osNotifierVieAssoIndisponibilite(getUserNomComplet(), 'signalé(e) indisponible');
     }
   });
@@ -2871,7 +2871,7 @@ function osVisuelsVerifierAcces(){
     var mo = document.createElement('div');
     mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
     mo.innerHTML = '<div style="background:white;border-radius:12px;padding:2rem;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'
-      +'<div style="font-size:2.5rem;margin-bottom:0.8rem;">🔕</div>'
+      +'<div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-bell-off"></i></div>'
       +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.5rem;">Appli Visuels indisponible</div>'
       +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1.2rem;">'+(window._comDejaConnecte===false?'Aucun membre de la communication ne s\'est encore connecté.':'Un membre de la communication est disponible pour s\'en charger.')+'</div>'
       +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:0.5rem 1.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">OK</button>'

@@ -1,6 +1,6 @@
 // ===== TABLEAU D'AFFICHAGE (ANNONCES INTERNES) =====
 
-var ANNONCE_ICONS2 = { info:'ℹ️', alerte:'⚠️', succes:'✅', reunion:'📅', urgent:'🚨' };
+var ANNONCE_ICONS2 = { info:'<i class="ti ti-info-circle"></i>', alerte:'<i class="ti ti-alert-triangle"></i>', succes:'<i class="ti ti-circle-check"></i>', reunion:'<i class="ti ti-calendar"></i>', urgent:'<i class="ti ti-urgent"></i>' };
 var ANNONCE_COLORS = {
   info:    { bg:'#E6F1FB', c:'#0C447C', border:'#378ADD' },
   alerte:  { bg:'#FCEBEB', c:'#A32D2D', border:'#E24B4A' },
@@ -86,7 +86,7 @@ function osTableauRender(){
       html += '<input type="date" id="tableau-expire" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);border-radius:4px;" placeholder="Expire le...">';
       html += '</div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.6rem;">';
-      html += '<label for="tableau-epingle" style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--encre);">📌 Épingler cette annonce</label>';
+      html += '<label for="tableau-epingle" style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--encre);"><i class="ti ti-pin"></i> Épingler cette annonce</label>';
       html += '<label class="compo-toggle"><input type="checkbox" id="tableau-epingle"><span class="track"></span><span class="thumb"></span></label>';
       html += '</div>';
       html += '<textarea id="tableau-message" rows="2" placeholder="Ton message pour l\'équipe..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);font-family:DM Sans,sans-serif;font-size:0.88rem;resize:vertical;box-sizing:border-box;margin-bottom:0.6rem;border-radius:4px;"></textarea>';
@@ -102,7 +102,7 @@ function osTableauRender(){
 
     if(!visibles.length){
       html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);">';
-      html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;">📢</div>';
+      html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-speakerphone"></i></div>';
       html += '<div style="font-size:0.88rem;">Aucune annonce pour le moment.</div>';
       html += '</div>';
     } else {
@@ -121,9 +121,9 @@ function osTableauRender(){
 
         // Ligne top : icône + type + épinglé + rôle cible
         html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap;">';
-        html += '<span style="font-size:1rem;">'+(ANNONCE_ICONS2[a.type]||'ℹ️')+'</span>';
+        html += '<span style="font-size:1rem;">'+(ANNONCE_ICONS2[a.type]||'<i class="ti ti-info-circle"></i>')+'</span>';
         html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;font-weight:500;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+(a.type||'info')+'</span>';
-        if(a.epingle) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--rouge);font-weight:500;">📌 Épinglé</span>';
+        if(a.epingle) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--rouge);font-weight:500;"><i class="ti ti-pin"></i> Épinglé</span>';
         if(a.roles_cibles && a.roles_cibles !== 'tous') html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;background:var(--gris-clair);color:var(--gris);padding:1px 6px;border-radius:10px;">'+esc(a.roles_cibles)+' uniquement</span>';
         if(a.expire_le) html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:10px;">Expire le '+new Date(a.expire_le).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</span>';
         html += '</div>';
@@ -333,7 +333,7 @@ function osTableauChargerArchives(){
       try { dateStr = new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); } catch(e){}
       html += '<div style="background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem;opacity:0.7;">';
       html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem;">';
-      html += '<span style="font-size:0.9rem;">'+(ANNONCE_ICONS2[a.type]||'ℹ️')+'</span>';
+      html += '<span style="font-size:0.9rem;">'+(ANNONCE_ICONS2[a.type]||'<i class="ti ti-info-circle"></i>')+'</span>';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(a.type||'info')+'</span>';
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:auto;">'+dateStr+'</span>';
       html += '</div>';
@@ -428,7 +428,7 @@ function osMinuteurRender(){
   // Boutons
   + '<div style="display:flex;gap:0.7rem;">'
   + '<button id="min-btn-start" onclick="osMinuteurToggle()" style="background:var(--rouge);color:white;border:none;border-radius:10px;padding:0.7rem 2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;cursor:pointer;min-width:120px;">▶ Démarrer</button>'
-  + '<button onclick="osMinuteurReset()" style="background:var(--gris-clair);color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 1.2rem;font-family:Space Mono,monospace;font-size:0.8rem;cursor:pointer;">↺ Reset</button>'
+  + '<button onclick="osMinuteurReset()" style="background:var(--gris-clair);color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.7rem 1.2rem;font-family:Space Mono,monospace;font-size:0.8rem;cursor:pointer;"><i class="ti ti-refresh"></i> Reset</button>'
   + '</div>'
 
   // Laps (chrono)
@@ -469,7 +469,7 @@ function osMinuteurToggle(){
     }
     _minuteurDepart = Date.now() - (_minuteurPause||0);
     _minuteurInterval = setInterval(osMinuteurTick, 100);
-    if(btn) btn.innerHTML = '⏸ Pause';
+    if(btn) btn.innerHTML = '<i class="ti ti-player-pause"></i> Pause';
   }
 }
 
@@ -490,7 +490,7 @@ function osMinuteurTick(){
       var btn = document.getElementById('min-btn-start');
       if(btn) btn.innerHTML = '▶ Démarrer';
       if(aff) aff.style.color = 'var(--rouge)';
-      notif('⏰ Minuteur terminé !');
+      notif('Minuteur terminé !');
     }
   }
 }
@@ -568,7 +568,7 @@ function osTitresRender(){
     '<div style="display:flex;flex-direction:column;height:100%;padding:1rem 1.2rem;gap:0.8rem;">'
     + '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);">Résumé ou chapeau de l\'article</div>'
     + '<textarea id="titres-input" placeholder="Ex : La mairie de Castres a inauguré sa nouvelle médiathèque samedi. Environ 500 personnes étaient présentes pour l\'occasion…" style="flex:1;resize:none;border:1.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem;font-family:DM Sans,sans-serif;font-size:0.85rem;line-height:1.7;outline:none;max-height:180px;"></textarea>'
-    + '<button onclick="osTitresGenerer()" id="titres-btn" style="background:var(--rouge);color:white;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;align-self:flex-start;">🎲 Générer 5 titres</button>'
+    + '<button onclick="osTitresGenerer()" id="titres-btn" style="background:var(--rouge);color:white;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;align-self:flex-start;"><i class="ti ti-dice"></i> Générer 5 titres</button>'
     + '<div id="titres-resultat" style="flex:1;overflow-y:auto;"></div>'
     + '</div>';
 }
@@ -580,7 +580,7 @@ function osTitresGenerer(){
   if(!input||!input.value.trim()){ notif('Saisis un résumé'); return; }
 
   btn.disabled = true;
-  btn.textContent = '⏳ Génération…';
+  btn.textContent = 'Génération…';
   res.innerHTML = '<div style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);padding:1rem;text-align:center;">Claude réfléchit…</div>';
 
   fetch('https://api.anthropic.com/v1/messages', {
@@ -602,7 +602,7 @@ function osTitresGenerer(){
   .then(function(r){ return r.json(); })
   .then(function(data){
     btn.disabled = false;
-    btn.textContent = '🎲 Générer 5 titres';
+    btn.textContent = 'Générer 5 titres';
     var text = data.content && data.content[0] ? data.content[0].text : '';
     if(!text){ res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur de génération.</div>'; return; }
     var titres = text.split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
@@ -618,7 +618,7 @@ function osTitresGenerer(){
   })
   .catch(function(){
     btn.disabled = false;
-    btn.textContent = '🎲 Générer 5 titres';
+    btn.textContent = 'Générer 5 titres';
     res.innerHTML = '<div style="color:var(--rouge);font-size:0.82rem;padding:0.5rem;">Erreur réseau.</div>';
   });
 }
@@ -627,7 +627,7 @@ function osTitresCopier(el, titre){
   navigator.clipboard.writeText(titre).then(function(){
     el.style.background = 'var(--gris-clair)';
     var span = el.querySelector('span');
-    if(span) span.textContent = '✓ Copié !';
+    if(span) span.textContent = 'Copié !';
     setTimeout(function(){
       el.style.background = 'white';
       if(span) span.textContent = 'Copier';
@@ -657,7 +657,7 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
   function menuItem(label, fn){
     var item = document.createElement('div');
     item.style.cssText = 'padding:0.5rem 1rem;font-size:0.82rem;color:rgba(255,255,255,0.85);cursor:pointer;font-family:DM Sans,sans-serif;';
-    item.textContent = label;
+    item.innerHTML = label;
     item.onmouseover = function(){ item.style.background='rgba(255,255,255,0.1)'; };
     item.onmouseout  = function(){ item.style.background=''; };
     item.onclick = function(e){ e.stopPropagation(); fn(); if(menu.parentNode) menu.parentNode.removeChild(menu); };
@@ -672,17 +672,17 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
 
   // Épingler / désépingler
   if(estEpingle){
-    menu.appendChild(menuItem('📌 Retirer du dock', function(){
+    menu.appendChild(menuItem('<i class="ti ti-pin"></i> Retirer du dock', function(){
       osLaunchpadToggleEpingle(app.id, false);
     }));
   } else {
     var dockCount = (window._userApps||[]).length;
     if(dockCount < 8){
-      menu.appendChild(menuItem('📌 Épingler dans le dock', function(){
+      menu.appendChild(menuItem('<i class="ti ti-pin"></i> Épingler dans le dock', function(){
         osLaunchpadToggleEpingle(app.id, true);
       }));
     } else {
-      menu.appendChild(menuItem('📌 Dock plein (max 8)', function(){}));
+      menu.appendChild(menuItem('<i class="ti ti-pin"></i> Dock plein (max 8)', function(){}));
     }
   }
 
@@ -745,7 +745,7 @@ function osStoreRender(){
 
     // Header
     html += '<div style="padding:1rem 1.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
-    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">🏪 Compo Store</div>';
+    html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-building-store"></i> Compo Store</div>';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">Mini-apps optionnelles — installe ce qui t\'est utile.</div>';
     html += '</div>';
 
@@ -759,7 +759,7 @@ function osStoreRender(){
       html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
       html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'+app.icon+'</div>';
       html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+esc(app.label)+'</div>';
-      if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
+      if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;"><i class="ti ti-check"></i> Installée</div>';
       html += '</div></div>';
       html += '<div style="font-size:0.78rem;color:var(--gris);line-height:1.55;flex:1;">'+esc(app.desc||'')+'</div>';
       if(installe){
@@ -786,7 +786,7 @@ function osStoreRender(){
         html += '<div style="display:flex;align-items:center;gap:0.7rem;">';
         html += '<div style="width:44px;height:44px;border-radius:10px;background:'+app.color+';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;opacity:0.7;">'+app.icon+'</div>';
         html += '<div><div style="font-weight:600;font-size:0.88rem;color:var(--gris);">'+esc(app.label)+'</div>';
-        if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;">✓ Installée</div>';
+        if(installe) html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:#27500A;background:#EAF3DE;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:2px;"><i class="ti ti-check"></i> Installée</div>';
         html += '</div></div>';
         html += '<div style="font-size:0.75rem;color:var(--gris);line-height:1.5;flex:1;">'+esc(app.desc||'Outil de la v1 fonctionnant avec des fichiers JSON locaux.')+'</div>';
         if(installe){
@@ -969,7 +969,7 @@ function osNotesBuildUI(wc){
     if(note) html += osNotesEditorHTML(note);
   } else {
     html += '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gris);font-size:0.85rem;flex-direction:column;gap:0.5rem;">';
-    html += '<div style="font-size:2rem;">📝</div>';
+    html += '<div style="font-size:2rem;"><i class="ti ti-notes"></i></div>';
     html += '<div>Sélectionne une note ou crée-en une</div>';
     html += '</div>';
   }
@@ -995,7 +995,7 @@ function osNotesEditorHTML(note){
 
   html += '<div style="flex:1;"></div>';
   html += '<span id="notes-status" style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);"></span>';
-  html += '<button onclick="osNoteSupprimer(\''+note.id+'\')" style="background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Supprimer">🗑️</button>';
+  html += '<button onclick="osNoteSupprimer(\''+note.id+'\')" style="background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Supprimer"><i class="ti ti-trash"></i></button>';
   html += '</div>';
 
   // Titre
@@ -1105,7 +1105,7 @@ function osNotesSauvegarder(id){
   }).then(function(r){
     var st = document.getElementById('notes-status');
     if(r.ok){
-      if(st) st.textContent = '✓ Sauvegardé';
+      if(st) st.textContent = 'Sauvegardé';
       setTimeout(function(){ if(st) st.textContent = ''; }, 2000);
       // Mettre à jour le cache local
       var idx = _notesData.findIndex(function(n){ return n.id === id; });
@@ -1118,11 +1118,11 @@ function osNotesSauvegarder(id){
         if(liste) _notesRafraichirListe(liste);
       }
     } else {
-      if(st) st.textContent = '⚠️ Erreur';
+      if(st) st.textContent = 'Erreur';
     }
   }).catch(function(){
     var st = document.getElementById('notes-status');
-    if(st) st.textContent = '⚠️ Hors ligne';
+    if(st) st.textContent = 'Hors ligne';
   });
 }
 
@@ -1290,7 +1290,7 @@ function osNettoyageRender(moisLimite){
 
     html += '<div style="background:'+(pctJour>=90?'#FCEBEB':pctJour>=70?'#FAEEDA':'white')+';border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1rem;">';
     html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.7rem;">';
-    html += '<span style="font-size:1.2rem;">✉️</span>';
+    html += '<span style="font-size:1.2rem;"><i class="ti ti-mail"></i></span>';
     html += '<div style="flex:1;">';
     html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">Quota email Resend</div>';
     html += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);">Plan gratuit — 100 emails/jour · 3 000/mois</div>';
@@ -1318,9 +1318,9 @@ function osNettoyageRender(moisLimite){
     html += '</div>';
 
     if(pctJour >= 90){
-      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;font-weight:500;">⚠️ Quota journalier presque atteint — évite d\'envoyer d\'autres emails aujourd\'hui.</div>';
+      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#A32D2D;font-weight:500;"><i class="ti ti-alert-triangle"></i> Quota journalier presque atteint — évite d\'envoyer d\'autres emails aujourd\'hui.</div>';
     } else if(pctJour >= 70){
-      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#633806;">⚡ '+( 100 - emailsJour.length)+' emails restants aujourd\'hui.</div>';
+      html += '<div style="margin-top:0.6rem;font-family:Space Mono,monospace;font-size:0.65rem;color:#633806;"><i class="ti ti-bolt"></i> '+( 100 - emailsJour.length)+' emails restants aujourd\'hui.</div>';
     }
     html += '</div>';
 
@@ -1344,37 +1344,37 @@ function osNettoyageRender(moisLimite){
     }
 
     // Sections
-    html += section('📝', 'Brouillons anciens', artBrouillons.length,
+    html += section('<i class="ti ti-notes"></i>', 'Brouillons anciens', artBrouillons.length,
       artBrouillons.length+' article(s) brouillon non modifié(s) depuis +'+moisLimite+' mois',
       artBrouillons.length > 0 ? 'var(--rouge)' : 'var(--gris)',
       'Supprimer', 'nett-art-brouillons', artBrouillons.length === 0);
 
-    html += section('🖼️', 'Images base64 en base', artAvecB64.length,
+    html += section('<i class="ti ti-photo"></i>', 'Images base64 en base', artAvecB64.length,
       'Images encodées directement dans la BDD (~'+formatTaille(tailleB64Arts)+') — à migrer vers Storage',
       artAvecB64.length > 0 ? '#856404' : 'var(--gris)',
       'Nettoyer', 'nett-art-b64', artAvecB64.length === 0);
 
-    html += section('📰', 'CPs brouillons anciens', cpsBrouillons.length,
+    html += section('<i class="ti ti-news"></i>', 'CPs brouillons anciens', cpsBrouillons.length,
       cpsBrouillons.length+' communiqué(s) brouillon depuis +'+moisLimite+' mois',
       cpsBrouillons.length > 0 ? 'var(--rouge)' : 'var(--gris)',
       'Supprimer', 'nett-cps-brouillons', cpsBrouillons.length === 0);
 
-    html += section('📎', 'PDFs base64 en base', cpsB64.length,
+    html += section('<i class="ti ti-paperclip"></i>', 'PDFs base64 en base', cpsB64.length,
       'PDFs encodés en base64 dans la BDD (~'+formatTaille(tailleB64CPs)+') — colonne fichier_b64 résiduelle',
       cpsB64.length > 0 ? '#856404' : 'var(--gris)',
       'Vider', 'nett-cps-b64', cpsB64.length === 0);
 
-    html += section('📜', 'Historique des actions', histVieux.length,
+    html += section('<i class="ti ti-list-details"></i>', 'Historique des actions', histVieux.length,
       histVieux.length+' entrée(s) de log de plus de 6 mois',
       histVieux.length > 50 ? 'var(--rouge)' : 'var(--gris)',
       'Purger', 'nett-historique', histVieux.length === 0);
 
-    html += section('📢', 'Annonces archivées', annonces.length,
+    html += section('<i class="ti ti-speakerphone"></i>', 'Annonces archivées', annonces.length,
       annonces.length+' annonce(s) archivée(s) (actif=false)',
       annonces.length > 0 ? 'var(--gris)' : 'var(--gris)',
       'Vider', 'nett-annonces', annonces.length === 0);
 
-    html += section('💬', 'Historique contacts', contactHist.length,
+    html += section('<i class="ti ti-message-circle"></i>', 'Historique contacts', contactHist.length,
       'Total des échanges enregistrés dans le carnet de sources',
       'var(--gris)',
       '', 'nett-contact-hist', true); // info seulement, pas de suppression
@@ -1884,12 +1884,12 @@ function osAfficherSessionNonConfiguree(){
   screen.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;';
 
   screen.innerHTML =
-    '<div style="font-size:2.5rem;margin-bottom:0.5rem;">⏳</div>'
+    '<div style="font-size:2.5rem;margin-bottom:0.5rem;"><i class="ti ti-hourglass"></i></div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès en attente</div>'
     +'<div id="snc-msg" style="font-family:Space Mono,monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:380px;line-height:1.7;">Vérification en cours...</div>'
     +'<div style="margin-top:1.5rem;display:flex;gap:0.8rem;">'
     +'<button onclick="seDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>'
-    +'<button onclick="location.reload()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;">↻ Réessayer</button>'
+    +'<button onclick="location.reload()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;"><i class="ti ti-refresh"></i> Réessayer</button>'
     +'</div>';
 
   document.body.appendChild(screen);
@@ -2075,8 +2075,8 @@ function _osGestionDemandesRender(zone, membres, demandes){
     card.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(nom)+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-top:2px;">'+dateStr+' · '+esc(apps.join(', '))+'</div></div>'
       +'<div style="display:flex;gap:0.4rem;">'
-      +'<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✓ Approuver</button>'
-      +'<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;">✕ Refuser</button>'
+      +'<button onclick="osDemandeApprouver(\''+d.id+'\',\''+d.membre_id+'\',JSON.parse(decodeURIComponent(\''+appsJson+'\')))" style="background:#155724;color:white;border:none;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;"><i class="ti ti-check"></i> Approuver</button>'
+      +'<button onclick="osDemandeRefuser(\''+d.id+'\')" style="background:transparent;color:#721C24;border:1px solid #721C24;border-radius:6px;padding:0.3rem 0.8rem;font-family:Space Mono,monospace;font-size:0.62rem;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>'
       +'</div>';
     wrap.appendChild(card);
   });
@@ -2103,11 +2103,11 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'<div style="font-size:.62rem;color:var(--gris);">'+esc(m.email||'')+'</div>'
       +'</div>'
       +'<span style="font-size:.6rem;padding:2px 8px;border-radius:10px;background:'+rc[0]+';color:'+rc[1]+';font-weight:600;">'+esc(m.role||'')+'</span>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion">✉️</button>'
-      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google">📨</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe">🔑</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat">⏱️</button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver">✕</button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion"><i class="ti ti-mail"></i></button>'
+      +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google"><i class="ti ti-mail-forward"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe"><i class="ti ti-key"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osCrediterHeuresModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Créditer des heures de bénévolat"><i class="ti ti-stopwatch"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
 
@@ -2360,7 +2360,7 @@ function osCrediterHeuresEnvoyer(membreId){
     }
     var ov = document.getElementById('crediter-heures-overlay');
     if(ov) ov.remove();
-    notif('Heures créditées ✓','succes');
+    notif('Heures créditées','succes');
   }).catch(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
     if(btn){ btn.disabled=false; btn.textContent='Créditer'; }
@@ -2482,7 +2482,7 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
         html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="osGestionAppsToggleApp(\''+m.id+'\',\''+app.id+'\',this.checked)" style="accent-color:var(--rouge);width:14px;height:14px;flex-shrink:0;">';
         html += '<span style="font-size:0.82rem;">'+app.icon+'</span>';
         html += '<span style="font-size:0.72rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">'+esc(app.label)+'</span>';
-        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;">⚠</span>';
+        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;"><i class="ti ti-alert-triangle"></i></span>';
         html += '</label>';
       });
 
@@ -2648,7 +2648,7 @@ var CARNET_CAT_COLORS = {
   'Expert·e':     { bg:'#FBEAF0', c:'#72243E' },
   'Autre':        { bg:'#F1EFE8', c:'#5F5E5A' }
 };
-var CARNET_FIABILITE = { 1:'⚠️ Méfiance', 2:'~ Variable', 3:'✓ Fiable' };
+var CARNET_FIABILITE = { 1:'<i class="ti ti-alert-triangle"></i> Méfiance', 2:'~ Variable', 3:'<i class="ti ti-check"></i> Fiable' };
 var CARNET_FIABILITE_COLORS = {
   1:{ bg:'#FCEBEB', c:'#A32D2D' },
   2:{ bg:'#FAEEDA', c:'#633806' },
@@ -2739,7 +2739,7 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
 
   if(!contacts.length){
     html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);">';
-    html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;">📇</div>';
+    html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-address-book"></i></div>';
     html += _carnetContacts.length ? '<div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div>' : '<div style="font-size:0.88rem;">Le carnet est vide.<br>Ajoute ton premier contact !</div>';
     html += '</div>';
   } else {
@@ -2771,12 +2771,12 @@ function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
       // Droite
       html += '<div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">';
       if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;">✉️ Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;">📞 '+esc(c.telephone)+'</a>';
+      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;"><i class="ti ti-mail"></i> Email</a>';
+      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;"><i class="ti ti-phone"></i> '+esc(c.telephone)+'</a>';
       if(peutModifier){
         html += '<div style="display:flex;gap:4px;margin-top:4px;">';
-        html += '<button onclick="event.stopPropagation();osCarnetEditerDepuisFiche(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">✏️</button>';
-        html += '<button onclick="event.stopPropagation();osCarnetSupprimer(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid #ffaaaa;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;">🗑️</button>';
+        html += '<button onclick="event.stopPropagation();osCarnetEditerDepuisFiche(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-pencil"></i></button>';
+        html += '<button onclick="event.stopPropagation();osCarnetSupprimer(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid #ffaaaa;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
         html += '</div>';
       }
       html += '</div>';
@@ -2837,7 +2837,7 @@ function _rafraichirListeCarnet(){
 
   var html = '';
   if(!contacts.length){
-    html = '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2.5rem;margin-bottom:0.8rem;">📇</div><div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div></div>';
+    html = '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-address-book"></i></div><div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div></div>';
   } else {
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.7rem;">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
     contacts.forEach(function(c){
@@ -2854,8 +2854,8 @@ function _rafraichirListeCarnet(){
       html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+fcol.bg+';color:'+fcol.c+';">'+(CARNET_FIABILITE[fid]||'~')+'</span></div></div>';
       html += '<div style="text-align:right;flex-shrink:0;">';
       if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;">✉️ Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;">📞 '+esc(c.telephone)+'</a>';
+      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;"><i class="ti ti-mail"></i> Email</a>';
+      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;"><i class="ti ti-phone"></i> '+esc(c.telephone)+'</a>';
       html += '</div></div>';
     });
   }
@@ -2895,8 +2895,8 @@ function osCarnetOuvrirFiche(id){
   if(c.poste||c.organisation) html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
   html += '</div>';
   html += '<div style="display:flex;gap:0.4rem;align-items:center;">';
-  if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">✏️ Modifier</button>';
-  if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;">🗑️</button>';
+  if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;"><i class="ti ti-pencil"></i> Modifier</button>';
+  if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;"><i class="ti ti-trash"></i></button>';
   html += '</div></div>';
 
   // Corps
@@ -2970,7 +2970,7 @@ function osCarnetChargerCPs(contactId){
       var statLbl = cp.statut === 'publie' ? 'Publié' : 'Brouillon';
       html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osCarnetOuvrirCP(\''+cp.id+'\')" onmouseover="this.style.opacity=\'0.75\'" onmouseout="this.style.opacity=\'1\'">';
       html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-size:0.82rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📰 '+esc(cp.titre||'Sans titre')+'</div>';
+      html += '<div style="font-size:0.82rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="ti ti-news"></i> '+esc(cp.titre||'Sans titre')+'</div>';
       if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+dateStr+'</div>';
       html += '</div>';
       html += '<div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0;">';
