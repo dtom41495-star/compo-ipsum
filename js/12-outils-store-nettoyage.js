@@ -873,6 +873,7 @@ var _notesDebounce = {};
 var _notesData = [];
 var _noteSelectionnee = null;
 var _notesFiltreCouleur = 'Toutes';
+var _notesRecherche = '';
 
 function osNotesSetCouleurFiltre(c){
   _notesFiltreCouleur = c;
@@ -894,116 +895,92 @@ function osNotesRender(){
   .then(function(r){ return r.json(); })
   .then(function(notes){
     _notesData = (!notes||notes.code) ? [] : notes;
-    _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+    _noteSelectionnee = (_notesData.length && !_notesEstMobile()) ? _notesData[0].id : null;
     osNotesBuildUI(wc);
   }).catch(function(){
     wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement.</div>';
   });
 }
 
+function _notesEstMobile(){ return window.innerWidth < 700; }
+
+function _notesFiltrees(){
+  var q = (_notesRecherche||'').trim().toLowerCase();
+  return _notesData.filter(function(n){
+    var okCouleur = _notesFiltreCouleur === 'Toutes' || (n.couleur||'blanc') === _notesFiltreCouleur;
+    var okTexte = !q || (n.titre||'').toLowerCase().indexOf(q) >= 0 || (n.contenu||'').toLowerCase().indexOf(q) >= 0;
+    return okCouleur && okTexte;
+  }).sort(function(a,b){ return new Date(b.updated_at) - new Date(a.updated_at); });
+}
+
+function _notesLigneHtml(n){
+  var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
+  var extrait = (n.contenu||'').replace(/\s+/g,' ').trim();
+  return '<button type="button" class="nt-ligne'+(n.id === _noteSelectionnee ? ' actif' : '')+'" data-id="'+esc(n.id)+'" onclick="osNotesSelectionner(this.dataset.id)">'
+    +'<span class="nt-point" data-sombre-ignore style="background:'+col.dot+';"></span>'
+    +'<span class="nt-ligne-corps"><span class="nt-ligne-titre">'+esc(n.titre||'Sans titre')+'</span>'
+    +'<span class="nt-ligne-extrait">'+(extrait ? esc(extrait.slice(0,90)) : '<em>Vide</em>')+'</span></span>'
+    +'<span class="nt-ligne-date">'+_benvFormatDate(new Date(n.updated_at))+'</span>'
+    +'</button>';
+}
+
+function osNotesFiltrer(){
+  var i = document.getElementById('notes-recherche');
+  _notesRecherche = i ? i.value : '';
+  var liste = document.getElementById('notes-liste');
+  if(liste) _notesRafraichirListe(liste);
+}
+
 function osNotesBuildUI(wc){
-  var isMobile = window.innerWidth < 700;
-  var html = '<div style="display:flex;height:100%;overflow:hidden;">';
+  var mobile = _notesEstMobile();
+  var html = '<div class="nt">';
 
-  // Rail couleurs — même style que le rail Ma Rédac' / Sources
-  if(!isMobile){
-    html += '<div id="notes-couleur-rail" style="width:130px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;overflow-y:auto;">';
-    var couleursRail = [
-      {id:'Toutes', label:'Toutes', dot:null},
-      {id:'jaune',  label:'Jaune',  dot:NOTE_COULEURS.jaune.dot},
-      {id:'rose',   label:'Rose',   dot:NOTE_COULEURS.rose.dot},
-      {id:'vert',   label:'Vert',   dot:NOTE_COULEURS.vert.dot},
-      {id:'bleu',   label:'Bleu',   dot:NOTE_COULEURS.bleu.dot},
-      {id:'orange', label:'Orange', dot:NOTE_COULEURS.orange.dot},
-      {id:'blanc',  label:'Blanc',  dot:NOTE_COULEURS.blanc.dot}
-    ];
-    couleursRail.forEach(function(c){
-      var actif = _notesFiltreCouleur === c.id;
-      var pastille = c.dot ? '<span style="width:11px;height:11px;border-radius:50%;background:'+c.dot+';flex-shrink:0;border:1px solid rgba(0,0,0,0.1);"></span>' : '<i class="ti ti-list"></i>';
-      html += '<button onclick="osNotesSetCouleurFiltre(\''+c.id+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(actif?'var(--rouge)':'transparent')+';color:'+(actif?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+pastille+'</span>'+c.label+'</button>';
-    });
-    html += '</div>';
-  }
-
-  // Colonne — liste des notes
-  var notesFiltrees = _notesFiltreCouleur === 'Toutes' ? _notesData : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
-  // display: une seule fois — un style="display:none;...;display:flex;..." avec les deux
-  // déclarations dans le même attribut se résout toujours en flex (la dernière gagne),
-  // ce qui annulait silencieusement le masquage mobile.
-  var sidebarCachee = isMobile && _noteSelectionnee;
-  html += '<div id="notes-sidebar" style="display:'+(sidebarCachee?'none':'flex')+';width:'+(isMobile ? '100%' : '200px')+';flex-shrink:0;border-right:1px solid var(--gris-bord);flex-direction:column;background:var(--gris-clair);">';
-  html += '<div style="padding:0.7rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.4rem;">';
-  html += '<span id="notes-compteur" style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);flex:1;">'+notesFiltrees.length+' note(s)</span>';
-  html += '<button onclick="osNoteNouvelle()" style="background:var(--rouge);color:white;border:none;border-radius:5px;padding:3px 8px;font-size:0.68rem;font-family:Space Mono,monospace;cursor:pointer;">+ Nouvelle</button>';
+  // Colonne des notes (masquée sur téléphone quand une note est ouverte)
+  html += '<div id="notes-sidebar" class="nt-colonne"'+(mobile && _noteSelectionnee ? ' hidden' : '')+'>';
+  html += '<div class="nt-tete"><div class="nt-titre-app">Mes notes <span id="notes-compteur"></span></div>'
+    +'<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osNoteNouvelle()"><i class="ti ti-plus"></i>Nouvelle</button></div>';
+  html += '<label class="cx-recherche nt-recherche"><i class="ti ti-search"></i><input type="search" data-sombre-ignore id="notes-recherche" placeholder="Chercher dans mes notes" value="'+esc(_notesRecherche||'')+'" oninput="osNotesFiltrer()"></label>';
+  html += '<div class="nt-couleurs" role="group" aria-label="Filtrer par couleur">'
+    +'<button type="button" class="nt-filtre'+(_notesFiltreCouleur === 'Toutes' ? ' actif' : '')+'" onclick="osNotesSetCouleurFiltre(\'Toutes\')">Toutes</button>';
+  Object.keys(NOTE_COULEURS).forEach(function(c){
+    html += '<button type="button" class="nt-filtre nt-filtre-point'+(_notesFiltreCouleur === c ? ' actif' : '')+'" onclick="osNotesSetCouleurFiltre(\''+c+'\')" title="'+c.charAt(0).toUpperCase()+c.slice(1)+'" aria-label="'+c+'"><span data-sombre-ignore style="background:'+NOTE_COULEURS[c].dot+';"></span></button>';
+  });
   html += '</div>';
-  html += '<div style="flex:1;overflow-y:auto;" id="notes-liste">';
+  html += '<div id="notes-liste" class="nt-liste"></div>';
+  html += '</div>';
 
-  if(!notesFiltrees.length){
-    html += '<div style="padding:1rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+(_notesData.length?'Aucune note de cette couleur.':'Aucune note.<br>Crée ta première !')+'</div>';
+  // Éditeur
+  html += '<div id="notes-editor-zone" class="nt-editeur-zone"'+(mobile && !_noteSelectionnee ? ' hidden' : '')+'>';
+  var note = _noteSelectionnee && _notesData.find(function(n){ return n.id === _noteSelectionnee; });
+  if(note){
+    html += osNotesEditorHTML(note);
   } else {
-    notesFiltrees.forEach(function(n){
-      var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
-      var actif = n.id === _noteSelectionnee;
-      var dateStr = _benvFormatDate(new Date(n.updated_at));
-      html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-      html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
-      html += '</div>';
-    });
+    html += '<div class="cx-fiche-vide"><i class="ti ti-notes"></i>'+(_notesData.length ? 'Choisis une note ou crée-en une.' : 'Pas encore de note.<br>Idées de sujets, contacts, bouts de phrases : tout ce qui te sert.')+'</div>';
   }
-
-  html += '</div></div>'; // liste + sidebar
-
-  // Zone d'édition — même piège que notes-sidebar plus haut : un seul display:, jamais deux.
-  var editeurCache = isMobile && !_noteSelectionnee;
-  html += '<div style="display:'+(editeurCache?'none':'flex')+';flex:1;flex-direction:column;overflow:hidden;" id="notes-editor-zone">';
-
-  if(_noteSelectionnee){
-    var note = _notesData.find(function(n){ return n.id === _noteSelectionnee; });
-    // Bouton retour mobile
-    if(isMobile){
-      html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);background:var(--gris-clair);flex-shrink:0;">'
-        +'<button onclick="osNotesRetourListe()" style="background:none;border:none;font-size:0.8rem;cursor:pointer;color:var(--encre);font-family:Space Mono,monospace;padding:2px 0;">← Mes notes</button>'
-        +'</div>';
-    }
-    if(note) html += osNotesEditorHTML(note);
-  } else {
-    html += '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gris);font-size:0.85rem;flex-direction:column;gap:0.5rem;">';
-    html += '<div style="font-size:2rem;"><i class="ti ti-notes"></i></div>';
-    html += '<div>Sélectionne une note ou crée-en une</div>';
-    html += '</div>';
-  }
-
-  html += '</div>'; // editor zone
-  html += '</div>'; // flex main
+  html += '</div></div>';
 
   wc.innerHTML = html;
+  _notesRafraichirListe(document.getElementById('notes-liste'));
 }
 
 function osNotesEditorHTML(note){
   var col = NOTE_COULEURS[note.couleur] || NOTE_COULEURS.blanc;
-  var html = '';
-
-  // Toolbar de l'éditeur
-  html += '<div style="padding:0.5rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;align-items:center;gap:0.5rem;flex-shrink:0;background:'+col.bg+';">';
-
-  // Sélecteur couleur
+  var nid = esc(note.id);
+  var html = '<div class="nt-editeur" style="--nt-fond:'+col.bg+';">';
+  html += '<div class="nt-barre">';
+  if(_notesEstMobile()) html += '<button type="button" class="nt-retour" onclick="osNotesRetourListe()"><i class="ti ti-chevron-left"></i>Mes notes</button>';
+  html += '<div class="nt-pastilles" role="group" aria-label="Couleur de la note">';
   Object.keys(NOTE_COULEURS).forEach(function(c){
     var cc = NOTE_COULEURS[c];
-    html += '<button onclick="osNotesCouleur(\''+note.id+'\',\''+c+'\')" title="'+c+'" style="width:16px;height:16px;border-radius:50%;background:'+cc.bg+';border:2px solid '+cc.dot+';cursor:pointer;'+(note.couleur===c?'transform:scale(1.3);':'')+'"></button>';
+    html += '<button type="button" data-sombre-ignore class="nt-pastille'+((note.couleur||'blanc') === c ? ' actif' : '')+'" style="background:'+cc.bg+';border-color:'+cc.dot+';" onclick="osNotesCouleur(\''+nid+'\',\''+c+'\')" title="'+c.charAt(0).toUpperCase()+c.slice(1)+'" aria-label="Couleur '+c+'"></button>';
   });
-
-  html += '<div style="flex:1;"></div>';
-  html += '<span id="notes-status" style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);"></span>';
-  html += '<button onclick="osNoteSupprimer(\''+note.id+'\')" style="background:transparent;border:none;color:var(--gris);cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Supprimer"><i class="ti ti-trash"></i></button>';
   html += '</div>';
-
-  // Titre
-  html += '<input id="note-titre" type="text" value="'+esc(note.titre||'')+'" placeholder="Titre de la note" oninput="osNotesDebounce(\''+note.id+'\')" style="width:100%;padding:0.8rem 1rem;border:none;border-bottom:1px solid var(--gris-bord);font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);background:'+col.bg+';outline:none;box-sizing:border-box;">';
-
-  // Contenu
-  html += '<textarea id="note-contenu" oninput="osNotesDebounce(\''+note.id+'\')" placeholder="Écris ta note ici..." style="flex:1;width:100%;padding:1rem;border:none;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;color:var(--encre);background:'+col.bg+';outline:none;resize:none;box-sizing:border-box;overflow-y:auto;">'+esc(note.contenu||'')+'</textarea>';
-
+  html += '<span id="notes-status" class="nt-statut"></span>';
+  html += '<button type="button" class="mac-btn cpc-icone nt-supprimer" onclick="osNoteSupprimer(\''+nid+'\')" title="Supprimer la note" aria-label="Supprimer la note"><i class="ti ti-trash"></i></button>';
+  html += '</div>';
+  html += '<input id="note-titre" class="nt-champ-titre" type="text" value="'+esc(note.titre||'')+'" placeholder="Titre" oninput="osNotesDebounce(\''+nid+'\')">';
+  html += '<textarea id="note-contenu" class="nt-champ-texte" oninput="osNotesDebounce(\''+nid+'\')" placeholder="Écris ta note ici…">'+esc(note.contenu||'')+'</textarea>';
+  html += '</div>';
   return html;
 }
 
@@ -1062,7 +1039,7 @@ function osNoteNouvelle(){
     if(r.ok){
       _notesData.unshift(payload);
       _noteSelectionnee = id;
-      _notesFiltreCouleur = 'Toutes'; // sinon la nouvelle note (jaune) peut disparaître d'un filtre actif
+      _notesFiltreCouleur = 'Toutes'; _notesRecherche = ''; // sinon la nouvelle note peut disparaître d'un filtre actif
       var wc = document.getElementById('wincontent-notes');
       if(wc) osNotesBuildUI(wc);
       setTimeout(function(){
@@ -1076,7 +1053,7 @@ function osNoteNouvelle(){
 function osNotesDebounce(id){
   // Indicateur "en cours"
   var st = document.getElementById('notes-status');
-  if(st) st.textContent = '...';
+  if(st) st.textContent = 'Enregistrement…';
 
   if(_notesDebounce[id]) clearTimeout(_notesDebounce[id]);
   _notesDebounce[id] = setTimeout(function(){
@@ -1105,7 +1082,7 @@ function osNotesSauvegarder(id){
   }).then(function(r){
     var st = document.getElementById('notes-status');
     if(r.ok){
-      if(st) st.textContent = 'Sauvegardé';
+      if(st) st.innerHTML = '<i class="ti ti-check"></i>Enregistré';
       setTimeout(function(){ if(st) st.textContent = ''; }, 2000);
       // Mettre à jour le cache local
       var idx = _notesData.findIndex(function(n){ return n.id === id; });
@@ -1131,27 +1108,14 @@ function osNotesSauvegarder(id){
 // osNotesBuildUI : sans ça, un enregistrement sous filtre de couleur actif repeuplait
 // la liste avec toutes les notes, et une note modifiée gardait son ancienne position.
 function _notesRafraichirListe(liste){
-  var notesFiltrees = _notesFiltreCouleur === 'Toutes'
-    ? _notesData.slice()
-    : _notesData.filter(function(n){ return (n.couleur||'blanc') === _notesFiltreCouleur; });
-  notesFiltrees.sort(function(a,b){ return new Date(b.updated_at) - new Date(a.updated_at); });
-
-  var html = '';
-  notesFiltrees.forEach(function(n){
-    var col = NOTE_COULEURS[n.couleur] || NOTE_COULEURS.blanc;
-    var actif = n.id === _noteSelectionnee;
-    var dateStr = _benvFormatDate(new Date(n.updated_at));
-    html += '<div onclick="osNotesSelectionner(\''+n.id+'\')" style="padding:0.6rem 0.8rem;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;background:'+(actif?'white':'transparent')+';border-left:3px solid '+(actif?col.dot:'transparent')+';transition:background 0.1s;">';
-    html += '<div style="font-size:0.78rem;font-weight:'+(actif?'600':'400')+';color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(n.titre||'Sans titre')+'</div>';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:2px;">'+dateStr+'</div>';
-    html += '</div>';
-  });
-  liste.innerHTML = html;
-
-  // Le compteur vit hors de #notes-liste : sans cette mise à jour il affichait encore
-  // le nombre d'avant le filtrage.
+  if(!liste) return;
+  var notes = _notesFiltrees();
+  liste.innerHTML = notes.length
+    ? notes.map(_notesLigneHtml).join('')
+    : '<div class="nt-vide">'+(_notesData.length ? 'Aucune note ne correspond.' : 'Aucune note pour l\'instant.')+'</div>';
+  // Le compteur vit hors de #notes-liste
   var compteur = document.getElementById('notes-compteur');
-  if(compteur) compteur.textContent = notesFiltrees.length+' note(s)';
+  if(compteur) compteur.textContent = notes.length || '';
 }
 
 function osNotesCouleur(id, couleur){
@@ -1195,7 +1159,7 @@ function osNoteSupprimer(id){
   }).then(function(r){
     if(r.ok){
       _notesData = _notesData.filter(function(n){ return n.id !== id; });
-      _noteSelectionnee = _notesData.length ? _notesData[0].id : null;
+      _noteSelectionnee = (_notesData.length && !_notesEstMobile()) ? _notesData[0].id : null;
       var wc = document.getElementById('wincontent-notes');
       if(wc) osNotesBuildUI(wc);
       notif('Note supprimée');
@@ -2707,7 +2671,7 @@ function osCarnetBuildUI(wc){
 
   html += '<div class="cx-main">';
   html += '<div class="cx-barre">'
-    +'<label class="cx-recherche"><i class="ti ti-search"></i><input type="search" id="carnet-search" placeholder="Nom, organisation, poste…" value="'+esc(_carnetRecherche)+'" oninput="osCarnetFiltrer()"></label>'
+    +'<label class="cx-recherche"><i class="ti ti-search"></i><input type="search" data-sombre-ignore id="carnet-search" placeholder="Nom, organisation, poste…" value="'+esc(_carnetRecherche)+'" oninput="osCarnetFiltrer()"></label>'
     +'<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osCarnetNouveauForm()"><i class="ti ti-plus"></i><span>Nouveau contact</span></button>'
     +'</div>';
   html += '<div class="cx-corps">'
