@@ -151,6 +151,27 @@ function _accueilChargerCompteurs(){
   });
 }
 
+// Salutation de l'accueil selon l'heure, avec quelques variantes. Une seule par créneau
+// et par jour : elle ne change pas à chaque retour sur l'accueil.
+var ACCUEIL_SALUTS = [
+  { jusqua:5,  textes:['Encore debout, {p} ?', 'La rédaction dort, pas toi, {p}', 'Bonsoir {p}, nuit de bouclage ?'] },
+  { jusqua:9,  textes:['Bonjour {p}, déjà debout ?', 'Bonjour {p}, le café est prêt ?', 'Bonjour {p}, les rotatives chauffent'] },
+  { jusqua:12, textes:['Bonjour {p}', 'Bonjour {p}, quoi de neuf ce matin ?', 'Salut {p}, on attaque ?'] },
+  { jusqua:14, textes:['Bon appétit {p}', 'Pause déj, {p} ?', 'Bonjour {p}, une brève avant le dessert ?'] },
+  { jusqua:18, textes:['Bon après-midi {p}', 'Re-bonjour {p}', 'Salut {p}, l\'actu n\'attend pas'] },
+  { jusqua:22, textes:['Bonsoir {p}', 'Bonsoir {p}, une dernière brève ?', 'Bonsoir {p}, l\'édition du soir t\'attend'] },
+  { jusqua:24, textes:['Bonsoir {p}', 'Encore là, {p} ?', 'Bonsoir {p}, pense à dormir un peu'] }
+];
+function _accueilSalutation(prenom){
+  var d = new Date(), h = d.getHours();
+  var creneau = ACCUEIL_SALUTS.find(function(c){ return h < c.jusqua; }) || ACCUEIL_SALUTS[ACCUEIL_SALUTS.length-1];
+  var jour = d.getFullYear()*372 + d.getMonth()*31 + d.getDate();
+  var texte = creneau.textes[(jour + ACCUEIL_SALUTS.indexOf(creneau)) % creneau.textes.length];
+  var p = (prenom||'').trim();
+  // Sans prénom : on retire la place prévue pour lui
+  return p ? texte.replace('{p}', p) : texte.replace(/,? ?\{p\}/, '').replace(/ \?$/, ' ?');
+}
+
 function osAccueilMobileRendre(){
   var zone = document.getElementById('os-accueil-mobile');
   if(!zone){
@@ -205,7 +226,7 @@ function osAccueilMobileRendre(){
   var etatRedac = (redac && typeof osRedacEtatTexte === 'function') ? osRedacEtatTexte(redac) : null;
   var h = '<button type="button" class="acc-salut"'+(aMaRedac ? ' data-app="redac:profil"' : '')+'>'
     +'<span class="acc-avatar">'+avatar+'</span>'
-    +'<span class="acc-salut-txt"><span class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</span>'
+    +'<span class="acc-salut-txt"><span class="acc-bonjour">'+esc(_accueilSalutation(prenom))+'</span>'
     +'<span class="acc-sous-salut">'+(aMaRedac ? 'Voir mon profil et ma carte' : esc(jour))+'</span></span>'
     +(aMaRedac ? '<i class="ti ti-chevron-right acc-chevron"></i>' : '')
     +'</button>'
