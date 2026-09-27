@@ -982,7 +982,9 @@ function cpsCharger(){
 function cpsRendreListe(liste, cps){
   var filtreType   = window._cpsFiltreActif  || 'tous';
   var filtreDate   = window._cpsFiltreDateActif || 'tous';
-  var filtreVue    = window._cpsVueActif || 'liste';
+  // Mêmes cartes que Gestion des CPs par défaut ; sur téléphone, toujours les cartes
+  // (le choix de présentation n'y est pas proposé)
+  var filtreVue    = (typeof osEstMobile === 'function' && osEstMobile()) ? 'cartes' : (window._cpsVueActif || 'cartes');
   // Sans accents ni casse : "elections" doit trouver "Élections".
   function _cpsSansAccent(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
   var rechercheVal = _cpsSansAccent(window._cpsRecherche);
@@ -1028,14 +1030,13 @@ function cpsRendreListe(liste, cps){
   var encadreAttente = _cpInvitEncadreAttente();
   if(encadreAttente) liste.appendChild(encadreAttente);
 
-  // ── Barre de recherche
+  // ── Barre : recherche, actualiser, export
   var recherche = document.createElement('div');
-  recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
-  recherche.innerHTML = '<div style="position:relative;flex:1;">'
-    +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
-    +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
-    +'</div>'
-    +'<button class="cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
+  recherche.className = 'cpr-barre';
+  recherche.innerHTML = '<label class="cx-recherche"><i class="ti ti-search"></i>'
+    +'<input id="cps-search" type="search" data-sombre-ignore placeholder="Chercher un communiqué, une organisation…" value="'+esc(window._cpsRecherche||'')+'"></label>'
+    +'<button class="mac-btn cpc-icone" onclick="cpsCharger()" title="Actualiser" aria-label="Actualiser"><i class="ti ti-refresh"></i></button>'
+    +'<button class="mac-btn cpc-icone cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en tableur (CSV)" aria-label="Exporter en tableur"><i class="ti ti-table-export"></i></button>';
   liste.appendChild(recherche);
   var champRecherche = recherche.querySelector('#cps-search');
   if(champRecherche) champRecherche.oninput = function(){
@@ -1048,57 +1049,49 @@ function cpsRendreListe(liste, cps){
     if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
   };
 
-  // ── Filtres type
+  // ── Filtres type (mêmes pastilles que Gestion des CPs)
   var barreType = document.createElement('div');
-  barreType.className = 'cps-filtres';
-  barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
+  barreType.className = 'cpa-filtres cps-filtres';
   [
-    {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
-    {id:'communique',      icon:'ti-news',            label:'CPs ('+communiques.length+')'},
-    {id:'invitation_presse',icon:'ti-microphone',     label:'Invits ('+invitations.length+')'},
-    {id:'non_lus',         icon:'ti-circle-filled',   label:'Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
+    {id:'tous',             label:'Tous',        n:cps.length},
+    {id:'communique',       label:'Communiqués', n:communiques.length},
+    {id:'invitation_presse',label:'Invitations', n:invitations.length},
+    {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0}
   ].forEach(function(f){
     var btn = document.createElement('button');
-    var isActif = filtreType===f.id;
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
-      +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
-      +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
-    btn.innerHTML = (f.icon?'<i class="ti '+f.icon+'"></i> ':'')+esc(f.label);
+    btn.className = 'cpa-filtre'+(filtreType===f.id ? ' actif' : '');
+    btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
     btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     barreType.appendChild(btn);
   });
   if(nonLus.length > 0){
     var btnToutLu = document.createElement('button');
-    btnToutLu.className = 'cps-btn-tout-lu';
-    btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
+    btnToutLu.className = 'nlx-lien cps-btn-tout-lu';
     btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
     btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
     barreType.appendChild(btnToutLu);
   }
   liste.appendChild(barreType);
 
-  // ── Filtres date + vue
+  // ── Période + présentation
   var barreOpts = document.createElement('div');
-  barreOpts.className = 'cps-filtres';
-  barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
+  barreOpts.className = 'cps-filtres cpr-options';
   var leftDate = document.createElement('div');
-  leftDate.style.cssText = 'display:flex;gap:0.3rem;';
+  leftDate.className = 'cpr-segments';
   [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
     var b = document.createElement('button');
-    var a = filtreDate===f.id;
-    b.style.cssText = 'font-size:0.6rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--encre-fixe)':'var(--gris-bord)')+';background:'+(a?'var(--encre-fixe)':'white')+';color:'+(a?'white':'var(--gris)')+';';
+    b.className = filtreDate===f.id ? 'actif' : '';
     b.textContent = f.l;
     b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     leftDate.appendChild(b);
   });
   var rightVue = document.createElement('div');
-  rightVue.className = 'cps-vues';
-  rightVue.style.cssText = 'display:flex;gap:0.3rem;';
+  rightVue.className = 'cpr-segments cps-vues';
   [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
     var b = document.createElement('button');
-    var a = filtreVue===f.id;
-    b.style.cssText = 'font-size:0.75rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';display:inline-flex;align-items:center;';
-    b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
+    b.className = filtreVue===f.id ? 'actif' : '';
+    b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Par organisation',calendrier:'Calendrier'}[f.id];
+    b.setAttribute('aria-label', b.title);
     b.innerHTML = '<i class="ti '+f.icon+'"></i>';
     b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
     rightVue.appendChild(b);
@@ -1111,15 +1104,18 @@ function cpsRendreListe(liste, cps){
   var rsvpUrgents = filtres.filter(function(c){ return c.reponse_requise && c.date_reponse && new Date(c.date_reponse)>new Date(); });
   if(rsvpUrgents.length){
     var rsvpBanner = document.createElement('div');
-    rsvpBanner.style.cssText = 'background:#FFEEBA;border:1.5px solid #F39C12;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:center;gap:0.6rem;';
-    rsvpBanner.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:1.1rem;color:#856404;flex-shrink:0;"></i>'
-      +'<div><strong style="font-size:0.78rem;color:#856404;">'+rsvpUrgents.length+' invitation'+(rsvpUrgents.length>1?'s':'')+' nécessite'+(rsvpUrgents.length>1?'nt':'')+ ' une réponse</strong>'
-      +'<div style="font-size:0.68rem;color:#856404;">'+rsvpUrgents.map(function(c){return esc(c.titre||c.objet||'')+ ' → avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR');}).join(' · ')+'</div></div>';
+    rsvpBanner.className = 'cpr-alerte';
+    rsvpBanner.innerHTML = '<i class="ti ti-clock-exclamation"></i>'
+      +'<div><strong>'+rsvpUrgents.length+' invitation'+(rsvpUrgents.length>1?'s demandent':' demande')+' une réponse</strong>'
+      +'<div>'+rsvpUrgents.map(function(c){return esc(c.titre||c.objet||'')+' : avant le '+new Date(c.date_reponse).toLocaleDateString('fr-FR',{day:'numeric',month:'long'});}).join(' · ')+'</div></div>';
     liste.appendChild(rsvpBanner);
   }
 
   if(!filtres.length){
-    liste.appendChild(Object.assign(document.createElement('div'),{style:'text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;',textContent:'Aucun résultat.'}));
+    var vide = document.createElement('div');
+    vide.className = 'cpa-vide';
+    vide.innerHTML = '<i class="ti ti-news"></i>'+(cps.length ? 'Aucun communiqué pour ces filtres.' : 'Aucun communiqué publié pour l\'instant.');
+    liste.appendChild(vide);
     return;
   }
 
@@ -1138,31 +1134,31 @@ function cpsRendreListe(liste, cps){
 
 function cpsvListe(liste, cps, vus){
   var t = document.createElement('div');
+  t.className = 'cpr-liste';
+  var ST_L = {selectionne:['Tu couvres','#E3F6EA','#1E7A45'], disponible:['Disponible','#FFF6DB','#8A6400'], refuse:['Pas retenu·e','#F5F5F4','#6B7280']};
   cps.forEach(function(cp){
     var nonLu = vus.indexOf(cp.id)===-1;
-    var d = cp.date_cp||cp.date_reception ? new Date(cp.date_cp||cp.date_reception).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-    var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;border-bottom:1px solid var(--gris-bord);'+(nonLu?'background:rgba(125,60,152,0.04);':'');
-    // Même badge « Invitation » que sur les cartes (cpsMakeCard) : dans la liste
-    // compacte, rien ne distinguait un communiqué d'une invitation presse avant la
-    // ligne cliquée — il fallait ouvrir le détail pour le savoir.
-    var badgeInvit = cp.type === 'invitation_presse'
-      ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;flex-shrink:0;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
-      : '';
-    // Ma situation sur l'invitation, en toutes lettres (Tu couvres / Disponible...)
-    if(cp.type === 'invitation_presse'){
+    var estInvit = cp.type === 'invitation_presse';
+    var dRef = cp.date_cp||cp.date_reception||cp.created_at;
+    var d = dRef ? new Date(dRef).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+    var pastilles = '';
+    if(estInvit){
+      pastilles += '<span class="cx-pastille" style="background:#F3E8FA;color:#6B2F8A;"><i class="ti ti-microphone"></i>Invitation</span>';
+      // Ma situation sur l'invitation, en toutes lettres
       var moiL = _cpInvitEtat(cp, (window._cpsDisposParCp||{})[cp.id]).moi;
-      var ST_L = {selectionne:['Tu couvres','#E3F6EA','#1E7A45'], disponible:['Disponible','#FFF6DB','#8A6400'], refuse:['Pas retenu·e','var(--gris-clair)','var(--gris)']};
       var sl = moiL && ST_L[moiL.statut];
-      if(sl) badgeInvit += '<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:999px;background:'+sl[1]+';color:'+sl[2]+';flex-shrink:0;white-space:nowrap;">'+sl[0]+'</span>';
+      if(sl) pastilles += '<span class="cx-pastille" style="background:'+sl[1]+';color:'+sl[2]+';">'+sl[0]+'</span>';
     }
-    row.innerHTML = (nonLu?'<span style="width:7px;height:7px;border-radius:50%;background:#7D3C98;flex-shrink:0;display:inline-block;"></span>':'<span style="width:7px;height:7px;flex-shrink:0;display:inline-block;"></span>')
-      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:'+(nonLu?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
-      +'<div style="font-size:0.62rem;color:var(--gris);">'+esc(cp.organisation||cp.source||'')+(d?' · '+d:'')+'</div></div>'
-      +badgeInvit
-      +((cp.communique_fichiers&&cp.communique_fichiers.length)||cp.fichier_pdf||cp.fichier_b64?'<i class="ti ti-paperclip" title="Fichier(s) joint(s)" style="font-size:0.75rem;color:var(--gris);"></i>':'')
-      +(cp.reponse_requise?'<i class="ti ti-alert-triangle" title="Réponse requise" style="font-size:0.75rem;color:#856404;"></i>':'');
-    row.onclick = function(){ cpsOuvrirDetail(cp); };
+    var nbF = (cp.communique_fichiers ? cp.communique_fichiers.length : 0) + (cp.fichier_pdf || cp.fichier_b64 ? 1 : 0);
+    var row = document.createElement('div');
+    row.className = 'cpr-ligne'+(nonLu ? ' non-lu' : '');
+    row.innerHTML = '<span class="cpr-lu" title="'+(nonLu ? 'Non lu' : '')+'"></span>'
+      +'<div class="cpr-infos"><div class="cpr-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
+      +'<div class="cpr-meta">'+esc(cp.organisation||cp.source||'')+(nbF ? ' · <i class="ti ti-paperclip"></i>'+nbF : '')
+      +(cp.reponse_requise ? ' · <span class="cpr-rsvp"><i class="ti ti-clock-exclamation"></i>Réponse demandée</span>' : '')+'</div></div>'
+      +pastilles
+      +'<span class="cpr-date">'+d+'</span>';
+    row.onclick = function(){ row.classList.remove('non-lu'); cpsOuvrirDetail(cp); };
     t.appendChild(row);
   });
   liste.appendChild(t);
@@ -1312,8 +1308,10 @@ function cpsMakeCard(cp, isAdmin){
   // Actions à droite. Modifier / Supprimer / Publier seulement dans l'appli
   // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
   var actions = dispBtn;
-  if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
-  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
+  // Gestion des CPs (isAdmin) : seulement publier / modifier / supprimer. En faire un
+  // sujet ou écrire se fait côté rédaction (Ma rédac', onglet Communiqués).
+  if(!isAdmin && !sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
+  if(!isAdmin) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
   if(isAdmin){
     actions += '<button class="mac-btn cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
       +'<button class="mac-btn mac-btn-refus cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminSupprimer(this.dataset.cpid)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';

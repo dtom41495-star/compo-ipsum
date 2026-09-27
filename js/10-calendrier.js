@@ -1981,7 +1981,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   } else if(_redacOnglet === 'admin'){
     h += '<div id="redac-admin-zone" style="min-height:200px;"></div>';
   } else if(_redacOnglet === 'cps'){
-    h += '<div class="redac-cps-actualiser" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;"><button class="btn sec" onclick="cpsCharger()" style="font-size:0.75rem;padding:0.4rem 0.8rem;"><i class="ti ti-refresh"></i> Actualiser</button></div>';
+    // Actualiser et exporter sont dans la barre de la liste (cpsRendreListe)
     h += '<div id="cps-liste">'+osLoadingHtml()+'</div>';
   } else if(_redacOnglet === 'cps-abonnements'){
     h += '<div id="cps-abonnement-zone">'+osLoadingHtml()+'</div>';
