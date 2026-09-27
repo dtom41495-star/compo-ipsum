@@ -238,7 +238,7 @@ function osRedacChargerNonLus(){
         ? fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&redaction_id=in.('+mesRedacIds.join(',')+')&select=id', {headers:authH}).then(ids)
         : Promise.resolve([]),
       fetch(SB_URL+'/rest/v1/recrutement_annonces?statut=eq.ouvert&select=id', {headers:authH}).then(ids),
-      fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id', {headers:authH}).then(ids)
+      fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id'+_cpsFiltreRedacActive(), {headers:authH}).then(ids)
     ]);
   })
   .then(function(res){

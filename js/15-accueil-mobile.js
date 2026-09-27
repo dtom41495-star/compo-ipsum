@@ -128,7 +128,9 @@ function _accueilChargerCompteurs(){
   var mesRedacs = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid; }).map(function(l){ return l.redaction_id; });
   var pInv = lire('/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=gte.'+encodeURIComponent(maintenant.toISOString())+'&select=id,redaction_id')
     .then(function(cps){
-      cps = cps.filter(function(cp){ return !cp.redaction_id || mesRedacs.indexOf(cp.redaction_id) !== -1; });
+      // Rédaction sélectionnée seulement (plus celles adressées à toutes les rédactions)
+      var active = window._redacActiveId;
+      cps = cps.filter(function(cp){ return !cp.redaction_id || (active ? cp.redaction_id === active : mesRedacs.indexOf(cp.redaction_id) !== -1); });
       if(!cps.length) return 0;
       return lire('/rest/v1/invitations_disponibilites?statut=eq.selectionne&communique_id=in.('+cps.map(function(c){ return c.id; }).join(',')+')&select=communique_id')
         .then(function(choix){

@@ -145,7 +145,7 @@ function osRedacChargerAlertes(zone){
   }
   // Alerte invitations presse disponibles
   promesses.push(
-    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&select=id,titre,date_evenement,date_reponse,reponse_requise&order=date_evenement.asc',{headers:authH})
+    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&select=id,titre,date_evenement,date_reponse,reponse_requise&order=date_evenement.asc'+_cpsFiltreRedacActive(),{headers:authH})
     .then(function(r){return r.json();})
     .then(function(invits){
       if(!invits||invits.code||!invits.length) return '';
