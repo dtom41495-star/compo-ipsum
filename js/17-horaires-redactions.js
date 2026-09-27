@@ -229,6 +229,19 @@ function osRedacEtatTexte(redac){
   }
   return { ouvert:false, texte: e.prochaineOuverture ? 'Fermée · rouvre '+osHorairesQuandTexte(e.prochaineOuverture) : 'Fermée' };
 }
+// Bandeau « Rédaction fermée · rouvre… » / « pas encore lancée » (accueil téléphone,
+// haut de Ma rédac' sur ordinateur). Vide si la rédaction est ouverte.
+function osRedacBandeauFermeeHtml(redac){
+  var e = redac && osRedacEtatTexte(redac);
+  if(!e || e.ouvert) return '';
+  var pasLancee = !!redac.pas_lancee;
+  return '<div class="acc-fermee'+(pasLancee ? ' acc-pas-lancee' : '')+'" role="status">'
+    +'<i class="ti ti-'+(pasLancee ? 'hourglass' : 'clock-pause')+'"></i>'
+    +'<div><strong>'+(pasLancee ? esc(redac.nom)+' n\'est pas encore lancée' : esc(e.texte.replace(/^Fermée/, 'Rédaction fermée')))+'</strong>'
+    +'<span>'+(pasLancee ? 'Tu pourras y écrire et prendre des sujets dès son ouverture.' : 'Les notifications sur les articles et les sujets attendent la réouverture.')+'</span></div>'
+    +'</div>';
+}
+
 function osRedacEtatHtml(redac, classe){
   var e = osRedacEtatTexte(redac);
   if(!e) return '';

@@ -1974,6 +1974,9 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
 
   // Zone contenu — fond sombre comme dans la maquette
   var h = '<div class="redac-contenu" style="height:100%;overflow-y:auto;padding:0.9rem 1rem 3.2rem;display:flex;flex-direction:column;gap:0.9rem;box-sizing:border-box;">';
+  // Rédaction fermée ou pas encore lancée : bandeau bien visible sur ordinateur
+  // (sur téléphone, il est sur l'accueil)
+  if(redac && !(typeof osEstMobile === 'function' && osEstMobile()) && typeof osRedacBandeauFermeeHtml === 'function') h += osRedacBandeauFermeeHtml(redac);
   // Zone alertes — chargées en async après render
   h += '<div id="redac-alertes-zone"></div>';
 
