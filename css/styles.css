@@ -1793,6 +1793,14 @@ body {
 :root.theme-dark [style*="background: white"] {
   background: rgba(255,255,255,0.05) !important;
 }
+/* …sauf les fenêtres qui flottent par-dessus l'écran (Nouveau sujet…) : fond opaque,
+   sinon on lit le contenu de derrière à travers */
+:root.theme-dark [style*="position:fixed"] > [style*="background:white"],
+:root.theme-dark [style*="position: fixed"] > [style*="background: white"],
+:root.theme-dark [style*="position:fixed"] > [style*="background:white"] [style*="position:sticky"][style*="background:white"],
+:root.theme-dark [style*="position: fixed"] > [style*="background: white"] [style*="position: sticky"][style*="background: white"] {
+  background: rgb(30, 30, 48) !important;
+}
 :root.theme-dark [style*="background:var(--gris-clair)"],
 :root.theme-dark [style*="background: var(--gris-clair)"] {
   background: rgba(255,255,255,0.07) !important;
