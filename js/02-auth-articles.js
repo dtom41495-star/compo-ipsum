@@ -617,20 +617,21 @@ function maFiltrerListe(){
 }
 
 function maRefuserArticle(id){
-  var note = prompt('Motif du refus (visible par le rédacteur) :');
-  if(note === null) return; // annulé
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
-    method:'PATCH',headers:authH,
-    body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})
-  }).then(function(r){
-    if(r.ok){
-      notif('Article renvoyé en brouillon','succes');
-      // Mettre à jour le cache local
-      var idx = _maArticlesCache.findIndex(function(a){ return a.id===id; });
-      if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article à reprendre'; }
-      maFiltrerListe();
-    } else notif('Erreur','erreur');
+  osDemander('Motif du refus\nVisible par le rédacteur.', '', {oui:'Renvoyer à l\'auteur', long:true}).then(function(v){
+    if(v === null) return; var note = v;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{
+      method:'PATCH',headers:authH,
+      body:JSON.stringify({statut:'brouillon',note_interne:note||'Article à reprendre'})
+    }).then(function(r){
+      if(r.ok){
+        notif('Article renvoyé en brouillon','succes');
+        // Mettre à jour le cache local
+        var idx = _maArticlesCache.findIndex(function(a){ return a.id===id; });
+        if(idx>=0){ _maArticlesCache[idx].statut='brouillon'; _maArticlesCache[idx].note_interne=note||'Article à reprendre'; }
+        maFiltrerListe();
+      } else notif('Erreur','erreur');
+    });
   });
 }
 
@@ -2298,12 +2299,19 @@ function rFormat(type){
     case 'h3':     _rSetBlockType('H3');         return;
     case 'ul':     _rToggleList();               return;
     case 'link':
-      var texteSelectionne = window.getSelection().toString();
-      var url = prompt('URL du lien :', 'https://');
-      if(!url) return;
-      if(texteSelectionne) document.execCommand('createLink', false, url);
-      else document.execCommand('insertHTML', false, '<a href="'+esc(url)+'" target="_blank" rel="noopener">texte du lien</a>');
-      break;
+      // La fenêtre prend le focus : on retient la sélection pour la remettre ensuite
+      var selLien = window.getSelection();
+      var texteSelectionne = selLien.toString();
+      var plage = selLien.rangeCount ? selLien.getRangeAt(0).cloneRange() : null;
+      osDemander('Adresse du lien', 'https://', {oui:'Insérer le lien', icone:'link', type:'url'}).then(function(url){
+        if(!url || url === 'https://') return;
+        live.focus();
+        if(plage){ var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(plage); }
+        if(texteSelectionne) document.execCommand('createLink', false, url);
+        else document.execCommand('insertHTML', false, '<a href="'+esc(url)+'" target="_blank" rel="noopener">texte du lien</a>');
+        _rCorpsSync();
+      });
+      return;
     default: return;
   }
   _rCorpsSync();

@@ -35,7 +35,7 @@ function osDemandeApprouver(demandeId, membreId, appsDemandees){
 }
 
 function osDemandeRefuser(demandeId){
-  if(!confirm('Refuser cette demande ?')) return;
+  if(!osConfirmerPuis('Refuser cette demande ?', null, osDemandeRefuser, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/membres_demandes?id=eq.'+encodeURIComponent(demandeId), {
     method:'PATCH',
     headers: Object.assign({}, SB_HEADERS, {
@@ -837,7 +837,7 @@ function osBenvCommissionChangerRole(select){
 }
 
 function osBenvCommissionSupprimer(id){
-  if(!confirm('Supprimer cette commission et retirer tous ses membres ?')) return;
+  if(!osConfirmerPuis('Supprimer cette commission et retirer tous ses membres ?', null, osBenvCommissionSupprimer, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/commissions?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Commission supprimée'); osBenevolesDashRender(); } });
@@ -1401,7 +1401,7 @@ function osRedacChargerRecrutement(zone, uid){
 }
 
 function osRedacSupprimerAnnonceRecrutement(annonceId, annonceTitre){
-  if(!confirm('Supprimer l\'annonce "'+annonceTitre+'" ? Les candidatures associées seront aussi supprimées.')) return;
+  if(!osConfirmerPuis('Supprimer l\'annonce "'+annonceTitre+'" ? Les candidatures associées seront aussi supprimées.', null, osRedacSupprimerAnnonceRecrutement, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_candidatures?annonce_id=eq.'+annonceId,{method:'DELETE',headers:authH})
   .then(function(){
@@ -1418,7 +1418,7 @@ function osRedacSupprimerAnnonceRecrutement(annonceId, annonceTitre){
 }
 
 function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
-  if(!confirm('Envoyer un email à tous les membres actifs pour l\'annonce "'+annonceTitre+'" ?')) return;
+  if(!osConfirmerPuis('Envoyer un email à tous les membres actifs pour l\'annonce "'+annonceTitre+'" ?', null, osRedacNotifierAnnonceRecrutement, this, arguments)) return;
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/recrutement_annonces?id=eq.'+annonceId+'&select=*',{headers:authH})
@@ -1779,10 +1779,13 @@ function osNettoyerSujetsPublies(){
       }
       var noms = sujets.slice(0,5).map(function(s){return '• '+(s.titre||'Sans titre');}).join('\n')
         + (sujets.length>5 ? '\n… et '+(sujets.length-5)+' autre(s)' : '');
-      if(!confirm(sujets.length+' sujet(s) correspondant à un article déjà publié vont être supprimés définitivement :\n\n'+noms+'\n\nContinuer ?')){
-        if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
-        return;
-      }
+      osConfirmer(sujets.length+' sujet(s) correspondant à un article déjà publié vont être supprimés définitivement\n'+noms, {oui:'Supprimer'}).then(function(ok){
+        if(ok) supprimerSujets(sujets);
+        else if(btn){ btn.disabled=false; btn.textContent='🧹 Nettoyer les sujets publiés'; }
+      });
+    }
+
+    function supprimerSujets(sujets){
       var ids = sujets.map(function(s){return s.id;});
       fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')',{
         method:'DELETE', headers:Object.assign({},authH,{'Prefer':'return=minimal'})

@@ -981,8 +981,8 @@ function _statsRenderChiffresMois(zone){
       btnDel.innerHTML='<i class="ti ti-trash"></i>';
       btnDel.onmouseover=function(){this.style.color='#FF5F57';};
       btnDel.onmouseout=function(){this.style.color='rgba(0,0,0,0.2)';};
-      btnDel.onclick=(function(dd){return function(){
-        if(!confirm('Supprimer '+dd.mois+' ?')) return;
+      btnDel.onclick=(function(dd){return function supprimerMois(){
+        if(!osConfirmerPuis('Supprimer '+dd.mois+' ?', null, supprimerMois, this, arguments)) return;
         fetch(SB_URL+'/rest/v1/stats_mensuelles?id=eq.'+dd.id,{method:'DELETE',headers:SB_HEADERS})
         .then(function(r){if(r.ok){notif(dd.mois+' supprimé');_statsRenderChiffresMois(zone);}});
       };})(d);
@@ -1367,7 +1367,7 @@ function _maRenderBrouillonsLocaux(list, count){
 }
 
 function maOsSupprimerBrouillonLocal(id){
-  if(!confirm('Supprimer définitivement ce brouillon ?\n\nIl n\'existe que sur cet appareil — il ne sera récupérable nulle part ailleurs.')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce brouillon ?\n\nIl n\'existe que sur cet appareil — il ne sera récupérable nulle part ailleurs.', null, maOsSupprimerBrouillonLocal, this, arguments)) return;
   var drafts = [];
   try{ drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]'); }catch(e){ drafts = []; }
   var reste = drafts.filter(function(d){ return !d || d.id !== id; });

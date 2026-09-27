@@ -196,9 +196,14 @@ function _recrutementFormat(taId, type){
     if(type==='bold'){ before='**'; after='**'; ph='texte en gras'; }
     else if(type==='italic'){ before='_'; after='_'; ph='texte en italique'; }
     else {
-      var url = prompt('URL du lien :','https://');
-      if(!url) return;
-      before='['; after='](' + url + ')'; ph='texte du lien';
+      osDemander('Adresse du lien', 'https://', {oui:'Insérer le lien', icone:'link', type:'url'}).then(function(url){
+        if(!url || url === 'https://') return;
+        var v = ta.value, texteLien = v.slice(s, e) || 'texte du lien';
+        ta.value = v.slice(0,s) + '[' + texteLien + '](' + url + ')' + v.slice(e);
+        ta.focus(); ta.setSelectionRange(s+1, s+1+texteLien.length);
+        _recrutementApercu(taId);
+      });
+      return;
     }
     var texte = sel || ph;
     ta.value = val.slice(0,s) + before+texte+after + val.slice(e);
@@ -301,20 +306,21 @@ function _rInsererMarqueursCommentaires(root, rows, editable){
 function rModifierCommentaire(id){
   var marker = document.querySelector('.r-comment-marker[data-comment-id="'+id+'"]');
   var texteActuel = marker ? marker.dataset.texte : '';
-  var nouveauTexte = prompt('Modifier le commentaire :', texteActuel);
-  if(nouveauTexte===null || !nouveauTexte.trim()) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
-    method:'PATCH', headers:authH, body:JSON.stringify({texte:nouveauTexte.trim()})
-  }).then(function(r){
-    if(r.ok){ notif('Commentaire modifié','succes'); rChargerCommentaires(currentDoc.id); }
-    else notif('Erreur — vérifie les droits','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  osDemander('Modifier le commentaire', texteActuel, {oui:'Enregistrer', long:true}).then(function(v){
+    var nouveauTexte = v; if(nouveauTexte===null || !nouveauTexte.trim()) return;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
+      method:'PATCH', headers:authH, body:JSON.stringify({texte:nouveauTexte.trim()})
+    }).then(function(r){
+      if(r.ok){ notif('Commentaire modifié','succes'); rChargerCommentaires(currentDoc.id); }
+      else notif('Erreur — vérifie les droits','erreur');
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+  });
 }
 // Supprime un commentaire qu'on a soi-même écrit — récupère aussi le cas "je me suis
 // trompé de paragraphe" : on supprime puis on repose le commentaire au bon endroit.
 function rSupprimerCommentaire(id){
-  if(!confirm('Supprimer ce commentaire ?')) return;
+  if(!osConfirmerPuis('Supprimer ce commentaire ?', null, rSupprimerCommentaire, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/commentaires_articles?id=eq.'+encodeURIComponent(id), {
     method:'DELETE', headers:authH
@@ -369,16 +375,17 @@ function rAjouterCommentaire(){
   if(!live || !bloc){ notif('Place le curseur dans le paragraphe à commenter'); return; }
   var idx = _rIndexDuBlocReel(live, bloc);
   if(idx < 0) return;
-  var texte = prompt('Ton commentaire sur ce paragraphe :');
-  if(!texte || !texte.trim()) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/commentaires_articles', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({ article_id:currentDoc.id, bloc_index:idx, texte:texte.trim(), auteur_id:getUserId() })
-  }).then(function(r){
-    if(r.ok){ notif('Commentaire ajouté','succes'); rChargerCommentaires(currentDoc.id); }
-    else notif('Erreur — vérifie les droits','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  osDemander('Ton commentaire sur ce paragraphe', '', {oui:'Commenter', icone:'message-circle', long:true}).then(function(v){
+    var texte = v; if(!texte || !texte.trim()) return;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/commentaires_articles', {
+      method:'POST', headers:authH,
+      body: JSON.stringify({ article_id:currentDoc.id, bloc_index:idx, texte:texte.trim(), auteur_id:getUserId() })
+    }).then(function(r){
+      if(r.ok){ notif('Commentaire ajouté','succes'); rChargerCommentaires(currentDoc.id); }
+      else notif('Erreur — vérifie les droits','erreur');
+    }).catch(function(){ notif('Erreur réseau','erreur'); });
+  });
 }
 
 function _rPlacerCurseurDans(el){
@@ -706,7 +713,7 @@ function _osArticlePubliable(article){
 }
 
 function publierArticle(id){
-  if(!confirm('Marquer cet article comme publie sur Substack ?')) return;
+  if(!osConfirmerPuis('Marquer cet article comme publie sur Substack ?', {oui:'Marquer publié'}, publierArticle, this, arguments)) return;
   var authHChk = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id', {headers:authHChk})
   .then(function(r){ return r.json(); })

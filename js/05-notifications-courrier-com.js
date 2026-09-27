@@ -2384,13 +2384,14 @@ function osAppCourrierSauvegarderEnBase(ref, objet, dir, nature, date, expediteu
 }
 
 function osAppCourrierTraiter(id){
-  var reponse = prompt('Quelle réponse a été apportée ?','');
-  if(reponse===null) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/courrier?id=eq.'+id,{
-    method:'PATCH', headers:authH,
-    body:JSON.stringify({statut:'traite', reponse:reponse.trim()||null, traite_par:getUserId()})
-  }).then(function(r){ if(r.ok){ notif('Marqué comme traité ✓','succes'); osAppCourrierCharger(); } });
+  osDemander('Quelle réponse a été apportée ?', '', {oui:'Marquer comme traité', long:true}).then(function(v){
+    var reponse = v; if(reponse===null) return;
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/courrier?id=eq.'+id,{
+      method:'PATCH', headers:authH,
+      body:JSON.stringify({statut:'traite', reponse:reponse.trim()||null, traite_par:getUserId()})
+    }).then(function(r){ if(r.ok){ notif('Marqué comme traité ✓','succes'); osAppCourrierCharger(); } });
+  });
 }
 
 function osAppCourrierStatut(id, statut){
@@ -2779,7 +2780,7 @@ function osInitDND(){
 }
 
 function osToggleDND(){
-  if(!_dndActif && !confirm('Te marquer indisponible ? La vie associative en sera informée par email.')) return;
+  if(!_dndActif && !osConfirmerPuis('Te marquer indisponible ? La vie associative en sera informée par email.', {oui:'Me marquer indisponible'}, osToggleDND, this, arguments)) return;
   _dndActif = !_dndActif;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+getUserId(),{

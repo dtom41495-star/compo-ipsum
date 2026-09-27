@@ -268,7 +268,7 @@ function osTableauEditer(id){
 }
 
 function osTableauArchiver(id, btn){
-  if(!confirm('Archiver cette annonce pour tout le monde ?')) return;
+  if(!osConfirmerPuis('Archiver cette annonce pour tout le monde ?', null, osTableauArchiver, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/annonces?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
     headers: Object.assign({}, SB_HEADERS, {
@@ -838,7 +838,7 @@ function osStoreInstaller(appId){
 function osStoreDesinstaller(appId){
   var uid = getUserId(); if(!uid) return;
   var app = ALL_APPS_CATALOGUE.find(function(a){ return a.id === appId; });
-  if(!confirm('Désinstaller '+(app?app.label:appId)+' ?')) return;
+  if(!osConfirmerPuis('Désinstaller '+(app?app.label:appId)+' ?', null, osStoreDesinstaller, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+uid+'&app_id=eq.'+encodeURIComponent(appId), {
     method:'DELETE',
     headers: Object.assign({}, SB_HEADERS, {
@@ -1185,7 +1185,7 @@ function osNotesCouleur(id, couleur){
 }
 
 function osNoteSupprimer(id){
-  if(!confirm('Supprimer cette note définitivement ?')) return;
+  if(!osConfirmerPuis('Supprimer cette note définitivement ?', null, osNoteSupprimer, this, arguments)) return;
   var uid = getUserId(); if(!uid) return;
   fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), {
     method:'DELETE',
@@ -1447,7 +1447,7 @@ function osNettoyageAction(btnId){
 
   if(btnId === 'nett-art-brouillons'){
     if(!d.artBrouillons.length) return;
-    if(!confirm('Supprimer définitivement '+d.artBrouillons.length+' brouillon(s) ancien(s) ?\nCette action est irréversible.')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.artBrouillons.length+' brouillon(s) ancien(s) ?\nCette action est irréversible.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.artBrouillons.map(function(a){ return a.id; });
     _nettSupprimerParLots('/rest/v1/articles', 'id', ids, headers, function(ok){
       notif(ok ? ids.length+' brouillon(s) supprimé(s) !' : 'Erreur suppression');
@@ -1457,7 +1457,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-art-b64'){
     if(!d.artAvecB64.length) return;
-    if(!confirm('Vider le champ image (base64) de '+d.artAvecB64.length+' article(s) ?\nLes images en Storage ne sont pas touchées.')) return;
+    if(!osConfirmerPuis('Vider le champ image (base64) de '+d.artAvecB64.length+' article(s) ?\nLes images en Storage ne sont pas touchées.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.artAvecB64.map(function(a){ return a.id; });
     _nettViderChampParLots('/rest/v1/articles', 'id', ids, {image: null}, headers, function(ok){
       notif(ok ? 'Images base64 supprimées !' : 'Erreur');
@@ -1467,7 +1467,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-cps-brouillons'){
     if(!d.cpsBrouillons.length) return;
-    if(!confirm('Supprimer définitivement '+d.cpsBrouillons.length+' CP(s) brouillon(s) ancien(s) ?')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.cpsBrouillons.length+' CP(s) brouillon(s) ancien(s) ?', null, osNettoyageAction, this, arguments)) return;
     var ids = d.cpsBrouillons.map(function(c){ return c.id; });
     _nettSupprimerParLots('/rest/v1/communiques', 'id', ids, headers, function(ok){
       notif(ok ? ids.length+' CP(s) supprimé(s) !' : 'Erreur');
@@ -1477,7 +1477,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-cps-b64'){
     if(!d.cpsB64.length) return;
-    if(!confirm('Vider la colonne fichier_b64 de '+d.cpsB64.length+' communiqué(s) ?\nLes PDFs en Storage (fichier_pdf) ne sont pas touchés.')) return;
+    if(!osConfirmerPuis('Vider la colonne fichier_b64 de '+d.cpsB64.length+' communiqué(s) ?\nLes PDFs en Storage (fichier_pdf) ne sont pas touchés.', null, osNettoyageAction, this, arguments)) return;
     var ids = d.cpsB64.map(function(c){ return c.id; });
     _nettViderChampParLots('/rest/v1/communiques', 'id', ids, {fichier_b64: null}, headers, function(ok){
       notif(ok ? 'Base64 CPs vidé !' : 'Erreur');
@@ -1487,7 +1487,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-historique'){
     if(!d.histVieux.length) return;
-    if(!confirm('Supprimer '+d.histVieux.length+' entrée(s) de log de plus de 6 mois ?')) return;
+    if(!osConfirmerPuis('Supprimer '+d.histVieux.length+' entrée(s) de log de plus de 6 mois ?', null, osNettoyageAction, this, arguments)) return;
     var cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - 6);
     fetch(SB_URL+'/rest/v1/historique?created_at=lt.'+cutoff.toISOString(), {
@@ -1500,7 +1500,7 @@ function osNettoyageAction(btnId){
 
   else if(btnId === 'nett-annonces'){
     if(!d.annonces.length) return;
-    if(!confirm('Supprimer définitivement '+d.annonces.length+' annonce(s) archivée(s) ?')) return;
+    if(!osConfirmerPuis('Supprimer définitivement '+d.annonces.length+' annonce(s) archivée(s) ?', null, osNettoyageAction, this, arguments)) return;
     fetch(SB_URL+'/rest/v1/annonces?actif=eq.false', {
       method:'DELETE', headers:headers
     }).then(function(r){
@@ -1576,7 +1576,7 @@ function osNettoyageRechercherArticles(){
 }
 
 function osNettoyageSupprimerArticle(id){
-  if(!confirm('Supprimer définitivement cet article (et son historique) ?\nCette action est irréversible.')) return;
+  if(!osConfirmerPuis('Supprimer définitivement cet article (et son historique) ?\nCette action est irréversible.', null, osNettoyageSupprimerArticle, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   // Nettoyer l'historique lié d'abord — sinon on laisse des lignes orphelines
   // (ou la suppression de l'article échoue si une contrainte FK existe).
@@ -1619,7 +1619,7 @@ function osNettoyageRechercherSujets(){
 }
 
 function osNettoyageSupprimerSujet(id){
-  if(!confirm('Supprimer définitivement ce sujet ?\nLes articles qui y étaient liés perdront simplement ce lien (rien d\'autre ne change pour eux).\nCette action est irréversible.')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce sujet ?\nLes articles qui y étaient liés perdront simplement ce lien (rien d\'autre ne change pour eux).\nCette action est irréversible.', null, osNettoyageSupprimerSujet, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   // Détacher les articles qui pointent vers ce sujet avant de le supprimer —
   // sinon référence morte (ou rejet FK si une contrainte existe côté base).
@@ -2218,7 +2218,7 @@ function osInviterMembreValider(){
 
 function osRenvoyerInvitation(email, nom, btn){
   if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
-  if(!confirm('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?')) return;
+  if(!osConfirmerPuis('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?', {oui:'Renvoyer'}, osRenvoyerInvitation, this, arguments)) return;
   var texteOriginal = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
   var prenomSeul = (nom||'').split(' ')[0] || '';
@@ -2242,7 +2242,7 @@ function osRenvoyerInvitation(email, nom, btn){
 }
 
 function osDesactiverMembre(id, nom){
-  if(!confirm('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.')) return;
+  if(!osConfirmerPuis('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.', null, osDesactiverMembre, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
   .then(function(r){
@@ -2610,7 +2610,7 @@ function osGestionAppsSelectAll(membreId, activer){
 
 function osGestionAppsAppliquerProfil(membreId, profil){
   var labels = { redacteur:'Rédacteur', correcteur:'SR', admin:'Admin' };
-  if(!confirm('Appliquer le profil "'+labels[profil]+'" à ce membre ?\nSes apps actuelles seront remplacées.')) return;
+  if(!osConfirmerPuis('Appliquer le profil "'+labels[profil]+'" à ce membre ?\nSes apps actuelles seront remplacées.', {oui:'Appliquer'}, osGestionAppsAppliquerProfil, this, arguments)) return;
 
   var ids = PROFILS_PREDEFINIS[profil] || PROFILS_PREDEFINIS.redacteur;
 
@@ -3233,7 +3233,7 @@ function osCarnetSauver(){
 }
 
 function osCarnetSupprimer(id){
-  if(!confirm('Supprimer définitivement ce contact et tout son historique ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce contact et tout son historique ?', null, osCarnetSupprimer, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(id), {
     method: 'DELETE',
     headers: Object.assign({}, SB_HEADERS, {

@@ -1452,7 +1452,7 @@ function osNettoyerServiceWorker(){
 // brouillons enregistrés localement (IndexedDB) — les effacer causerait une vraie
 // perte de travail, pas juste un badge qui reste allumé un peu plus longtemps.
 function osReinitialiserCache(){
-  if(!confirm('Réinitialiser le cache de Compo ?\n\nÇa ne te déconnecte pas et ne touche pas à tes brouillons en cours.')) return;
+  if(!osConfirmerPuis('Réinitialiser le cache de Compo ?\n\nÇa ne te déconnecte pas et ne touche pas à tes brouillons en cours.', null, osReinitialiserCache, this, arguments)) return;
   ['compo_os_sujets_vus','compo_os_recrutement_vus','compo_workflow_vus_ids'].forEach(function(k){
     try{ localStorage.removeItem(k); }catch(e){}
   });

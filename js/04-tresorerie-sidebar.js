@@ -235,7 +235,7 @@ function osBoutiqueOnglet(onglet){
 
 function osBoutiqueCommander(articleId, nom, cout){
   if(window._boutiqueSolde < cout){ notif('Solde insuffisant — il vous faut '+cout+'h, vous avez '+window._boutiqueSolde+'h'); return; }
-  if(!confirm('Échanger '+cout+'h contre "'+nom+'" ?')) return;
+  if(!osConfirmerPuis('Échanger '+cout+'h contre "'+nom+'" ?', {oui:'Échanger'}, osBoutiqueCommander, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_commandes',{
     method:'POST', headers:authH,
@@ -303,37 +303,39 @@ function osBoutiqueValider(cmdId){
 }
 
 function osBoutiqueRefuser(cmdId){
-  var raison = prompt('Raison du refus (optionnel) :') || '';
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,article_id',{headers:authHGet})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var cmd = data&&data[0];
-    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse',message:raison||null})})
-    .then(function(r){
-      if(!r.ok) return;
-      notif('Commande refusée');
-      osBoutiqueRender();
-      if(cmd){
-        var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
-        fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
-        .then(function(r){return r.json();})
-        .then(function(membres){
-          var m = membres&&membres[0];
-          if(!m||!m.email) return;
-          var html = '<div style="font-family:sans-serif;max-width:500px;">'
-            +osEnteteEmailLogo('❌ Commande non retenue')
-            +'<div style="padding:1rem 1.5rem;">'
-            +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
-            +'</div></div>';
-          var chatTexte = '❌ Ta commande boutique "'+(art?art.nom:'')+'" n\'a pas pu être validée.'+(raison?' Raison : '+raison:'')+' https://compo.ipsummedia.fr';
-          notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
-            envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
-          });
-        }).catch(function(){});
-      }
+  osDemander('Refuser cette commande ?\nRaison du refus (facultatif), transmise au membre.', '', {oui:'Refuser la commande', danger:true, long:true}).then(function(v){
+    if(v === null) return; var raison = v.trim();
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,article_id',{headers:authHGet})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var cmd = data&&data[0];
+      fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'refuse',message:raison||null})})
+      .then(function(r){
+        if(!r.ok) return;
+        notif('Commande refusée');
+        osBoutiqueRender();
+        if(cmd){
+          var art = (window._boutiqueArticles||[]).find(function(a){return a.id===cmd.article_id;});
+          fetch(SB_URL+'/rest/v1/membres?id=eq.'+cmd.membre_id+'&select=email,prenom,canal_notif',{headers:authHGet})
+          .then(function(r){return r.json();})
+          .then(function(membres){
+            var m = membres&&membres[0];
+            if(!m||!m.email) return;
+            var html = '<div style="font-family:sans-serif;max-width:500px;">'
+              +osEnteteEmailLogo('❌ Commande non retenue')
+              +'<div style="padding:1rem 1.5rem;">'
+              +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
+              +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> n\'a pas pu être validée.'+(raison?' Raison : '+esc(raison):'')+'</p>'
+              +'</div></div>';
+            var chatTexte = '❌ Ta commande boutique "'+(art?art.nom:'')+'" n\'a pas pu être validée.'+(raison?' Raison : '+raison:'')+' https://compo.ipsummedia.fr';
+            notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
+              envoyerEmailResend(m.email,'[Compo] Boutique : commande non retenue',html,'boutique').catch(function(){});
+            });
+          }).catch(function(){});
+        }
+      });
     });
   });
 }
@@ -345,7 +347,7 @@ function osBoutiqueToggleActif(articleId, actif){
 }
 
 function osBoutiqueSupprimerArticle(articleId, nom){
-  if(!confirm('Supprimer définitivement « '+nom+' » du catalogue ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement « '+nom+' » du catalogue ?', null, osBoutiqueSupprimerArticle, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+articleId,{method:'DELETE',headers:authH})
   .then(function(r){
@@ -729,7 +731,7 @@ function _tresEditer(id){
 }
 
 function _tresSupprimer(id){
-  if(!confirm('Supprimer ce mouvement ?')) return;
+  if(!osConfirmerPuis('Supprimer ce mouvement ?', null, _tresSupprimer, this, arguments)) return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_transactions?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){ if(r.ok){ notif('Supprimé','succes'); osTresorerieRender(); } });
@@ -1065,7 +1067,7 @@ function _tresBudgetSauvegarder(){
 }
 
 function _tresBudgetSupprimer(id){
-  if(!confirm('Supprimer ce poste ?'))return;
+  if(!osConfirmerPuis('Supprimer ce poste ?', null, _tresBudgetSupprimer, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/tresorerie_budget?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){if(r.ok){notif('Poste supprimé','succes');osTresorerieRender();}});
@@ -1512,7 +1514,7 @@ function _tresSauvegarderSoldeBancaire(){
 function _tresPointerTout(){
   var txs=(window._tresorerieData||[]).filter(function(t){return !t.pointe&&t.date&&t.date.substring(0,4)===String(_tresFiltreAnnee);});
   if(!txs.length)return;
-  if(!confirm('Pointer les '+txs.length+' transactions non pointées ?'))return;
+  if(!osConfirmerPuis('Pointer les '+txs.length+' transactions non pointées ?', null, _tresPointerTout, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var done=0;
   txs.forEach(function(t){
@@ -1587,7 +1589,7 @@ function _tresRenderCloture(zone, txs, postes, annee){
 function _tresCopieBudget(anneeSource, anneeCible){
   var postes=(window._tresorerieBudget||[]).filter(function(p){return !p.annee||p.annee===anneeSource;});
   if(!postes.length){notif('Aucun poste dans le budget '+anneeSource);return;}
-  if(!confirm('Copier '+postes.length+' postes vers '+anneeCible+' ?'))return;
+  if(!osConfirmerPuis('Copier '+postes.length+' postes vers '+anneeCible+' ?', null, _tresCopieBudget, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var done=0;
   postes.forEach(function(p){
@@ -1596,7 +1598,7 @@ function _tresCopieBudget(anneeSource, anneeCible){
   });
 }
 function _tresCloturerExercice(annee, solde){
-  if(!confirm('Clôturer '+annee+' et reporter '+solde.toFixed(2)+' € en '+(annee+1)+' ?'))return;
+  if(!osConfirmerPuis('Clôturer '+annee+' et reporter '+solde.toFixed(2)+' € en '+(annee+1)+' ?', null, _tresCloturerExercice, this, arguments))return;
   var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var payload={date:(annee+1)+'-01-01',description:'Report exercice '+annee,type:'Autres recettes',remarques:'Clôture automatique',created_by:getUserId()};
   if(solde>=0)payload.credit=solde;else payload.debit=Math.abs(solde);

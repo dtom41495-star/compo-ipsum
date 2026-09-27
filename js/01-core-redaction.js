@@ -329,7 +329,7 @@ function exportLog(){
 }
 
 function clearLog(){
-  if(confirm('Vider tout le journal ?')){localStorage.removeItem('ipsum_log');renderLog();}
+  osConfirmer('Vider tout le journal ?').then(function(ok){ if(ok){ localStorage.removeItem('ipsum_log'); renderLog(); } });
 }
 
 // ===== HORLOGE =====
@@ -800,7 +800,7 @@ function osOuvrirNouvelArticle(){
 
 // « Tout effacer » : jamais sans confirmation, le texte non enregistré serait perdu
 function rToutEffacer(){
-  if(!confirm('Effacer tout le contenu de l\'éditeur ?\n\nCe qui n\'a pas été enregistré sera perdu. Un article déjà enregistré reste dans Mes articles.')) return;
+  if(!osConfirmerPuis('Effacer tout le contenu de l\'éditeur ?\n\nCe qui n\'a pas été enregistré sera perdu. Un article déjà enregistré reste dans Mes articles.', null, rToutEffacer, this, arguments)) return;
   if(typeof rFermerReglages === 'function') rFermerReglages();
   resetRedaction();
 }

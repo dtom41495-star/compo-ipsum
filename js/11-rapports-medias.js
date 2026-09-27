@@ -410,7 +410,7 @@ function osRapportAttestationBenevolat(membreId, annee){
 
 function osBenevolesToggleInactif(membreId, nouvelEtat, nomMembre){
   var texteConfirm = nouvelEtat ? 'Marquer '+nomMembre+' comme inactif ?' : 'Réactiver '+nomMembre+' ?';
-  if(!confirm(texteConfirm)) return;
+  if(!osConfirmerPuis(texteConfirm, {oui:nouvelEtat ? 'Marquer inactif' : 'Réactiver', danger:!!nouvelEtat}, osBenevolesToggleInactif, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+membreId,{
     method:'PATCH', headers:authH,
@@ -1557,7 +1557,7 @@ function _osUploadTuileFichier(f, peutGerer){
 }
 
 function osUploadSupprimerFichier(fileId){
-  if(!confirm('Supprimer définitivement ce fichier du Drive ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement ce fichier du Drive ?', null, osUploadSupprimerFichier, this, arguments)) return;
   if(!osUploadTokenValide()){ notif('Connecte-toi avec Google d\'abord','erreur'); return; }
   _uploadDriveFetch('files/'+encodeURIComponent(fileId), {method:'DELETE'})
   .then(function(){
@@ -2093,7 +2093,7 @@ var FONCTIONS_COM = ['communication','responsable_com','com_externe','com_intern
 
 function osBenevolesChangerRole(membreId, nouveauRole){
   if(getUserRole() !== 'admin'){ notif('Seul un admin peut changer le rôle d\'un membre','erreur'); return; }
-  if(!confirm('Changer le rôle en "'+nouveauRole+'" ?')) return;
+  if(!osConfirmerPuis('Changer le rôle en "'+nouveauRole+'" ?', {oui:'Changer le rôle'}, osBenevolesChangerRole, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
     method:'PATCH', headers:headers,
@@ -2130,7 +2130,7 @@ function _osGarantirFonctionCom(membreId){
 }
 
 function osBenvSuspendre(membreId){
-  if(!confirm('Suspendre ce membre ? Il ne pourra plus accéder à Compo.')) return;
+  if(!osConfirmerPuis('Suspendre ce membre ? Il ne pourra plus accéder à Compo.', null, osBenvSuspendre, this, arguments)) return;
   var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
     method:'PATCH', headers:headers,

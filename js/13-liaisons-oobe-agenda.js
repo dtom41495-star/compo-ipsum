@@ -2014,7 +2014,7 @@ function osAgendaAjouterParticipant(evId){
 }
 
 function osAgendaAdminDesinscrire(inscrId, evId){
-  if(!confirm('Désinscrire ce membre ?')) return;
+  if(!osConfirmerPuis('Désinscrire ce membre ?', null, osAgendaAdminDesinscrire, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
@@ -2056,7 +2056,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
 }
 
 function osAgendaSeDesinscrire(inscrId, evId){
-  if(!confirm('Se désinscrire de cet événement ?')) return;
+  if(!osConfirmerPuis('Se désinscrire de cet événement ?', null, osAgendaSeDesinscrire, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId,{method:'DELETE',headers:authH})
   .then(function(r){
@@ -2433,7 +2433,7 @@ function osAgendaCopierLienExterne(evId){
 }
 
 function osAgendaAnnuler(evId){
-  if(!confirm('Annuler cet événement ? Les participants seront notifiés.')) return;
+  if(!osConfirmerPuis('Annuler cet événement ? Les participants seront notifiés.', {oui:'Annuler l\'événement', non:'Garder'}, osAgendaAnnuler, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/agenda_evenements?id=eq.'+evId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:'annule'})})
   .then(function(r){
@@ -2447,7 +2447,7 @@ function osAgendaAnnuler(evId){
 }
 
 function osAgendaSupprimer(evId){
-  if(!confirm('Supprimer définitivement cet événement ?')) return;
+  if(!osConfirmerPuis('Supprimer définitivement cet événement ?', null, osAgendaSupprimer, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/agenda_evenements?id=eq.'+evId,{method:'DELETE',headers:authH})
   .then(function(r){

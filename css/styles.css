@@ -4320,3 +4320,24 @@ input:focus,select:focus,textarea:focus{
   .fl-pied-actions { width: 100%; }
   .fl-pied-actions .mac-btn { flex: 1; justify-content: center; height: 44px; }
 }
+
+/* Fenêtres de confirmation et de saisie (remplacent confirm() / prompt() du navigateur) */
+.dlg-overlay { z-index: 300000; }
+.dlg-boite { width: 400px; }
+.dlg-tete { display: flex; gap: 0.8rem; align-items: flex-start; }
+.dlg-icone { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #E8F0FE; color: var(--bleu); font-size: 1.2rem; }
+.dlg-icone-danger { background: #FDECEC; color: #B42318; }
+.dlg-question { font-family: Poppins, sans-serif; font-weight: 700; font-size: 0.95rem; line-height: 1.4; color: var(--encre); padding-top: 0.45rem; overflow-wrap: anywhere; }
+.dlg-tete .se-texte { margin-top: 0.3rem; }
+.dlg-details { margin-top: 0.35rem; white-space: pre-line; }
+.dlg-champ { width: 100%; box-sizing: border-box; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; padding: 0.7rem 0.8rem; border: 1.5px solid var(--gris-bord); border-radius: 10px; background: white; color: var(--encre); outline: none; resize: vertical; text-transform: none; }
+.dlg-actions { display: flex; gap: 0.5rem; }
+.dlg-actions button { flex: 1; min-height: 42px; }
+.dlg-oui-danger { background: #B42318; }
+@media (max-width: 768px) {
+  .dlg-boite { width: 100%; }
+  .dlg-actions { flex-direction: column-reverse; }
+  .dlg-actions button { min-height: 48px; }
+}
+.dlg-champ, textarea.dlg-champ { min-height: 0; height: auto; line-height: 1.5; }
+.dlg-actions button:focus-visible { outline: 2px solid var(--bleu); outline-offset: 2px; box-shadow: none; }

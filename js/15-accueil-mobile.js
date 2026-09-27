@@ -162,7 +162,7 @@ function osAccueilMobileRendre(){
       if(e.target.closest('.acc-pill-redac[data-changer]')){ rChangerRedaction(); return; }
       var dnd = e.target.closest('.acc-statut');
       if(dnd){ osToggleDND(); return; }
-      if(e.target.closest('.acc-quitter') && confirm('Te déconnecter de Compo ?')) seDeconnecter();
+      if(e.target.closest('.acc-quitter')) osConfirmer('Te déconnecter de Compo ?', {oui:'Me déconnecter'}).then(function(ok){ if(ok) seDeconnecter(); });
       if(e.target.closest('.acc-installer-ok')){ osInstallerCompo(); return; }
       if(e.target.closest('.acc-installer-non')){ _accueilInstallPlusTard(); return; }
     });

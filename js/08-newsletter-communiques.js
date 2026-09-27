@@ -589,7 +589,7 @@ function cpsInvitationSeDeclarer(cpId, btn){
 // Le membre retire sa propre disponibilité. S'il était retenu, les responsables sont
 // prévenus pour trouver quelqu'un d'autre.
 function cpsInvitationSeRetirer(dispId, cpId, etaitRetenu){
-  if(etaitRetenu && !confirm('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?')) return;
+  if(etaitRetenu && !osConfirmerPuis('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?', {oui:'Me retirer', danger:true}, cpsInvitationSeRetirer, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:_cpInvitH()})
   .then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
@@ -638,7 +638,7 @@ function cpsInvitationRetenir(dispId, cpId, btn){
 
 // Ne pas retenir une personne disponible : elle est prévenue tout de suite.
 function cpsInvitationNePasRetenir(dispId, cpId, nom){
-  if(!confirm('Ne pas retenir '+(nom||'cette personne')+' ?\n\nUn message lui sera envoyé pour la prévenir.')) return;
+  if(!osConfirmerPuis('Ne pas retenir '+(nom||'cette personne')+' ?\n\nUn message lui sera envoyé pour la prévenir.', {oui:'Ne pas retenir'}, cpsInvitationNePasRetenir, this, arguments)) return;
   Promise.all([_cpInvitChargerCp(cpId), _cpInvitChargerDispos(cpId)]).then(function(res){
     var cp = res[0], dispos = res[1];
     var d = dispos.find(function(x){ return x.id === dispId; });
@@ -658,7 +658,7 @@ function cpsInvitationNePasRetenir(dispId, cpId, nom){
 // personne a déjà été prévenue qu'elle couvre, c'est à la personne qui annule de lui
 // expliquer — un email "finalement non" sans contexte serait pire.
 function cpsInvitationAnnulerChoix(dispId, cpId, nom){
-  if(!confirm((nom||'Cette personne')+' a déjà été prévenu·e qu\'il ou elle couvre cette invitation.\n\nAnnuler ce choix la remet simplement parmi les personnes disponibles, sans lui envoyer de message : pense à la prévenir toi-même.\n\nContinuer ?')) return;
+  if(!osConfirmerPuis((nom||'Cette personne')+' a déjà été prévenu·e qu\'il ou elle couvre cette invitation.\n\nAnnuler ce choix la remet simplement parmi les personnes disponibles, sans lui envoyer de message : pense à la prévenir toi-même.\n\nContinuer ?', {oui:'Annuler ce choix', non:'Garder'}, cpsInvitationAnnulerChoix, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'PATCH',headers:_cpInvitH(true),body:JSON.stringify({statut:'disponible'})})
   .then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
@@ -1697,7 +1697,7 @@ function _cpsRetirerFichierSelectionne(i){
   _cpsRenderFichiersListe();
 }
 function _cpsSupprimerFichierExistant(id){
-  if(!confirm('Retirer ce fichier du communiqué ?')) return;
+  if(!osConfirmerPuis('Retirer ce fichier du communiqué ?', null, _cpsSupprimerFichierExistant, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/communique_fichiers?id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:authH })
   .then(function(r){
@@ -1995,7 +1995,7 @@ function cpsAdminSauvegarder(statut){
 // ---- ADMIN : Publier depuis la liste ----
 function cpsAdminPublier(id){
   // Publier n'envoie rien aux abonnés : l'envoi se fait à part, via "Notifier les abonnés".
-  if(!confirm('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».')) return;
+  if(!osConfirmerPuis('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».', null, cpsAdminPublier, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
