@@ -655,6 +655,10 @@ function closeDrawer(){
 
 // ===== RÉDACTION =====
 function buildDoc(){
+  // Le texte tapé dans l'éditeur n'est recopié dans #r-corps qu'à chaque frappe, et pas
+  // pendant la saisie au clavier du téléphone (correcteur automatique) : sans cette
+  // recopie, les derniers mots pouvaient manquer à l'enregistrement.
+  if(typeof _rCorpsSync === 'function') _rCorpsSync();
   var docId = (currentDoc && currentDoc.id) ? currentDoc.id : genId();
   var docStatut = (currentDoc && currentDoc.statut) ? currentDoc.statut : 'brouillon';
 

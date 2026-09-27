@@ -54,6 +54,9 @@ var db = {
     // le lien fraîchement posé, et l'efface aussitôt. Le détachement volontaire d'un
     // sujet a son propre appel PATCH dédié ailleurs, pas celui-ci.
     if(payload.sujet_id === null) delete payload.sujet_id;
+    // L'éditeur (buildDoc) ne connaît ni le SR assigné ni le nom de la rédaction : sans
+    // ce garde, chaque enregistrement depuis l'éditeur effaçait le SR de l'article.
+    ['correcteur','correcteur_id','redaction'].forEach(function(k){ if(doc[k] === undefined) delete payload[k]; });
     var authHeaders = Object.assign({}, SB_HEADERS, {
       'Authorization': 'Bearer '+(_session&&_session.access_token||''),
       'Prefer': 'return=representation'
@@ -1791,12 +1794,20 @@ function rWorkflowMajInterface(doc){
   // Dans la zone chef : quel(s) bouton(s) exactement — qui valide quoi dépend du rôle ET du statut.
   if(zChef && zChef.style.display==='flex'){
     var idxAvantValide = ['brouillon','en-relecture','corrige'].indexOf(statut);
+    var btnRelu       = document.getElementById('r-btn-relu');
     var btnValider    = document.getElementById('r-btn-valider');
     var btnValCentral = document.getElementById('r-btn-valider-central');
     var btnPublier    = document.getElementById('r-btn-publier');
-    if(btnValider)    btnValider.style.display    = (isChef && idxAvantValide>=0) ? '' : 'none';
+    // Une étape à la fois, dans l'ordre : relu, puis bon à publier, puis en ligne.
+    // Le rédac chef ou l'admin peut faire la relecture à la place du SR désigné.
+    var auSR = statut==='en-relecture';
+    if(btnRelu)       btnRelu.style.display       = (isChef && auSR) ? '' : 'none';
+    if(btnValider){
+      btnValider.style.display = (isChef && idxAvantValide>=0) ? '' : 'none';
+      btnValider.classList.toggle('mac-btn-vert', !auSR); // au SR : « Marquer comme relu » passe devant
+    }
     if(btnValCentral) btnValCentral.style.display = (estValCentral && attenteCentrale && statut==='valide') ? '' : 'none';
-    var peutPublier = articleEstCentral || (attenteCentrale && statut==='valide_central');
+    var peutPublier = (articleEstCentral && statut==='valide') || (attenteCentrale && statut==='valide_central');
     if(btnPublier)    btnPublier.style.display    = peutPublier ? '' : 'none';
   }
 }
