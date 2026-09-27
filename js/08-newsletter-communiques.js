@@ -1313,6 +1313,12 @@ function cpsMakeCard(cp, isAdmin){
   // Badge type invitation
   var typeBadge = cp.type === 'invitation_presse'
     ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
+    : cp.mail_categorie === 'demande_article'
+    ? '<span style="background:#E8F0FE;color:#1A4B8C;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-message-question" style="vertical-align:-1px;"></i> Demande d\'article</span>'
+    : '';
+  // Ajouté automatiquement depuis contact@ipsummedia.fr : à vérifier avant publication
+  var mailBadge = cp.origine === 'mail'
+    ? '<span title="'+esc('Reçu de '+(cp.mail_expediteur||'?')+(cp.mail_raison ? '\nTri automatique : '+cp.mail_raison : ''))+'" style="background:#F1EFE8;color:#5F5E5A;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;margin-left:4px;"><i class="ti ti-mail" style="vertical-align:-1px;"></i> Reçu par mail</span>'
     : '';
 
   // Invitation presse : une ligne "quand · où", l'échéance de réponse, puis ma situation
@@ -1371,7 +1377,7 @@ function cpsMakeCard(cp, isAdmin){
   card.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">' +
       '<div style="font-weight:'+(nonLu?'700':'600')+';font-size:0.9rem;color:var(--encre);flex:1;">'+esc(cp.titre||'')+'</div>' +
-      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
+      '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">'+nonLuBadge+mailBadge+typeBadge+statutBadge+pdfBadge+'</div>' +
     '</div>' +
     (cp.source ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-map-pin" style="vertical-align:-1px;margin-right:3px;"></i>'+esc(cp.source)+'</div>' : '') +
     (dateStr ? '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);margin-bottom:0.3rem;"><i class="ti ti-calendar" style="vertical-align:-1px;margin-right:3px;"></i>'+dateStr+'</div>' : '') +
@@ -2253,14 +2259,16 @@ function cpsAdminCharger(){
     // Barre filtres
     var barre = document.createElement('div');
     barre.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;';
+    var recusMail = cps.filter(function(c){ return c.origine === 'mail' && c.statut === 'brouillon'; });
+    if(filtreActif === 'mail' && !recusMail.length) filtreActif = window._cpsAdminFiltreActif = 'tous';
     [
-      {id:'tous', label:'📋 Tous ('+cps.length+')'},
-      {id:'communique', label:'📰 CPs ('+communiques.length+')'},
-      {id:'invitation_presse', label:'🎤 Invitations ('+invitations.length+')'}
-    ].forEach(function(f){
+      {id:'tous', icone:'list', label:'Tous ('+cps.length+')'},
+      {id:'communique', icone:'news', label:'CPs ('+communiques.length+')'},
+      {id:'invitation_presse', icone:'microphone', label:'Invitations ('+invitations.length+')'}
+    ].concat(recusMail.length ? [{id:'mail', icone:'mail', label:'Reçus par mail à valider ('+recusMail.length+')'}] : []).forEach(function(f){
       var btn = document.createElement('button');
       btn.style.cssText = 'font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:10px;cursor:pointer;border:0.5px solid '+(filtreActif===f.id?'var(--rouge)':'var(--gris-bord)')+';background:'+(filtreActif===f.id?'var(--rouge)':'white')+';color:'+(filtreActif===f.id?'white':'var(--gris)')+';';
-      btn.textContent = f.label;
+      btn.innerHTML = '<i class="ti ti-'+f.icone+'" style="vertical-align:-1px;"></i> '+esc(f.label);
       btn.onclick = function(){ window._cpsAdminFiltreActif = f.id; cpsAdminCharger(); };
       barre.appendChild(btn);
     });
@@ -2268,6 +2276,7 @@ function cpsAdminCharger(){
 
     var cpsFiltres = filtreActif === 'invitation_presse' ? invitations
       : filtreActif === 'communique' ? communiques
+      : filtreActif === 'mail' ? recusMail
       : cps;
 
     if(!cpsFiltres.length){
