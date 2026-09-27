@@ -2648,7 +2648,8 @@ var CARNET_CAT_COLORS = {
   'Expert·e':     { bg:'#FBEAF0', c:'#72243E' },
   'Autre':        { bg:'#F1EFE8', c:'#5F5E5A' }
 };
-var CARNET_FIABILITE = { 1:'<i class="ti ti-alert-triangle"></i> Méfiance', 2:'~ Variable', 3:'<i class="ti ti-check"></i> Fiable' };
+var CARNET_FIABILITE = { 1:'Méfiance', 2:'Variable', 3:'Fiable' };
+var CARNET_FIABILITE_ICONES = { 1:'alert-triangle', 2:'adjustments-horizontal', 3:'circle-check' };
 var CARNET_FIABILITE_COLORS = {
   1:{ bg:'#FCEBEB', c:'#A32D2D' },
   2:{ bg:'#FAEEDA', c:'#633806' },
@@ -2693,128 +2694,52 @@ var CARNET_CAT_ICONS = {
 };
 
 function osCarnetBuildUI(wc){
-  var isAdmin = getUserRole() === 'admin';
-  var uid = getUserId();
-  // canEdit global = admin seulement pour créer (tout le monde peut créer, mais modif/suppr = créateur ou admin)
-  var canEdit = true; // création ouverte à tous
+  var html = '<div class="cx">';
 
-  var html = '<div style="display:flex;height:100%;overflow:hidden;">';
-
-  // Rail catégories — même style que le rail Ma Rédac'
-  html += '<div id="carnet-sidebar-rail" style="width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;overflow-y:auto;">';
+  // Catégories : colonne sur ordinateur, pastilles qui défilent sur téléphone
+  html += '<nav class="cx-rail" id="carnet-sidebar-rail">';
   ['Tous'].concat(CARNET_CATS).forEach(function(cat){
-    var active = _carnetFiltreCategorie === cat;
-    html += '<button onclick="osCarnetSetCat(\''+cat+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(active?'var(--rouge)':'transparent')+';color:'+(active?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;"><span style="font-size:0.95rem;display:flex;flex-shrink:0;">'+CARNET_CAT_ICONS[cat]+'</span>'+cat+'</button>';
+    var n = cat === 'Tous' ? _carnetContacts.length : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
+    html += '<button type="button" class="cx-cat'+(_carnetFiltreCategorie === cat ? ' actif' : '')+'" data-cat="'+esc(cat)+'" onclick="osCarnetSetCat(this.dataset.cat)">'
+      +CARNET_CAT_ICONS[cat]+'<span>'+esc(cat)+'</span>'+(n ? '<em>'+n+'</em>' : '')+'</button>';
   });
-  html += '</div>';
+  html += '</nav>';
 
-  // Zone contenu
-  html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">';
-
-  // Toolbar
-  html += '<div style="padding:0.8rem 1.2rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;align-items:center;gap:0.6rem;">';
-  html += '<input type="text" id="carnet-search" placeholder="Rechercher un nom, une organisation…" oninput="osCarnetFiltrer()" style="flex:1;padding:0.4rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:DM Sans,sans-serif;outline:none;">';
-  if(canEdit){
-    html += '<button class="btn" onclick="osCarnetNouveauForm()" style="font-size:0.75rem;padding:0.35rem 0.8rem;white-space:nowrap;">+ Nouveau contact</button>';
-  }
-  html += '</div>';
-
-  // Liste contacts + fiche du contact sélectionné (intégrée directement, plus de popup)
-  html += '<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
-  html += '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">';
-  osCarnetRendreListe(html, wc, isAdmin, canEdit, uid);
-  return;
+  html += '<div class="cx-main">';
+  html += '<div class="cx-barre">'
+    +'<label class="cx-recherche"><i class="ti ti-search"></i><input type="search" id="carnet-search" placeholder="Nom, organisation, poste…" value="'+esc(_carnetRecherche)+'" oninput="osCarnetFiltrer()"></label>'
+    +'<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osCarnetNouveauForm()"><i class="ti ti-plus"></i><span>Nouveau contact</span></button>'
+    +'</div>';
+  html += '<div class="cx-corps">'
+    +'<div id="carnet-liste" class="cx-liste"></div>'
+    +'<div id="carnet-detail-panel" class="cx-fiche">'+_carnetFicheVide()+'</div>'
+    +'</div>';
+  html += '</div></div>';
+  wc.innerHTML = html;
+  _rafraichirListeCarnet();
 }
 
-function osCarnetRendreListe(baseHtml, wc, isAdmin, canEdit, uid){
-  // Filtrer
-  var contacts = _carnetContacts.filter(function(c){
-    var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
-    var q = _carnetRecherche.toLowerCase();
-    var matchQ = !q || (c.nom||'').toLowerCase().includes(q) || (c.organisation||'').toLowerCase().includes(q) || (c.poste||'').toLowerCase().includes(q);
-    return matchCat && matchQ;
-  });
+function _carnetFicheVide(){
+  return '<div class="cx-fiche-vide"><i class="ti ti-address-book"></i>Choisis un contact pour voir sa fiche.</div>';
+}
 
-  var html = baseHtml || '';
+function _carnetInitiales(c){
+  return ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
+}
 
-  if(!contacts.length){
-    html += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);">';
-    html += '<div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-address-book"></i></div>';
-    html += _carnetContacts.length ? '<div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div>' : '<div style="font-size:0.88rem;">Le carnet est vide.<br>Ajoute ton premier contact !</div>';
-    html += '</div>';
-  } else {
-    // Compteur
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.7rem;">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
-
-    contacts.forEach(function(c){
-      var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-      var fid = parseInt(c.fiabilite)||2;
-      var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-      var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-      var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
-      var peutModifier = isAdmin || (uid && c.cree_par === uid);
-
-      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
-
-      // Avatar
-      html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-
-      // Infos
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);margin-bottom:2px;">'+esc(c.nom||'')+'</div>';
-      html += '<div style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-      html += '<div style="display:flex;gap:0.3rem;margin-top:4px;flex-wrap:wrap;">';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+fcol.bg+';color:'+fcol.c+';">'+(CARNET_FIABILITE[fid]||'~')+'</span>';
-      html += '</div></div>';
-
-      // Droite
-      html += '<div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;"><i class="ti ti-mail"></i> Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;"><i class="ti ti-phone"></i> '+esc(c.telephone)+'</a>';
-      if(peutModifier){
-        html += '<div style="display:flex;gap:4px;margin-top:4px;">';
-        html += '<button onclick="event.stopPropagation();osCarnetEditerDepuisFiche(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-pencil"></i></button>';
-        html += '<button onclick="event.stopPropagation();osCarnetSupprimer(\''+c.id+'\')" style="font-size:0.6rem;padding:2px 7px;border:0.5px solid #ffaaaa;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
-        html += '</div>';
-      }
-      html += '</div>';
-
-      html += '</div>';
-    });
-  }
-
-  html += '</div>'; // fin #carnet-liste
-  html += '<div id="carnet-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
-    +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>'
-    +'</div>';
-  html += '</div></div>'; // fin ligne liste+fiche, fin zone-contenu
-
-  var wc2 = wc || document.getElementById('wincontent-carnet');
-  if(wc2){
-    // Remplacer seulement la liste si le header existe déjà
-    var liste = document.getElementById('carnet-liste');
-    if(liste){
-      liste.outerHTML = '<div style="flex:1;overflow-y:auto;padding:0.8rem 1.2rem;" id="carnet-liste">'+html+'</div>';
-    } else {
-      wc2.innerHTML = html;
-    }
-  }
+function _carnetPastilles(c){
+  var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
+  var fid = parseInt(c.fiabilite)||2;
+  var fcol = CARNET_FIABILITE_COLORS[fid];
+  return '<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
+    +'<span class="cx-pastille" style="background:'+fcol.bg+';color:'+fcol.c+';"><i class="ti ti-'+CARNET_FIABILITE_ICONES[fid]+'"></i>'+CARNET_FIABILITE[fid]+'</span>';
 }
 
 function osCarnetSetCat(cat){
   _carnetFiltreCategorie = cat;
-  // Mettre à jour les boutons du rail
-  var wc = document.getElementById('wincontent-carnet');
-  if(wc){
-    wc.querySelectorAll('button[onclick^="osCarnetSetCat"]').forEach(function(btn){
-      var btnCat = btn.textContent.trim();
-      var active = btnCat === cat;
-      btn.style.background = active ? 'var(--rouge)' : 'transparent';
-      btn.style.color = active ? 'white' : 'var(--encre)';
-    });
-  }
+  document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
+    btn.classList.toggle('actif', btn.dataset.cat === cat);
+  });
   _rafraichirListeCarnet();
 }
 
@@ -2825,40 +2750,46 @@ function osCarnetFiltrer(){
 }
 
 function _rafraichirListeCarnet(){
-  var isAdmin = getUserRole() === 'admin';
   var liste = document.getElementById('carnet-liste');
   if(!liste) return;
+  var q = _carnetRecherche.trim().toLowerCase();
   var contacts = _carnetContacts.filter(function(c){
     var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
-    var q = _carnetRecherche.toLowerCase();
     var matchQ = !q || (c.nom||'').toLowerCase().includes(q) || (c.organisation||'').toLowerCase().includes(q) || (c.poste||'').toLowerCase().includes(q);
     return matchCat && matchQ;
   });
+  // Nombre de contacts par catégorie (change après un ajout ou une suppression)
+  document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
+    var cat = btn.dataset.cat;
+    var n = cat === 'Tous' ? _carnetContacts.length : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
+    var em = btn.querySelector('em');
+    if(n && !em){ em = document.createElement('em'); btn.appendChild(em); }
+    if(em){ if(n) em.textContent = n; else em.remove(); }
+  });
+  var actif = document.querySelector('#carnet-detail-panel [data-fiche-id]');
+  var idActif = actif ? actif.dataset.ficheId : null;
 
-  var html = '';
   if(!contacts.length){
-    html = '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);"><div style="font-size:2.5rem;margin-bottom:0.8rem;"><i class="ti ti-address-book"></i></div><div style="font-size:0.88rem;">Aucun contact pour ce filtre.</div></div>';
-  } else {
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.7rem;">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
-    contacts.forEach(function(c){
-      var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-      var fid = parseInt(c.fiabilite)||2;
-      var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-      var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-      var dateStr = c.updated_at ? _benvFormatDate(new Date(c.updated_at)) : '';
-      html += '<div class="carnet-item" data-contact-id="'+esc(c.id)+'" style="background:white;border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.55rem;display:flex;align-items:center;gap:0.8rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--rouge)\'" onmouseout="this.style.borderColor=\'var(--gris-bord)\'" onclick="osCarnetOuvrirFiche(\''+c.id+'\')">';
-      html += '<div style="width:38px;height:38px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-      html += '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.88rem;color:var(--encre);margin-bottom:2px;">'+esc(c.nom||'')+'</div>';
-      html += '<div style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-      html += '<div style="display:flex;gap:0.3rem;margin-top:4px;flex-wrap:wrap;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:10px;background:'+fcol.bg+';color:'+fcol.c+';">'+(CARNET_FIABILITE[fid]||'~')+'</span></div></div>';
-      html += '<div style="text-align:right;flex-shrink:0;">';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+dateStr+'</div>';
-      if(c.email) html += '<a href="mailto:'+esc(c.email)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--bleu);margin-top:3px;display:block;"><i class="ti ti-mail"></i> Email</a>';
-      if(c.telephone) html += '<a href="tel:'+esc(c.telephone)+'" onclick="event.stopPropagation()" style="font-size:0.65rem;color:var(--gris);margin-top:2px;display:block;"><i class="ti ti-phone"></i> '+esc(c.telephone)+'</a>';
-      html += '</div></div>';
-    });
+    liste.innerHTML = '<div class="cx-vide"><i class="ti ti-address-book"></i>'
+      +(_carnetContacts.length ? 'Aucun contact pour ce filtre.' : 'Le carnet est vide.<br>Ajoute le premier contact de la rédaction.')
+      +'</div>';
+    return;
   }
+  var html = '<div class="cx-compte">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
+  contacts.forEach(function(c){
+    var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
+    var fid = parseInt(c.fiabilite)||2;
+    var sousTitre = [c.poste, c.organisation].filter(Boolean).map(esc).join(' · ');
+    html += '<div class="cx-ligne'+(c.id === idActif ? ' actif' : '')+'" data-contact-id="'+esc(c.id)+'" onclick="osCarnetOuvrirFiche(this.dataset.contactId)">'
+      +'<div class="cx-avatar" style="background:'+col.bg+';color:'+col.c+';">'+esc(_carnetInitiales(c))+'</div>'
+      +'<div class="cx-ligne-infos"><div class="cx-nom">'+esc(c.nom||'')+'</div>'
+      +(sousTitre ? '<div class="cx-poste">'+sousTitre+'</div>' : '')
+      +'</div>'
+      +'<div class="cx-ligne-droite">'
+      +'<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
+      +'<span class="cx-fiab cx-fiab-'+fid+'" title="Fiabilité : '+CARNET_FIABILITE[fid]+'"></span>'
+      +'</div></div>';
+  });
   liste.innerHTML = html;
 }
 
@@ -2866,87 +2797,56 @@ function _rafraichirListeCarnet(){
 function osCarnetOuvrirFiche(id){
   var c = _carnetContacts.find(function(x){ return x.id === id; });
   if(!c) return;
-
   var card = document.getElementById('carnet-detail-panel');
   if(!card) return;
 
-  // Marquer l'item sélectionné dans la liste (fiche intégrée à droite, plus de popup)
-  document.querySelectorAll('.carnet-item').forEach(function(el){
-    var actif = el.dataset.contactId === id;
-    el.style.borderColor = actif ? 'var(--rouge)' : 'var(--gris-bord)';
-    el.style.background = actif ? 'rgba(234,91,28,0.05)' : 'white';
+  document.querySelectorAll('#carnet-liste .cx-ligne').forEach(function(el){
+    el.classList.toggle('actif', el.dataset.contactId === id);
   });
 
   var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-  var fid = parseInt(c.fiabilite)||2;
-  var fcol = CARNET_FIABILITE_COLORS[fid] || CARNET_FIABILITE_COLORS[2];
-  var initiales = ((c.nom||'?').split(' ').map(function(w){ return w[0]||''; }).join('').substring(0,2)).toUpperCase();
-  var isAdmin = getUserRole() === 'admin';
-  var uid = getUserId();
-  var peutModifier = isAdmin || (uid && c.cree_par === uid);
+  var peutModifier = getUserRole() === 'admin' || (getUserId() && c.cree_par === getUserId());
+  var cid = esc(c.id);
 
-  var html = '';
+  var html = '<div class="cx-fiche-contenu" data-fiche-id="'+cid+'">';
+  html += '<div class="cx-fiche-tete">'
+    +'<div class="cx-avatar cx-avatar-grand" style="background:'+col.bg+';color:'+col.c+';">'+esc(_carnetInitiales(c))+'</div>'
+    +'<div class="cx-fiche-titres"><div class="cx-fiche-nom">'+esc(c.nom||'')+'</div>'
+    +((c.poste||c.organisation) ? '<div class="cx-poste">'+[c.poste, c.organisation].filter(Boolean).map(esc).join(' · ')+'</div>' : '')
+    +'<div class="cx-pastilles">'+_carnetPastilles(c)+'</div></div>'
+    +'</div>';
 
-  // Header
-  html += '<div style="background:var(--encre-fixe);padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">';
-  html += '<div style="width:48px;height:48px;border-radius:50%;background:'+col.bg+';display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:'+col.c+';flex-shrink:0;">'+esc(initiales)+'</div>';
-  html += '<div style="flex:1;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(c.nom||'')+'</div>';
-  if(c.poste||c.organisation) html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+(c.poste?esc(c.poste)+' · ':'')+esc(c.organisation||'')+'</div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:0.4rem;align-items:center;">';
-  if(peutModifier) html += '<button onclick="osCarnetEditerDepuisFiche(\''+c.id+'\')" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;"><i class="ti ti-pencil"></i> Modifier</button>';
-  if(peutModifier) html += '<button onclick="osCarnetSupprimer(\''+c.id+'\')" style="background:rgba(255,80,80,0.2);border:none;color:#ffaaaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.72rem;"><i class="ti ti-trash"></i></button>';
-  html += '</div></div>';
-
-  // Corps
-  html += '<div style="padding:1.2rem 1.5rem;flex:1;">';
-
-  // Infos en grille
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem;">';
-  function ficheChamp(label, val, isLink, linkHref){
-    if(!val) return '';
-    var content = isLink ? '<a href="'+linkHref+'" style="color:var(--bleu);font-size:0.82rem;text-decoration:none;">'+esc(val)+'</a>' : '<span style="font-size:0.82rem;color:var(--encre);">'+esc(val)+'</span>';
-    return '<div style="background:var(--gris-clair);border-radius:6px;padding:0.6rem 0.8rem;"><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:3px;">'+label+'</div>'+content+'</div>';
-  }
-  html += ficheChamp('Email', c.email, true, 'mailto:'+c.email);
-  html += ficheChamp('Téléphone', c.telephone, true, 'tel:'+c.telephone);
-  html += ficheChamp('Catégorie', c.categorie);
-
-  // Fiabilité avec couleur
-  if(c.fiabilite){
-    html += '<div style="background:'+fcol.bg+';border-radius:6px;padding:0.6rem 0.8rem;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:3px;">Fiabilité</div>';
-    html += '<span style="font-size:0.82rem;color:'+fcol.c+';font-weight:600;">'+(CARNET_FIABILITE[fid]||'~')+'</span>';
-    html += '</div>';
+  html += '<div class="cx-fiche-actions">';
+  if(c.email) html += '<a class="mac-btn" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i>Écrire</a>';
+  if(c.telephone) html += '<a class="mac-btn" href="tel:'+esc(c.telephone.replace(/\s+/g,''))+'"><i class="ti ti-phone"></i>Appeler</a>';
+  html += '<button class="mac-btn" data-id="'+cid+'" onclick="osCarnetNouvelEchange(this.dataset.id)"><i class="ti ti-message-plus"></i>Noter un échange</button>';
+  if(peutModifier){
+    html += '<button class="mac-btn cpc-icone" data-id="'+cid+'" onclick="osCarnetEditerDepuisFiche(this.dataset.id)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
+      +'<button class="mac-btn mac-btn-refus cpc-icone" data-id="'+cid+'" onclick="osCarnetSupprimer(this.dataset.id)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
   }
   html += '</div>';
 
-  // Notes
+  if(c.email || c.telephone){
+    html += '<div class="cx-coordonnees">'
+      +(c.email ? '<div><i class="ti ti-mail"></i><a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a></div>' : '')
+      +(c.telephone ? '<div><i class="ti ti-phone"></i><a href="tel:'+esc(c.telephone.replace(/\s+/g,''))+'">'+esc(c.telephone)+'</a></div>' : '')
+      +'</div>';
+  }
+
   if(c.notes){
-    html += '<div style="background:var(--gris-clair);border-radius:6px;padding:0.7rem 0.9rem;margin-bottom:1rem;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Notes internes</div>';
-    html += '<div style="font-size:0.85rem;color:var(--encre);line-height:1.65;white-space:pre-wrap;">'+esc(c.notes)+'</div>';
-    html += '</div>';
+    html += '<div class="cx-section">Notes internes</div><div class="cx-notes">'+esc(c.notes)+'</div>';
   }
 
-  // Historique
-  html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.6rem;display:flex;align-items:center;justify-content:space-between;">';
-  html += '<span>Historique des échanges</span>';
-  html += '<button onclick="osCarnetNouvelEchange(\''+c.id+'\')" style="background:var(--rouge);color:white;border:none;border-radius:4px;padding:2px 8px;font-size:0.62rem;cursor:pointer;font-family:Space Mono,monospace;text-transform:uppercase;letter-spacing:0.05em;">+ Échange</button>';
+  html += '<div class="cx-section">Échanges</div>';
+  html += '<div id="carnet-historique-'+cid+'" class="cx-historique"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
+  html += '<div class="cx-section">Communiqués liés</div>';
+  html += '<div id="carnet-cps-'+cid+'"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
   html += '</div>';
-  html += '<div id="carnet-historique-'+c.id+'" style="min-height:40px;"><div style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);text-align:center;padding:0.8rem;"></div></div>';
-
-  // Communiqués liés
-  html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin:1rem 0 0.6rem;">Communiqués de presse liés</div>';
-  html += '<div id="carnet-cps-'+c.id+'" style="min-height:24px;"><div style="font-family:Space Mono,monospace;font-size:0.7rem;color:var(--gris);text-align:center;padding:0.5rem;"></div></div>';
-
-  html += '</div>'; // corps
 
   card.innerHTML = html;
+  card.scrollTop = 0;
   osPanneauMobileOuvrir(card, 'Retour aux contacts');
 
-  // Charger l'historique et les CPs
   osCarnetChargerHistorique(c.id);
   osCarnetChargerCPs(c.id);
 }
@@ -2954,35 +2854,23 @@ function osCarnetOuvrirFiche(id){
 function osCarnetChargerCPs(contactId){
   var container = document.getElementById('carnet-cps-'+contactId);
   if(!container) return;
-
   fetch(SB_URL+'/rest/v1/communiques?contact_id=eq.'+encodeURIComponent(contactId)+'&select=id,titre,statut,date_cp,source,fichier_pdf,communique_fichiers(id)&order=date_cp.desc', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(cps){
     if(!cps || cps.code || !cps.length){
-      container.innerHTML = '<div style="font-size:0.8rem;color:var(--gris);text-align:center;padding:0.6rem 0;">Aucun communiqué lié.</div>';
+      container.innerHTML = '<div class="cx-rien">Aucun communiqué lié.</div>';
       return;
     }
-    var html = '';
-    cps.forEach(function(cp){
+    container.innerHTML = cps.map(function(cp){
       var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
-      var statBg = cp.statut === 'publie' ? '#D4EDDA' : '#FFF3CD';
-      var statCo = cp.statut === 'publie' ? '#155724' : '#856404';
-      var statLbl = cp.statut === 'publie' ? 'Publié' : 'Brouillon';
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osCarnetOuvrirCP(\''+cp.id+'\')" onmouseover="this.style.opacity=\'0.75\'" onmouseout="this.style.opacity=\'1\'">';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-size:0.82rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="ti ti-news"></i> '+esc(cp.titre||'Sans titre')+'</div>';
-      if(dateStr) html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">'+dateStr+'</div>';
-      html += '</div>';
-      html += '<div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0;">';
-      var nbFichiersContact = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
-      if(nbFichiersContact) html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:#E6F1FB;color:#0C447C;"><i class="ti ti-paperclip"></i> '+nbFichiersContact+'</span>';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;border-radius:3px;background:'+statBg+';color:'+statCo+';">'+statLbl+'</span>';
-      html += '</div>';
-      html += '</div>';
-    });
-    container.innerHTML = html;
+      var nbF = (cp.communique_fichiers?cp.communique_fichiers.length:0) + (cp.fichier_pdf?1:0);
+      return '<button type="button" class="cx-cp" data-id="'+esc(cp.id)+'" onclick="osCarnetOuvrirCP(this.dataset.id)">'
+        +'<i class="ti ti-news"></i><span class="cx-cp-titre">'+esc(cp.titre||'Sans titre')+'</span>'
+        +'<span class="cx-cp-meta">'+(cp.statut === 'publie' ? '' : '<b>Brouillon</b> · ')+dateStr+(nbF ? ' · <i class="ti ti-paperclip"></i>'+nbF : '')+'</span>'
+        +'</button>';
+    }).join('');
   }).catch(function(){
-    container.innerHTML = '<div style="font-size:0.78rem;color:var(--rouge);padding:0.4rem;">Erreur chargement.</div>';
+    container.innerHTML = '<div class="cx-rien">Impossible de charger les communiqués.</div>';
   });
 }
 
@@ -2998,64 +2886,54 @@ function osCarnetOuvrirCP(id){
 function osCarnetChargerHistorique(contactId){
   var container = document.getElementById('carnet-historique-'+contactId);
   if(!container) return;
-
   fetch(SB_URL+'/rest/v1/contacts_historique?contact_id=eq.'+encodeURIComponent(contactId)+'&select=*&order=created_at.desc', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(items){
     if(!items || items.code || !items.length){
-      container.innerHTML = '<div style="font-size:0.82rem;color:var(--gris);text-align:center;padding:1rem 0;">Aucun échange enregistré.</div>';
+      container.innerHTML = '<div class="cx-rien">Aucun échange noté pour l\'instant.</div>';
       return;
     }
-    var html = '';
-    items.forEach(function(h){
+    container.innerHTML = items.map(function(h){
       var dateStr = '';
       try { dateStr = new Date(h.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); } catch(e){}
-      html += '<div style="display:flex;gap:0.8rem;padding:0.55rem 0;border-bottom:0.5px solid var(--gris-bord);">';
-      html += '<div style="width:7px;height:7px;border-radius:50%;background:var(--rouge);flex-shrink:0;margin-top:5px;"></div>';
-      html += '<div style="flex:1;">';
-      html += '<div style="font-size:0.82rem;color:var(--encre);line-height:1.5;">';
-      html += '<span style="font-weight:600;">'+esc(h.type||'Échange')+'</span>';
-      if(h.note) html += ' — '+esc(h.note);
-      html += '</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:2px;">'+esc(h.auteur||'')+(dateStr?' · '+dateStr:'')+'</div>';
-      html += '</div></div>';
-    });
-    container.innerHTML = html;
+      return '<div class="cx-echange"><span class="cx-echange-point"></span><div>'
+        +'<div class="cx-echange-texte"><strong>'+esc(h.type||'Échange')+'</strong>'+(h.note ? ' · '+esc(h.note) : '')+'</div>'
+        +'<div class="cx-echange-meta">'+esc(h.auteur||'')+(dateStr ? ' · '+dateStr : '')+'</div>'
+        +'</div></div>';
+    }).join('');
   }).catch(function(){
-    container.innerHTML = '<div style="color:var(--rouge);font-size:0.78rem;padding:0.5rem;">Erreur chargement.</div>';
+    container.innerHTML = '<div class="cx-rien">Impossible de charger les échanges.</div>';
   });
 }
 
+// Fenêtres de saisie du carnet : même habillage que les autres fenêtres Compo
+function _carnetModale(idOverlay, titre, icone, corps){
+  var ancien = document.getElementById(idOverlay);
+  if(ancien) ancien.remove();
+  var ov = document.createElement('div');
+  ov.id = idOverlay;
+  ov.className = 'se-overlay';
+  ov.innerHTML = '<div class="se-boite cx-boite" role="dialog" aria-modal="true">'
+    +'<div class="se-entete"><div class="se-titre"><i class="ti ti-'+icone+'"></i> '+esc(titre)+'</div>'
+    +'<button class="se-fermer" aria-label="Fermer" onclick="document.getElementById(\''+idOverlay+'\').remove()"><i class="ti ti-x"></i></button></div>'
+    +'<div class="se-corps">'+corps+'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  var premier = ov.querySelector('input, select, textarea');
+  if(premier) setTimeout(function(){ premier.focus(); }, 30);
+  return ov;
+}
+
 function osCarnetNouvelEchange(contactId){
-  var existing = document.getElementById('carnet-echange-overlay');
-  if(existing) document.body.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.id = 'carnet-echange-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:12px;max-width:440px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,0.3);padding:1.4rem 1.6rem;';
-
-  var html = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:1rem;">Nouvel échange</div>';
-
-  html += '<div style="margin-bottom:0.7rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Type d\'échange</label>';
-  html += '<select id="echange-type" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  HIST_TYPES.forEach(function(t){ html += '<option>'+t+'</option>'; });
-  html += '</select></div>';
-
-  html += '<div style="margin-bottom:0.9rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Note (optionnel)</label>';
-  html += '<textarea id="echange-note" rows="3" placeholder="Résumé de l\'échange, suite à donner…" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:vertical;box-sizing:border-box;"></textarea></div>';
-
-  html += '<div style="display:flex;gap:0.5rem;">';
-  html += '<button class="btn" onclick="osCarnetSauverEchange(\''+contactId+'\')" style="font-size:0.78rem;">Enregistrer</button>';
-  html += '<button class="btn sec" onclick="document.body.removeChild(document.getElementById(\'carnet-echange-overlay\'))" style="font-size:0.78rem;">Annuler</button>';
-  html += '</div>';
-
-  card.innerHTML = html;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
+  var c = _carnetContacts.find(function(x){ return x.id === contactId; });
+  var corps = (c ? '<p class="se-aide">Avec '+esc(c.nom||'')+'</p>' : '')
+    +'<div><label class="nlx-label" for="echange-type">Type d\'échange</label><select id="echange-type" class="nlx-champ">'
+    +HIST_TYPES.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'</select></div>'
+    +'<div><label class="nlx-label" for="echange-note">Note <span>(facultatif)</span></label>'
+    +'<textarea id="echange-note" class="nlx-champ" rows="3" placeholder="Résumé de l\'échange, suite à donner…"></textarea></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'carnet-echange-overlay\').remove()">Annuler</button>'
+    +'<button class="se-btn-principal" data-id="'+esc(contactId)+'" onclick="osCarnetSauverEchange(this.dataset.id)">Enregistrer</button></div>';
+  _carnetModale('carnet-echange-overlay', 'Noter un échange', 'message-plus', corps);
 }
 
 function osCarnetSauverEchange(contactId){
@@ -3087,7 +2965,7 @@ function osCarnetSauverEchange(contactId){
 
       var ol = document.getElementById('carnet-echange-overlay');
       if(ol) document.body.removeChild(ol);
-      notif('Échange enregistré !');
+      notif('Échange enregistré','succes');
       osCarnetChargerHistorique(contactId);
       // Rafraîchir updated_at dans _carnetContacts
       var idx = _carnetContacts.findIndex(function(c){ return c.id === contactId; });
@@ -3110,67 +2988,26 @@ function osCarnetEditerDepuisFiche(id){
 }
 
 function osCarnetOuvrirForm(c){
-  var existing = document.getElementById('carnet-form-overlay');
-  if(existing) document.body.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.id = 'carnet-form-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);padding:1.5rem 1.7rem;';
-
-  var titre = c ? 'Modifier le contact' : 'Nouveau contact';
-  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">';
-  html += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">'+titre+'</div>';
-  html += '<button onclick="document.body.removeChild(document.getElementById(\'carnet-form-overlay\'))" style="background:transparent;border:none;color:var(--gris);font-size:1.2rem;cursor:pointer;line-height:1;">×</button>';
-  html += '</div>';
-
-  function champ(id, label, placeholder, val, full){
-    return '<div style="'+(full?'grid-column:1/-1;':'')+'">'
-      +'<label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">'+label+'</label>'
-      +'<input type="text" id="cf-'+id+'" placeholder="'+placeholder+'" value="'+esc(val||'')+'" style="width:100%;padding:0.45rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;box-sizing:border-box;">'
-      +'</div>';
+  function champ(id, label, placeholder, val, type){
+    return '<div><label class="nlx-label" for="cf-'+id+'">'+label+'</label>'
+      +'<input type="'+(type||'text')+'" id="cf-'+id+'" class="nlx-champ" placeholder="'+esc(placeholder)+'" value="'+esc(val||'')+'"></div>';
   }
-
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-bottom:0.7rem;">';
-  html += champ('nom', 'Nom *', 'Prénom Nom', c&&c.nom, true);
-  html += champ('organisation', 'Organisation', 'Mairie de Castres…', c&&c.organisation);
-  html += champ('poste', 'Poste', 'Directeur·rice, Président·e…', c&&c.poste);
-  html += champ('email', 'Email', 'contact@exemple.fr', c&&c.email);
-  html += champ('telephone', 'Téléphone', '06 12 34 56 78', c&&c.telephone);
-
-  // Catégorie
-  html += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Catégorie</label>';
-  html += '<select id="cf-categorie" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  CARNET_CATS.forEach(function(cat){
-    html += '<option'+(c&&c.categorie===cat?' selected':'')+'>'+cat+'</option>';
-  });
-  html += '</select></div>';
-
-  // Fiabilité
-  html += '<div><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Fiabilité</label>';
-  html += '<select id="cf-fiabilite" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;">';
-  [1,2,3].forEach(function(v){
-    html += '<option value="'+v+'"'+(c&&parseInt(c.fiabilite)===v?' selected':'')+'>'+CARNET_FIABILITE[v]+'</option>';
-  });
-  html += '</select></div>';
-
-  html += '</div>'; // grid
-
-  // Notes
-  html += '<div style="margin-bottom:1rem;"><label style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);display:block;margin-bottom:0.3rem;">Notes internes</label>';
-  html += '<textarea id="cf-notes" rows="3" placeholder="Préférences de contact, contexte, remarques…" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:5px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:vertical;box-sizing:border-box;">'+esc((c&&c.notes)||'')+'</textarea></div>';
-
-  html += '<div style="display:flex;gap:0.5rem;">';
-  html += '<button class="btn" onclick="osCarnetSauver()" style="font-size:0.8rem;">'+( c ? 'Enregistrer les modifications' : 'Créer le contact')+'</button>';
-  html += '<button class="btn sec" onclick="document.body.removeChild(document.getElementById(\'carnet-form-overlay\'))" style="font-size:0.8rem;">Annuler</button>';
-  html += '</div>';
-
-  card.innerHTML = html;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-  document.body.appendChild(overlay);
+  var corps = champ('nom', 'Nom <span>(obligatoire)</span>', 'Prénom Nom', c&&c.nom)
+    +'<div class="cx-deux">'
+    +champ('organisation', 'Organisation', 'Mairie de Castres…', c&&c.organisation)
+    +champ('poste', 'Poste', 'Directeur·rice, président·e…', c&&c.poste)
+    +champ('email', 'Email', 'contact@exemple.fr', c&&c.email, 'email')
+    +champ('telephone', 'Téléphone', '06 12 34 56 78', c&&c.telephone, 'tel')
+    +'<div><label class="nlx-label" for="cf-categorie">Catégorie</label><select id="cf-categorie" class="nlx-champ">'
+    +CARNET_CATS.map(function(cat){ return '<option'+(c&&c.categorie===cat?' selected':'')+'>'+esc(cat)+'</option>'; }).join('')+'</select></div>'
+    +'<div><label class="nlx-label" for="cf-fiabilite">Fiabilité</label><select id="cf-fiabilite" class="nlx-champ">'
+    +[3,2,1].map(function(v){ return '<option value="'+v+'"'+((c ? parseInt(c.fiabilite)||2 : 2)===v?' selected':'')+'>'+CARNET_FIABILITE[v]+'</option>'; }).join('')+'</select></div>'
+    +'</div>'
+    +'<div><label class="nlx-label" for="cf-notes">Notes internes</label>'
+    +'<textarea id="cf-notes" class="nlx-champ" rows="3" placeholder="Préférences de contact, contexte, remarques…">'+esc((c&&c.notes)||'')+'</textarea></div>'
+    +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'carnet-form-overlay\').remove()">Annuler</button>'
+    +'<button class="se-btn-principal" onclick="osCarnetSauver()">'+(c ? 'Enregistrer' : 'Créer le contact')+'</button></div>';
+  _carnetModale('carnet-form-overlay', c ? 'Modifier le contact' : 'Nouveau contact', c ? 'edit' : 'user-plus', corps);
 }
 
 function osCarnetSauver(){
@@ -3212,7 +3049,7 @@ function osCarnetSauver(){
     var contact = Array.isArray(data) ? data[0] : data;
     if(contact && contact.code){ notif('Erreur : '+(contact.message||contact.code)); return; }
 
-    notif(isNew ? 'Contact créé !' : 'Contact mis à jour !');
+    notif(isNew ? 'Contact créé' : 'Contact mis à jour','succes');
     var idEdite = _carnetEditId;
     var ol = document.getElementById('carnet-form-overlay');
     if(ol) document.body.removeChild(ol);
@@ -3243,7 +3080,7 @@ function osCarnetSupprimer(id){
     if(r.ok){
       notif('Contact supprimé');
       var panel = document.getElementById('carnet-detail-panel');
-      if(panel) panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un contact pour voir sa fiche.</div>';
+      if(panel){ panel.innerHTML = _carnetFicheVide(); panel.classList.remove('panneau-mobile-ouvert'); }
       _carnetContacts = _carnetContacts.filter(function(c){ return c.id !== id; });
       _rafraichirListeCarnet();
     }
