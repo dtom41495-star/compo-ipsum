@@ -175,9 +175,24 @@ function cpsToutMarquerLu(){
   if(liste) cpsRendreListe(liste, window._cpsData||[]);
 }
 
+// Communiqués de la rédaction sélectionnée : les siens et ceux adressés à toutes les
+// rédactions (redaction_id vide). Sans ce filtre, choisir la Haute-Garonne montrait
+// les communiqués et les invitations presse du Tarn.
+function _cpsFiltreRedacActive(){
+  var r = window._redacActiveId;
+  return r ? '&or=(redaction_id.eq.'+encodeURIComponent(r)+',redaction_id.is.null)' : '';
+}
+// Pour les alertes « nouveau communiqué » : toutes MES rédactions (pas celles des autres)
+function _cpsFiltreMesRedacs(){
+  var uid = getUserId();
+  if(getUserRole() === 'admin') return '';
+  var ids = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid; }).map(function(l){ return encodeURIComponent(l.redaction_id); });
+  return ids.length ? '&or=(redaction_id.in.('+ids.join(',')+'),redaction_id.is.null)' : '&redaction_id=is.null';
+}
+
 function cpsChargerBadge(){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id', {headers: authH})
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&select=id'+_cpsFiltreRedacActive(), {headers: authH})
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(!data || data.code) return;
@@ -726,7 +741,7 @@ function cpsChargerVolontairesEnAttente(){
   var uid = getUserId();
   var gere = getUserRole() === 'admin' || (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; });
   if(!gere){ window._cpInvitAttente = { total:0, invitations:[] }; return Promise.resolve(window._cpInvitAttente); }
-  return fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=gte.'+encodeURIComponent(new Date().toISOString())+'&select=id,titre,type,statut,redaction_id,places_max,date_evenement',{headers:_cpInvitH()})
+  return fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=gte.'+encodeURIComponent(new Date().toISOString())+'&select=id,titre,type,statut,redaction_id,places_max,date_evenement'+_cpsFiltreRedacActive(),{headers:_cpInvitH()})
     .then(function(r){ return r.json(); })
     .then(function(cps){
       cps = (cps && !cps.code) ? cps : [];
@@ -968,7 +983,7 @@ function cpsCharger(){
   cpsAfficherAbonnement();
 
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*,communique_fichiers(*)', {headers:authH})
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*,communique_fichiers(*)'+_cpsFiltreRedacActive(), {headers:authH})
   .then(function(r){return r.json();})
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;

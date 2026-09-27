@@ -145,7 +145,7 @@ function osRedacChargerAlertes(zone){
   }
   // Alerte invitations presse disponibles
   promesses.push(
-    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&select=id,titre,date_evenement,date_reponse,reponse_requise&order=date_evenement.asc',{headers:authH})
+    fetch(SB_URL+'/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&select=id,titre,date_evenement,date_reponse,reponse_requise&order=date_evenement.asc'+_cpsFiltreRedacActive(),{headers:authH})
     .then(function(r){return r.json();})
     .then(function(invits){
       if(!invits||invits.code||!invits.length) return '';
@@ -1862,10 +1862,12 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   h += '</div>';
   h += '<div style="flex:1;"></div>';
   // Rédaction affichée et son état (ouverte / fermée) si elle a des horaires
+  // Sur ordinateur, fermée ou pas encore lancée : bloc en couleur au lieu de la pastille grise
+  var bandeauRail = (redacRail && !(typeof osEstMobile === 'function' && osEstMobile()) && typeof osRedacBandeauFermeeHtml === 'function') ? osRedacBandeauFermeeHtml(redacRail, true) : '';
   if(redacRail && typeof osRedacEtatHtml === 'function' && osRedacEtatHtml(redacRail)){
     h += '<div class="redac-rail-etat" style="padding:8px 10px 4px;">'
       +'<div style="font-size:0.72rem;font-weight:700;color:var(--encre);margin-bottom:3px;">'+esc(redacRail.nom||'')+'</div>'
-      +osRedacEtatHtml(redacRail)+'</div>';
+      +(bandeauRail || osRedacEtatHtml(redacRail))+'</div>';
   }
   // Bouton changer de rédaction si multi-redac
   var mesLiensSidebar = _membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; });

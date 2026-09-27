@@ -2478,7 +2478,7 @@ function _osVerifierNouveauxCPsSuite(){
   // tous les CPs déjà publiés d'un coup, juste mémoriser l'état actuel comme "déjà vu".
   var premiereFois = localStorage.getItem('compo_cp_vus_ids') === null;
   // Récupérer les 20 derniers CPs publiés
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,organisation,created_at&limit=20',{headers:authH})
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=id,titre,organisation,created_at&limit=20'+_cpsFiltreMesRedacs(),{headers:authH})
   .then(function(r){return r.json();})
   .then(function(data){
     if(!data||data.code||!data.length) return;

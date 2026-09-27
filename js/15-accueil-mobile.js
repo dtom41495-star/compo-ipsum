@@ -128,7 +128,9 @@ function _accueilChargerCompteurs(){
   var mesRedacs = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid; }).map(function(l){ return l.redaction_id; });
   var pInv = lire('/rest/v1/communiques?type=eq.invitation_presse&statut=eq.publie&date_evenement=gte.'+encodeURIComponent(maintenant.toISOString())+'&select=id,redaction_id')
     .then(function(cps){
-      cps = cps.filter(function(cp){ return !cp.redaction_id || mesRedacs.indexOf(cp.redaction_id) !== -1; });
+      // Rédaction sélectionnée seulement (plus celles adressées à toutes les rédactions)
+      var active = window._redacActiveId;
+      cps = cps.filter(function(cp){ return !cp.redaction_id || (active ? cp.redaction_id === active : mesRedacs.indexOf(cp.redaction_id) !== -1); });
       if(!cps.length) return 0;
       return lire('/rest/v1/invitations_disponibilites?statut=eq.selectionne&communique_id=in.('+cps.map(function(c){ return c.id; }).join(',')+')&select=communique_id')
         .then(function(choix){
@@ -147,6 +149,27 @@ function _accueilChargerCompteurs(){
     _accueilCompteurs = { aCorriger:r[0].length, evenements:r[1].length, invitations:r[2] };
     osAccueilMobileRendre();
   });
+}
+
+// Salutation de l'accueil selon l'heure, avec quelques variantes. Une seule par créneau
+// et par jour : elle ne change pas à chaque retour sur l'accueil.
+var ACCUEIL_SALUTS = [
+  { jusqua:5,  textes:['Encore debout, {p} ?', 'La rédaction dort, pas toi, {p}', 'Bonsoir {p}, nuit de bouclage ?'] },
+  { jusqua:9,  textes:['Bonjour {p}, déjà debout ?', 'Bonjour {p}, le café est prêt ?', 'Bonjour {p}, les rotatives chauffent'] },
+  { jusqua:12, textes:['Bonjour {p}', 'Bonjour {p}, quoi de neuf ce matin ?', 'Salut {p}, on attaque ?'] },
+  { jusqua:14, textes:['Bon appétit {p}', 'Pause déj, {p} ?', 'Bonjour {p}, une brève avant le dessert ?'] },
+  { jusqua:18, textes:['Bon après-midi {p}', 'Re-bonjour {p}', 'Salut {p}, l\'actu n\'attend pas'] },
+  { jusqua:22, textes:['Bonsoir {p}', 'Bonsoir {p}, une dernière brève ?', 'Bonsoir {p}, l\'édition du soir t\'attend'] },
+  { jusqua:24, textes:['Bonsoir {p}', 'Encore là, {p} ?', 'Bonsoir {p}, pense à dormir un peu'] }
+];
+function _accueilSalutation(prenom){
+  var d = new Date(), h = d.getHours();
+  var creneau = ACCUEIL_SALUTS.find(function(c){ return h < c.jusqua; }) || ACCUEIL_SALUTS[ACCUEIL_SALUTS.length-1];
+  var jour = d.getFullYear()*372 + d.getMonth()*31 + d.getDate();
+  var texte = creneau.textes[(jour + ACCUEIL_SALUTS.indexOf(creneau)) % creneau.textes.length];
+  var p = (prenom||'').trim();
+  // Sans prénom : on retire la place prévue pour lui
+  return p ? texte.replace('{p}', p) : texte.replace(/,? ?\{p\}/, '').replace(/ \?$/, ' ?');
 }
 
 function osAccueilMobileRendre(){
@@ -200,17 +223,20 @@ function osAccueilMobileRendre(){
 
   // En-tête : toucher son nom ouvre son profil (et sa carte d'adhérent)
   var aMaRedac = _accueilApps().some(function(a){ return a.id.indexOf('redac:') === 0; });
+  var etatRedac = (redac && typeof osRedacEtatTexte === 'function') ? osRedacEtatTexte(redac) : null;
   var h = '<button type="button" class="acc-salut"'+(aMaRedac ? ' data-app="redac:profil"' : '')+'>'
     +'<span class="acc-avatar">'+avatar+'</span>'
-    +'<span class="acc-salut-txt"><span class="acc-bonjour">Bonjour'+(prenom?' '+esc(prenom):'')+'</span>'
+    +'<span class="acc-salut-txt"><span class="acc-bonjour">'+esc(_accueilSalutation(prenom))+'</span>'
     +'<span class="acc-sous-salut">'+(aMaRedac ? 'Voir mon profil et ma carte' : esc(jour))+'</span></span>'
     +(aMaRedac ? '<i class="ti ti-chevron-right acc-chevron"></i>' : '')
     +'</button>'
     +'<div class="acc-ligne-statut">'
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
-    +(redac && typeof osRedacEtatHtml === 'function' ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
+    +(etatRedac && etatRedac.ouvert ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
     +'</div>';
+  // Rédaction fermée : un bandeau bien visible, pas une pastille qu'on confond avec « Disponible »
+  h += osRedacBandeauFermeeHtml(redac);
   if(_accueilProposerInstall()){
     h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'
       +'<div class="acc-installer-txt"><strong>Installe Compo sur ton téléphone</strong><span>Une icône sur ton écran d\'accueil, comme une vraie appli.</span>'

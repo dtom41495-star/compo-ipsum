@@ -229,6 +229,23 @@ function osRedacEtatTexte(redac){
   }
   return { ouvert:false, texte: e.prochaineOuverture ? 'Fermée · rouvre '+osHorairesQuandTexte(e.prochaineOuverture) : 'Fermée' };
 }
+// Bandeau « Rédaction fermée · rouvre… » / « pas encore lancée » (accueil téléphone,
+// rail de Ma rédac' sur ordinateur). Vide si la rédaction est ouverte.
+// court : version du rail (le nom de la rédaction est déjà affiché au-dessus).
+function osRedacBandeauFermeeHtml(redac, court){
+  var e = redac && osRedacEtatTexte(redac);
+  if(!e || e.ouvert) return '';
+  var pasLancee = !!redac.pas_lancee;
+  var titre = pasLancee ? (court ? 'Pas encore lancée' : esc(redac.nom)+' n\'est pas encore lancée') : esc(court ? e.texte : e.texte.replace(/^Fermée/, 'Rédaction fermée'));
+  var texte = pasLancee
+    ? (court ? 'Tu pourras y écrire dès son ouverture.' : 'Tu pourras y écrire et prendre des sujets dès son ouverture.')
+    : (court ? 'Notifications en pause jusqu\'à la réouverture.' : 'Les notifications sur les articles et les sujets attendent la réouverture.');
+  return '<div class="acc-fermee'+(pasLancee ? ' acc-pas-lancee' : '')+'" role="status">'
+    +'<i class="ti ti-'+(pasLancee ? 'hourglass' : 'clock-pause')+'"></i>'
+    +'<div><strong>'+titre+'</strong><span>'+texte+'</span></div>'
+    +'</div>';
+}
+
 function osRedacEtatHtml(redac, classe){
   var e = osRedacEtatTexte(redac);
   if(!e) return '';

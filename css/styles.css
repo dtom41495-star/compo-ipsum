@@ -4015,6 +4015,10 @@ input:focus,select:focus,textarea:focus{
 }
 .redac-rail-etat .rh-etat { white-space: normal; border-radius: 10px; align-items: flex-start; }
 .redac-rail-etat .rh-etat .rh-point { margin-top: 4px; }
+.redac-rail-etat .acc-fermee { margin: 4px 0 0; padding: 10px 10px; gap: 8px; border-radius: 12px; }
+.redac-rail-etat .acc-fermee > i { font-size: 20px; }
+.redac-rail-etat .acc-fermee strong { font-size: 12.5px; }
+.redac-rail-etat .acc-fermee span { font-size: 11px; line-height: 1.35; margin-top: 3px; }
 
 /* Mode sombre : pas d'animation de couleur sur les éléments adaptés (js/19-mode-sombre.js) */
 :root.theme-dark [data-sombre] { transition-property: transform, opacity, width, height, box-shadow !important; }
@@ -4632,3 +4636,12 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .cpr-ligne .cx-pastille { margin-left: 16px; }
   .cpr-ligne .cx-pastille + .cx-pastille { margin-left: 0; }
 }
+
+/* Accueil téléphone : rédaction fermée ou pas encore lancée, bien visible */
+.acc-fermee { display: flex; align-items: flex-start; gap: 12px; margin: 10px 0 12px; padding: 14px 16px; border-radius: 16px; background: #FFF4E5; border: 1px solid #F5C98A; color: #7A4B00; font-family: 'DM Sans', Arial, sans-serif; }
+.acc-fermee > i { font-size: 26px; flex-shrink: 0; color: #C2410C; }
+.acc-fermee strong { display: block; font-size: 15px; line-height: 1.3; color: #7A3B00; }
+.acc-fermee span { display: block; font-size: 13px; line-height: 1.4; margin-top: 2px; }
+.acc-fermee.acc-pas-lancee { background: #F3E8FA; border-color: #D9B8EC; color: #5B2C6F; }
+.acc-fermee.acc-pas-lancee > i { color: #7D3C98; }
+.acc-fermee.acc-pas-lancee strong { color: #4A235A; }

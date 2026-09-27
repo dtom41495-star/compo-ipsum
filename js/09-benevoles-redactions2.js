@@ -1355,8 +1355,13 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
 
 function osRedactionsChoisirRedac(redacId){
   window._redacActiveId = redacId;
+  // Ce qui dépend de la rédaction affichée est rechargé : communiqués, pastilles, accueil
+  window._cpsData = [];
+  window._cpInvitAttente = { total:0, invitations:[] };
   osAfficherRedactionLabel();
   osRedactionsRender();
+  if(typeof cpsChargerBadge === 'function') cpsChargerBadge();
+  if(typeof _accueilChargerCompteurs === 'function') _accueilChargerCompteurs();
 }
 
 // ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----
