@@ -15,7 +15,8 @@ var HORAIRES_CLE_PAR_JOUR = ['dim','lun','mar','mer','jeu','ven','sam'];
 // Notifications qui peuvent attendre la réouverture. Les autres (agenda, invitations
 // presse, boutique, signatures, assistance...) partent toujours tout de suite.
 var HORAIRES_TYPES_DIFFERABLES = ['statut_article','refus_article','publication','correction',
-  'valide-central','valide-central-ok','sujet','sujets','sujet-attribue','recrutement','relance','cp','com-visuels'];
+  'valide-central','valide-central-ok','sujet','sujets','sujet-attribue','sujet-libere','recrutement','relance','cp','com-visuels',
+  'recap_hebdo'];
 
 function _horairesPartiesParis(date){
   var p = {};
@@ -79,13 +80,46 @@ function osRedacHorairesTexteRelecture(redacId){
   return 'Rédaction fermée : relecture à partir de '+osHorairesQuandTexte(e.prochaineOuverture);
 }
 
+// ---- Rédaction pas encore lancée ----
+// Une rédaction en préparation (colonne redactions.pas_lancee) : ses membres ne peuvent
+// ni écrire ni réserver ou proposer de sujet, et ne reçoivent pas ses notifications.
+// Seuls ses rédac chefs et les admins y travaillent pour préparer le lancement.
+function osRedacPasLancee(redacId){
+  var r = (window._redactionsData||[]).find(function(x){ return x.id === redacId; });
+  return !!(r && r.pas_lancee);
+}
+function _osRedacChefOuAdmin(membreId, redacId){
+  var m = (window._membresData||[]).find(function(x){ return x.id === membreId; });
+  if((m && m.role === 'admin') || (membreId === getUserId() && getUserRole() === 'admin')) return true;
+  return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === membreId && l.redaction_id === redacId && l.role_redac === 'redac_chef'; });
+}
+// Vrai si la personne connectée ne peut pas travailler dans cette rédaction ; prévient alors.
+function osRedacBloqueePourMoi(redacId, silencieux){
+  if(!redacId || !osRedacPasLancee(redacId) || _osRedacChefOuAdmin(getUserId(), redacId)) return false;
+  if(!silencieux){
+    var r = (window._redactionsData||[]).find(function(x){ return x.id === redacId; });
+    notif('La rédaction '+(r ? r.nom : '')+' n\'est pas encore lancée : tu pourras y écrire dès son ouverture.', 'alerte');
+  }
+  return true;
+}
+// Membre dont toutes les rédactions sont en préparation (et qui n'y prépare rien) :
+// ses notifications de rédaction ne servent à rien, on ne les envoie pas.
+function _osMembreSansRedactionLancee(membreId){
+  if(!membreId) return false;
+  var ids = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === membreId; }).map(function(l){ return l.redaction_id; });
+  if(!ids.length) return false;
+  return ids.every(function(id){ return osRedacPasLancee(id) && !_osRedacChefOuAdmin(membreId, id); });
+}
+var HORAIRES_TYPES_REDACTION = HORAIRES_TYPES_DIFFERABLES.concat(['invitation','publication']);
+
 // ---- Notifications retenues en dehors des horaires ----
 // Un membre est « joignable » si au moins une de ses rédactions est ouverte, ou n'a pas
 // d'horaires. Sinon : date de la prochaine ouverture parmi ses rédactions.
 function _horairesReportPourMembre(membreId){
   if(!membreId) return null;
   var ids = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === membreId; }).map(function(l){ return l.redaction_id; });
-  var redacs = (window._redactionsData||[]).filter(function(r){ return ids.indexOf(r.id) !== -1; });
+  // Une rédaction pas encore lancée ne compte pas : elle ne rend personne « joignable »
+  var redacs = (window._redactionsData||[]).filter(function(r){ return ids.indexOf(r.id) !== -1 && !r.pas_lancee; });
   if(!redacs.length) return null;
   var prochaine = null;
   for(var i = 0; i < redacs.length; i++){
@@ -105,9 +139,11 @@ function _horairesMettreEnAttente(ligne){
 var _envoyerEmailResendReelSansHoraires = _envoyerEmailResendReel;
 _envoyerEmailResendReel = function(to, subject, html, type){
   var args = arguments;
-  if(HORAIRES_TYPES_DIFFERABLES.indexOf(type) === -1) return _envoyerEmailResendReelSansHoraires.apply(this, args);
+  if(HORAIRES_TYPES_REDACTION.indexOf(type) === -1) return _envoyerEmailResendReelSansHoraires.apply(this, args);
   var m = (window._membresData||[]).find(function(x){ return x.email && to && x.email.toLowerCase() === String(to).toLowerCase(); });
-  var report = m && _horairesReportPourMembre(m.id);
+  if(m && HORAIRES_TYPES_REDACTION.indexOf(type) !== -1 && _osMembreSansRedactionLancee(m.id)) return Promise.resolve({ ok:true, skipped:true });
+  // Les invitations presse partent toujours tout de suite (pas retenues hors horaires)
+  var report = m && HORAIRES_TYPES_DIFFERABLES.indexOf(type) !== -1 && _horairesReportPourMembre(m.id);
   if(!report) return _envoyerEmailResendReelSansHoraires.apply(this, args);
   var self = this;
   return _horairesMettreEnAttente({ canal:'email', membre_id:m.id, destinataire:to, sujet:subject, html:html, type:type, envoyer_apres:report.toISOString() })
@@ -117,6 +153,7 @@ _envoyerEmailResendReel = function(to, subject, html, type){
 var _notifierChatDMSansHoraires = notifierChatDM;
 notifierChatDM = function(membreId, message, type){
   var args = arguments;
+  if(HORAIRES_TYPES_REDACTION.indexOf(type) !== -1 && _osMembreSansRedactionLancee(membreId)) return Promise.resolve({ ok:true, skipped:true });
   var report = HORAIRES_TYPES_DIFFERABLES.indexOf(type) !== -1 && _horairesReportPourMembre(membreId);
   if(!report) return _notifierChatDMSansHoraires.apply(this, args);
   var self = this;
@@ -183,6 +220,7 @@ function osRedacHorairesLireForm(){
 // Pastille « Ouverte jusqu'à 18h » / « Fermée · rouvre lundi à 9h » pour la rédaction
 // affichée. Vide si la rédaction n'a pas d'horaires.
 function osRedacEtatTexte(redac){
+  if(redac && redac.pas_lancee) return { ouvert:false, texte:'Pas encore lancée' };
   if(!osRedacHorairesDefinis(redac)) return null;
   var e = osRedacHorairesEtat(redac);
   if(e.ouvert){

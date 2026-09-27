@@ -811,6 +811,7 @@ function osSujetsDroit(){
 
 function osOuvrirNouveauSujetModal(opts){
   window._nsOpts = opts || null; // depuis Rédiger : titre pré-rempli, et on écrit juste après
+  if(osRedacBloqueePourMoi(window._redacActiveId)) return;
   var droit = osSujetsDroit();
   if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
   var existing = document.getElementById('nouveau-sujet-overlay');
@@ -1619,6 +1620,15 @@ function osRedacReglagesForm(redac){
   h += '</div>';
   }
 
+  if('pas_lancee' in redac){
+  h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Lancement</div>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-pas_lancee" '+(redac.pas_lancee?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Rédaction pas encore lancée</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">les membres ne peuvent ni écrire ni prendre de sujet, et ne reçoivent pas ses notifications. Les rédac chefs et les admins peuvent préparer le lancement</span></span></label>';
+  h += '</div>';
+  }
+
   if('horaires' in redac) h += osRedacHorairesFormHtml(redac);
 
   if('relance_articles' in redac){
@@ -1659,14 +1669,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
+  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
     // en base, sinon tout l'enregistrement serait refusé
-    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere') && !(cle in redacAvant)) return;
+    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   if('horaires' in redacAvant){

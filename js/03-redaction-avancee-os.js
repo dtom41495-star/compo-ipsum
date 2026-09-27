@@ -1000,6 +1000,7 @@ function reserverSujetModal(){
 
 function _reserverSujetConfirme(sujet, authH){
   fermerModalSujet();
+  if(osRedacBloqueePourMoi(sujet.redaction_id || window._redacActiveId)) return;
 
   // Passer en en_cours dans la base avec l'auth correcte — on vérifie que l'écriture
   // a bien abouti avant d'annoncer un succès : sinon (droits, réseau...) l'utilisateur se

@@ -1418,6 +1418,7 @@ function cpsMakeCard(cp, isAdmin){
 //  - sinon : seul le rédac chef crée les sujets, rien n'est créé.
 // Renvoie une promesse du sujet créé (ou null).
 function _cpsSujetDepuisCp(cp, pourEcrire){
+  if(osRedacBloqueePourMoi(window._redacActiveId)) return Promise.resolve(null);
   var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : 'chef';
   if(!droit){
     notif('Dans ta rédaction, seul le rédac chef crée les sujets : parle-lui de ce communiqué.', 'alerte');
@@ -1507,6 +1508,7 @@ function cpsCréerArticle(cpId){
 
   // Un sujet pour cet article, selon les réglages de la rédaction (voir _cpsSujetDepuisCp),
   // puis l'éditeur pré-rempli avec le communiqué
+  if(osRedacBloqueePourMoi(window._redacActiveId)) return;
   // Un sujet existe déjà pour ce communiqué : on le reprend plutôt que d'en créer un autre
   var existant = (window._cpsSujetsParCp||{})[cp.id];
   var moi = (getUserNomComplet()||'').trim().toLowerCase();

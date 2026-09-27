@@ -16,6 +16,7 @@ function _rsEstAMoi(s){ return (s.responsable||'').trim().toLowerCase() === _rsM
 function osRedigerChoisirSujet(mode, suite){
   var redacId = window._redacActiveId;
   if(!redacId){ notif('Choisis d\'abord ta rédaction'); return; }
+  if(osRedacBloqueePourMoi(redacId)) return;
   _rsEtat = { mode: mode||'nouveau', suite: suite||null, redacId: redacId, sujets: [], filtre: '' };
   _rsAfficher(true);
   fetch(SB_URL+'/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=in.(ouvert,en_cours,propose)&select=id,titre,type,priorite,note,statut,responsable,created_by,cp_id,redaction_id,created_at&order=created_at.desc', {headers:_rsAuth()})
