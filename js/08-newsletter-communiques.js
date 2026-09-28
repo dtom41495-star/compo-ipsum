@@ -372,6 +372,7 @@ function _cpInvitLienAgenda(cp){
 // Carte de l'invitation dans les emails (badge date + DATE / HEURE / LIEU)
 function _emailCarteInvitation(cp, avecReponse){
   var d = cp.date_evenement ? new Date(cp.date_evenement) : null;
+  var nomRedacCp = typeof _nomRedac === 'function' ? _nomRedac(cp.redaction_id) : '';
   var infos = '';
   if(d) infos += _emailLigneInfo('Date', _cpInvitDateLongue(d)) + _emailLigneInfo('Heure', _cpInvitHeure(d));
   if(cp.lieu_evenement) infos += _emailLigneInfo('Lieu', esc(cp.lieu_evenement));
@@ -380,7 +381,7 @@ function _emailCarteInvitation(cp, avecReponse){
     +'<tr><td style="padding:14px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
     +(d?'<td style="width:62px;vertical-align:top;padding-right:14px;">'+_emailBadgeDate(d)+'</td>':'')
     +'<td style="vertical-align:top;">'
-      +'<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;"><span style="color:#6B2F8A;">Invitation presse</span>'+(cp.source?' · '+esc(cp.source):'')+'</div>'
+      +'<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">'+(nomRedacCp?esc(nomRedacCp)+' · ':'')+'<span style="color:#6B2F8A;">Invitation presse</span>'+(cp.source?' · '+esc(cp.source):'')+'</div>'
       +'<div style="font:700 17px/1.3 Arial, Helvetica, sans-serif;color:'+EMAIL_COUL.encre+';">'+esc(cp.titre||'Invitation presse')+'</div>'
       +(infos?'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">'+infos+'</table>':'')
     +'</td></tr></table></td></tr></table>';
@@ -388,6 +389,8 @@ function _emailCarteInvitation(cp, avecReponse){
 // Ligne "samedi 3 octobre à 10:00 · lieu" pour les messages Google Chat
 function _cpInvitLigneChat(cp){
   var morceaux = [];
+  var nomRedacChat = typeof _nomRedac === 'function' ? _nomRedac(cp.redaction_id) : '';
+  if(nomRedacChat) morceaux.push(_chatSansMiseEnForme(nomRedacChat));
   if(cp.date_evenement){
     var d = new Date(cp.date_evenement);
     morceaux.push(_cpInvitDateLongue(d)+' à '+_cpInvitHeure(d));
@@ -2242,7 +2245,9 @@ function cpsAdminCharger(){
   liste.innerHTML = osLoadingHtml();
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Filtrer par rédaction active si non-admin ou si rédaction choisie
-  var urlAdmin = SB_URL+'/rest/v1/communiques?order=created_at.desc&select=*,communique_fichiers(*)';
+  // Trié par « Date du communiqué » (saisie à la main), pas par date de saisie dans Compo —
+  // même logique que la liste de Ma rédac' (cpsCharger).
+  var urlAdmin = SB_URL+'/rest/v1/communiques?order=date_cp.desc.nullslast,created_at.desc&select=*,communique_fichiers(*)';
   if(window._redacActiveId) urlAdmin += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
   fetch(urlAdmin, { headers: authH })
   .then(function(r){ return r.json(); })
@@ -2320,7 +2325,11 @@ function _emailCarteCpCompacte(cp){
   var estInvit = cp.type === 'invitation_presse';
   var src = cp.source || cp.organisation || '';
   var dateCp = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
+  // Rédaction : utile ici en particulier — ce digest peut mélanger des CPs de plusieurs
+  // rédactions (abonné·e à tous les CPs, ou plusieurs rédactions).
+  var nomRedacCp = typeof _nomRedac === 'function' ? _nomRedac(cp.redaction_id) : '';
   var entete = '<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">'
+    +(nomRedacCp?esc(nomRedacCp)+' · ':'')
     +(estInvit?'<span style="color:#6B2F8A;">Invitation presse</span>'+(src||dateCp?' · ':''):'')
     +esc(src)+(src&&dateCp?' · ':'')+esc(dateCp)+'</div>';
   var corps = String(cp.corps||'').replace(/\s+/g,' ').trim();
@@ -2428,13 +2437,15 @@ function cpsEnvoyerNotifsManuelles(){
         function texteChat(liste){
           return '📨 *'+liste.length+' '+(liste.length>1?'nouveaux communiqués':'nouveau communiqué')+'*\n'
             + liste.map(function(cp){
+                var nomRedacCp = typeof _nomRedac === 'function' ? _chatSansMiseEnForme(_nomRedac(cp.redaction_id)) : '';
                 var src = _chatSansMiseEnForme(cp.source||cp.organisation);
+                var prefixe = [nomRedacCp, src].filter(Boolean).join(' · ');
                 var invit = '';
                 if(cp.type==='invitation_presse'){
                   var dEv = cp.date_evenement ? new Date(cp.date_evenement) : null;
                   invit = ' (invitation presse'+(dEv?', '+dEv.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' à '+_cpInvitHeure(dEv):'')+')';
                 }
-                return '• '+(src?src+' : ':'')+'« '+_chatSansMiseEnForme(cp.titre||'Sans titre')+' »'+invit;
+                return '• '+(prefixe?prefixe+' : ':'')+'« '+_chatSansMiseEnForme(cp.titre||'Sans titre')+' »'+invit;
               }).join('\n')
             + '\n<https://compo.ipsummedia.fr|Voir les communiqués>';
         }

@@ -908,7 +908,7 @@ function _osSujetPrevenirChefs(sujet){
         description:sujet.note||'',
         boutons:[{label:'Valider ou refuser', url:'https://compo.ipsummedia.fr'}],
         pourquoi:'Tu reçois cet email car tu es rédac chef ou admin de cette rédaction.' });
-      var chat = '💡 *Nouveau sujet proposé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » par '+_chatSansMiseEnForme(auteur)+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
+      var chat = '💡 *Nouveau sujet proposé*\n« '+_chatSansMiseEnForme(sujet.titre)+' »'+(redac?' · '+_chatSansMiseEnForme(redac.nom):'')+' par '+_chatSansMiseEnForme(auteur)+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
       notifierPersonnel(c.id, c.canal_notif, chat, 'sujet', function(){
         envoyerEmailResend(c.email, '[Ipsum Média] Sujet proposé · '+sujet.titre, html, 'sujet');
       });

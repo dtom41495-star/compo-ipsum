@@ -85,9 +85,10 @@ function _srNotifierFile(doc, rendu){
     });
     var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var titre = doc.titre || 'Sans titre';
+    var nomRedacFile = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
     cibles.forEach(function(m){
       if(m.canal_notif === 'chat'){
-        notifierChatDM(m.id, '*Un article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>', 'correction');
+        notifierChatDM(m.id, '*Un article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>', 'correction');
       } else if(m.email && !osEstEnLigne(m.id)){
         var html = _emailCompo({
           accent:'bleu', etiquette:'FILE DU SR', titre:'Un article attend une relecture',

@@ -1408,10 +1408,11 @@ function assignValider(){
         if(!_osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')) return;
         var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(docId);
         var parQui = _assignDoc2.auteur || 'Un·e rédacteur·rice';
+        var nomRedacSR = _assignDoc2.redaction || (typeof _nomRedac === 'function' ? _nomRedac(_assignDoc2.redaction_id) : '');
         if(membre.canal_notif === 'chat'){
           // Canal choisi par la personne : part systématiquement, même connectée à
           // Compo — ce n'est pas un filet de secours comme l'email ci-dessous.
-          var messageChat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(_assignDoc2.titre||'Sans titre')+' », confié par '+_chatSansMiseEnForme(parQui)+'.\n<'+lienArt+'|Relire l\'article>';
+          var messageChat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(_assignDoc2.titre||'Sans titre')+' »'+(nomRedacSR ? ' · '+_chatSansMiseEnForme(nomRedacSR) : '')+', confié par '+_chatSansMiseEnForme(parQui)+'.\n<'+lienArt+'|Relire l\'article>';
           notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
         } else if(membre.email && !osEstEnLigne(_assignDoc2.correcteur_id)){
           // Pas d'email si la notification urgente in-app suffit déjà (SR connecté·e).
@@ -2230,9 +2231,13 @@ function osVerifierNotifsAuteurArticles(){
 
 // Carte « article » des emails : rubrique, titre, auteur
 function _emailCarteArticle(doc){
+  // Rédaction : le champ texte de l'article si présent, sinon retrouvé via l'id
+  // (voir _nomRedac) — pour ne pas avoir à deviner d'où vient l'article dès qu'on
+  // en suit plusieurs.
+  var nomRedac = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;border-collapse:separate;">'
     +'<tr><td style="padding:14px 16px;">'
-    +(doc.rubrique ? '<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.rouge+';margin-bottom:2px;">'+esc(doc.rubrique)+'</div>' : '')
+    +(doc.rubrique || nomRedac ? '<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.rouge+';margin-bottom:2px;">'+esc([nomRedac, doc.rubrique].filter(Boolean).join(' · '))+'</div>' : '')
     +'<div style="font:700 18px/1.3 Georgia, serif;color:'+EMAIL_COUL.encre+';">'+esc(doc.titre||'Sans titre')+'</div>'
     +(doc.auteur ? '<div style="font:400 13px/1.5 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-top:4px;">par '+esc(doc.auteur)+'</div>' : '')
     +'</td></tr></table>';
@@ -2275,7 +2280,8 @@ function _osEmailStatutArticle(doc, statut, cfg){
       pourquoi:'Tu reçois cet email car tu es l\'auteur·rice de cet article.'
     });
     var lienChat = (statut==='publie' && doc.lien_publication) ? doc.lien_publication : lienArt;
-    var chatTexte = '*'+conf.sujet+'*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »\n<'+lienChat+'|'+(statut==='publie' && doc.lien_publication ? 'Voir l\'article en ligne' : 'Ouvrir dans Compo')+'>';
+    var nomRedacChat = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
+    var chatTexte = '*'+conf.sujet+'*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »'+(nomRedacChat ? ' · '+_chatSansMiseEnForme(nomRedacChat) : '')+'\n<'+lienChat+'|'+(statut==='publie' && doc.lien_publication ? 'Voir l\'article en ligne' : 'Ouvrir dans Compo')+'>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'statut_article', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] '+conf.sujet+' : '+(doc.titre||''), html, 'statut_article');
     });
@@ -2304,7 +2310,8 @@ function _osEmailRefusArticle(doc, note){
       boutons:[{ label:'Reprendre l\'article', url:lienArt }],
       pourquoi:'Tu reçois cet email car tu es l\'auteur·rice de cet article.'
     });
-    var chatTexte = '*Ton article est à reprendre*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »\nRemarque : '+_chatSansMiseEnForme(remarque)+'\n<'+lienArt+'|Reprendre l\'article>';
+    var nomRedacRefus = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
+    var chatTexte = '*Ton article est à reprendre*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »'+(nomRedacRefus ? ' · '+_chatSansMiseEnForme(nomRedacRefus) : '')+'\nRemarque : '+_chatSansMiseEnForme(remarque)+'\n<'+lienArt+'|Reprendre l\'article>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'refus_article', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] Ton article est à reprendre : '+(doc.titre||''), html, 'refus_article');
     });
