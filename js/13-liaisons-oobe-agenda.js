@@ -179,13 +179,23 @@ function rArticleOuvrirChangerSujet(){
   document.body.appendChild(overlay);
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var url = SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&order=created_at.desc&select=id,titre,statut,responsable';
+  // Seulement les sujets libres (réservés par personne) et sans article : on ne prend
+  // jamais le sujet de quelqu'un, et on ne crée pas deux articles sur un même sujet.
+  var url = SB_URL+'/rest/v1/briefing?statut=eq.ouvert&responsable=is.null&order=created_at.desc&select=id,titre,statut,responsable';
   var redacId = currentDoc.redaction_id || window._redacActiveId;
   if(redacId) url += '&redaction_id=eq.'+encodeURIComponent(redacId);
   fetch(url,{headers:authH}).then(function(r){return r.json();}).then(function(sujets){
     var idActuel = currentDoc.sujet_id;
-    window._csListeSujets = (!sujets||sujets.code) ? [] : sujets.filter(function(s){ return s.id !== idActuel; });
-    rArticleFiltrerSujets('');
+    sujets = (!sujets||sujets.code) ? [] : sujets.filter(function(s){ return s.id !== idActuel; });
+    var ids = sujets.map(function(s){ return s.id; });
+    var pArts = ids.length
+      ? fetch(SB_URL+'/rest/v1/articles?sujet_id=in.('+ids.map(encodeURIComponent).join(',')+')&select=sujet_id',{headers:authH}).then(function(r){ return r.json(); })
+      : Promise.resolve([]);
+    return pArts.then(function(arts){
+      var ecrits = (Array.isArray(arts) ? arts : []).map(function(a){ return a.sujet_id; });
+      window._csListeSujets = sujets.filter(function(s){ return ecrits.indexOf(s.id) === -1; });
+      rArticleFiltrerSujets('');
+    });
   }).catch(function(){
     var l=document.getElementById('cs-liste'); if(l) l.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--rouge);font-size:0.78rem;">Erreur de chargement</div>';
   });
@@ -196,7 +206,7 @@ function rArticleFiltrerSujets(filtre){
   if(!liste) return;
   var f = (filtre||'').trim().toLowerCase();
   var items = (window._csListeSujets||[]).filter(function(s){ return !f || (s.titre||'').toLowerCase().indexOf(f)!==-1; });
-  if(!items.length){ liste.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--gris);font-size:0.78rem;">Aucun sujet ne correspond.</div>'; return; }
+  if(!items.length){ liste.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--gris);font-size:0.78rem;">'+(f ? 'Aucun sujet ne correspond.' : 'Aucun sujet libre pour le moment.')+'</div>'; return; }
   liste.innerHTML = items.map(function(s){
     var pris = s.statut==='en_cours' && s.responsable;
     return '<div data-sid="'+esc(s.id)+'" onclick="rArticleChoisirSujet(this.dataset.sid)" style="padding:0.55rem 0.6rem;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:0.6rem;" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'transparent\'">'
@@ -219,8 +229,26 @@ function rArticleChoisirSujet(nouveauSujetId){
   var authHGet  = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var auteur = currentDoc.auteur || getUserNomComplet();
 
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
-    method:'PATCH', headers:authHRepr, body: JSON.stringify({sujet_id:nouveauSujetId})
+  // 1. Réserver le nouveau sujet, seulement s'il est toujours libre (pas de course)
+  // 2. vérifier qu'aucun article n'y est déjà rattaché, 3. relier l'article.
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId)+'&statut=eq.ouvert&responsable=is.null', {
+    method:'PATCH', headers:authHRepr, body: JSON.stringify({statut:'en_cours', responsable:auteur})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(pris){
+    if(!Array.isArray(pris) || !pris.length) throw new Error('pris');
+    return fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(nouveauSujetId)+'&id=neq.'+encodeURIComponent(articleId)+'&select=id&limit=1', {headers:authHGet})
+      .then(function(r){ return r.json(); });
+  })
+  .then(function(autres){
+    if(Array.isArray(autres) && autres.length){
+      // Rendre le sujet tel qu'il était
+      fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId), {method:'PATCH', headers:authHMin, body: JSON.stringify({statut:'ouvert', responsable:null})}).catch(function(){});
+      throw new Error('ecrit');
+    }
+    return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
+      method:'PATCH', headers:authHRepr, body: JSON.stringify({sujet_id:nouveauSujetId})
+    });
   })
   .then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
   .then(function(res){
@@ -228,17 +256,14 @@ function rArticleChoisirSujet(nouveauSujetId){
     // erreur HTTP) si le WHERE ne matche aucune ligne visible pour ce rôle — sans
     // cette vérification on croirait la liaison faite alors que rien n'a changé.
     if(!res.ok || !Array.isArray(res.data) || !res.data.length){
+      fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId), {method:'PATCH', headers:authHMin, body: JSON.stringify({statut:'ouvert', responsable:null})}).catch(function(){});
       notif('Erreur — l\'article n\'a pas pu être relié (droits ?)','erreur');
       return;
     }
     currentDoc.sujet_id = nouveauSujetId;
+    if(currentDoc._sujet_id) currentDoc._sujet_id = nouveauSujetId;
     rArticleAfficherSujetLie(nouveauSujetId);
     notif('Sujet mis à jour','succes');
-
-    // Réclamer le nouveau sujet pour l'auteur de l'article.
-    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(nouveauSujetId), {
-      method:'PATCH', headers:authHMin, body: JSON.stringify({statut:'en_cours', responsable:auteur})
-    }).catch(function(){});
 
     // Libérer l'ancien sujet, mais seulement si plus aucun article ne le référence —
     // l'article courant vient d'en changer, mais un AUTRE article pourrait encore
@@ -254,7 +279,10 @@ function rArticleChoisirSujet(nouveauSujetId){
         }
       }).catch(function(){});
     }
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  }).catch(function(err){
+    var m = err && err.message;
+    notif(m === 'pris' ? 'Ce sujet vient d\'être réservé par quelqu\'un d\'autre' : m === 'ecrit' ? 'Un article existe déjà pour ce sujet' : 'Erreur réseau', 'erreur');
+  });
 }
 
 // ===== LIAISON CP SOURCE — LECTURE =====

@@ -790,7 +790,8 @@ function sauvegarderCloud(){
         drafts.splice(idx, 1);
         localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
       }
-    }).catch(function(){
+    }).catch(function(err){
+      if(err && err.code === 'SUJET_DEJA_ECRIT'){ notif(err.message, 'erreur'); return; }
       notif('Erreur reseau - article mis en file hors ligne');
       osSauvegarderOfflineQueue(doc);
     });

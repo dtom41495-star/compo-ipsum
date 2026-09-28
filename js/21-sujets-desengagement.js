@@ -19,28 +19,34 @@ function _sdBrouillonsLocaux(sujetId){
   catch(e){ return []; }
 }
 
-function osSujetSeDesengager(sujetId){
+// opts.apresSuppression : l'article du sujet vient d'être supprimé. On propose alors de
+// libérer le sujet seulement si c'est utile (toujours réservé, par moi ou quelqu'un que je
+// peux libérer, et pas d'autre article déjà avancé), sans message sinon.
+function osSujetSeDesengager(sujetId, opts){
   if(!sujetId) return;
+  var apresSuppr = !!(opts && opts.apresSuppression);
   Promise.all([
     fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,responsable,redaction_id', {headers:_sdAuth()}).then(function(r){ return r.json(); }),
     fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,auteur,auteur_id,corps', {headers:_sdAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
   ]).then(function(res){
     var s = Array.isArray(res[0]) && res[0][0];
-    if(!s){ notif('Sujet introuvable','erreur'); return; }
-    if(s.statut !== 'en_cours' || !s.responsable){ notif('Ce sujet n\'est plus réservé : il a déjà été libéré ou publié.'); return; }
+    if(!s){ if(!apresSuppr) notif('Sujet introuvable','erreur'); return; }
+    if(s.statut !== 'en_cours' || !s.responsable){ if(!apresSuppr) notif('Ce sujet n\'est plus réservé : il a déjà été libéré ou publié.'); return; }
     var moi = (getUserNomComplet()||'').trim().toLowerCase();
     var estMoi = (s.responsable||'').trim().toLowerCase() === moi;
     var estChef = _sdEstChef(s.redaction_id);
-    if(!estMoi && !estChef){ notif('Ce sujet est réservé par '+s.responsable+'.'); return; }
+    if(!estMoi && !estChef){ if(!apresSuppr) notif('Ce sujet est réservé par '+s.responsable+'.'); return; }
     var articles = Array.isArray(res[1]) ? res[1] : [];
+    var avance = articles.filter(function(a){ return a.statut && a.statut !== 'brouillon'; })[0] || null;
+    if(apresSuppr && avance) return;
     _sdEtat = {
-      sujet: s, estMoi: estMoi,
+      sujet: s, estMoi: estMoi, apresSuppression: apresSuppr,
       avance: articles.filter(function(a){ return a.statut && a.statut !== 'brouillon'; })[0] || null,
       brouillons: articles.filter(function(a){ return !a.statut || a.statut === 'brouillon'; }),
       locaux: estMoi ? _sdBrouillonsLocaux(sujetId) : []
     };
     _sdAfficher();
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
+  }).catch(function(){ if(!apresSuppr) notif('Erreur réseau','erreur'); });
 }
 
 function _sdFermer(){
@@ -65,7 +71,8 @@ function _sdAfficher(){
       +'<div class="se-actions"><button class="se-btn-secondaire" onclick="_sdFermer()">J\'ai compris</button></div>';
   } else {
     var nbBrouillons = e.brouillons.length + e.locaux.length;
-    corps = '<div class="sd-sujet"><span>Sujet</span><strong>'+esc(s.titre||'Sans titre')+'</strong>'
+    corps = (e.apresSuppression ? '<p class="se-texte">L\'article est supprimé, mais son sujet '+(e.estMoi ? 't\'est' : 'est')+' toujours réservé.</p>' : '')
+      +'<div class="sd-sujet"><span>Sujet</span><strong>'+esc(s.titre||'Sans titre')+'</strong>'
       +(e.estMoi ? '' : '<em>Réservé par '+esc(s.responsable)+'</em>')+'</div>'
       +'<p class="se-texte">'+(e.estMoi
         ? 'Le sujet sera de nouveau proposé à toute la rédaction. Ton rédac chef sera prévenu.'
@@ -81,13 +88,13 @@ function _sdAfficher(){
     corps += '<label class="sd-mot"><span>'+(e.estMoi ? 'Un mot pour ton rédac chef' : 'Un mot pour '+esc((s.responsable||'').split(' ')[0]))+' <small>(facultatif)</small></span>'
       +'<textarea id="sd-message" rows="2" maxlength="300" placeholder="'+(e.estMoi ? 'Ex : pas le temps cette semaine, pas réussi à joindre la mairie…' : 'Ex : on le confie à quelqu\'un de disponible cette semaine')+'"></textarea></label>'
       +'<div class="se-actions">'
-      +'<button class="se-btn-principal" onclick="_sdConfirmer(this)"><i class="ti ti-bookmark-off"></i> '+(e.estMoi ? 'Me désengager' : 'Libérer le sujet')+'</button>'
-      +'<button class="se-btn-lien" onclick="_sdFermer()">Annuler</button>'
+      +'<button class="se-btn-principal" onclick="_sdConfirmer(this)"><i class="ti ti-bookmark-off"></i> '+(e.estMoi && !e.apresSuppression ? 'Me désengager' : 'Libérer le sujet')+'</button>'
+      +'<button class="se-btn-lien" onclick="_sdFermer()">'+(e.apresSuppression ? (e.estMoi ? 'Garder le sujet pour moi' : 'Le laisser réservé') : 'Annuler')+'</button>'
       +'</div>';
   }
 
   ov.innerHTML = '<div class="se-boite" role="dialog" aria-modal="true" aria-labelledby="sd-titre">'
-    +'<div class="se-entete"><div id="sd-titre" class="se-titre">'+(e.avance ? 'Impossible pour l\'instant' : (e.estMoi ? 'Te désengager de ce sujet ?' : 'Libérer ce sujet ?'))+'</div>'
+    +'<div class="se-entete"><div id="sd-titre" class="se-titre">'+(e.avance ? 'Impossible pour l\'instant' : e.apresSuppression ? 'Et le sujet ?' : (e.estMoi ? 'Te désengager de ce sujet ?' : 'Libérer ce sujet ?'))+'</div>'
     +'<button class="se-fermer" onclick="_sdFermer()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
     +'<div class="se-corps">'+corps+'</div></div>';
   ov.addEventListener('click', function(ev){ if(ev.target === ov) _sdFermer(); });

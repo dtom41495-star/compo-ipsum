@@ -104,10 +104,27 @@ var db = {
         payload.id = articleId;
         estUneCreation = true;
       }
-      return fetch(url, {method:method, headers:authHeaders, body:JSON.stringify(payload)}).then(function(r){
-        if(!r.ok) return r.json().then(function(e){ throw new Error(e.message||e.hint||('HTTP '+r.status)); });
-        return r.json();
-      });
+      function envoyer(){
+        return fetch(url, {method:method, headers:authHeaders, body:JSON.stringify(payload)}).then(function(r){
+          if(!r.ok) return r.json().then(function(e){
+            // Index unique « un article par sujet » côté base
+            if(e && e.code === '23505' && /sujet/i.test((e.message||'')+(e.details||''))) throw _errSujetDejaEcrit(null);
+            throw new Error(e.message||e.hint||('HTTP '+r.status));
+          });
+          return r.json();
+        });
+      }
+      // Garde-fou : jamais deux articles sur le même sujet. Une copie gardée sur
+      // l'appareil (autre id) renvoyée au serveur créait un doublon.
+      if(estUneCreation && payload.sujet_id){
+        return fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(payload.sujet_id)+'&id=neq.'+encodeURIComponent(articleId)+'&select=id&limit=1', {
+          headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')})
+        }).then(function(r){ return r.json(); }).then(function(autres){
+          if(Array.isArray(autres) && autres.length) throw _errSujetDejaEcrit(autres[0].id);
+          return envoyer();
+        });
+      }
+      return envoyer();
     })
     .then(function(data){
       // PostgREST renvoie 200 avec un tableau vide si le WHERE (id) ne matche
@@ -1506,6 +1523,7 @@ function ouvrirAssignationDepuisDoc(doc){
 // ── AUTOSAVE ──
 var _autosaveInterval = null;
 var _autosaveHash = '';
+var _autosaveDoublonSignale = null; // id de l'article déjà signalé comme doublon de sujet
 var _autosaveInFlight = false; // verrou partagé entre l'interval et l'autosave debounced (input)
 
 function _autosaveHash_calc(){
@@ -1516,6 +1534,14 @@ function _autosaveHash_calc(){
 }
 
 // Sauvegarde locale de secours partagée entre les deux systèmes d'autosave
+// Erreur « ce sujet a déjà un article » (voir db.sauvegarderArticle)
+function _errSujetDejaEcrit(articleId){
+  var err = new Error('Un article existe déjà pour ce sujet : ouvre-le depuis Mes articles plutôt que d\'en créer un deuxième.');
+  err.code = 'SUJET_DEJA_ECRIT';
+  err.articleId = articleId || null;
+  return err;
+}
+
 function _autosaveFallbackLocal(doc){
   try{
     var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
@@ -1554,11 +1580,14 @@ function osStartAutosave(){
       // Indicateur discret
       var ind = document.getElementById('r-save-indicator');
       if(ind){ ind.textContent = 'Sauvegardé'; ind.style.color='var(--vert,#27500A)'; setTimeout(function(){if(ind)ind.textContent='';},3000); }
-    }).catch(function(){
+    }).catch(function(err){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
-      if(ind){ ind.textContent = 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
+      var doublon = err && err.code === 'SUJET_DEJA_ECRIT';
+      if(ind){ ind.textContent = doublon ? 'Un article existe déjà pour ce sujet — copie gardée sur l\'appareil' : 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
+      // Prévenir une seule fois par article (l'autosave repasse toutes les 45 s)
+      if(doublon && _autosaveDoublonSignale !== doc.id){ _autosaveDoublonSignale = doc.id; notif(err.message, 'erreur'); }
     }).finally(function(){ _autosaveInFlight = false; });
   }, 45000); // toutes les 45 secondes
 }
