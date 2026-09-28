@@ -4684,3 +4684,20 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .ma-pastille { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--rouge); color: white; font: 700 0.64rem/18px 'DM Sans', sans-serif; text-align: center; }
 #ma-rail button.actif .ma-pastille, #ma-rail button[style*="var(--rouge)"] .ma-pastille { background: white; color: var(--rouge); }
 .ma-onglets-mobile .ma-pastille { margin-left: 6px; display: inline-block; vertical-align: 1px; }
+
+/* ===== Vidéo tuto Compo ===== */
+.vt-boite { width: 880px; }
+.vt-corps { padding: 0.9rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto; font-family: 'DM Sans', sans-serif; }
+.vt-intro { margin: 0; font-size: 0.86rem; line-height: 1.5; color: #57534E; }
+.vt-video { width: 100%; aspect-ratio: 16 / 9; background: #111; border-radius: 10px; display: block; }
+.vt-actions { display: flex; justify-content: flex-end; }
+.vt-actions .se-btn-principal { width: auto; padding: 0.6rem 1.4rem; }
+.vt-option { display: flex; align-items: center; gap: 0.8rem; width: 100%; padding: 0.85rem 1rem; border: 1.5px solid var(--gris-bord); border-radius: 12px; background: white; cursor: pointer; text-align: left; font-family: 'DM Sans', sans-serif; color: var(--encre); }
+.vt-option:hover { border-color: #E8461E; background: #FFF7F4; }
+.vt-option > i { font-size: 1.5rem; color: #E8461E; flex-shrink: 0; }
+.vt-option strong { display: block; font-size: 0.9rem; }
+.vt-option small { display: block; font-size: 0.76rem; color: #6B7280; margin-top: 2px; }
+@media (max-width: 800px) {
+  .vt-boite { width: 100%; }
+  .vt-actions .se-btn-principal { width: 100%; }
+}
