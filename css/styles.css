@@ -4701,3 +4701,9 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .vt-boite { width: 100%; }
   .vt-actions .se-btn-principal { width: 100%; }
 }
+.vt-cadre { position: relative; }
+.vt-son { position: absolute; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 0.55rem 0.95rem; border: none; border-radius: 999px; background: #E8461E; color: white; font: 700 0.84rem 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); animation: vt-pulse 1.6s ease-in-out infinite; }
+.vt-son[hidden] { display: none; }
+.vt-son i { font-size: 1.05rem; }
+@keyframes vt-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .vt-son { animation: none; } }

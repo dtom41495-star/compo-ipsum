@@ -41,13 +41,37 @@ function osVideoTutoOuvrir(opts){
     +'<button class="se-fermer" onclick="osVideoTutoFermer()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
     +'<div class="vt-corps">'
     +(opts.premiere ? '<p class="vt-intro">Deux minutes pour faire le tour de Compo. Tu pourras la revoir quand tu veux depuis le Guide.</p>' : '')
-    +'<video class="vt-video" src="'+VIDEO_TUTO_SRC+'" controls playsinline preload="metadata"></video>'
+    +'<div class="vt-cadre"><video class="vt-video" src="'+VIDEO_TUTO_SRC+'" controls playsinline autoplay preload="auto"></video>'
+    +'<button class="vt-son" hidden onclick="osVideoTutoActiverSon()"><i class="ti ti-volume"></i>Activer le son</button></div>'
     +'<div class="vt-actions"><button class="se-btn-principal" data-sombre-ignore onclick="osVideoTutoFermer()">'+(opts.premiere ? 'C\'est parti' : 'Fermer')+'</button></div>'
     +'</div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) osVideoTutoFermer(); });
   document.body.appendChild(ov);
+  // Lecture automatique. Les navigateurs refusent le son tant qu'on n'a pas cliqué sur
+  // la page (cas de l'ouverture de Compo pour un compte déjà configuré) : on lance alors
+  // la vidéo en muet, avec un bouton bien visible pour activer le son.
   var v = ov.querySelector('video');
-  if(v){ try { var p = v.play(); if(p && p.catch) p.catch(function(){}); } catch(e){} }
+  if(v){
+    var enMuet = function(){
+      v.muted = true;
+      var p2 = v.play(); if(p2 && p2.catch) p2.catch(function(){});
+      var b = ov.querySelector('.vt-son'); if(b) b.hidden = false;
+    };
+    try {
+      var p = v.play();
+      if(p && p.catch) p.catch(function(e){ if(e && e.name === 'NotAllowedError') enMuet(); });
+    } catch(e){ enMuet(); }
+    // Le son réactivé depuis les contrôles de la vidéo : plus besoin du bouton
+    v.addEventListener('volumechange', function(){ if(!v.muted){ var b = ov.querySelector('.vt-son'); if(b) b.hidden = true; } });
+  }
+}
+
+function osVideoTutoActiverSon(){
+  var ov = document.getElementById('vt-overlay'); if(!ov) return;
+  var v = ov.querySelector('video'); if(!v) return;
+  v.muted = false;
+  if(v.paused){ var p = v.play(); if(p && p.catch) p.catch(function(){}); }
+  var b = ov.querySelector('.vt-son'); if(b) b.hidden = true;
 }
 
 function osVideoTutoFermer(){
