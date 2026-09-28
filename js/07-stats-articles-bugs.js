@@ -1464,6 +1464,31 @@ function maOsSupprimerBrouillonLocal(id){
   maOsFiltre();
 }
 
+// Bouton principal selon l'étape (cartes ordinateur et téléphone) :
+//  - au SR, relecteur = moi → Corriger ;
+//  - au SR, dans la file (aucun SR) et je peux prendre → Je prends ;
+//  - au SR chez quelqu'un d'autre, admin → Corriger en secondaire (reprise possible) ;
+//  - relu par le SR, admin ou rédac chef → Valider (ouvre l'article sur la zone du chef).
+// Refuser reste proposé à ceux qui peuvent agir, sauf sur un article de la file.
+function _maActionsEtape(doc, uid, role){
+  var s = doc.statut||'brouillon';
+  var estAuteur = doc.auteur_id && doc.auteur_id===uid;
+  if(estAuteur) return [];
+  var estCorrecteur = doc.correcteur_id && doc.correcteur_id===uid;
+  var estChef = role==='admin' || (typeof _sdEstChef === 'function' && _sdEstChef(doc.redaction_id));
+  var ouvrir = 'mesArticlesOuvrir(this.dataset.id,\'correction\')';
+  var refuser = { type:'refus', icon:'x', label:'Refuser', action:'maOsRefuser(this.dataset.id)' };
+  if(s==='en-relecture'){
+    if(estCorrecteur) return [{ type:'vert', icon:'search', label:'Corriger', action:ouvrir }, refuser];
+    if(!doc.correcteur_id && typeof _srPeutPrendre === 'function' && _srPeutPrendre(doc.redaction_id))
+      return [{ type:'principal', icon:'hand-grab', label:'Je prends', action:'osSrPrendre(this.dataset.id,this)' }];
+    if(role==='admin') return [{ type:'', icon:'search', label:'Corriger', action:ouvrir }, refuser];
+    return [];
+  }
+  if(s==='corrige' && estChef) return [{ type:'vert', icon:'circle-check', label:'Valider', action:ouvrir }, refuser];
+  return [];
+}
+
 function maOsMakeCard(doc, uid, role){
   if(osEstMobile()) return _maCarteMobile(doc, uid, role);
   var s   = doc.statut||'brouillon';
@@ -1508,12 +1533,9 @@ function maOsMakeCard(doc, uid, role){
   var actions = '';
   if(estAuteur && s==='brouillon')
     actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i>Modifier</button>';
-  var peutCorriger = (estCorrecteur && s==='en-relecture') ||
-                     (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
-  if(peutCorriger){
-    actions += '<button class="mac-btn mac-btn-vert" data-sombre-ignore data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
-    actions += '<button class="mac-btn mac-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i>Refuser</button>';
-  }
+  _maActionsEtape(doc, uid, role).forEach(function(a){
+    actions += '<button class="mac-btn'+(a.type ? ' mac-btn-'+a.type : '')+'"'+(a.type==='vert'||a.type==='principal' ? ' data-sombre-ignore' : '')+' data-id="'+doc.id+'" onclick="'+a.action+'"><i class="ti ti-'+a.icon+'"></i>'+a.label+'</button>';
+  });
   if((doc.titre_original||doc.corps_original)&&estAuteur){
     var nbCommentaires = _maCommentairesCountMap[doc.id]||0;
     actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCommentaires?' ('+nbCommentaires+')':'')+'</button>';
@@ -1590,11 +1612,9 @@ function _maCarteMobile(doc, uid, role){
   var actions = '';
   if(estAuteur && s==='brouillon')
     actions += '<button class="ma-btn ma-btn-principal" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-pencil"></i>Modifier</button>';
-  var peutCorriger = (estCorrecteur && s==='en-relecture') || (role==='admin' && !estAuteur && (s==='en-relecture'||s==='corrige'));
-  if(peutCorriger){
-    actions += '<button class="ma-btn ma-btn-vert" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'correction\')"><i class="ti ti-search"></i>Corriger</button>';
-    actions += '<button class="ma-btn ma-btn-refus" data-id="'+doc.id+'" onclick="maOsRefuser(this.dataset.id)"><i class="ti ti-x"></i>Refuser</button>';
-  }
+  _maActionsEtape(doc, uid, role).forEach(function(a){
+    actions += '<button class="ma-btn'+(a.type ? ' ma-btn-'+a.type : '')+'" data-id="'+doc.id+'" onclick="'+a.action+'"><i class="ti ti-'+a.icon+'"></i>'+a.label+'</button>';
+  });
   if((doc.titre_original||doc.corps_original) && estAuteur){
     var nbCom = _maCommentairesCountMap[doc.id]||0;
     actions += '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCom?' ('+nbCom+')':'')+'</button>';
