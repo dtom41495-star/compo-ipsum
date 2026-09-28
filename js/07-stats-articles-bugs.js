@@ -1029,6 +1029,7 @@ var MA_VUES = {
   secours:              { icon:'ti-device-floppy',label:'Non sauvegardés' },
   corriger:             { icon:'ti-search',       label:'À relire (SR)' },
   'a-valider':          { icon:'ti-circle-check', label:'À valider' },
+  'a-publier':          { icon:'ti-world-upload', label:'À publier' },
   tous:                 { icon:'ti-list-details', label:'Tous les articles' },
   'validation-centrale':{ icon:'ti-shield-check', label:'Validation centrale' }
 };
@@ -1052,9 +1053,24 @@ function _maRedacsAValider(){
     .map(function(l){ return l.redaction_id; });
 }
 function _maPeutValider(){ var r = _maRedacsAValider(); return r === null || r.length > 0; }
-function _maRequeteAValider(select){
+function _maRequeteAValider(select, statuts){
   var r = _maRedacsAValider();
-  return SB_URL+'/rest/v1/articles?statut=eq.corrige'+(r ? '&redaction_id=in.('+r.map(encodeURIComponent).join(',')+')' : '')+'&select='+select+'&order=updated_at.asc';
+  return SB_URL+'/rest/v1/articles?statut=in.('+(statuts||'corrige')+')'+(r ? '&redaction_id=in.('+r.map(encodeURIComponent).join(',')+')' : '')+'&select='+select+'&order=updated_at.asc';
+}
+// « À publier » : bons à publier qu'on peut mettre en ligne (hors rédaction centrale,
+// il faut d'abord la validation centrale — même règle que _osArticlePubliable)
+function _maRequeteAPublier(select){ return _maRequeteAValider(select, 'valide,valide_central'); }
+function _maFiltrePubliables(arts){
+  return (arts||[]).filter(function(a){ return typeof _osArticlePubliable !== 'function' || _osArticlePubliable(a); });
+}
+var _maNbAPublier = 0;
+function _maChargerPastillePublier(){
+  if(!_maPeutValider()) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(_maRequeteAPublier('id,statut,redaction_id'),{headers:authH}).then(function(r){ return r.json(); }).then(function(rows){
+    _maNbAPublier = Array.isArray(rows) ? _maFiltrePubliables(rows).length : 0;
+    _maPoserPastilleValider();
+  }).catch(function(){});
 }
 // Pastille du rail : nombre d'articles à valider
 var _maNbAValider = 0;
@@ -1080,7 +1096,7 @@ function _maChargerPastilleRelire(){
   });
 }
 function _maPoserPastilleValider(){
-  [['a-valider', _maNbAValider], ['corriger', _maNbARelire]].forEach(function(x){
+  [['a-valider', _maNbAValider], ['a-publier', _maNbAPublier], ['corriger', _maNbARelire]].forEach(function(x){
     var btn = document.querySelector('#ma-rail [data-vue="'+x[0]+'"]');
     if(!btn) return;
     var p = btn.querySelector('.ma-pastille');
@@ -1095,9 +1111,9 @@ function _maVuesAutorisees(){
   var ids = ['mes','brouillons'];
   if(_maBrouillonsLocaux().length) ids.push('secours');
   if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof _srVoitLaFile === 'function' && _srVoitLaFile())) ids.push('corriger');
-  if(_maPeutValider()) ids.push('a-valider');
-  if(role === 'admin') ids.push('tous');
+  if(_maPeutValider()) ids.push('a-valider', 'a-publier');
   if(estValidateurCentral()) ids.push('validation-centrale');
+  if(role === 'admin') ids.push('tous'); // tout en bas (choix de Tom)
   return ids;
 }
 
@@ -1139,7 +1155,7 @@ function _maRailRender(){
   if(autorisees.indexOf('secours') !== -1){
     h += '<div style="padding-left:18px;">'+bouton('secours', true)+'</div>';
   }
-  var vuesRole = autorisees.filter(function(id){ return ['corriger','a-valider','tous','validation-centrale'].indexOf(id) !== -1; });
+  var vuesRole = autorisees.filter(function(id){ return ['corriger','a-valider','a-publier','tous','validation-centrale'].indexOf(id) !== -1; });
   if(vuesRole.length){
     h += '<div style="height:0.5px;background:var(--gris-bord);margin:8px 4px;"></div>';
     vuesRole.forEach(function(id){ h += bouton(id); });
@@ -1238,9 +1254,12 @@ function osMesArticlesCharger(){
 
   _maChargerPastilleValider();
   _maChargerPastilleRelire();
+  _maChargerPastillePublier();
   var q;
   if(_maOnglet === 'a-valider'){
     q = _maRequeteAValider('*');
+  } else if(_maOnglet === 'a-publier'){
+    q = _maRequeteAPublier('*');
   } else if(_maOnglet === 'tous' && role === 'admin'){
     // Admin — vraiment tous les articles, toutes rédactions confondues. Ne PAS scoper
     // sur window._redacActiveId ici : ce n'est pas ce que "Tous" veut dire pour un
@@ -1267,6 +1286,7 @@ function osMesArticlesCharger(){
   .then(function(r){return r.json();})
   .then(function(arts){
     arts = (!arts||arts.code) ? [] : arts;
+    if(_maOnglet === 'a-publier') arts = _maFiltrePubliables(arts);
     if(_maOnglet === 'validation-centrale'){
       var redacCentraleMC = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
       arts = redacCentraleMC ? arts.filter(function(a){ return a.redaction_id !== redacCentraleMC.id; }) : [];
@@ -1541,6 +1561,8 @@ function _maActionsEtape(doc, uid, role){
     return [];
   }
   if(s==='corrige' && estChef) return [{ type:'vert', icon:'circle-check', label:'Valider', action:ouvrir }, refuser];
+  if((s==='valide' || s==='valide_central') && estChef && (typeof _osArticlePubliable !== 'function' || _osArticlePubliable(doc)))
+    return [{ type:'principal', icon:'world-upload', label:'Mettre en ligne', action:'publierArticle(this.dataset.id)' }];
   return [];
 }
 

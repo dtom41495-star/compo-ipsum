@@ -730,17 +730,22 @@ function publierArticle(id){
 function _publierArticleReel(id){
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
-    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+    // Jeton de la personne connectée + lignes renvoyées : sinon un refus de la base
+    // passait inaperçu et on annonçait « mis en ligne » sans que rien ne change.
+    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=representation'}),
     body: JSON.stringify({statut:'publie', publie_le: new Date().toISOString()})
   }).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(rows){ return { ok: r.ok && Array.isArray(rows) && rows.length > 0 }; });
+  }).then(function(r){
     if(r.ok){
+      if(typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger();
       notif('Article mis en ligne','succes');
       benvMajActivite();
       if(typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(id);
       // Ajouter dans historique
       fetch(SB_URL+'/rest/v1/historique', {
         method: 'POST',
-        headers: SB_HEADERS,
+        headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}),
         body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note:'Publie sur Substack'})
       }).catch(function(){});
 
@@ -756,7 +761,7 @@ function _publierArticleReel(id){
         if(article.sujet_id){
           fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(article.sujet_id), {
             method:'PATCH',
-            headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+            headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'}),
             body: JSON.stringify({statut:'publie'})
           }).catch(function(){});
         }
