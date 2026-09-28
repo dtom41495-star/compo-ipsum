@@ -1370,9 +1370,13 @@ function maOsSupprimerBrouillonLocal(id){
   if(!osConfirmerPuis('Supprimer définitivement ce brouillon ?\n\nIl n\'existe que sur cet appareil — il ne sera récupérable nulle part ailleurs.', null, maOsSupprimerBrouillonLocal, this, arguments)) return;
   var drafts = [];
   try{ drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]'); }catch(e){ drafts = []; }
+  var supprime = drafts.filter(function(d){ return d && d.id === id; })[0];
   var reste = drafts.filter(function(d){ return !d || d.id !== id; });
   try{ localStorage.setItem('ipsum_drafts', JSON.stringify(reste)); }catch(e){}
   notif('Brouillon supprimé','succes');
+  // Brouillon écrit pour un sujet réservé : proposer de le libérer (selon la situation)
+  var sujetId = supprime && (supprime._sujet_id || supprime.sujet_id);
+  if(sujetId && typeof osSujetSeDesengager === 'function') osSujetSeDesengager(sujetId, { apresSuppression:true });
   // Le rail doit suivre : plus aucun brouillon local = l'entrée disparaît, et on
   // bascule alors sur Mes brouillons plutôt que de rester sur une vue devenue vide.
   if(!_maBrouillonsLocaux().length){ osMesArticlesChangerOnglet('brouillons'); return; }
@@ -1606,7 +1610,8 @@ function maOsSupprimer(id){
 }
 
 function maOsSupprimerConfirme(id){
-  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // On récupère la ligne supprimée pour savoir si l'article était lié à un sujet
+  var authH=Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+id,{method:'DELETE',headers:authH})
   .then(function(r){
     var overlay = document.getElementById('ma-suppr-overlay');
@@ -1615,6 +1620,11 @@ function maOsSupprimerConfirme(id){
       notif('Article supprimé','succes');
       _maCache=_maCache.filter(function(a){return a.id!==id;});
       maOsFiltre();
+      // Sujet réservé pour cet article : proposer de le libérer (selon la situation)
+      r.json().then(function(lignes){
+        var sujetId = Array.isArray(lignes) && lignes[0] && lignes[0].sujet_id;
+        if(sujetId && typeof osSujetSeDesengager === 'function') osSujetSeDesengager(sujetId, { apresSuppression:true });
+      }).catch(function(){});
     } else notif('Erreur lors de la suppression','erreur');
   }).catch(function(){
     var overlay = document.getElementById('ma-suppr-overlay');
