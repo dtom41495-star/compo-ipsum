@@ -584,9 +584,14 @@ function cpsInvitationSeDeclarer(cpId, btn){
 // prévenus pour trouver quelqu'un d'autre.
 function cpsInvitationSeRetirer(dispId, cpId, etaitRetenu){
   if(etaitRetenu && !osConfirmerPuis('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?', {oui:'Me retirer', danger:true}, cpsInvitationSeRetirer, this, arguments)) return;
-  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:_cpInvitH()})
-  .then(function(r){
-    if(!r.ok){ notif('Erreur','erreur'); return; }
+  // On demande les lignes supprimées : si la base refuse la suppression, elle ne renvoie
+  // pas d'erreur mais une liste vide (avant, on affichait « retirée » sans rien retirer).
+  var h = _cpInvitH(); h.Prefer = 'return=representation';
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:h})
+  .then(function(r){ return r.ok ? r.json().catch(function(){ return []; }) : null; })
+  .then(function(lignes){
+    if(!lignes){ notif('Erreur','erreur'); return; }
+    if(!lignes.length){ notif('Impossible de retirer ta disponibilité. Préviens un admin.','erreur'); _cpInvitRafraichir(cpId); return; }
     notif(etaitRetenu ? 'C\'est noté, les responsables sont prévenus' : 'Disponibilité retirée','succes');
     _cpInvitRafraichir(cpId);
     if(etaitRetenu){
