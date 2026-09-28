@@ -1112,8 +1112,8 @@ function _maVuesAutorisees(){
   if(_maBrouillonsLocaux().length) ids.push('secours');
   if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof _srVoitLaFile === 'function' && _srVoitLaFile())) ids.push('corriger');
   if(_maPeutValider()) ids.push('a-valider', 'a-publier');
-  if(role === 'admin') ids.push('tous');
   if(estValidateurCentral()) ids.push('validation-centrale');
+  if(role === 'admin') ids.push('tous'); // tout en bas (choix de Tom)
   return ids;
 }
 
