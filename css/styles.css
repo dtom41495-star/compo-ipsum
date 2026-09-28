@@ -4671,3 +4671,7 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .sr-file-item .mac-btn { flex: 1 1 100%; justify-content: center; height: 40px; }
   .sr-file-titre { white-space: normal; }
 }
+/* Pastille « À valider » dans le rail de Mes articles */
+.ma-pastille { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--rouge); color: white; font: 700 0.64rem/18px 'DM Sans', sans-serif; text-align: center; }
+#ma-rail button.actif .ma-pastille, #ma-rail button[style*="var(--rouge)"] .ma-pastille { background: white; color: var(--rouge); }
+.ma-onglets-mobile .ma-pastille { margin-left: 6px; display: inline-block; vertical-align: 1px; }

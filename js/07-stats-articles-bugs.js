@@ -1028,6 +1028,7 @@ var MA_VUES = {
   brouillons:           { icon:'ti-notebook',     label:'Mes brouillons' },
   secours:              { icon:'ti-device-floppy',label:'Non sauvegardés' },
   corriger:             { icon:'ti-search',       label:'À relire (SR)' },
+  'a-valider':          { icon:'ti-circle-check', label:'À valider' },
   tous:                 { icon:'ti-list-details', label:'Tous les articles' },
   'validation-centrale':{ icon:'ti-shield-check', label:'Validation centrale' }
 };
@@ -1042,11 +1043,44 @@ var MA_VUES = {
 // et mis à jour par osMesArticlesRender() avant le premier rendu du rail.
 var MA_VUES_COURTES = { brouillons:'Brouillons', tous:'Tous' };
 
+// « À valider » : articles relus par le SR, en attente du bon à publier. Pour les admins
+// (toutes rédactions) et les rédac chefs (leurs rédactions). null = toutes.
+function _maRedacsAValider(){
+  if(getUserRole() === 'admin') return null;
+  var uid = getUserId();
+  return (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; })
+    .map(function(l){ return l.redaction_id; });
+}
+function _maPeutValider(){ var r = _maRedacsAValider(); return r === null || r.length > 0; }
+function _maRequeteAValider(select){
+  var r = _maRedacsAValider();
+  return SB_URL+'/rest/v1/articles?statut=eq.corrige'+(r ? '&redaction_id=in.('+r.map(encodeURIComponent).join(',')+')' : '')+'&select='+select+'&order=updated_at.asc';
+}
+// Pastille du rail : nombre d'articles à valider
+var _maNbAValider = 0;
+function _maChargerPastilleValider(){
+  if(!_maPeutValider()) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(_maRequeteAValider('id'),{headers:authH}).then(function(r){ return r.json(); }).then(function(rows){
+    _maNbAValider = Array.isArray(rows) ? rows.length : 0;
+    _maPoserPastilleValider();
+  }).catch(function(){});
+}
+function _maPoserPastilleValider(){
+  var btn = document.querySelector('#ma-rail [data-vue="a-valider"]');
+  if(!btn) return;
+  var p = btn.querySelector('.ma-pastille');
+  if(!_maNbAValider){ if(p) p.remove(); return; }
+  if(!p){ p = document.createElement('span'); p.className = 'ma-pastille'; btn.appendChild(p); }
+  p.textContent = _maNbAValider;
+}
+
 function _maVuesAutorisees(){
   var role = getUserRole();
   var ids = ['mes','brouillons'];
   if(_maBrouillonsLocaux().length) ids.push('secours');
   if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof _srVoitLaFile === 'function' && _srVoitLaFile())) ids.push('corriger');
+  if(_maPeutValider()) ids.push('a-valider');
   if(role === 'admin') ids.push('tous');
   if(estValidateurCentral()) ids.push('validation-centrale');
   return ids;
@@ -1067,6 +1101,7 @@ function _maRailRender(){
     }).join('');
     var actif = rail.querySelector('.actif');
     if(actif && actif.scrollIntoView) actif.scrollIntoView({block:'nearest', inline:'center'});
+    _maPoserPastilleValider();
     return;
   }
   rail.className = '';
@@ -1089,12 +1124,13 @@ function _maRailRender(){
   if(autorisees.indexOf('secours') !== -1){
     h += '<div style="padding-left:18px;">'+bouton('secours', true)+'</div>';
   }
-  var vuesRole = autorisees.filter(function(id){ return ['corriger','tous','validation-centrale'].indexOf(id) !== -1; });
+  var vuesRole = autorisees.filter(function(id){ return ['corriger','a-valider','tous','validation-centrale'].indexOf(id) !== -1; });
   if(vuesRole.length){
     h += '<div style="height:0.5px;background:var(--gris-bord);margin:8px 4px;"></div>';
     vuesRole.forEach(function(id){ h += bouton(id); });
   }
   rail.innerHTML = h;
+  _maPoserPastilleValider();
 
   // Synchronisé ici plutôt que dans chaque appelant : le titre de la vue découle
   // directement de la vue active.
@@ -1185,8 +1221,11 @@ function osMesArticlesCharger(){
   // l'intérêt de cette vue).
   if(_maOnglet === 'secours'){ _maCache = []; maOsFiltre(); return; }
 
+  _maChargerPastilleValider();
   var q;
-  if(_maOnglet === 'tous' && role === 'admin'){
+  if(_maOnglet === 'a-valider'){
+    q = _maRequeteAValider('*');
+  } else if(_maOnglet === 'tous' && role === 'admin'){
     // Admin — vraiment tous les articles, toutes rédactions confondues. Ne PAS scoper
     // sur window._redacActiveId ici : ce n'est pas ce que "Tous" veut dire pour un
     // admin qui supervise l'ensemble, et ça créait un piège silencieux (changer de
