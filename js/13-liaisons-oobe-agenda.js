@@ -356,6 +356,10 @@ function oobeVerifier(userId, membre){
   // Ne déclencher QUE si le prénom est explicitement vide ou null en base
   // Un prénom qui ressemble à un préfixe email (pas d'espace, tout minuscule + chiffres) n'est pas fiable
   if(!membre) return true; // nouveau compte sans ligne membres
+  // Jamais connecté·e : compte tout neuf, même si le prénom est déjà rempli (formulaire
+  // d'inscription, compte créé par un admin). Avant, ces comptes-là sautaient l'OOBE,
+  // et donc aussi le choix d'avatar et la visite guidée.
+  if(!membre.derniere_connexion) return true;
   var prenom = (membre.prenom||'').trim();
   if(!prenom) return true; // prénom vide → OOBE
   // Si prénom semble être un préfixe email (ex: dtom6, john123) → OOBE
@@ -369,9 +373,21 @@ function oobeOuvrir(userId, role){
   var screen = document.getElementById('oobe-screen');
   if(!screen) return;
   screen.classList.add('visible');
+  // Apps déjà configurées (compte approuvé ou créé par un admin) ? Vérifié en base : à ce
+  // stade elles ne sont pas encore chargées dans Compo. Sans ça, un compte déjà équipé
+  // se voyait redemander ses applis puis bloquer sur « compte non configuré ».
+  var dejaChargees = !!(window._userAppsAll && window._userAppsAll.length);
+  if(dejaChargees || !userId || !_session){ _oobeOuvrirSuite(userId, role, dejaChargees); return; }
+  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id&limit=1', {
+    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')})
+  }).then(function(r){ return r.json(); })
+  .then(function(rows){ _oobeOuvrirSuite(userId, role, Array.isArray(rows) && rows.length > 0); })
+  .catch(function(){ _oobeOuvrirSuite(userId, role, false); });
+}
 
+function _oobeOuvrirSuite(userId, role, appsPreconfigurees){
   // Vérifier si les apps sont déjà configurées par l'admin
-  window._oobeAppsPreconfigurees = (window._userAppsAll && window._userAppsAll.length > 0);
+  window._oobeAppsPreconfigurees = !!appsPreconfigurees;
 
   // Adapter le nombre de dots selon qu'on a l'étape apps ou pas
   var nbSteps = window._oobeAppsPreconfigurees ? 2 : 3;
@@ -564,8 +580,11 @@ function oobeTerminer(){
     // Apps déjà configurées par l'admin — lancer directement Compo
     fermerOobe();
     setTimeout(function(){
-      lancerCompo();
-      setTimeout(afficherPatchNote, 1200);
+      // Charger ses applis d'abord : sur une session reprise, elles ne l'ont pas encore été
+      // (la barre des tâches partait sinon sur le profil par défaut, pas le sien)
+      var suite = function(){ lancerCompo(); setTimeout(afficherPatchNote, 1200); };
+      if(typeof _chargerAppsUtilisateur === 'function') _chargerAppsUtilisateur(userId, suite, role);
+      else suite();
     }, 600);
   } else {
     // Soumettre une demande d'accès

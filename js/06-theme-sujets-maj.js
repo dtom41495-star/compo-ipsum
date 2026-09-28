@@ -715,10 +715,17 @@ function osInitSujets(){
 
 
 function osOuvrirTutos(){
-  osTourDemarrer();
+  // Guide : choisir entre la vidéo et la visite guidée
+  if(typeof osGuideChoisir === 'function') osGuideChoisir();
+  else osTourDemarrer();
 }
 
 function osVerifierPremiereLancement(){
+  // Vidéo tuto pas encore vue : elle tient lieu d'accueil (plus besoin de proposer le guide)
+  if(typeof osVideoTutoPremierLancement === 'function' && osVideoTutoPremierLancement()){
+    localStorage.setItem('compo_os_tutos_propose', '1');
+    return;
+  }
   var vu = localStorage.getItem('compo_os_tutos_propose');
   if(vu) return;
   // Afficher après 2s pour laisser le bureau s'installer

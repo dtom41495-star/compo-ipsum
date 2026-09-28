@@ -2033,7 +2033,9 @@ function osBuildDock(){
     if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte();
     if(localStorage.getItem('compo_os_tour_pending')){
       localStorage.removeItem('compo_os_tour_pending');
-      setTimeout(osTourDemarrer, 400); // laisse le bureau finir de s'afficher
+      // Après l'OOBE : la vidéo tuto d'abord, la visite guidée une fois la vidéo fermée
+      if(typeof osVideoTutoPremierLancement === 'function' && osVideoTutoPremierLancement()) window._tourApresVideo = true;
+      else setTimeout(osTourDemarrer, 400); // laisse le bureau finir de s'afficher
     }
   }, 1000);
   var dock = document.getElementById('os-dock-inner');
