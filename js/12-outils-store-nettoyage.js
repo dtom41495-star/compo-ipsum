@@ -2555,7 +2555,12 @@ function osGestionAppsAppliquerProfil(membreId, profil){
       'Authorization':'Bearer '+(_session&&_session.access_token||'')
     })
   }).then(function(){
-    var rows = ids.map(function(id){ return { membre_id: membreId, app_id: id }; });
+    // Épingler le profil (8 au plus) — sans quoi les lignes repartaient sans le champ
+    // epingle, et la base les créait toutes désépinglées (valeur par défaut) : le
+    // membre gardait bien ses apps installées, mais sa barre des tâches se retrouvait
+    // vide d'un coup, sans qu'aucun message ne le signale.
+    var epinglees = ids.slice(0, 8);
+    var rows = ids.map(function(id){ return { membre_id: membreId, app_id: id, epingle: epinglees.includes(id) }; });
     return fetch(SB_URL+'/rest/v1/membres_apps', {
       method:'POST',
       headers: Object.assign({}, SB_HEADERS, {

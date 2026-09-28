@@ -2039,6 +2039,20 @@ function osBuildDock(){
   var dock = document.getElementById('os-dock-inner');
   if(!dock) return;
   osAppliquerAlignementDock();
+  // Si trop d'applis sont épinglées pour la largeur de la fenêtre, le dock défile
+  // horizontalement (voir CSS) plutôt que de perdre des icônes hors champ. La molette
+  // de la souris est verticale par défaut : la convertir ici pour rester utilisable
+  // sans avoir à faire glisser la barre. Posé une seule fois (le nœud est réutilisé
+  // d'un osBuildDock à l'autre, seul son contenu est vidé et reconstruit).
+  if(!dock._scrollMolette){
+    dock._scrollMolette = true;
+    dock.addEventListener('wheel', function(e){
+      if(dock.scrollWidth <= dock.clientWidth) return;
+      if(Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // déjà un geste horizontal : laisser faire
+      e.preventDefault();
+      dock.scrollLeft += e.deltaY;
+    }, { passive:false });
+  }
 
   // Si _membreCourantFonction n'est pas encore chargé, le charger d'abord
   if(window._membreCourantFonction === undefined && getUserId()){
@@ -2094,9 +2108,11 @@ function osBuildDock(){
   if(window._visuelsProAccessible !== true){ apps = apps.filter(function(a){ return a.id !== 'visuels-pro'; }); }
   var pinnedIds = apps.map(function(a){ return a.id; });
 
-  // Apps épinglées
+  // Apps épinglées. Une icône construite dans un try/catch chacune : une app mal
+  // formée (ex. venue d'une donnée serveur inattendue) ne doit jamais faire disparaître
+  // tout le reste du dock (les icônes suivantes, et la zone système à droite).
   apps.forEach(function(app){
-    dock.appendChild(_creerIconeDock(app, true));
+    try { dock.appendChild(_creerIconeDock(app, true)); } catch(e){ console.warn('[dock] icône ignorée', app, e); }
   });
 
   // Séparateur dynamique + apps ouvertes non épinglées
@@ -2107,12 +2123,14 @@ function osBuildDock(){
   if(openNonPinned.length){
     dock.appendChild(_creerSepDock('open-sep'));
     openNonPinned.forEach(function(pid){
+     try {
       var appInfo = ALL_APPS_CATALOGUE ? ALL_APPS_CATALOGUE.find(function(a){ return a.id===pid; }) : null;
       // Fenêtres dynamiques (fiche d'un CP "cp-XXX"...) : leur vrai titre plutôt que l'id brut
       var titreFen = (window._osTitlesOverride||{})[pid];
       if(titreFen) titreFen = titreFen.replace(/^[^\p{L}\p{N}]+/u, '').trim();
       var app = appInfo || { id:pid, icon:'<i class="ti ti-'+(pid.indexOf('cp-')===0?'news':'app-window')+'"></i>', label:titreFen||pid, color:'#444' };
       dock.appendChild(_creerIconeDock(app, false));
+     } catch(e){ console.warn('[dock] icône (ouverte) ignorée', pid, e); }
     });
   }
 
