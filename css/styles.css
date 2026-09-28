@@ -625,7 +625,16 @@ body {
   border: 1px solid rgba(255,255,255,0.15);
   padding: 2px 140px 2px 14px;
   pointer-events: all;
+  /* Beaucoup d'applis épinglées (Store, Gestion apps…) : sans ceci, les icônes en trop
+     dépassaient de la fenêtre et disparaissaient purement et simplement (body est en
+     overflow:hidden). Elles restent maintenant accessibles au scroll horizontal, et ne
+     rétrécissent jamais (sinon le navigateur les aurait tassées avant de faire défiler). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
+#os-dock-inner > .dock-icon,
+#os-dock-inner > .dock-sep { flex-shrink: 0; }
 #os-dock-inner.dock-align-centre {
   justify-content: center;
 }
