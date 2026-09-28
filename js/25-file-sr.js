@@ -1,6 +1,6 @@
 // ===== FILE D'ATTENTE DU SR =====
 // Un article peut partir au SR sans relecteur désigné : il entre dans la file de sa
-// rédaction. Correcteur·rices de la rédaction, rédac chefs et admins la voient dans
+// rédaction. Correcteur·rices (de la rédaction ou du SR général) et admins la voient dans
 // « À relire (SR) » et cliquent « Je prends ». La prise est atomique (seulement si
 // personne ne l'a prise entre-temps). Un·e relecteur·rice peut rendre un article à la
 // file s'il ou elle ne peut pas le finir. Le choix direct d'un·e relecteur·rice reste
@@ -16,7 +16,8 @@ function _srPeutPrendre(redacId){
   if(role === 'admin' || role === 'correcteur') return true;
   var uid = getUserId();
   return (window._membresRedactionsData||[]).some(function(l){
-    return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && (l.role_redac === 'correcteur' || l.role_redac === 'redac_chef');
+    // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de correcteur (choix de Tom)
+    return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && l.role_redac === 'correcteur';
   });
 }
 function _srVoitLaFile(){ return _srPeutPrendre(null); }
