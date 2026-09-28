@@ -1225,6 +1225,7 @@ function lancerCompo(){
 var _assignDoc = null;
 var _assignCorrecteur = null;
 var _assignCorrecteurId = null;
+var _assignFile = false; // true = file d'attente du SR (pas de relecteur désigné)
 
 function ouvrirAssignation(){
   var auteur = document.getElementById('r-auteur').value.trim();
@@ -1287,6 +1288,24 @@ function _assignRemplirListe(list){
         || (b.role === 'correcteur' ? 1 : 0) - (a.role === 'correcteur' ? 1 : 0)
         || (osEstEnLigne(b.id) ? 1 : 0) - (osEstEnLigne(a.id) ? 1 : 0);
     });
+    // Par défaut : la file d'attente du SR (le premier relecteur disponible prend)
+    var optFile = document.createElement('div');
+    optFile.className = 'assign-membre assign-file';
+    optFile.innerHTML = '<div><div class="assign-membre-nom"><i class="ti ti-list-numbers"></i> File d\'attente du SR</div>'
+      +'<div class="assign-membre-role">Le premier ou la première disponible le prend. Les relecteur·rices sont prévenu·es.</div></div>';
+    optFile.onclick = function(){
+      document.querySelectorAll('.assign-membre').forEach(function(b){ b.classList.remove('selected'); });
+      optFile.classList.add('selected');
+      _assignCorrecteur = null; _assignCorrecteurId = null; _assignFile = true;
+    };
+    list.appendChild(optFile);
+    optFile.onclick();
+    if(candidats.length){
+      var sep = document.createElement('div');
+      sep.className = 'assign-ou';
+      sep.textContent = 'Ou confier directement à :';
+      list.appendChild(sep);
+    }
     candidats.forEach(function(m, i){
       var n = charge[m.id] || 0;
       var el = document.createElement('div');
@@ -1305,13 +1324,10 @@ function _assignRemplirListe(list){
         el.classList.add('selected');
         _assignCorrecteur = membre.prenom + ' ' + membre.nom;
         _assignCorrecteurId = membre.id;
+        _assignFile = false;
       }; })(m);
       list.appendChild(el);
-      if(i === 0) el.onclick();
     });
-    if(!list.children.length){
-      list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun SR disponible.</p>';
-    }
   })
   .catch(function(){
     list.innerHTML = osErreurHtml();
@@ -1320,11 +1336,11 @@ function _assignRemplirListe(list){
 
 function assignValider(){
   if(!_assignDoc){ assignFermer(); return; }
-  if(!_assignCorrecteur){ notif('Choisis la personne qui va relire'); return; }
+  if(!_assignCorrecteur && !_assignFile){ notif('Choisis la personne qui va relire'); return; }
 
   var docId = _assignDoc.id;
-  _assignDoc.correcteur = _assignCorrecteur;
-  _assignDoc.correcteur_id = _assignCorrecteurId || null;
+  _assignDoc.correcteur = _assignFile ? null : _assignCorrecteur;
+  _assignDoc.correcteur_id = _assignFile ? null : (_assignCorrecteurId || null);
   _assignDoc.statut = 'en-relecture';
   var _assignDoc2 = Object.assign({}, _assignDoc);
 
@@ -1370,7 +1386,8 @@ function assignValider(){
     if(idx >= 0){ drafts.splice(idx, 1); localStorage.setItem('ipsum_drafts', JSON.stringify(drafts)); }
 
     assignFermer();
-    notif('Envoyé au SR : ' + _assignDoc2.correcteur, 'succes');
+    notif(_assignDoc2.correcteur ? 'Envoyé au SR : ' + _assignDoc2.correcteur : 'Envoyé dans la file du SR', 'succes');
+    if(!_assignDoc2.correcteur_id && typeof _srNotifierFile === 'function') _srNotifierFile(_assignDoc2, false);
     var delaiRelecture = typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(_assignDoc2.redaction_id) : null;
     if(delaiRelecture) setTimeout(function(){ osShowToast(delaiRelecture+'.', 'info', {icon:'clock'}); }, 600);
     osClearAutosave();
@@ -1420,6 +1437,7 @@ function assignFermer(){
   document.getElementById('modal-assign').classList.remove('visible');
   _assignDoc = null;
   _assignCorrecteur = null;
+  _assignFile = false;
 }
 
 

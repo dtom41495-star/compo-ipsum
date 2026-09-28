@@ -4653,3 +4653,21 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .acc-fermee.acc-pas-lancee { background: #F3E8FA; border-color: #D9B8EC; color: #5B2C6F; }
 .acc-fermee.acc-pas-lancee > i { color: #7D3C98; }
 .acc-fermee.acc-pas-lancee strong { color: #4A235A; }
+
+/* ===== File d'attente du SR ===== */
+.sr-file-entete { display: flex; align-items: center; gap: 6px; margin: 0.4rem 0 0.5rem; font: 700 0.72rem 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gris); }
+.sr-file-entete span { background: #F0EEEB; color: var(--encre); border-radius: 999px; padding: 1px 8px; font-size: 0.68rem; }
+.sr-file-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; background: white; border: 1px solid #E7E5E4; border-left: 3px solid var(--bleu, #1A5276); border-radius: 12px; font-family: 'DM Sans', sans-serif; }
+.sr-file-rang { width: 26px; height: 26px; border-radius: 50%; background: #EAF2F8; color: #1A5276; font-weight: 700; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sr-file-infos { flex: 1; min-width: 0; }
+.sr-file-titre { font-weight: 700; font-size: 0.86rem; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-file-meta { font-size: 0.72rem; color: #6B7280; margin-top: 2px; }
+.sr-file-meta b { color: #B42318; }
+.sr-rendre { display: block; margin: -0.3rem 0 0.7rem auto; }
+.assign-ou { font-size: 0.72rem; color: var(--gris); margin: 0.8rem 0 0.4rem; }
+.assign-file .assign-membre-nom i { vertical-align: -2px; margin-right: 4px; }
+@media (max-width: 800px) {
+  .sr-file-item { flex-wrap: wrap; }
+  .sr-file-item .mac-btn { flex: 1 1 100%; justify-content: center; height: 40px; }
+  .sr-file-titre { white-space: normal; }
+}
