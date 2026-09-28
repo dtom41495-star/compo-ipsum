@@ -1046,7 +1046,7 @@ function _maVuesAutorisees(){
   var role = getUserRole();
   var ids = ['mes','brouillons'];
   if(_maBrouillonsLocaux().length) ids.push('secours');
-  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees) ids.push('corriger');
+  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof _srVoitLaFile === 'function' && _srVoitLaFile())) ids.push('corriger');
   if(role === 'admin') ids.push('tous');
   if(estValidateurCentral()) ids.push('validation-centrale');
   return ids;
@@ -1217,7 +1217,10 @@ function osMesArticlesCharger(){
       arts = redacCentraleMC ? arts.filter(function(a){ return a.redaction_id !== redacCentraleMC.id; }) : [];
     }
     _maCache = arts;
-    Promise.all([maOsChargerNewsletters(arts), maOsChargerCommentaires(arts)]).then(maOsFiltre);
+    var pFile = (_maOnglet === 'corriger' && typeof _srChargerFile === 'function')
+      ? _srChargerFile().then(function(f){ window._srFile = f; })
+      : Promise.resolve(window._srFile = []);
+    Promise.all([maOsChargerNewsletters(arts), maOsChargerCommentaires(arts), pFile]).then(maOsFiltre);
   })
   .catch(function(){
     var list=document.getElementById('ma-os-list');
@@ -1284,18 +1287,31 @@ function maOsFiltre(){
     arts = arts.filter(function(a){ return (a.statut||'brouillon')==='brouillon' && a.auteur_id===uid; });
   } else if(_maOnglet === 'mes'){
     arts = arts.filter(function(a){ return !((a.statut||'brouillon')==='brouillon' && a.auteur_id===uid); });
+  } else if(_maOnglet === 'corriger'){
+    // Les articles sans relecteur sont dans la file (section à part)
+    arts = arts.filter(function(a){ return !!a.correcteur_id; });
   }
 
   // Tri fixe, du plus récent au plus ancien — plus de case de tri manuelle, l'ordre
   // chronologique (et le regroupement ci-dessous) suffit.
   arts.sort(function(a,b){ return (b.updated_at||'')>(a.updated_at||'')?1:-1; });
 
+  var fileSr = _maOnglet === 'corriger' ? (window._srFile||[]) : [];
   if(count) count.textContent = arts.length ? arts.length+' article'+(arts.length>1?'s':'') : '';
-  if(!arts.length){
+  if(!arts.length && !fileSr.length){
     list.innerHTML='<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun article.</div>';
     return;
   }
   list.innerHTML='';
+  if(fileSr.length){
+    _srRenderFile(list, fileSr);
+    if(arts.length){
+      var titreMiens = document.createElement('div');
+      titreMiens.className = 'sr-file-entete';
+      titreMiens.innerHTML = '<i class="ti ti-user-check"></i> Mes relectures <span>'+arts.length+'</span>';
+      list.appendChild(titreMiens);
+    }
+  }
 
   // « Tous les articles » (admin) : regroupé par statut plutôt qu'en liste plate — sur
   // un volume qui couvre toutes les rédactions, savoir où en est chaque article compte
@@ -1327,6 +1343,14 @@ function maOsFiltre(){
       list.appendChild(titreGroupe);
     }
     list.appendChild(maOsMakeCard(doc,uid,role));
+    // À relire (SR) : on peut rendre à la file un article qu'on ne peut pas finir
+    if(_maOnglet === 'corriger' && doc.statut === 'en-relecture' && doc.correcteur_id === uid && typeof osSrRendre === 'function'){
+      var rendre = document.createElement('button');
+      rendre.className = 'nlx-lien sr-rendre';
+      rendre.innerHTML = '<i class="ti ti-arrow-back-up"></i> Rendre à la file';
+      rendre.onclick = function(){ osSrRendre(doc.id); };
+      list.appendChild(rendre);
+    }
   });
 }
 
