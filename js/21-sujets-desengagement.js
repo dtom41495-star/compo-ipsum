@@ -176,8 +176,9 @@ function _sdPrevenir(s, parLuiMeme, message){
 }
 
 function _sdMailSujetLibere(m, s, qui, message, parLuiMeme){
+  var nomRedacSujet = typeof _nomRedac === 'function' ? _nomRedac(s.redaction_id) : '';
   var carte = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;border-collapse:separate;"><tr><td style="padding:14px 16px;">'
-    +'<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">Sujet</div>'
+    +'<div style="font:600 11px/1.4 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';margin-bottom:2px;">'+(nomRedacSujet ? esc(nomRedacSujet)+' · Sujet' : 'Sujet')+'</div>'
     +'<div style="font:700 18px/1.3 Georgia, serif;color:'+EMAIL_COUL.encre+';">'+esc(s.titre||'Sans titre')+'</div>'
     +(message ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">'+_emailLigneInfo('Mot', esc(message))+'</table>' : '')
     +'</td></tr></table>';
@@ -195,8 +196,9 @@ function _sdMailSujetLibere(m, s, qui, message, parLuiMeme){
 }
 
 function _sdEnvoyer(m, s, qui, message, parLuiMeme, lien){
+  var nomRedacChat = typeof _nomRedac === 'function' ? _nomRedac(s.redaction_id) : '';
   var chat = '*'+(parLuiMeme ? 'Sujet libéré' : 'Ton sujet a été libéré')+'*\n'
-    +'« '+_chatSansMiseEnForme(s.titre||'Sans titre')+' », '+(parLuiMeme ? 'lâché par ' : 'libéré par ')+_chatSansMiseEnForme(qui)+'.'
+    +'« '+_chatSansMiseEnForme(s.titre||'Sans titre')+' »'+(nomRedacChat ? ' · '+_chatSansMiseEnForme(nomRedacChat) : '')+', '+(parLuiMeme ? 'lâché par ' : 'libéré par ')+_chatSansMiseEnForme(qui)+'.'
     +(message ? '\nMot : '+_chatSansMiseEnForme(message) : '')
     +'\n<'+lien+'|Voir les sujets>';
   notifierPersonnel(m.id, m.canal_notif, chat, 'sujet-libere', function(){

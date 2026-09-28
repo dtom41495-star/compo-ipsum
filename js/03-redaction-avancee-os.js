@@ -1273,6 +1273,15 @@ function _emailBouton(label, url, secondaire){
 // o : { accent, etiquette, titre, bonjour, texte, avantCarte, contenu, description, apresCarte, boutons:[{label,url,secondaire}], pourquoi }
 // description : texte brut (échappé ici), affiché en citation sous la carte.
 // Les textes sont du HTML : échapper (esc) tout contenu variable avant de le passer.
+// Nom d'une rédaction à partir de son id, pour l'indiquer dans les notifs et emails —
+// sans lui, on ne sait plus vite dans quelle rédaction se passe ce dont on est prévenu
+// (utile dès qu'on est sur plusieurs, ex. admin ou rédac chef multi-rédactions).
+function _nomRedac(redactionId){
+  if(!redactionId) return '';
+  var r = (window._redactionsData||[]).find(function(x){ return x.id === redactionId; });
+  return r ? r.nom : '';
+}
+
 function _emailCompo(o){
   var a = EMAIL_ACCENTS[o.accent||'neutre'] || EMAIL_ACCENTS.neutre;
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F2EF;"><tr><td align="center" style="padding:24px 12px;">'
@@ -1280,6 +1289,7 @@ function _emailCompo(o){
     +'<tr><td align="center" style="padding:22px 24px 16px;border-bottom:1px solid '+EMAIL_COUL.bord+';"><img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" height="56" style="height:56px;display:block;"></td></tr>'
     +'<tr><td style="padding:24px 28px 8px;">'
       +'<span style="display:inline-block;padding:4px 11px;border-radius:999px;background:'+a.bg+';color:'+a.c+';font:700 11px/1.3 '+EMAIL_POLICE+';letter-spacing:0.04em;">'+o.etiquette+'</span>'
+      +(o.redaction ? '<span style="display:inline-block;margin-left:6px;padding:4px 11px;border-radius:999px;background:'+EMAIL_COUL.bord+';color:'+EMAIL_COUL.gris+';font:700 11px/1.3 '+EMAIL_POLICE+';letter-spacing:0.02em;">'+esc(o.redaction)+'</span>' : '')
       +'<h1 style="margin:12px 0 0;font:700 22px/1.3 Arial, Helvetica, sans-serif;color:'+EMAIL_COUL.encre+';">'+o.titre+'</h1>'
     +'</td></tr>'
     +'<tr><td style="padding:10px 28px 4px;font:400 15px/1.6 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';">'
