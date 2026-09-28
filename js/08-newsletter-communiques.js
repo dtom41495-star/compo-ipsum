@@ -584,9 +584,14 @@ function cpsInvitationSeDeclarer(cpId, btn){
 // prévenus pour trouver quelqu'un d'autre.
 function cpsInvitationSeRetirer(dispId, cpId, etaitRetenu){
   if(etaitRetenu && !osConfirmerPuis('Tu étais retenu·e pour couvrir cette invitation.\n\nLes responsables seront prévenus que tu te retires. Continuer ?', {oui:'Me retirer', danger:true}, cpsInvitationSeRetirer, this, arguments)) return;
-  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:_cpInvitH()})
-  .then(function(r){
-    if(!r.ok){ notif('Erreur','erreur'); return; }
+  // On demande les lignes supprimées : si la base refuse la suppression, elle ne renvoie
+  // pas d'erreur mais une liste vide (avant, on affichait « retirée » sans rien retirer).
+  var h = _cpInvitH(); h.Prefer = 'return=representation';
+  fetch(SB_URL+'/rest/v1/invitations_disponibilites?id=eq.'+encodeURIComponent(dispId),{method:'DELETE',headers:h})
+  .then(function(r){ return r.ok ? r.json().catch(function(){ return []; }) : null; })
+  .then(function(lignes){
+    if(!lignes){ notif('Erreur','erreur'); return; }
+    if(!lignes.length){ notif('Impossible de retirer ta disponibilité. Préviens un admin.','erreur'); _cpInvitRafraichir(cpId); return; }
     notif(etaitRetenu ? 'C\'est noté, les responsables sont prévenus' : 'Disponibilité retirée','succes');
     _cpInvitRafraichir(cpId);
     if(etaitRetenu){
@@ -998,8 +1003,8 @@ function cpsRendreListe(liste, cps){
   var filtreType   = window._cpsFiltreActif  || 'tous';
   var filtreDate   = window._cpsFiltreDateActif || 'tous';
   var _cpsMobile   = typeof osEstMobile === 'function' && osEstMobile();
-  // Sur téléphone, toujours les cartes (le choix de présentation n'y est pas proposé)
-  var filtreVue    = _cpsMobile ? 'cartes' : (window._cpsVueActif || 'liste');
+  // Cartes par défaut ; sur téléphone, toujours les cartes
+  var filtreVue    = _cpsMobile ? 'cartes' : (window._cpsVueActif || 'cartes');
   // Sans accents ni casse : "elections" doit trouver "Élections".
   function _cpsSansAccent(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
   var rechercheVal = _cpsSansAccent(window._cpsRecherche);
@@ -1045,8 +1050,8 @@ function cpsRendreListe(liste, cps){
   var encadreAttente = _cpInvitEncadreAttente();
   if(encadreAttente) liste.appendChild(encadreAttente);
 
-  // Téléphone : barre au style des cartes (Gestion des CPs) ; ordinateur : inchangé
-  if(_cpsMobile){
+  // Barre au style des cartes (Gestion des CPs), sur téléphone comme sur ordinateur
+  {
     // ── Barre : recherche, actualiser, export
     var recherche = document.createElement('div');
     recherche.className = 'cpr-barre';
@@ -1109,85 +1114,6 @@ function cpsRendreListe(liste, cps){
       b.className = filtreVue===f.id ? 'actif' : '';
       b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Par organisation',calendrier:'Calendrier'}[f.id];
       b.setAttribute('aria-label', b.title);
-      b.innerHTML = '<i class="ti '+f.icon+'"></i>';
-      b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-      rightVue.appendChild(b);
-    });
-    barreOpts.appendChild(leftDate);
-    barreOpts.appendChild(rightVue);
-    liste.appendChild(barreOpts);
-  } else {
-    // ── Barre de recherche
-    var recherche = document.createElement('div');
-    recherche.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem;';
-    recherche.innerHTML = '<div style="position:relative;flex:1;">'
-      +'<i class="ti ti-search" style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:var(--gris);font-size:0.8rem;"></i>'
-      +'<input id="cps-search" type="text" placeholder="Rechercher dans les CPs..." value="'+esc(window._cpsRecherche||'')+'" style="width:100%;padding:0.45rem 0.8rem 0.45rem 2rem;border:1.5px solid var(--gris-bord);border-radius:20px;font-size:0.8rem;outline:none;box-sizing:border-box;">'
-      +'</div>'
-      +'<button class="cps-btn-csv" onclick="cpsExportCSV()" title="Exporter en CSV" style="font-size:0.7rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-download"></i> CSV</button>';
-    liste.appendChild(recherche);
-    var champRecherche = recherche.querySelector('#cps-search');
-    if(champRecherche) champRecherche.oninput = function(){
-      window._cpsRecherche = this.value;
-      var pos = this.selectionStart;
-      cpsRendreListe(liste, window._cpsData||[]);
-      // cpsRendreListe reconstruit toute la liste, champ de recherche compris : sans ceci
-      // le champ perdait le focus après chaque lettre tapée.
-      var nouveau = document.getElementById('cps-search');
-      if(nouveau){ nouveau.focus(); try{ nouveau.setSelectionRange(pos, pos); }catch(e){} }
-    };
-
-    // ── Filtres type
-    var barreType = document.createElement('div');
-    barreType.className = 'cps-filtres';
-    barreType.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;';
-    [
-      {id:'tous',            icon:'',                  label:'Tous ('+cps.length+')'},
-      {id:'communique',      icon:'ti-news',            label:'CPs ('+communiques.length+')'},
-      {id:'invitation_presse',icon:'ti-microphone',     label:'Invits ('+invitations.length+')'},
-      {id:'non_lus',         icon:'ti-circle-filled',   label:'Non lus ('+nonLus.length+')', rouge:nonLus.length>0}
-    ].forEach(function(f){
-      var btn = document.createElement('button');
-      var isActif = filtreType===f.id;
-      btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(isActif?'700':'400')+';'
-        +'border:1.5px solid '+(isActif?'var(--rouge)':f.rouge?'rgba(232,70,30,0.3)':'var(--gris-bord)')+';'
-        +'background:'+(isActif?'var(--rouge)':'white')+';color:'+(isActif?'white':f.rouge?'var(--rouge)':'var(--gris)')+';';
-      btn.innerHTML = (f.icon?'<i class="ti '+f.icon+'"></i> ':'')+esc(f.label);
-      btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-      barreType.appendChild(btn);
-    });
-    if(nonLus.length > 0){
-      var btnToutLu = document.createElement('button');
-      btnToutLu.className = 'cps-btn-tout-lu';
-      btnToutLu.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:400;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);margin-left:auto;';
-      btnToutLu.innerHTML = '<i class="ti ti-checks"></i> Tout marquer comme lu';
-      btnToutLu.onclick = function(){ cpsToutMarquerLu(); };
-      barreType.appendChild(btnToutLu);
-    }
-    liste.appendChild(barreType);
-
-    // ── Filtres date + vue
-    var barreOpts = document.createElement('div');
-    barreOpts.className = 'cps-filtres';
-    barreOpts.style.cssText = 'display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap;justify-content:space-between;align-items:center;';
-    var leftDate = document.createElement('div');
-    leftDate.style.cssText = 'display:flex;gap:0.3rem;';
-    [{id:'tous',l:'Tout'},{id:'semaine',l:'7 jours'},{id:'mois',l:'Ce mois'}].forEach(function(f){
-      var b = document.createElement('button');
-      var a = filtreDate===f.id;
-      b.style.cssText = 'font-size:0.6rem;padding:2px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--encre-fixe)':'var(--gris-bord)')+';background:'+(a?'var(--encre-fixe)':'white')+';color:'+(a?'white':'var(--gris)')+';';
-      b.textContent = f.l;
-      b.onclick = function(){ window._cpsFiltreDateActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
-      leftDate.appendChild(b);
-    });
-    var rightVue = document.createElement('div');
-    rightVue.className = 'cps-vues';
-    rightVue.style.cssText = 'display:flex;gap:0.3rem;';
-    [{id:'cartes',icon:'ti-layout-grid'},{id:'liste',icon:'ti-list'},{id:'veille',icon:'ti-building'},{id:'calendrier',icon:'ti-calendar'}].forEach(function(f){
-      var b = document.createElement('button');
-      var a = filtreVue===f.id;
-      b.style.cssText = 'font-size:0.75rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid '+(a?'var(--rouge)':'var(--gris-bord)')+';background:'+(a?'var(--rouge)':'white')+';color:'+(a?'white':'var(--gris)')+';display:inline-flex;align-items:center;';
-      b.title = {cartes:'Cartes',liste:'Liste compacte',veille:'Fil de veille',calendrier:'Calendrier'}[f.id];
       b.innerHTML = '<i class="ti '+f.icon+'"></i>';
       b.onclick = function(){ window._cpsVueActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
       rightVue.appendChild(b);
