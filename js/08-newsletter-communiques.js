@@ -988,7 +988,10 @@ function cpsCharger(){
   cpsAfficherAbonnement();
 
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=created_at.desc&select=*,communique_fichiers(*)'+_cpsFiltreRedacActive(), {headers:authH})
+  // Trié par « Date du communiqué » (saisie à la main, celle de la vraie réception) plutôt
+  // que par date d'entrée dans Compo — deux CPs reçus le même jour et saisis à des moments
+  // différents doivent rester ensemble. Sans date renseignée : en dernier, par date de saisie.
+  fetch(SB_URL+'/rest/v1/communiques?statut=eq.publie&order=date_cp.desc.nullslast,created_at.desc&select=*,communique_fichiers(*)'+_cpsFiltreRedacActive(), {headers:authH})
   .then(function(r){return r.json();})
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;
