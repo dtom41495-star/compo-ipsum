@@ -1338,8 +1338,60 @@ function _maLabelMois(dateStr){
 // Vue « Non sauvegardés » — ces brouillons n'existent que dans ce navigateur : pas de
 // statut, pas d'historique, aucune copie ailleurs. D'où l'avertissement en tête et les
 // deux seules actions qui ont du sens ici (reprendre pour enregistrer, ou jeter).
+// Garde-fou : une copie peut rester sur l'appareil alors que l'article est bien
+// enregistré (sauvegarde réussie sans nettoyage, ou échec passager). On compare avec la
+// base avant de l'afficher comme « non sauvegardée » :
+//  - même article en base, et la base est à jour → la copie est retirée sans bruit ;
+//  - même article en base, mais la copie a des modifications plus récentes → signalé,
+//    « Reprendre » met à jour l'article existant (pas de doublon, même id) ;
+//  - un autre article existe déjà pour son sujet → pas de « Reprendre » (il créerait un
+//    doublon) : on propose d'ouvrir l'article enregistré.
+function _maReconcilierBrouillonsLocaux(drafts){
+  var ids = drafts.map(function(d){ return d.id; }).filter(Boolean);
+  var sujets = drafts.map(function(d){ return d._sujet_id || d.sujet_id; }).filter(Boolean);
+  if(!ids.length) return Promise.resolve(drafts);
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var enc = function(l){ return l.map(encodeURIComponent).join(','); };
+  return Promise.all([
+    fetch(SB_URL+'/rest/v1/articles?id=in.('+enc(ids)+')&select=id,titre,chapeau,corps,updated_at',{headers:authH}).then(function(r){ return r.json(); }),
+    sujets.length ? fetch(SB_URL+'/rest/v1/articles?sujet_id=in.('+enc(sujets)+')&select=id,sujet_id,titre',{headers:authH}).then(function(r){ return r.json(); }) : Promise.resolve([])
+  ]).then(function(res){
+    var enBase = Array.isArray(res[0]) ? res[0] : [];
+    var parSujet = Array.isArray(res[1]) ? res[1] : [];
+    var perimes = [];
+    var garder = drafts.filter(function(d){
+      var srv = enBase.find(function(a){ return a.id === d.id; });
+      if(srv){
+        var identique = (srv.titre||'') === (d.titre||'') && (srv.chapeau||'') === (d.chapeau||'') && (srv.corps||'') === (d.corps||'');
+        var basePlusRecente = srv.updated_at && d.modifie_le && srv.updated_at >= d.modifie_le;
+        if(identique || basePlusRecente){ perimes.push(d.id); return false; }
+        d._etatLocal = 'plus_recent';
+        return true;
+      }
+      var sid = d._sujet_id || d.sujet_id;
+      var autre = sid && parSujet.find(function(a){ return a.sujet_id === sid && a.id !== d.id; });
+      if(autre){ d._etatLocal = 'sujet_deja_ecrit'; d._articleExistant = autre.id; }
+      return true;
+    });
+    if(perimes.length){
+      try{
+        var tous = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
+        localStorage.setItem('ipsum_drafts', JSON.stringify(tous.filter(function(d){ return !d || perimes.indexOf(d.id) === -1; })));
+      }catch(e){}
+    }
+    return garder;
+  }).catch(function(){ return drafts; }); // hors connexion : on montre tout, comme avant
+}
+
 function _maRenderBrouillonsLocaux(list, count){
-  var drafts = _maBrouillonsLocaux();
+  list.innerHTML = osLoadingHtml();
+  _maReconcilierBrouillonsLocaux(_maBrouillonsLocaux()).then(function(drafts){
+    if(_maOnglet !== 'secours') return;
+    _maRenderBrouillonsLocauxListe(list, count, drafts);
+  });
+}
+
+function _maRenderBrouillonsLocauxListe(list, count, drafts){
   if(count) count.textContent = drafts.length ? drafts.length+' brouillon'+(drafts.length>1?'s':'') : '';
   if(!drafts.length){
     list.innerHTML = '<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun brouillon en attente sur cet appareil.</div>';
@@ -1358,8 +1410,12 @@ function _maRenderBrouillonsLocaux(list, count){
       +'<div style="font-size:.62rem;color:var(--gris);margin-bottom:.55rem;">'
       +(date ? 'Modifié le '+new Date(date).toLocaleString('fr-FR') : 'Date inconnue')
       +(d.corps ? ' · '+d.corps.trim().split(/\s+/).length+' mots' : ' · vide')+'</div>'
+      +(d._etatLocal === 'plus_recent' ? '<div style="font-size:.7rem;color:#1A5276;margin-bottom:.55rem;"><i class="ti ti-info-circle" style="vertical-align:-2px;"></i> Cet article est déjà enregistré dans Compo ; cette copie contient des modifications plus récentes. Reprendre met à jour l\'article existant.</div>' : '')
+      +(d._etatLocal === 'sujet_deja_ecrit' ? '<div style="font-size:.7rem;color:#A32D2D;margin-bottom:.55rem;"><i class="ti ti-alert-triangle" style="vertical-align:-2px;"></i> Un article existe déjà pour ce sujet. L\'enregistrer ferait un doublon : ouvre l\'article enregistré, et reprends-y ce qui manque.</div>' : '')
       +'<div style="display:flex;gap:.35rem;">'
-      +'<button style="'+_maBtn('rouge')+'" data-id="'+esc(d.id)+'" onclick="reprendreBrouillon(this.dataset.id)"><i class="ti ti-pencil" style="vertical-align:-1px;"></i> Reprendre</button>'
+      +(d._etatLocal === 'sujet_deja_ecrit'
+        ? '<button style="'+_maBtn('rouge')+'" data-id="'+esc(d._articleExistant)+'" onclick="mesArticlesOuvrir(this.dataset.id,\'edition\')"><i class="ti ti-file-text" style="vertical-align:-1px;"></i> Ouvrir l\'article enregistré</button>'
+        : '<button style="'+_maBtn('rouge')+'" data-id="'+esc(d.id)+'" onclick="reprendreBrouillon(this.dataset.id)"><i class="ti ti-pencil" style="vertical-align:-1px;"></i> Reprendre</button>')
       +'<button style="'+_maBtn('danger')+'" data-id="'+esc(d.id)+'" onclick="maOsSupprimerBrouillonLocal(this.dataset.id)" title="Supprimer ce brouillon local"><i class="ti ti-trash"></i></button>'
       +'</div>';
     list.appendChild(card);

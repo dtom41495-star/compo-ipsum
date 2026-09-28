@@ -879,9 +879,27 @@ function sauvegarderBrouillon(){
   });
 }
 
-function reprendreBrouillon(id){
+function reprendreBrouillon(id, sansVerif){
   const drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
   const doc=drafts.find(d=>d.id===id);if(!doc)return;
+  // Garde-fou : si la base a une version plus récente de cet article, c'est elle qu'on
+  // ouvre (la copie de l'appareil est périmée) — sinon l'enregistrer l'écraserait.
+  if(!sansVerif && typeof _session !== 'undefined' && _session){
+    var hV = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
+    fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=id,updated_at',{headers:hV})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      var srv = Array.isArray(rows) && rows[0];
+      if(srv && srv.updated_at && doc.modifie_le && srv.updated_at >= doc.modifie_le){
+        _autosaveClearLocalDraft(id);
+        notif('La version enregistrée dans Compo est plus récente : c\'est elle qui s\'ouvre');
+        mesArticlesOuvrir(id, 'edition');
+        return;
+      }
+      reprendreBrouillon(id, true);
+    }).catch(function(){ reprendreBrouillon(id, true); });
+    return;
+  }
   if(!(currentDoc && currentDoc.id === doc.id)) osRedactionMettreDeCote();
   currentDoc = doc; // Réutiliser l'id existant — sinon la prochaine sauvegarde crée un nouvel article
   go('redaction');

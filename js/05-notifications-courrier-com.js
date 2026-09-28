@@ -734,9 +734,9 @@ function osRedactionMettreDeCote(){
   db.sauvegarderArticle(doc).then(function(){
     _autosaveClearLocalDraft(doc.id);
     notif(nom+' est enregistré dans Mes articles', 'succes');
-  }).catch(function(){
+  }).catch(function(err){
     _autosaveFallbackLocal(doc);
-    notif(nom+' est gardé sur cet appareil : pas de connexion', 'alerte');
+    notif(nom+' est gardé sur cet appareil : '+(err && err.code === 'SUJET_DEJA_ECRIT' ? 'un article existe déjà pour ce sujet' : 'pas de connexion'), 'alerte');
   });
   return true;
 }
