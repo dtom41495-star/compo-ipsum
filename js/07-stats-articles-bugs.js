@@ -1066,13 +1066,28 @@ function _maChargerPastilleValider(){
     _maPoserPastilleValider();
   }).catch(function(){});
 }
+// Pastille « À relire (SR) » : mes relectures en cours + la file que je peux prendre
+var _maNbARelire = 0;
+function _maChargerPastilleRelire(){
+  if(_maVuesAutorisees().indexOf('corriger') === -1) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(getUserId())+'&statut=eq.en-relecture&select=id',{headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }),
+    typeof _srChargerFile === 'function' ? _srChargerFile() : Promise.resolve([])
+  ]).then(function(res){
+    _maNbARelire = (Array.isArray(res[0]) ? res[0].length : 0) + (Array.isArray(res[1]) ? res[1].length : 0);
+    _maPoserPastilleValider();
+  });
+}
 function _maPoserPastilleValider(){
-  var btn = document.querySelector('#ma-rail [data-vue="a-valider"]');
-  if(!btn) return;
-  var p = btn.querySelector('.ma-pastille');
-  if(!_maNbAValider){ if(p) p.remove(); return; }
-  if(!p){ p = document.createElement('span'); p.className = 'ma-pastille'; btn.appendChild(p); }
-  p.textContent = _maNbAValider;
+  [['a-valider', _maNbAValider], ['corriger', _maNbARelire]].forEach(function(x){
+    var btn = document.querySelector('#ma-rail [data-vue="'+x[0]+'"]');
+    if(!btn) return;
+    var p = btn.querySelector('.ma-pastille');
+    if(!x[1]){ if(p) p.remove(); return; }
+    if(!p){ p = document.createElement('span'); p.className = 'ma-pastille'; btn.appendChild(p); }
+    p.textContent = x[1];
+  });
 }
 
 function _maVuesAutorisees(){
@@ -1222,6 +1237,7 @@ function osMesArticlesCharger(){
   if(_maOnglet === 'secours'){ _maCache = []; maOsFiltre(); return; }
 
   _maChargerPastilleValider();
+  _maChargerPastilleRelire();
   var q;
   if(_maOnglet === 'a-valider'){
     q = _maRequeteAValider('*');
