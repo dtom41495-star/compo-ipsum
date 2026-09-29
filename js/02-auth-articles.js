@@ -69,7 +69,7 @@ var db = {
     // Vérifier si l'article existe déjà en base
     var articleId = doc.id;
     var estUneCreation = false; // ne loguer 'creation' dans historique que pour un vrai nouvel article
-    return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId)+'&select=id,auteur_id', {
+    return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId)+'&select=id,auteur_id,auteur', {
       headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')})
     })
     .then(function(r){ return r.json(); })
@@ -91,11 +91,18 @@ var db = {
         } else if(existingAuteurId && existingAuteurId === monId){
           // C'est bien mon article, auteur_id est correct, pas besoin de le renvoyer
           // (laisser le payload tel quel)
-        } else if(!existingAuteurId && payload.auteur_id !== monId){
-          // Article sans auteur_id en base mais le payload met quelqu'un d'autre
-          // Protéger : ne pas écraser
-          delete payload.auteur;
-          delete payload.auteur_id;
+        } else if(!existingAuteurId){
+          // Article sans auteur_id en base (retranscrit par un admin, ancien article…) :
+          // ne jamais s'en attribuer la paternité en l'enregistrant. Avant, un SR ou un chef
+          // qui y corrigeait une virgule (ou ajoutait une rubrique) en devenait l'auteur :
+          // l'article passait dans SES articles et les notifications d'auteur lui revenaient.
+          // On ne rattache à soi que si le nom d'auteur en base est déjà le sien.
+          var auteurBase = ((existing[0] && existing[0].auteur) || '').trim().toLowerCase();
+          var monNom = (getUserNomComplet() || '').trim().toLowerCase();
+          if(payload.auteur_id !== monId || !auteurBase || auteurBase !== monNom){
+            delete payload.auteur;
+            delete payload.auteur_id;
+          }
         }
       } else {
         // POST uniquement pour les nouveaux
@@ -2100,7 +2107,11 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   // qui ratait aussi bien des brèves à illustrer que des articles qui n'en avaient pas besoin.
   if(nouveauStatut==='valide' && typeof besoinVisuel === 'boolean') doc.besoin_visuel = besoinVisuel;
   if(currentDoc.auteur_id){ doc.auteur=currentDoc.auteur; doc.auteur_id=currentDoc.auteur_id; }
+  // Relu (ou validé directement) par quelqu'un d'autre que le SR désigné : on le préviendra
+  var srDessaisi = (currentDoc.statut === 'en-relecture' && currentDoc.correcteur_id && currentDoc.correcteur_id !== getUserId()
+    && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) ? currentDoc.correcteur_id : null;
   db.sauvegarderArticle(doc).then(function(){
+    if(srDessaisi) _osPrevenirSRDessaisi(srDessaisi, doc, nouveauStatut);
     currentDoc = doc;
     rWorkflowMajInterface(currentDoc);
     _docModifie = false;
@@ -2120,6 +2131,35 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
       }).catch(function(){});
     }
   }).catch(function(err){ notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur'); });
+}
+
+// Le SR désigné n'a plus à relire : un admin ou un rédac chef l'a fait à sa place.
+function _osPrevenirSRDessaisi(srId, doc, statut){
+  if(typeof _osRedacNotifActive === 'function' && !_osRedacNotifActive(doc.redaction_id, 'notif_correction')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(srId)+'&select=email,prenom,canal_notif',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var m = Array.isArray(data) && data[0]; if(!m) return;
+    var qui = getUserNomComplet() || 'Un·e responsable';
+    var titre = doc.titre || 'Sans titre';
+    var nomRedac = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
+    var fait = statut === 'corrige' ? 'l\'a relu' : 'l\'a relu et passé en bon à publier';
+    var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
+    var chat = '*Article relu à ta place*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedac?' · '+_chatSansMiseEnForme(nomRedac):'')+' : '+_chatSansMiseEnForme(qui)+' '+fait+'. Plus besoin de t\'en occuper, merci !\n<'+lien+'|Voir l\'article>';
+    notifierPersonnel(srId, m.canal_notif, chat, 'correction', function(){
+      if(!m.email || osEstEnLigne(srId)) return;
+      var html = _emailCompo({
+        accent:'bleu', etiquette:'DÉJÀ RELU', titre:'Plus besoin de relire cet article',
+        bonjour:'Bonjour '+esc(m.prenom||'')+',',
+        texte:'<strong>'+esc(qui)+'</strong> '+esc(fait)+' à ta place. Tu n\'as plus rien à faire dessus, merci !',
+        contenu:_emailCarteArticle(doc),
+        boutons:[{ label:'Voir l\'article', url:lien }],
+        pourquoi:'Tu reçois cet email car cet article t\'avait été confié pour relecture.'
+      });
+      envoyerEmailResend(m.email, '[Ipsum Média] Déjà relu : '+titre, html, 'correction').catch(function(){});
+    });
+  }).catch(function(){});
 }
 
 // Config partagée entre la popup affichée à l'acteur (en-relecture/refuse — c'est déjà lui
