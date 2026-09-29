@@ -1981,8 +1981,8 @@ function _osAgendaConfirmerInscriptionMembre(ev, statut){
     var chat = (attente ? '📝 *Demande d\'inscription envoyée*\n' : '✅ *Tu es inscrit·e*\n')
       +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
       +'<'+AGENDA_LIEN+ev.id+'|Voir l\'événement>';
-    notifierPersonnel(uid, m.canal_notif, chat, 'agenda', function(){
-      envoyerEmailResend(m.email, '[Ipsum Média] '+(attente?'Demande envoyée':'Tu es inscrit·e')+' · '+(ev.titre||''), html, 'agenda').catch(function(){});
+    notifierPersonnel(uid, m.canal_notif, chat, 'agenda-inscription', function(){
+      envoyerEmailResend(m.email, '[Ipsum Média] '+(attente?'Demande envoyée':'Tu es inscrit·e')+' · '+(ev.titre||''), html, 'agenda-inscription').catch(function(){});
     });
   }).catch(function(){});
 }
@@ -2091,8 +2091,8 @@ function osAgendaAdminDesinscrire(inscrId, evId){
           var chatTexte = 'ℹ️ *Tu as été désinscrit·e d\'un événement*\n'
             +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
             +'Si c\'est une erreur, écris-nous à contact@ipsummedia.fr';
-          notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-            envoyerEmailResend(m.email,'[Ipsum Média] Désinscription · '+(ev.titre||''),html,'agenda').catch(function(){});
+          notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda-inscription', function(){
+            envoyerEmailResend(m.email,'[Ipsum Média] Désinscription · '+(ev.titre||''),html,'agenda-inscription').catch(function(){});
           });
         }).catch(function(){});
       }
@@ -2387,8 +2387,8 @@ function osAgendaValiderInscr(inscrId, evId){
             var chatTexte = '✅ *Ton inscription est confirmée*\n'
               +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
               +'<'+AGENDA_LIEN+ev.id+'|Voir l\'événement>';
-            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-              envoyerEmailResend(m.email, '[Ipsum Média] Inscription confirmée · '+(ev.titre||''), html, 'agenda').catch(function(){});
+            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda-inscription', function(){
+              envoyerEmailResend(m.email, '[Ipsum Média] Inscription confirmée · '+(ev.titre||''), html, 'agenda-inscription').catch(function(){});
             });
           }).catch(function(){});
         }
@@ -2428,8 +2428,8 @@ function osAgendaRefuserInscr(inscrId, evId){
             var chatTexte = 'ℹ️ *Ta demande d\'inscription n\'a pas pu être retenue*\n'
               +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
               +'Une question ? Écris-nous à contact@ipsummedia.fr';
-            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda', function(){
-              envoyerEmailResend(m.email, '[Ipsum Média] Inscription non retenue · '+(ev.titre||''), html, 'agenda').catch(function(){});
+            notifierPersonnel(insc.membre_id, m.canal_notif, chatTexte, 'agenda-inscription', function(){
+              envoyerEmailResend(m.email, '[Ipsum Média] Inscription non retenue · '+(ev.titre||''), html, 'agenda-inscription').catch(function(){});
             });
           }).catch(function(){});
         }
