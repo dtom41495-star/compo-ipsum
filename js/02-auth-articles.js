@@ -1491,6 +1491,14 @@ function getUserId(){
 
 // ===== IMAGES D'ARTICLES : direct vers Drive (jamais Supabase Storage — quota 1 Go) =====
 function uploadImageVersDrive(file, redacId, titre){
+  // Nom de fichier unique à chaque envoi : avec le seul titre de l'article, couverture et
+  // images du corps portaient toutes le même nom, et chaque nouvel envoi remplaçait (donc
+  // cassait) l'image précédente déjà placée dans l'article.
+  var d = new Date();
+  function deux(n){ return (n<10?'0':'')+n; }
+  titre = (titre || 'Image') + ' — ' + d.getFullYear()+'-'+deux(d.getMonth()+1)+'-'+deux(d.getDate())
+    + ' ' + deux(d.getHours())+'h'+deux(d.getMinutes())+'m'+deux(d.getSeconds())+'s'
+    + ' ' + Math.random().toString(36).slice(2,6);
   return new Promise(function(resolve, reject){
     var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
     var reader = new FileReader();
