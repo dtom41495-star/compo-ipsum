@@ -50,7 +50,7 @@ var db = {
     // le choix déjà fait par le rédac chef.
     if(payload.besoin_visuel === undefined) delete payload.besoin_visuel;
     // Ne pas écraser l'image avec null si on ne change pas l'image
-    if(payload.image === null) delete payload.image;
+    if(payload.image === null && !doc.image_retiree) delete payload.image;
     // Ne pas écraser sujet_id avec null : la création automatique du sujet (plus bas,
     // après le POST initial) et une sauvegarde concurrente (autosave qui retombe pendant
     // ce court laps de temps) peuvent se chevaucher — sans cette garde, le deuxième
@@ -1676,41 +1676,15 @@ function chargerDansRedaction(doc){
         if(hiddenEl){ hiddenEl.value = redacInfo.nom; hiddenEl.dataset.redacId = redacInfo.id; }
       }
     }
-    document.getElementById('r-rubrique').value = doc.rubrique||'';
+    rSetRubrique(doc.rubrique);
     document.getElementById('r-datepub').value = doc.date_publication||'';
     tags = doc.tags||[]; renderTags();
+    rSetSources(doc.sources);
     cpLies = doc.communiques||[]; renderCpLies();
     preremplirAuteur();
-    // Image : afficher depuis URL Storage ou base64
-    imgFile = null; // reset - pas de nouveau fichier à uploader
-    if(doc.image){
-      imgB64 = doc.image;
-      // Chercher dans la fenêtre active OU dans le DOM global
-      var winContent = document.getElementById('wincontent-redaction');
-      var ctx = winContent || document;
-      var prev = ctx.querySelector('#r-img-prev') || document.getElementById('r-img-prev');
-      var rem  = ctx.querySelector('#r-img-rem')  || document.getElementById('r-img-rem');
-      var leg  = ctx.querySelector('#r-img-leg')  || document.getElementById('r-img-leg');
-      if(prev){
-        prev.crossOrigin = 'anonymous';
-        prev.src = doc.image + '?t=' + Date.now(); // cache-bust
-        prev.style.display = 'block';
-        prev.onerror = function(){
-          // Si CORS bloque, essayer sans cache-bust
-          prev.src = doc.image;
-        };
-      }
-      if(rem) rem.style.display = 'inline-block';
-      if(leg){ leg.style.display = 'block'; leg.value = doc.image_legende||''; }
-    } else {
-      imgB64 = null; imgFile = null;
-      var winContent2 = document.getElementById('wincontent-redaction');
-      var ctx2 = winContent2 || document;
-      var prev2 = ctx2.querySelector('#r-img-prev') || document.getElementById('r-img-prev');
-      var rem2  = ctx2.querySelector('#r-img-rem')  || document.getElementById('r-img-rem');
-      if(prev2){ prev2.src=''; prev2.style.display='none'; }
-      if(rem2) rem2.style.display='none';
-    }
+    // Image : toujours repartir d'un état neuf, puis afficher celle de l'article s'il en a une
+    _rImgReinit();
+    if(doc.image) _rImgAfficherEnregistree(doc.image, doc.image_legende);
     setUrg(doc.urgence||'normal');
     updateStats();
     currentDoc = doc;
