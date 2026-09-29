@@ -33,6 +33,13 @@ function fonctionArray(val){
   return [];
 }
 
+// Membres qui n'écrivent pas (communicant·es, vie associative) : ne pas être rattaché·e
+// à une rédaction est normal pour eux, pas un oubli à signaler.
+function osSansRedactionVoulu(m){
+  if(!m) return false;
+  return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('vie_asso') !== -1;
+}
+
 // Affichage court pour les cartes
 function fonctionShort(val){
   var arr = fonctionArray(val);

@@ -63,7 +63,13 @@ function _accueilApps(){
   var iRedac = liste.findIndex(function(a){ return a.id === 'redactions'; });
   if(iRedac !== -1){
     liste.splice(iRedac, 1);
-    ACCUEIL_REDAC_TUILES.forEach(function(t){ liste.push(t); });
+    // Rattaché·e à aucune rédaction (com, vie asso) : Sujets, Communiqués et Ma rédaction
+    // n'ont rien à montrer — Recrutement reste (le profil s'ouvre depuis le haut)
+    var uidAcc = getUserId();
+    var sansRedac = getUserRole() !== 'admin' && !(window._membresRedactionsData||[]).some(function(mr){ return mr.membre_id === uidAcc; });
+    ACCUEIL_REDAC_TUILES.forEach(function(t){ if(!sansRedac || t.onglet === 'recrutement') liste.push(t); });
+    // …et ses abonnements aux communiqués, sinon introuvables sans la tuile Communiqués
+    if(sansRedac) liste.push({ id:'redac:cps-abonnements', onglet:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Mes abonnements', color:'#4A235A' });
     if(getUserRole() === 'admin') liste.push({ id:'redac:admin', onglet:'admin', icon:'<i class="ti ti-building-community"></i>', label:'Gestion rédactions', color:'#2C3E50' });
   }
   liste = liste.map(function(a){ return a.id === 'cps-admin' ? Object.assign({}, a, {label:'Gestion des CPs'}) : a; });

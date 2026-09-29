@@ -274,7 +274,7 @@ function osBenevolesDashRender(){
       // Le dernier article OU brève publié, quel que soit le type — pour le rapport
       // d'équipe : ce que la personne a produit en dernier, pas seulement quand.
       var dernierPublie=publis.length?publis.reduce(function(a,b){return new Date(a.updated_at)>new Date(b.updated_at)?a:b;}):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id],recompenses:recompensesParMembre[m.id]||[]};
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]&&!osSansRedactionVoulu(m),sansRedactionVoulu:!membresAvecRedac[m.id]&&osSansRedactionVoulu(m),recompenses:recompensesParMembre[m.id]||[]};
     });
     window._benevolesStats = statsMembres; // utilisé par l'export PDF de l'équipe
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
@@ -1624,9 +1624,12 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   }
   // Grille : 4 tuiles de front si la place le permet, sinon 2 × 2 (les libellés ne se
   // chevauchent plus quand la fenêtre est étroite)
+  // Sans rédaction et sans article (com, vie asso) : pas de tuiles ni de blocs
+  // d'articles et de sujets, qui resteraient vides — heures et agenda gardés.
+  var sansEcriture = !redac && getUserRole() !== 'admin' && !mesArticles.length;
   h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0.5rem;margin-top:0.9rem;">';
-  h += tuileBandeau('', mesPublies.length, 'Article'+(mesPublies.length>1?'s':'')+' publié'+(mesPublies.length>1?'s':''), 'Tous mes articles publiés dans cette rédaction');
-  h += tuileBandeau('', publiesCeMois, 'Publié'+(publiesCeMois>1?'s':'')+' ce mois-ci', 'Articles publiés depuis le 1er du mois');
+  if(!sansEcriture) h += tuileBandeau('', mesPublies.length, 'Article'+(mesPublies.length>1?'s':'')+' publié'+(mesPublies.length>1?'s':''), 'Tous mes articles publiés dans cette rédaction');
+  if(!sansEcriture) h += tuileBandeau('', publiesCeMois, 'Publié'+(publiesCeMois>1?'s':'')+' ce mois-ci', 'Articles publiés depuis le 1er du mois');
   h += tuileBandeau('membre-heures-banner', '<span style="opacity:0.45;">…</span>', 'Heures de bénévolat', 'Total de mes heures de bénévolat enregistrées');
   h += tuileBandeau('', nbActivites, 'Activité'+(nbActivites>1?'s':'')+' agenda', 'Événements de l\'agenda auxquels j\'ai participé ou suis inscrit·e');
   h += '</div>';
@@ -1680,23 +1683,25 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     h += '</div>'; // filet de sécurité : ferme quand même la carte si jamais aucune action rapide
   }
 
-  // Sujets à rédiger
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-  h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
-  h += '<button onclick="osOuvrirSujets()" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
-  h += '</div>';
-  h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '</div>';
+  if(!sansEcriture){
+    // Sujets à rédiger
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+    h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
+    h += '<button onclick="osOuvrirSujets()" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
+    h += '</div>';
+    h += '<div id="redac-sujets-profil"><div style="padding:0.4rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+    h += '</div>';
 
-  // Mes derniers articles
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-  h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-notes" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes derniers articles</span>';
-  h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
-  h += '</div>';
-  h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
-  h += '</div>';
+    // Mes derniers articles
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
+    h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-notes" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes derniers articles</span>';
+    h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
+    h += '</div>';
+    h += '<div id="redac-mes-articles-liste"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+    h += '</div>';
+  }
 
   // Mes activités agenda
   h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';

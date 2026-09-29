@@ -667,6 +667,9 @@ function osBenevolesOuvrirFiche(membreId){
       html += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0;white-space:nowrap;">Rédaction :</span>';
       if(s.sansRedaction){
         html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:#FCEBEB;color:#A32D2D;"><i class="ti ti-unlink"></i> Aucune rédaction, à rattacher</span>';
+      } else if(s.sansRedactionVoulu){
+        // Com / vie asso : pas de rédaction, et c'est normal
+        html += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;padding:3px 10px;border-radius:4px;background:var(--gris-clair);color:var(--gris);">Aucune (n\'écrit pas)</span>';
       } else {
         var redacMembre = m.redaction || '—';
         var redacLabel = redacMembre.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join('-');
@@ -1351,6 +1354,24 @@ function _uploadTypeDeFichier(mime){
 // ET enregistrements audio), lus en direct sur SON PROPRE Drive avec sa connexion
 // Google personnelle.
 var _uploadExplorerChemin = [];
+
+// Dossier Drive commun pour qui n'est rattaché·e à aucune rédaction (com, vie asso) :
+// pas une vraie rédaction, juste un nom de dossier sur son propre Drive.
+var UPLOAD_DOSSIER_GENERAL = { id:'general', nom:'Ipsum Média' };
+
+// Rédactions où la personne peut envoyer — ou le dossier commun si elle n'en a aucune
+function _osUploadMesRedacs(){
+  var uid = getUserId();
+  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
+  var redacs = mesLiens.map(function(mr){
+    return (window._redactionsData||[]).find(function(r){ return r.id===mr.redaction_id; });
+  }).filter(Boolean);
+  return redacs.length ? redacs : [UPLOAD_DOSSIER_GENERAL];
+}
+function _osUploadRedacParId(id){
+  if(id === UPLOAD_DOSSIER_GENERAL.id) return UPLOAD_DOSSIER_GENERAL;
+  return (window._redactionsData||[]).find(function(r){ return r.id===id; });
+}
 var _uploadVueCourante = { dossiers: [], fichiers: [] }; // dernier résultat chargé, pour le filtre de recherche local
 
 function _osUploadEcranPrincipal(wc){
@@ -1389,8 +1410,8 @@ function _osUploadNomRacine(racine){
   if(racine === 'communiques') return '<i class="ti ti-news"></i> Communiqués';
   if(racine === 'images-articles') return '<i class="ti ti-photo"></i> Images-articles';
   if(racine && racine.indexOf('redac:') === 0){
-    var redac = (window._redactionsData||[]).find(function(r){ return r.id===racine.slice(6); });
-    return redac ? '<i class="ti ti-folders"></i> '+redac.nom : '<i class="ti ti-folders"></i> ?';
+    var redac = _osUploadRedacParId(racine.slice(6));
+    return redac ? '<i class="ti ti-folders"></i> '+esc(redac.nom) : '<i class="ti ti-folders"></i> ?';
   }
   return racine;
 }
@@ -1439,7 +1460,7 @@ function osUploadRenderExplorer(){
   if(racine === 'communiques' || racine === 'images-articles'){
     _osUploadChargerViaService(zone, racine, sousChemin);
   } else if(racine.indexOf('redac:') === 0){
-    var redac = (window._redactionsData||[]).find(function(r){ return r.id===racine.slice(6); });
+    var redac = _osUploadRedacParId(racine.slice(6));
     _osUploadChargerPersonnel(zone, redac?redac.nom:'?', sousChemin);
   }
 }
@@ -1459,7 +1480,9 @@ function _osUploadRenderRacine(zone){
     h += _osUploadTuile('<i class="ti ti-news"></i>', 'Communiqués', 'osUploadNaviguerVers('+_uploadCheminJs(['communiques'])+')');
     h += _osUploadTuile('<i class="ti ti-photo"></i>', 'Images-articles', 'osUploadNaviguerVers('+_uploadCheminJs(['images-articles'])+')');
   }
-  (window._redactionsData||[]).forEach(function(r){
+  var dossiersRedac = (window._redactionsData||[]).slice();
+  if(_osUploadMesRedacs()[0] === UPLOAD_DOSSIER_GENERAL) dossiersRedac.unshift(UPLOAD_DOSSIER_GENERAL);
+  dossiersRedac.forEach(function(r){
     h += _osUploadTuile('<i class="ti ti-folders"></i>', r.nom, 'osUploadNaviguerVers('+_uploadCheminJs(['redac:'+r.id])+')');
   });
   h += '</div>';
@@ -1610,17 +1633,7 @@ function osUploadOuvrirEnvoi(){
   if(panneau.style.display === 'block'){ panneau.style.display = 'none'; return; }
   if(!osUploadTokenValide()){ osUploadSeConnecter(); return; }
 
-  var uid = getUserId();
-  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
-  var redacs = mesLiens.map(function(mr){
-    return (window._redactionsData||[]).find(function(r){ return r.id===mr.redaction_id; });
-  }).filter(Boolean);
-
-  if(!redacs.length){
-    panneau.innerHTML = '<div style="text-align:center;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Tu n\'es rattaché·e à aucune rédaction — impossible de choisir un dossier de destination.</div>';
-    panneau.style.display = 'block';
-    return;
-  }
+  var redacs = _osUploadMesRedacs();
 
   var redacIdCourant = (_uploadExplorerChemin[0]||'').indexOf('redac:')===0 ? _uploadExplorerChemin[0].slice(6) : null;
   var redacPreselec = (redacIdCourant && redacs.some(function(r){return r.id===redacIdCourant;})) ? redacIdCourant : (window._redacActiveId || redacs[0].id);
@@ -1652,11 +1665,20 @@ function osUploadOuvrirEnvoi(){
   osUploadRenderListeFichiers();
 }
 
+// Dossier commun : pas de sujets (ils appartiennent à une rédaction)
+function _osUploadSujetsVides(sujetSel){
+  _uploadSujetsCache = [];
+  window._magnetoSujetsCache = [];
+  window._uploadSujetAPreselectionner = null;
+  sujetSel.innerHTML = '<option value="">— Aucun (dossier de l\'année) —</option>';
+}
+
 function osUploadChargerSujets(){
   var redacSel = document.getElementById('upl-redaction');
   var sujetSel = document.getElementById('upl-sujet');
   if(!redacSel || !sujetSel) return;
   var redacId = redacSel.value;
+  if(redacId === UPLOAD_DOSSIER_GENERAL.id){ _osUploadSujetsVides(sujetSel); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=id,titre&order=titre.asc',{headers:authH})
   .then(function(r){ return r.json(); })
@@ -1679,7 +1701,7 @@ function osUploadDrop(e){
 
 function osUploadChoisirFichiers(fileList){
   var redacId = (document.getElementById('upl-redaction')||{}).value;
-  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  var redac = _osUploadRedacParId(redacId);
   if(!redac){ notif('Choisis une rédaction'); return; }
   var sujetId = (document.getElementById('upl-sujet')||{}).value;
   var sujet = _uploadSujetsCache.find(function(s){ return s.id===sujetId; });
@@ -1749,16 +1771,7 @@ function osMagnetoRender(){
     return;
   }
 
-  var uid = getUserId();
-  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id===uid; });
-  var redacs = mesLiens.map(function(mr){
-    return (window._redactionsData||[]).find(function(r){ return r.id===mr.redaction_id; });
-  }).filter(Boolean);
-
-  if(!redacs.length){
-    wc.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;color:var(--gris);font-size:0.85rem;">Tu n\'es rattaché·e à aucune rédaction — impossible de choisir un dossier de destination.</div>';
-    return;
-  }
+  var redacs = _osUploadMesRedacs();
 
   var h = '<div style="flex-shrink:0;padding:1rem 1.2rem 0.6rem;">';
   h += '<div style="display:flex;flex-direction:column;gap:0.6rem;">';
@@ -1785,6 +1798,7 @@ function osMagnetoChargerSujets(){
   var sujetSel = document.getElementById('mag-sujet');
   if(!redacSel || !sujetSel) return;
   var redacId = redacSel.value;
+  if(redacId === UPLOAD_DOSSIER_GENERAL.id){ _osUploadSujetsVides(sujetSel); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/briefing?statut=in.(ouvert,en_cours)&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=id,titre&order=titre.asc',{headers:authH})
   .then(function(r){ return r.json(); })
@@ -1865,7 +1879,7 @@ function osMagnetoEnvoyer(fichier, localUrl){
   var redacSel = document.getElementById('mag-redaction');
   var sujetSel = document.getElementById('mag-sujet');
   var redacId = redacSel ? redacSel.value : null;
-  var redac = (window._redactionsData||[]).find(function(r){ return r.id===redacId; });
+  var redac = _osUploadRedacParId(redacId);
   if(!redac){ notif('Choisis une rédaction'); return; }
   var sujetId = sujetSel ? sujetSel.value : '';
   var sujet = (window._magnetoSujetsCache||[]).find(function(s){ return s.id===sujetId; });

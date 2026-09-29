@@ -1586,10 +1586,10 @@ var ALL_APPS_CATALOGUE = [
   { id:'boutique',       icon:'<i class="ti ti-gift"></i>', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
   { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
-  { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'] },
-  { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
+  { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur','communicant'] },
+  { id:'upload-medias',  icon:'<i class="ti ti-folder"></i>', label:'Fichiers',         color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur','communicant'], desc:'Explorateur des fichiers de la rédaction sur le Drive — rushs, vidéos, photos, communiqués.' },
   { id:'app-dub',        icon:'<i class="ti ti-scissors"></i>', label:'Raccourcisseur', color:'#993C1D', desc:'Raccourcit un lien avec Dub. Accès accordé au cas par cas depuis la fiche bénévole (quota mensuel limité).' },
-  { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
+  { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur','communicant'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
   { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
@@ -1618,7 +1618,7 @@ var PROFILS_PREDEFINIS = {
   admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
-  communicant: ['app-com','notes','compo-store','boutique','mail','signatures'],
+  communicant: ['app-com','redactions','notes','compo-store','boutique','mail','signatures'],
 };
 
 window._userApps = null;
