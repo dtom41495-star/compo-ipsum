@@ -1761,6 +1761,10 @@ function rWorkflowMajInterface(doc){
   var isCorrecteurDesigne = doc.correcteur_id && doc.correcteur_id === uid;
   var isCorr    = role==='correcteur' || isCorrecteurDesigne;
   var statut    = doc.statut||'brouillon';
+  // Rédac chef ou admin qui est aussi le SR désigné : il ne passe en « mode SR » que
+  // tant que l'article est au SR. Une fois relu, il retrouve ses boutons de chef (Bon à
+  // publier…) — avant, il restait coincé sur « Marquer comme relu », déjà fait.
+  var enTantQueSR = isCorrecteurDesigne && statut==='en-relecture';
   var estAuteur = doc.auteur_id === uid;
 
   // Rédaction centrale : sa validation est obligatoire avant publication pour les articles
@@ -1822,13 +1826,13 @@ function rWorkflowMajInterface(doc){
 
   // Zone chef : le chef local (statuts habituels) OU le validateur central (uniquement
   // quand une validation centrale est effectivement en attente sur cet article).
-  var zoneChefIsChef  = isChef && !isCorrecteurDesigne && (statut==='corrige'||statut==='valide'||statut==='valide_central'||statut==='en-relecture');
-  var zoneChefCentral = estValCentral && !isCorrecteurDesigne && attenteCentrale && (statut==='valide'||statut==='valide_central');
+  var zoneChefIsChef  = isChef && !enTantQueSR && (statut==='corrige'||statut==='valide'||statut==='valide_central'||statut==='en-relecture');
+  var zoneChefCentral = estValCentral && !enTantQueSR && attenteCentrale && (statut==='valide'||statut==='valide_central');
 
   if(zoneChefIsChef || zoneChefCentral){
     if(zChef) zChef.style.display='flex';
-  } else if(isCorr && (statut==='en-relecture'||statut==='corrige')){
-    // Correcteur désigné
+  } else if(isCorr && statut==='en-relecture'){
+    // Correcteur désigné (une fois relu, plus rien à marquer : il n'a plus de bouton)
     if(zCorr) zCorr.style.display='flex';
   } else {
     // Rédacteur (auteur ou autre)
@@ -1839,7 +1843,7 @@ function rWorkflowMajInterface(doc){
 
   // Bypass admin/chef : toujours pouvoir valider/publier directement (ex: article retranscrit
   // pour quelqu'un d'autre depuis un gdoc externe), même depuis un brouillon.
-  if(isChef && !isCorrecteurDesigne && statut!=='publie' && zChef && zChef.style.display!=='flex'){
+  if(isChef && !enTantQueSR && statut!=='publie' && zChef && zChef.style.display!=='flex'){
     zChef.style.display='flex';
   }
 
