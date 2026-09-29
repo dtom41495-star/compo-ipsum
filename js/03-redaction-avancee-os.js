@@ -1375,6 +1375,19 @@ function notifierPersonnel(membreId, canalNotif, chatTexte, type, emailCallback)
   }
 }
 
+// File d'envoi : Resend refuse (erreur 429) au-delà de quelques emails par seconde, et
+// Compo en lance souvent plusieurs d'un coup (récap à toute une rédaction, digest…).
+// Les envois partent donc un par un, espacés, et un envoi refusé pour « trop vite »
+// est retenté un peu plus tard au lieu d'être perdu.
+var EMAIL_ESPACEMENT_MS = 600;
+var _emailFile = Promise.resolve();
+var _emailDernierEnvoi = 0;
+var _emailEnAttente = 0;
+// Fermer Compo avec des emails encore dans la file les perdrait : le navigateur prévient
+window.addEventListener('beforeunload', function(e){
+  if(_emailEnAttente > 0){ e.preventDefault(); e.returnValue = ''; }
+});
+
 function _envoyerEmailResendReel(to, subject, html, type){
   fetch(SB_URL+'/rest/v1/emails_log', {
     method:'POST',
@@ -1385,13 +1398,37 @@ function _envoyerEmailResendReel(to, subject, html, type){
     body: JSON.stringify({ destinataire: to, sujet: subject, type: type || 'autre' })
   }).catch(function(){});
 
-  return fetch(SB_URL+'/functions/v1/envoyer-email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: to, subject: subject, html: html })
+  _emailEnAttente++;
+  var envoi = _emailFile.then(function(){ return _emailEnvoyerAvecRetentes(to, subject, html, 0); });
+  // La file continue même si cet envoi échoue
+  _emailFile = envoi.then(function(){ _emailEnAttente--; }, function(){ _emailEnAttente--; });
+  return envoi;
+}
+
+function _emailAttendre(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
+  var attente = Math.max(0, _emailDernierEnvoi + EMAIL_ESPACEMENT_MS - Date.now());
+  return _emailAttendre(attente).then(function(){
+    _emailDernierEnvoi = Date.now();
+    return fetch(SB_URL+'/functions/v1/envoyer-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: to, subject: subject, html: html })
+    });
   }).then(function(r){
-    if(!r.ok){ r.json().then(function(e){ console.error('Email error ('+to+'):', e); }).catch(function(){}); }
-    return r; // toujours retourner r pour que les appelants puissent tester r.ok
+    if(r.ok) return r;
+    return r.clone().text().catch(function(){ return ''; }).then(function(txt){
+      var tropVite = r.status === 429 || /429|rate.?limit|too many requests/i.test(txt||'');
+      if(tropVite && tentative < 4){
+        // 2 s, 4 s, 8 s, 16 s — l'email n'est pas parti, on peut le renvoyer sans doublon
+        return _emailAttendre(2000 * Math.pow(2, tentative)).then(function(){
+          return _emailEnvoyerAvecRetentes(to, subject, html, tentative + 1);
+        });
+      }
+      console.error('Email error ('+to+'):', txt);
+      return r; // toujours retourner r pour que les appelants puissent tester r.ok
+    });
   }).catch(function(e){
     console.error('envoyerEmailResend réseau:', e);
     return { ok: false }; // objet factice pour que le check .ok fonctionne
