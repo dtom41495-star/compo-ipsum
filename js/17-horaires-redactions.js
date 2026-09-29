@@ -12,11 +12,11 @@ var HORAIRES_JOURS = [
 // getUTCDay() : 0 = dimanche
 var HORAIRES_CLE_PAR_JOUR = ['dim','lun','mar','mer','jeu','ven','sam'];
 
-// Notifications qui peuvent attendre la réouverture. Les autres (agenda, invitations
-// presse, boutique, signatures, assistance...) partent toujours tout de suite.
+// Notifications qui peuvent attendre la réouverture. Les autres (agenda — sauf l'annonce
+// d'un nouvel événement —, invitations presse, boutique, signatures, assistance...) partent toujours tout de suite.
 var HORAIRES_TYPES_DIFFERABLES = ['statut_article','refus_article','publication','correction',
   'valide-central','valide-central-ok','sujet','sujets','sujet-attribue','sujet-libere','recrutement','relance','cp','com-visuels',
-  'recap_hebdo'];
+  'recap_hebdo','agenda-annonce'];
 
 function _horairesPartiesParis(date){
   var p = {};
@@ -167,7 +167,7 @@ function osRedacHorairesFormHtml(redac){
   var actif = osRedacHorairesDefinis(redac);
   var html = '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Horaires d\'ouverture</div>';
-  html += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">En dehors de ces horaires, les notifications sur les articles et les sujets attendent la réouverture, et les rédacteurs voient quand leur article sera relu. Les invitations presse et l\'agenda partent toujours tout de suite.</div>';
+  html += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">En dehors de ces horaires, les notifications sur les articles et les sujets attendent la réouverture, et les rédacteurs voient quand leur article sera relu. Les annonces de nouveaux événements de l\'agenda attendent aussi ; les rappels, inscriptions et invitations presse partent toujours tout de suite.</div>';
   html += '<label class="rh-actif" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0.6rem;"><input type="checkbox" id="redac-reg-horaires-actif" '+(actif?'checked':'')+' onchange="_osRedacHorairesBascule(this.checked)" style="flex-shrink:0;">'
     +'<span style="font-size:0.78rem;color:var(--encre);font-weight:600;">Utiliser des horaires d\'ouverture</span></label>';
   html += '<div id="redac-reg-horaires" class="rh-jours" style="display:'+(actif?'flex':'none')+';flex-direction:column;gap:0.4rem;">';

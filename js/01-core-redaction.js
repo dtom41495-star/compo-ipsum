@@ -584,10 +584,42 @@ function _compresserImage(file, maxDim, qualite){
   });
 }
 
+// Image retirée volontairement : sans ce drapeau, l'enregistrement gardait l'ancienne
+// image en base (une image « vide » n'est jamais envoyée, pour ne pas l'écraser par erreur)
+var _imgRetiree = false;
+
+function _rImgReinit(){
+  imgB64 = null; imgFile = null; _imgRetiree = false;
+  ['r-img-prev','r-img-rem','r-img-leg'].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    el.style.display = 'none';
+    if(el.tagName === 'INPUT') el.value = '';
+    if(el.tagName === 'IMG') el.removeAttribute('src');
+  });
+  var f = document.getElementById('r-img'); if(f) f.value = '';
+}
+
+// Aperçu d'une image déjà enregistrée. Un lien Drive (/view) n'est pas une image : il
+// faut passer par _driveImgSrc, sinon l'aperçu reste cassé.
+function _rImgAfficherEnregistree(url, legende){
+  var prev = document.getElementById('r-img-prev'), rem = document.getElementById('r-img-rem'), leg = document.getElementById('r-img-leg');
+  imgB64 = url; imgFile = null; _imgRetiree = false;
+  if(prev){
+    var src = _driveImgSrc(url);
+    prev.onerror = function(){ prev.onerror = null; prev.removeAttribute('crossorigin'); prev.src = src; };
+    prev.crossOrigin = 'anonymous';
+    prev.src = src;
+    prev.style.display = 'block';
+  }
+  if(rem) rem.style.display = 'inline-block';
+  if(leg){ leg.style.display = 'block'; leg.value = legende || ''; }
+}
+
 function loadImg(event){
   const f=event.target.files[0];if(!f)return;
   _compresserImage(f).then(function(fichier){
     imgFile = fichier; // Stocker le fichier (compressé si possible) pour upload Storage
+    _imgRetiree = false;
     const r=new FileReader();
     r.onload=e=>{
       imgB64=e.target.result;
@@ -595,24 +627,76 @@ function loadImg(event){
       document.getElementById('r-img-prev').style.display='block';
       var rem = document.getElementById('r-img-rem');
       if(rem) rem.style.display='inline-block';
+      // La légende se saisit dès qu'il y a une image (elle restait cachée jusqu'à la réouverture)
+      var leg = document.getElementById('r-img-leg');
+      if(leg) leg.style.display='block';
     };
     r.readAsDataURL(fichier);
   });
 }
-function removeImg(){imgB64=null;['r-img-prev','r-img-rem','r-img-leg'].forEach(id=>{const el=document.getElementById(id);el.style.display='none';if(el.tagName==='INPUT')el.value='';});document.getElementById('r-img').value='';}
+function removeImg(){
+  var avaitUneImageEnregistree = !!(currentDoc && currentDoc.image);
+  _rImgReinit();
+  if(avaitUneImageEnregistree){ _imgRetiree = true; currentDoc.image = null; }
+}
 
 // ===== TAGS =====
-function addTag(e){if(e.key!=='Enter')return;const v=e.target.value.trim();if(!v||tags.includes(v)){e.target.value='';return;}tags.push(v);renderTags();e.target.value='';}
+function _rTagAjouter(brut){
+  const v=String(brut||'').trim().replace(/,+$/,'').trim();
+  if(!v) return false;
+  if(tags.some(function(t){ return t.toLowerCase()===v.toLowerCase(); })) return false;
+  tags.push(v); return true;
+}
+function addTag(e){
+  if(e.key!=='Enter' && e.key!==',') return;
+  e.preventDefault();
+  if(_rTagAjouter(e.target.value)) renderTags(); else e.target.value='';
+  var i=document.getElementById('tag-input'); if(i) i.focus();
+}
 function rmTag(v){tags=tags.filter(t=>t!==v);renderTags();}
 function renderTags(){
   const w=document.getElementById('tags-wrap');w.innerHTML='';
-  tags.forEach(t=>{const s=document.createElement('span');s.className='tag';s.innerHTML=esc(t)+'<button onclick="rmTag(\''+esc(t)+'\')"><i class="ti ti-x"></i></button>';w.appendChild(s);});
-  const i=document.createElement('input');i.className='tag-input';i.id='tag-input';i.placeholder='Ajouter un mot-clé + Entrée';i.onkeydown=addTag;w.appendChild(i);
+  tags.forEach(t=>{
+    const s=document.createElement('span');s.className='tag';
+    s.appendChild(document.createTextNode(t));
+    // Bouton relié par un événement : un mot-clé avec une apostrophe cassait l'ancien onclick
+    const b=document.createElement('button');b.type='button';b.title='Retirer ce mot-clé';b.innerHTML='<i class="ti ti-x"></i>';
+    b.addEventListener('click',function(){ rmTag(t); });
+    s.appendChild(b);w.appendChild(s);
+  });
+  const i=document.createElement('input');i.className='tag-input';i.id='tag-input';i.placeholder='Ajouter un mot-clé + Entrée';i.onkeydown=addTag;
+  // Un mot-clé tapé mais non validé était perdu en quittant le champ
+  i.onblur=function(){ if(_rTagAjouter(i.value)) renderTags(); };
+  w.appendChild(i);
 }
 
 // ===== SOURCES =====
-function addSrc(){const l=document.getElementById('sources-list'),n=l.children.length+1;const d=document.createElement('div');d.className='src-item';d.innerHTML='<input type="text" placeholder="Source '+n+'"><button onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button>';l.appendChild(d);}
-function rmSrc(b){b.parentElement.remove();}
+function addSrc(valeur){
+  const l=document.getElementById('sources-list'),n=l.children.length+1;
+  const d=document.createElement('div');d.className='src-item';
+  d.innerHTML='<input type="text" placeholder="Source '+n+'"><button type="button" onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button>';
+  if(typeof valeur==='string') d.querySelector('input').value=valeur;
+  l.appendChild(d);
+}
+// Remplit la liste avec les sources de l'article ouvert (elles n'étaient jamais rechargées :
+// les rouvrir puis enregistrer effaçait toutes les sources)
+function rSetSources(liste){
+  const l=document.getElementById('sources-list'); if(!l) return;
+  l.innerHTML='';
+  (Array.isArray(liste)?liste:[]).forEach(function(x){ addSrc(String(x||'')); });
+  if(!l.children.length) addSrc();
+}
+// Rubrique enregistrée mais absente de la liste : l'ajouter, sinon le menu se vide et
+// l'enregistrement suivant efface la rubrique
+function rSetRubrique(v){
+  const sel=document.getElementById('r-rubrique'); if(!sel) return;
+  v=v||'';
+  if(v && !Array.from(sel.options).some(function(o){ return (o.value||o.text)===v; })){
+    const o=document.createElement('option'); o.textContent=v; sel.appendChild(o);
+  }
+  sel.value=v;
+}
+function rmSrc(b){b.parentElement.remove();const l=document.getElementById('sources-list');if(l&&!l.children.length)addSrc();}
 function getSrc(){return Array.from(document.querySelectorAll('#sources-list .src-item input')).map(i=>i.value.trim()).filter(Boolean);}
 
 // ===== COMMUNIQUÉS =====
@@ -701,6 +785,7 @@ function buildDoc(){
     corps:document.getElementById('r-corps').value.trim(),
     tags:[...tags],sources:getSrc(),
     image: imgFile ? null : (currentDoc && currentDoc.image && !currentDoc.image.startsWith('data:') ? currentDoc.image : null),
+    image_retiree:_imgRetiree,
     image_legende:document.getElementById('r-img-leg').value.trim()||null,
     date_publication:document.getElementById('r-datepub').value||null,
     communiques:cpLies.map(cp=>({...cp})),
@@ -815,7 +900,7 @@ function resetRedaction(){
   _osDoublonsReinit(); // nouvel article : l'avertissement doit pouvoir réapparaître
   ['r-auteur','r-titre','r-chapeau','r-angle','r-corps','r-img-leg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   rCorpsSetValeur('');
-  document.getElementById('r-rubrique').value='';document.getElementById('r-datepub').value='';
+  rSetRubrique('');document.getElementById('r-datepub').value='';
   // Pré-remplir la rédaction depuis la rédaction active du membre
   // Mettre à jour le badge rédaction
   var nomElR = document.getElementById('r-redaction-nom');
@@ -831,7 +916,7 @@ function resetRedaction(){
     setTimeout(osPopulerSelectRedaction, 400);
   }
   tags=[];renderTags();imgB64=null; imgFile=null;cpLies=[];
-  removeImg();renderCpLies();
+  _rImgReinit();renderCpLies();
   // Réinitialiser le CP source
   if(currentDoc) currentDoc.cp_id = null;
   var aff = document.getElementById('r-cp-source-affichage');
@@ -844,7 +929,7 @@ function resetRedaction(){
   if(zoneSujetLie) zoneSujetLie.innerHTML = '';
   var abandonBtnReset = document.getElementById('r-abandon-sujet');
   if(abandonBtnReset){ abandonBtnReset.style.display='none'; abandonBtnReset.dataset.sujetId=''; }
-  document.getElementById('sources-list').innerHTML='<div class="src-item"><input type="text" placeholder="Source 1"><button onclick="rmSrc(this)" title="Retirer cette source"><i class="ti ti-x"></i></button></div>';
+  rSetSources([]);
   setUrg('normal');updateStats();
   osStartAutosave(); // Démarrer aussi pour les nouveaux articles (pas seulement les reprises)
 }
@@ -912,12 +997,14 @@ function reprendreBrouillon(id, sansVerif){
     document.getElementById('r-angle').value=doc.angle||'';
     rCorpsSetValeur(doc.corps||'');
     document.getElementById('r-redaction').value=doc.redaction||'Rédaction Tarn';
-    document.getElementById('r-rubrique').value=doc.rubrique||'';
+    rSetRubrique(doc.rubrique);
     document.getElementById('r-datepub').value=doc.date_publication||'';
     tags=doc.tags||[];renderTags();
+    rSetSources(doc.sources);
     cpLies=doc.communiques||[];renderCpLies();
-    imgB64=doc.image||null;
-    if(imgB64){document.getElementById('r-img-prev').src=imgB64;document.getElementById('r-img-prev').style.display='block';document.getElementById('r-img-rem').style.display='inline-block';document.getElementById('r-img-leg').style.display='block';document.getElementById('r-img-leg').value=doc.image_legende||'';}
+    // Toujours repartir d'un état neuf : l'aperçu et la légende de l'article précédent restaient affichés
+    _rImgReinit();
+    if(doc.image) _rImgAfficherEnregistree(doc.image, doc.image_legende);
     setUrg(doc.urgence||'normal');updateStats();
     var abandonBtn = document.getElementById('r-abandon-sujet');
     if(abandonBtn){
