@@ -24,7 +24,11 @@ function _sdBrouillonsLocaux(sujetId){
 // peux libérer, et pas d'autre article déjà avancé), sans message sinon.
 function osSujetSeDesengager(sujetId, opts){
   if(!sujetId) return;
-  var apresSuppr = !!(opts && opts.apresSuppression);
+  // opts.nonEnregistre : l'article commencé pour ce sujet a été fermé sans être enregistré
+  // (ou sans rien écrire). Même fenêtre, mais seulement si le sujet n'a vraiment plus
+  // aucun article, ni en base ni gardé sur l'appareil.
+  var nonEnreg = !!(opts && opts.nonEnregistre);
+  var apresSuppr = !!(opts && (opts.apresSuppression || nonEnreg));
   Promise.all([
     fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,responsable,redaction_id', {headers:_sdAuth()}).then(function(r){ return r.json(); }),
     fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,auteur,auteur_id,corps', {headers:_sdAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
@@ -39,8 +43,9 @@ function osSujetSeDesengager(sujetId, opts){
     var articles = Array.isArray(res[1]) ? res[1] : [];
     var avance = articles.filter(function(a){ return a.statut && a.statut !== 'brouillon'; })[0] || null;
     if(apresSuppr && avance) return;
+    if(nonEnreg && (articles.length || (estMoi && _sdBrouillonsLocaux(sujetId).length))) return;
     _sdEtat = {
-      sujet: s, estMoi: estMoi, apresSuppression: apresSuppr,
+      sujet: s, estMoi: estMoi, apresSuppression: apresSuppr, nonEnregistre: nonEnreg,
       avance: articles.filter(function(a){ return a.statut && a.statut !== 'brouillon'; })[0] || null,
       brouillons: articles.filter(function(a){ return !a.statut || a.statut === 'brouillon'; }),
       locaux: estMoi ? _sdBrouillonsLocaux(sujetId) : []
@@ -71,7 +76,7 @@ function _sdAfficher(){
       +'<div class="se-actions"><button class="se-btn-secondaire" onclick="_sdFermer()">J\'ai compris</button></div>';
   } else {
     var nbBrouillons = e.brouillons.length + e.locaux.length;
-    corps = (e.apresSuppression ? '<p class="se-texte">L\'article est supprimé, mais son sujet '+(e.estMoi ? 't\'est' : 'est')+' toujours réservé.</p>' : '')
+    corps = (e.apresSuppression ? '<p class="se-texte">'+(e.nonEnregistre ? 'Ton article n\'a pas été enregistré' : 'L\'article est supprimé')+', mais son sujet '+(e.estMoi ? 't\'est' : 'est')+' toujours réservé.</p>' : '')
       +'<div class="sd-sujet"><span>Sujet</span><strong>'+esc(s.titre||'Sans titre')+'</strong>'
       +(e.estMoi ? '' : '<em>Réservé par '+esc(s.responsable)+'</em>')+'</div>'
       +'<p class="se-texte">'+(e.estMoi
@@ -205,4 +210,13 @@ function _sdEnvoyer(m, s, qui, message, parLuiMeme, lien){
     if(!m.email) return;
     envoyerEmailResend(m.email, '[Ipsum Média] '+(parLuiMeme ? 'Sujet libéré' : 'Ton sujet a été libéré')+' : '+(s.titre||''), _sdMailSujetLibere(m, s, qui, message, parLuiMeme), 'sujet-libere');
   });
+}
+
+// Éditeur fermé sans enregistrer (ou sans avoir rien écrit) sur un article démarré depuis
+// un sujet (« Écrire » d'un communiqué, « Rédiger » d'un sujet, nouveau sujet…) : le sujet
+// restait réservé sans aucun article. On propose de le libérer.
+function osSujetApresAbandon(doc){
+  var sujetId = doc && (doc.sujet_id || doc._sujet_id);
+  if(!sujetId) return;
+  setTimeout(function(){ osSujetSeDesengager(sujetId, { nonEnregistre:true }); }, 400);
 }

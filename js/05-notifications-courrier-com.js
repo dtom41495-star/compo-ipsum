@@ -750,7 +750,27 @@ function osCloseWindow(pageId){
     osSavePrompt(pageId);
     return;
   }
+  // Rien écrit dans un article démarré depuis un sujet et jamais enregistré : on retire
+  // la copie vide gardée sur l'appareil, puis on propose de libérer le sujet
+  var docAbandon = (pageId === 'redaction' && typeof currentDoc !== 'undefined' && currentDoc && (currentDoc.sujet_id || currentDoc._sujet_id)) ? currentDoc : null;
   osCloseWindowForce(pageId);
+  if(docAbandon && !(docAbandon.corps||'').trim()){
+    _osArticleJamaisEnregistre(docAbandon.id).then(function(jamais){
+      if(!jamais) return;
+      _autosaveClearLocalDraft(docAbandon.id);
+      if(typeof osSujetApresAbandon === 'function') osSujetApresAbandon(docAbandon);
+    });
+  }
+}
+
+// Vrai si l'article n'existe pas en base (jamais enregistré dans Compo)
+function _osArticleJamaisEnregistre(id){
+  if(!id) return Promise.resolve(true);
+  var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=id', {headers:h})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){ return Array.isArray(rows) && rows.length === 0; })
+    .catch(function(){ return false; });
 }
 
 function osRedactionADesModifs(){
@@ -808,10 +828,17 @@ function osSavePrompt(pageId){
   };
   ov.querySelector('[data-action="revenir"]').onclick = fermer;
   ov.querySelector('[data-action="perdre"]').onclick = function(){
+    var docPerdu = currentDoc;
     _autosaveClearLocalDraft(currentDoc && currentDoc.id);
     osClearAutosave();
     fermer();
     osCloseWindowForce(pageId);
+    // Article démarré depuis un sujet et jamais enregistré : le sujet restait réservé
+    if(docPerdu && (docPerdu.sujet_id || docPerdu._sujet_id)){
+      _osArticleJamaisEnregistre(docPerdu.id).then(function(jamais){
+        if(jamais && typeof osSujetApresAbandon === 'function') osSujetApresAbandon(docPerdu);
+      });
+    }
   };
   ov.addEventListener('click', function(e){ if(e.target === ov) fermer(); });
   document.addEventListener('keydown', clavier, true);
