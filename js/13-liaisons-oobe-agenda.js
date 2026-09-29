@@ -3028,7 +3028,8 @@ function osAgendaEnvoyerInvitations(ev, roles, fonctions){
         contenu:_osAgendaCarteEmail(ev, {extra:_osAgendaLignePlaces(ev)}), description:ev.description||'',
         boutons:[{label:'Je m\'inscris', url:AGENDA_LIEN+ev.id},{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
         pourquoi:'Tu reçois cet email car tu fais partie des personnes invitées à cet événement.' });
-      envoyerEmailResend(m.email,'[Ipsum Média] Invitation · '+(ev.titre||'')+' · '+_osAgendaJour(ev),html,'agenda');
+      // Type à part : l'annonce d'un nouvel événement attend la réouverture de la rédaction, pas les rappels
+      envoyerEmailResend(m.email,'[Ipsum Média] Invitation · '+(ev.titre||'')+' · '+_osAgendaJour(ev),html,'agenda-annonce');
     });
     notif('Invitations envoyées à '+cibles.length+' bénévole(s)');
   });
