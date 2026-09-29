@@ -1827,6 +1827,10 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   if(!membre){ wc.innerHTML='<div style="padding:2rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Profil introuvable.</div>'; return; }
 
   window._redacCtx = { uid:uid, redacId:redacId, roleRedac:roleRedac };
+  // Rattaché·e à aucune rédaction (com, vie asso) : seuls les onglets qui ne dépendent
+  // pas d'une rédaction restent — revenir sur Mon profil si on visait un autre onglet.
+  var ongletRemplace = _osRedacSansRedaction() && !_osRedacOngletsListe().some(function(o){ return o.id === _redacOnglet; });
+  if(ongletRemplace) _redacOnglet = 'profil';
 
   // Sidebar onglets + contenu — le rail est construit une seule fois ; changer d'onglet
   // (osRedactionsChangerOnglet) ne touche plus qu'à la zone de contenu, pour éviter que
@@ -1857,9 +1861,12 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   });
   // Communiqués — groupé à part dans un encadré blanc arrondi (au lieu du gris du rail),
   // avec son sous-menu "Mes abonnements" juste en dessous.
-  h += '<div id="redac-cps-groupe" style="background:white;border-radius:10px;padding:4px;margin-top:4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">';
-  onglets.filter(function(o){ return o.groupe==='cps'; }).forEach(function(o){ h += boutonOnglet(o); });
-  h += '</div>';
+  var ongletsCps = onglets.filter(function(o){ return o.groupe==='cps'; });
+  if(ongletsCps.length){
+    h += '<div id="redac-cps-groupe" style="background:white;border-radius:10px;padding:4px;margin-top:4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">';
+    ongletsCps.forEach(function(o){ h += boutonOnglet(o); });
+    h += '</div>';
+  }
   h += '<div style="flex:1;"></div>';
   // Rédaction affichée et son état (ouverte / fermée) si elle a des horaires
   // Sur ordinateur, fermée ou pas encore lancée : bloc en couleur au lieu de la pastille grise
@@ -1881,9 +1888,11 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   h += '</div>';
   wc.innerHTML = h;
   osDNDMajUI(); // synchronise l'état réel du bouton dispo/indispo qu'on vient d'ajouter au rail
-  cpsChargerBadge(); // point Communiqués du rail — sujets/recrutement sont déjà à jour via _osRedacRenderContenu
+  if(!_osRedacSansRedaction()) cpsChargerBadge(); // point Communiqués du rail — sujets/recrutement sont déjà à jour via _osRedacRenderContenu
 
   _osRedacRenderContenu(uid, redacId, roleRedac, membre);
+  // Sur téléphone, le titre de la fenêtre suit l'onglet affiché
+  if(ongletRemplace && typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
 }
 
 function _railBadgeNombre(n){
@@ -1904,6 +1913,13 @@ function _osRedacMajDotRail(ongletId, aDesNonLus){
   if(!existant) btn.insertAdjacentHTML('beforeend', _railDot());
 }
 
+// Personne rattachée à aucune rédaction (hors admin) : Ma rédac' se limite à son profil
+// (carte d'adhérent, heures de bénévolat…), au recrutement et à ses abonnements aux
+// communiqués (seul moyen pour elle d'en recevoir par mail).
+function _osRedacSansRedaction(){
+  return getUserRole() !== 'admin' && !(window._redacCtx && window._redacCtx.redacId);
+}
+
 function _osRedacOngletsListe(){
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
@@ -1918,6 +1934,9 @@ function _osRedacOngletsListe(){
   ];
   if(getUserRole() === 'admin'){
     onglets.push({id:'admin', icon:'<i class="ti ti-settings"></i>', label:'Gestion rédactions'});
+  }
+  if(_osRedacSansRedaction()){
+    onglets = onglets.filter(function(o){ return o.id === 'profil' || o.id === 'recrutement' || o.id === 'cps-abonnements'; });
   }
   onglets.forEach(function(o){
     o.badge = '';
