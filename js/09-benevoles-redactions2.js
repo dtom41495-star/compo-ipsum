@@ -314,7 +314,9 @@ function osBenevolesDashRender(){
     app.appendChild(contentWrap);
     // ONGLET EQUIPE
     var equipeDiv=document.createElement('div');
-    equipeDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:flex;';
+    // Tout l'onglet défile d'un bloc (chiffres, à recontacter, liste) : avant, seule la liste
+    // défilait sous un haut de page fixe, et il ne lui restait qu'une petite fenêtre.
+    equipeDiv.style.cssText='flex:1;overflow-x:hidden;overflow-y:auto;flex-direction:column;display:flex;min-height:0;';
     tabContents['equipe']=equipeDiv;
     function statCard(n,label,color){return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.4rem;color:'+(color||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div></div>';}
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
@@ -326,7 +328,7 @@ function osBenevolesDashRender(){
     sh+=statCard(artPublies.length,'En ligne au total','var(--rouge)');
     sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
-    sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
+    sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;position:sticky;top:0;z-index:5;background:white;">';
     _benvFiltreRole='tous'; _benvRecherche='';
     sh+='<input type="search" id="benv-recherche" class="benv-recherche" placeholder="Nom ou identifiant (IPS-…)" oninput="osBenevolesRechercher(this.value)" style="width:180px;font-size:0.72rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;outline:none;">';
     [['tous','Tous'],['rédacteur','Rédacteur'],['correcteur','SR'],['admin','Admin']].forEach(function(rr){var r=rr[1];sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+rr[0]+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
@@ -335,12 +337,12 @@ function osBenevolesDashRender(){
     if(isVieAsso) sh+='<div id="benv-recontacter" style="display:none;padding:0.7rem 1.4rem 0;flex-shrink:0;"></div>';
     // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
     // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
-    sh+='<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
+    sh+='<div style="flex:none;display:flex;align-items:flex-start;">';
     // Cartes compactes (nom, rôle, actif/inactif) — le détail (articles, délai,
     // activité, fraîcheur publication, dispo) est dans la fiche à droite, pas ici :
     // avec les 8 colonnes précédentes le tableau devenait illisible une fois la
     // fiche ouverte à côté.
-    sh+='<div style="flex:1.3;min-width:0;overflow-y:auto;padding:0.8rem 1.2rem;" id="benv-tableau">';
+    sh+='<div style="flex:1.3;min-width:0;padding:0.8rem 1.2rem;" id="benv-tableau">';
     sh+='<div id="benv-cartes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0.6rem;">';
     statsMembres.forEach(function(s){
       var m=s.membre;
@@ -371,12 +373,20 @@ function osBenevolesDashRender(){
       sh+='</div>';
     });
     sh+='</div></div>';
-    sh+='<div id="benv-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
-      +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un·e bénévole pour voir sa fiche.</div>'
+    // La fiche reste visible pendant que la liste défile (sticky), avec son propre défilement
+    sh+='<div id="benv-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;position:sticky;top:46px;max-height:calc(100vh - 160px);">'
+      +'<div style="display:flex;align-items:center;justify-content:center;min-height:260px;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un·e bénévole pour voir sa fiche.</div>'
       +'</div>';
     sh+='</div>'; // fin de la ligne liste + fiche
     equipeDiv.innerHTML=sh;
     contentWrap.appendChild(equipeDiv);
+    // La fiche épouse la hauteur visible de l'onglet (moins la barre de filtres collée en haut)
+    if(typeof ResizeObserver === 'function'){
+      new ResizeObserver(function(){
+        var pan=document.getElementById('benv-detail-panel'), fil=equipeDiv.querySelector('.benv-filtres');
+        if(pan && equipeDiv.clientHeight) pan.style.maxHeight=Math.max(200, equipeDiv.clientHeight-(fil?fil.offsetHeight:0)-2)+'px';
+      }).observe(equipeDiv);
+    }
     // ONGLET ORGANIGRAMME — généré depuis les données déjà chargées (membres + liens
     // vers les rédactions), pas de fetch supplémentaire, pas d'édition manuelle.
     var organigrammeDiv=document.createElement('div');

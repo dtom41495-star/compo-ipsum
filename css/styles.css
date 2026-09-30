@@ -3538,7 +3538,7 @@ input:focus,select:focus,textarea:focus{
   #params-avatar-grid { max-width: 100% !important; }
 
   /* Bénévoles : filtres qui défilent du doigt, chiffres sur 3 colonnes */
-  .benv-filtres { overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0.8rem !important; }
+  .benv-filtres { overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0.8rem !important; position: static !important; }  /* pas collée en haut : sur téléphone elle prendrait trop de place */
   .benv-filtres > * { flex-shrink: 0; }
   .benv-filtres button { min-height: 36px; font-size: 13px !important; white-space: nowrap; }
   .benv-stats-grille { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
