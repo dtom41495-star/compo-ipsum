@@ -1857,8 +1857,7 @@ function ticketToggleCorrecteur(val){
 }
 
 
-// Patchnote supprimé
-function afficherPatchNote(){ /* supprimé */ }
+// Nouveautés de Compo : voir js/27-patchnotes.js
 
 // ===== SCREENSAVER =====
 var _ssTimer = null;
