@@ -2,10 +2,13 @@
 // Affichées une fois à l'ouverture de Compo quand une nouvelle version est sortie, et
 // consultables à tout moment depuis le Guide (« Les nouveautés »).
 //
-// POUR AJOUTER UNE MISE À JOUR : ajouter une entrée EN TÊTE de PATCHNOTES (la plus
-// récente en premier) avec un nouvel `id`, une date, un titre et quelques phrases simples,
-// écrites pour les membres (pas de vocabulaire technique). C'est l'`id` de la première
-// entrée qui décide si le patchnote s'ouvre à nouveau pour tout le monde.
+// Source : les « pull requests » fusionnées sur GitHub (le dépôt est public) : le titre
+// et la liste à puces de la description deviennent une mise à jour. Rien à tenir à jour
+// à la main : fusionner une PR suffit. Les entrées ci-dessous ne servent que de repli si
+// GitHub ne répond pas (réseau coupé, limite d'appels atteinte).
+var PATCHNOTES_DEPOT = 'dtom41495-star/compo-ipsum';
+var PATCHNOTES_NB = 6;              // nombre de mises à jour conservées
+var PATCHNOTES_CACHE_H = 6;         // heures pendant lesquelles on ne relit pas GitHub
 var PATCHNOTES = [
   {
     id: '2026-09-30', date: '30 septembre 2026', titre: 'Rapports, agenda et confort d\'écriture',
@@ -33,11 +36,58 @@ var PATCHNOTES = [
 ];
 
 var _PATCHNOTE_LIBELLE_VU = 'compo_patchnote_vu_';
+var _PATCHNOTE_CACHE = 'compo_patchnote_cache';
 function _patchnoteCle(){ return _PATCHNOTE_LIBELLE_VU + (getUserId() || ''); }
 function _patchnoteVu(){ try { return localStorage.getItem(_patchnoteCle()); } catch(e){ return null; } }
-function _patchnoteMarquerVu(){ try { localStorage.setItem(_patchnoteCle(), PATCHNOTES[0].id); } catch(e){} }
+function _patchnoteMarquerVu(entrees){
+  if(!entrees || !entrees.length) return;
+  try { localStorage.setItem(_patchnoteCle(), entrees[0].id); } catch(e){}
+}
 
-function _patchnoteEntreeHtml(n, repliee){
+// Numéro de PR d'un identifiant « gh:39 » (null pour une entrée de repli)
+function _patchnoteNumero(id){ var m = String(id||'').match(/^gh:(\d+)$/); return m ? parseInt(m[1], 10) : null; }
+
+function _patchnoteDate(iso){
+  try { return new Date(iso).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }); } catch(e){ return ''; }
+}
+
+// Description d'une PR -> liste de phrases : uniquement les lignes à puces, sans mise en forme
+function _patchnotePoints(corps, titre){
+  var pts = [];
+  String(corps||'').split(/\r?\n/).forEach(function(l){
+    var m = l.match(/^\s*[-*]\s+(.*\S)\s*$/);
+    if(!m) return;
+    var t = m[1].replace(/\*\*|__|`/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim();
+    if(t) pts.push({ icone:'circle-check', texte:t });
+  });
+  return pts.length ? pts : [{ icone:'circle-check', texte:titre }];
+}
+
+// Dernières mises à jour fusionnées. Promesse -> liste d'entrées (la plus récente d'abord),
+// ou null si GitHub ne répond pas.
+function _patchnoteCharger(){
+  try {
+    var c = JSON.parse(localStorage.getItem(_PATCHNOTE_CACHE) || 'null');
+    if(c && c.data && c.data.length && Date.now() - c.t < PATCHNOTES_CACHE_H*3600*1000) return Promise.resolve(c.data);
+  } catch(e){}
+  return fetch('https://api.github.com/repos/'+PATCHNOTES_DEPOT+'/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=30',
+    { headers:{ 'Accept':'application/vnd.github+json' } })
+    .then(function(r){ if(!r.ok) throw new Error('GitHub '+r.status); return r.json(); })
+    .then(function(prs){
+      var liste = (Array.isArray(prs) ? prs : []).filter(function(p){ return p.merged_at; })
+        .sort(function(a, b){ return b.number - a.number; })
+        .slice(0, PATCHNOTES_NB)
+        .map(function(p){
+          return { id:'gh:'+p.number, date:_patchnoteDate(p.merged_at), titre:p.title, points:_patchnotePoints(p.body, p.title) };
+        });
+      if(!liste.length) throw new Error('aucune mise à jour');
+      try { localStorage.setItem(_PATCHNOTE_CACHE, JSON.stringify({ t:Date.now(), data:liste })); } catch(e){}
+      return liste;
+    })
+    .catch(function(){ return null; });
+}
+
+function _patchnoteEntreeHtml(n){
   var h = '<div class="pn-entree">'
     +'<div class="pn-date">'+esc(n.date)+'</div>'
     +'<div class="pn-titre">'+esc(n.titre)+'</div><ul class="pn-liste">';
@@ -47,8 +97,8 @@ function _patchnoteEntreeHtml(n, repliee){
   return h+'</ul></div>';
 }
 
-// Ouvre la fenêtre : la dernière version, puis (repliées) les précédentes
-function osPatchnoteOuvrir(){
+// Fenêtre des nouveautés. `entrees` : celles à montrer en haut ; `avant` : les précédentes (repliées)
+function _patchnoteAfficher(entrees, avant){
   var ancien = document.getElementById('pn-overlay'); if(ancien) ancien.remove();
   var ov = document.createElement('div');
   ov.id = 'pn-overlay';
@@ -56,39 +106,58 @@ function osPatchnoteOuvrir(){
   var h = '<div class="se-boite pn-boite" role="dialog" aria-modal="true" aria-labelledby="pn-titre">'
     +'<div class="se-entete"><div id="pn-titre" class="se-titre"><i class="ti ti-sparkles"></i> Les nouveautés de Compo</div>'
     +'<button class="se-fermer" onclick="osPatchnoteFermer()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="se-corps pn-corps">'+_patchnoteEntreeHtml(PATCHNOTES[0]);
-  if(PATCHNOTES.length > 1){
+    +'<div class="se-corps pn-corps">';
+  entrees.forEach(function(n){ h += _patchnoteEntreeHtml(n); });
+  if(avant && avant.length){
     h += '<details class="pn-avant"><summary>Versions précédentes</summary>';
-    PATCHNOTES.slice(1).forEach(function(n){ h += _patchnoteEntreeHtml(n); });
+    avant.forEach(function(n){ h += _patchnoteEntreeHtml(n); });
     h += '</details>';
   }
   h += '</div><div class="pn-pied"><button class="se-btn-principal" data-sombre-ignore onclick="osPatchnoteFermer()">Compris</button></div></div>';
   ov.innerHTML = h;
   ov.addEventListener('click', function(e){ if(e.target === ov) osPatchnoteFermer(); });
   document.body.appendChild(ov);
-  _patchnoteMarquerVu();
+}
+
+// Depuis le Guide : les dernières mises à jour, à la demande
+function osPatchnoteOuvrir(){
+  _patchnoteCharger().then(function(liste){
+    liste = liste || PATCHNOTES;
+    _patchnoteAfficher(liste.slice(0, 1), liste.slice(1));
+    _patchnoteMarquerVu(liste);
+  });
 }
 
 function osPatchnoteFermer(){
   var ov = document.getElementById('pn-overlay'); if(ov) ov.remove();
 }
 
-// À l'ouverture de Compo : montre les nouveautés si cette version n'a pas encore été vue.
-// Jamais par-dessus l'écran de bienvenue ni la vidéo de présentation : on attend qu'ils
-// soient fermés. Un compte tout neuf n'a rien à « rattraper » : son accueil s'en charge.
+// À l'ouverture de Compo : montre ce qui est sorti depuis la dernière fois (les 3 dernières
+// mises à jour au plus). Jamais par-dessus l'écran de bienvenue ni la vidéo de
+// présentation : on attend qu'ils soient fermés.
 function afficherPatchNote(){
-  if(!getUserId() || !PATCHNOTES.length) return;
-  if(_patchnoteVu() === PATCHNOTES[0].id) return;
-  if(window._patchnoteAttente) return;
+  if(!getUserId() || window._patchnoteAttente) return;
   window._patchnoteAttente = true;
   var essais = 0;
   (function attendre(){
     var occupe = !!document.getElementById('vt-overlay') || window._videoTutoPrevue
       || !!document.querySelector('#oobe-screen.visible') || !!window._tourApresVideo;
-    if(occupe && essais++ < 300){ setTimeout(attendre, 2000); return; }
-    window._patchnoteAttente = false;
-    if(_patchnoteVu() === PATCHNOTES[0].id) return;
-    if(occupe){ return; }
-    osPatchnoteOuvrir();
+    if(occupe){
+      if(essais++ < 300){ setTimeout(attendre, 2000); return; }
+      window._patchnoteAttente = false; return;
+    }
+    _patchnoteCharger().then(function(liste){
+      window._patchnoteAttente = false;
+      liste = liste || PATCHNOTES;
+      var vu = _patchnoteVu();
+      if(vu === liste[0].id) return;
+      var nVu = _patchnoteNumero(vu), nouvelles;
+      if(nVu !== null) nouvelles = liste.filter(function(n){ return _patchnoteNumero(n.id) > nVu; });
+      else nouvelles = liste.slice(0, 1);
+      if(!nouvelles.length) nouvelles = liste.slice(0, 1);
+      nouvelles = nouvelles.slice(0, 3);
+      _patchnoteAfficher(nouvelles, liste.filter(function(n){ return nouvelles.indexOf(n) === -1; }));
+      _patchnoteMarquerVu(liste);
+    });
   })();
 }
