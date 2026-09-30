@@ -98,6 +98,7 @@ function osGuideChoisir(){
     +'<p class="se-texte">Comment veux-tu découvrir Compo ?</p>'
     +'<button class="vt-option" onclick="document.getElementById(\'vt-choix\').remove();osVideoTutoOuvrir()"><i class="ti ti-player-play"></i><span><strong>La vidéo</strong><small>Deux minutes pour faire le tour</small></span></button>'
     +'<button class="vt-option" onclick="document.getElementById(\'vt-choix\').remove();osTourDemarrer()"><i class="ti ti-hand-finger"></i><span><strong>La visite guidée</strong><small>Pas à pas, directement dans Compo</small></span></button>'
+    +'<button class="vt-option" onclick="document.getElementById(\'vt-choix\').remove();osPatchnoteOuvrir()"><i class="ti ti-sparkles"></i><span><strong>Les nouveautés</strong><small>Ce qui a changé récemment</small></span></button>'
     +'</div></div>';
   ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
   document.body.appendChild(ov);

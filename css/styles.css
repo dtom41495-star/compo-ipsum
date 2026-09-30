@@ -4707,3 +4707,16 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .vt-son i { font-size: 1.05rem; }
 @keyframes vt-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .vt-son { animation: none; } }
+
+/* Nouveautés de Compo (patchnote) */
+.pn-boite { width: 500px; }
+.pn-corps { gap: 1.2rem; }
+.pn-date { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); }
+.pn-titre { font-family: Poppins, sans-serif; font-weight: 700; font-size: 1.05rem; margin: 2px 0 0.7rem; }
+.pn-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.pn-liste li { display: flex; gap: 0.65rem; align-items: flex-start; font-size: 0.84rem; line-height: 1.5; }
+.pn-liste li > i { font-size: 1.05rem; color: #E8461E; flex-shrink: 0; margin-top: 2px; }
+.pn-avant { border-top: 1px solid var(--gris-bord); padding-top: 0.8rem; }
+.pn-avant summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--gris); margin-bottom: 0.8rem; }
+.pn-avant .pn-entree + .pn-entree { margin-top: 1.2rem; }
+.pn-pied { padding: 0.8rem 1.1rem 1rem; border-top: 1px solid var(--gris-bord); flex-shrink: 0; }
