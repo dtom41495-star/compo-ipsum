@@ -2021,6 +2021,9 @@ function osAgendaAjouterParticipant(evId){
       notif('Participant ajouté','succes');
       var inscr = data && data[0];
       var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+      // Le membre est prévenu qu'on l'a inscrit (sauf si l'événement est déjà passé, ou si
+      // on s'ajoute soi-même) — mail ou Chat selon son réglage, retenu hors horaires
+      if(ev && membreId !== getUserId() && ev.date_debut && new Date(ev.date_debut) > new Date()) _osAgendaPrevenirInscritParAjout(ev, membreId);
       // Créditer directement CE membre si l'événement est déjà passé — osAgendaCreditHeuresAuto()
       // ne vérifie que les inscriptions de la personne connectée, pas celle qu'on vient d'ajouter
       if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
@@ -2059,6 +2062,30 @@ function osAgendaAjouterParticipant(evId){
       });
     });
   }
+}
+
+// Prévient un membre qu'un admin ou un rédac chef vient de l'inscrire à un événement
+function _osAgendaPrevenirInscritParAjout(ev, membreId){
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var qui = getUserNomComplet() || 'Un responsable';
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&select=email,prenom,canal_notif',{headers:authHGet})
+  .then(function(r){ return r.json(); })
+  .then(function(membres){
+    var m = membres && membres[0];
+    if(!m || !m.email) return;
+    var html = _emailCompo({ accent:'vert', etiquette:'TU ES INSCRIT·E', titre:'On t\'a inscrit·e : '+esc(ev.titre||''),
+      bonjour:'Bonjour '+esc(m.prenom||'')+',',
+      texte:esc(qui)+' t\'a inscrit·e à cet événement. Si tu ne peux finalement pas venir, tu peux te désinscrire depuis l\'agenda.',
+      contenu:_osAgendaCarteEmail(ev),
+      boutons:[{label:'Voir l\'événement', url:AGENDA_LIEN+ev.id},{label:'Ajouter à mon agenda', url:_osAgendaLienGoogle(ev), secondaire:true}],
+      pourquoi:'Tu reçois cet email car tu as été inscrit·e à cet événement par un responsable.' });
+    var chat = '✅ *Tu as été inscrit·e à un événement*\n'
+      +'« '+_chatSansMiseEnForme(ev.titre)+' »\n'+_osAgendaLigneChat(ev)+'\n'
+      +'<'+AGENDA_LIEN+ev.id+'|Voir l\'événement>';
+    notifierPersonnel(membreId, m.canal_notif, chat, 'agenda-inscription', function(){
+      envoyerEmailResend(m.email, '[Ipsum Média] Tu es inscrit·e · '+(ev.titre||''), html, 'agenda-inscription').catch(function(){});
+    });
+  }).catch(function(){});
 }
 
 function osAgendaAdminDesinscrire(inscrId, evId){
