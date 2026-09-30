@@ -255,6 +255,119 @@ function osRapportRedaction(redactionId, annee){
   });
 }
 
+// ── Libellés communs aux rapports « équipe » ────────────────────────
+var _RAP_ROLES_COMPO = { admin:'Admin', redac_chef:'Rédac en chef', correcteur:'Secrétaire de rédaction', redacteur:'Rédacteur·rice', communicant:'Communicant·e' };
+var _RAP_ROLES_REDAC = { redac_chef:'Rédac en chef', redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction' };
+function _rapNomMembre(m){ return ((m.prenom||'')+' '+(m.nom||'')).trim() || 'Sans nom'; }
+function _rapStatutMembre(m){ return m.marque_inactif ? 'Inactif (vie asso)' : (m.dnd ? 'Indisponible' : 'Actif'); }
+function _rapTriNom(a, b){ return _rapNomMembre(a).localeCompare(_rapNomMembre(b), 'fr'); }
+
+// ── 2 bis. Fiche générale d'une rédaction (ou de toutes, une section chacune) ───
+// Seuls les membres rattachés à la rédaction y figurent : qui n'est dans aucune rédaction
+// (com, vie associative…) n'apparaît dans aucune fiche.
+function osRapportFicheRedaction(redactionId){
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération de la fiche de rédaction…');
+  Promise.all([
+    _osRapportGet('/rest/v1/redactions?select=id,nom,pas_lancee&order=nom.asc'),
+    _osRapportGet('/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac'),
+    _osRapportGet('/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,role,fonction,marque_inactif,dnd'),
+    _osRapportGet('/rest/v1/articles?select=id,statut,redaction_id'),
+    _osRapportGet('/rest/v1/briefing?statut=in.(ouvert,en_cours)&select=id,redaction_id')
+  ]).then(function(r){
+    var redacs = r[0], liens = r[1], membres = r[2], articles = r[3], sujets = r[4];
+    var parId = {}; membres.forEach(function(m){ parId[m.id] = m; });
+    var cibles = (redactionId && redactionId !== 'toutes') ? redacs.filter(function(x){ return x.id === redactionId; }) : redacs;
+    if(!cibles.length){ win.close(); notif('Aucune rédaction à afficher','erreur'); return; }
+
+    var corps = '';
+    cibles.forEach(function(rd){
+      var equipe = liens.filter(function(l){ return l.redaction_id === rd.id && parId[l.membre_id]; })
+        .map(function(l){ return { lien:l, m:parId[l.membre_id] }; })
+        .sort(function(a, b){
+          // Chefs d'abord, puis ordre alphabétique
+          var ca = a.lien.role_redac === 'redac_chef' ? 0 : 1, cb = b.lien.role_redac === 'redac_chef' ? 0 : 1;
+          return ca - cb || _rapTriNom(a.m, b.m);
+        });
+      var chefs = equipe.filter(function(x){ return x.lien.role_redac === 'redac_chef'; });
+      var nbPublies = articles.filter(function(a){ return a.redaction_id === rd.id && a.statut === 'publie'; }).length;
+      var nbSujets = sujets.filter(function(x){ return x.redaction_id === rd.id; }).length;
+
+      corps += '<section style="margin-bottom:26px;"><h2>'+esc(rd.nom)+(rd.pas_lancee ? ' (pas encore lancée)' : '')+'</h2>';
+      corps += '<div class="kpis">'
+        + _osRapportKpi(equipe.length, 'Membres')
+        + _osRapportKpi(nbPublies, 'Articles publiés (total)')
+        + _osRapportKpi(nbSujets, 'Sujets en cours')
+        + '</div>';
+      corps += '<div class="sous" style="margin:8px 0 2px;">Rédac chef : '
+        + (chefs.length ? chefs.map(function(x){ return esc(_rapNomMembre(x.m)); }).join(', ') : 'aucun·e désigné·e') + '</div>';
+      if(equipe.length){
+        corps += '<table><tr><th>Membre</th><th>Rôle dans la rédaction</th><th>Fonction associative</th><th>Statut</th></tr>';
+        equipe.forEach(function(x){
+          corps += '<tr><td><strong>'+esc(_rapNomMembre(x.m))+'</strong></td>'
+            +'<td>'+esc(_RAP_ROLES_REDAC[x.lien.role_redac] || x.lien.role_redac || '—')+'</td>'
+            +'<td>'+esc(fonctionShort(x.m.fonction) || '—')+'</td>'
+            +'<td>'+esc(_rapStatutMembre(x.m))+'</td></tr>';
+        });
+        corps += '</table>';
+      } else corps += '<div class="vide">Aucun membre dans cette rédaction.</div>';
+      corps += '</section>';
+    });
+
+    var titre = cibles.length === 1 ? 'Fiche de la rédaction '+cibles[0].nom : 'Fiche des rédactions';
+    win.document.open();
+    win.document.write(_osRapportHtml(titre, 'Équipe et chiffres généraux — situation au '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}), corps));
+    win.document.close();
+  });
+}
+
+// ── 2 ter. Liste générale des membres et de leurs rôles ─────────────
+function osRapportListeMembres(){
+  var win = _osRapportFenetre(); if(!win) return;
+  notif('Génération de la liste des membres…');
+  Promise.all([
+    _osRapportGet('/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,role,fonction,marque_inactif,dnd'),
+    _osRapportGet('/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac'),
+    _osRapportGet('/rest/v1/redactions?select=id,nom')
+  ]).then(function(r){
+    var membres = r[0].slice().sort(_rapTriNom), liens = r[1], redacs = r[2];
+    var nomRedac = {}; redacs.forEach(function(x){ nomRedac[x.id] = x.nom; });
+
+    var parRole = {};
+    membres.forEach(function(m){ var l = _RAP_ROLES_COMPO[m.role] || m.role || 'Non défini'; parRole[l] = (parRole[l]||0) + 1; });
+    var sansRedac = membres.filter(function(m){ return !liens.some(function(l){ return l.membre_id === m.id && nomRedac[l.redaction_id]; }); }).length;
+
+    var corps = '<section><h2>Chiffres clés</h2><div class="kpis">'
+      + _osRapportKpi(membres.length, 'Membres actifs')
+      + _osRapportKpi(redacs.length, 'Rédactions')
+      + _osRapportKpi(sansRedac, 'Dans aucune rédaction')
+      + '</div></section>';
+    corps += '<section><h2>Répartition par rôle</h2>' + _osRapportTableauRepartition(parRole, 'Rôle sur Compo', membres.length) + '</section>';
+
+    corps += '<section><h2>Liste des membres</h2>';
+    if(membres.length){
+      corps += '<table><tr><th>Membre</th><th>Rôle sur Compo</th><th>Fonction associative</th><th>Rédaction(s)</th><th>Statut</th></tr>';
+      membres.forEach(function(m){
+        var siennes = liens.filter(function(l){ return l.membre_id === m.id && nomRedac[l.redaction_id]; });
+        var redacTxt = siennes.length
+          ? siennes.map(function(l){ return esc(nomRedac[l.redaction_id]) + (l.role_redac === 'redac_chef' ? ' (chef)' : ''); }).join('<br>')
+          : '<span style="color:#9CA3AF;">Aucune</span>';
+        corps += '<tr><td><strong>'+esc(_rapNomMembre(m))+'</strong></td>'
+          +'<td>'+esc(_RAP_ROLES_COMPO[m.role] || m.role || '—')+'</td>'
+          +'<td>'+esc(fonctionShort(m.fonction) || '—')+'</td>'
+          +'<td>'+redacTxt+'</td>'
+          +'<td>'+esc(_rapStatutMembre(m))+'</td></tr>';
+      });
+      corps += '</table>';
+    } else corps += '<div class="vide">Aucun membre.</div>';
+    corps += '</section>';
+
+    win.document.open();
+    win.document.write(_osRapportHtml('Liste des membres', 'Tous les membres actifs et leurs rôles — situation au '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}), corps));
+    win.document.close();
+  });
+}
+
 // ── 3. Suivi des communiqués : que deviennent-ils ? ─────────────────
 function osRapportCommuniques(annee){
   annee = parseInt(annee,10) || new Date().getFullYear();

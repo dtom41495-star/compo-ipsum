@@ -1600,8 +1600,9 @@ function osAgendaOuvrirDetail(ev){
     if(nbEnAttente) iz += tuile(nbEnAttente, 'En attente', '#856404', '#FFF3CD');
     iz += '</div>';
 
-    // Avatars des inscrits confirmés (les vrais avatars, comme partout ailleurs)
-    if(nbConfirmes > 0){
+    // Avatars des inscrits confirmés (les vrais avatars, comme partout ailleurs) — réservés
+    // à l'administration, aux rédac chefs et à la vie asso : les autres ne voient que le nombre
+    if(nbConfirmes > 0 && peutGererParticipants){
       var inscrConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';});
       iz += '<div style="display:flex;align-items:center;margin-top:0.7rem;padding-left:6px;">';
       inscrConfirmes.slice(0,10).forEach(function(insc){

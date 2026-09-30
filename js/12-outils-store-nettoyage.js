@@ -1965,6 +1965,16 @@ function _osGestionRapportsRender(zone, membres, redacs){
     '<select id="rap-redac" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;">'+(optsRedac||'<option value="">Aucune rédaction</option>')+'</select> '+selAnnee('rap-annee-redac'),
     btn('osRapportRedaction(document.getElementById(\'rap-redac\').value, document.getElementById(\'rap-annee-redac\').value)','Générer'));
 
+  h += carte('ti-building-community','Fiche générale d\'une rédaction',
+    'État actuel d\'une rédaction, sans notion d\'année : son équipe avec le rôle de chacun, son rédac chef, ses articles publiés et ses sujets en cours. Choisis « Toutes les rédactions » pour une fiche par rédaction dans un seul document. Les membres qui ne sont dans aucune rédaction n\'y figurent pas.',
+    '<select id="rap-fiche-redac" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;"><option value="toutes">Toutes les rédactions</option>'+optsRedac+'</select>',
+    btn('osRapportFicheRedaction(document.getElementById(\'rap-fiche-redac\').value)','Générer'));
+
+  h += carte('ti-users','Liste générale des membres',
+    'Tous les membres actifs avec leur rôle sur Compo, leur fonction associative, leur(s) rédaction(s) et leur statut. Y compris ceux qui ne sont dans aucune rédaction.',
+    '',
+    btn('osRapportListeMembres()','Générer'));
+
   h += carte('ti-news','Suivi des communiqués',
     'Ce que deviennent les communiqués reçus, source par source : combien aboutissent à un sujet, puis à un article publié. Utile pour repérer les sources productives.',
     selAnnee('rap-annee-cp'),
