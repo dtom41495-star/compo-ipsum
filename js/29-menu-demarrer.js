@@ -279,11 +279,18 @@ function osStartMenuPourToi(){
   var pCand = voitCandidatures
     ? fetch(SB_URL+'/rest/v1/recrutement_candidatures?statut=eq.en_attente&select=id', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; })
     : Promise.resolve([]);
-  Promise.all([pFile, pEvt, pCand]).then(function(r){
-    var file = Array.isArray(r[0]) ? r[0] : [], evt = Array.isArray(r[1]) ? r[1][0] : null, cand = Array.isArray(r[2]) ? r[2] : [];
+  var aujIso = new Date(); aujIso = aujIso.getFullYear()+'-'+String(aujIso.getMonth()+1).padStart(2,'0')+'-'+String(aujIso.getDate()).padStart(2,'0');
+  var pTaches = fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+getUserId()+'}&statut=neq.fait&date_limite=lte.'+aujIso+'&select=id,date_limite', {headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; });
+  Promise.all([pFile, pEvt, pCand, pTaches]).then(function(r){
+    var file = Array.isArray(r[0]) ? r[0] : [], evt = Array.isArray(r[1]) ? r[1][0] : null, cand = Array.isArray(r[2]) ? r[2] : [], taches = Array.isArray(r[3]) ? r[3] : [];
     var h = '';
     function item(icone, couleur, titre, sous, action){
       return '<button type="button" class="sm-pt" onclick="osToggleStartMenu();'+action+'"><i class="ti '+icone+'" style="color:'+couleur+';"></i><span>'+titre+'<small>'+sous+'</small></span></button>';
+    }
+    if(taches.length){
+      var nRetard = taches.filter(function(t){ return String(t.date_limite).slice(0,10) < aujIso; }).length;
+      h += item('ti-checkbox', '#FFE08A', taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui', nRetard ? nRetard+' en retard · Ouvrir Projets' : 'Ouvrir Projets', "osOpenWindow('projets')");
     }
     if(file.length) h += item('ti-eye-check', '#FFB08F', file.length+' article'+(file.length>1?'s':'')+' dans la file du SR', 'Ouvrir mes articles', "_maOnglet='corriger';osOpenWindow('mes-articles')");
     if(evt && evt.date_debut){
@@ -302,6 +309,10 @@ function osStartCreer(quoi){
   osToggleStartMenu();
   if(quoi === 'article'){ osOuvrirNouvelArticle(); }
   else if(quoi === 'note'){ osOpenWindow('notes'); }
+  else if(quoi === 'tache'){
+    osOpenWindow('projets');
+    setTimeout(function(){ var c = document.getElementById('ipj-ajout-champ'); if(c) c.focus(); }, 1200);
+  }
   else if(quoi === 'sujet'){ osOuvrirSujets(); }
   else if(quoi === 'evenement'){
     osOpenWindow('agenda');

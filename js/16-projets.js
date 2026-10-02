@@ -22,7 +22,7 @@ var IPJ_STATUTS_PROJET = {
 };
 var IPJ_COULEURS = ['#E8461E','#1A5276','#155724','#7D3C98','#856404','#A32D2D','#0F6E56','#2C3E50'];
 
-var _ipj = { projets:[], membres:[], actif:null, vue:'kanban', filtPrio:'', filtUser:'', recherche:'' };
+var _ipj = { projets:[], membres:[], actif:null, vue:'kanban', filtPrio:'', filtUser:'', recherche:'', global:'aujourdhui' };
 
 function _ipjZone(){ return document.getElementById('wincontent-projets'); }
 function _ipjQ(sel){ var z = _ipjZone(); return z ? z.querySelector(sel) : null; }
@@ -64,6 +64,11 @@ function osProjetsRender(){
         +'<div class="ipj-sb-hdr"><div class="ipj-sb-titre">Projets</div>'
         +(_ipjEstAdmin() ? '<button class="ipj-btn ipj-btn-rouge" data-ipj="nouveau-projet"><i class="ti ti-plus"></i>Nouveau</button>' : '')
         +'</div>'
+        +'<div class="ipj-nav">'
+          +'<button type="button" class="ipj-nav-it" data-ipj="aujourdhui"><i class="ti ti-layout-dashboard"></i><span>Aujourd\'hui</span><b class="ipj-nav-n" id="ipj-nav-aj"></b></button>'
+          +'<button type="button" class="ipj-nav-it" data-ipj="mes-taches"><i class="ti ti-checkbox"></i><span>Mes tâches</span></button>'
+        +'</div>'
+        +'<div class="ipj-sb-titre-liste">Projets</div>'
         +'<div class="ipj-sb-liste">'+_ipjChargement()+'</div>'
       +'</div>'
       +'<div class="ipj-mn"><div class="ipj-vide"><i class="ti ti-clipboard-list"></i><div>Sélectionne ou crée un projet</div></div></div>'
@@ -74,8 +79,10 @@ function osProjetsRender(){
     var action = b.dataset.ipj;
     if(action === 'nouveau-projet') _ipjFormProjet(null);
     else if(action === 'retour-liste'){ _ipj.actif = null; wc.querySelector('.ipj').classList.remove('ipj-projet-ouvert'); _ipjRendreListe(); }
+    else if(action === 'aujourdhui' || action === 'mes-taches'){ _ipjAllerGlobal(action); }
   });
   _ipj.actif = null;
+  _ipj.global = 'aujourdhui';
   osProjetsChargerListe();
 }
 
@@ -90,7 +97,11 @@ function osProjetsChargerListe(){
     if(!_ipj.projets.length) return;
     return _ipjLire('/rest/v1/projets_taches?projet_id=in.('+_ipj.projets.map(function(p){ return p.id; }).join(',')+')&select=id,projet_id,statut,date_limite,assignes')
       .then(function(taches){ _ipj.projets.forEach(function(p){ p._taches = taches.filter(function(t){ return t.projet_id === p.id; }); }); });
-  }).then(_ipjRendreListe);
+  }).then(_ipjRendreListe).then(function(){
+    // À l'ouverture (ou au rafraîchissement sans projet ouvert) : la page Aujourd'hui
+    if(!_ipj.actif) _ipjAllerGlobal(_ipj.global || 'aujourdhui', true);
+    else _ipjMajBadgeNav();
+  });
 }
 
 function _ipjRendreListe(){
@@ -115,11 +126,12 @@ function _ipjRendreListe(){
     d.onclick = function(){ _ipjOuvrirProjet(p); };
     sl.appendChild(d);
   });
+  _ipjMajNav();
 }
 
 // ---- Un projet ----
 function _ipjOuvrirProjet(p){
-  _ipj.actif = p; _ipj.vue = 'kanban'; _ipj.filtPrio = ''; _ipj.filtUser = ''; _ipj.recherche = '';
+  _ipj.actif = p; _ipj.global = null; _ipj.vue = 'kanban'; _ipj.filtPrio = ''; _ipj.filtUser = ''; _ipj.recherche = '';
   var racine = _ipjQ('.ipj');
   if(racine) racine.classList.add('ipj-projet-ouvert');
   _ipjRendreListe();
@@ -556,4 +568,279 @@ function osProjetsNotifierAssignes(assignesIds, titreTache, titreProjet, membres
       envoyerEmailResend(m.email, '[Ipsum Média] Tâche assignée · '+titreTache, html, 'projet');
     });
   });
+}
+
+
+// ===== PAGE « AUJOURD'HUI » ET AJOUT RAPIDE =====
+// Page d'accueil de l'appli : mes tâches classées par échéance, avec une barre où l'on
+// tape « relire le portrait vendredi #Numéro-spécial @Lola » pour créer une tâche.
+
+function _ipjMajNav(){
+  var z = _ipjZone();
+  if(!z) return;
+  z.querySelectorAll('.ipj-nav-it').forEach(function(b){
+    b.classList.toggle('on', !_ipj.actif && b.dataset.ipj === _ipj.global);
+  });
+}
+function _ipjMajBadgeNav(n){
+  var el = document.getElementById('ipj-nav-aj');
+  if(el && typeof n === 'number'){ el.textContent = n || ''; el.style.display = n ? '' : 'none'; }
+}
+function _ipjAllerGlobal(quoi, silencieux){
+  _ipj.actif = null;
+  _ipj.global = quoi;
+  var racine = _ipjQ('.ipj');
+  if(racine && !silencieux) racine.classList.add('ipj-projet-ouvert');
+  _ipjRendreListe();
+  if(quoi === 'mes-taches') _ipjRendreMesTachesGlobal(); else _ipjRendreAujourdhui();
+}
+
+function _ipjRendreMesTachesGlobal(){
+  var mn = _ipjQ('.ipj-mn');
+  if(!mn) return;
+  mn.innerHTML = '<div class="ipj-aj"><button type="button" class="ipj-retour" data-ipj="retour-liste"><i class="ti ti-chevron-left"></i>Projets</button>'
+    +'<div class="ipj-aj-titre">Mes tâches</div><div class="ipj-aj-sous">Toutes les tâches qui te sont assignées</div><div class="ipj-aj-corps"></div></div>';
+  _ipjMesTaches(mn.querySelector('.ipj-aj-corps'));
+}
+
+// --- Dates ---
+function _ipjIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _ipjAujourdhuiIso(){ return _ipjIso(new Date()); }
+function _ipjPlusJours(n){ var d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+n); return d; }
+function _ipjSansAccent(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+// Lit une saisie libre : titre, date, projet (#), personnes (@), priorité (!)
+function _ipjAnalyserSaisie(texte){
+  var res = { titre:'', date:null, projet:null, personnes:[], priorite:null, projetTape:'' };
+  var reste = ' '+String(texte||'')+' ';
+
+  var mp = reste.match(/\s!(critique|urgent|haute|basse|normale)(?=\s)/i);
+  if(mp){
+    var k = mp[1].toLowerCase();
+    res.priorite = k === 'urgent' ? 'critique' : k;
+    reste = reste.replace(mp[0], ' ');
+  }
+  var mproj = reste.match(/\s#([^\s#@!]+)/);
+  if(mproj){
+    res.projetTape = mproj[1];
+    var cle = _ipjSansAccent(mproj[1]).replace(/[-_]+/g, ' ');
+    var dispo = _ipj.projets || [];
+    res.projet = dispo.filter(function(p){ return _ipjSansAccent(p.titre).indexOf(cle) === 0; })[0]
+      || dispo.filter(function(p){ return _ipjSansAccent(p.titre).indexOf(cle) !== -1; })[0] || null;
+    reste = reste.replace(mproj[0], ' ');
+  }
+  var reP = /\s@([^\s#@!]+)/g, m;
+  while((m = reP.exec(reste))){
+    var q = _ipjSansAccent(m[1]);
+    var mb = (_ipj.membres || []).filter(function(x){ return _ipjSansAccent(x.prenom) === q; })[0]
+      || (_ipj.membres || []).filter(function(x){ return _ipjSansAccent(x.prenom).indexOf(q) === 0; })[0];
+    if(mb && res.personnes.indexOf(mb.id) === -1) res.personnes.push(mb.id);
+  }
+  reste = reste.replace(/\s@[^\s#@!]+/g, ' ');
+
+  // Date : première expression reconnue
+  var pre = "(?:\\s(?:pour|avant|le|d['’]ici|pr[eé]vu)(?=\\s))?";
+  var JOURS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  var motifs = [
+    [new RegExp(pre+"\\s(apr[eè]s[- ]demain)(?=\\s)", 'i'), function(){ return _ipjPlusJours(2); }],
+    [new RegExp(pre+"\\s(demain)(?=\\s)", 'i'), function(){ return _ipjPlusJours(1); }],
+    [new RegExp(pre+"\\s(aujourd['’]?hui|ce soir)(?=\\s)", 'i'), function(){ return _ipjPlusJours(0); }],
+    [new RegExp(pre+"\\sdans\\s(\\d+)\\s(jours?|semaines?)(?=\\s)", 'i'), function(mm){ return _ipjPlusJours(parseInt(mm[1],10) * (/semaine/i.test(mm[2]) ? 7 : 1)); }],
+    [new RegExp(pre+"\\s(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)(\\s+prochain)?(?=\\s)", 'i'), function(mm){
+      var cible = JOURS.indexOf(mm[1].toLowerCase()), auj = new Date().getDay();
+      var delta = (cible - auj + 7) % 7; if(delta === 0) delta = 7;
+      return _ipjPlusJours(delta);
+    }],
+    [new RegExp(pre+"\\s(\\d{1,2})[/.](\\d{1,2})(?:[/.](\\d{2,4}))?(?=\\s)", 'i'), function(mm){
+      var j = parseInt(mm[1],10), mo = parseInt(mm[2],10) - 1, a = mm[3] ? parseInt(mm[3],10) : new Date().getFullYear();
+      if(a < 100) a += 2000;
+      var d = new Date(a, mo, j, 12, 0, 0, 0);
+      if(!mm[3] && d < _ipjPlusJours(-1)) d.setFullYear(d.getFullYear() + 1);
+      return isNaN(d) ? null : d;
+    }]
+  ];
+  for(var i = 0; i < motifs.length && !res.date; i++){
+    var mm = reste.match(motifs[i][0]);
+    if(mm){
+      var d = motifs[i][1](mm);
+      if(d){ res.date = _ipjIso(d); reste = reste.replace(mm[0], ' '); }
+    }
+  }
+  res.titre = reste.replace(/\s+/g, ' ').trim();
+  return res;
+}
+
+function _ipjDernierProjet(){
+  try{ var id = localStorage.getItem('ipsum_projets_dernier'); return (_ipj.projets||[]).filter(function(p){ return p.id === id; })[0] || null; }catch(e){ return null; }
+}
+
+function _ipjLibelleDate(iso){
+  if(!iso) return '';
+  var auj = _ipjAujourdhuiIso();
+  if(iso === auj) return 'aujourd\'hui';
+  if(iso === _ipjIso(_ipjPlusJours(1))) return 'demain';
+  if(iso === _ipjIso(_ipjPlusJours(-1))) return 'hier';
+  return new Date(iso+'T12:00:00').toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+}
+
+// --- Page ---
+function _ipjRendreAujourdhui(){
+  var mn = _ipjQ('.ipj-mn');
+  if(!mn) return;
+  var jour = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  mn.innerHTML = '<div class="ipj-aj">'
+    +'<button type="button" class="ipj-retour" data-ipj="retour-liste"><i class="ti ti-chevron-left"></i>Projets</button>'
+    +'<div class="ipj-aj-entete"><div><div class="ipj-aj-titre">Aujourd\'hui</div><div class="ipj-aj-sous" id="ipj-aj-sous">'+esc(jour.charAt(0).toUpperCase()+jour.slice(1))+'</div></div></div>'
+    +'<div class="ipj-ajout"><div class="ipj-ajout-ligne"><i class="ti ti-plus"></i>'
+      +'<input type="text" id="ipj-ajout-champ" autocomplete="off" placeholder="Ajouter une tâche… (« relire le portrait vendredi #Numéro-spécial @Lola »)">'
+      +'<kbd>Entrée</kbd></div>'
+      +'<div class="ipj-ajout-apercu" id="ipj-ajout-apercu"></div>'
+      +'<div class="ipj-ajout-choix" id="ipj-ajout-choix" style="display:none;"></div></div>'
+    +'<div class="ipj-aj-corps" id="ipj-aj-corps">'+_ipjChargement()+'</div></div>';
+  var champ = document.getElementById('ipj-ajout-champ');
+  champ.addEventListener('input', _ipjMajApercu);
+  champ.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); _ipjAjoutRapide(); } });
+  _ipjChargerAujourdhui();
+}
+
+function _ipjMajApercu(){
+  var champ = document.getElementById('ipj-ajout-champ'), zone = document.getElementById('ipj-ajout-apercu');
+  if(!champ || !zone) return;
+  var choix = document.getElementById('ipj-ajout-choix'); if(choix) choix.style.display = 'none';
+  var a = _ipjAnalyserSaisie(champ.value);
+  if(!champ.value.trim()){ zone.innerHTML = ''; return; }
+  var h = '';
+  var proj = a.projet || (a.projetTape ? null : _ipjDernierProjet()) || ((_ipj.projets||[]).length === 1 ? _ipj.projets[0] : null);
+  if(proj) h += '<span class="ipj-ap-chip projet"><i class="ti ti-folder"></i>'+esc(proj.titre||'')+(a.projet ? '' : ' <em>(auto)</em>')+'</span>';
+  else h += '<span class="ipj-ap-chip alerte"><i class="ti ti-alert-circle"></i>'+(a.projetTape ? 'Projet « '+esc(a.projetTape)+' » introuvable' : 'Choisis un projet avec #')+'</span>';
+  if(a.date) h += '<span class="ipj-ap-chip"><i class="ti ti-calendar"></i>'+esc(_ipjLibelleDate(a.date))+'</span>';
+  a.personnes.forEach(function(id){
+    var m = (_ipj.membres||[]).find(function(x){ return x.id === id; });
+    if(m) h += '<span class="ipj-ap-chip"><i class="ti ti-user"></i>'+esc(m.prenom||'')+'</span>';
+  });
+  if(!a.personnes.length) h += '<span class="ipj-ap-chip"><i class="ti ti-user"></i>Moi</span>';
+  if(a.priorite) h += '<span class="ipj-ap-chip"><i class="ti ti-flag"></i>'+esc((IPJ_PRIO[a.priorite]||{}).l||a.priorite)+'</span>';
+  zone.innerHTML = h;
+}
+
+function _ipjAjoutRapide(projetForce){
+  var champ = document.getElementById('ipj-ajout-champ');
+  if(!champ) return;
+  var a = _ipjAnalyserSaisie(champ.value);
+  if(!a.titre){ notif('Écris d\'abord le titre de la tâche'); return; }
+  var proj = projetForce || a.projet || (a.projetTape ? null : _ipjDernierProjet()) || ((_ipj.projets||[]).length === 1 ? _ipj.projets[0] : null);
+  if(!proj){
+    // Aucun projet reconnu : on propose la liste
+    var choix = document.getElementById('ipj-ajout-choix');
+    if(!choix) return;
+    if(!(_ipj.projets||[]).length){ notif('Crée d\'abord un projet'); return; }
+    choix.style.display = '';
+    choix.innerHTML = '<span>Dans quel projet ?</span>';
+    _ipj.projets.forEach(function(p){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = p.titre||'';
+      b.onclick = function(){ _ipjAjoutRapide(p); };
+      choix.appendChild(b);
+    });
+    return;
+  }
+  var personnes = a.personnes.length ? a.personnes : [getUserId()];
+  var pl = { projet_id:proj.id, titre:a.titre, priorite:a.priorite || 'normale', date_limite:a.date || null, statut:'a_faire',
+    assignes:personnes, cree_par:getUserId(), updated_at:new Date().toISOString() };
+  champ.disabled = true;
+  _ipjEcrire('/rest/v1/projets_taches', 'POST', pl).then(function(r){
+    champ.disabled = false;
+    if(!r.ok){ notif('Impossible d\'ajouter la tâche à ce projet (droits insuffisants ?)', 'erreur'); return; }
+    try{ localStorage.setItem('ipsum_projets_dernier', proj.id); }catch(e){}
+    notif('Tâche ajoutée à « '+(proj.titre||'')+' »', 'succes');
+    champ.value = '';
+    _ipjMajApercu();
+    var choix = document.getElementById('ipj-ajout-choix'); if(choix) choix.style.display = 'none';
+    var nouveaux = personnes.filter(function(id){ return id !== getUserId(); });
+    if(nouveaux.length) osProjetsNotifierAssignes(nouveaux, a.titre, proj.titre||'', _ipj.membres);
+    osProjetsInitBadge();
+    _ipjChargerAujourdhui();
+    champ.focus();
+  }).catch(function(){ champ.disabled = false; notif('Erreur réseau', 'erreur'); });
+}
+
+function _ipjChargerAujourdhui(){
+  var uid = getUserId();
+  var debutJour = new Date(); debutJour.setHours(0,0,0,0);
+  Promise.all([
+    _ipjLire('/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=neq.fait&order=date_limite.asc.nullslast&select=*'),
+    _ipjLire('/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=eq.fait&updated_at=gte.'+encodeURIComponent(debutJour.toISOString())+'&select=*')
+  ]).then(function(r){
+    var corps = document.getElementById('ipj-aj-corps');
+    if(!corps) return;
+    var ouvertes = r[0], faites = r[1];
+    var auj = _ipjAujourdhuiIso(), finSemaine = _ipjIso(_ipjPlusJours(7));
+    var groupes = [
+      { id:'retard',  l:'En retard',     c:'#C0392B', t:[] },
+      { id:'auj',     l:'Aujourd\'hui',  c:'#1A1A2E', t:[] },
+      { id:'semaine', l:'Cette semaine', c:'#6B7280', t:[] },
+      { id:'plus',    l:'Plus tard',     c:'#6B7280', t:[] },
+      { id:'sans',    l:'Sans date',     c:'#6B7280', t:[] }
+    ];
+    ouvertes.forEach(function(t){
+      var d = t.date_limite ? String(t.date_limite).slice(0, 10) : '';
+      var g = !d ? 'sans' : d < auj ? 'retard' : d === auj ? 'auj' : d <= finSemaine ? 'semaine' : 'plus';
+      groupes.filter(function(x){ return x.id === g; })[0].t.push(t);
+    });
+    faites.forEach(function(t){ t._fait = true; groupes[1].t.push(t); });
+    var aFaire = groupes[0].t.length + groupes[1].t.filter(function(t){ return !t._fait; }).length;
+    _ipjMajBadgeNav(aFaire);
+    var sous = document.getElementById('ipj-aj-sous');
+    if(sous){
+      var jour = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+      sous.textContent = jour.charAt(0).toUpperCase()+jour.slice(1)+' · '+(aFaire ? aFaire+' tâche'+(aFaire>1?'s':'')+' pour toi' : 'rien d\'urgent')+(groupes[0].t.length ? ', '+groupes[0].t.length+' en retard' : '');
+    }
+    corps.innerHTML = '';
+    if(!ouvertes.length && !faites.length){
+      corps.innerHTML = '<div class="ipj-aj-vide"><i class="ti ti-circle-check"></i><div>Aucune tâche pour toi.</div><small>Ajoute-en une avec la barre ci-dessus.</small></div>';
+      return;
+    }
+    var carte = document.createElement('div');
+    carte.className = 'ipj-aj-carte';
+    groupes.forEach(function(g){
+      if(!g.t.length) return;
+      var sec = document.createElement('div');
+      sec.className = 'ipj-aj-sec';
+      sec.innerHTML = '<div class="ipj-aj-sec-t" style="color:'+g.c+';">'+g.l+'</div>';
+      g.t.forEach(function(t){ sec.appendChild(_ipjLigneAujourdhui(t)); });
+      carte.appendChild(sec);
+    });
+    corps.appendChild(carte);
+  });
+}
+
+function _ipjLigneAujourdhui(t){
+  var proj = (_ipj.projets||[]).find(function(x){ return x.id === t.projet_id; });
+  var d = t.date_limite ? String(t.date_limite).slice(0, 10) : '';
+  var retard = d && d < _ipjAujourdhuiIso() && !t._fait;
+  var couleur = proj ? _ipjCouleur(proj.id) : '#6B7280';
+  var row = document.createElement('div');
+  row.className = 'ipj-aj-tache'+(t._fait ? ' fait' : '');
+  row.innerHTML = '<button type="button" class="ipj-aj-case'+(t._fait ? ' fait' : '')+'" title="'+(t._fait ? 'Rouvrir' : 'Marquer comme faite')+'"><i class="ti ti-check"></i></button>'
+    +'<span class="ipj-aj-tt">'+esc(t.titre||'')+'</span>'
+    +(proj ? '<span class="ipj-aj-proj" style="background:'+couleur+'1f;color:'+couleur+';">'+esc(proj.titre||'')+'</span>' : '')
+    +(d ? '<span class="ipj-aj-date'+(retard ? ' retard' : '')+'">'+esc(_ipjLibelleDate(d))+'</span>' : '')
+    +_ipjPastilles(t.assignes, 2, true);
+  row.querySelector('.ipj-aj-case').onclick = function(e){
+    e.stopPropagation();
+    var nouveau = t._fait ? 'a_faire' : 'fait';
+    row.classList.toggle('fait'); row.querySelector('.ipj-aj-case').classList.toggle('fait');
+    _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'PATCH', {statut:nouveau, updated_at:new Date().toISOString()}).then(function(r){
+      if(!r.ok){ notif('Impossible de modifier la tâche', 'erreur'); }
+      osProjetsInitBadge();
+      _ipjChargerAujourdhui();
+    });
+  };
+  row.onclick = function(){
+    if(!proj) return;
+    var peutGerer = _ipjEstAdmin() || proj.cree_par === getUserId();
+    _ipjDetailTache(t, proj, peutGerer);
+  };
+  return row;
 }

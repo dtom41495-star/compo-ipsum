@@ -4843,3 +4843,52 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 /* Menu Démarrer : le champ de recherche garde son fond sombre malgré le style global des champs */
 #os-start-menu .sm-search-wrap input { padding: 0.7rem 4.4rem 0.7rem 2.6rem !important; background: rgba(255,255,255,0.08) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.12) !important; box-shadow: none !important; }
 #os-start-menu .sm-search-wrap input:focus { border-color: rgba(234,91,28,0.7) !important; }
+
+/* ===== PROJETS · Aujourd'hui, navigation et ajout rapide ===== */
+.ipj-nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--ipj-gb); }
+.ipj-nav-it { display: flex; align-items: center; gap: 10px; width: 100%; border: none; background: transparent; padding: 9px 10px; border-radius: 10px; font-size: .86rem; font-weight: 600; color: #4B5563; cursor: pointer; text-align: left; }
+.ipj-nav-it i { font-size: 1.05rem; }
+.ipj-nav-it:hover { background: #F6F3EF; }
+.ipj-nav-it.on { background: #FDEEE8; color: #C73A18; }
+.ipj-nav-n { margin-left: auto; background: #E8461E; color: #fff; font-size: .66rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; }
+.ipj-nav-n:empty { display: none; }
+.ipj-sb-titre-liste { padding: 12px 18px 4px; font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: #9CA3AF; font-weight: 700; }
+
+.ipj-aj { flex: 1; overflow-y: auto; padding: 22px 26px 30px; display: flex; flex-direction: column; gap: 14px; }
+.ipj-aj .ipj-retour { align-self: flex-start; }
+.ipj-aj-entete { display: flex; justify-content: space-between; align-items: flex-end; }
+.ipj-aj-titre { font-family: Poppins, Arial, sans-serif; font-weight: 700; font-size: 1.45rem; }
+.ipj-aj-sous { margin-top: 2px; color: var(--ipj-g); font-size: .85rem; }
+.ipj-ajout { background: #fff; border: 1.5px solid var(--ipj-gb); border-radius: 14px; padding: .7rem 1rem; }
+.ipj-ajout:focus-within { border-color: #E8461E; box-shadow: 0 0 0 3px rgba(232,70,30,.12); }
+.ipj-ajout-ligne { display: flex; align-items: center; gap: 10px; color: #9CA3AF; }
+.ipj-ajout-ligne input { flex: 1; border: none !important; outline: none !important; background: transparent !important; box-shadow: none !important; font-size: .92rem; color: var(--ipj-e); font-family: inherit; padding: 4px 0 !important; }
+.ipj-ajout-ligne kbd { font-size: .68rem; font-weight: 600; background: #F1EDE8; color: #6B7280; border-radius: 6px; padding: 2px 7px; }
+.ipj-ajout-apercu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ipj-ajout-apercu:empty { display: none; }
+.ipj-ap-chip { display: inline-flex; align-items: center; gap: 5px; font-size: .72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #F1EDE8; color: #4B5563; }
+.ipj-ap-chip.projet { background: #E1ECF5; color: #1A5276; }
+.ipj-ap-chip.alerte { background: #FDEEE8; color: #C73A18; }
+.ipj-ap-chip em { font-style: normal; font-weight: 400; opacity: .7; }
+.ipj-ajout-choix { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: .78rem; color: var(--ipj-g); }
+.ipj-ajout-choix button { border: 1px solid var(--ipj-gb); background: #fff; border-radius: 999px; padding: 4px 11px; font-size: .76rem; font-weight: 600; cursor: pointer; color: var(--ipj-e); }
+.ipj-ajout-choix button:hover { border-color: #E8461E; color: #C73A18; }
+.ipj-aj-corps { display: flex; flex-direction: column; gap: 12px; }
+.ipj-aj-carte { background: #fff; border: 1px solid var(--ipj-gb); border-radius: 16px; padding: 14px 16px; }
+.ipj-aj-sec + .ipj-aj-sec { margin-top: 12px; }
+.ipj-aj-sec-t { font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+.ipj-aj-tache { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-top: 1px solid #EEE9E3; cursor: pointer; font-size: .88rem; }
+.ipj-aj-sec-t + .ipj-aj-tache { border-top: none; }
+.ipj-aj-tache:hover { background: #FBF9F6; }
+.ipj-aj-case { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #C9C2BA; background: #fff; color: transparent; display: flex; align-items: center; justify-content: center; font-size: .7rem; cursor: pointer; flex-shrink: 0; padding: 0; }
+.ipj-aj-case:hover { border-color: #27AE60; color: #27AE60; }
+.ipj-aj-case.fait { background: #27AE60; border-color: #27AE60; color: #fff; }
+.ipj-aj-tt { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ipj-aj-tache.fait .ipj-aj-tt { text-decoration: line-through; color: #9CA3AF; font-weight: 500; }
+.ipj-aj-proj { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.ipj-aj-date { font-size: .74rem; color: var(--ipj-g); white-space: nowrap; }
+.ipj-aj-date.retard { color: #C0392B; font-weight: 700; }
+.ipj-aj-vide { text-align: center; padding: 3rem 1rem; color: var(--ipj-g); }
+.ipj-aj-vide i { font-size: 2.6rem; color: #27AE60; opacity: .7; }
+.ipj-aj-vide small { display: block; margin-top: 4px; }
+@media (min-width: 769px) { .ipj-aj .ipj-retour { display: none; } }

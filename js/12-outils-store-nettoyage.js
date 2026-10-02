@@ -1610,7 +1610,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
-  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','admin'], store:true, desc:'Suivi de projets et tâches — assignation, kanban, deadlines.' },
+  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Tes tâches du jour, tes projets et leur avancement — ajout rapide, kanban, échéances.' },
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
 
@@ -1772,6 +1772,19 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'veille' })
+        }).catch(function(){});
+      }
+
+      // Projets : accessible à tout le monde (même mécanisme que Veille ci-dessus)
+      if(!allIds.includes('projets')){
+        allIds.push('projets');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'projets' })
         }).catch(function(){});
       }
 
