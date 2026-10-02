@@ -468,7 +468,9 @@ function _osOpenWindowExecuter(pageId){
 
   if(ws) ws.appendChild(win);
   
-  _windows[pageId] = { el: win, page: pageId, maximized: false };
+  // _lastRefresh démarre à l'ouverture : sinon (valeur 0) le tout premier clic dans la fenêtre
+  // déclenchait un « rafraîchissement » qui reconstruisait l'appli juste après son affichage
+  _windows[pageId] = { el: win, page: pageId, maximized: false, _lastRefresh: Date.now() };
   if(pageId === 'redactions') osRedacMajClignotement();
   if(pageId === 'mes-articles') osMesArticlesMajClignotement();
   
