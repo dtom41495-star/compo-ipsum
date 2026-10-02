@@ -68,6 +68,7 @@ function osProjetsRender(){
           +'<button type="button" class="ipj-nav-it" data-ipj="aujourdhui"><i class="ti ti-layout-dashboard"></i><span>Aujourd\'hui</span><b class="ipj-nav-n" id="ipj-nav-aj"></b></button>'
           +'<button type="button" class="ipj-nav-it" data-ipj="mes-taches"><i class="ti ti-checkbox"></i><span>Mes tâches</span></button>'
           +'<button type="button" class="ipj-nav-it" data-ipj="calendrier"><i class="ti ti-calendar-month"></i><span>Calendrier</span></button>'
+          +'<button type="button" class="ipj-nav-it" data-ipj="activite"><i class="ti ti-activity"></i><span>Activité</span></button>'
         +'</div>'
         +'<div class="ipj-sb-titre-liste">Projets</div>'
         +'<div class="ipj-sb-liste">'+_ipjChargement()+'</div>'
@@ -80,7 +81,7 @@ function osProjetsRender(){
     var action = b.dataset.ipj;
     if(action === 'nouveau-projet') _ipjFormProjet(null);
     else if(action === 'retour-liste'){ _ipj.actif = null; wc.querySelector('.ipj').classList.remove('ipj-projet-ouvert'); _ipjRendreListe(); }
-    else if(action === 'aujourdhui' || action === 'mes-taches' || action === 'calendrier'){ _ipjAllerGlobal(action); }
+    else if(action === 'aujourdhui' || action === 'mes-taches' || action === 'calendrier' || action === 'activite'){ _ipjAllerGlobal(action); }
   });
   _ipj.actif = null;
   _ipj.global = 'aujourdhui';
@@ -209,7 +210,7 @@ function _ipjRendreProjet(p, taches){
   // Vues
   var vues = document.createElement('div');
   vues.className = 'ipj-vues';
-  [['kanban','layout-kanban','Kanban'],['liste','list','Liste'],['calendrier','calendar-month','Calendrier'],['mes','user','Mes tâches']].forEach(function(v){
+  [['kanban','layout-kanban','Kanban'],['liste','list','Liste'],['calendrier','calendar-month','Calendrier'],['activite','activity','Activité'],['mes','user','Mes tâches']].forEach(function(v){
     var b = document.createElement('button');
     b.className = 'ipj-vue'+(v[0] === _ipj.vue ? ' on' : '');
     b.innerHTML = '<i class="ti ti-'+v[1]+'"></i>'+v[2];
@@ -254,6 +255,7 @@ function _ipjRendreProjet(p, taches){
     if(_ipj.vue === 'kanban') _ipjKanban(filtrees, p, peutGerer, corps);
     else if(_ipj.vue === 'liste') _ipjListe(filtrees, p, peutGerer, corps);
     else if(_ipj.vue === 'calendrier') _ipjCalendrier(corps, { projet:p, taches:filtrees });
+    else if(_ipj.vue === 'activite') _ipjActivite(corps, { projet:p });
     else _ipjMesTaches(corps);
   }
   rendreCorps();
@@ -298,6 +300,7 @@ function _ipjDeposer(){
   if(!col || t.statut === col) return;
   _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'PATCH', {statut:col, updated_at:new Date().toISOString()}).then(function(){
     var c = IPJ_COLS.find(function(x){ return x.id === col; });
+    _ipjJournal(col === 'fait' ? 'tache_faite' : 'tache_statut', p.id, t, c ? c.l : col);
     notif((t.titre||'').substring(0,25)+' → '+(c ? c.l : col), 'succes');
     _ipjRecharger(p);
   });
@@ -471,6 +474,7 @@ function _ipjDetailTache(t, p, peutGerer){
   var bEnr = ov.querySelector('[data-act="enregistrer"]');
   if(bEnr) bEnr.onclick = function(){
     _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'PATCH', {statut:statut, updated_at:new Date().toISOString()}).then(function(){
+      if(statut !== t.statut){ var cs = IPJ_COLS.find(function(x){ return x.id === statut; }); _ipjJournal(statut === 'fait' ? 'tache_faite' : 'tache_statut', p.id, t, cs ? cs.l : statut); }
       notif('Statut mis à jour','succes'); ov.remove(); _ipjRecharger(p);
     });
   };
@@ -479,7 +483,7 @@ function _ipjDetailTache(t, p, peutGerer){
   var bSup = ov.querySelector('[data-act="supprimer"]');
   if(bSup) bSup.onclick = function supprimerTache(){
     if(!osConfirmerPuis('Supprimer cette tâche ?', null, supprimerTache, this, arguments)) return;
-    _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'DELETE').then(function(){ notif('Tâche supprimée'); ov.remove(); _ipjRecharger(p); });
+    _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'DELETE').then(function(){ _ipjJournal('tache_supprimee', p.id, t); notif('Tâche supprimée'); ov.remove(); _ipjRecharger(p); });
   };
 }
 
@@ -513,6 +517,7 @@ function _ipjFormProjet(p){
         notif(edition ? 'Projet modifié' : 'Projet créé', 'succes');
         ov.remove();
         var id = d && d[0] ? d[0].id : (edition ? p.id : null);
+        if(!edition && id) _ipjJournal('projet_cree', id, {titre:titre});
         (vis && id ? _ipjVisEnregistrer(id, vis) : Promise.resolve()).then(function(){ return osProjetsChargerListe(); }).then(function(){
           var np = _ipj.projets.find(function(x){ return x.id === id; });
           if(np) _ipjOuvrirProjet(np);
@@ -560,6 +565,7 @@ function _ipjFormTache(t, p){
     _ipjEcrire('/rest/v1/projets_taches'+(edition ? '?id=eq.'+t.id : ''), edition ? 'PATCH' : 'POST', pl).then(function(r){
       if(!r.ok){ notif('Erreur d\'enregistrement','erreur'); return; }
       notif(edition ? 'Tâche modifiée' : 'Tâche créée', 'succes');
+      if(!edition) _ipjJournal('tache_creee', p.id, {titre:titre}, _ipjNomsAssignes(choisis));
       ov.remove();
       // Prévenir les personnes nouvellement assignées (pas soi-même)
       var nouveaux = choisis.filter(function(id){ return avant.indexOf(id) === -1 && id !== getUserId(); });
@@ -610,6 +616,7 @@ function _ipjAllerGlobal(quoi, silencieux){
   _ipjRendreListe();
   if(quoi === 'mes-taches') _ipjRendreMesTachesGlobal();
   else if(quoi === 'calendrier') _ipjRendreCalendrierGlobal();
+  else if(quoi === 'activite') _ipjRendreActiviteGlobal();
   else _ipjRendreAujourdhui();
 }
 
@@ -784,6 +791,7 @@ function _ipjCreerTache(a, proj){
     if(!r.ok){ notif('Impossible d\'ajouter la tâche à ce projet (droits insuffisants ?)', 'erreur'); return false; }
     try{ localStorage.setItem('ipsum_projets_dernier', proj.id); }catch(e){}
     notif('Tâche ajoutée à « '+(proj.titre||'')+' »', 'succes');
+    _ipjJournal('tache_creee', proj.id, {titre:a.titre}, _ipjNomsAssignes(personnes));
     var nouveaux = personnes.filter(function(id){ return id !== getUserId(); });
     if(nouveaux.length) osProjetsNotifierAssignes(nouveaux, a.titre, proj.titre||'', _ipj.membres);
     osProjetsInitBadge();
@@ -859,6 +867,7 @@ function _ipjLigneAujourdhui(t){
     row.classList.toggle('fait'); row.querySelector('.ipj-aj-case').classList.toggle('fait');
     _ipjEcrire('/rest/v1/projets_taches?id=eq.'+t.id, 'PATCH', {statut:nouveau, updated_at:new Date().toISOString()}).then(function(r){
       if(!r.ok){ notif('Impossible de modifier la tâche', 'erreur'); }
+      else _ipjJournal(nouveau === 'fait' ? 'tache_faite' : 'tache_rouverte', t.projet_id, t);
       osProjetsInitBadge();
       _ipjChargerAujourdhui();
     });
@@ -1065,7 +1074,8 @@ function _ipjCalendrier(corps, opts){
         var id = e.dataTransfer.getData('text/plain'), t = tachesParId[id];
         if(!t || String(t.date_limite).slice(0,10) === cell.dataset.iso) return;
         _ipjEcrire('/rest/v1/projets_taches?id=eq.'+id, 'PATCH', {date_limite:cell.dataset.iso, updated_at:new Date().toISOString()}).then(function(r){
-          if(!r.ok) notif('Impossible de déplacer cette tâche', 'erreur'); else notif('Échéance déplacée au '+_ipjLibelleDate(cell.dataset.iso), 'succes');
+          if(!r.ok) notif('Impossible de déplacer cette tâche', 'erreur');
+          else { notif('Échéance déplacée au '+_ipjLibelleDate(cell.dataset.iso), 'succes'); _ipjJournal('tache_deplacee', t.projet_id, t, cell.dataset.iso); }
           if(opts.taches){ t.date_limite = cell.dataset.iso; }
           recharger();
         });
@@ -1120,6 +1130,98 @@ function _ipjCalJour(iso, elements, opts, recharger){
       if(!ok) return;
       ov.remove();
       if(opts.taches){ _ipjRecharger(opts.projet); } else recharger();
+    });
+  });
+}
+
+
+// ===== ACTIVITÉ =====
+// Fil des actions sur les projets : tâches ajoutées, terminées, déplacées, supprimées.
+// Les actions sont enregistrées dans projets_activite (une fois le SQL lancé). Avant cela,
+// le fil est reconstitué à partir des tâches elles-mêmes (sans l'auteur exact).
+
+var _ipjAct = { dispo:null };
+var IPJ_ACT_TYPES = {
+  projet_cree:    { icone:'folder-plus',  couleur:'#7D3C98', texte:function(){ return 'a créé le projet'; } },
+  tache_creee:    { icone:'plus',         couleur:'#1A5276', texte:function(a){ return 'a ajouté « '+esc(a.titre||'')+' »'+(a.details ? ' pour '+esc(a.details) : ''); } },
+  tache_faite:    { icone:'circle-check', couleur:'#27AE60', texte:function(a){ return 'a terminé « '+esc(a.titre||'')+' »'; } },
+  tache_rouverte: { icone:'rotate',       couleur:'#856404', texte:function(a){ return 'a rouvert « '+esc(a.titre||'')+' »'; } },
+  tache_statut:   { icone:'arrows-right-left', couleur:'#856404', texte:function(a){ return 'a passé « '+esc(a.titre||'')+' » en « '+esc(a.details||'')+' »'; } },
+  tache_deplacee: { icone:'calendar-event', couleur:'#E8461E', texte:function(a){ return 'a déplacé l\'échéance de « '+esc(a.titre||'')+' »'+(a.details ? ' au '+esc(_ipjLibelleDate(a.details)) : ''); } },
+  tache_supprimee:{ icone:'trash',        couleur:'#A32D2D', texte:function(a){ return 'a supprimé « '+esc(a.titre||'')+' »'; } }
+};
+
+function _ipjActSonde(){
+  if(_ipjAct.dispo !== null) return Promise.resolve(_ipjAct.dispo);
+  return fetch(SB_URL+'/rest/v1/projets_activite?select=id&limit=1', {headers:_ipjH()})
+    .then(function(r){ _ipjAct.dispo = r.ok; return r.ok; }).catch(function(){ _ipjAct.dispo = false; return false; });
+}
+function _ipjNomsAssignes(ids){
+  var n = (ids||[]).filter(function(id){ return id !== getUserId(); }).map(function(id){
+    var m = (_ipj.membres||[]).find(function(x){ return x.id === id; });
+    return m ? (m.prenom||'') : '';
+  }).filter(Boolean);
+  return n.join(', ');
+}
+// Enregistre une action (sans jamais gêner l'action elle-même)
+function _ipjJournal(type, projetId, tache, details){
+  _ipjActSonde().then(function(ok){
+    if(!ok || !projetId) return;
+    _ipjEcrire('/rest/v1/projets_activite', 'POST', {
+      projet_id:projetId, tache_id:(tache && tache.id) ? String(tache.id) : null, membre_id:getUserId(),
+      type:type, titre:(tache && tache.titre) || null, details:details || null
+    }).catch(function(){});
+  });
+}
+
+function _ipjRendreActiviteGlobal(){
+  var mn = _ipjQ('.ipj-mn');
+  if(!mn) return;
+  mn.innerHTML = '<div class="ipj-aj"><button type="button" class="ipj-retour" data-ipj="retour-liste"><i class="ti ti-chevron-left"></i>Projets</button>'
+    +'<div class="ipj-aj-titre">Activité</div><div class="ipj-aj-sous">Ce qui se passe dans tes projets</div><div class="ipj-aj-corps" id="ipj-act-conteneur"></div></div>';
+  _ipjActivite(document.getElementById('ipj-act-conteneur'), { projet:null });
+}
+
+function _ipjActivite(corps, opts){
+  opts = opts || {};
+  corps.innerHTML = _ipjChargement();
+  _ipjActSonde().then(function(ok){
+    var q = ok
+      ? _ipjLire('/rest/v1/projets_activite?'+(opts.projet ? 'projet_id=eq.'+opts.projet.id+'&' : '')+'order=created_at.desc&limit=80&select=*')
+      : _ipjLire('/rest/v1/projets_taches?'+(opts.projet ? 'projet_id=eq.'+opts.projet.id+'&' : '')+'order=updated_at.desc&limit=40&select=*').then(function(ts){
+          // Pas encore de journal : on reconstitue un fil approximatif à partir des tâches
+          return ts.map(function(t){
+            var cree = Math.abs(new Date(t.updated_at||t.created_at) - new Date(t.created_at)) < 60000;
+            var fait = t.statut === 'fait';
+            return { id:'d'+t.id, projet_id:t.projet_id, membre_id: fait ? (t.assignes||[])[0] : t.cree_par, type: fait ? 'tache_faite' : (cree ? 'tache_creee' : 'tache_statut'),
+              titre:t.titre, details: (!fait && !cree) ? ((IPJ_COLS.find(function(c){ return c.id === t.statut; })||{}).l || '') : '', created_at:t.updated_at||t.created_at };
+          });
+        });
+    return q.then(function(lignes){
+      if(!corps.isConnected) return;
+      if(!lignes.length){ corps.innerHTML = '<div class="ipj-aj-vide"><i class="ti ti-activity"></i><div>Rien pour le moment.</div><small>Les actions sur les tâches apparaîtront ici.</small></div>'; return; }
+      var groupes = [], dernier = null;
+      lignes.forEach(function(a){
+        var jour = String(a.created_at).slice(0, 10);
+        if(jour !== dernier){ groupes.push({ jour:jour, items:[] }); dernier = jour; }
+        groupes[groupes.length-1].items.push(a);
+      });
+      var h = '<div class="ipj-aj-carte">';
+      groupes.forEach(function(g){
+        h += '<div class="ipj-act-jour">'+esc(_ipjLibelleDate(g.jour))+'</div>';
+        g.items.forEach(function(a){
+          var def = IPJ_ACT_TYPES[a.type] || IPJ_ACT_TYPES.tache_statut;
+          var m = (_ipj.membres||[]).find(function(x){ return x.id === a.membre_id; });
+          var pr = (_ipj.projets||[]).find(function(x){ return x.id === a.projet_id; });
+          var heure = new Date(a.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':', 'h');
+          h += '<div class="ipj-act-ligne"><span class="ipj-act-ico" style="background:'+def.couleur+'1f;color:'+def.couleur+';"><i class="ti ti-'+def.icone+'"></i></span>'
+            +'<div class="ipj-act-txt"><b>'+esc(m ? (m.prenom||'') : 'Quelqu\'un')+'</b> '+def.texte(a)
+            +(pr && !opts.projet ? ' <span class="ipj-act-proj">'+esc(pr.titre||'')+'</span>' : '')+'</div>'
+            +'<span class="ipj-act-h">'+heure+'</span></div>';
+        });
+      });
+      h += '</div>'+(ok ? '' : '<div class="ipj-vis-aide" style="margin-top:8px;">Historique reconstitué à partir des tâches. Le détail exact (qui a fait quoi) apparaîtra après la mise à jour de la base.</div>');
+      corps.innerHTML = h;
     });
   });
 }
