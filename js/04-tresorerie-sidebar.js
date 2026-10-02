@@ -1996,20 +1996,22 @@ function osChargerWidgets(){
 
 
 var _appRefreshMap = {
-  'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
+  // Rechargement discret (voir _osRafraichirDiscret) : la fenêtre garde son apparence pendant la mise à jour
+  'benevoles':      function(){ if(document.getElementById('wincontent-benevoles')) _osRafraichirDiscret('benevoles', osBenevolesDashRender); },
   // Ma rédac' : mise à jour des données en arrière-plan, sans reconstruire la fenêtre (onglet, rail et saisies restent en place)
   'redactions':     function(){ osRedactionsRender(true); },
   // Mes articles : on recharge seulement la liste (sans reconstruire la fenêtre) — les filtres,
   // la recherche et le défilement restent en place, et rien ne clignote
   'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(!wc) return; if(document.getElementById('ma-os-list') && typeof osMesArticlesCharger === 'function') osMesArticlesCharger(); else osMesArticlesRender(); },
-  'cps-admin':      function(){ cpsAdminCharger(); },
+  'cps-admin':      function(){ cpsAdminCharger(true); },
   'projets':        function(){ osProjetsChargerListe(); },
-  'agenda':         function(){ osAgendaRender&&osAgendaRender(); },
-  'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
-  'notes':          function(){ osNotesRender&&osNotesRender(); },
-  'boutique':       function(){ osBoutiqueRender(); },
-  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) osStatsAppRender(); },
-  'newsletter':     function(){ var wc=document.getElementById('wincontent-newsletter'); if(wc) nlChargerDepuisBase(); }
+  // Agenda : pas de rechargement pendant qu'une fiche d'événement est ouverte (on y lit, on y inscrit)
+  'agenda':         function(){ if(document.getElementById('agenda-inscr-zone')) return; if(document.getElementById('wincontent-agenda') && typeof osAgendaRender === 'function') _osRafraichirDiscret('agenda', osAgendaRender); },
+  'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc && typeof osCarnetRender === 'function') _osRafraichirDiscret('carnet', osCarnetRender); },
+  // Notes et Newsletter : pas de rafraîchissement automatique — on y saisit du texte et on y fait des
+  // choix que la reconstruction effacerait (note sélectionnée, articles cochés pour l'édition)
+  'boutique':       function(){ if(document.getElementById('wincontent-boutique')) _osRafraichirDiscret('boutique', osBoutiqueRender); },
+  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) _osRafraichirDiscret('stats-dashboard', osStatsAppRender); }
 };
 
 var _dockContextMenu = null;

@@ -904,6 +904,104 @@ function _osForcerRepaint(el){
   el.style.transform = t;
 }
 
+// ===== RAFRAÎCHISSEMENT DISCRET D'UNE FENÊTRE =====
+// Au retour sur une fenêtre, ses données sont rechargées. Plutôt que de laisser la fenêtre se
+// vider (« Chargement… ») puis se reconstruire, on garde à l'écran une image fixe de ce qui
+// était affiché ; le nouveau contenu se construit dessous, puis le défilement, l'onglet actif
+// et le texte saisi dans les champs sont remis à l'identique avant de retirer l'image.
+function _osCleElement(el){ return el.id || ('.' + String(el.className||'').toString().split(' ')[0] + ':' + el.tagName); }
+// Chaque élément reçoit une clé (id, ou classe + balise) et un rang parmi ceux qui ont la même
+// clé : le même couple permet de le retrouver dans le contenu reconstruit
+function _osClesDefilables(wc){
+  var cles = [], rangs = {};
+  Array.prototype.forEach.call(wc.querySelectorAll('*'), function(el){
+    var base = _osCleElement(el);
+    rangs[base] = (rangs[base]||0) + 1;
+    if(el.scrollHeight <= el.clientHeight + 2 && el.scrollWidth <= el.clientWidth + 2) return;
+    var ov = getComputedStyle(el);
+    if(!/(auto|scroll)/.test(ov.overflowY + ov.overflowX)) return;
+    cles.push({ cle: base, rang: rangs[base], top: el.scrollTop, left: el.scrollLeft, el: el });
+  });
+  return cles;
+}
+function _osTrouverParCle(wc, cle, rang){
+  var n = 0, trouve = null;
+  Array.prototype.some.call(wc.querySelectorAll('*'), function(el){
+    if(_osCleElement(el) !== cle) return false;
+    if(++n === rang){ trouve = el; return true; }
+    return false;
+  });
+  return trouve;
+}
+
+function _osRafraichirDiscret(pageId, fn){
+  var wc = document.getElementById('wincontent-'+pageId);
+  if(!wc || !wc.firstElementChild || wc.querySelector('.os-loading')){ fn(); return; }
+  var parent = wc.parentElement;
+  if(!parent){ fn(); return; }
+  var defil = _osClesDefilables(wc);
+  var champs = [];
+  Array.prototype.forEach.call(wc.querySelectorAll('input[id],textarea[id],select[id]'), function(el){
+    if(el.type === 'checkbox' || el.type === 'radio') champs.push({ id: el.id, coche: el.checked });
+    else champs.push({ id: el.id, valeur: el.value });
+  });
+  var ongletEl = Array.prototype.filter.call(wc.querySelectorAll('[data-onglet]'), function(b){ return /rouge/.test(b.style.background||''); })[0];
+  var onglet = ongletEl ? ongletEl.getAttribute('data-onglet') : null;
+
+  // Image fixe de l'état actuel, posée par-dessus la fenêtre (sans identifiants, pour ne pas
+  // brouiller les recherches par id pendant la reconstruction)
+  var cadre = wc.getBoundingClientRect(), cp = parent.getBoundingClientRect();
+  var calque = wc.cloneNode(true);
+  calque.removeAttribute('id');
+  Array.prototype.forEach.call(calque.querySelectorAll('[id]'), function(e){ e.removeAttribute('id'); });
+  calque.setAttribute('aria-hidden', 'true');
+  calque.className += ' os-refresh-calque';
+  calque.style.cssText += ';position:absolute;left:'+(cadre.left-cp.left+parent.scrollLeft)+'px;top:'+(cadre.top-cp.top+parent.scrollTop)+'px;'
+    +'width:'+cadre.width+'px;height:'+cadre.height+'px;z-index:50;pointer-events:none;';
+  parent.appendChild(calque);
+  // Le défilement des zones de l'image, pour qu'elle ressemble exactement à l'original
+  var avant = wc.querySelectorAll('*'), apres = calque.querySelectorAll('*');
+  if(avant.length === apres.length){
+    defil.forEach(function(d){
+      var i = Array.prototype.indexOf.call(avant, d.el);
+      if(i >= 0 && apres[i]){ apres[i].scrollTop = d.top; apres[i].scrollLeft = d.left; }
+    });
+  }
+
+  var derniere = 0, muté = false, fini = false, debut = Date.now();
+  var obs = new MutationObserver(function(){ muté = true; derniere = Date.now(); });
+  obs.observe(wc, { childList: true, subtree: true });
+
+  function terminer(){
+    if(fini) return;
+    fini = true; clearInterval(tick); obs.disconnect();
+    // Remettre l'onglet, le défilement et les saisies tels qu'ils étaient
+    if(onglet){
+      var b = wc.querySelector('[data-onglet="'+onglet+'"]');
+      if(b && !/rouge/.test(b.style.background||'')){ try{ b.click(); }catch(e){} }
+    }
+    champs.forEach(function(c){
+      var el = document.getElementById(c.id);
+      if(!el || !wc.contains(el)) return;
+      if('coche' in c){ el.checked = c.coche; return; }
+      if(el.value !== c.valeur){ el.value = c.valeur; try{ el.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){} }
+    });
+    defil.forEach(function(d){
+      var el = _osTrouverParCle(wc, d.cle, d.rang);
+      if(el){ el.scrollTop = d.top; el.scrollLeft = d.left; }
+    });
+    if(calque.parentNode) calque.parentNode.removeChild(calque);
+  }
+  var tick = setInterval(function(){
+    var maintenant = Date.now();
+    if(!muté && maintenant - debut > 1500) return terminer();               // rien ne s'est passé
+    if(muté && !wc.querySelector('.os-loading') && maintenant - derniere > 350) return terminer(); // contenu prêt et stable
+    if(maintenant - debut > 12000) terminer();                               // filet de sécurité
+  }, 120);
+
+  try{ fn(); }catch(e){ terminer(); throw e; }
+}
+
 function osFocusWindow(pageId){
   _zCounter++;
   var win = _windows[pageId];
