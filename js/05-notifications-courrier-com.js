@@ -1285,6 +1285,13 @@ function osStartStatusBar(){
   }
 }
 
+// Chaque tuile du bureau garde la couleur de son appli, mais en teinte douce sur verre
+function _osTeinterTuiles(){
+  document.querySelectorAll('#os-desktop-icons .desktop-icon-img').forEach(function(el){
+    var m = (el.style.background || el.style.backgroundColor || '').match(/#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]*\)/);
+    if(m) el.style.setProperty('--tuile', m[0]);
+  });
+}
 function osBuildDesktopIcons(){
   var container = document.getElementById('os-desktop-icons');
   if(!container) return;
@@ -1502,6 +1509,7 @@ function osBuildDesktopIcons(){
   chatIcon.appendChild(chatImg);
   chatIcon.appendChild(chatLabel);
   container.appendChild(chatIcon);
+  _osTeinterTuiles();
 }
 
 // Surcharger go() pour ouvrir les fenêtres

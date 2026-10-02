@@ -4719,3 +4719,96 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .assign-boite { width: 100%; max-height: 94vh; border-radius: 18px 18px 0 0; }
   .assign-membre { min-height: 64px; }
 }
+
+
+/* ===== BUREAU PC : nouveau look (fond, tuiles, widget, dock) ===== */
+:root { --dock-h: 56px; }
+
+/* Fond : voile marine avec une lueur orange, accord avec l'écran de connexion */
+#os-bg::before {
+  background:
+    radial-gradient(900px 500px at 82% 0%, rgba(234,91,28,0.22), transparent 60%),
+    linear-gradient(rgba(20,20,42,0.42), rgba(20,20,42,0.55));
+}
+
+/* Tuiles du bureau : même forme verre pour toutes, icône teintée de la couleur de l'appli */
+.desktop-icon-img {
+  --tuile: #ffffff;
+  width: 60px; height: 60px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.09) !important;
+  border: 1px solid rgba(255,255,255,0.16);
+  color: color-mix(in srgb, var(--tuile) 35%, white) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+.desktop-icon:hover .desktop-icon-img { background: rgba(255,255,255,0.16) !important; }
+.desktop-icon-label { font-family: 'DM Sans', Arial, sans-serif; font-size: 0.66rem; letter-spacing: 0; }
+
+/* Widget : heure, message du moment, pastilles, personnes en ligne */
+#os-clock-widget {
+  position: absolute;
+  top: 22px; right: 26px;
+  width: 290px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 5;
+}
+.os-w-carte {
+  padding: 1.1rem 1.25rem 1.15rem;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.3);
+  color: #fff;
+}
+.os-w-heure { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.5rem; line-height: 1; letter-spacing: -0.02em; }
+.os-w-date { margin: 0.35rem 0 0.85rem; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: rgba(255,255,255,0.68); }
+.os-w-salut { padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.12); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.92rem; line-height: 1.35; }
+.os-w-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 0.75rem; }
+.os-w-chips:empty { display: none; }
+.os-w-chip {
+  pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border: none; border-radius: 999px;
+  background: rgba(255,255,255,0.1); color: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 600;
+  cursor: pointer; text-align: left;
+}
+.os-w-chip:hover { background: rgba(255,255,255,0.18); }
+.os-w-chip.chaud { background: rgba(234,91,28,0.3); color: #FFC4A8; }
+.os-w-chip.chaud:hover { background: rgba(234,91,28,0.42); }
+#os-online-pill { margin-top: 8px; float: right; }
+
+/* Dock : barre sombre en verre dépoli, apps en tuiles, app ouverte soulignée */
+#os-dock-inner {
+  background: rgba(20,20,42,0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  gap: 8px;
+  padding: 0 340px 0 12px;
+}
+.dock-icon-img { width: 38px; height: 38px; border-radius: 11px; font-size: 1.15rem; }
+.dock-sep { height: 26px; background: rgba(255,255,255,0.18); margin: 0 4px; }
+.dock-icon.active-app .dock-icon-pill { background: rgba(255,255,255,0.1); border-radius: 11px; padding-right: 12px; }
+.dock-icon.active-app::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -4px;
+  height: 3px; border-radius: 3px; background: #EA5B1C;
+}
+.dock-dot { display: none; }
+#os-taskbar-tray { gap: 8px; padding-right: 6px; }
+.tray-btn { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.08); font-size: 1.05rem; }
+.tray-btn:hover { background: rgba(255,255,255,0.16); }
+#os-dnd-btn { height: 34px !important; border-radius: 10px !important; background: rgba(255,255,255,0.08); }
+#os-taskbar-clock { padding: 2px 6px; }
+#os-taskbar-time { font-size: 0.82rem; }
+#os-taskbar-date { font-size: 0.66rem; }
+
+/* Fenêtres : coins et ombre plus doux */
+.os-window { border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.42), 0 6px 20px rgba(0,0,0,0.18); }
+.os-titlebar { border-radius: 14px 14px 0 0; }

@@ -1772,34 +1772,46 @@ function _osEnLigneRemplir(){
 
 
 function osClockInit(){
-  var JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  var MOIS = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
-  var dernierJour = null;
+  var JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  var MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
   function tick(){
     var now = new Date();
-    // Fraction de milliseconde incluse à chaque niveau : la trotteuse (et par ricochet
-    // les aiguilles minute/heure) avance en continu plutôt que par à-coups de 6°/seconde.
-    var s = now.getSeconds() + now.getMilliseconds()/1000;
-    var m = now.getMinutes() + s/60;
-    var h = (now.getHours()%12) + m/60;
-    var degS = s * 6;
-    var degM = m * 6;
-    var degH = h * 30;
-    var aH = document.getElementById('os-clock-h');
-    var aM = document.getElementById('os-clock-m');
-    var aS = document.getElementById('os-clock-s');
-    if(aH) aH.setAttribute('transform','rotate('+degH+' 45 45)');
-    if(aM) aM.setAttribute('transform','rotate('+degM+' 45 45)');
-    if(aS) aS.setAttribute('transform','rotate('+degS+' 45 45)');
-    var jour = now.getDate();
-    if(jour !== dernierJour){
-      dernierJour = jour;
-      var dateEl = document.getElementById('os-clock-date');
-      if(dateEl) dateEl.textContent = JOURS[now.getDay()]+' '+jour+' '+MOIS[now.getMonth()];
-    }
-    requestAnimationFrame(tick);
+    var t = document.getElementById('os-clock-time');
+    if(t) t.textContent = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    var d = document.getElementById('os-clock-date');
+    if(d) d.textContent = JOURS[now.getDay()]+' '+now.getDate()+' '+MOIS[now.getMonth()];
+    var s = document.getElementById('os-clock-salut');
+    if(s && typeof _accueilSalutation === 'function') s.textContent = _accueilSalutation(getUserPrenom() || '');
   }
   tick();
+  setInterval(tick, 20000);
+  osWidgetPastilles();
+  setInterval(osWidgetPastilles, 5*60*1000);
+}
+
+// Pastilles du widget : articles qui attendent dans la file du SR, prochain événement
+function osWidgetPastilles(){
+  var zone = document.getElementById('os-clock-chips');
+  if(!zone || !_session || !getUserId()) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')});
+  var pFile = (typeof _srVoitLaFile === 'function' && _srVoitLaFile() && typeof _srChargerFile === 'function')
+    ? _srChargerFile() : Promise.resolve([]);
+  var pEvt = fetch(SB_URL+'/rest/v1/agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut', {headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; });
+  Promise.all([pFile, pEvt]).then(function(res){
+    var file = Array.isArray(res[0]) ? res[0] : [], evt = Array.isArray(res[1]) ? res[1][0] : null;
+    var h = '';
+    if(file.length) h += '<button type="button" class="os-w-chip chaud" onclick="osOpenWindow(\'mes-articles\')"><i class="ti ti-eye-check"></i> '+file.length+' article'+(file.length>1?'s':'')+' dans la file du SR</button>';
+    if(evt && evt.date_debut){
+      var dt = new Date(evt.date_debut), auj = new Date();
+      var demain = new Date(auj.getFullYear(), auj.getMonth(), auj.getDate()+1);
+      var quand = dt.toDateString() === auj.toDateString() ? 'aujourd\'hui' : (dt.toDateString() === demain.toDateString() ? 'demain' : dt.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}));
+      var heure = dt.toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'}).replace(':','h');
+      var titre = String(evt.titre||'Événement'); if(titre.length > 26) titre = titre.slice(0,25)+'…';
+      h += '<button type="button" class="os-w-chip" onclick="osOpenWindow(\'agenda\')"><i class="ti ti-calendar-event"></i> '+esc(titre)+' · '+esc(quand)+' '+heure+'</button>';
+    }
+    zone.innerHTML = h;
+  });
 }
 
 // ===== SIDEBAR WIDGETS =====
