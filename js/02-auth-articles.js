@@ -1072,7 +1072,7 @@ function osValiderNouveauMotDePasse(){
     }
     if(screen) screen.remove();
     var loginEl = document.getElementById('os-login');
-    if(loginEl) loginEl.style.display = 'flex';
+    if(loginEl) loginEl.style.display = 'grid';
     notif('Mot de passe mis à jour ! Connecte-toi.', 'succes');
   }).catch(function(){
     if(errEl){ errEl.textContent='Erreur réseau.'; errEl.classList.add('visible'); }
