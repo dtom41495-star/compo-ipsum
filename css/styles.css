@@ -2568,10 +2568,6 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .hist-when{font-family:Arial,sans-serif;font-size:0.62rem;color:var(--gris);}
 
 /* LOG */
-.log-item{font-family:Arial,sans-serif;font-size:0.72rem;padding:0.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;gap:1.5rem;flex-wrap:wrap;}
-.log-item:nth-child(odd){background:var(--gris-clair);}
-.log-date{color:var(--gris);min-width:140px;}
-.log-action{color:var(--rouge);min-width:100px;}
 .log-titre{color:var(--encre);}
 
 /* MD */

@@ -671,7 +671,6 @@ function osLoadPageContent(pageId, winEl){
   // Déclencher les chargements spécifiques à la page
   setTimeout(function(){
     if(pageId === 'mes-articles') osMesArticlesRender();
-    if(pageId === 'log') renderLog();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'cps-admin') cpsAdminCharger();
@@ -1319,9 +1318,6 @@ function osBuildDesktopIcons(){
   if(role === 'admin' || role === 'correcteur'){
     allApps.push({ id:'newsletter', icon:'<i class="ti ti-mail"></i>', label:'Newsletter', color:'#155724' });
   }
-  if(role === 'admin'){
-    allApps.push({ id:'log', icon:'<i class="ti ti-file-text"></i>', label:'Journal', color:'#2C3E50' });
-  }
   // N'afficher que celles qui ne sont PAS dans le dock, sauf forceBureau, et pas les legacy
   var toShow = allApps.filter(function(a){ return !a.legacy && (a.forceBureau || dockApps.indexOf(a.id) === -1); });
   
@@ -1786,7 +1782,6 @@ function osSpotlightSearch(q){
     {id:'app-correction',label:'Secrétariat de rédaction',icon:'<i class="ti ti-file-search"></i>'},
     {id:'visuels-pro',label:'Visuels',icon:'<i class="ti ti-palette"></i>'},
     {id:'newsletter',label:'Newsletter',icon:'<i class="ti ti-mail-forward"></i>'},
-    {id:'log',label:'Journal',icon:'<i class="ti ti-list-details"></i>'},
   ];
   pages = pages.filter(function(p){ return p.id!=='visuels-pro' || window._visuelsProAccessible===true; });
   var filtered = q ? pages.filter(function(p){ return p.label.toLowerCase().includes(q.toLowerCase()); }) : pages;

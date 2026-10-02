@@ -2067,7 +2067,6 @@ var DOCK_APPS = {
     { id:'benevoles', icon:'<i class="ti ti-users"></i>', label:'Bénévoles', color:'#0F6E56' },
     { id:'gestion-apps', icon:'<i class="ti ti-settings"></i>', label:'Admin', color:'#2C3E50' },
     { id:'nettoyage', icon:'<i class="ti ti-eraser"></i>', label:'Nettoyage', color:'#721C24' },
-    { id:'log', icon:'<i class="ti ti-list-details"></i>', label:'Journal', color:'#2C3E50' },
   ],
   redac_chef: [
     { id:'redaction', icon:'<i class="ti ti-writing"></i>', label:'Rédiger', color:'#E8461E' },

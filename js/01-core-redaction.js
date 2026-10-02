@@ -279,7 +279,6 @@ function exporterFichier(obj, nom){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=nom+'.json';a.click();
     URL.revokeObjectURL(url);
-    logAction('export',obj.titre||obj.objet||nom,nom+'.json');
     notif('Fichier sauvegardé : '+nom+'.json');
   }catch(e){notif('Erreur export : '+e.message);}
 }
@@ -289,54 +288,10 @@ function importerFichier(file,callback){
   reader.onload=e=>{
     try{
       const obj=JSON.parse(e.target.result.trim());
-      logAction('import',obj.titre||obj.objet||file.name,file.name);
       callback(obj);
     }catch(err){notif('Fichier invalide - verifie que c est un fichier JSON Compo');}
   };
   reader.readAsText(file);
-}
-
-// ===== LOG =====
-// Journal d'activité : actions faites sur CET appareil (stockées dans le navigateur, pas sur le serveur).
-var LOG_MAX = 500;
-function logAction(action,titre,fichier){
-  try{
-    const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-    logs.push({date:new Date().toISOString(),action,titre:titre||'—',fichier:fichier||'—'});
-    // Les plus anciennes sont écartées : le journal ne grossit pas indéfiniment
-    localStorage.setItem('ipsum_log',JSON.stringify(logs.slice(-LOG_MAX)));
-  }catch(e){}
-}
-
-// La page existe en deux exemplaires (modèle caché + fenêtre ouverte) : on cible celui de la fenêtre
-function _logEl(id){
-  const wc=document.getElementById('wincontent-log');
-  return (wc && wc.querySelector('#'+id)) || document.getElementById(id);
-}
-function _logLire(){
-  try{ return JSON.parse(localStorage.getItem('ipsum_log')||'[]'); }catch(e){ return []; }
-}
-
-function renderLog(){
-  const logs=_logLire();
-  const el=_logEl('log-list');
-  if(!el) return;
-  if(!logs.length){el.innerHTML='<p style="color:var(--gris);font-size:0.85rem;">Aucune activité enregistrée sur cet appareil.</p>';return;}
-  el.innerHTML='<p style="color:var(--gris);font-size:0.72rem;margin:0 0 0.6rem;">'+logs.length+' action'+(logs.length>1?'s':'')+' (les '+LOG_MAX+' dernières sont conservées)</p>'
-    +logs.slice().reverse().map(l=>'<div class="log-item"><span class="log-date">'+new Date(l.date).toLocaleString('fr-FR')+'</span><span class="log-action">'+esc(String(l.action||'').toUpperCase())+'</span><span>'+esc(l.titre)+'</span><span style="color:var(--gris);">'+esc(l.fichier)+'</span></div>').join('');
-}
-
-function exportLog(){
-  const logs=_logLire();
-  const txt=logs.map(l=>new Date(l.date).toLocaleString('fr-FR')+'\t'+l.action+'\t'+l.titre+'\t'+l.fichier).join('\n');
-  const blob=new Blob(['Date\tAction\tTitre\tFichier\n'+txt],{type:'text/plain'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='journal_ipsum_'+new Date().toISOString().slice(0,10)+'.txt';a.click();
-  URL.revokeObjectURL(url);
-}
-
-function clearLog(){
-  osConfirmer('Vider tout le journal ?').then(function(ok){ if(ok){ localStorage.removeItem('ipsum_log'); renderLog(); } });
 }
 
 // ===== HORLOGE =====
@@ -962,7 +917,6 @@ function sauvegarderBrouillon(){
       if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
     }catch(e){}
     currentDoc = doc; // synchroniser pour autosave et osRedactionADesModifs
-    logAction('brouillon',titre,'cloud');
     notif('Brouillon sauvegardé : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
@@ -1697,7 +1651,6 @@ function loadLectCP(event){
         html += '<p style="color:var(--gris);font-size:0.84rem;margin-top:1rem;">Aucun PDF joint.</p>';
       }
       document.getElementById('lcp-reader').innerHTML = html;
-      logAction('lecture-cp', cp.objet||cp.id, file.name);
     } catch(err){ notif('Fichier invalide'); }
   };
   reader.readAsText(file);
@@ -1850,7 +1803,6 @@ function nlGenerer(){
   document.getElementById('nl-apercu').innerHTML = _nlMdVersHtml(md);
   document.getElementById('nl-apercu-section').style.display = 'block';
   document.getElementById('nl-apercu-section').scrollIntoView({behavior:'smooth'});
-  logAction('newsletter', 'Newsletter '+dateStr, 'newsletter');
   notif('Aperçu prêt : '+nlArticles.length+' contenu'+(nlArticles.length>1?'s':''), 'succes');
 }
 // Rendu de l'aperçu : juste ce que produit nlGenerer (titres, séparateurs, gras, italique)
@@ -2138,7 +2090,6 @@ function exporterPDF(){
       fenetre.print();
     }, 500);
   };
-  logAction('export-pdf', titre, titre+'.pdf');
   notif('Fenetre d impression ouverte - choisis PDF comme destination');
 }
 

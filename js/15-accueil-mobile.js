@@ -12,7 +12,7 @@ var ACCUEIL_RUBRIQUES = [
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
-  { titre:'Administration', ids:['gestion-apps','redac:admin','cps-admin','bugs','log','nettoyage'] }
+  { titre:'Administration', ids:['gestion-apps','redac:admin','cps-admin','bugs','nettoyage'] }
 ];
 
 // Sur téléphone, Ma rédac' est découpée : chaque onglet a sa tuile et s'ouvre seul, en
@@ -44,7 +44,6 @@ function _accueilAppsBureau(){
   if(role === 'admin' || role === 'correcteur') apps.push({ id:'newsletter', icon:'<i class="ti ti-mail-opened"></i>', label:'Newsletter', color:'#155724' });
   if(role === 'admin'){
     apps.push({ id:'bugs', icon:'<i class="ti ti-bug"></i>', label:'Bugs', color:'#2C3E50' });
-    apps.push({ id:'log', icon:'<i class="ti ti-file-text"></i>', label:'Journal', color:'#2C3E50' });
   }
   return apps;
 }

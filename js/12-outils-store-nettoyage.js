@@ -1593,7 +1593,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
-  { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
@@ -1615,7 +1614,7 @@ var PROFILS_PREDEFINIS = {
   redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','flouter','notes','compo-store'],
   correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
   redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
-  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
+  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
   communicant: ['app-com','redactions','notes','compo-store','boutique','mail','signatures'],
