@@ -65,7 +65,8 @@ function osSrRendre(articleId){
   .then(function(rows){
     if(!Array.isArray(rows) || !rows.length){ notif('Impossible de rendre cet article à la file','erreur'); return; }
     notif('Article rendu à la file','succes');
-    _srNotifierFile(rows[0], true);
+    // En attribution automatique, Compo choisit la personne suivante ; sinon l'article retourne dans la file
+    if(typeof osSrApresRendu === 'function') osSrApresRendu(rows[0], getUserId()); else _srNotifierFile(rows[0], true);
     if(typeof osMesArticlesCharger === 'function') osMesArticlesCharger();
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
@@ -130,3 +131,73 @@ function _srDepuis(iso){
   if(h < 48) return 'depuis '+h+' h';
   return 'depuis '+Math.round(h/24)+' jours';
 }
+
+
+// ===== DÉLAI DE RELECTURE ESTIMÉ =====
+// Compo note quand un article part au SR (articles.envoye_sr_le) et quand il est relu
+// (articles.relu_le). La médiane des dernières relectures donne un délai « habituel », par
+// rédaction et par relecteur·rice. Tant que les deux colonnes n'existent pas en base, rien n'est
+// écrit et aucune estimation n'est affichée : Compo fonctionne comme avant.
+var SR_DELAI_MIN_RELECTURES = 3;   // en dessous, pas d'estimation (trop peu de données)
+var SR_DELAI_MAX_JOURS = 60;       // relectures plus lentes : écartées (article oublié, pas un délai habituel)
+var _srStatsCache = null;
+
+// Les colonnes existent-elles ? Vérifié une fois ; window._srColsDispo est lu par les écritures
+function osSrColonnesDispo(){
+  if(typeof window._srColsDispo === 'boolean') return Promise.resolve(window._srColsDispo);
+  if(!_session || !_session.access_token) return Promise.resolve(false);
+  return fetch(SB_URL+'/rest/v1/articles?select=envoye_sr_le,relu_le,attribue_auto_le&limit=1', {headers:_srAuth()})
+    .then(function(r){ window._srColsDispo = r.ok; return r.ok; })
+    .catch(function(){ return false; });
+}
+
+function _srMediane(valeurs){
+  var t = valeurs.slice().sort(function(a,b){ return a-b; });
+  var m = Math.floor(t.length/2);
+  return t.length % 2 ? t[m] : (t[m-1] + t[m]) / 2;
+}
+
+// {redac: {redacId: {n, ms}}, relecteur: {membreId: {n, ms}}, tous: {n, ms}} — null si colonnes absentes
+function osSrStatsDelais(){
+  if(_srStatsCache && Date.now() - _srStatsCache.t < 5*60*1000) return Promise.resolve(_srStatsCache.data);
+  return osSrColonnesDispo().then(function(ok){
+    if(!ok) return null;
+    return fetch(SB_URL+'/rest/v1/articles?envoye_sr_le=not.is.null&relu_le=not.is.null&order=relu_le.desc&limit=300&select=correcteur_id,redaction_id,envoye_sr_le,relu_le', {headers:_srAuth()})
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if(!Array.isArray(rows)) return null;
+        var parRedac = {}, parRel = {}, tous = [];
+        rows.forEach(function(a){
+          var ms = new Date(a.relu_le).getTime() - new Date(a.envoye_sr_le).getTime();
+          if(!(ms >= 0) || ms > SR_DELAI_MAX_JOURS*86400000) return;
+          tous.push(ms);
+          if(a.redaction_id) (parRedac[a.redaction_id] = parRedac[a.redaction_id] || []).push(ms);
+          if(a.correcteur_id) (parRel[a.correcteur_id] = parRel[a.correcteur_id] || []).push(ms);
+        });
+        function resume(map){
+          var out = {};
+          Object.keys(map).forEach(function(k){ out[k] = { n: map[k].length, ms: _srMediane(map[k]) }; });
+          return out;
+        }
+        var data = { redac: resume(parRedac), relecteur: resume(parRel), tous: { n: tous.length, ms: tous.length ? _srMediane(tous) : 0 } };
+        _srStatsCache = { t: Date.now(), data: data };
+        return data;
+      }).catch(function(){ return null; });
+  });
+}
+
+// Estimation exploitable (assez de relectures) ou null
+function osSrEstimation(stat){
+  return (stat && stat.n >= SR_DELAI_MIN_RELECTURES) ? stat : null;
+}
+
+function osSrDelaiTexte(ms){
+  var h = ms / 3600000;
+  if(h < 1) return 'moins d\'une heure';
+  if(h < 24) return 'environ '+Math.round(h)+' h';
+  var j = Math.round(h/24);
+  return 'environ '+j+' jour'+(j > 1 ? 's' : '');
+}
+
+// Lancé une fois connecté : sait si les colonnes existent avant la première écriture
+setTimeout(function(){ if(typeof osSrColonnesDispo === 'function') osSrColonnesDispo(); }, 4000);

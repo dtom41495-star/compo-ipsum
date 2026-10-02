@@ -1461,18 +1461,19 @@
 <script src="js/12-outils-store-nettoyage.js"></script>
 <script src="js/13-liaisons-oobe-agenda.js"></script>
 <div id="modal-assign">
-  <div class="assign-card">
-    <div class="assign-header">
-      <div class="assign-titre">Envoyer au SR</div>
-      <div class="assign-sub" id="assign-article-titre">—</div>
+  <div class="se-boite assign-boite" role="dialog" aria-modal="true" aria-labelledby="assign-titre">
+    <div class="se-entete">
+      <div id="assign-titre" class="se-titre"><i class="ti ti-eye-check"></i> Envoyer au SR</div>
+      <button class="se-fermer" onclick="assignFermer()" aria-label="Fermer"><i class="ti ti-x"></i></button>
     </div>
-    <div class="assign-body">
-      <div style="font-size:0.82rem;color:var(--gris);margin-bottom:1rem;">Qui va relire cet article ?</div>
+    <div class="se-corps assign-corps">
+      <div class="assign-article"><i class="ti ti-file-text"></i><span id="assign-article-titre">—</span></div>
+      <div id="assign-mode-note" class="assign-mode-note"></div>
       <div id="assign-membres-list"></div>
-      <div class="assign-btn-row">
-        <button class="btn" onclick="assignValider()">Envoyer au SR</button>
-        <button class="btn sec" onclick="assignFermer()">Annuler</button>
-      </div>
+    </div>
+    <div class="assign-pied">
+      <button class="se-btn-principal" data-sombre-ignore onclick="assignValider()">Envoyer au SR</button>
+      <button class="se-btn-lien" onclick="assignFermer()">Annuler</button>
     </div>
   </div>
 </div>
@@ -1487,6 +1488,7 @@
 <script src="js/21-sujets-desengagement.js"></script>
 <script src="js/22-rediger-sujet.js"></script>
 <script src="js/25-file-sr.js"></script>
+<script src="js/28-attribution-sr.js"></script>
 <script src="js/26-video-tuto.js"></script>
 <script src="js/27-patchnotes.js"></script>
 <script src="js/23-flouter.js"></script>

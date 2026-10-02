@@ -1649,6 +1649,20 @@ function osRedacReglagesForm(redac){
   h += '</div></div>';
   }
 
+  if('mode_sr' in redac){
+  var modeSr = (typeof SR_MODES !== 'undefined' && SR_MODES[redac.mode_sr]) ? redac.mode_sr : 'choix';
+  h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Attribution du SR</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.6rem;">Comment un article envoyé au SR trouve son relecteur ou sa relectrice.</div>';
+  h += '<select id="redac-reg-mode_sr" style="width:100%;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);box-sizing:border-box;">'
+    +'<option value="choix"'+(modeSr==='choix'?' selected':'')+'>Au choix : file d\'attente, ou on désigne quelqu\'un</option>'
+    +'<option value="suggestion"'+(modeSr==='suggestion'?' selected':'')+'>Suggestion : Compo propose le mieux placé, on peut changer</option>'
+    +'<option value="auto"'+(modeSr==='auto'?' selected':'')+'>Automatique : Compo désigne le relecteur d\'office</option>'
+    +'</select>';
+  h += '<div style="font-size:0.64rem;color:var(--gris);margin-top:0.5rem;line-height:1.5;">Compo classe les relecteur·rices d\'après la charge (articles déjà à relire), la rotation et l\'activité récente. En mode automatique, les admins ne sont pas tirés au sort ; si personne n\'est disponible, l\'article va dans la file. Sans réponse après 2 jours ouvrés, il retourne dans la file.</div>';
+  h += '</div>';
+  }
+
   if('relance_inactifs' in redac){
   h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Membres inactifs</div>';
@@ -1688,6 +1702,10 @@ function osRedacChefEnregistrerReglages(redacId){
     if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
+  if('mode_sr' in redacAvant){
+    var selSr = document.getElementById('redac-reg-mode_sr');
+    if(selSr) payload.mode_sr = selSr.value;
+  }
   if('horaires' in redacAvant){
     var horaires = osRedacHorairesLireForm();
     if(horaires === false) return;
