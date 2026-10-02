@@ -1600,9 +1600,8 @@ function osAgendaOuvrirDetail(ev){
     if(nbEnAttente) iz += tuile(nbEnAttente, 'En attente', '#856404', '#FFF3CD');
     iz += '</div>';
 
-    // Avatars des inscrits confirmés (les vrais avatars, comme partout ailleurs) — réservés
-    // à l'administration, aux rédac chefs et à la vie asso : les autres ne voient que le nombre
-    if(nbConfirmes > 0 && peutGererParticipants){
+    // Avatars des inscrits confirmés (les vrais avatars, comme partout ailleurs) — visibles de tous
+    if(nbConfirmes > 0){
       var inscrConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';});
       iz += '<div style="display:flex;align-items:center;margin-top:0.7rem;padding-left:6px;">';
       inscrConfirmes.slice(0,10).forEach(function(insc){
@@ -1641,6 +1640,15 @@ function osAgendaOuvrirDetail(ev){
 
     // Gestion des participants (admin + rédac chef)
     if(peutGererParticipants){
+      // Feuille des inscrits à télécharger (PDF à imprimer, ou tableur) — réservée à ceux qui gèrent les participants
+      if(inscriptions.length || ev.ouvert_externes){
+        iz += '<div style="'+SEPARATEUR+'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'
+          +'<div style="flex:1;min-width:140px;"><div style="font-size:0.8rem;font-weight:600;color:var(--encre);">Feuille des inscrits</div>'
+          +'<div style="font-size:0.7rem;color:var(--gris);">À imprimer ou à ouvrir dans un tableur</div></div>'
+          +'<button onclick="osAgendaTelechargerInscrits(\''+ev.id+'\',\'pdf\')" style="'+BTN_SEC+'"><i class="ti ti-file-type-pdf"></i> PDF</button>'
+          +'<button onclick="osAgendaTelechargerInscrits(\''+ev.id+'\',\'csv\')" style="'+BTN_SEC+'"><i class="ti ti-table"></i> Tableur</button>'
+          +'</div>';
+      }
       if(inscriptions.length){
         iz += '<div style="'+SEPARATEUR+'">';
         iz += '<div style="'+TITRE_SECTION+'">Participants ('+inscriptions.length+')</div>';
@@ -1732,6 +1740,89 @@ function osAgendaFermerDetail(){
 }
 
 // Inscrits externes : chargés via la fonction agenda-inscription-externe.
+// ===== FEUILLE DES INSCRITS (téléchargeable) =====
+// Réservée à l'administration, aux rédac chefs de la rédaction de l'événement et à la vie asso.
+// format : 'pdf' (document à imprimer, avec colonne de signature) ou 'csv' (tableur)
+function _osAgendaPeutVoirInscrits(ev){
+  if(getUserRole() === 'admin' || getUserHasFonction('vie_asso')) return true;
+  var redacId = (ev && ev.redaction_id) || window._redacActiveId;
+  var lien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === redacId; });
+  return !!(lien && lien.role_redac === 'redac_chef');
+}
+
+function osAgendaTelechargerInscrits(evId, format){
+  var ev = (_agendaEvenements||[]).find(function(e){ return e.id === evId; });
+  if(!ev){ notif('Événement introuvable','erreur'); return; }
+  if(!_osAgendaPeutVoirInscrits(ev)){ notif('Réservé à l\'administration, aux rédac chefs et à la vie associative','erreur'); return; }
+  var win = null;
+  if(format !== 'csv'){ win = _osRapportFenetre(); if(!win) return; }
+  notif('Préparation de la feuille des inscrits…');
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  function lire(url){ return fetch(SB_URL+url,{headers:authH}).then(function(r){ return r.json(); }).then(function(d){ return (!d||d.code)?[]:d; }).catch(function(){ return []; }); }
+  var pExternes = !ev.ouvert_externes ? Promise.resolve([]) :
+    fetch(SB_URL+'/functions/v1/agenda-inscription-externe', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
+      body:JSON.stringify({ action:'lister', evenementId: ev.id })
+    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){ return (d&&d.inscrits)||[]; }).catch(function(){ return []; });
+
+  Promise.all([
+    lire('/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(ev.id)+'&select=membre_id,statut,created_at'),
+    lire('/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email'),
+    lire('/rest/v1/membres_redactions?select=membre_id,redaction_id'),
+    pExternes
+  ]).then(function(r){
+    var parId = {}; r[1].forEach(function(m){ parId[m.id] = m; });
+    var nomRedac = {}; (window._redactionsData||[]).forEach(function(x){ nomRedac[x.id] = x.nom; });
+    var ORDRE = { confirme:0, en_attente:1 }, LIB = { confirme:'Confirmé', en_attente:'En attente' };
+    var lignes = [];
+    r[0].filter(function(i){ return i.statut === 'confirme' || i.statut === 'en_attente'; }).forEach(function(i){
+      var m = parId[i.membre_id] || {};
+      var redacs = r[2].filter(function(l){ return l.membre_id === i.membre_id && nomRedac[l.redaction_id]; }).map(function(l){ return nomRedac[l.redaction_id]; });
+      lignes.push({ nom:(m.nom||'').trim(), prenom:(m.prenom||'').trim(), qualite: redacs.join(', ') || 'Membre', statut:i.statut, email:m.email||'', date:i.created_at });
+    });
+    r[3].forEach(function(e){
+      var parts = String(e.nom||'').trim().split(/\s+/);
+      lignes.push({ nom: parts.length > 1 ? parts.slice(1).join(' ') : (parts[0]||''), prenom: parts.length > 1 ? parts[0] : '', qualite:'Externe', statut:'confirme', email:e.email||'', date:e.created_at });
+    });
+    lignes.sort(function(a,b){ return (ORDRE[a.statut]-ORDRE[b.statut]) || (a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'); });
+    var nbConf = lignes.filter(function(l){ return l.statut === 'confirme'; }).length;
+    var nbAtt = lignes.length - nbConf;
+    var quand = _osAgendaJour(ev).replace(/^./, function(c){ return c.toUpperCase(); })+' · '+_osAgendaHeures(ev)+(ev.lieu ? ' · '+ev.lieu : '');
+
+    if(format === 'csv'){
+      function cel(v){ v = String(v==null?'':v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+      var csv = ['Nom','Prénom','Rédaction / qualité','Statut','Email','Inscrit le'].join(';')+'\n'
+        + lignes.map(function(l){ return [l.nom,l.prenom,l.qualite,LIB[l.statut],l.email,l.date ? new Date(l.date).toLocaleDateString('fr-FR') : ''].map(cel).join(';'); }).join('\n');
+      var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'inscrits-'+String(ev.titre||'evenement').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.csv';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      notif('Feuille des inscrits téléchargée','succes');
+      return;
+    }
+
+    var corps = '<section><div class="kpis">'
+      + _osRapportKpi(nbConf, 'Inscrit'+(nbConf>1?'s':'')+' confirmé'+(nbConf>1?'s':''))
+      + _osRapportKpi(nbAtt, 'En attente')
+      + _osRapportKpi(ev.places_max || '—', 'Places')
+      + '</div></section><section><h2>Liste des inscrits</h2>';
+    if(lignes.length){
+      corps += '<table><tr><th style="width:28px;">N°</th><th>Nom</th><th>Rédaction / qualité</th><th>Statut</th><th style="width:30%;">Présence / signature</th></tr>';
+      lignes.forEach(function(l, i){
+        corps += '<tr style="height:30px;"><td>'+(i+1)+'</td><td><strong>'+esc((l.prenom+' '+l.nom).trim()||'—')+'</strong></td><td>'+esc(l.qualite)+'</td><td>'+esc(LIB[l.statut])+'</td><td></td></tr>';
+      });
+      corps += '</table>';
+    } else corps += '<div class="vide">Aucun inscrit pour l\'instant.</div>';
+    corps += '</section>';
+    win.document.open();
+    win.document.write(_osRapportHtml('Inscrits : '+(ev.titre||'Événement'), quand, corps));
+    win.document.close();
+  }).catch(function(){ if(win) win.close(); notif('Impossible de préparer la feuille','erreur'); });
+}
+
 function osAgendaChargerInscritsExternes(evId){
   var zoneExt = document.getElementById('agenda-externes-zone');
   if(!zoneExt) return;
