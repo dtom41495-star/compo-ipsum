@@ -4736,15 +4736,15 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   --tuile: #ffffff;
   width: 60px; height: 60px;
   border-radius: 18px;
-  background: rgba(255,255,255,0.09) !important;
-  border: 1px solid rgba(255,255,255,0.16);
-  color: color-mix(in srgb, var(--tuile) 35%, white) !important;
+  background: rgba(20,20,42,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: color-mix(in srgb, var(--tuile) 30%, white) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 6px 18px rgba(0,0,0,0.25);
 }
-.desktop-icon:hover .desktop-icon-img { background: rgba(255,255,255,0.16) !important; }
-.desktop-icon-label { font-family: 'DM Sans', Arial, sans-serif; font-size: 0.66rem; letter-spacing: 0; }
+.desktop-icon:hover .desktop-icon-img { background: rgba(20,20,42,0.78) !important; }
+.desktop-icon-label { font-family: 'DM Sans', Arial, sans-serif; font-size: 0.68rem; letter-spacing: 0; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.55); }
 
 /* Widget : heure, message du moment, pastilles, personnes en ligne */
 #os-clock-widget {
@@ -4758,8 +4758,8 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .os-w-carte {
   padding: 1.1rem 1.25rem 1.15rem;
   border-radius: 20px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(20,20,42,0.55);
+  border: 1px solid rgba(255,255,255,0.16);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 12px 34px rgba(0,0,0,0.3);

@@ -1718,12 +1718,19 @@ function osEnLigneBasculer(e){
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', 'Personnes en ligne');
   var r = pill.getBoundingClientRect();
-  pop.style.left = Math.max(8, r.left)+'px';
-  pop.style.bottom = (window.innerHeight - r.top + 8)+'px';
+  pop.style.visibility = 'hidden';
   pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
   document.body.appendChild(pop);
   pill.setAttribute('aria-expanded', 'true');
   _osEnLigneRemplir();
+  // Placée contre le badge, du côté où il y a de la place, et toujours dans l'écran
+  var W = window.innerWidth, H = window.innerHeight, pw = pop.offsetWidth || 260, ph = pop.offsetHeight || 200;
+  var left = Math.min(Math.max(8, r.right - pw), W - pw - 8);
+  var top = (r.bottom + 8 + ph <= H - 8) ? r.bottom + 8 : Math.max(8, r.top - 8 - ph);
+  pop.style.left = left+'px';
+  pop.style.top = top+'px';
+  pop.style.bottom = 'auto';
+  pop.style.visibility = '';
   setTimeout(function(){
     document.addEventListener('click', osEnLigneFermer);
     document.addEventListener('keydown', _osEnLigneEchap);
