@@ -4720,3 +4720,10 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .pn-avant summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--gris); margin-bottom: 0.8rem; }
 .pn-avant .pn-entree + .pn-entree { margin-top: 1.2rem; }
 .pn-pied { padding: 0.8rem 1.1rem 1rem; border-top: 1px solid var(--gris-bord); flex-shrink: 0; }
+
+/* Texte sélectionnable et copiable dans les fenêtres de lecture (article, correction du SR,
+   communiqué) : l'interface reste non sélectionnable, mais pas ce qu'on lit */
+#lect-content, #lect-content *, #corr-contenu, #corr-contenu *, #lect-cp-content, #lect-cp-content * {
+  -webkit-user-select: text; user-select: text; cursor: auto;
+}
+#lect-content button, #corr-contenu button, #lect-cp-content button { -webkit-user-select: none; user-select: none; cursor: pointer; }
