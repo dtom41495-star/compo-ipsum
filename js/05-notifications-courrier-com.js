@@ -1095,14 +1095,15 @@ function osMasquerDock(){
   if(!btn){
     btn = document.createElement('div');
     btn.id = 'os-dock-recall';
-    btn.style.cssText = 'position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:99001;background:rgba(255,255,255,0.18);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:4px 14px;cursor:pointer;font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:5px;transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateX(-50%) translateY(20px);';
-    btn.innerHTML = '<i class="ti ti-upload"></i> Dock';
+    btn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:99001;background:#1A1A2E;border:1px solid rgba(255,255,255,0.22);border-radius:999px;padding:7px 14px;cursor:pointer;font-family:DM Sans,Arial,sans-serif;font-size:0.76rem;font-weight:600;color:#fff;display:flex;align-items:center;gap:7px;box-shadow:0 4px 14px rgba(0,0,0,0.35);transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateY(20px);';
+    btn.title = 'Réafficher la barre des tâches';
+    btn.innerHTML = '<i class="ti ti-layout-bottombar"></i> Barre des tâches';
     btn.onclick = function(){ osAfficherDockTemporaire(); };
     document.body.appendChild(btn);
   }
   setTimeout(function(){
     btn.style.opacity = '1';
-    btn.style.transform = 'translateX(-50%) translateY(0)';
+    btn.style.transform = 'translateY(0)';
   }, 350);
 }
 
@@ -1189,7 +1190,7 @@ function osVerifierDockVisibilite(){
     var btn = document.getElementById('os-dock-recall');
     if(btn){
       btn.style.opacity = '0';
-      btn.style.transform = 'translateX(-50%) translateY(20px)';
+      btn.style.transform = 'translateY(20px)';
       setTimeout(function(){ if(btn.parentNode) btn.parentNode.removeChild(btn); }, 350);
     }
   }
