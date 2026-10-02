@@ -67,6 +67,7 @@ function osProjetsRender(){
         +'<div class="ipj-nav">'
           +'<button type="button" class="ipj-nav-it" data-ipj="aujourdhui"><i class="ti ti-layout-dashboard"></i><span>Aujourd\'hui</span><b class="ipj-nav-n" id="ipj-nav-aj"></b></button>'
           +'<button type="button" class="ipj-nav-it" data-ipj="mes-taches"><i class="ti ti-checkbox"></i><span>Mes tâches</span></button>'
+          +'<button type="button" class="ipj-nav-it" data-ipj="calendrier"><i class="ti ti-calendar-month"></i><span>Calendrier</span></button>'
         +'</div>'
         +'<div class="ipj-sb-titre-liste">Projets</div>'
         +'<div class="ipj-sb-liste">'+_ipjChargement()+'</div>'
@@ -79,7 +80,7 @@ function osProjetsRender(){
     var action = b.dataset.ipj;
     if(action === 'nouveau-projet') _ipjFormProjet(null);
     else if(action === 'retour-liste'){ _ipj.actif = null; wc.querySelector('.ipj').classList.remove('ipj-projet-ouvert'); _ipjRendreListe(); }
-    else if(action === 'aujourdhui' || action === 'mes-taches'){ _ipjAllerGlobal(action); }
+    else if(action === 'aujourdhui' || action === 'mes-taches' || action === 'calendrier'){ _ipjAllerGlobal(action); }
   });
   _ipj.actif = null;
   _ipj.global = 'aujourdhui';
@@ -208,7 +209,7 @@ function _ipjRendreProjet(p, taches){
   // Vues
   var vues = document.createElement('div');
   vues.className = 'ipj-vues';
-  [['kanban','layout-kanban','Kanban'],['liste','list','Liste'],['mes','user','Mes tâches']].forEach(function(v){
+  [['kanban','layout-kanban','Kanban'],['liste','list','Liste'],['calendrier','calendar-month','Calendrier'],['mes','user','Mes tâches']].forEach(function(v){
     var b = document.createElement('button');
     b.className = 'ipj-vue'+(v[0] === _ipj.vue ? ' on' : '');
     b.innerHTML = '<i class="ti ti-'+v[1]+'"></i>'+v[2];
@@ -252,6 +253,7 @@ function _ipjRendreProjet(p, taches){
     });
     if(_ipj.vue === 'kanban') _ipjKanban(filtrees, p, peutGerer, corps);
     else if(_ipj.vue === 'liste') _ipjListe(filtrees, p, peutGerer, corps);
+    else if(_ipj.vue === 'calendrier') _ipjCalendrier(corps, { projet:p, taches:filtrees });
     else _ipjMesTaches(corps);
   }
   rendreCorps();
@@ -606,7 +608,9 @@ function _ipjAllerGlobal(quoi, silencieux){
   var racine = _ipjQ('.ipj');
   if(racine && !silencieux) racine.classList.add('ipj-projet-ouvert');
   _ipjRendreListe();
-  if(quoi === 'mes-taches') _ipjRendreMesTachesGlobal(); else _ipjRendreAujourdhui();
+  if(quoi === 'mes-taches') _ipjRendreMesTachesGlobal();
+  else if(quoi === 'calendrier') _ipjRendreCalendrierGlobal();
+  else _ipjRendreAujourdhui();
 }
 
 function _ipjRendreMesTachesGlobal(){
@@ -759,24 +763,32 @@ function _ipjAjoutRapide(projetForce){
     });
     return;
   }
-  var personnes = a.personnes.length ? a.personnes : [getUserId()];
-  var pl = { projet_id:proj.id, titre:a.titre, priorite:a.priorite || 'normale', date_limite:a.date || null, statut:'a_faire',
-    assignes:personnes, cree_par:getUserId(), updated_at:new Date().toISOString() };
   champ.disabled = true;
-  _ipjEcrire('/rest/v1/projets_taches', 'POST', pl).then(function(r){
+  _ipjCreerTache(a, proj).then(function(ok){
     champ.disabled = false;
-    if(!r.ok){ notif('Impossible d\'ajouter la tâche à ce projet (droits insuffisants ?)', 'erreur'); return; }
-    try{ localStorage.setItem('ipsum_projets_dernier', proj.id); }catch(e){}
-    notif('Tâche ajoutée à « '+(proj.titre||'')+' »', 'succes');
+    if(!ok) return;
     champ.value = '';
     _ipjMajApercu();
     var choix = document.getElementById('ipj-ajout-choix'); if(choix) choix.style.display = 'none';
+    _ipjChargerAujourdhui();
+    champ.focus();
+  });
+}
+
+// Crée une tâche à partir d'une saisie analysée (ajout rapide, calendrier) ; renvoie true si créée
+function _ipjCreerTache(a, proj){
+  var personnes = a.personnes && a.personnes.length ? a.personnes : [getUserId()];
+  var pl = { projet_id:proj.id, titre:a.titre, priorite:a.priorite || 'normale', date_limite:a.date || null, statut:'a_faire',
+    assignes:personnes, cree_par:getUserId(), updated_at:new Date().toISOString() };
+  return _ipjEcrire('/rest/v1/projets_taches', 'POST', pl).then(function(r){
+    if(!r.ok){ notif('Impossible d\'ajouter la tâche à ce projet (droits insuffisants ?)', 'erreur'); return false; }
+    try{ localStorage.setItem('ipsum_projets_dernier', proj.id); }catch(e){}
+    notif('Tâche ajoutée à « '+(proj.titre||'')+' »', 'succes');
     var nouveaux = personnes.filter(function(id){ return id !== getUserId(); });
     if(nouveaux.length) osProjetsNotifierAssignes(nouveaux, a.titre, proj.titre||'', _ipj.membres);
     osProjetsInitBadge();
-    _ipjChargerAujourdhui();
-    champ.focus();
-  }).catch(function(){ champ.disabled = false; notif('Erreur réseau', 'erreur'); });
+    return true;
+  }).catch(function(){ notif('Erreur réseau', 'erreur'); return false; });
 }
 
 function _ipjChargerAujourdhui(){
@@ -956,4 +968,158 @@ function _ipjVisEnregistrer(projetId, etat){
   }).then(function(r){
     if(r && !r.ok) notif('Les accès du projet n\'ont pas pu être enregistrés', 'erreur');
   }).catch(function(){ notif('Erreur réseau', 'erreur'); });
+}
+
+
+// ===== CALENDRIER =====
+// Vue mensuelle des échéances : tâches (par projet) et dates limites de projet. Disponible
+// pour tous les projets (page « Calendrier ») ou pour un seul (onglet Calendrier du projet).
+// Glisser une tâche sur un autre jour change son échéance ; cliquer un jour l'ouvre.
+
+var _ipjCal = { mois:null, filtre:'moi' };
+var IPJ_MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+function _ipjRendreCalendrierGlobal(){
+  var mn = _ipjQ('.ipj-mn');
+  if(!mn) return;
+  mn.innerHTML = '<div class="ipj-aj"><button type="button" class="ipj-retour" data-ipj="retour-liste"><i class="ti ti-chevron-left"></i>Projets</button>'
+    +'<div class="ipj-aj-titre">Calendrier</div><div class="ipj-aj-corps" id="ipj-cal-conteneur"></div></div>';
+  _ipjCalendrier(document.getElementById('ipj-cal-conteneur'), { projet:null });
+}
+
+function _ipjCalendrier(corps, opts){
+  opts = opts || {};
+  if(!_ipjCal.mois){ var n = new Date(); _ipjCal.mois = new Date(n.getFullYear(), n.getMonth(), 1); }
+  var mois = _ipjCal.mois;
+  var premier = new Date(mois.getFullYear(), mois.getMonth(), 1);
+  var decalage = (premier.getDay() + 6) % 7;            // semaine qui commence le lundi
+  var debut = new Date(mois.getFullYear(), mois.getMonth(), 1 - decalage);
+  var nbJours = Math.ceil((decalage + new Date(mois.getFullYear(), mois.getMonth()+1, 0).getDate()) / 7) * 7;
+  var fin = new Date(debut.getFullYear(), debut.getMonth(), debut.getDate() + nbJours - 1);
+  var uid = getUserId();
+
+  corps.innerHTML = _ipjChargement();
+  var chargement = opts.taches
+    ? Promise.resolve(opts.taches)
+    : _ipjLire('/rest/v1/projets_taches?date_limite=gte.'+_ipjIso(debut)+'&date_limite=lte.'+_ipjIso(fin)+'&order=date_limite.asc&select=*');
+  chargement.then(function(taches){
+    if(!corps.isConnected) return;
+    taches = taches.filter(function(t){ return t.date_limite; });
+    if(!opts.projet && _ipjCal.filtre === 'moi') taches = taches.filter(function(t){ return (t.assignes||[]).indexOf(uid) !== -1; });
+    var parJour = {};
+    function ajouter(iso, el){ (parJour[iso] = parJour[iso] || []).push(el); }
+    taches.forEach(function(t){ ajouter(String(t.date_limite).slice(0,10), {type:'tache', t:t}); });
+    (_ipj.projets||[]).forEach(function(pr){
+      if(!pr.date_limite || pr.statut === 'termine') return;
+      if(opts.projet && pr.id !== opts.projet.id) return;
+      ajouter(String(pr.date_limite).slice(0,10), {type:'projet', p:pr});
+    });
+
+    var h = '<div class="ipj-cal-barre"><div class="ipj-cal-nav">'
+      +'<button type="button" data-c="prec" title="Mois précédent"><i class="ti ti-chevron-left"></i></button>'
+      +'<div class="ipj-cal-titre">'+IPJ_MOIS[mois.getMonth()].charAt(0).toUpperCase()+IPJ_MOIS[mois.getMonth()].slice(1)+' '+mois.getFullYear()+'</div>'
+      +'<button type="button" data-c="suiv" title="Mois suivant"><i class="ti ti-chevron-right"></i></button>'
+      +'<button type="button" class="ipj-cal-auj" data-c="auj">Aujourd\'hui</button></div>'
+      +(opts.projet ? '' : '<div class="ipj-cal-filtre"><button type="button" data-f="moi" class="'+(_ipjCal.filtre === 'moi' ? 'on' : '')+'">Mes tâches</button><button type="button" data-f="tout" class="'+(_ipjCal.filtre === 'tout' ? 'on' : '')+'">Toutes</button></div>')
+      +'</div>';
+    h += '<div class="ipj-cal-grille"><div class="ipj-cal-entetes">'+['lun','mar','mer','jeu','ven','sam','dim'].map(function(j){ return '<div>'+j+'</div>'; }).join('')+'</div><div class="ipj-cal-jours">';
+    var auj = _ipjAujourdhuiIso();
+    for(var i = 0; i < nbJours; i++){
+      var d = new Date(debut.getFullYear(), debut.getMonth(), debut.getDate() + i);
+      var iso = _ipjIso(d);
+      var liste = parJour[iso] || [];
+      h += '<div class="ipj-cal-jour'+(d.getMonth() !== mois.getMonth() ? ' autre' : '')+(iso === auj ? ' auj' : '')+'" data-iso="'+iso+'">'
+        +'<div class="ipj-cal-num">'+d.getDate()+'</div><div class="ipj-cal-items">';
+      liste.slice(0, 3).forEach(function(el){
+        if(el.type === 'projet'){
+          h += '<div class="ipj-cal-chip projet" title="Échéance du projet"><i class="ti ti-flag"></i>'+esc(el.p.titre||'')+'</div>';
+        } else {
+          var pr = (_ipj.projets||[]).find(function(x){ return x.id === el.t.projet_id; });
+          var c = pr ? _ipjCouleur(pr.id) : '#6B7280';
+          h += '<div class="ipj-cal-chip'+(el.t.statut === 'fait' ? ' fait' : '')+'" draggable="true" data-tid="'+el.t.id+'" style="background:'+c+'1f;color:'+c+';border-left-color:'+c+';" title="'+esc(el.t.titre||'')+(pr ? ' · '+esc(pr.titre||'') : '')+'">'+esc(el.t.titre||'')+'</div>';
+        }
+      });
+      if(liste.length > 3) h += '<div class="ipj-cal-plus">+'+(liste.length - 3)+'</div>';
+      h += '</div></div>';
+    }
+    h += '</div></div>';
+    corps.innerHTML = h;
+
+    function recharger(){ _ipjCalendrier(corps, opts); }
+    corps.querySelector('[data-c="prec"]').onclick = function(){ _ipjCal.mois = new Date(mois.getFullYear(), mois.getMonth()-1, 1); recharger(); };
+    corps.querySelector('[data-c="suiv"]').onclick = function(){ _ipjCal.mois = new Date(mois.getFullYear(), mois.getMonth()+1, 1); recharger(); };
+    corps.querySelector('[data-c="auj"]').onclick = function(){ var n = new Date(); _ipjCal.mois = new Date(n.getFullYear(), n.getMonth(), 1); recharger(); };
+    corps.querySelectorAll('[data-f]').forEach(function(b){ b.onclick = function(){ _ipjCal.filtre = b.dataset.f; recharger(); }; });
+
+    var tachesParId = {}; taches.forEach(function(t){ tachesParId[t.id] = t; });
+    corps.querySelectorAll('.ipj-cal-jour').forEach(function(cell){
+      cell.onclick = function(e){
+        var chip = e.target.closest('.ipj-cal-chip[data-tid]');
+        if(chip){ e.stopPropagation(); _ipjCalOuvrirTache(tachesParId[chip.dataset.tid], recharger); return; }
+        _ipjCalJour(cell.dataset.iso, parJour[cell.dataset.iso] || [], opts, recharger);
+      };
+      cell.ondragover = function(e){ e.preventDefault(); cell.classList.add('survol'); };
+      cell.ondragleave = function(){ cell.classList.remove('survol'); };
+      cell.ondrop = function(e){
+        e.preventDefault(); cell.classList.remove('survol');
+        var id = e.dataTransfer.getData('text/plain'), t = tachesParId[id];
+        if(!t || String(t.date_limite).slice(0,10) === cell.dataset.iso) return;
+        _ipjEcrire('/rest/v1/projets_taches?id=eq.'+id, 'PATCH', {date_limite:cell.dataset.iso, updated_at:new Date().toISOString()}).then(function(r){
+          if(!r.ok) notif('Impossible de déplacer cette tâche', 'erreur'); else notif('Échéance déplacée au '+_ipjLibelleDate(cell.dataset.iso), 'succes');
+          if(opts.taches){ t.date_limite = cell.dataset.iso; }
+          recharger();
+        });
+      };
+    });
+    corps.querySelectorAll('.ipj-cal-chip[data-tid]').forEach(function(chip){
+      chip.ondragstart = function(e){ e.dataTransfer.setData('text/plain', chip.dataset.tid); e.dataTransfer.effectAllowed = 'move'; };
+    });
+  });
+}
+
+function _ipjCalOuvrirTache(t, recharger){
+  if(!t) return;
+  var proj = (_ipj.projets||[]).find(function(x){ return x.id === t.projet_id; });
+  if(!proj) return;
+  var peutGerer = _ipjEstAdmin() || proj.cree_par === getUserId();
+  _ipjDetailTache(t, proj, peutGerer);
+}
+
+// Panneau d'un jour : ses tâches et un champ pour en ajouter une à cette date
+function _ipjCalJour(iso, elements, opts, recharger){
+  var lib = new Date(iso+'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  var h = '<div class="ipj-cal-liste">';
+  if(!elements.length) h += '<div class="ipj-rien">Rien de prévu ce jour-là</div>';
+  elements.forEach(function(el, i){
+    if(el.type === 'projet'){
+      h += '<div class="ipj-cal-ligne"><i class="ti ti-flag"></i><span>Échéance du projet « '+esc(el.p.titre||'')+' »</span></div>';
+    } else {
+      var pr = (_ipj.projets||[]).find(function(x){ return x.id === el.t.projet_id; });
+      h += '<button type="button" class="ipj-cal-ligne" data-i="'+i+'"><i class="ti ti-'+(el.t.statut === 'fait' ? 'circle-check' : 'circle')+'"></i><span>'+esc(el.t.titre||'')+'</span>'
+        +(pr ? '<em>'+esc(pr.titre||'')+'</em>' : '')+_ipjPastilles(el.t.assignes, 3, true)+'</button>';
+    }
+  });
+  h += '</div><div class="ipj-ff" style="margin-top:12px;"><label>Ajouter une tâche pour ce jour</label>'
+    +'<input data-f="nouvelle" type="text" placeholder="Titre  #projet  @personne  !haute">'
+    +'<div class="ipj-vis-aide">Sans #projet, la tâche va dans '+(opts.projet ? 'ce projet' : 'le dernier projet utilisé')+'.</div></div>';
+  var ov = _ipjModale('calendar', esc(lib.charAt(0).toUpperCase()+lib.slice(1)), h);
+  ov.querySelectorAll('[data-i]').forEach(function(b){
+    b.onclick = function(){ ov.remove(); _ipjCalOuvrirTache(elements[parseInt(b.dataset.i, 10)].t, recharger); };
+  });
+  var champ = ov.querySelector('[data-f="nouvelle"]');
+  setTimeout(function(){ champ.focus(); }, 50);
+  champ.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    var a = _ipjAnalyserSaisie(champ.value);
+    if(!a.titre){ notif('Écris d\'abord le titre de la tâche'); return; }
+    a.date = a.date || iso;
+    var proj = opts.projet || a.projet || (a.projetTape ? null : _ipjDernierProjet()) || ((_ipj.projets||[]).length === 1 ? _ipj.projets[0] : null);
+    if(!proj){ notif(a.projetTape ? 'Projet « '+a.projetTape+' » introuvable' : 'Choisis un projet avec #'); return; }
+    _ipjCreerTache(a, proj).then(function(ok){
+      if(!ok) return;
+      ov.remove();
+      if(opts.taches){ _ipjRecharger(opts.projet); } else recharger();
+    });
+  });
 }

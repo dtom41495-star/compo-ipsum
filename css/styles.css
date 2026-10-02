@@ -4906,3 +4906,43 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .ipj-vchip:hover { border-color: #E8461E; }
 .ipj-vchip.on { background: #E8461E; border-color: #E8461E; color: #fff; }
 .ipj-vis-aide { margin-top: 8px; font-size: .72rem; color: var(--ipj-g); }
+
+/* Projets · Calendrier */
+.ipj-cal-barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ipj-cal-nav { display: flex; align-items: center; gap: 6px; }
+.ipj-cal-nav button { border: 1px solid var(--ipj-gb); background: #fff; border-radius: 9px; height: 32px; min-width: 32px; cursor: pointer; font-weight: 600; color: var(--ipj-e); }
+.ipj-cal-nav button:hover { border-color: #E8461E; }
+.ipj-cal-auj { padding: 0 12px; font-size: .78rem; }
+.ipj-cal-titre { min-width: 150px; text-align: center; font-family: Poppins, Arial, sans-serif; font-weight: 700; font-size: 1.02rem; }
+.ipj-cal-filtre { display: flex; background: #F1EDE8; border-radius: 9px; padding: 3px; gap: 2px; }
+.ipj-cal-filtre button { border: none; background: transparent; padding: 5px 12px; font-size: .76rem; font-weight: 600; color: var(--ipj-g); border-radius: 7px; cursor: pointer; }
+.ipj-cal-filtre button.on { background: #fff; color: var(--ipj-e); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.ipj-cal-grille { background: #fff; border: 1px solid var(--ipj-gb); border-radius: 16px; overflow: hidden; }
+.ipj-cal-entetes { display: grid; grid-template-columns: repeat(7, 1fr); background: #F6F3EF; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ipj-g); font-weight: 700; }
+.ipj-cal-entetes div { padding: 7px 8px; }
+.ipj-cal-jours { display: grid; grid-template-columns: repeat(7, 1fr); }
+.ipj-cal-jour { min-height: 98px; border-top: 1px solid #EEE9E3; border-right: 1px solid #EEE9E3; padding: 5px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ipj-cal-jour:nth-child(7n) { border-right: none; }
+.ipj-cal-jour:hover { background: #FBF9F6; }
+.ipj-cal-jour.autre { background: #FAF8F5; }
+.ipj-cal-jour.autre .ipj-cal-num { color: #C4BDB5; }
+.ipj-cal-jour.survol { background: #FDEEE8; }
+.ipj-cal-num { font-size: .76rem; font-weight: 700; color: var(--ipj-e); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.ipj-cal-jour.auj .ipj-cal-num { background: #E8461E; color: #fff; }
+.ipj-cal-items { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ipj-cal-chip { font-size: .68rem; font-weight: 600; padding: 2px 6px; border-radius: 5px; border-left: 3px solid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab; }
+.ipj-cal-chip.fait { opacity: .5; text-decoration: line-through; }
+.ipj-cal-chip.projet { background: #1A1A2E; color: #fff; border-left-color: #E8461E; cursor: default; }
+.ipj-cal-chip.projet i { margin-right: 3px; }
+.ipj-cal-plus { font-size: .66rem; color: var(--ipj-g); font-weight: 700; padding-left: 4px; }
+.ipj-cal-liste { display: flex; flex-direction: column; gap: 4px; }
+.ipj-cal-ligne { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px solid var(--ipj-gb); background: #fff; border-radius: 10px; padding: 8px 10px; font-size: .85rem; cursor: pointer; color: var(--ipj-e); }
+.ipj-cal-ligne span { flex: 1; font-weight: 600; }
+.ipj-cal-ligne em { font-style: normal; font-size: .7rem; color: var(--ipj-g); }
+@media (max-width: 768px) {
+  .ipj-cal-jour { min-height: 58px; padding: 3px; }
+  .ipj-cal-items { flex-direction: row; flex-wrap: wrap; gap: 3px; }
+  .ipj-cal-chip { width: 7px; height: 7px; padding: 0; font-size: 0; border-left-width: 0; border-radius: 50%; background: currentColor !important; }
+  .ipj-cal-chip.projet { background: #1A1A2E !important; }
+  .ipj-cal-plus { font-size: .6rem; }
+}
