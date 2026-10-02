@@ -1216,7 +1216,7 @@ function osMesArticlesRender(){
     osMesArticlesCharger();
   };
   var role = getUserRole();
-  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees){
+  if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof osEstSR === 'function' && osEstSR(null))){
     suite();
   } else {
     // Rôle qui ne donne pas l'onglet "À corriger" d'office — une dernière vérification

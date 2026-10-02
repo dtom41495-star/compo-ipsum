@@ -10,15 +10,20 @@ function _srAuth(extra){
   return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}, extra||{});
 }
 
-// Peut prendre un article de la file de cette rédaction
-function _srPeutPrendre(redacId){
-  var role = getUserRole();
-  if(role === 'admin' || role === 'correcteur') return true;
+// SR de cette rédaction ? Vrai pour un SR « de toutes les rédactions » (rôle global)
+// ou pour qui a le rôle SR dans cette rédaction. Sans rédaction : SR quelque part.
+function osEstSR(redacId){
+  if(getUserRole() === 'correcteur') return true;
   var uid = getUserId();
   return (window._membresRedactionsData||[]).some(function(l){
-    // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de correcteur (choix de Tom)
     return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && l.role_redac === 'correcteur';
   });
+}
+
+// Peut prendre un article de la file de cette rédaction
+function _srPeutPrendre(redacId){
+  // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de SR (choix de Tom)
+  return getUserRole() === 'admin' || osEstSR(redacId);
 }
 function _srVoitLaFile(){ return _srPeutPrendre(null); }
 

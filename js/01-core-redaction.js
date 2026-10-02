@@ -1088,7 +1088,7 @@ function osAppCorrectionCharger(){
   var monLien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===getUserId()&&l.redaction_id===window._redacActiveId; });
   var roleRedac = monLien ? monLien.role_redac : null;
   var isChef = roleRedac==='redac_chef' || role==='admin';
-  var isCorr = role==='correcteur' || isChef;
+  var isCorr = osEstSR(window._redacActiveId) || isChef;
 
   // Onglets selon rôle
   var onglets = [];

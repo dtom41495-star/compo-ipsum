@@ -216,7 +216,7 @@ function osRapportRedaction(redactionId, annee){
       + _osRapportKpi(sujetsAnnee.length,'Sujets ouverts')
       + '</div></section>';
 
-    var ROLES={redac_chef:'Rédac en chef',redacteur:'Rédacteur·rice',correcteur:'Secrétaire de rédaction'};
+    var ROLES={redac_chef:'Rédac chef',redacteur:'Rédacteur·rice',correcteur:'Secrétaire de rédaction'};
     corps += '<section><h2>Équipe</h2>';
     if(liens.length){
       corps += '<table><tr><th>Membre</th><th>Rôle dans la rédaction</th><th>Fonction associative</th><th>Statut</th></tr>';
@@ -256,8 +256,8 @@ function osRapportRedaction(redactionId, annee){
 }
 
 // ── Libellés communs aux rapports « équipe » ────────────────────────
-var _RAP_ROLES_COMPO = { admin:'Admin', redac_chef:'Rédac en chef', correcteur:'Secrétaire de rédaction', redacteur:'Rédacteur·rice', communicant:'Communicant·e' };
-var _RAP_ROLES_REDAC = { redac_chef:'Rédac en chef', redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction' };
+var _RAP_ROLES_COMPO = { admin:'Admin', redac_chef:'Rédac chef', correcteur:'Secrétaire de rédaction', redacteur:'Rédacteur·rice', communicant:'Communicant·e' };
+var _RAP_ROLES_REDAC = { redac_chef:'Rédac chef', redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction' };
 function _rapNomMembre(m){ return ((m.prenom||'')+' '+(m.nom||'')).trim() || 'Sans nom'; }
 function _rapStatutMembre(m){ return m.marque_inactif ? 'Inactif (vie asso)' : (m.dnd ? 'Indisponible' : 'Actif'); }
 function _rapTriNom(a, b){ return _rapNomMembre(a).localeCompare(_rapNomMembre(b), 'fr'); }
@@ -480,7 +480,7 @@ function osRapportAttestationBenevolat(membreId, annee){
     heures.forEach(function(h){ var t=LBL[h.type]||h.type||'Autres missions'; parType[t]=(parType[t]||0)+(h.duree_minutes||0); });
     var types=Object.keys(parType).sort(function(a,b){ return parType[b]-parType[a]; });
 
-    var ROLES={redacteur:'rédacteur·rice',correcteur:'correcteur·rice',admin:'administrateur·rice',redac_chef:'rédacteur·rice en chef',communicant:'communicant·e'};
+    var ROLES={redacteur:'rédacteur·rice',correcteur:'secrétaire de rédaction',admin:'administrateur·rice',redac_chef:'rédac chef',communicant:'communicant·e'};
     var fonctions = fonctionShort(m.fonction);
 
     var corps = '<section>'
@@ -815,6 +815,7 @@ function osBenevolesOuvrirFiche(membreId){
         html += '<button data-role="'+r+'" data-membre-id="'+esc(m.id)+'" class="benv-role-btn" style="'+btnStyle+'">'+(r==='redacteur'?'Rédacteur':r==='correcteur'?'SR':r==='communicant'?'Communicant':'Admin')+'</button>';
       });
       html += '</div>';
+      html += '<div style="font-size:0.66rem;line-height:1.5;color:var(--gris);margin-top:-4px;">Rôle sur tout Compo. <strong>SR</strong> : relit les articles de <strong>toutes</strong> les rédactions. Pour un SR d\'une seule rédaction, laisse <strong>Rédacteur</strong> ici et choisis SR dans Ma rédac\' (Rôle dans la rédaction).</div>';
     }
     // Accès Dub — désactivé par défaut pour tout le monde (quota mensuel serré),
     // activé au cas par cas par un admin.

@@ -2089,7 +2089,7 @@ function osInviterMembreModal(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">'
     +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rôle *</label><select id="inv-role" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
     +'<option value="redacteur">Rédacteur</option>'
-    +'<option value="correcteur">Secrétaire de rédaction</option>'
+    +'<option value="correcteur">SR (toutes les rédactions)</option>'
     +'<option value="communicant">Communicant</option>'
     +'<option value="admin">Admin</option>'
     +'</select></div>'

@@ -347,7 +347,7 @@ function _rIndexDuBlocReel(root, bloc){
 function rCommentairesInit(doc){
   var isAuteur = !doc || !doc.auteur_id || doc.auteur_id === getUserId();
   var role = getUserRole();
-  var peutCommenter = !isAuteur && (role==='correcteur' || role==='admin');
+  var peutCommenter = !isAuteur && (role==='admin' || osEstSR(doc && doc.redaction_id));
   var btn = document.getElementById('r-btn-commenter');
   if(btn) btn.style.display = peutCommenter ? '' : 'none';
   if(peutCommenter && doc && doc.id) rChargerCommentaires(doc.id);

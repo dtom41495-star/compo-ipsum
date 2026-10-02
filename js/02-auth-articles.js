@@ -269,7 +269,7 @@ function _osPermissionsModalAction(doc){
     return l.membre_id===getUserId() && l.redaction_id===doc.redaction_id && l.role_redac==='redac_chef';
   });
   return {
-    peutCorriger: role==='admin' || role==='correcteur',
+    peutCorriger: role==='admin' || osEstSR(doc.redaction_id),
     peutModifier: role==='admin' || doc.auteur_id===getUserId() || estChefRedac
   };
 }
@@ -1664,7 +1664,7 @@ function rWorkflowMajInterface(doc){
   var isChef    = roleRedac==='redac_chef' || role==='admin';
   // Correcteur = explicitement désigné sur l'article OU rôle correcteur global
   var isCorrecteurDesigne = doc.correcteur_id && doc.correcteur_id === uid;
-  var isCorr    = role==='correcteur' || isCorrecteurDesigne;
+  var isCorr    = osEstSR(doc.redaction_id) || isCorrecteurDesigne;
   var statut    = doc.statut||'brouillon';
   // Rédac chef ou admin qui est aussi le SR désigné : il ne passe en « mode SR » que
   // tant que l'article est au SR. Une fois relu, il retrouve ses boutons de chef (Bon à
