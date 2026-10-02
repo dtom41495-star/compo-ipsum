@@ -1718,12 +1718,19 @@ function osEnLigneBasculer(e){
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', 'Personnes en ligne');
   var r = pill.getBoundingClientRect();
-  pop.style.left = Math.max(8, r.left)+'px';
-  pop.style.bottom = (window.innerHeight - r.top + 8)+'px';
+  pop.style.visibility = 'hidden';
   pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
   document.body.appendChild(pop);
   pill.setAttribute('aria-expanded', 'true');
   _osEnLigneRemplir();
+  // Placée contre le badge, du côté où il y a de la place, et toujours dans l'écran
+  var W = window.innerWidth, H = window.innerHeight, pw = pop.offsetWidth || 260, ph = pop.offsetHeight || 200;
+  var left = Math.min(Math.max(8, r.right - pw), W - pw - 8);
+  var top = (r.bottom + 8 + ph <= H - 8) ? r.bottom + 8 : Math.max(8, r.top - 8 - ph);
+  pop.style.left = left+'px';
+  pop.style.top = top+'px';
+  pop.style.bottom = 'auto';
+  pop.style.visibility = '';
   setTimeout(function(){
     document.addEventListener('click', osEnLigneFermer);
     document.addEventListener('keydown', _osEnLigneEchap);
@@ -1798,9 +1805,13 @@ function osWidgetPastilles(){
     ? _srChargerFile() : Promise.resolve([]);
   var pEvt = fetch(SB_URL+'/rest/v1/agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut', {headers:authH})
     .then(function(r){ return r.json(); }).catch(function(){ return []; });
-  Promise.all([pFile, pEvt]).then(function(res){
-    var file = Array.isArray(res[0]) ? res[0] : [], evt = Array.isArray(res[1]) ? res[1][0] : null;
+  var aujD = new Date(), aujIso = aujD.getFullYear()+'-'+String(aujD.getMonth()+1).padStart(2,'0')+'-'+String(aujD.getDate()).padStart(2,'0');
+  var pTaches = fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+getUserId()+'}&statut=neq.fait&date_limite=lte.'+aujIso+'&select=id', {headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; });
+  Promise.all([pFile, pEvt, pTaches]).then(function(res){
+    var file = Array.isArray(res[0]) ? res[0] : [], evt = Array.isArray(res[1]) ? res[1][0] : null, taches = Array.isArray(res[2]) ? res[2] : [];
     var h = '';
+    if(taches.length) h += '<button type="button" class="os-w-chip" onclick="osOpenWindow(\'projets\')"><i class="ti ti-checkbox"></i> '+taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui</button>';
     if(file.length) h += '<button type="button" class="os-w-chip chaud" onclick="osOpenWindow(\'mes-articles\')"><i class="ti ti-eye-check"></i> '+file.length+' article'+(file.length>1?'s':'')+' dans la file du SR</button>';
     if(evt && evt.date_debut){
       var dt = new Date(evt.date_debut), auj = new Date();

@@ -57,14 +57,33 @@ function osRedacPublierAnnonce(){
 // coloré, icône dans un badge teinté, titre en Poppins (encre foncée) et sous-texte en
 // Figtree : même traitement que la popup de changement de statut (design "Carte Compo"),
 // à la place de l'ancien fond plein coloré + sous-texte en Space Mono.
+// Alertes masquées par la personne (petite croix) : mémorisées sur son appareil, avec le
+// contenu de l'alerte au moment du masquage. Elle revient d'elle-même si son contenu
+// change (un nouvel article en attente, par exemple).
+function _osAlertesMasquees(){
+  try{ return JSON.parse(localStorage.getItem('ipsum_alertes_masquees_'+getUserId())||'{}') || {}; }catch(e){ return {}; }
+}
+function osAlerteMasquer(btn){
+  var carte = btn.closest('[data-alerte-cle]');
+  if(!carte) return;
+  var m = _osAlertesMasquees();
+  m[carte.dataset.alerteCle] = carte.dataset.alerteSig;
+  try{ localStorage.setItem('ipsum_alertes_masquees_'+getUserId(), JSON.stringify(m)); }catch(e){}
+  var zone = carte.parentNode;
+  carte.remove();
+  if(zone && !zone.children.length){ var z = zone.parentNode; if(z && /^redac-a(lertes|nnonces)-zone$/.test(z.id)) z.innerHTML = ''; }
+}
 function _osAlerteCarteHTML(couleur, bg, icon, onclickAttr, titre, sousTexte){
-  return '<div onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;background:white;border:1px solid var(--gris-bord);border-left:4px solid '+couleur+';border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
+  var cle = icon+'|'+onclickAttr, sig = titre+'|'+sousTexte;
+  if(_osAlertesMasquees()[cle] === sig) return '';
+  return '<div data-alerte-cle="'+esc(cle)+'" data-alerte-sig="'+esc(sig)+'" onclick="'+onclickAttr+'" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;background:white;border:1px solid var(--gris-bord);border-left:4px solid '+couleur+';border-radius:8px;cursor:pointer;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'
     +'<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:'+bg+';color:'+couleur+';"><i class="ti '+icon+'"></i></div>'
     +'<div style="flex:1;min-width:0;">'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.78rem;color:var(--encre);">'+titre+'</div>'
       +'<div style="font-family:Figtree,sans-serif;font-size:0.68rem;color:var(--gris);margin-top:1px;">'+sousTexte+'</div>'
     +'</div>'
-    +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:'+couleur+';flex-shrink:0;">→</span></div>';
+    +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:'+couleur+';flex-shrink:0;">→</span>'
+    +'<button type="button" title="Masquer cette alerte" aria-label="Masquer cette alerte" onclick="event.stopPropagation();osAlerteMasquer(this)" style="flex-shrink:0;width:24px;height:24px;border:none;border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;"><i class="ti ti-x"></i></button></div>';
 }
 
 function osRedacChargerAlertes(zone){
@@ -203,17 +222,22 @@ function osRedacChargerAnnonces(zone){
       succes:'background:#E9F7EF;border:1px solid #A9DFBF;color:#155724;'
     };
     var h = '<div style="display:flex;flex-direction:column;gap:0.4rem;">';
+    var masq = _osAlertesMasquees();
+    annonces = annonces.filter(function(a){ return masq['annonce|'+a.id] !== '1'; });
+    if(!annonces.length){ zone.innerHTML=''; return; }
     annonces.forEach(function(a){
       var st = STYLES[a.type]||STYLES.info;
       var dateStr=''; try{dateStr=new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}catch(e){}
-      h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.6rem 0.9rem;border-radius:8px;'+st+'">';
+      h += '<div data-alerte-cle="annonce|'+esc(a.id)+'" data-alerte-sig="1" style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.6rem 0.9rem;border-radius:8px;'+st+'">';
       h += '<span style="font-size:1rem;flex-shrink:0;">'+(ICONS[a.type]||ICONS.info)+'</span>';
       h += '<div style="flex:1;"><div style="font-size:0.82rem;font-weight:500;">'+esc(a.message||'')+'</div>';
       h += '<div style="font-family:Space Mono,monospace;font-size:0.55rem;opacity:0.7;margin-top:2px;">'+(a.auteur||'Admin')+(dateStr?' · '+dateStr:'')+'</div>';
       if(a.lien) h += '<button onclick="window.open(\''+esc(a.lien)+'\',\'_blank\',\'noopener\')" style="margin-top:0.4rem;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:1px solid currentColor;border-radius:5px;background:rgba(255,255,255,0.5);color:inherit;cursor:pointer;">Ouvrir le lien <i class="ti ti-external-link" style="vertical-align:-1px;"></i></button>';
       h += '</div>';
       if(getUserRole()==='admin'){
-        h += '<button onclick="osRedacSupprimerAnnonce(\''+a.id+'\',this.parentNode)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:0.5;flex-shrink:0;">×</button>';
+        h += '<button onclick="osRedacSupprimerAnnonce(\''+a.id+'\',this.parentNode)" title="Supprimer l\'annonce pour tout le monde" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:0.5;flex-shrink:0;">×</button>';
+      } else {
+        h += '<button type="button" onclick="osAlerteMasquer(this)" title="Masquer cette annonce" aria-label="Masquer cette annonce" style="background:none;border:none;cursor:pointer;font-size:0.9rem;opacity:0.6;flex-shrink:0;color:inherit;"><i class="ti ti-x"></i></button>';
       }
       h += '</div>';
     });

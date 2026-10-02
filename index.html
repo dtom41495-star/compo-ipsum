@@ -354,30 +354,53 @@
   
   <!-- MENU DÉMARRER -->
   <div id="os-start-menu">
-    <div class="sm-search-wrap">
-      <i class="ti ti-search sm-search-icon" aria-hidden="true"></i>
-      <input type="text" id="sm-search" placeholder="Rechercher une app…" oninput="osStartMenuFiltrer(this.value)">
+    <div class="sm-main">
+      <div class="sm-search-wrap">
+        <i class="ti ti-search sm-search-icon" aria-hidden="true"></i>
+        <input type="text" id="sm-search" placeholder="Rechercher une app, un article, un membre, un sujet…" autocomplete="off" oninput="osStartMenuChercher(this.value)">
+        <kbd class="sm-kbd">Ctrl K</kbd>
+      </div>
+
+      <div id="sm-resultats" style="display:none;"></div>
+
+      <div id="sm-defaut">
+        <div class="sm-section-label">Épinglées <span class="sm-aide">clic droit sur une app pour épingler</span></div>
+        <div class="sm-grid" id="sm-grid-pinned"></div>
+
+        <div id="sm-recents-bloc">
+          <div class="sm-section-label">Récents</div>
+          <div class="sm-recents" id="sm-recents"></div>
+        </div>
+
+        <div class="sm-section-label">Toutes les apps</div>
+        <div class="sm-cats" id="sm-cats"></div>
+        <div class="sm-grid" id="sm-grid-all"></div>
+      </div>
     </div>
 
-    <div class="sm-section-label" id="sm-section-label">Épinglées</div>
-    <div class="sm-grid" id="sm-grid-pinned"></div>
-    <div class="sm-grid" id="sm-grid-all" style="display:none;"></div>
-    <button class="sm-toggle-all" id="sm-toggle-all" onclick="osStartMenuToggleAll()">Toutes les apps ›</button>
+    <div class="sm-side">
+      <div class="sm-side-titre">Pour toi</div>
+      <div id="sm-pourtoi" class="sm-pourtoi"></div>
+      <div class="sm-side-titre">Créer</div>
+      <div class="sm-creer">
+        <button type="button" onclick="osStartCreer('article')"><i class="ti ti-pencil"></i> Article</button>
+        <button type="button" onclick="osStartCreer('note')"><i class="ti ti-note"></i> Note</button>
+        <button type="button" onclick="osStartCreer('tache')"><i class="ti ti-checkbox"></i> Tâche</button>
+        <button type="button" onclick="osStartCreer('sujet')"><i class="ti ti-pin"></i> Sujet</button>
+        <button type="button" onclick="osStartCreer('evenement')"><i class="ti ti-calendar-plus"></i> Événement</button>
+      </div>
+    </div>
 
-    <div class="start-menu-sep"></div>
-    <div class="start-menu-footer">
-      <div class="start-menu-header">
-        <div class="start-menu-avatar"><i class="ti ti-user"></i></div>
-        <div class="start-menu-info">
-          <div class="start-menu-name" id="start-menu-name"></div>
-          <div class="start-menu-role" id="start-menu-role">...</div>
-        </div>
+    <div class="sm-pied">
+      <div class="sm-pied-avatar" id="start-menu-avatar"><i class="ti ti-user"></i></div>
+      <div class="sm-pied-infos">
+        <div class="start-menu-name" id="start-menu-name"></div>
+        <div class="start-menu-role" id="start-menu-role">...</div>
       </div>
-      <div class="sm-footer-actions">
-        <button class="sm-icon-btn" onclick="osStartAction('params')" title="Paramètres"><i class="ti ti-settings"></i></button>
-        <button class="sm-icon-btn" onclick="osStartAction('spotlight')" title="Rechercher ⌘K"><i class="ti ti-search"></i></button>
-        <button class="sm-icon-btn danger" onclick="osStartAction('deconnecter')" title="Se déconnecter"><i class="ti ti-power"></i></button>
-      </div>
+      <div class="sm-pied-sp"></div>
+      <button type="button" class="sm-dispo dnd-toggle-btn" data-style="menu" onclick="osToggleDND()" title="Ta disponibilité"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>
+      <button class="sm-icon-btn" onclick="osStartAction('params')" title="Paramètres"><i class="ti ti-settings"></i></button>
+      <button class="sm-icon-btn danger" onclick="osStartAction('deconnecter')" title="Se déconnecter"><i class="ti ti-power"></i></button>
     </div>
   </div>
 
@@ -1432,6 +1455,8 @@
 <script src="js/22-rediger-sujet.js"></script>
 <script src="js/25-file-sr.js"></script>
 <script src="js/28-attribution-sr.js"></script>
+<script src="js/29-menu-demarrer.js"></script>
+<script src="js/30-fenetres-etroites.js"></script>
 <script src="js/26-video-tuto.js"></script>
 <script src="js/27-patchnotes.js"></script>
 <script src="js/23-flouter.js"></script>

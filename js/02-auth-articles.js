@@ -274,20 +274,11 @@ function _osPermissionsModalAction(doc){
   };
 }
 
-function chargerDepuisURL(){
-  var params = new URLSearchParams(window.location.search);
-  var articleId = params.get('article');
-  var communiqueId = params.get('communique');
-  var agendaId = params.get('agenda');
-  var carte = params.get('carte');
-  var sujetRelance = params.get('sujet');
-
-  // ?sujet=…&choix=garder|liberer : réponse à « Tu gardes ce sujet ? »
-  if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
-
-  if(articleId){
+// Ouvre un article par son identifiant (lien ?article=…, recherche du menu, récents)
+function osOuvrirArticleParId(articleId){
     db.getArticle(articleId).then(function(doc){
       if(!doc){ notif('Article introuvable'); return; }
+      if(typeof osRecentAjouter === 'function') osRecentAjouter('article', doc.id, doc.titre || 'Sans titre', 'Article');
       // Repartir de la ligne complète (pas d'un sous-ensemble de champs) — sinon auteur_id,
       // redaction_id etc. se perdent silencieusement, et ils sont nécessaires ci-dessous
       // pour savoir qui a le droit de corriger/modifier cet article précis.
@@ -312,7 +303,20 @@ function chargerDepuisURL(){
       if(noteRestreint) noteRestreint.style.display = (!peutCorriger || !peutModifier) ? 'block' : 'none';
       document.getElementById('modal-action').classList.add('visible');
     }).catch(function(){ notif('Erreur chargement article'); });
-  }
+}
+
+function chargerDepuisURL(){
+  var params = new URLSearchParams(window.location.search);
+  var articleId = params.get('article');
+  var communiqueId = params.get('communique');
+  var agendaId = params.get('agenda');
+  var carte = params.get('carte');
+  var sujetRelance = params.get('sujet');
+
+  // ?sujet=…&choix=garder|liberer : réponse à « Tu gardes ce sujet ? »
+  if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
+
+  if(articleId) osOuvrirArticleParId(articleId);
 
   if(communiqueId){
     db.getCommunique(communiqueId).then(function(cp){
