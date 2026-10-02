@@ -1866,6 +1866,13 @@ function _initialiserAppsParDefaut(userId, role){
   }).catch(function(){});
 }
 
+// Rechargement de l'app Admin sans la vider ni la faire clignoter (après une action, un changement
+// d'onglet…). navigation = true : changement d'onglet, on repart du haut de la nouvelle vue.
+function osGestionAppsRafraichir(navigation){
+  if(!document.getElementById('wincontent-gestion-apps')) return;
+  _osRafraichirDiscret('gestion-apps', osGestionAppsRender, { navigation: navigation === true });
+}
+
 function osGestionAppsRender(){
   var wc = document.getElementById('wincontent-gestion-apps');
   if(!wc) return;
@@ -1906,7 +1913,7 @@ function osGestionAppsRender(){
          ['rapports','ti-file-text','Rapports','']
         ].map(function(t){
           var a = _onglet === t[0];
-          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
+          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRafraichir(true)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
             +'<span style="font-size:0.95rem;display:flex;flex-shrink:0;"><i class="ti '+t[1]+'"></i></span>'+t[2]
             +(t[3] ? '<span style="margin-left:auto;background:'+(a?'rgba(255,255,255,0.28)':'var(--rouge)')+';color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:10px;">'+t[3]+'</span>' : '')
             +'</button>';
@@ -2151,7 +2158,7 @@ function osInviterMembreValider(){
     if(ov) ov.remove();
     notif('Compte créé pour '+email+' !','succes');
     window._gestionAppsOnglet = 'membres';
-    osGestionAppsRender();
+    osGestionAppsRafraichir();
   })
   .catch(function(err){
     if(errEl){errEl.textContent='Erreur réseau : '+String(err);errEl.style.display='block';}
@@ -2189,7 +2196,7 @@ function osDesactiverMembre(id, nom){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
   .then(function(r){
-    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRender(); }
+    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRafraichir(); }
     else notif('Erreur','erreur');
   });
 }
@@ -2358,7 +2365,7 @@ function osChangerEmailMembreEnvoyer(membreId){
     var ov = document.getElementById('change-email-overlay');
     if(ov) ov.remove();
     notif('Email de connexion mis à jour !', 'succes');
-    osGestionAppsRender();
+    osGestionAppsRafraichir();
   }).catch(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
     if(btn){ btn.disabled=false; btn.textContent='Modifier'; }
@@ -2538,7 +2545,7 @@ function osGestionAppsSelectAll(membreId, activer){
       }),
       body: JSON.stringify(rows)
     }).then(function(r){
-      if(r.ok){ notif('Toutes les apps activées'); osGestionAppsRender(); }
+      if(r.ok){ notif('Toutes les apps activées'); osGestionAppsRafraichir(); }
     });
   } else {
     fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(membreId), {
@@ -2547,7 +2554,7 @@ function osGestionAppsSelectAll(membreId, activer){
         'Authorization':'Bearer '+(_session&&_session.access_token||'')
       })
     }).then(function(r){
-      if(r.ok){ notif('Toutes les apps désactivées'); osGestionAppsRender(); }
+      if(r.ok){ notif('Toutes les apps désactivées'); osGestionAppsRafraichir(); }
     });
   }
 }
@@ -2580,7 +2587,7 @@ function osGestionAppsAppliquerProfil(membreId, profil){
       body: JSON.stringify(rows)
     });
   }).then(function(r){
-    if(r.ok){ notif('Profil "'+labels[profil]+'" appliqué !'); osGestionAppsRender(); }
+    if(r.ok){ notif('Profil "'+labels[profil]+'" appliqué !'); osGestionAppsRafraichir(); }
     else { notif('Erreur application du profil'); }
   }).catch(function(){ notif('Erreur réseau'); });
 }

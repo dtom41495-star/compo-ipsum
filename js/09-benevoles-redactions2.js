@@ -29,7 +29,7 @@ function osDemandeApprouver(demandeId, membreId, appsDemandees){
     if(r.ok){
       notif('Compte activé !');
       window._gestionAppsOnglet = 'demandes';
-      osGestionAppsRender(); // les demandes vivent désormais dans l'appli Admin
+      osGestionAppsRafraichir(); // les demandes vivent désormais dans l'appli Admin
     }
   }).catch(function(){ notif('Erreur activation'); });
 }
@@ -44,7 +44,7 @@ function osDemandeRefuser(demandeId){
     }),
     body: JSON.stringify({ statut: 'refuse' })
   }).then(function(r){
-    if(r.ok){ notif('Demande refusée.'); window._gestionAppsOnglet = 'demandes'; osGestionAppsRender(); }
+    if(r.ok){ notif('Demande refusée.'); window._gestionAppsOnglet = 'demandes'; osGestionAppsRafraichir(); }
   }).catch(function(){ notif('Erreur'); });
 }
 

@@ -934,7 +934,9 @@ function _osTrouverParCle(wc, cle, rang){
   return trouve;
 }
 
-function _osRafraichirDiscret(pageId, fn){
+// opts.navigation : l'utilisateur change de vue (onglet, page) — on ne remet alors ni l'onglet ni le défilement d'avant
+function _osRafraichirDiscret(pageId, fn, opts){
+  var navigation = !!(opts && opts.navigation);
   var wc = document.getElementById('wincontent-'+pageId);
   if(!wc || !wc.firstElementChild || wc.querySelector('.os-loading')){ fn(); return; }
   var parent = wc.parentElement;
@@ -976,7 +978,7 @@ function _osRafraichirDiscret(pageId, fn){
     if(fini) return;
     fini = true; clearInterval(tick); obs.disconnect();
     // Remettre l'onglet, le défilement et les saisies tels qu'ils étaient
-    if(onglet){
+    if(onglet && !navigation){
       var b = wc.querySelector('[data-onglet="'+onglet+'"]');
       if(b && !/rouge/.test(b.style.background||'')){ try{ b.click(); }catch(e){} }
     }
@@ -986,7 +988,7 @@ function _osRafraichirDiscret(pageId, fn){
       if('coche' in c){ el.checked = c.coche; return; }
       if(el.value !== c.valeur){ el.value = c.valeur; try{ el.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){} }
     });
-    defil.forEach(function(d){
+    if(!navigation) defil.forEach(function(d){
       var el = _osTrouverParCle(wc, d.cle, d.rang);
       if(el){ el.scrollTop = d.top; el.scrollLeft = d.left; }
     });
