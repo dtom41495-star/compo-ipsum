@@ -3516,8 +3516,8 @@ input:focus,select:focus,textarea:focus{
   .agenda-entete-titre { display: none; }
   .agenda-vues { flex: 1; }
   .agenda-vues button { flex: 1; min-height: 40px; font-size: 14px !important; }
-  #agenda-filtres { padding: 0.3rem 0.8rem 0.6rem !important; }
-  #agenda-filtres button { min-height: 36px; font-size: 13px !important; padding: 0 12px !important; white-space: nowrap; }
+  /* Filtres par type : masqués sur téléphone (pastilles tronquées et inutilisables) */
+  #agenda-filtres { display: none !important; }
   .agenda-btn-nouveau {
     position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 20;
     height: 56px; padding: 0 22px !important; border-radius: 28px !important;
