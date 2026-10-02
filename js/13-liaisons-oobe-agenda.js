@@ -639,6 +639,8 @@ function oobeTerminer(){
     var el = document.getElementById('os-login-clock');
     var del = document.getElementById('os-login-date');
     if(el) el.textContent = h+':'+m;
+    var salut = document.getElementById('os-login-salut');
+    if(salut && typeof _accueilSalutation === 'function') salut.textContent = _accueilSalutation('');
     if(del) del.textContent = jours[now.getDay()]+' '+now.getDate()+' '+mois[now.getMonth()]+' '+now.getFullYear();
     setTimeout(loginClock, 10000);
   }
@@ -667,7 +669,7 @@ function oobeTerminer(){
 
   // Pas de session - afficher login
   var loginEl = document.getElementById('os-login');
-  if(loginEl) loginEl.style.display = 'flex';
+  if(loginEl) loginEl.style.display = 'grid';
   } // fin demarrer()
 
   if(document.readyState === 'loading'){

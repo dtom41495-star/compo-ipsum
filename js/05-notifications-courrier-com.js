@@ -2151,9 +2151,6 @@ function _detectNotifType(msg){
   return 'info';
 }
 
-// ===== MODE FOCUS / NE PAS DÉRANGER =====
-var _focusMode = false;
-
 // ===== APPLI COURRIER =====
 var _courrierOnglet = 'nouveau';
 var _courrierData = [];
@@ -3119,18 +3116,6 @@ function osNotifierValidationCentraleOK(article){
   }).catch(function(){});
 }
 
-function osToggleFocusMode(){
-  _focusMode = !_focusMode;
-  var btn = document.getElementById('os-focus-btn');
-  if(btn){
-    btn.innerHTML = _focusMode ? '<i class="ti ti-target-arrow"></i>' : '<i class="ti ti-bell"></i>';
-    btn.title = _focusMode ? 'Mode focus actif — cliquer pour désactiver' : 'Activer le mode focus';
-    btn.style.opacity = _focusMode ? '1' : '0.6';
-    btn.style.background = _focusMode ? 'rgba(234,91,28,0.3)' : 'transparent';
-  }
-  notif(_focusMode ? 'Mode focus activé — notifications silencieuses' : 'Mode focus désactivé', 'info');
-}
-
 // ── Material ripple effect ──
 document.addEventListener('click', function(e){
   var target = e.target.closest('.btn,.os-btn-win,.dock-icon-img');
@@ -3151,7 +3136,6 @@ var _toastGroups = {}; // { type+msg: { toast, count, timer } }
 function osShowToast(msg, type, opts){
   // opts = { persistent: bool, action: {label, fn}, icon: emoji }
   opts = opts || {};
-  if(_focusMode && type !== 'erreur') return;
 
   var stack = document.getElementById('os-toast-stack');
   if(!stack) return;

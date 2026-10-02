@@ -2146,7 +2146,6 @@ function osBuildDock(){
   tray.id = 'os-taskbar-tray';
   tray.innerHTML =
     '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
-    +'<button id="os-focus-btn" class="tray-btn" onclick="osToggleFocusMode()" style="opacity:0.6;font-size:0.8rem;" title="Activer le mode focus"><i class="ti ti-bell"></i></button>'
     +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn dnd-toggle-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
     +'<span id="os-dnd-dot" class="dnd-toggle-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
     +'<span id="os-dnd-label" class="dnd-toggle-label">Disponible</span>'
