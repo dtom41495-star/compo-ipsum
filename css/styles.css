@@ -4800,7 +4800,9 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   content: ''; position: absolute; left: 12px; right: 12px; bottom: -4px;
   height: 3px; border-radius: 3px; background: #EA5B1C;
 }
-.dock-dot { display: none; }
+/* App ouverte en arrière-plan : un point sous l'icône (l'app active a la pastille et le soulignement) */
+.dock-dot { width: 5px; height: 5px; margin-top: 3px; background: rgba(255,255,255,0.75); }
+.dock-icon.active-app .dock-dot { opacity: 0; }
 #os-taskbar-tray { gap: 8px; padding-right: 6px; }
 .tray-btn { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.08); font-size: 1.05rem; }
 .tray-btn:hover { background: rgba(255,255,255,0.16); }
