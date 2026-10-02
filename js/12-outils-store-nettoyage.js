@@ -1139,6 +1139,13 @@ function osNoteSupprimer(id){
 
 // ===== NETTOYAGE =====
 
+// En-têtes avec la session de la personne connectée. Avec les seuls SB_HEADERS (clé publique), la base
+// renvoie des listes vides quand ses règles d'accès exigent un compte connecté : les compteurs
+// (dont les emails envoyés) restaient alors à zéro sans erreur visible.
+function _nettAuthH(){
+  return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+}
+
 function osNettoyageRender(moisLimite){
   moisLimite = moisLimite || 3;
   var wc = document.getElementById('wincontent-nettoyage');
@@ -1152,13 +1159,13 @@ function osNettoyageRender(moisLimite){
 
   // Charger les stats de toutes les tables + emails en parallèle
   Promise.all([
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,updated_at,image,auteur&order=updated_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/communiques?select=id,titre,statut,created_at,fichier_b64,fichier_pdf&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/historique?select=id,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.false&select=id,message,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/contacts_historique?select=id,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutJour+'&select=id,type', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutMois+'&select=id,type,created_at', {headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,updated_at,image,auteur&order=updated_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/communiques?select=id,titre,statut,created_at,fichier_b64,fichier_pdf&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/historique?select=id,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.false&select=id,message,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/contacts_historique?select=id,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutJour+'&select=id,type', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutMois+'&select=id,type,created_at', {headers:_nettAuthH()}).then(function(r){return r.json();})
   ]).then(function(res){
     var articles    = (!res[0]||res[0].code) ? [] : res[0];
     var communiques = (!res[1]||res[1].code) ? [] : res[1];
@@ -1489,7 +1496,7 @@ function osNettoyageRechercherArticles(){
     if(!zone) return;
     if(!q.trim()){ zone.innerHTML=''; return; }
     zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
-    fetch(SB_URL+'/rest/v1/articles?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,auteur,updated_at&order=updated_at.desc&limit=15', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/articles?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,auteur,updated_at&order=updated_at.desc&limit=15', {headers:_nettAuthH()})
     .then(function(r){return r.json();})
     .then(function(arts){
       if(!arts||arts.code||!arts.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
@@ -1532,7 +1539,7 @@ function osNettoyageRechercherSujets(){
     if(!zone) return;
     if(!q.trim()){ zone.innerHTML=''; return; }
     zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
-    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:_nettAuthH()})
     .then(function(r){return r.json();})
     .then(function(sujets){
       if(!sujets||sujets.code||!sujets.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
