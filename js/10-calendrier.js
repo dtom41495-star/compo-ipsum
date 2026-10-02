@@ -66,7 +66,7 @@ function _osAlertesMasquees(){
 function osAlerteMasquer(btn){
   var carte = btn.closest('[data-alerte-cle]');
   if(!carte) return;
-  var m = _osAlertesMasquees();
+  var m = Object.assign(Object.create(null), _osAlertesMasquees());
   m[carte.dataset.alerteCle] = carte.dataset.alerteSig;
   try{ localStorage.setItem('ipsum_alertes_masquees_'+getUserId(), JSON.stringify(m)); }catch(e){}
   var zone = carte.parentNode;

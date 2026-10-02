@@ -254,7 +254,7 @@ function _smResultatsRendre(apps, membres, articles, sujets){
     });
   });
   groupe('Articles', articles, function(a){
-    var st = (typeof bStat === 'function') ? String(bStat(a.statut)).replace(/<[^>]+>/g, '') : (a.statut||'');
+    var st = (typeof MA_STATUTS_LABELS !== 'undefined' && Object.prototype.hasOwnProperty.call(MA_STATUTS_LABELS, a.statut)) ? MA_STATUTS_LABELS[a.statut] : (a.statut||'');
     return ligne('#E8461E', '<i class="ti ti-file-text"></i>', a.titre || 'Sans titre', st+(a.auteur ? ' · '+a.auteur : ''), function(){ osOuvrirArticleParId(a.id); });
   });
   groupe('Sujets', sujets, function(s){

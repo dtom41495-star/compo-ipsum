@@ -492,6 +492,13 @@ function _osOpenWindowExecuter(pageId){
   
   // Charger contenu
   osLoadPageContent(pageId, win);
+  // Certaines applis (Sources, par exemple) ne se remplissent que par leur fonction de mise
+  // à jour : si la fenêtre est toujours vide un instant après l'ouverture, on la lance.
+  setTimeout(function(){
+    var wc = document.getElementById('wincontent-'+pageId);
+    var maj = (typeof _appRefreshMap !== 'undefined') ? _appRefreshMap[pageId] : null;
+    if(wc && maj && !wc.innerHTML.trim() && _windows[pageId]){ try{ maj(); }catch(e){} }
+  }, 700);
   
   // Dot dock
   var dot = document.getElementById('dock-dot-'+pageId);

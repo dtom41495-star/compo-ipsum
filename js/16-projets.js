@@ -909,7 +909,7 @@ function _ipjVisCommissions(){
     _ipjLireSilencieux('/rest/v1/commissions?order=ordre.asc&select=id,nom'),
     _ipjLireSilencieux('/rest/v1/commission_membres?select=commission_id')
   ]).then(function(r){
-    var avec = {}; r[1].forEach(function(l){ avec[l.commission_id] = true; });
+    var avec = Object.create(null); r[1].forEach(function(l){ avec[l.commission_id] = true; });
     return r[0].filter(function(c){ return avec[c.id]; });
   });
 }
@@ -923,7 +923,7 @@ function _ipjVisConstruire(zone, p){
     p ? _ipjLireSilencieux('/rest/v1/projets_acces?projet_id=eq.'+p.id+'&select=type,valeur') : Promise.resolve([]),
     _ipjVisCommissions()
   ]).then(function(r){
-    r[0].forEach(function(a){ if(etat.sel[a.type]) etat.sel[a.type].push(String(a.valeur)); });
+    r[0].forEach(function(a){ if(Object.prototype.hasOwnProperty.call(etat.sel, a.type)) etat.sel[a.type].push(String(a.valeur)); });
     var commissions = r[1];
     var onglets = [
       {id:'membre', l:'Personnes', liste:(_ipj.membres||[]).map(function(m){ return {id:m.id, l:((m.prenom||'')+' '+(m.nom||'')).trim()}; })},
@@ -1015,7 +1015,7 @@ function _ipjCalendrier(corps, opts){
     if(!corps.isConnected) return;
     taches = taches.filter(function(t){ return t.date_limite; });
     if(!opts.projet && _ipjCal.filtre === 'moi') taches = taches.filter(function(t){ return (t.assignes||[]).indexOf(uid) !== -1; });
-    var parJour = {};
+    var parJour = Object.create(null);
     function ajouter(iso, el){ (parJour[iso] = parJour[iso] || []).push(el); }
     taches.forEach(function(t){ ajouter(String(t.date_limite).slice(0,10), {type:'tache', t:t}); });
     (_ipj.projets||[]).forEach(function(pr){
@@ -1060,7 +1060,7 @@ function _ipjCalendrier(corps, opts){
     corps.querySelector('[data-c="auj"]').onclick = function(){ var n = new Date(); _ipjCal.mois = new Date(n.getFullYear(), n.getMonth(), 1); recharger(); };
     corps.querySelectorAll('[data-f]').forEach(function(b){ b.onclick = function(){ _ipjCal.filtre = b.dataset.f; recharger(); }; });
 
-    var tachesParId = {}; taches.forEach(function(t){ tachesParId[t.id] = t; });
+    var tachesParId = Object.create(null); taches.forEach(function(t){ tachesParId[t.id] = t; });
     corps.querySelectorAll('.ipj-cal-jour').forEach(function(cell){
       cell.onclick = function(e){
         var chip = e.target.closest('.ipj-cal-chip[data-tid]');
