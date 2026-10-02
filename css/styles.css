@@ -2568,10 +2568,6 @@ input:disabled{background:var(--gris-clair);color:var(--gris);}
 .hist-when{font-family:Arial,sans-serif;font-size:0.62rem;color:var(--gris);}
 
 /* LOG */
-.log-item{font-family:Arial,sans-serif;font-size:0.72rem;padding:0.4rem 0.8rem;border-bottom:1px solid var(--gris-bord);display:flex;gap:1.5rem;flex-wrap:wrap;}
-.log-item:nth-child(odd){background:var(--gris-clair);}
-.log-date{color:var(--gris);min-width:140px;}
-.log-action{color:var(--rouge);min-width:100px;}
 .log-titre{color:var(--encre);}
 
 /* MD */
@@ -3224,17 +3220,6 @@ input:focus,select:focus,textarea:focus{
 /* MODALE ASSIGNATION CORRECTION */
 #modal-assign{position:fixed;inset:0;z-index:9990;background:rgba(26,26,46,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem;}
 #modal-assign.visible{display:flex;}
-.assign-card{background:white;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2);animation:bvnIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;}
-.assign-header{background:var(--encre-fixe);padding:1.2rem 1.5rem;}
-.assign-titre{font-family:'Poppins',sans-serif;font-weight:800;font-size:1rem;color:white;margin-bottom:0.2rem;}
-.assign-sub{font-family:Arial,sans-serif;font-size:0.65rem;color:rgba(255,255,255,0.6);}
-.assign-body{padding:1.2rem 1.5rem;}
-.assign-membre{display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0.9rem;border:1.5px solid var(--gris-bord);margin-bottom:0.5rem;cursor:pointer;transition:all 0.14s;background:white;}
-.assign-membre:hover{border-color:var(--rouge);background:var(--rouge-clair);}
-.assign-membre.selected{border-color:var(--rouge);background:var(--rouge-clair);}
-.assign-membre-nom{font-weight:600;font-size:0.88rem;color:var(--encre);}
-.assign-membre-role{font-family:Arial,sans-serif;font-size:0.6rem;color:var(--gris);text-transform:uppercase;}
-.assign-btn-row{display:flex;gap:0.6rem;margin-top:1rem;}
 
 
 /* ANIMATIONS CHARGEMENT */
@@ -3516,8 +3501,8 @@ input:focus,select:focus,textarea:focus{
   .agenda-entete-titre { display: none; }
   .agenda-vues { flex: 1; }
   .agenda-vues button { flex: 1; min-height: 40px; font-size: 14px !important; }
-  #agenda-filtres { padding: 0.3rem 0.8rem 0.6rem !important; }
-  #agenda-filtres button { min-height: 36px; font-size: 13px !important; padding: 0 12px !important; white-space: nowrap; }
+  /* Filtres par type : masqués sur téléphone (pastilles tronquées et inutilisables) */
+  #agenda-filtres { display: none !important; }
   .agenda-btn-nouveau {
     position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 20;
     height: 56px; padding: 0 22px !important; border-radius: 28px !important;
@@ -3538,7 +3523,7 @@ input:focus,select:focus,textarea:focus{
   #params-avatar-grid { max-width: 100% !important; }
 
   /* Bénévoles : filtres qui défilent du doigt, chiffres sur 3 colonnes */
-  .benv-filtres { overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0.8rem !important; }
+  .benv-filtres { overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0.8rem !important; position: static !important; }  /* pas collée en haut : sur téléphone elle prendrait trop de place */
   .benv-filtres > * { flex-shrink: 0; }
   .benv-filtres button { min-height: 36px; font-size: 13px !important; white-space: nowrap; }
   .benv-stats-grille { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
@@ -4673,8 +4658,6 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .sr-file-meta { font-size: 0.72rem; color: #6B7280; margin-top: 2px; }
 .sr-file-meta b { color: #B42318; }
 .sr-rendre { display: block; margin: -0.3rem 0 0.7rem auto; }
-.assign-ou { font-size: 0.72rem; color: var(--gris); margin: 0.8rem 0 0.4rem; }
-.assign-file .assign-membre-nom i { vertical-align: -2px; margin-right: 4px; }
 @media (max-width: 800px) {
   .sr-file-item { flex-wrap: wrap; }
   .sr-file-item .mac-btn { flex: 1 1 100%; justify-content: center; height: 40px; }
@@ -4720,3 +4703,47 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .pn-avant summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--gris); margin-bottom: 0.8rem; }
 .pn-avant .pn-entree + .pn-entree { margin-top: 1.2rem; }
 .pn-pied { padding: 0.8rem 1.1rem 1rem; border-top: 1px solid var(--gris-bord); flex-shrink: 0; }
+
+/* Texte sélectionnable et copiable dans les fenêtres de lecture (article, correction du SR,
+   communiqué) : l'interface reste non sélectionnable, mais pas ce qu'on lit */
+#lect-content, #lect-content *, #corr-contenu, #corr-contenu *, #lect-cp-content, #lect-cp-content * {
+  -webkit-user-select: text; user-select: text; cursor: auto;
+}
+#lect-content button, #corr-contenu button, #lect-cp-content button { -webkit-user-select: none; user-select: none; cursor: pointer; }
+
+
+/* ===== Fenêtre « Envoyer au SR » : même style que les autres fenêtres (se-boite) ===== */
+.assign-boite { width: 500px; }
+.assign-corps { gap: 0.8rem; }
+.assign-article { display: flex; align-items: center; gap: 0.55rem; padding: 0.65rem 0.85rem; border-radius: 12px; background: #F4F2EF; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; color: var(--encre); }
+.assign-article i { color: #E8461E; font-size: 1.1rem; flex-shrink: 0; }
+.assign-article span { min-width: 0; overflow-wrap: anywhere; }
+.assign-mode-note { display: flex; align-items: flex-start; gap: 0.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; line-height: 1.45; color: var(--gris); }
+.assign-mode-note i { color: #E8461E; font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.assign-mode-note strong { color: var(--encre); }
+.assign-delai { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 0.85rem; border-radius: 12px; background: #FFF7F4; border: 1px solid #F8D9CC; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; color: var(--encre); }
+.assign-delai i { color: #E8461E; font-size: 1.05rem; flex-shrink: 0; }
+.assign-delai em { font-style: normal; color: var(--gris); font-size: 0.7rem; }
+.assign-ou { margin: 0.5rem 0 0.35rem; font-family: 'DM Sans', sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); }
+.assign-membre { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0.85rem; margin-bottom: 0.45rem; border: 1.5px solid var(--gris-bord); border-radius: 14px; background: white; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s, background 0.15s; }
+.assign-membre:hover { border-color: #E8461E; }
+.assign-membre.selected { border-color: #E8461E; background: #FFF7F4; }
+.assign-avatar { flex-shrink: 0; display: flex; }
+.assign-avatar-file { width: 38px; height: 38px; border-radius: 50%; background: #F4F2EF; color: var(--encre); align-items: center; justify-content: center; font-size: 1.2rem; }
+.assign-infos { flex: 1; min-width: 0; }
+.assign-membre-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; font-weight: 700; font-size: 0.88rem; color: var(--encre); }
+.assign-membre-role { margin-top: 2px; font-size: 0.72rem; line-height: 1.4; color: var(--gris); }
+.assign-membre-delai { margin-top: 3px; font-size: 0.7rem; color: #856404; }
+.assign-membre-delai i { vertical-align: -1px; }
+.assign-pastille { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; font-size: 0.64rem; font-weight: 700; }
+.assign-pastille-vert { background: #E3F6EA; color: #1E7A45; }
+.assign-coche { flex-shrink: 0; font-size: 1.4rem; color: #E8461E; opacity: 0; }
+.assign-membre.selected .assign-coche { opacity: 1; }
+.assign-autre { display: flex; align-items: center; justify-content: center; gap: 0.4rem; width: 100%; min-height: 40px; margin: 0.2rem 0 0.5rem; border: 1.5px dashed var(--gris-bord); border-radius: 12px; background: transparent; color: var(--gris); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.assign-autre:hover { color: #E8461E; border-color: #E8461E; }
+.assign-pied { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.8rem 1.1rem 1rem; border-top: 1px solid var(--gris-bord); flex-shrink: 0; }
+@media (max-width: 640px) {
+  #modal-assign { align-items: flex-end; padding: 0; }
+  .assign-boite { width: 100%; max-height: 94vh; border-radius: 18px 18px 0 0; }
+  .assign-membre { min-height: 64px; }
+}

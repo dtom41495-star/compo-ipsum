@@ -1530,7 +1530,7 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);cursor:pointer;" onclick="osRedacOuvrirFicheMembre(\''+m.id+'\',\''+redacId+'\')" onmouseover="this.style.background=\'var(--gris-clair)\'" onmouseout="this.style.background=\'\'">';
       h += '<td style="padding:0.5rem 0.9rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(m, 26, {})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+rr+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:3px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
-        +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+( r==='redac_chef'?'Chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>';}).join('')+'</select></td>';
+        +['redacteur','correcteur','redac_chef'].map(function(r){return'<option value="'+r+'"'+(rr===r?' selected':'')+'>'+({redacteur:'Rédacteur·rice',correcteur:'SR',redac_chef:'Rédac chef'}[r])+'</option>';}).join('')+'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
       h += '<td style="padding:0.4rem;"><button data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="event.stopPropagation();osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)" title="Retirer de la rédaction" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 6px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-user-minus"></i></button></td>';
       h += '</tr>';
@@ -1649,6 +1649,29 @@ function osRedacReglagesForm(redac){
   h += '</div></div>';
   }
 
+  if('mode_sr' in redac){
+  var modeSr = (typeof SR_MODES !== 'undefined' && SR_MODES[redac.mode_sr]) ? redac.mode_sr : 'choix';
+  h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Attribution du SR</div>';
+  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.6rem;">Comment un article envoyé au SR trouve son relecteur ou sa relectrice.</div>';
+  h += '<select id="redac-reg-mode_sr" style="width:100%;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);box-sizing:border-box;">'
+    +'<option value="choix"'+(modeSr==='choix'?' selected':'')+'>Au choix : file d\'attente, ou on désigne quelqu\'un</option>'
+    +'<option value="suggestion"'+(modeSr==='suggestion'?' selected':'')+'>Suggestion : Compo propose le mieux placé, on peut changer</option>'
+    +'<option value="auto"'+(modeSr==='auto'?' selected':'')+'>Automatique : Compo désigne le relecteur d\'office</option>'
+    +'</select>';
+  h += '<div style="font-size:0.64rem;color:var(--gris);margin-top:0.5rem;line-height:1.5;">Compo classe les relecteur·rices d\'après la charge (articles déjà à relire), la rotation et l\'activité récente. En mode automatique, les admins ne sont pas tirés au sort ; si personne n\'est disponible, l\'article va dans la file. Sans réponse après 2 jours ouvrés, il retourne dans la file.</div>';
+  h += '</div>';
+  }
+
+  if('relance_inactifs' in redac){
+  h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Membres inactifs</div>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-relance_inactifs" '+(redac.relance_inactifs!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Rappel aux membres inactifs</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">toutes les deux semaines, un mail et un message Chat rappellent aux membres de la rédaction qu\'ils sont marqués inactifs (ou indisponibles). Le membre ne peut pas le désactiver. La vie asso reçoit toujours le récap.</span></span></label>';
+  h += '</div>';
+  }
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1669,7 +1692,7 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations'];
+  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations','relance_inactifs'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
@@ -1679,6 +1702,10 @@ function osRedacChefEnregistrerReglages(redacId){
     if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
+  if('mode_sr' in redacAvant){
+    var selSr = document.getElementById('redac-reg-mode_sr');
+    if(selSr) payload.mode_sr = selSr.value;
+  }
   if('horaires' in redacAvant){
     var horaires = osRedacHorairesLireForm();
     if(horaires === false) return;
@@ -2331,7 +2358,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
       h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
       h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(mb, 26, {})+'<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
       h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+mb.id+'" data-rid="'+redac.id+'" data-avant="'+esc(mr.role_redac||'redacteur')+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
-        +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+( r==='redac_chef'?'Rédac chef':r.charAt(0).toUpperCase()+r.slice(1))+'</option>'; }).join('')
+        +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+({redacteur:'Rédacteur·rice',correcteur:'SR',redac_chef:'Rédac chef'}[r])+'</option>'; }).join('')
         +'</select></td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
       h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:#27AE60;">'+pub.length+'</td>';
@@ -2513,7 +2540,7 @@ function osAdminAjouterMembreRedac(redacId){
   var optionsHtml = dispo.map(function(m){ return '<option value="'+m.id+'">'+esc(m.prenom||'')+' '+esc(m.nom||'')+' ('+m.role+')</option>'; }).join('');
   modal.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">Ajouter un membre</div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Membre</div><select id="redac-add-membre" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;">'+optionsHtml+'</select></div>'
-    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Rôle dans la rédaction</div><select id="redac-add-role" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;"><option value="redacteur">Rédacteur</option><option value="correcteur">Correcteur</option><option value="redac_chef">Rédac chef</option></select></div>'
+    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Rôle dans la rédaction</div><select id="redac-add-role" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;"><option value="redacteur">Rédacteur·rice</option><option value="correcteur">SR (relit les articles de cette rédaction)</option><option value="redac_chef">Rédac chef</option></select></div>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-add-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Ajouter</button>'
@@ -2643,7 +2670,7 @@ function osBenevolesExporterPDF(){
   var win = window.open('','_blank','width=860,height=1000');
   if(!win){ notif('Autorise les popups pour générer le document'); return; }
 
-  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction', admin:'Admin', redac_chef:'Rédac en chef', communicant:'Communicant·e'};
+  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction', admin:'Admin', redac_chef:'Rédac chef', communicant:'Communicant·e'};
   function ligne(s, motifs){
     var m = s.membre;
     var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';

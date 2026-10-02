@@ -279,7 +279,6 @@ function exporterFichier(obj, nom){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=nom+'.json';a.click();
     URL.revokeObjectURL(url);
-    logAction('export',obj.titre||obj.objet||nom,nom+'.json');
     notif('Fichier sauvegardé : '+nom+'.json');
   }catch(e){notif('Erreur export : '+e.message);}
 }
@@ -289,47 +288,10 @@ function importerFichier(file,callback){
   reader.onload=e=>{
     try{
       const obj=JSON.parse(e.target.result.trim());
-      logAction('import',obj.titre||obj.objet||file.name,file.name);
       callback(obj);
     }catch(err){notif('Fichier invalide - verifie que c est un fichier JSON Compo');}
   };
   reader.readAsText(file);
-}
-
-// ===== LOG =====
-function logAction(action,titre,fichier){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-  logs.push({date:new Date().toISOString(),action,titre:titre||'—',fichier:fichier||'—'});
-  localStorage.setItem('ipsum_log',JSON.stringify(logs));
-}
-
-function verifyLog(){
-  const pw=document.getElementById('log-pw').value;
-  if(btoa(pw)===ADMIN_PW){
-    document.getElementById('log-auth').style.display='none';
-    document.getElementById('log-content').style.display='block';
-    renderLog();
-  }else{notif('Mot de passe incorrect');}
-}
-
-function renderLog(){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-  const el=document.getElementById('log-list');
-  if(!logs.length){el.innerHTML='<p style="color:var(--gris);font-size:0.85rem;">Aucune activité enregistrée.</p>';return;}
-  el.innerHTML=logs.slice().reverse().map(l=>'<div class="log-item"><span class="log-date">'+new Date(l.date).toLocaleString('fr-FR')+'</span><span class="log-action">'+esc(l.action.toUpperCase())+'</span><span class="log-titre">'+esc(l.titre)+'</span><span style="color:var(--gris);font-size:0.65rem;">'+esc(l.fichier)+'</span></div>').join('');
-}
-
-function exportLog(){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-  const txt=logs.map(l=>new Date(l.date).toLocaleString('fr-FR')+'\t'+l.action+'\t'+l.titre+'\t'+l.fichier).join('\n');
-  const blob=new Blob(['Date\tAction\tTitre\tFichier\n'+txt],{type:'text/plain'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='journal_ipsum_'+new Date().toISOString().slice(0,10)+'.txt';a.click();
-  URL.revokeObjectURL(url);
-}
-
-function clearLog(){
-  osConfirmer('Vider tout le journal ?').then(function(ok){ if(ok){ localStorage.removeItem('ipsum_log'); renderLog(); } });
 }
 
 // ===== HORLOGE =====
@@ -955,7 +917,6 @@ function sauvegarderBrouillon(){
       if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
     }catch(e){}
     currentDoc = doc; // synchroniser pour autosave et osRedactionADesModifs
-    logAction('brouillon',titre,'cloud');
     notif('Brouillon sauvegardé : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
@@ -1127,7 +1088,7 @@ function osAppCorrectionCharger(){
   var monLien = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id===getUserId()&&l.redaction_id===window._redacActiveId; });
   var roleRedac = monLien ? monLien.role_redac : null;
   var isChef = roleRedac==='redac_chef' || role==='admin';
-  var isCorr = role==='correcteur' || isChef;
+  var isCorr = osEstSR(window._redacActiveId) || isChef;
 
   // Onglets selon rôle
   var onglets = [];
@@ -1690,7 +1651,6 @@ function loadLectCP(event){
         html += '<p style="color:var(--gris);font-size:0.84rem;margin-top:1rem;">Aucun PDF joint.</p>';
       }
       document.getElementById('lcp-reader').innerHTML = html;
-      logAction('lecture-cp', cp.objet||cp.id, file.name);
     } catch(err){ notif('Fichier invalide'); }
   };
   reader.readAsText(file);
@@ -1843,7 +1803,6 @@ function nlGenerer(){
   document.getElementById('nl-apercu').innerHTML = _nlMdVersHtml(md);
   document.getElementById('nl-apercu-section').style.display = 'block';
   document.getElementById('nl-apercu-section').scrollIntoView({behavior:'smooth'});
-  logAction('newsletter', 'Newsletter '+dateStr, 'newsletter');
   notif('Aperçu prêt : '+nlArticles.length+' contenu'+(nlArticles.length>1?'s':''), 'succes');
 }
 // Rendu de l'aperçu : juste ce que produit nlGenerer (titres, séparateurs, gras, italique)
@@ -2131,7 +2090,6 @@ function exporterPDF(){
       fenetre.print();
     }, 500);
   };
-  logAction('export-pdf', titre, titre+'.pdf');
   notif('Fenetre d impression ouverte - choisis PDF comme destination');
 }
 

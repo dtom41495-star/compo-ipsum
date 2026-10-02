@@ -1996,17 +1996,22 @@ function osChargerWidgets(){
 
 
 var _appRefreshMap = {
-  'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
-  'redactions':     function(){ osRedactionsRender(); },
-  'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(wc) osMesArticlesRender(); },
-  'cps-admin':      function(){ cpsAdminCharger(); },
+  // Rechargement discret (voir _osRafraichirDiscret) : la fenêtre garde son apparence pendant la mise à jour
+  'benevoles':      function(){ if(document.getElementById('wincontent-benevoles')) _osRafraichirDiscret('benevoles', osBenevolesDashRender); },
+  // Ma rédac' : mise à jour des données en arrière-plan, sans reconstruire la fenêtre (onglet, rail et saisies restent en place)
+  'redactions':     function(){ osRedactionsRender(true); },
+  // Mes articles : on recharge seulement la liste (sans reconstruire la fenêtre) — les filtres,
+  // la recherche et le défilement restent en place, et rien ne clignote
+  'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(!wc) return; if(document.getElementById('ma-os-list') && typeof osMesArticlesCharger === 'function') osMesArticlesCharger(); else osMesArticlesRender(); },
+  'cps-admin':      function(){ cpsAdminCharger(true); },
   'projets':        function(){ osProjetsChargerListe(); },
-  'agenda':         function(){ osAgendaRender&&osAgendaRender(); },
-  'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc) osCarnetRender&&osCarnetRender(); },
-  'notes':          function(){ osNotesRender&&osNotesRender(); },
-  'boutique':       function(){ osBoutiqueRender(); },
-  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) osStatsAppRender(); },
-  'newsletter':     function(){ var wc=document.getElementById('wincontent-newsletter'); if(wc) nlChargerDepuisBase(); }
+  // Agenda : pas de rechargement pendant qu'une fiche d'événement est ouverte (on y lit, on y inscrit)
+  'agenda':         function(){ if(document.getElementById('agenda-inscr-zone')) return; if(document.getElementById('wincontent-agenda') && typeof osAgendaRender === 'function') _osRafraichirDiscret('agenda', osAgendaRender); },
+  'carnet':         function(){ var wc=document.getElementById('wincontent-carnet'); if(wc && typeof osCarnetRender === 'function') _osRafraichirDiscret('carnet', osCarnetRender); },
+  // Notes et Newsletter : pas de rafraîchissement automatique — on y saisit du texte et on y fait des
+  // choix que la reconstruction effacerait (note sélectionnée, articles cochés pour l'édition)
+  'boutique':       function(){ if(document.getElementById('wincontent-boutique')) _osRafraichirDiscret('boutique', osBoutiqueRender); },
+  'stats-dashboard':function(){ var wc=document.getElementById('wincontent-stats-dashboard'); if(wc) _osRafraichirDiscret('stats-dashboard', osStatsAppRender); }
 };
 
 var _dockContextMenu = null;
@@ -2620,13 +2625,16 @@ function osVerifierNotifsWorkflow(){
       : Promise.resolve([]),
     estValidateurCentral()
       ? fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&select=id,titre,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];})
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    // File d'attente du SR : articles envoyés au SR sans relecteur désigné (visible de ceux qui peuvent la prendre)
+    typeof _srChargerFile === 'function' ? _srChargerFile() : Promise.resolve([])
   ];
 
   Promise.all(reqs).then(function(res){
     var aCorrections      = Array.isArray(res[0]) ? res[0] : [];
     var aChefCandidats    = Array.isArray(res[1]) ? res[1] : [];
     var aCentraleCandidats= Array.isArray(res[2]) ? res[2] : [];
+    var aFile             = Array.isArray(res[3]) ? res[3] : [];
 
     var redacCentrale = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
     var aPublication = aChefCandidats.filter(function(a){ return _osArticlePubliable(a); });
@@ -2643,6 +2651,13 @@ function osVerifierNotifsWorkflow(){
 
     aCorrections.forEach(function(a){
       afficher('correction', a, 'Article à relire (SR)', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+    });
+    aFile.forEach(function(a){
+      afficher('correction', {id:'file-'+a.id, titre:a.titre}, 'Un article attend dans la file du SR', {label:'Voir la file', fn:function(){
+        _maOnglet = 'corriger';
+        if(_windows['mes-articles']){ osFocusWindow('mes-articles'); if(typeof osMesArticlesChangerOnglet === 'function') osMesArticlesChangerOnglet('corriger'); }
+        else osOpenWindow('mes-articles');
+      }});
     });
     aPublication.forEach(function(a){
       afficher('publication', a, 'Bon à publier : à mettre en ligne', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});

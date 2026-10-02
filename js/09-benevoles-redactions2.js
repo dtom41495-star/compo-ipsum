@@ -29,7 +29,7 @@ function osDemandeApprouver(demandeId, membreId, appsDemandees){
     if(r.ok){
       notif('Compte activé !');
       window._gestionAppsOnglet = 'demandes';
-      osGestionAppsRender(); // les demandes vivent désormais dans l'appli Admin
+      osGestionAppsRafraichir(); // les demandes vivent désormais dans l'appli Admin
     }
   }).catch(function(){ notif('Erreur activation'); });
 }
@@ -44,7 +44,7 @@ function osDemandeRefuser(demandeId){
     }),
     body: JSON.stringify({ statut: 'refuse' })
   }).then(function(r){
-    if(r.ok){ notif('Demande refusée.'); window._gestionAppsOnglet = 'demandes'; osGestionAppsRender(); }
+    if(r.ok){ notif('Demande refusée.'); window._gestionAppsOnglet = 'demandes'; osGestionAppsRafraichir(); }
   }).catch(function(){ notif('Erreur'); });
 }
 
@@ -79,9 +79,11 @@ function _osBenvOrganigrammeHTML(membres){
   // poste confirmé. "Membre" reste correct pour tout le monde.
   var roleLabels = {redacteur:'Membre',correcteur:'SR',admin:'Admin',communicant:'Communicant'};
 
-  function carteMembre(m, estChef){
+  function carteMembre(m, estChef, redacId){
     var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
+    // Pointillés : SR de toutes les rédactions (rôle global). Trait plein : SR de cette rédaction.
     var estCorrecteur = !estChef && m.role==='correcteur';
+    var srRedac = !estChef && !estCorrecteur && liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redacId && l.role_redac==='correcteur'; });
     var taille = estChef?52:40;
     // Le rôle Compo (admin/correcteur/...) garde toujours sa couleur habituelle —
     // celle qu'on retrouve partout ailleurs dans l'app (Tchap, listes de membres...).
@@ -100,7 +102,7 @@ function _osBenvOrganigrammeHTML(membres){
     return '<div style="display:flex;flex-direction:column;align-items:center;width:86px;">'
       +avatar
       +'<div style="font-size:'+(estChef?'0.74rem':'0.68rem')+';font-weight:'+(estChef?700:600)+';color:var(--encre);margin-top:5px;text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">'+esc(m.prenom||'')+'</div>'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';border:'+tagBorder+';padding:1px 6px;border-radius:8px;margin-top:2px;white-space:nowrap;">'+(estChef?'Chef':(roleLabels[m.role]||m.role||''))+'</div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:'+rc[1]+';background:'+rc[0]+';border:'+tagBorder+';padding:1px 6px;border-radius:8px;margin-top:2px;white-space:nowrap;">'+(estChef?'Chef':(srRedac?'SR':(roleLabels[m.role]||m.role||'')))+'</div>'
       +'</div>';
   }
 
@@ -110,7 +112,7 @@ function _osBenvOrganigrammeHTML(membres){
   if(aUnCorrecteur){
     h += '<div style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'
       +'<span style="width:14px;height:14px;border-radius:50%;border:1.5px dashed var(--bleu);flex-shrink:0;"></span>'
-      +'SR (secrétariat de rédaction) : pool partagé entre toutes les rédactions, pas propre à celle-ci</div>';
+      +'SR de toutes les rédactions (rôle global). Les SR d\'une seule rédaction n\'ont pas de pointillés.</div>';
   }
 
   if(!redactions.length){
@@ -126,8 +128,9 @@ function _osBenvOrganigrammeHTML(membres){
     });
     // Le correcteur encadre le travail des rédacteurs avant le chef — il a son propre
     // étage entre le chef et le reste de l'équipe plutôt que d'être mélangé avec eux.
-    var correcteurs = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && m.role==='correcteur'; });
-    var autres = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && m.role!=='correcteur'; });
+    var estSRIci = function(m){ return m.role==='correcteur' || liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redac.id && l.role_redac==='correcteur'; }); };
+    var correcteurs = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && estSRIci(m); });
+    var autres = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && !estSRIci(m); });
 
     h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;padding:1.4rem 1rem 1.6rem;">';
     h += '<div style="text-align:center;margin-bottom:1.1rem;">';
@@ -141,14 +144,14 @@ function _osBenvOrganigrammeHTML(membres){
 
     h += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1.2rem;">';
     if(chefs.length){
-      chefs.forEach(function(c){ h += carteMembre(c, true); });
+      chefs.forEach(function(c){ h += carteMembre(c, true, redac.id); });
     } else {
       h += '<div style="font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.6rem;">Pas de chef assigné</div>';
     }
     h += '</div>';
 
-    if(correcteurs.length) h += _osOrgEtageHTML(correcteurs.map(function(m){ return carteMembre(m, false); }));
-    if(autres.length) h += _osOrgEtageHTML(autres.map(function(m){ return carteMembre(m, false); }));
+    if(correcteurs.length) h += _osOrgEtageHTML(correcteurs.map(function(m){ return carteMembre(m, false, redac.id); }));
+    if(autres.length) h += _osOrgEtageHTML(autres.map(function(m){ return carteMembre(m, false, redac.id); }));
     if(!chefs.length && !correcteurs.length && !autres.length){
       h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.68rem;color:var(--gris);padding:0.6rem;">Aucun membre</div>';
     }
@@ -314,7 +317,9 @@ function osBenevolesDashRender(){
     app.appendChild(contentWrap);
     // ONGLET EQUIPE
     var equipeDiv=document.createElement('div');
-    equipeDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:flex;';
+    // Tout l'onglet défile d'un bloc (chiffres, à recontacter, liste) : avant, seule la liste
+    // défilait sous un haut de page fixe, et il ne lui restait qu'une petite fenêtre.
+    equipeDiv.style.cssText='flex:1;overflow-x:hidden;overflow-y:auto;flex-direction:column;display:flex;min-height:0;';
     tabContents['equipe']=equipeDiv;
     function statCard(n,label,color){return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.4rem;color:'+(color||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div></div>';}
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
@@ -326,7 +331,7 @@ function osBenevolesDashRender(){
     sh+=statCard(artPublies.length,'En ligne au total','var(--rouge)');
     sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
-    sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">';
+    sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;position:sticky;top:0;z-index:5;background:white;">';
     _benvFiltreRole='tous'; _benvRecherche='';
     sh+='<input type="search" id="benv-recherche" class="benv-recherche" placeholder="Nom ou identifiant (IPS-…)" oninput="osBenevolesRechercher(this.value)" style="width:180px;font-size:0.72rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;outline:none;">';
     [['tous','Tous'],['rédacteur','Rédacteur'],['correcteur','SR'],['admin','Admin']].forEach(function(rr){var r=rr[1];sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+rr[0]+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
@@ -335,12 +340,12 @@ function osBenevolesDashRender(){
     if(isVieAsso) sh+='<div id="benv-recontacter" style="display:none;padding:0.7rem 1.4rem 0;flex-shrink:0;"></div>';
     // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
     // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
-    sh+='<div style="flex:1;display:flex;overflow:hidden;min-height:0;">';
+    sh+='<div style="flex:none;display:flex;align-items:flex-start;">';
     // Cartes compactes (nom, rôle, actif/inactif) — le détail (articles, délai,
     // activité, fraîcheur publication, dispo) est dans la fiche à droite, pas ici :
     // avec les 8 colonnes précédentes le tableau devenait illisible une fois la
     // fiche ouverte à côté.
-    sh+='<div style="flex:1.3;min-width:0;overflow-y:auto;padding:0.8rem 1.2rem;" id="benv-tableau">';
+    sh+='<div style="flex:1.3;min-width:0;padding:0.8rem 1.2rem;" id="benv-tableau">';
     sh+='<div id="benv-cartes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0.6rem;">';
     statsMembres.forEach(function(s){
       var m=s.membre;
@@ -371,12 +376,20 @@ function osBenevolesDashRender(){
       sh+='</div>';
     });
     sh+='</div></div>';
-    sh+='<div id="benv-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;">'
-      +'<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un·e bénévole pour voir sa fiche.</div>'
+    // La fiche reste visible pendant que la liste défile (sticky), avec son propre défilement
+    sh+='<div id="benv-detail-panel" style="width:380px;flex-shrink:0;border-left:1px solid var(--gris-bord);overflow-y:auto;background:white;position:sticky;top:46px;max-height:calc(100vh - 160px);">'
+      +'<div style="display:flex;align-items:center;justify-content:center;min-height:260px;padding:2rem;text-align:center;color:var(--gris);font-size:0.82rem;">Clique sur un·e bénévole pour voir sa fiche.</div>'
       +'</div>';
     sh+='</div>'; // fin de la ligne liste + fiche
     equipeDiv.innerHTML=sh;
     contentWrap.appendChild(equipeDiv);
+    // La fiche épouse la hauteur visible de l'onglet (moins la barre de filtres collée en haut)
+    if(typeof ResizeObserver === 'function'){
+      new ResizeObserver(function(){
+        var pan=document.getElementById('benv-detail-panel'), fil=equipeDiv.querySelector('.benv-filtres');
+        if(pan && equipeDiv.clientHeight) pan.style.maxHeight=Math.max(200, equipeDiv.clientHeight-(fil?fil.offsetHeight:0)-2)+'px';
+      }).observe(equipeDiv);
+    }
     // ONGLET ORGANIGRAMME — généré depuis les données déjà chargées (membres + liens
     // vers les rédactions), pas de fetch supplémentaire, pas d'édition manuelle.
     var organigrammeDiv=document.createElement('div');
@@ -1135,12 +1148,15 @@ var _articlesRedacData = [];
 
 var _redacOnglet = 'profil'; // 'profil' | 'sujets' | 'redac'
 
-function osRedactionsRender(){
+// silencieux : rafraîchissement automatique au retour sur la fenêtre — recharge les données en
+// arrière-plan sans toucher à l'affichage (pas de « Chargement… », pas de reconstruction)
+function osRedactionsRender(silencieux){
   var wc = document.getElementById('wincontent-redactions');
   if(!wc) return;
   var role = getUserRole();
   var uid = getUserId();
-  wc.innerHTML = osLoadingHtml('osRedactionsRender');
+  var enArrierePlan = silencieux === true && !!document.getElementById('redac-content-outer');
+  if(!enArrierePlan) wc.innerHTML = osLoadingHtml('osRedactionsRender');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
@@ -1190,6 +1206,12 @@ function osRedactionsRender(){
     // Garder tous les articles pour la vue admin (stats toutes rédactions)
     window._tousArticles = tousArticles;
 
+    // Fenêtre déjà affichée : données à jour, on s'arrête là (seules les pastilles sont remises à jour)
+    if(enArrierePlan && document.getElementById('redac-content-outer')){
+      if(typeof cpsChargerBadge === 'function') cpsChargerBadge();
+      return;
+    }
+
     // Filtrer les articles par rédaction active — uniquement par redaction_id
     var redacIdPourFiltrage = window._redacActiveId;
     if(redacIdPourFiltrage){
@@ -1215,13 +1237,14 @@ function osRedactionsRender(){
 
     osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
   }).catch(function(e){
+    if(enArrierePlan) return; // échec silencieux : on garde l'affichage actuel
     wc.innerHTML = '<div style="padding:2rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--rouge);">Erreur de chargement.</div>';
   });
   });
 }
 
 // ---- SÉLECTEUR MULTI-RÉDACTIONS ----
-var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur', correcteur:'SR', admin:'Admin'};
+var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur·rice', correcteur:'SR', admin:'Admin'};
 
 function osRedactionsRenderSelecteur(wc, uid, liens){
   var h = '<div style="padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;">';

@@ -347,7 +347,7 @@ function _rIndexDuBlocReel(root, bloc){
 function rCommentairesInit(doc){
   var isAuteur = !doc || !doc.auteur_id || doc.auteur_id === getUserId();
   var role = getUserRole();
-  var peutCommenter = !isAuteur && (role==='correcteur' || role==='admin');
+  var peutCommenter = !isAuteur && (role==='admin' || osEstSR(doc && doc.redaction_id));
   var btn = document.getElementById('r-btn-commenter');
   if(btn) btn.style.display = peutCommenter ? '' : 'none';
   if(peutCommenter && doc && doc.id) rChargerCommentaires(doc.id);
@@ -2067,7 +2067,6 @@ var DOCK_APPS = {
     { id:'benevoles', icon:'<i class="ti ti-users"></i>', label:'Bénévoles', color:'#0F6E56' },
     { id:'gestion-apps', icon:'<i class="ti ti-settings"></i>', label:'Admin', color:'#2C3E50' },
     { id:'nettoyage', icon:'<i class="ti ti-eraser"></i>', label:'Nettoyage', color:'#721C24' },
-    { id:'log', icon:'<i class="ti ti-list-details"></i>', label:'Journal', color:'#2C3E50' },
   ],
   redac_chef: [
     { id:'redaction', icon:'<i class="ti ti-writing"></i>', label:'Rédiger', color:'#E8461E' },

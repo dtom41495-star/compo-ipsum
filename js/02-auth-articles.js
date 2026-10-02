@@ -41,6 +41,7 @@ var db = {
       cp_id: doc.cp_id || null,
       sujet_id: doc.sujet_id || doc._sujet_id || null,
       besoin_visuel: doc.besoin_visuel,
+      relu_le: doc.relu_le,
       updated_at: new Date().toISOString()
     };
 
@@ -49,6 +50,8 @@ var db = {
     // undefined. Sans ce garde, chacun de ces enregistrements écraserait silencieusement
     // le choix déjà fait par le rédac chef.
     if(payload.besoin_visuel === undefined) delete payload.besoin_visuel;
+    // Horodatage de relecture : posé seulement quand la colonne existe en base (voir js/25-file-sr.js)
+    if(doc.relu_le === undefined) delete payload.relu_le;
     // Ne pas écraser l'image avec null si on ne change pas l'image
     if(payload.image === null && !doc.image_retiree) delete payload.image;
     // Ne pas écraser sujet_id avec null : la création automatique du sujet (plus bas,
@@ -266,7 +269,7 @@ function _osPermissionsModalAction(doc){
     return l.membre_id===getUserId() && l.redaction_id===doc.redaction_id && l.role_redac==='redac_chef';
   });
   return {
-    peutCorriger: role==='admin' || role==='correcteur',
+    peutCorriger: role==='admin' || osEstSR(doc.redaction_id),
     peutModifier: role==='admin' || doc.auteur_id===getUserId() || estChefRedac
   };
 }
@@ -1262,83 +1265,8 @@ function ouvrirAssignation(){
 
 // Liste des correcteurs de la modale « Envoyer en correction », le plus disponible en tête
 function _assignRemplirListe(list){
-  var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
-  var redacArticle = _assignDoc.redaction_id || window._redacActiveId || null;
-  Promise.all([
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc', { headers: authH }).then(function(r){ return r.json(); }),
-    // Charge de chacun : articles qu'il a déjà en relecture
-    fetch(SB_URL+'/rest/v1/articles?statut=eq.en-relecture&correcteur_id=not.is.null&select=id,correcteur_id', { headers: authH }).then(function(r){ return r.json(); }).catch(function(){ return []; })
-  ])
-  .then(function(res){
-    var membres = res[0], enCours = Array.isArray(res[1]) ? res[1] : [];
-    if(!membres || !membres.length){
-      list.innerHTML = '<p style="color:var(--gris);font-size:0.85rem;">Aucun membre trouvé.</p>';
-      return;
-    }
-    list.innerHTML = '';
-    var charge = {};
-    enCours.forEach(function(a){ if(a.id !== _assignDoc.id) charge[a.correcteur_id] = (charge[a.correcteur_id]||0) + 1; });
-    var liens = window._membresRedactionsData || [];
-    function correcteurDeLaRedac(m){ return !!redacArticle && liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === redacArticle && l.role_redac === 'correcteur'; }); }
-    // Exclure l'auteur actuel
-    var nomAuteur = getUserNomComplet();
-    var candidats = membres.filter(function(m){
-      return (m.role === 'correcteur' || m.role === 'admin' || correcteurDeLaRedac(m)) &&
-             !m.marque_inactif && !m.dnd && m.role !== 'interdit' &&
-             (m.prenom + ' ' + m.nom) !== nomAuteur;
-    });
-    // Suggestion : le moins chargé, de préférence correcteur de la rédaction de l'article,
-    // puis correcteur plutôt qu'admin, puis connecté en ce moment
-    candidats.sort(function(a, b){
-      return (charge[a.id]||0) - (charge[b.id]||0)
-        || (correcteurDeLaRedac(b) ? 1 : 0) - (correcteurDeLaRedac(a) ? 1 : 0)
-        || (b.role === 'correcteur' ? 1 : 0) - (a.role === 'correcteur' ? 1 : 0)
-        || (osEstEnLigne(b.id) ? 1 : 0) - (osEstEnLigne(a.id) ? 1 : 0);
-    });
-    // Par défaut : la file d'attente du SR (le premier relecteur disponible prend)
-    var optFile = document.createElement('div');
-    optFile.className = 'assign-membre assign-file';
-    optFile.innerHTML = '<div><div class="assign-membre-nom"><i class="ti ti-list-numbers"></i> File d\'attente du SR</div>'
-      +'<div class="assign-membre-role">Le premier ou la première disponible le prend. Les relecteur·rices sont prévenu·es.</div></div>';
-    optFile.onclick = function(){
-      document.querySelectorAll('.assign-membre').forEach(function(b){ b.classList.remove('selected'); });
-      optFile.classList.add('selected');
-      _assignCorrecteur = null; _assignCorrecteurId = null; _assignFile = true;
-    };
-    list.appendChild(optFile);
-    optFile.onclick();
-    if(candidats.length){
-      var sep = document.createElement('div');
-      sep.className = 'assign-ou';
-      sep.textContent = 'Ou confier directement à :';
-      list.appendChild(sep);
-    }
-    candidats.forEach(function(m, i){
-      var n = charge[m.id] || 0;
-      var el = document.createElement('div');
-      el.className = 'assign-membre';
-      var role = m.role === 'admin' ? 'Admin' : 'SR';
-      el.innerHTML =
-        '<div>' +
-          '<div class="assign-membre-nom">'+esc(m.prenom)+' '+esc(m.nom)
-            +(i === 0 ? ' <span class="assign-suggere" style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#E3F6EA;color:#1E7A45;font-size:0.68rem;font-weight:700;vertical-align:1px;">Suggéré</span>' : '')+'</div>' +
-          '<div class="assign-membre-role">'+role+(correcteurDeLaRedac(m) ? ' de la rédaction' : '')+' · '
-            +(n ? n+' article'+(n>1?'s':'')+' à relire' : 'aucun article à relire')
-            +(osEstEnLigne(m.id) ? ' · en ligne' : '')+'</div>' +
-        '</div>';
-      el.onclick = (function(membre){ return function(){
-        document.querySelectorAll('.assign-membre').forEach(function(b){ b.classList.remove('selected'); });
-        el.classList.add('selected');
-        _assignCorrecteur = membre.prenom + ' ' + membre.nom;
-        _assignCorrecteurId = membre.id;
-        _assignFile = false;
-      }; })(m);
-      list.appendChild(el);
-    });
-  })
-  .catch(function(){
-    list.innerHTML = osErreurHtml();
-  });
+  // La liste (file, suggestion, attribution automatique) est construite dans js/28-attribution-sr.js
+  osSrAttributionRemplir(list);
 }
 
 function assignValider(){
@@ -1350,6 +1278,7 @@ function assignValider(){
   _assignDoc.correcteur_id = _assignFile ? null : (_assignCorrecteurId || null);
   _assignDoc.statut = 'en-relecture';
   var _assignDoc2 = Object.assign({}, _assignDoc);
+  _assignDoc2._auto = !!_assignAuto; // relecteur choisi par Compo (attribution automatique)
 
   notif('Envoi au SR...');
 
@@ -1364,7 +1293,7 @@ function assignValider(){
     return fetch(SB_URL + '/rest/v1/articles?id=eq.' + encodeURIComponent(docId), {
       method: 'PATCH',
       headers: authH,
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         statut: 'en-relecture',
         // _assignDoc2 (capturé au clic, avant l'aller-retour réseau ci-dessus) plutôt que
         // les variables globales _assignCorrecteur/_assignCorrecteurId : si ces globales
@@ -1378,7 +1307,7 @@ function assignValider(){
         titre_original:   _assignDoc.titre   || null,
         chapeau_original: _assignDoc.chapeau || null,
         corps_original:   _assignDoc.corps   || null
-      })
+      }, window._srColsDispo === true ? { envoye_sr_le: new Date().toISOString(), relu_le: null, attribue_auto_le: _assignDoc2._auto ? new Date().toISOString() : null } : {}))
     }).then(function(r){
       // Ne pas continuer (toast succès, vidage du brouillon local, fermeture de
       // l'éditeur, email au correcteur) comme si de rien n'était si ce PATCH a
@@ -1397,6 +1326,14 @@ function assignValider(){
     if(!_assignDoc2.correcteur_id && typeof _srNotifierFile === 'function') _srNotifierFile(_assignDoc2, false);
     var delaiRelecture = typeof osRedacHorairesTexteRelecture === 'function' ? osRedacHorairesTexteRelecture(_assignDoc2.redaction_id) : null;
     if(delaiRelecture) setTimeout(function(){ osShowToast(delaiRelecture+'.', 'info', {icon:'clock'}); }, 600);
+    // Délai habituel de relecture (médiane des dernières relectures), s'il y a assez de données
+    if(typeof osSrStatsDelais === 'function'){
+      osSrStatsDelais().then(function(st){
+        if(!st) return;
+        var e = osSrEstimation(_assignDoc2.correcteur_id ? st.relecteur[_assignDoc2.correcteur_id] : null) || osSrEstimation(st.redac[_assignDoc2.redaction_id]) || osSrEstimation(st.tous);
+        if(e) setTimeout(function(){ osShowToast('Relecture habituelle : '+osSrDelaiTexte(e.ms)+'.', 'info', {icon:'hourglass'}); }, delaiRelecture ? 4200 : 1200);
+      }).catch(function(){});
+    }
     osClearAutosave();
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
@@ -1405,35 +1342,13 @@ function assignValider(){
     // _assignCorrecteur/_assignCorrecteurId : même raison que le PATCH plus haut, ce
     // bloc s'exécute après plusieurs allers-retours réseau.
     if(_assignDoc2.correcteur_id){
-      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignDoc2.correcteur_id+'&select=email,prenom,canal_notif', {headers:SB_HEADERS})
+      fetch(SB_URL+'/rest/v1/membres?id=eq.'+_assignDoc2.correcteur_id+'&select=id,email,prenom,canal_notif', {headers:SB_HEADERS})
       .then(function(r){ return r.json(); })
       .then(function(data){
         var membre = data && data[0] ? data[0] : null;
         if(!membre) return;
-        // Réglage par rédaction, indépendant du canal choisi par la personne — s'il est
-        // désactivé, ni le DM Chat ni l'email ne doivent partir.
-        if(!_osRedacNotifActive(_assignDoc2.redaction_id, 'notif_correction')) return;
-        var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(docId);
-        var parQui = _assignDoc2.auteur || 'Un·e rédacteur·rice';
-        var nomRedacSR = _assignDoc2.redaction || (typeof _nomRedac === 'function' ? _nomRedac(_assignDoc2.redaction_id) : '');
-        if(membre.canal_notif === 'chat'){
-          // Canal choisi par la personne : part systématiquement, même connectée à
-          // Compo — ce n'est pas un filet de secours comme l'email ci-dessous.
-          var messageChat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(_assignDoc2.titre||'Sans titre')+' »'+(nomRedacSR ? ' · '+_chatSansMiseEnForme(nomRedacSR) : '')+', confié par '+_chatSansMiseEnForme(parQui)+'.\n<'+lienArt+'|Relire l\'article>';
-          notifierChatDM(_assignDoc2.correcteur_id, messageChat, 'correction');
-        } else if(membre.email && !osEstEnLigne(_assignDoc2.correcteur_id)){
-          // Pas d'email si la notification urgente in-app suffit déjà (SR connecté·e).
-          var html = _emailCompo({
-            accent:'bleu', etiquette:'AU SR', titre:'Un article t\'attend',
-            bonjour:'Bonjour '+esc(membre.prenom||'')+',',
-            texte:'<strong>'+esc(parQui)+'</strong> te confie la relecture de cet article.',
-            contenu:_emailCarteArticle(_assignDoc2),
-            boutons:[{ label:'Relire l\'article', url:lienArt }],
-            pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
-          });
-          envoyerEmailResend(membre.email, '[Ipsum Média] Un article t\'attend au SR : '+(_assignDoc2.titre||'Sans titre'), html, 'correction')
-            .catch(function(){ console.warn('Email SR non envoyé'); });
-        }
+        // Réglage par rédaction, canal de la personne, pas d'email si elle est connectée : voir osSrNotifierRelecteur
+        osSrNotifierRelecteur(_assignDoc2, membre, _assignDoc2._auto);
       }).catch(function(){});
     }
   }).catch(function(){
@@ -1446,6 +1361,7 @@ function assignFermer(){
   _assignDoc = null;
   _assignCorrecteur = null;
   _assignFile = false;
+  _assignAuto = false;
 }
 
 
@@ -1748,7 +1664,7 @@ function rWorkflowMajInterface(doc){
   var isChef    = roleRedac==='redac_chef' || role==='admin';
   // Correcteur = explicitement désigné sur l'article OU rôle correcteur global
   var isCorrecteurDesigne = doc.correcteur_id && doc.correcteur_id === uid;
-  var isCorr    = role==='correcteur' || isCorrecteurDesigne;
+  var isCorr    = osEstSR(doc.redaction_id) || isCorrecteurDesigne;
   var statut    = doc.statut||'brouillon';
   // Rédac chef ou admin qui est aussi le SR désigné : il ne passe en « mode SR » que
   // tant que l'article est au SR. Une fois relu, il retrouve ses boutons de chef (Bon à
@@ -2089,6 +2005,8 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   // qui ratait aussi bien des brèves à illustrer que des articles qui n'en avaient pas besoin.
   if(nouveauStatut==='valide' && typeof besoinVisuel === 'boolean') doc.besoin_visuel = besoinVisuel;
   if(currentDoc.auteur_id){ doc.auteur=currentDoc.auteur; doc.auteur_id=currentDoc.auteur_id; }
+  // Fin de relecture : on note l'heure (sert à estimer le délai habituel de relecture)
+  if(window._srColsDispo === true && currentDoc.statut === 'en-relecture' && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) doc.relu_le = new Date().toISOString();
   // Relu (ou validé directement) par quelqu'un d'autre que le SR désigné : on le préviendra
   var srDessaisi = (currentDoc.statut === 'en-relecture' && currentDoc.correcteur_id && currentDoc.correcteur_id !== getUserId()
     && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) ? currentDoc.correcteur_id : null;

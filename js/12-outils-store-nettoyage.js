@@ -1139,6 +1139,13 @@ function osNoteSupprimer(id){
 
 // ===== NETTOYAGE =====
 
+// En-têtes avec la session de la personne connectée. Avec les seuls SB_HEADERS (clé publique), la base
+// renvoie des listes vides quand ses règles d'accès exigent un compte connecté : les compteurs
+// (dont les emails envoyés) restaient alors à zéro sans erreur visible.
+function _nettAuthH(){
+  return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+}
+
 function osNettoyageRender(moisLimite){
   moisLimite = moisLimite || 3;
   var wc = document.getElementById('wincontent-nettoyage');
@@ -1152,13 +1159,13 @@ function osNettoyageRender(moisLimite){
 
   // Charger les stats de toutes les tables + emails en parallèle
   Promise.all([
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,updated_at,image,auteur&order=updated_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/communiques?select=id,titre,statut,created_at,fichier_b64,fichier_pdf&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/historique?select=id,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.false&select=id,message,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/contacts_historique?select=id,created_at&order=created_at.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutJour+'&select=id,type', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutMois+'&select=id,type,created_at', {headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,statut,updated_at,image,auteur&order=updated_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/communiques?select=id,titre,statut,created_at,fichier_b64,fichier_pdf&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/historique?select=id,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.false&select=id,message,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/contacts_historique?select=id,created_at&order=created_at.asc', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutJour+'&select=id,type', {headers:_nettAuthH()}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/emails_log?created_at=gte.'+debutMois+'&select=id,type,created_at', {headers:_nettAuthH()}).then(function(r){return r.json();})
   ]).then(function(res){
     var articles    = (!res[0]||res[0].code) ? [] : res[0];
     var communiques = (!res[1]||res[1].code) ? [] : res[1];
@@ -1489,7 +1496,7 @@ function osNettoyageRechercherArticles(){
     if(!zone) return;
     if(!q.trim()){ zone.innerHTML=''; return; }
     zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
-    fetch(SB_URL+'/rest/v1/articles?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,auteur,updated_at&order=updated_at.desc&limit=15', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/articles?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,auteur,updated_at&order=updated_at.desc&limit=15', {headers:_nettAuthH()})
     .then(function(r){return r.json();})
     .then(function(arts){
       if(!arts||arts.code||!arts.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
@@ -1532,7 +1539,7 @@ function osNettoyageRechercherSujets(){
     if(!zone) return;
     if(!q.trim()){ zone.innerHTML=''; return; }
     zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
-    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:SB_HEADERS})
+    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:_nettAuthH()})
     .then(function(r){return r.json();})
     .then(function(sujets){
       if(!sujets||sujets.code||!sujets.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
@@ -1593,7 +1600,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
-  { id:'log',            icon:'<i class="ti ti-file-text"></i>', label:'Journal',        color:'#2C3E50', roles:['admin'] },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
@@ -1615,7 +1621,7 @@ var PROFILS_PREDEFINIS = {
   redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','flouter','notes','compo-store'],
   correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
   redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
-  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','log','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
+  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
   communicant: ['app-com','redactions','notes','compo-store','boutique','mail','signatures'],
@@ -1866,6 +1872,13 @@ function _initialiserAppsParDefaut(userId, role){
   }).catch(function(){});
 }
 
+// Rechargement de l'app Admin sans la vider ni la faire clignoter (après une action, un changement
+// d'onglet…). navigation = true : changement d'onglet, on repart du haut de la nouvelle vue.
+function osGestionAppsRafraichir(navigation){
+  if(!document.getElementById('wincontent-gestion-apps')) return;
+  _osRafraichirDiscret('gestion-apps', osGestionAppsRender, { navigation: navigation === true });
+}
+
 function osGestionAppsRender(){
   var wc = document.getElementById('wincontent-gestion-apps');
   if(!wc) return;
@@ -1906,7 +1919,7 @@ function osGestionAppsRender(){
          ['rapports','ti-file-text','Rapports','']
         ].map(function(t){
           var a = _onglet === t[0];
-          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRender()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
+          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRafraichir(true)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
             +'<span style="font-size:0.95rem;display:flex;flex-shrink:0;"><i class="ti '+t[1]+'"></i></span>'+t[2]
             +(t[3] ? '<span style="margin-left:auto;background:'+(a?'rgba(255,255,255,0.28)':'var(--rouge)')+';color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:10px;">'+t[3]+'</span>' : '')
             +'</button>';
@@ -2076,7 +2089,7 @@ function osInviterMembreModal(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">'
     +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Rôle *</label><select id="inv-role" style="width:100%;margin-top:3px;padding:.45rem .7rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.82rem;box-sizing:border-box;background:white;">'
     +'<option value="redacteur">Rédacteur</option>'
-    +'<option value="correcteur">Secrétaire de rédaction</option>'
+    +'<option value="correcteur">SR (toutes les rédactions)</option>'
     +'<option value="communicant">Communicant</option>'
     +'<option value="admin">Admin</option>'
     +'</select></div>'
@@ -2151,7 +2164,7 @@ function osInviterMembreValider(){
     if(ov) ov.remove();
     notif('Compte créé pour '+email+' !','succes');
     window._gestionAppsOnglet = 'membres';
-    osGestionAppsRender();
+    osGestionAppsRafraichir();
   })
   .catch(function(err){
     if(errEl){errEl.textContent='Erreur réseau : '+String(err);errEl.style.display='block';}
@@ -2189,7 +2202,7 @@ function osDesactiverMembre(id, nom){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
   .then(function(r){
-    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRender(); }
+    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRafraichir(); }
     else notif('Erreur','erreur');
   });
 }
@@ -2358,7 +2371,7 @@ function osChangerEmailMembreEnvoyer(membreId){
     var ov = document.getElementById('change-email-overlay');
     if(ov) ov.remove();
     notif('Email de connexion mis à jour !', 'succes');
-    osGestionAppsRender();
+    osGestionAppsRafraichir();
   }).catch(function(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Erreur réseau.'; }
     if(btn){ btn.disabled=false; btn.textContent='Modifier'; }
@@ -2538,7 +2551,7 @@ function osGestionAppsSelectAll(membreId, activer){
       }),
       body: JSON.stringify(rows)
     }).then(function(r){
-      if(r.ok){ notif('Toutes les apps activées'); osGestionAppsRender(); }
+      if(r.ok){ notif('Toutes les apps activées'); osGestionAppsRafraichir(); }
     });
   } else {
     fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(membreId), {
@@ -2547,7 +2560,7 @@ function osGestionAppsSelectAll(membreId, activer){
         'Authorization':'Bearer '+(_session&&_session.access_token||'')
       })
     }).then(function(r){
-      if(r.ok){ notif('Toutes les apps désactivées'); osGestionAppsRender(); }
+      if(r.ok){ notif('Toutes les apps désactivées'); osGestionAppsRafraichir(); }
     });
   }
 }
@@ -2580,7 +2593,7 @@ function osGestionAppsAppliquerProfil(membreId, profil){
       body: JSON.stringify(rows)
     });
   }).then(function(r){
-    if(r.ok){ notif('Profil "'+labels[profil]+'" appliqué !'); osGestionAppsRender(); }
+    if(r.ok){ notif('Profil "'+labels[profil]+'" appliqué !'); osGestionAppsRafraichir(); }
     else { notif('Erreur application du profil'); }
   }).catch(function(){ notif('Erreur réseau'); });
 }

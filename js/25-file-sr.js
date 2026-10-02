@@ -10,15 +10,20 @@ function _srAuth(extra){
   return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}, extra||{});
 }
 
-// Peut prendre un article de la file de cette rédaction
-function _srPeutPrendre(redacId){
-  var role = getUserRole();
-  if(role === 'admin' || role === 'correcteur') return true;
+// SR de cette rédaction ? Vrai pour un SR « de toutes les rédactions » (rôle global)
+// ou pour qui a le rôle SR dans cette rédaction. Sans rédaction : SR quelque part.
+function osEstSR(redacId){
+  if(getUserRole() === 'correcteur') return true;
   var uid = getUserId();
   return (window._membresRedactionsData||[]).some(function(l){
-    // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de correcteur (choix de Tom)
     return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && l.role_redac === 'correcteur';
   });
+}
+
+// Peut prendre un article de la file de cette rédaction
+function _srPeutPrendre(redacId){
+  // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de SR (choix de Tom)
+  return getUserRole() === 'admin' || osEstSR(redacId);
 }
 function _srVoitLaFile(){ return _srPeutPrendre(null); }
 
@@ -65,13 +70,14 @@ function osSrRendre(articleId){
   .then(function(rows){
     if(!Array.isArray(rows) || !rows.length){ notif('Impossible de rendre cet article à la file','erreur'); return; }
     notif('Article rendu à la file','succes');
-    _srNotifierFile(rows[0], true);
+    // En attribution automatique, Compo choisit la personne suivante ; sinon l'article retourne dans la file
+    if(typeof osSrApresRendu === 'function') osSrApresRendu(rows[0], getUserId()); else _srNotifierFile(rows[0], true);
     if(typeof osMesArticlesCharger === 'function') osMesArticlesCharger();
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 // Prévenir les personnes qui peuvent prendre : correcteur·rices de la rédaction
-// (ou du SR général) — pas les rédac chefs, pour ne pas les noyer.
+// (ou du SR général) et admins — pas les rédac chefs, pour ne pas les noyer.
 function _srNotifierFile(doc, rendu){
   if(!doc || (typeof _osRedacNotifActive === 'function' && !_osRedacNotifActive(doc.redaction_id, 'notif_correction'))) return;
   fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()})
@@ -81,7 +87,8 @@ function _srNotifierFile(doc, rendu){
     var liens = window._membresRedactionsData || [];
     var cibles = membres.filter(function(m){
       if(m.id === doc.auteur_id || m.id === getUserId() || m.dnd || m.marque_inactif) return false;
-      return m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && l.role_redac === 'correcteur'; });
+      // Les admins aussi : ils voient la file et peuvent y prendre un article, il faut donc les prévenir
+      return m.role === 'admin' || m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && l.role_redac === 'correcteur'; });
     });
     var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var titre = doc.titre || 'Sans titre';
@@ -129,3 +136,73 @@ function _srDepuis(iso){
   if(h < 48) return 'depuis '+h+' h';
   return 'depuis '+Math.round(h/24)+' jours';
 }
+
+
+// ===== DÉLAI DE RELECTURE ESTIMÉ =====
+// Compo note quand un article part au SR (articles.envoye_sr_le) et quand il est relu
+// (articles.relu_le). La médiane des dernières relectures donne un délai « habituel », par
+// rédaction et par relecteur·rice. Tant que les deux colonnes n'existent pas en base, rien n'est
+// écrit et aucune estimation n'est affichée : Compo fonctionne comme avant.
+var SR_DELAI_MIN_RELECTURES = 3;   // en dessous, pas d'estimation (trop peu de données)
+var SR_DELAI_MAX_JOURS = 60;       // relectures plus lentes : écartées (article oublié, pas un délai habituel)
+var _srStatsCache = null;
+
+// Les colonnes existent-elles ? Vérifié une fois ; window._srColsDispo est lu par les écritures
+function osSrColonnesDispo(){
+  if(typeof window._srColsDispo === 'boolean') return Promise.resolve(window._srColsDispo);
+  if(!_session || !_session.access_token) return Promise.resolve(false);
+  return fetch(SB_URL+'/rest/v1/articles?select=envoye_sr_le,relu_le,attribue_auto_le&limit=1', {headers:_srAuth()})
+    .then(function(r){ window._srColsDispo = r.ok; return r.ok; })
+    .catch(function(){ return false; });
+}
+
+function _srMediane(valeurs){
+  var t = valeurs.slice().sort(function(a,b){ return a-b; });
+  var m = Math.floor(t.length/2);
+  return t.length % 2 ? t[m] : (t[m-1] + t[m]) / 2;
+}
+
+// {redac: {redacId: {n, ms}}, relecteur: {membreId: {n, ms}}, tous: {n, ms}} — null si colonnes absentes
+function osSrStatsDelais(){
+  if(_srStatsCache && Date.now() - _srStatsCache.t < 5*60*1000) return Promise.resolve(_srStatsCache.data);
+  return osSrColonnesDispo().then(function(ok){
+    if(!ok) return null;
+    return fetch(SB_URL+'/rest/v1/articles?envoye_sr_le=not.is.null&relu_le=not.is.null&order=relu_le.desc&limit=300&select=correcteur_id,redaction_id,envoye_sr_le,relu_le', {headers:_srAuth()})
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if(!Array.isArray(rows)) return null;
+        var parRedac = {}, parRel = {}, tous = [];
+        rows.forEach(function(a){
+          var ms = new Date(a.relu_le).getTime() - new Date(a.envoye_sr_le).getTime();
+          if(!(ms >= 0) || ms > SR_DELAI_MAX_JOURS*86400000) return;
+          tous.push(ms);
+          if(a.redaction_id) (parRedac[a.redaction_id] = parRedac[a.redaction_id] || []).push(ms);
+          if(a.correcteur_id) (parRel[a.correcteur_id] = parRel[a.correcteur_id] || []).push(ms);
+        });
+        function resume(map){
+          var out = {};
+          Object.keys(map).forEach(function(k){ out[k] = { n: map[k].length, ms: _srMediane(map[k]) }; });
+          return out;
+        }
+        var data = { redac: resume(parRedac), relecteur: resume(parRel), tous: { n: tous.length, ms: tous.length ? _srMediane(tous) : 0 } };
+        _srStatsCache = { t: Date.now(), data: data };
+        return data;
+      }).catch(function(){ return null; });
+  });
+}
+
+// Estimation exploitable (assez de relectures) ou null
+function osSrEstimation(stat){
+  return (stat && stat.n >= SR_DELAI_MIN_RELECTURES) ? stat : null;
+}
+
+function osSrDelaiTexte(ms){
+  var h = ms / 3600000;
+  if(h < 1) return 'moins d\'une heure';
+  if(h < 24) return 'environ '+Math.round(h)+' h';
+  var j = Math.round(h/24);
+  return 'environ '+j+' jour'+(j > 1 ? 's' : '');
+}
+
+// Lancé une fois connecté : sait si les colonnes existent avant la première écriture
+setTimeout(function(){ if(typeof osSrColonnesDispo === 'function') osSrColonnesDispo(); }, 4000);

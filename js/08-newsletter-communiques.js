@@ -2231,9 +2231,11 @@ function cpsToggleAbonnementSource(contactId, activer){
   }
 }
 
-function cpsAdminCharger(){
+// silencieux : rechargement au retour sur la fenêtre — la liste affichée reste en place pendant la mise à jour
+function cpsAdminCharger(silencieux){
   var liste = osGetEl('cps-admin-liste') || document.getElementById('cps-admin-liste');
   if(!liste) return;
+  var dejaAffichee = silencieux === true && liste.children.length > 0 && !liste.querySelector('.os-loading');
   // Contrôle d'accès — admin ou redac_chef seulement
   var role = getUserRole();
   var monLienCps = (window._membresRedactionsData||[]).find(function(l){ return l.membre_id === getUserId() && l.redaction_id === window._redacActiveId; });
@@ -2242,7 +2244,7 @@ function cpsAdminCharger(){
     liste.innerHTML = '<div style="padding:2rem;text-align:center;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--gris);">Accès réservé aux rédacteurs en chef et administrateurs.</div>';
     return;
   }
-  liste.innerHTML = osLoadingHtml();
+  if(!dejaAffichee) liste.innerHTML = osLoadingHtml();
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Filtrer par rédaction active si non-admin ou si rédaction choisie
   // Trié par « Date du communiqué » (saisie à la main), pas par date de saisie dans Compo —
@@ -2301,6 +2303,7 @@ function cpsAdminCharger(){
       });
     });
   }).catch(function(){
+    if(dejaAffichee) return; // échec silencieux : on garde la liste affichée
     liste.innerHTML = osErreurHtml('cpsCharger');
   });
 }
