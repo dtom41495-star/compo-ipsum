@@ -71,7 +71,7 @@ function osSrRendre(articleId){
 }
 
 // Prévenir les personnes qui peuvent prendre : correcteur·rices de la rédaction
-// (ou du SR général) — pas les rédac chefs, pour ne pas les noyer.
+// (ou du SR général) et admins — pas les rédac chefs, pour ne pas les noyer.
 function _srNotifierFile(doc, rendu){
   if(!doc || (typeof _osRedacNotifActive === 'function' && !_osRedacNotifActive(doc.redaction_id, 'notif_correction'))) return;
   fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()})
@@ -81,7 +81,8 @@ function _srNotifierFile(doc, rendu){
     var liens = window._membresRedactionsData || [];
     var cibles = membres.filter(function(m){
       if(m.id === doc.auteur_id || m.id === getUserId() || m.dnd || m.marque_inactif) return false;
-      return m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && l.role_redac === 'correcteur'; });
+      // Les admins aussi : ils voient la file et peuvent y prendre un article, il faut donc les prévenir
+      return m.role === 'admin' || m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && l.role_redac === 'correcteur'; });
     });
     var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var titre = doc.titre || 'Sans titre';

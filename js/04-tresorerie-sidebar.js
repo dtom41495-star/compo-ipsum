@@ -2625,13 +2625,16 @@ function osVerifierNotifsWorkflow(){
       : Promise.resolve([]),
     estValidateurCentral()
       ? fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&select=id,titre,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];})
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    // File d'attente du SR : articles envoyés au SR sans relecteur désigné (visible de ceux qui peuvent la prendre)
+    typeof _srChargerFile === 'function' ? _srChargerFile() : Promise.resolve([])
   ];
 
   Promise.all(reqs).then(function(res){
     var aCorrections      = Array.isArray(res[0]) ? res[0] : [];
     var aChefCandidats    = Array.isArray(res[1]) ? res[1] : [];
     var aCentraleCandidats= Array.isArray(res[2]) ? res[2] : [];
+    var aFile             = Array.isArray(res[3]) ? res[3] : [];
 
     var redacCentrale = (window._redactionsData||[]).filter(function(r){ return r.est_centrale; })[0] || null;
     var aPublication = aChefCandidats.filter(function(a){ return _osArticlePubliable(a); });
@@ -2648,6 +2651,13 @@ function osVerifierNotifsWorkflow(){
 
     aCorrections.forEach(function(a){
       afficher('correction', a, 'Article à relire (SR)', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
+    });
+    aFile.forEach(function(a){
+      afficher('correction', {id:'file-'+a.id, titre:a.titre}, 'Un article attend dans la file du SR', {label:'Voir la file', fn:function(){
+        _maOnglet = 'corriger';
+        if(_windows['mes-articles']){ osFocusWindow('mes-articles'); if(typeof osMesArticlesChangerOnglet === 'function') osMesArticlesChangerOnglet('corriger'); }
+        else osOpenWindow('mes-articles');
+      }});
     });
     aPublication.forEach(function(a){
       afficher('publication', a, 'Bon à publier : à mettre en ligne', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});

@@ -281,6 +281,12 @@ function osMesArticlesChargerACorriger(){
     if(!Array.isArray(rows)) return;
     _corrAArticleACorriger = rows.length > 0;
     osMesArticlesMajClignotement();
+    // Un article qui attend dans la file du SR fait aussi clignoter l'icône, pour qui peut le prendre
+    if(!_corrAArticleACorriger && typeof _srChargerFile === 'function'){
+      _srChargerFile().then(function(file){
+        if(Array.isArray(file) && file.length){ _corrAArticleACorriger = true; osMesArticlesMajClignotement(); }
+      }).catch(function(){});
+    }
   })
   .catch(function(){});
 }
