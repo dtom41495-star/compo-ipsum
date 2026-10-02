@@ -1145,12 +1145,15 @@ var _articlesRedacData = [];
 
 var _redacOnglet = 'profil'; // 'profil' | 'sujets' | 'redac'
 
-function osRedactionsRender(){
+// silencieux : rafraîchissement automatique au retour sur la fenêtre — recharge les données en
+// arrière-plan sans toucher à l'affichage (pas de « Chargement… », pas de reconstruction)
+function osRedactionsRender(silencieux){
   var wc = document.getElementById('wincontent-redactions');
   if(!wc) return;
   var role = getUserRole();
   var uid = getUserId();
-  wc.innerHTML = osLoadingHtml('osRedactionsRender');
+  var enArrierePlan = silencieux === true && !!document.getElementById('redac-content-outer');
+  if(!enArrierePlan) wc.innerHTML = osLoadingHtml('osRedactionsRender');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
@@ -1200,6 +1203,12 @@ function osRedactionsRender(){
     // Garder tous les articles pour la vue admin (stats toutes rédactions)
     window._tousArticles = tousArticles;
 
+    // Fenêtre déjà affichée : données à jour, on s'arrête là (seules les pastilles sont remises à jour)
+    if(enArrierePlan && document.getElementById('redac-content-outer')){
+      if(typeof cpsChargerBadge === 'function') cpsChargerBadge();
+      return;
+    }
+
     // Filtrer les articles par rédaction active — uniquement par redaction_id
     var redacIdPourFiltrage = window._redacActiveId;
     if(redacIdPourFiltrage){
@@ -1225,6 +1234,7 @@ function osRedactionsRender(){
 
     osRedactionsRenderAvecOnglets(wc, uid, maRedacId, monRoleMedia);
   }).catch(function(e){
+    if(enArrierePlan) return; // échec silencieux : on garde l'affichage actuel
     wc.innerHTML = '<div style="padding:2rem;font-family:Space Mono,monospace;font-size:0.78rem;color:var(--rouge);">Erreur de chargement.</div>';
   });
   });

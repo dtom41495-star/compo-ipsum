@@ -908,13 +908,16 @@ function osFocusWindow(pageId){
   _zCounter++;
   var win = _windows[pageId];
   if(!win) return;
+  // Déjà la fenêtre active : un simple clic dedans n'est pas un « retour » sur la fenêtre,
+  // il ne doit rien rafraîchir (sinon l'appli se reconstruisait et clignotait en plein usage)
+  var dejaActive = win.el.classList.contains('active');
   Object.values(_windows).forEach(function(w){ w.el.classList.remove('active'); });
   win.el.classList.add('active');
   win.el.style.zIndex = _zCounter;
   window._activeWindowId = pageId;
   osUpdateDockActiveState();
-  // Refresh des données si la fonction existe
-  var refreshFn = _appRefreshMap[pageId];
+  // Refresh des données si la fonction existe — seulement quand on revient sur la fenêtre
+  var refreshFn = dejaActive ? null : _appRefreshMap[pageId];
   if(refreshFn){
     var now = Date.now();
     var lastRefresh = win._lastRefresh || 0;

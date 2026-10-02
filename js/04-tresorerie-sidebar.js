@@ -1997,7 +1997,8 @@ function osChargerWidgets(){
 
 var _appRefreshMap = {
   'benevoles':      function(){ var wc=document.getElementById('wincontent-benevoles'); if(wc) osBenevolesDashRender(); },
-  'redactions':     function(){ osRedactionsRender(); },
+  // Ma rédac' : mise à jour des données en arrière-plan, sans reconstruire la fenêtre (onglet, rail et saisies restent en place)
+  'redactions':     function(){ osRedactionsRender(true); },
   // Mes articles : on recharge seulement la liste (sans reconstruire la fenêtre) — les filtres,
   // la recherche et le défilement restent en place, et rien ne clignote
   'mes-articles':   function(){ var wc=document.getElementById('wincontent-mes-articles'); if(!wc) return; if(document.getElementById('ma-os-list') && typeof osMesArticlesCharger === 'function') osMesArticlesCharger(); else osMesArticlesRender(); },
