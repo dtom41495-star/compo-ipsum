@@ -4892,3 +4892,17 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .ipj-aj-vide i { font-size: 2.6rem; color: #27AE60; opacity: .7; }
 .ipj-aj-vide small { display: block; margin-top: 4px; }
 @media (min-width: 769px) { .ipj-aj .ipj-retour { display: none; } }
+
+/* Projets · Qui voit ce projet ? */
+.ipj-vis-mode { display: flex; gap: 6px; margin-top: 4px; }
+.ipj-vis-mode button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border: 1.5px solid var(--ipj-gb); background: #fff; border-radius: 10px; font-size: .82rem; font-weight: 600; cursor: pointer; color: var(--ipj-e); }
+.ipj-vis-mode button.on { border-color: #E8461E; background: #FDEEE8; color: #C73A18; }
+.ipj-vis-onglets { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; border-bottom: 1px solid var(--ipj-gb); }
+.ipj-vis-onglets button { border: none; background: transparent; padding: 6px 10px; font-size: .78rem; font-weight: 600; color: var(--ipj-g); cursor: pointer; border-bottom: 2px solid transparent; }
+.ipj-vis-onglets button.on { color: #C73A18; border-bottom-color: #E8461E; }
+.ipj-vis-onglets b { background: #E8461E; color: #fff; border-radius: 999px; font-size: .62rem; padding: 0 6px; margin-left: 3px; }
+.ipj-vis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 150px; overflow-y: auto; }
+.ipj-vchip { border: 1px solid var(--ipj-gb); background: #fff; border-radius: 999px; padding: 4px 11px; font-size: .78rem; font-weight: 600; cursor: pointer; color: var(--ipj-e); }
+.ipj-vchip:hover { border-color: #E8461E; }
+.ipj-vchip.on { background: #E8461E; border-color: #E8461E; color: #fff; }
+.ipj-vis-aide { margin-top: 8px; font-size: .72rem; color: var(--ipj-g); }

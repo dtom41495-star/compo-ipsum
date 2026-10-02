@@ -83,6 +83,13 @@ function osProjetsRender(){
   });
   _ipj.actif = null;
   _ipj.global = 'aujourdhui';
+  // Une fois le SQL de visibilité lancé, tous les membres peuvent créer un projet
+  _ipjVisSonde().then(function(ok){
+    var hdr = _ipjQ('.ipj-sb-hdr');
+    if(ok && hdr && !hdr.querySelector('[data-ipj="nouveau-projet"]')){
+      hdr.insertAdjacentHTML('beforeend', '<button class="ipj-btn ipj-btn-rouge" data-ipj="nouveau-projet"><i class="ti ti-plus"></i>Nouveau</button>');
+    }
+  });
   osProjetsChargerListe();
 }
 
@@ -117,7 +124,7 @@ function _ipjRendreListe(){
     var d = document.createElement('button');
     d.type = 'button';
     d.className = 'ipj-pi'+(_ipj.actif && _ipj.actif.id === p.id ? ' on' : '');
-    d.innerHTML = '<div class="ipj-pi-nom">'+esc(p.titre||'')+'</div>'
+    d.innerHTML = '<div class="ipj-pi-nom">'+(p.visibilite === 'restreint' ? '<i class="ti ti-lock" title="Projet à accès restreint" style="font-size:.8rem;margin-right:4px;color:var(--ipj-g);"></i>' : '')+esc(p.titre||'')+'</div>'
       +'<div class="ipj-pi-meta"><span class="ipj-bdg '+st.cls+'">'+st.l+'</span>'
       +(n ? '<span>'+n+' tâche'+(n>1?'s':'')+'</span>' : '')
       +(p.date_limite ? '<span'+(retard?' class="ipj-retard"':'')+'>'+(retard?'<i class="ti ti-alert-triangle"></i>':'')+_ipjDateCourte(p.date_limite)+'</span>' : '')
@@ -483,21 +490,28 @@ function _ipjFormProjet(p){
     +'<div class="ipj-ff"><label>Statut</label><select data-f="statut">'+Object.keys(IPJ_STATUTS_PROJET).map(function(k){ return '<option value="'+k+'"'+(p && p.statut === k ? ' selected' : '')+'>'+IPJ_STATUTS_PROJET[k].l+'</option>'; }).join('')+'</select></div>'
     +'<div class="ipj-ff"><label>Date limite</label><input data-f="date_limite" type="date" value="'+(p && p.date_limite ? esc(p.date_limite) : '')+'"></div>'
     +'</div>'
+    +'<div id="ipj-vis-zone"></div>'
     +'<button type="button" class="ipj-submit" data-act="valider">'+(edition ? 'Enregistrer' : 'Créer le projet')+'</button>');
   var champ = function(n){ return ov.querySelector('[data-f="'+n+'"]'); };
   setTimeout(function(){ champ('titre').focus(); }, 50);
+  var vis = null;
+  _ipjVisSonde().then(function(ok){ if(ok) return _ipjVisConstruire(ov.querySelector('#ipj-vis-zone'), p).then(function(v){ vis = v; }); });
   ov.querySelector('[data-act="valider"]').onclick = function(){
     var titre = (champ('titre').value||'').trim();
     if(!titre){ notif('Le titre est obligatoire'); return; }
     var pl = {titre:titre, description:champ('description').value.trim()||null, statut:champ('statut').value, date_limite:champ('date_limite').value||null};
     if(!edition) pl.cree_par = getUserId();
+    if(vis){
+      if(vis.mode === 'restreint' && !_ipjVisNbChoix(vis)){ notif('Choisis au moins une personne, un rôle, une fonction, une rédaction ou une commission'); return; }
+      pl.visibilite = vis.mode;
+    }
     _ipjEcrire('/rest/v1/projets'+(edition ? '?id=eq.'+p.id : ''), edition ? 'PATCH' : 'POST', pl, 'return=representation')
       .then(function(r){ return r.json(); })
       .then(function(d){
         notif(edition ? 'Projet modifié' : 'Projet créé', 'succes');
         ov.remove();
         var id = d && d[0] ? d[0].id : (edition ? p.id : null);
-        osProjetsChargerListe().then(function(){
+        (vis && id ? _ipjVisEnregistrer(id, vis) : Promise.resolve()).then(function(){ return osProjetsChargerListe(); }).then(function(){
           var np = _ipj.projets.find(function(x){ return x.id === id; });
           if(np) _ipjOuvrirProjet(np);
         });
@@ -843,4 +857,103 @@ function _ipjLigneAujourdhui(t){
     _ipjDetailTache(t, proj, peutGerer);
   };
   return row;
+}
+
+
+// ===== VISIBILITÉ DES PROJETS =====
+// « Qui voit ce projet ? » : tout le monde, ou certaines personnes / rôles / fonctions /
+// rédactions / commissions. N'apparaît qu'une fois le SQL de visibilité lancé.
+
+var _ipjVis = { dispo:null };
+var IPJ_ROLES_VIS = [
+  {id:'redacteur', l:'Rédacteur·rice'}, {id:'correcteur', l:'SR'}, {id:'redac_chef', l:'Rédac chef'},
+  {id:'communicant', l:'Communicant·e'}, {id:'admin', l:'Admin'}
+];
+
+function _ipjVisSonde(){
+  if(_ipjVis.dispo !== null) return Promise.resolve(_ipjVis.dispo);
+  return Promise.all([
+    fetch(SB_URL+'/rest/v1/projets?select=visibilite&limit=1', {headers:_ipjH()}),
+    fetch(SB_URL+'/rest/v1/projets_acces?select=id&limit=1', {headers:_ipjH()})
+  ]).then(function(r){ _ipjVis.dispo = !!(r[0].ok && r[1].ok); return _ipjVis.dispo; })
+    .catch(function(){ _ipjVis.dispo = false; return false; });
+}
+function _ipjVisNbChoix(v){
+  var n = 0; for(var k in v.sel) n += v.sel[k].length; return n;
+}
+
+// Commissions qui ont au moins un membre : sans membre, l'onglet n'apparaît pas
+function _ipjVisCommissions(){
+  return Promise.all([
+    _ipjLireSilencieux('/rest/v1/commissions?order=ordre.asc&select=id,nom'),
+    _ipjLireSilencieux('/rest/v1/commission_membres?select=commission_id')
+  ]).then(function(r){
+    var avec = {}; r[1].forEach(function(l){ avec[l.commission_id] = true; });
+    return r[0].filter(function(c){ return avec[c.id]; });
+  });
+}
+function _ipjLireSilencieux(chemin){
+  return fetch(SB_URL+chemin, {headers:_ipjH()}).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; });
+}
+
+function _ipjVisConstruire(zone, p){
+  var etat = { mode: (p && p.visibilite === 'restreint') ? 'restreint' : 'tous', sel:{membre:[], role:[], fonction:[], redaction:[], commission:[]}, onglet:'membre' };
+  return Promise.all([
+    p ? _ipjLireSilencieux('/rest/v1/projets_acces?projet_id=eq.'+p.id+'&select=type,valeur') : Promise.resolve([]),
+    _ipjVisCommissions()
+  ]).then(function(r){
+    r[0].forEach(function(a){ if(etat.sel[a.type]) etat.sel[a.type].push(String(a.valeur)); });
+    var commissions = r[1];
+    var onglets = [
+      {id:'membre', l:'Personnes', liste:(_ipj.membres||[]).map(function(m){ return {id:m.id, l:((m.prenom||'')+' '+(m.nom||'')).trim()}; })},
+      {id:'role', l:'Rôles', liste:IPJ_ROLES_VIS},
+      {id:'fonction', l:'Fonctions', liste:(typeof FONCTIONS_LIST_GLOBAL !== 'undefined' ? FONCTIONS_LIST_GLOBAL : []).map(function(f){ return {id:f.id, l:f.label}; })},
+      {id:'redaction', l:'Rédactions', liste:(window._redactionsData||[]).map(function(x){ return {id:x.id, l:x.nom}; })}
+    ];
+    if(commissions.length) onglets.push({id:'commission', l:'Commissions', liste:commissions.map(function(c){ return {id:c.id, l:c.nom}; })});
+
+    function dessiner(){
+      var h = '<div class="ipj-ff"><label>Qui voit ce projet ?</label><div class="ipj-vis-mode">'
+        +'<button type="button" data-m="tous" class="'+(etat.mode === 'tous' ? 'on' : '')+'"><i class="ti ti-world"></i>Tout le monde</button>'
+        +'<button type="button" data-m="restreint" class="'+(etat.mode === 'restreint' ? 'on' : '')+'"><i class="ti ti-lock"></i>Certaines personnes</button></div>';
+      if(etat.mode === 'restreint'){
+        h += '<div class="ipj-vis-onglets">'+onglets.map(function(o){
+          var n = etat.sel[o.id].length;
+          return '<button type="button" data-o="'+o.id+'" class="'+(etat.onglet === o.id ? 'on' : '')+'">'+o.l+(n ? ' <b>'+n+'</b>' : '')+'</button>';
+        }).join('')+'</div>';
+        var cur = onglets.filter(function(o){ return o.id === etat.onglet; })[0] || onglets[0];
+        h += '<div class="ipj-vis-chips">'+(cur.liste.length ? cur.liste.map(function(it){
+          var on = etat.sel[cur.id].indexOf(String(it.id)) !== -1;
+          return '<button type="button" data-v="'+esc(String(it.id))+'" class="ipj-vchip'+(on ? ' on' : '')+'">'+esc(it.l)+'</button>';
+        }).join('') : '<span class="ipj-vis-aide">Rien à choisir ici.</span>')+'</div>';
+        h += '<div class="ipj-vis-aide">Toi, les admins et le créateur du projet le voient toujours. Les choix se cumulent.</div>';
+      }
+      zone.innerHTML = h;
+      zone.querySelectorAll('[data-m]').forEach(function(b){ b.onclick = function(){ etat.mode = b.dataset.m; dessiner(); }; });
+      zone.querySelectorAll('[data-o]').forEach(function(b){ b.onclick = function(){ etat.onglet = b.dataset.o; dessiner(); }; });
+      zone.querySelectorAll('[data-v]').forEach(function(b){
+        b.onclick = function(){
+          var l = etat.sel[etat.onglet], i = l.indexOf(b.dataset.v);
+          if(i === -1) l.push(b.dataset.v); else l.splice(i, 1);
+          dessiner();
+        };
+      });
+    }
+    dessiner();
+    etat.pret = true;
+    return etat;
+  });
+}
+
+// Remplace la liste des accès du projet par celle du formulaire
+function _ipjVisEnregistrer(projetId, etat){
+  var lignes = [];
+  if(etat.mode === 'restreint'){
+    Object.keys(etat.sel).forEach(function(t){ etat.sel[t].forEach(function(v){ lignes.push({projet_id:projetId, type:t, valeur:v}); }); });
+  }
+  return _ipjEcrire('/rest/v1/projets_acces?projet_id=eq.'+projetId, 'DELETE').then(function(){
+    return lignes.length ? _ipjEcrire('/rest/v1/projets_acces', 'POST', lignes) : null;
+  }).then(function(r){
+    if(r && !r.ok) notif('Les accès du projet n\'ont pas pu être enregistrés', 'erreur');
+  }).catch(function(){ notif('Erreur réseau', 'erreur'); });
 }
