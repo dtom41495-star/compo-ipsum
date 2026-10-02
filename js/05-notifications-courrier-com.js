@@ -1750,14 +1750,8 @@ function osSeDeconnecter(){
 document.addEventListener('keydown', function(e){
   if((e.metaKey||e.ctrlKey) && e.key==='k'){
     e.preventDefault();
-    var sp = document.getElementById('os-spotlight');
-    if(sp){
-      sp.classList.toggle('visible');
-      if(sp.classList.contains('visible')){
-        var inp = document.getElementById('spotlight-input');
-        if(inp){ inp.value=''; inp.focus(); osSpotlightSearch(''); }
-      }
-    }
+    // Ctrl K ouvre le menu Démarrer directement sur la recherche
+    if(typeof osStartMenuRecherche === 'function') osStartMenuRecherche();
   }
   if(e.key==='Escape'){
     var sp = document.getElementById('os-spotlight');
@@ -1809,25 +1803,6 @@ function osSpotlightSearch(q){
 }
 
 
-
-function osToggleStartMenu(){
-  var menu = document.getElementById('os-start-menu');
-  if(!menu) return;
-  menu.classList.toggle('visible');
-  if(menu.classList.contains('visible')){
-    var nameEl = document.getElementById('start-menu-name');
-    var roleEl = document.getElementById('start-menu-role');
-    if(nameEl) nameEl.textContent = getUserPrenom() + ' ' + getUserNom();
-    if(roleEl){
-      var roleLabels = {admin:'Admin',redacteur:'Rédacteur',correcteur:'SR (secrétaire de rédaction)',redac_chef:'Rédac en chef',communicant:'Communicant'};
-      roleEl.textContent = roleLabels[getUserRole()] || getUserRole();
-    }
-    var search = document.getElementById('sm-search');
-    if(search) search.value = '';
-    osStartMenuRender();
-    osStartMenuFiltrer('');
-  }
-}
 
 // Construit une tuile d'app pour le menu (grille épinglées ou toutes les apps)
 function _creerAppTuile(app, epingle){
@@ -1911,58 +1886,6 @@ function osAppsAccessibles(){
     if(storeApp) appsAff.push(storeApp);
   }
   return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
-}
-
-function osStartMenuRender(){
-  var appsAff = osAppsAccessibles();
-  var epinglesIds = (window._userApps||[]).map(function(a){ return a.id; });
-
-  var pinnedApps = appsAff.filter(function(a){ return epinglesIds.indexOf(a.id)!==-1; });
-  if(!pinnedApps.length) pinnedApps = appsAff.slice(0,6);
-
-  var gridPinned = document.getElementById('sm-grid-pinned');
-  var gridAll = document.getElementById('sm-grid-all');
-  if(!gridPinned || !gridAll) return;
-  gridPinned.innerHTML = '';
-  gridAll.innerHTML = '';
-  pinnedApps.forEach(function(app){ gridPinned.appendChild(_creerAppTuile(app, true)); });
-  appsAff.forEach(function(app){ gridAll.appendChild(_creerAppTuile(app, epinglesIds.indexOf(app.id)!==-1)); });
-}
-
-function osStartMenuToggleAll(){
-  var pinned = document.getElementById('sm-grid-pinned');
-  var all = document.getElementById('sm-grid-all');
-  var label = document.getElementById('sm-section-label');
-  var btn = document.getElementById('sm-toggle-all');
-  if(!pinned || !all) return;
-  var showingAll = all.style.display !== 'none';
-  pinned.style.display = showingAll ? 'grid' : 'none';
-  all.style.display = showingAll ? 'none' : 'grid';
-  if(label) label.textContent = showingAll ? 'Épinglées' : 'Toutes les apps';
-  if(btn) btn.textContent = showingAll ? 'Toutes les apps ›' : '‹ Épinglées';
-}
-
-function osStartMenuFiltrer(q){
-  var gridPinned = document.getElementById('sm-grid-pinned');
-  var gridAll = document.getElementById('sm-grid-all');
-  var label = document.getElementById('sm-section-label');
-  var toggleBtn = document.getElementById('sm-toggle-all');
-  if(!gridPinned || !gridAll) return;
-  if(q){
-    gridPinned.style.display = 'none';
-    gridAll.style.display = 'grid';
-    if(toggleBtn) toggleBtn.style.display = 'none';
-    if(label) label.textContent = 'Résultats';
-    gridAll.querySelectorAll('.sm-app-icon').forEach(function(icon){
-      icon.style.display = icon.dataset.label.indexOf(q.toLowerCase())!==-1 ? 'flex' : 'none';
-    });
-  } else {
-    gridAll.querySelectorAll('.sm-app-icon').forEach(function(icon){ icon.style.display='flex'; });
-    gridPinned.style.display = 'grid';
-    gridAll.style.display = 'none';
-    if(toggleBtn) toggleBtn.style.display = '';
-    if(label) label.textContent = 'Épinglées';
-  }
 }
 
 function osStartAction(action){

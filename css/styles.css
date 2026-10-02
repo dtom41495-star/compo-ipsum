@@ -1192,97 +1192,89 @@ body {
 #os-start-menu {
   position: fixed;
   bottom: calc(var(--dock-h) + 12px);
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
+  left: 12px;
+  transform: translateY(10px);
   z-index: 9500;
-  /* Verre dépoli : le fond doit rester assez transparent pour que le bureau
-     transparaisse, sinon le backdrop-filter ne se voit pas (c'était le cas avant
-     avec un fond opaque à 95%). saturate() ravive les couleurs vues au travers,
-     et le liseré clair en haut simule la tranche éclairée de la vitre. */
-  background: rgba(18,18,30,0.55);
-  backdrop-filter: blur(26px) saturate(180%);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 24px 60px rgba(0,0,0,0.6);
-  border-radius: 18px;
-  padding: 1.1rem;
-  width: min(560px, 92vw);
-  max-height: 78vh;
-  display: flex;
-  flex-direction: column;
+  background: rgba(24,24,46,0.88);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  border-radius: 22px;
+  width: min(820px, 96vw);
+  max-height: 82vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;
 }
-#os-start-menu.visible {
-  opacity: 1;
-  pointer-events: all;
-  transform: translateX(-50%) translateY(0);
-}
-
-.sm-search-wrap { margin-bottom: 0.9rem; flex-shrink: 0; position: relative; }
+#os-start-menu.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
+.sm-main { padding: 18px 20px 12px; overflow-y: auto; min-height: 0; }
+.sm-search-wrap { position: relative; margin-bottom: 4px; }
 .sm-search-wrap input {
-  width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.3rem; background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white;
-  font-size: 0.85rem; font-family: 'DM Sans',sans-serif; outline: none; box-sizing: border-box;
+  width: 100%; padding: 0.7rem 4.2rem 0.7rem 2.5rem; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; color: white;
+  font-size: 0.86rem; font-family: 'DM Sans', sans-serif; outline: none; box-sizing: border-box;
 }
-.sm-search-wrap input::placeholder { color: rgba(255,255,255,0.4); }
-.sm-search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4); font-size: 0.85rem; pointer-events: none; }
+.sm-search-wrap input:focus { border-color: rgba(234,91,28,0.7); }
+.sm-search-wrap input::placeholder { color: rgba(255,255,255,0.5); }
+.sm-search-icon { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5); font-size: 0.95rem; pointer-events: none; }
+.sm-kbd { position: absolute; right: 0.8rem; top: 50%; transform: translateY(-50%); font: 600 0.66rem monospace; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); padding: 2px 6px; border-radius: 5px; pointer-events: none; }
 .sm-section-label {
-  font-family: Arial,sans-serif; font-size: 0.62rem; color: rgba(255,255,255,0.45);
-  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; flex-shrink: 0;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: 'DM Sans', sans-serif; font-size: 0.64rem; color: rgba(255,255,255,0.5);
+  text-transform: uppercase; letter-spacing: 0.14em; margin: 16px 0 8px;
 }
-.sm-grid {
-  display: grid; grid-template-columns: repeat(6,1fr); gap: 10px;
-  overflow-y: auto; max-height: 340px; padding-bottom: 0.4rem;
-}
-.sm-app-icon { display:flex; flex-direction:column; align-items:center; gap:0.3rem; cursor:pointer; position:relative; }
-.sm-app-img { width:50px; height:50px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.35rem; transition: transform 0.15s; }
-.sm-app-icon:hover .sm-app-img { transform: scale(1.08); }
-.sm-app-label { font-size:0.6rem; color:rgba(255,255,255,0.8); text-align:center; line-height:1.25; font-family:'DM Sans',sans-serif; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sm-toggle-all {
-  align-self: center; margin: 0.7rem 0 0.1rem; padding: 0.4rem 1.1rem;
-  background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
-  color: rgba(255,255,255,0.7); font-size: 0.72rem; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
-}
-.sm-toggle-all:hover { background: rgba(255,255,255,0.08); color: white; }
+.sm-aide { font-size: 0.66rem; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,0.4); }
+.sm-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px 4px; }
+.sm-app-icon { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; position: relative; padding: 6px 2px; border-radius: 12px; transition: background 0.12s; }
+.sm-app-icon:hover { background: rgba(255,255,255,0.08); }
+.sm-app-img { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; transition: transform 0.15s; }
+.sm-app-icon:hover .sm-app-img { transform: scale(1.06); }
+.sm-app-label { font-size: 0.7rem; font-weight: 600; color: #fff; text-align: center; line-height: 1.25; font-family: 'DM Sans', sans-serif; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-recents { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sm-rec { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 10px; background: rgba(255,255,255,0.05); cursor: pointer; min-width: 0; border: none; color: #fff; text-align: left; font-family: 'DM Sans', sans-serif; }
+.sm-rec:hover { background: rgba(255,255,255,0.1); }
+.sm-rec-i { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; }
+.sm-rec-t { min-width: 0; font-size: 0.78rem; font-weight: 600; }
+.sm-rec-t div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-rec-t small { display: block; color: rgba(255,255,255,0.5); font-size: 0.66rem; font-weight: 400; }
+.sm-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.sm-cat { border: none; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
+.sm-cat:hover { background: rgba(255,255,255,0.14); }
+.sm-cat.on { background: #EA5B1C; }
+.sm-res-groupe { margin-bottom: 4px; }
+.sm-res-vide { padding: 1.4rem 0; text-align: center; color: rgba(255,255,255,0.5); font-size: 0.82rem; }
+.sm-res-liste { display: flex; flex-direction: column; gap: 4px; }
 
-.start-menu-header {
-  display: flex; align-items: center; gap: 0.7rem;
-}
-.start-menu-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--rouge);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-.start-menu-info { flex: 1; min-width: 0; }
-.start-menu-name {
-  font-size: 0.78rem; font-weight: 600; color: white;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.start-menu-role {
-  font-family: Arial,sans-serif;
-  font-size: 0.55rem; color: var(--rouge);
-  text-transform: uppercase; letter-spacing: 0.08em;
-}
+.sm-side { background: rgba(255,255,255,0.05); border-left: 1px solid rgba(255,255,255,0.1); padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.sm-side-titre { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.86rem; color: #fff; }
+.sm-side-titre + .sm-creer { margin-top: -2px; }
+.sm-pourtoi { display: flex; flex-direction: column; gap: 8px; }
+.sm-pt { display: flex; gap: 9px; align-items: flex-start; width: 100%; text-align: left; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.76rem; line-height: 1.35; padding: 8px 9px; border-radius: 10px; background: rgba(255,255,255,0.06); color: #fff; cursor: pointer; }
+.sm-pt:hover { background: rgba(255,255,255,0.11); }
+.sm-pt i { font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+.sm-pt small { display: block; color: rgba(255,255,255,0.55); font-size: 0.66rem; }
+.sm-pt-vide { font-size: 0.76rem; color: rgba(255,255,255,0.5); padding: 4px 2px; }
+.sm-creer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sm-creer button { display: flex; gap: 6px; align-items: center; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 8px 9px; border-radius: 10px; background: rgba(234,91,28,0.22); color: #FFC4A8; cursor: pointer; }
+.sm-creer button:hover { background: rgba(234,91,28,0.38); }
 
-.start-menu-footer {
-  display: flex; align-items: center; justify-content: space-between; padding-top: 0.7rem; flex-shrink: 0;
-}
-.sm-footer-actions { display: flex; gap: 2px; flex-shrink: 0; }
-.sm-icon-btn {
-  width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent;
-  color: rgba(255,255,255,0.75); font-size: 1rem; cursor: pointer; display: flex;
-  align-items: center; justify-content: center; transition: background 0.12s, color 0.12s;
-}
-.sm-icon-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-.sm-icon-btn.danger:hover { background: rgba(232,70,30,0.2); color: #FF8070; }
-.start-menu-sep {
-  height: 1px; background: rgba(255,255,255,0.08);
-  margin: 0.4rem 0; flex-shrink: 0;
-}
+.sm-pied { grid-column: 1 / 3; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.18); }
+.sm-pied-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--rouge); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden; }
+.sm-pied-infos { min-width: 0; }
+.sm-pied-sp { flex: 1; }
+.start-menu-name { font-size: 0.84rem; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.start-menu-role { font-family: 'DM Sans', sans-serif; font-size: 0.68rem; color: rgba(255,255,255,0.55); }
+.sm-dispo { display: flex; gap: 7px; align-items: center; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.74rem; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; }
+.sm-dispo .dnd-toggle-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; display: inline-block; }
+.sm-icon-btn { width: 34px; height: 34px; border-radius: 10px; border: none; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.12s, color 0.12s; }
+.sm-icon-btn:hover { background: rgba(255,255,255,0.16); color: white; }
+.sm-icon-btn.danger { color: #FF8A80; }
+.sm-icon-btn.danger:hover { background: rgba(232,70,30,0.25); }
 
 
 /* CENTRE DE NOTIFICATIONS */
@@ -1801,7 +1793,6 @@ body {
 /* Menu démarrer, modales */
 /* Thème sombre : on garde le verre dépoli, juste un peu plus dense qu'en thème clair
    (un fond quasi opaque annulerait complètement l'effet). */
-:root.theme-dark #os-start-menu { background: rgba(15,15,28,0.62) !important; }
 :root.theme-dark .start-menu-item { color: var(--encre) !important; }
 :root.theme-dark .start-menu-item:hover { background: rgba(255,255,255,0.07) !important; }
 
@@ -4848,3 +4839,7 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .rp-tuile b { display: block; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.7rem; line-height: 1; color: var(--rouge); font-variant-numeric: tabular-nums; }
 .rp-tuile span { display: block; margin-top: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.74rem; color: var(--gris); }
 @media (max-width: 900px) { .rp-grille { grid-template-columns: 1fr; } }
+
+/* Menu Démarrer : le champ de recherche garde son fond sombre malgré le style global des champs */
+#os-start-menu .sm-search-wrap input { padding: 0.7rem 4.4rem 0.7rem 2.6rem !important; background: rgba(255,255,255,0.08) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.12) !important; box-shadow: none !important; }
+#os-start-menu .sm-search-wrap input:focus { border-color: rgba(234,91,28,0.7) !important; }
