@@ -671,6 +671,7 @@ function osLoadPageContent(pageId, winEl){
   // Déclencher les chargements spécifiques à la page
   setTimeout(function(){
     if(pageId === 'mes-articles') osMesArticlesRender();
+    if(pageId === 'log') renderLog();
     if(pageId === 'tickets') chargerTickets();
     if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'cps-admin') cpsAdminCharger();

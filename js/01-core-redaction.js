@@ -297,30 +297,37 @@ function importerFichier(file,callback){
 }
 
 // ===== LOG =====
+// Journal d'activité : actions faites sur CET appareil (stockées dans le navigateur, pas sur le serveur).
+var LOG_MAX = 500;
 function logAction(action,titre,fichier){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-  logs.push({date:new Date().toISOString(),action,titre:titre||'—',fichier:fichier||'—'});
-  localStorage.setItem('ipsum_log',JSON.stringify(logs));
+  try{
+    const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
+    logs.push({date:new Date().toISOString(),action,titre:titre||'—',fichier:fichier||'—'});
+    // Les plus anciennes sont écartées : le journal ne grossit pas indéfiniment
+    localStorage.setItem('ipsum_log',JSON.stringify(logs.slice(-LOG_MAX)));
+  }catch(e){}
 }
 
-function verifyLog(){
-  const pw=document.getElementById('log-pw').value;
-  if(btoa(pw)===ADMIN_PW){
-    document.getElementById('log-auth').style.display='none';
-    document.getElementById('log-content').style.display='block';
-    renderLog();
-  }else{notif('Mot de passe incorrect');}
+// La page existe en deux exemplaires (modèle caché + fenêtre ouverte) : on cible celui de la fenêtre
+function _logEl(id){
+  const wc=document.getElementById('wincontent-log');
+  return (wc && wc.querySelector('#'+id)) || document.getElementById(id);
+}
+function _logLire(){
+  try{ return JSON.parse(localStorage.getItem('ipsum_log')||'[]'); }catch(e){ return []; }
 }
 
 function renderLog(){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
-  const el=document.getElementById('log-list');
-  if(!logs.length){el.innerHTML='<p style="color:var(--gris);font-size:0.85rem;">Aucune activité enregistrée.</p>';return;}
-  el.innerHTML=logs.slice().reverse().map(l=>'<div class="log-item"><span class="log-date">'+new Date(l.date).toLocaleString('fr-FR')+'</span><span class="log-action">'+esc(l.action.toUpperCase())+'</span><span class="log-titre">'+esc(l.titre)+'</span><span style="color:var(--gris);font-size:0.65rem;">'+esc(l.fichier)+'</span></div>').join('');
+  const logs=_logLire();
+  const el=_logEl('log-list');
+  if(!el) return;
+  if(!logs.length){el.innerHTML='<p style="color:var(--gris);font-size:0.85rem;">Aucune activité enregistrée sur cet appareil.</p>';return;}
+  el.innerHTML='<p style="color:var(--gris);font-size:0.72rem;margin:0 0 0.6rem;">'+logs.length+' action'+(logs.length>1?'s':'')+' (les '+LOG_MAX+' dernières sont conservées)</p>'
+    +logs.slice().reverse().map(l=>'<div class="log-item"><span class="log-date">'+new Date(l.date).toLocaleString('fr-FR')+'</span><span class="log-action">'+esc(String(l.action||'').toUpperCase())+'</span><span>'+esc(l.titre)+'</span><span style="color:var(--gris);">'+esc(l.fichier)+'</span></div>').join('');
 }
 
 function exportLog(){
-  const logs=JSON.parse(localStorage.getItem('ipsum_log')||'[]');
+  const logs=_logLire();
   const txt=logs.map(l=>new Date(l.date).toLocaleString('fr-FR')+'\t'+l.action+'\t'+l.titre+'\t'+l.fichier).join('\n');
   const blob=new Blob(['Date\tAction\tTitre\tFichier\n'+txt],{type:'text/plain'});
   const url=URL.createObjectURL(blob);

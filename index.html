@@ -1259,15 +1259,8 @@
 
 <div class="page" id="page-log">
   <div class="page-title">Journal d'activité</div>
-  <div class="page-sub">Accès réservé aux administrateurs</div>
-  <div id="log-auth" style="max-width:360px;">
-    <div class="form-group" style="margin-bottom:1rem;">
-      <label>Mot de passe administrateur</label>
-      <input type="password" id="log-pw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')verifyLog()">
-    </div>
-    <button class="btn" onclick="verifyLog()">Accéder au journal</button>
-  </div>
-  <div id="log-content" style="display:none">
+  <div class="page-sub">Accès réservé aux administrateurs · Actions faites depuis cet appareil (exports, imports, brouillons, newsletter)</div>
+  <div id="log-content">
     <div class="btn-row" style="margin-bottom:1rem;">
       <button class="btn sec" onclick="exportLog()">Exporter le journal</button>
       <button class="btn sec" onclick="clearLog()">Vider le journal</button>
