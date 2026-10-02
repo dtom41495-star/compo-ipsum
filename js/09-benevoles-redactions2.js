@@ -1574,98 +1574,74 @@ function osRedactionsChangerOnglet(onglet){
 
 function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac){
   var h = '';
+  // Page à deux colonnes : à gauche « qui je suis » (identité, disponibilité, carte
+  // d'adhérent), à droite « ce que je fais » (chiffres, actions, sujets, articles,
+  // activités). Les identifiants des zones chargées ensuite (heures, articles, sujets,
+  // activités, récompenses) et des boutons carte/bilan sont inchangés.
+  var couleur = (redac && couleurRedac) ? couleurRedac : '#EA5B1C';
+  var sansEcriture = !redac && getUserRole() !== 'admin' && !mesArticles.length;
+  var ROLES_PROFIL = {redacteur:'Rédacteur·rice', correcteur:'SR de toutes les rédactions', admin:'Admin', communicant:'Communicant·e'};
+  var BADGE = 'font-family:\'DM Sans\',sans-serif;font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;';
 
-  // Carte profil unique : le bandeau coloré et la zone "Actions rapides" partagent
-  // désormais un seul cadre (border+radius sur l'enveloppe, overflow:hidden), au lieu
-  // de deux boîtes séparées par un espace — le bandeau se prolonge dans le blanc plutôt
-  // que de s'arrêter net. Le dégradé, lui, va jusqu'au blanc en fin de bandeau pour que
-  // la transition soit continue et pas juste une couleur coupée à la règle.
-  // #1A1A2E en dur plutôt que var(--encre-fixe) : une variable CSS référencée À
-  // L'INTÉRIEUR d'un linear-gradient() injecté par innerHTML peut ne pas être encore
-  // résolue au tout premier rendu sur Chrome — si un seul point d'arrêt du dégradé
-  // échoue, TOUT le dégradé est jugé invalide et ignoré (fond transparent, texte blanc
-  // devenu invisible dessus). C'est ce qui explique un bandeau qui "disparaît" alors que
-  // le DOM et les styles sont, eux, corrects à l'inspection — un simple survol suffit à
-  // déclencher le recalcul qui le fait réapparaître. En dur, rien à résoudre.
-  // Plus de fondu vers le blanc en bas du bandeau : les tuiles de chiffres (texte blanc)
-  // y sont posées et devenaient illisibles dans le coin blanchi.
-  var fondHeader = redac && couleurRedac
-    ? 'linear-gradient(150deg,'+couleurRedac+' 0%,#1A1A2E 62%)'
-    : '#1A1A2E';
-  // Structure changée après deux correctifs sans effet (translateZ(0), couleur en dur) :
-  // le DOM et les styles étaient prouvés corrects à l'inspection, donc le problème n'était
-  // ni le contenu ni la couleur — c'était le montage overflow:hidden découpant un enfant
-  // pour lui donner des coins arrondis, un déclencheur connu de ce bug de peinture Chrome
-  // sur du contenu injecté par innerHTML. Plutôt que de continuer à contourner ce montage,
-  // on l'enlève : chaque bloc porte directement ses propres coins arrondis, rien à
-  // découper. Le forceRepaint() juste après l'assignation à innerHTML (voir plus bas,
-  // _osRedacRenderContenu) couvre aussi tout résidu, sur ce montage ou un autre.
-  h += '<div style="border:1px solid var(--gris-bord);border-radius:14px;">';
-  h += '<div style="background:'+fondHeader+';padding:1.1rem 1.2rem 1.5rem;border-radius:14px 14px 0 0;">';
-  h += '<div class="redac-profil-tete" style="display:flex;align-items:flex-start;gap:0.9rem;">';
-  h += '<div style="position:relative;flex-shrink:0;cursor:pointer;" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
-  h += renderAvatarHTML(membre, 46, {rc:['rgba(255,255,255,0.16)','white'], bord:'border:1.5px solid rgba(255,255,255,0.3);'});
-  h += '<span data-presence-id="'+uid+'" style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';border:2px solid white;"></span>';
+  h += '<div class="rp-grille">';
+
+  // ===== Colonne gauche =====
+  h += '<div class="rp-col">';
+  h += '<div class="rp-carte rp-identite">';
+  h += '<div class="rp-avatar" title="Changer mon avatar" onclick="osOuvrirSelecteurAvatar()">';
+  h += renderAvatarHTML(membre, 92, {rc:[_osHexRgba(couleur,0.18), couleur], bord:'border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.12);'});
+  h += '<span data-presence-id="'+uid+'" class="rp-presence" style="background:'+(osEstEnLigne(uid)?'#27AE60':'#888')+';"></span>';
+  h += '<span class="rp-camera"><i class="ti ti-camera"></i></span>';
   h += '</div>';
-  // Colonne identité : nom → fonction → statuts, dans cet ordre de priorité — les
-  // badges de rôle vivaient avant tout en bas du bandeau, séparés du nom par les
-  // boutons et le chiffre de bénévolat ; ils rejoignent maintenant directement le nom,
-  // puisque "qui je suis" prime sur les actions et les stats.
-  h += '<div style="flex:1;min-width:0;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.15rem;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
-  if(fonctionShort(membre.fonction)) h += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.78rem;color:rgba(255,255,255,0.78);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+fonctionShort(membre.fonction)+'</div>';
-  h += '<div style="display:flex;gap:0.4rem;margin-top:6px;flex-wrap:wrap;align-items:center;">';
-  // Rôle en toutes lettres — s'affichait avant en code brut ("redacteur", "admin")
-  var ROLES_PROFIL = {redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction', admin:'Admin', communicant:'Communicant·e'};
-  if(membre.role) h += '<span title="Rôle sur Compo" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.66rem;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.14);color:white;">'+esc(ROLES_PROFIL[membre.role]||membre.role)+'</span>';
+  h += '<div class="rp-nom">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
+  if(fonctionShort(membre.fonction)) h += '<div class="rp-fonction">'+esc(fonctionShort(membre.fonction))+'</div>';
+  h += '<div class="rp-badges">';
+  if(membre.role) h += '<span title="Rôle sur Compo" style="'+BADGE+'background:#FDEEE8;color:#C73A18;">'+esc(ROLES_PROFIL[membre.role]||membre.role)+'</span>';
   if(redac){
-    var estChefDeCetteRedac = roleRedac === 'redac_chef';
-    h += '<span title="Statut sur cette rédaction" style="font-family:\'DM Sans\',sans-serif;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;background:white;color:'+couleurRedac+';display:inline-flex;align-items:center;gap:4px;">'
-      +(estChefDeCetteRedac?'<i class="ti ti-crown" style="font-size:0.62rem;"></i>':'')
-      +esc(redac.nom)+(estChefDeCetteRedac?' · Chef':'')
-      +'</span>';
+    var estChef = roleRedac === 'redac_chef';
+    var estSRRedac = roleRedac === 'correcteur';
+    h += '<span title="Statut sur cette rédaction" style="'+BADGE+'background:'+_osHexRgba(couleur,0.14)+';color:'+couleur+';">'
+      +(estChef?'<i class="ti ti-crown" style="font-size:0.7rem;"></i>':'')
+      +esc(redac.nom)+(estChef?' · Rédac chef':(estSRRedac?' · SR':''))+'</span>';
   }
   h += '</div>';
-  h += '</div>';
-  // Boutons utilitaires, nommés par ce qu'ils produisent (avant : "Carte", "Bilan")
-  var BTN_BANDEAU = 'font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.7rem;padding:5px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:7px;background:rgba(255,255,255,0.1);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;';
-  h += '<div class="redac-profil-actions" style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">';
-  h += '<button id="redac-carte-btn" title="Télécharger ma carte d\'adhérent" style="'+BTN_BANDEAU+'"><i class="ti ti-id"></i>Carte d\'adhérent</button>';
-  h += '<button id="redac-bilan-btn" title="Mon bilan de l\'année" style="'+BTN_BANDEAU+'"><i class="ti ti-report-analytics"></i>Bilan annuel</button>';
+  h += '<div class="rp-reglages">';
+  h += '<div class="rp-ligne"><div>Disponibilité<small>Visible par l\'équipe</small></div>'
+    +'<div class="rp-seg" id="rp-dnd"><button type="button" data-v="0" onclick="if(_dndActif) osToggleDND()">Disponible</button><button type="button" data-v="1" onclick="if(!_dndActif) osToggleDND()">Indispo</button></div></div>';
+  h += '<div class="rp-ligne"><div>Mes notifications<small>Où je reçois les alertes</small></div>'
+    +'<div class="rp-seg" id="rp-canal"><button type="button" data-v="email" onclick="osRpChoisirCanal(\'email\')">Mail</button><button type="button" data-v="chat" onclick="osRpChoisirCanal(\'chat\')">Chat</button></div></div>';
   h += '</div>';
   h += '</div>';
 
-  // Chiffres clés en tuiles, sous l'identité. Publiés et activités étaient déjà calculés
-  // mais jamais affichés ; les heures de bénévolat étaient reléguées dans un coin.
-  // Articles : ceux de la rédaction affichée (comme la liste "Mes derniers articles").
+  // Carte d'adhérent
+  h += '<div class="rp-adherent"><div class="rp-adh-t">Carte d\'adhérent · '+new Date().getFullYear()+'</div>'
+    +'<div class="rp-adh-n">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>'
+    +'<div class="rp-adh-c">'+esc(osIdentifiantMembre(uid))+'</div></div>';
+  h += '<div class="rp-boutons">'
+    +'<button id="redac-carte-btn" type="button" title="Télécharger ma carte d\'adhérent"><i class="ti ti-download"></i> Télécharger la carte</button>'
+    +'<button id="redac-bilan-btn" type="button" title="Mon bilan de l\'année"><i class="ti ti-report-analytics"></i> Bilan annuel</button></div>';
+  h += '</div>';
+
+  // ===== Colonne droite =====
+  h += '<div class="rp-col">';
   var publiesCeMois = mesPublies.filter(function(a){ return a.updated_at && new Date(a.updated_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1); }).length;
   var nbActivites = (window._agendaInscriptions||[]).filter(function(i){ return i.membre_id === uid; }).length;
-  function tuileBandeau(id, valeur, libelle, titre){
-    return '<div title="'+titre+'" style="min-width:0;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:0.5rem 0.7rem;">'
-      +'<div'+(id?' id="'+id+'"':'')+' style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.2rem;line-height:1.2;color:white;font-variant-numeric:tabular-nums;">'+valeur+'</div>'
-      +'<div style="font-family:\'DM Sans\',sans-serif;font-size:0.62rem;font-weight:600;letter-spacing:0.04em;line-height:1.3;text-transform:uppercase;color:rgba(255,255,255,0.62);">'+libelle+'</div></div>';
+  function tuile(id, valeur, libelle, titre){
+    return '<div class="rp-tuile" title="'+titre+'"><b'+(id?' id="'+id+'"':'')+'>'+valeur+'</b><span>'+libelle+'</span></div>';
   }
-  // Grille : 4 tuiles de front si la place le permet, sinon 2 × 2 (les libellés ne se
-  // chevauchent plus quand la fenêtre est étroite)
-  // Sans rédaction et sans article (com, vie asso) : pas de tuiles ni de blocs
-  // d'articles et de sujets, qui resteraient vides — heures et agenda gardés.
-  var sansEcriture = !redac && getUserRole() !== 'admin' && !mesArticles.length;
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0.5rem;margin-top:0.9rem;">';
-  if(!sansEcriture) h += tuileBandeau('', mesPublies.length, 'Article'+(mesPublies.length>1?'s':'')+' publié'+(mesPublies.length>1?'s':''), 'Tous mes articles publiés dans cette rédaction');
-  if(!sansEcriture) h += tuileBandeau('', publiesCeMois, 'Publié'+(publiesCeMois>1?'s':'')+' ce mois-ci', 'Articles publiés depuis le 1er du mois');
-  h += tuileBandeau('membre-heures-banner', '<span style="opacity:0.45;">…</span>', 'Heures de bénévolat', 'Total de mes heures de bénévolat enregistrées');
-  h += tuileBandeau('', nbActivites, 'Activité'+(nbActivites>1?'s':'')+' agenda', 'Événements de l\'agenda auxquels j\'ai participé ou suis inscrit·e');
-  h += '</div>';
+  h += '<div class="rp-tuiles">';
+  if(!sansEcriture) h += tuile('', mesPublies.length, 'article'+(mesPublies.length>1?'s':'')+' publié'+(mesPublies.length>1?'s':''), 'Tous mes articles publiés dans cette rédaction');
+  if(!sansEcriture) h += tuile('', publiesCeMois, 'publié'+(publiesCeMois>1?'s':'')+' ce mois-ci', 'Articles publiés depuis le 1er du mois');
+  h += tuile('membre-heures-banner', '<span style="opacity:0.45;">…</span>', 'heures de bénévolat', 'Total de mes heures de bénévolat enregistrées');
+  h += tuile('', nbActivites, 'activité'+(nbActivites>1?'s':'')+' agenda', 'Événements de l\'agenda auxquels j\'ai participé ou suis inscrit·e');
   h += '</div>';
 
-  // Actions rapides — remontées au-dessus des sujets à rédiger : ce sont les portes
-  // d'entrée vers le reste de l'app, avant même l'actionnable du dessous. Plus de
-  // bordure/radius propres : la carte englobante (ouverte plus haut) fournit déjà le
-  // cadre, cette zone n'est jamais que le prolongement blanc du bandeau.
+  // Actions rapides
   var actionsRedac = _osRedacActionsRapides(getUserRole(), roleRedac);
+  var peutAnnoncer = getUserRole() === 'admin' || roleRedac === 'redac_chef';
   if(actionsRedac.length){
-    h += '<div class="redac-actions-rapides" style="background:white;padding:0.9rem 1rem;border-radius:0 0 14px 14px;">';
-    h += '<div style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);margin-bottom:0.5rem;"><i class="ti ti-bolt" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Actions rapides</div>';
+    h += '<div class="redac-actions-rapides rp-carte-bloc">';
+    h += '<div class="rp-titre"><i class="ti ti-bolt" style="color:var(--rouge);"></i>Actions rapides</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.55rem;">';
     actionsRedac.forEach(function(a){
       var onclickAttr = a.action || ("osOpenWindow('"+a.page+"')");
@@ -1679,9 +1655,9 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
       h += '<div style="min-width:0;"><div style="font-family:Poppins,sans-serif;font-size:0.8rem;font-weight:700;color:var(--encre);">'+a.titre+'</div><div style="font-family:\'DM Sans\',sans-serif;font-size:0.7rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.desc+'</div></div>';
       h += '</button>';
     });
+
     // Bouton annonce pour admin et rédac chef — reste la seule carte pleine couleur
     // du lot : c'est un appel à l'action (écrire un message), pas juste un raccourci.
-    var peutAnnoncer = getUserRole() === 'admin' || roleRedac === 'redac_chef';
     if(peutAnnoncer){
       h += '<button onclick="osRedacToggleAnnonceForm()" style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.8rem;background:var(--encre-fixe);border:none;border-radius:10px;cursor:pointer;text-align:left;transition:transform 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'">';
       h += '<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:rgba(255,255,255,0.14);color:white;"><i class="ti ti-speakerphone"></i></div>';
@@ -1689,7 +1665,6 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
       h += '</button>';
     }
     h += '</div></div>';
-    h += '</div>'; // ferme la carte englobante bandeau + actions rapides
     // Formulaire annonce (admin et rédac chef) caché
     if(peutAnnoncer){
       h += '<div id="redac-annonce-form" style="display:none;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:1rem;">';
@@ -1702,13 +1677,11 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
       h += '<button onclick="document.getElementById(\'redac-annonce-form\').style.display=\'none\'" class="btn sec" style="font-size:0.72rem;padding:0.4rem 0.9rem;">Annuler</button>';
       h += '</div></div>';
     }
-  } else {
-    h += '</div>'; // filet de sécurité : ferme quand même la carte si jamais aucune action rapide
   }
 
   if(!sansEcriture){
     // Sujets à rédiger
-    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:16px;padding:1.1rem 1.2rem;">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-pin" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Sujets à rédiger</span>';
     h += '<button onclick="osOuvrirSujets()" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tous →</button>';
@@ -1717,7 +1690,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     h += '</div>';
 
     // Mes derniers articles
-    h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+    h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:16px;padding:1.1rem 1.2rem;">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
     h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-notes" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes derniers articles</span>';
     h += '<button onclick="osOpenWindow(\'mes-articles\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir tout →</button>';
@@ -1727,7 +1700,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   }
 
   // Mes activités agenda
-  h += '<div style="background:white;border:1px solid var(--gris-bord);border-left:3px solid var(--rouge);border-radius:0 10px 10px 0;padding:0.9rem 1rem;">';
+  h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:16px;padding:1.1rem 1.2rem;">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
   h += '<span style="font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;color:var(--encre);"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:4px;color:var(--rouge);"></i>Mes activités</span>';
   h += '<button onclick="osOpenWindow(\'agenda\')" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.68rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--gris);cursor:pointer;">Voir l\'agenda →</button>';
@@ -1735,10 +1708,38 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<div id="redac-mes-activites"><div style="padding:0.8rem 0;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
   h += '</div>';
 
+
   // Récompenses boutique validées — chargées en async, seulement affichées s'il y en a
   h += '<div id="redac-profil-recompenses"></div>';
 
+  h += '</div>'; // colonne droite
+  h += '</div>'; // grille
   return h;
+}
+
+// Canal de notification personnel (mail ou Chat) depuis le profil
+function osRpChoisirCanal(canal){
+  osChoisirCanalNotif(canal);
+  osRpMajCanal(canal);
+}
+function osRpMajCanal(canal){
+  document.querySelectorAll('#rp-canal button').forEach(function(b){ b.classList.toggle('actif', b.dataset.v === canal); });
+}
+function osRpChargerCanal(){
+  var uid = getUserId();
+  if(!uid || !document.getElementById('rp-canal')) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=canal_notif,email', {headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    var l = rows && rows[0] ? rows[0] : {};
+    osRpMajCanal(l.canal_notif === 'chat' ? 'chat' : 'email');
+    var email = (l.email||'').toLowerCase();
+    if(email && typeof COMPO_DOMAINE_WORKSPACE !== 'undefined' && email.indexOf('@'+COMPO_DOMAINE_WORKSPACE) === -1){
+      var bc = document.querySelector('#rp-canal button[data-v="chat"]');
+      if(bc){ bc.disabled = true; bc.title = 'Google Chat est réservé aux adresses @'+COMPO_DOMAINE_WORKSPACE; }
+    }
+  }).catch(function(){});
 }
 
 function osChargerRecompensesProfil(uid){

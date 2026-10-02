@@ -2929,6 +2929,7 @@ function osToggleDND(){
 
 // Met à jour TOUTES les instances du bouton dispo/indispo (barre des tâches, rail Ma Rédac'...)
 function osDNDMajUI(){
+  document.querySelectorAll('#rp-dnd button').forEach(function(b){ b.classList.toggle('actif', (b.dataset.v === '1') === !!_dndActif); });
   document.querySelectorAll('.dnd-toggle-dot').forEach(function(dot){
     dot.style.background = _dndActif ? '#E8461E' : '#4CAF50';
   });

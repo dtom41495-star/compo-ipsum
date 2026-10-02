@@ -4812,3 +4812,37 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 /* Fenêtres : coins et ombre plus doux */
 .os-window { border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.42), 0 6px 20px rgba(0,0,0,0.18); }
 .os-titlebar { border-radius: 14px 14px 0 0; }
+
+/* ===== MA RÉDAC' · MON PROFIL (deux colonnes) ===== */
+.rp-grille { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+.rp-col { display: flex; flex-direction: column; gap: 0.9rem; min-width: 0; }
+.rp-carte, .rp-carte-bloc { background: #fff; border: 1px solid var(--gris-bord); border-radius: 16px; padding: 1.2rem; }
+.rp-carte-bloc { padding: 1.1rem 1.2rem; }
+.rp-titre { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.86rem; color: var(--encre); margin-bottom: 0.7rem; display: flex; align-items: center; gap: 6px; }
+.rp-identite { text-align: center; }
+.rp-avatar { position: relative; width: 92px; height: 92px; margin: 0 auto 0.8rem; cursor: pointer; }
+.rp-presence { position: absolute; right: 6px; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; }
+.rp-camera { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; background: #1A1A2E; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; border: 2px solid #fff; }
+.rp-nom { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.25rem; color: var(--encre); }
+.rp-fonction { margin-top: 2px; font-family: 'DM Sans', sans-serif; font-size: 0.84rem; color: var(--gris); }
+.rp-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 0.8rem; }
+.rp-reglages { margin-top: 1rem; padding-top: 0.7rem; border-top: 1px solid #EEE9E3; text-align: left; }
+.rp-ligne { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.4rem 0; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--encre); }
+.rp-ligne small { display: block; font-size: 0.7rem; color: var(--gris); }
+.rp-seg { display: flex; flex-shrink: 0; background: #F1EDE8; border-radius: 9px; padding: 3px; gap: 2px; }
+.rp-seg button { border: none; background: transparent; padding: 4px 10px; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600; color: var(--gris); border-radius: 7px; cursor: pointer; }
+.rp-seg button.actif { background: #fff; color: var(--encre); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.rp-seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+.rp-adherent { position: relative; overflow: hidden; background: linear-gradient(135deg, #1A1A2E, #2B2B4C); color: #fff; border-radius: 14px; padding: 1rem 1.1rem; }
+.rp-adherent::after { content: ''; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(234,91,28,0.35); }
+.rp-adh-t { position: relative; font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; }
+.rp-adh-n { position: relative; margin-top: 0.5rem; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; }
+.rp-adh-c { position: relative; margin-top: 2px; font-family: monospace; font-size: 0.74rem; opacity: 0.7; }
+.rp-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
+.rp-boutons button { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.76rem; font-weight: 600; padding: 7px 12px; border-radius: 9px; background: #fff; border: 1px solid #D9D2CB; color: var(--encre); cursor: pointer; }
+.rp-boutons button:hover { border-color: var(--rouge); }
+.rp-tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
+.rp-tuile { background: #fff; border: 1px solid var(--gris-bord); border-radius: 16px; padding: 0.9rem 1rem; }
+.rp-tuile b { display: block; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.7rem; line-height: 1; color: var(--rouge); font-variant-numeric: tabular-nums; }
+.rp-tuile span { display: block; margin-top: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.74rem; color: var(--gris); }
+@media (max-width: 900px) { .rp-grille { grid-template-columns: 1fr; } }

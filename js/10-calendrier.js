@@ -2065,6 +2065,8 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   if(_redacOnglet === 'profil'){
     osChargerHeuresMembre(uid);
     osChargerRecompensesProfil(uid);
+    osRpChargerCanal();
+    osDNDMajUI();
     var btnCarte = document.getElementById('redac-carte-btn');
     if(btnCarte) btnCarte.addEventListener('click', function(){ osGenererCarteAdherent(membre, {total:mesArticles.length, publies:mesPublies.length}); });
     var btnBilan = document.getElementById('redac-bilan-btn');
