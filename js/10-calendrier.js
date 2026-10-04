@@ -705,7 +705,7 @@ function osRedacOuvrirSujet(el){
   var sujetId = el.dataset.sujetId;
   var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
   if(!sujet){ osOuvrirSujets(); return; }
-  ouvrirModalSujet(sujet);
+  osSujetApercu(sujetId);
 }
 
 function osRedacReserverSujet(btn){

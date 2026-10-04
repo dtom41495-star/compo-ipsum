@@ -1959,7 +1959,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       var prio = s.priorite||'normale';
       var isPris = s.statut==='en_cours' && s.responsable;
       var estMoi = s.responsable && s.responsable.trim()===nomMoi.trim();
-      h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" style="background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
+      h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" data-sujet-id="'+s.id+'" onclick="osSujetApercuClic(event,this.dataset.sujetId)" title="Voir l\'aperçu du sujet" style="cursor:pointer;background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.3rem;">';
       h += '<div style="flex:1;font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>';
       h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
@@ -1989,6 +1989,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       } else {
         // Sujet libre — bouton Réserver
         h += '<div style="display:flex;gap:0.4rem;align-items:center;">';
+        h += '<button data-sujet-id="'+s.id+'" onclick="osSujetApercu(this.dataset.sujetId)" title="Voir ce qu\'il y a derrière ce sujet" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:5px;cursor:pointer;"><i class="ti ti-eye" style="vertical-align:-2px;margin-right:3px;"></i>Aperçu</button>';
         h += '<button data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Réserver</button>';
         if(isChefOuAdmin){
           h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirAssignation(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid #1A5276;border-radius:4px;background:white;color:#1A5276;cursor:pointer;"><i class="ti ti-user-plus" style="vertical-align:-2px;margin-right:3px;"></i>Attribuer</button>';
