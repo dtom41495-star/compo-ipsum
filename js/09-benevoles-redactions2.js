@@ -1867,7 +1867,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
   h += '<div style="flex:1;min-width:0;">';
   h += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">Nouveaux sujets par email</div>';
-  h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">Reçois un email dès qu\'un sujet est proposé à l\'équipe</div>';
+  h += '<div style="font-size:0.7rem;color:var(--gris);margin-top:1px;">Reçois un email dès qu\'un sujet est proposé à l\'équipe</div>';
   h += '</div>';
   h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
   h += '</div>';
@@ -1875,23 +1875,23 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   var droitSujet = typeof osSujetsDroit === 'function' ? osSujetsDroit() : null;
   if(droitSujet === 'proposer' || droitSujet === 'publier'){
     h += '<div class="sujets-outils-chef" style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">'
-      +'<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ti ti-bulb"></i> Proposer un sujet</button></div>';
+      +'<button class="sj-btn sj-principal"  onclick="osOuvrirNouveauSujetModal()"><i class="ti ti-bulb"></i> Proposer un sujet</button></div>';
   }
   if(isChefOuAdmin || getUserRole()==='admin'){
     h += '<div class="sujets-outils-chef" style="display:flex;flex-direction:column;gap:0.4rem;flex-shrink:0;align-self:center;">';
     if(isChefOuAdmin){
-      h += '<button onclick="osOuvrirNouveauSujetModal()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">+ Nouveau sujet</button>';
+      h += '<button class="sj-btn sj-principal"  onclick="osOuvrirNouveauSujetModal()">+ Nouveau sujet</button>';
     }
     if(getUserRole()==='admin'){
-      h += '<button id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:3px;"></i>Notifier les abonnés</button>';
-      h += '<button id="btn-nettoyer-sujets" onclick="osNettoyerSujetsPublies()" style="font-family:Poppins,sans-serif;font-size:0.68rem;font-weight:600;padding:5px 12px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;white-space:nowrap;"><i class="ti ti-broom" style="vertical-align:-2px;margin-right:3px;"></i>Nettoyer les sujets publiés</button>';
+      h += '<button class="sj-btn"  id="btn-envoyer-sujets" onclick="osEnvoyerNotifsSujets()"><i class="ti ti-mail"></i>Notifier les abonnés</button>';
+      h += '<button class="sj-btn"  id="btn-nettoyer-sujets" onclick="osNettoyerSujetsPublies()"><i class="ti ti-broom"></i>Nettoyer les sujets publiés</button>';
     }
     h += '</div>';
   }
   h += '</div>';
-  h += '<button id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';" style="display:none;font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
+  h += '<button class="sj-btn" style="display:none;" id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';"><i class="ti ti-checks"></i>Tout marquer comme lu</button>';
   h += '<div id="sujets-propositions-zone"></div>';
-  h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:DM Sans,sans-serif;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
   return h;
@@ -1923,7 +1923,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     // bug repéré via Mathéo (Tarn + Haute-Garonne), badge "7" alors que le Tarn est vide.
     _osRedacMajBadgeRail('sujets', sujets.filter(function(s){ return seenSJ.indexOf(s.id)===-1; }).length);
     if(!sujets.length){
-      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
+      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:DM Sans,sans-serif;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       if(callback) callback();
       return;
     }
@@ -1959,48 +1959,49 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       var prio = s.priorite||'normale';
       var isPris = s.statut==='en_cours' && s.responsable;
       var estMoi = s.responsable && s.responsable.trim()===nomMoi.trim();
-      h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" style="background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
+      h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" data-sujet-id="'+s.id+'" onclick="osSujetApercuClic(event,this.dataset.sujetId)" title="Voir l\'aperçu du sujet" style="cursor:pointer;background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.3rem;">';
       h += '<div style="flex:1;font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>';
-      h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
+      h += '<span style="font-family:DM Sans,sans-serif;font-size:0.7rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
       h += '</div>';
-      if(s.cp_id) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:#1A5276;margin-bottom:0.3rem;"><i class="ti ti-paperclip" style="vertical-align:-2px;margin-right:3px;"></i>Communiqué lié</div>';
+      if(s.cp_id) h += '<div style="font-family:DM Sans,sans-serif;font-size:0.7rem;color:#1A5276;margin-bottom:0.3rem;"><i class="ti ti-paperclip"></i>Communiqué lié</div>';
       if(s.note) h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">'+esc(s.note)+'</div>';
-      if(s.rubrique) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
+      if(s.rubrique) h += '<div style="font-family:DM Sans,sans-serif;font-size:0.7rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
       h += '<div class="sujet-actions" style="display:flex;align-items:center;justify-content:space-between;">';
       if(isPris){
         // Sujet déjà pris — afficher qui s'en occupe
         h += '<div style="display:flex;align-items:center;gap:0.4rem;">'
-          +'<span style="font-size:0.7rem;font-weight:600;color:#374151;"><i class="ti ti-pencil" style="vertical-align:-2px;margin-right:3px;"></i>'+esc(s.responsable)+'</span>'
-          +'<span style="font-size:0.62rem;color:var(--gris);">en cours de rédaction</span>'
+          +'<span style="font-size:0.7rem;font-weight:600;color:#374151;"><i class="ti ti-pencil"></i>'+esc(s.responsable)+'</span>'
+          +'<span style="font-size:0.7rem;color:var(--gris);">en cours de rédaction</span>'
           +'</div>';
         // Si c'est moi, proposer d'écrire l'article ou d'abandonner
         if(estMoi){
-          h += '<button data-sid="'+s.id+'" onclick="osRedacRedigerSujet(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:none;border-radius:4px;background:var(--rouge);color:white;cursor:pointer;"><i class="ti ti-pencil" style="vertical-align:-2px;margin-right:3px;"></i>Rédiger</button>'
-            +'<button data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;"><i class="ti ti-bookmark-off" style="vertical-align:-2px;margin-right:3px;"></i>Me désengager</button>';
+          h += '<button class="sj-btn sj-principal" data-sid="'+s.id+'" onclick="osRedacRedigerSujet(this.dataset.sid)"><i class="ti ti-pencil"></i>Rédiger</button>'
+            +'<button class="sj-btn sj-avert" data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)"><i class="ti ti-bookmark-off"></i>Me désengager</button>';
         }
         if(isChefOuAdmin && !estMoi){
-          h += '<button data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #856404;border-radius:4px;background:white;color:#856404;cursor:pointer;"><i class="ti ti-bookmark-off" style="vertical-align:-2px;margin-right:3px;"></i>Libérer</button>';
+          h += '<button class="sj-btn sj-avert" data-sid="'+s.id+'" onclick="osSujetSeDesengager(this.dataset.sid)"><i class="ti ti-bookmark-off"></i>Libérer</button>';
         }
         if(isChefOuAdmin){
-          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>'
-            +'<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
+          h += '<button class="sj-btn" data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)"><i class="ti ti-edit"></i>Modifier</button>'
+            +'<button class="sj-btn sj-danger" data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)"><i class="ti ti-trash"></i></button>';
         }
       } else {
         // Sujet libre — bouton Réserver
         h += '<div style="display:flex;gap:0.4rem;align-items:center;">';
-        h += '<button data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 12px;background:var(--rouge);color:white;border:none;border-radius:5px;cursor:pointer;"><i class="ti ti-hand-stop" style="vertical-align:-2px;margin-right:3px;"></i>Réserver</button>';
+        h += '<button class="sj-btn" data-sujet-id="'+s.id+'" onclick="osSujetApercu(this.dataset.sujetId)" title="Voir ce qu\'il y a derrière ce sujet"><i class="ti ti-eye"></i>Aperçu</button>';
+        h += '<button class="sj-btn sj-principal" data-sujet-id="'+s.id+'" onclick="osRedacReserverSujet(this)"><i class="ti ti-hand-stop"></i>Réserver</button>';
         if(isChefOuAdmin){
-          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirAssignation(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid #1A5276;border-radius:4px;background:white;color:#1A5276;cursor:pointer;"><i class="ti ti-user-plus" style="vertical-align:-2px;margin-right:3px;"></i>Attribuer</button>';
-          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:4px 9px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-edit" style="vertical-align:-2px;margin-right:3px;"></i>Modifier</button>';
-          h += '<button data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 8px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-trash"></i></button>';
+          h += '<button class="sj-btn sj-info" data-sujet-id="'+s.id+'" onclick="osSujetOuvrirAssignation(this.dataset.sujetId)"><i class="ti ti-user-plus"></i>Attribuer</button>';
+          h += '<button class="sj-btn" data-sujet-id="'+s.id+'" onclick="osSujetOuvrirModifier(this.dataset.sujetId)"><i class="ti ti-edit"></i>Modifier</button>';
+          h += '<button class="sj-btn sj-danger" data-sujet-id="'+s.id+'" onclick="osSujetSupprimerDepuisRedac(this.dataset.sujetId)"><i class="ti ti-trash"></i></button>';
         }
         h += '</div>';
       }
       h += '</div>';
       if(artLie){
         h += '<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:0.5px solid var(--gris-bord);">'
-          +'<button data-aid="'+esc(artLie.id)+'" onclick="mesArticlesOuvrir(this.dataset.aid,\'lecture\')" style="display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:5px;background:white;color:#1A5276;cursor:pointer;">'
+          +'<button class="sj-btn sj-lien" data-aid="'+esc(artLie.id)+'" onclick="mesArticlesOuvrir(this.dataset.aid,\'lecture\')">'
           +'<i class="ti ti-file-text"></i>Voir l\'article'+(artLie.statut?' · '+esc(artLie.statut):'')+'</button></div>';
       }
       h += '</div>';
@@ -2010,7 +2011,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     if(callback) callback();
     } // fin _rendreSujets
   }).catch(function(){
-    zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:Space Mono,monospace;font-size:0.72rem;">Erreur</div>';
+    zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:DM Sans,sans-serif;font-size:0.72rem;">Erreur</div>';
     if(callback) callback();
   });
 }

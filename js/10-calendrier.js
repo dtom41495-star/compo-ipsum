@@ -705,7 +705,7 @@ function osRedacOuvrirSujet(el){
   var sujetId = el.dataset.sujetId;
   var sujet = (window._sujetsData||[]).find(function(s){return s.id===sujetId;});
   if(!sujet){ osOuvrirSujets(); return; }
-  ouvrirModalSujet(sujet);
+  osSujetApercu(sujetId);
 }
 
 function osRedacReserverSujet(btn){
@@ -982,9 +982,9 @@ function osSujetsChargerPropositions(zone){
         +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+new Date(s.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'
         +(chef
           ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
-            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ti ti-check"></i> Publier</button>'
-            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)" style="font-size:0.72rem;padding:5px 12px;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;"><i class="ti ti-pencil"></i> Modifier</button>'
-            +'<button data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)" style="font-size:0.72rem;padding:5px 12px;background:white;color:#A32D2D;border:1px solid #F1C2C2;border-radius:6px;cursor:pointer;"><i class="ti ti-x"></i> Refuser</button>'
+            +'<button class="sj-btn sj-principal" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)"><i class="ti ti-check"></i> Publier</button>'
+            +'<button class="sj-btn" data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)"><i class="ti ti-pencil"></i> Modifier</button>'
+            +'<button class="sj-btn sj-danger" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)"><i class="ti ti-x"></i> Refuser</button>'
             +'</div>'
           : '<div style="font-size:0.7rem;color:#8A6400;margin-top:4px;"><i class="ti ti-clock"></i> En attente de validation</div>')
         +'</div>';
