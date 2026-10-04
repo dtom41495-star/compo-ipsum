@@ -1867,7 +1867,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
   h += '<div style="flex:1;min-width:0;">';
   h += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">Nouveaux sujets par email</div>';
-  h += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">Reçois un email dès qu\'un sujet est proposé à l\'équipe</div>';
+  h += '<div style="font-size:0.7rem;color:var(--gris);margin-top:1px;">Reçois un email dès qu\'un sujet est proposé à l\'équipe</div>';
   h += '</div>';
   h += '<label class="compo-toggle"><input type="checkbox" id="sujets-notif-toggle" onchange="osSujetsToggleNotif(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
   h += '</div>';
@@ -1891,7 +1891,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '</div>';
   h += '<button class="sj-btn" style="display:none;" id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';"><i class="ti ti-checks"></i>Tout marquer comme lu</button>';
   h += '<div id="sujets-propositions-zone"></div>';
-  h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);"></div></div>';
+  h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:DM Sans,sans-serif;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.
   return h;
@@ -1923,7 +1923,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     // bug repéré via Mathéo (Tarn + Haute-Garonne), badge "7" alors que le Tarn est vide.
     _osRedacMajBadgeRail('sujets', sujets.filter(function(s){ return seenSJ.indexOf(s.id)===-1; }).length);
     if(!sujets.length){
-      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
+      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:DM Sans,sans-serif;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       if(callback) callback();
       return;
     }
@@ -1962,17 +1962,17 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       h += '<div class="sujet-carte" data-pris="'+(isPris?'1':'0')+'" data-sujet-id="'+s.id+'" onclick="osSujetApercuClic(event,this.dataset.sujetId)" title="Voir l\'aperçu du sujet" style="cursor:pointer;background:'+(isPris?'#F9FAFB':'white')+';border:0.5px solid '+(isPris?'#D1D5DB':'var(--gris-bord)')+';border-radius:10px;padding:0.9rem 1.1rem;'+(isPris?'opacity:0.85;':'')+';">';
       h += '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.3rem;">';
       h += '<div style="flex:1;font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>';
-      h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
+      h += '<span style="font-family:DM Sans,sans-serif;font-size:0.7rem;padding:2px 7px;background:'+PRIO_BG[prio]+';color:'+PRIO_C[prio]+';border-radius:3px;flex-shrink:0;">'+prio+'</span>';
       h += '</div>';
-      if(s.cp_id) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:#1A5276;margin-bottom:0.3rem;"><i class="ti ti-paperclip"></i>Communiqué lié</div>';
+      if(s.cp_id) h += '<div style="font-family:DM Sans,sans-serif;font-size:0.7rem;color:#1A5276;margin-bottom:0.3rem;"><i class="ti ti-paperclip"></i>Communiqué lié</div>';
       if(s.note) h += '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.3rem;">'+esc(s.note)+'</div>';
-      if(s.rubrique) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
+      if(s.rubrique) h += '<div style="font-family:DM Sans,sans-serif;font-size:0.7rem;color:var(--gris);margin-bottom:0.5rem;">Rubrique : '+esc(s.rubrique)+'</div>';
       h += '<div class="sujet-actions" style="display:flex;align-items:center;justify-content:space-between;">';
       if(isPris){
         // Sujet déjà pris — afficher qui s'en occupe
         h += '<div style="display:flex;align-items:center;gap:0.4rem;">'
           +'<span style="font-size:0.7rem;font-weight:600;color:#374151;"><i class="ti ti-pencil"></i>'+esc(s.responsable)+'</span>'
-          +'<span style="font-size:0.62rem;color:var(--gris);">en cours de rédaction</span>'
+          +'<span style="font-size:0.7rem;color:var(--gris);">en cours de rédaction</span>'
           +'</div>';
         // Si c'est moi, proposer d'écrire l'article ou d'abandonner
         if(estMoi){
@@ -2011,7 +2011,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     if(callback) callback();
     } // fin _rendreSujets
   }).catch(function(){
-    zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:Space Mono,monospace;font-size:0.72rem;">Erreur</div>';
+    zone.innerHTML = '<div style="padding:1rem;color:var(--rouge);font-family:DM Sans,sans-serif;font-size:0.72rem;">Erreur</div>';
     if(callback) callback();
   });
 }
