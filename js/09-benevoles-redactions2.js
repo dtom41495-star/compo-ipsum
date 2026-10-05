@@ -230,7 +230,7 @@ function osBenevolesDashRender(){
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
@@ -277,7 +277,7 @@ function osBenevolesDashRender(){
       // Le dernier article OU brève publié, quel que soit le type — pour le rapport
       // d'équipe : ce que la personne a produit en dernier, pas seulement quand.
       var dernierPublie=publis.length?publis.reduce(function(a,b){return new Date(a.updated_at)>new Date(b.updated_at)?a:b;}):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]&&!osSansRedactionVoulu(m),sansRedactionVoulu:!membresAvecRedac[m.id]&&osSansRedactionVoulu(m),recompenses:recompensesParMembre[m.id]||[]};
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,reg:(typeof osRegulariteCalculer==='function'?osRegulariteCalculer(m,arts):null),articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]&&!osSansRedactionVoulu(m),sansRedactionVoulu:!membresAvecRedac[m.id]&&osSansRedactionVoulu(m),recompenses:recompensesParMembre[m.id]||[]};
     });
     window._benevolesStats = statsMembres; // utilisé par l'export PDF de l'équipe
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
@@ -288,6 +288,7 @@ function osBenevolesDashRender(){
     app.style.cssText='display:flex;height:100%;overflow:hidden;';
     var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'},{id:'organigramme',icon:'ti-sitemap',label:'Organigramme'}];
     if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
+    if(isVieAsso) tabDefs.push({id:'regularite',icon:'ti-calendar-stats',label:'Régularité'});
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
     // Les demandes d'accès sont de l'administration pure — elles vivent dans l'appli
     // Admin, pas ici : cette appli est dédiée à la vie associative.
@@ -360,6 +361,7 @@ function osBenevolesDashRender(){
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m,32,{})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
+        +((isVieAsso && s.reg && (s.reg.alerteBreve||s.reg.alerteArticle) && !s.inactif)?'<span title="'+esc([(typeof _regTexteBreve==='function'?_regTexteBreve(s.reg):''),(typeof _regTexteArticle==='function'?_regTexteArticle(s.reg):'')].filter(Boolean).join(' · '))+'" style="font-size:0.9rem;flex-shrink:0;color:'+((s.reg.alerteBreve==='rouge'||s.reg.alerteArticle==='rouge')?'#A32D2D':'#B45309')+';display:flex;"><i class="ti ti-alert-triangle"></i></span>':'')
         +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-file-off"></i></span>':'')
         +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.9rem;flex-shrink:0;color:#B91C1C;display:flex;"><i class="ti ti-unlink"></i></span>':'')
         +(s.recompenses.length?'<span title="Récompense(s) : '+esc(s.recompenses.join(', '))+'" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-award"></i></span>':'')
@@ -446,6 +448,15 @@ function osBenevolesDashRender(){
     eh+='</tbody></table></div>';
     editoDiv.innerHTML=eh;
     contentWrap.appendChild(editoDiv);
+    }
+    // ONGLET RÉGULARITÉ (vie asso et admins) : semaine par semaine, sans compensation
+    if(isVieAsso){
+      var regDiv=document.createElement('div');
+      regDiv.id='benv-regularite';
+      regDiv.style.cssText='flex:1;overflow:auto;display:none;flex-direction:column;';
+      tabContents['regularite']=regDiv;
+      contentWrap.appendChild(regDiv);
+      if(typeof osRegulariteRendreOnglet==='function') osRegulariteRendreOnglet(regDiv, statsMembres);
     }
     // ONGLET COMMISSIONS
     var commissionsDiv = document.createElement('div');
