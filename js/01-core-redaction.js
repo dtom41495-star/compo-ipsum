@@ -58,7 +58,7 @@ function renderAvatarHTML(membre, taille, opts){
     ? '<svg viewBox="0 0 64 64" width="100%" height="100%"><use href="#avatar-'+avatarId+'"></use></svg>'
     : '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:'+(taille*0.36)+'px;color:'+rc[1]+';">'+esc(ini)+'</span>';
   var fond = estIllustre ? 'transparent' : rc[0];
-  return '<div data-membre-id="'+esc((membre&&membre.id)||'')+'" style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+fond+';overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(opts.ring||'')+(opts.bord||'')+(opts.styleExtra||'')+'">'+inner+'</div>';
+  return '<div data-membre-id="'+esc((membre&&membre.id)||'')+'" style="width:'+taille+'px;height:'+taille+'px;border-radius:50%;background:'+fond+';overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+(opts.ring||'')+(opts.bord||'')+(opts.styleExtra||'')+(typeof osCadreStyle==='function'?osCadreStyle(membre):'')+'">'+inner+'</div>';
 }
 
 // ===== MODE DEV =====

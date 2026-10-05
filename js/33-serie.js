@@ -81,13 +81,15 @@ function _serieGels(uid){
 }
 // Coût et fréquence des gels (table serie_config, modifiable en SQL) ; valeurs par défaut sinon
 function _serieConfig(){
-  var cfg = { cout:30, jours:28 };
+  var cfg = { cout:30, jours:28, breve:5, article:20 };
   return fetch(SB_URL+'/rest/v1/serie_config?select=cle,valeur', {headers:_serieH()})
     .then(function(r){ return r.ok ? r.json() : []; })
     .then(function(rows){
       (Array.isArray(rows) ? rows : []).forEach(function(x){
         if(x.cle === 'cout_gel') cfg.cout = x.valeur;
         if(x.cle === 'jours_entre_gels') cfg.jours = x.valeur;
+        if(x.cle === 'plumes_breve') cfg.breve = x.valeur;
+        if(x.cle === 'plumes_article') cfg.article = x.valeur;
       });
       window._serieCfg = cfg; return cfg;
     }).catch(function(){ return cfg; });
@@ -197,7 +199,7 @@ function osSerieAfficher(info){
   ov.innerHTML = '<div class="serie-conf" aria-hidden="true">'+conf+'</div>'
     +'<div class="serie-carte">'
       +'<button type="button" class="serie-son" aria-pressed="'+(son ? 'true' : 'false')+'" title="'+(son ? 'Couper le son' : 'Remettre le son')+'" onclick="osSerieBasculerSon(this)"><i class="ti '+(son ? 'ti-volume' : 'ti-volume-off')+'"></i></button>'
-      +'<div class="serie-flamme"><i class="ti ti-flame"></i></div>'
+      +'<div class="serie-flamme"'+_serieFlammeStyle()+'><i class="ti ti-flame"></i></div>'
       +(info.serie > 0 ? '<div class="serie-compteur"><span id="serie-n">'+info.serieAvant+'</span><small>semaine'+(info.serie > 1 ? 's' : '')+' de série</small></div>' : '')
       +'<h2>'+esc(info.titre)+'</h2>'
       +(info.sous ? '<p>'+esc(info.sous)+'</p>' : '')
@@ -216,6 +218,32 @@ function osSerieAfficher(info){
   }, 900);
   setTimeout(function(){ if(document.querySelector('.serie-obj.nouveau')) osSerieSon('coche'); }, 1500);
   var go = ov.querySelector('.serie-go'); if(go) go.focus();
+}
+
+// Petite carte en bas d'écran (3,5 s) pour un envoi au-delà du minimum : flamme, mini-confettis, plumes à venir
+function osSerieBonus(info){
+  if(window._serieBonusOuvert || window._serieOuverte) return;
+  window._serieBonusOuvert = true;
+  var couleurs = ['#FF9600','#FFC800','#58CC02','#1CB0F6','#CE82FF'];
+  var conf = '';
+  for(var i = 0; i < 16; i++){
+    conf += '<i style="background:'+couleurs[i % couleurs.length]+';--a:'+Math.round(i*360/16)+'deg;--d:'+(40+Math.round(Math.random()*40))+'px;animation-delay:'+(Math.random()*0.15).toFixed(2)+'s"></i>';
+  }
+  var el = document.createElement('div');
+  el.className = 'serie-bonus'; el.setAttribute('role', 'status');
+  el.innerHTML = '<div class="serie-bonus-flamme"'+_serieFlammeStyle()+'><i class="ti ti-flame"></i><span class="serie-bonus-conf" aria-hidden="true">'+conf+'</span></div>'
+    +'<div class="serie-bonus-txt"><b>'+esc(info.titre)+'</b><span>'+esc(info.sous)+'</span><em id="serie-bonus-plumes"></em></div>';
+  document.body.appendChild(el);
+  osSerieSon('ding');
+  _serieConfig().then(function(cfg){
+    var n = info.type === 'article' ? cfg.article : cfg.breve;
+    var z = el.querySelector('#serie-bonus-plumes');
+    if(z && n > 0) z.innerHTML = '<i class="ti ti-feather"></i> +'+n+' plumes quand elle sera publiée';
+  });
+  setTimeout(function(){
+    el.classList.add('sortie');
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); window._serieBonusOuvert = false; }, 300);
+  }, 3800);
 }
 
 // Appelée juste après un envoi réussi au SR (assignValider, js/02-auth-articles.js)
@@ -247,7 +275,17 @@ function osSerieApresEnvoi(doc){
         } else if(!avant.articleMois){
           info = { titre:'Article du mois envoyé !', sous:'Ton objectif du mois est rempli.' };
         }
-        if(!info) return;
+        if(!info){
+          // Envoi en plus du minimum : petite fête discrète, qui ne bloque pas l'écran
+          if(estBreve && apres.faite && avant.faite){
+            vus.push(doc.id); try{ localStorage.setItem('ipsum_serie_vus_'+uid, JSON.stringify(vus.slice(-200))); }catch(e){}
+            osSerieBonus({ titre: apres.n0+'e brève cette semaine !', sous: 'Au-dessus du minimum, bravo.', type:'breve' });
+          } else if(!estBreve && avant.articleMois){
+            vus.push(doc.id); try{ localStorage.setItem('ipsum_serie_vus_'+uid, JSON.stringify(vus.slice(-200))); }catch(e){}
+            osSerieBonus({ titre: 'Article envoyé au SR !', sous: 'En plus de ton objectif du mois, merci.', type:'article' });
+          }
+          return;
+        }
         if(apres.faite && apres.articleMois && info.titre.indexOf('Article') !== 0) info.sous += ' Et l\'article du mois est déjà fait.';
         if(apres.faite && apres.articleMois && info.titre.indexOf('Article') === 0) info.sous += ' Et la brève de la semaine aussi.';
         info.serie = apres.serie;
@@ -265,6 +303,11 @@ function osSerieApresEnvoi(doc){
 }
 
 // ---- Carte « Ma série » du profil (Ma rédac') ----
+// Couleur de flamme achetée à la boutique (style en ligne), vide si flamme d'origine
+function _serieFlammeStyle(){
+  var f = typeof osFlammeFond === 'function' ? osFlammeFond(getUserId()) : null;
+  return f ? ' style="background:'+f+'"' : '';
+}
 // Visage de la flamme quand il n'y a plus de série : sourcils froncés, yeux en colère (animé en CSS)
 var _SERIE_FLAMME_FACHEE = '<svg class="rp-serie-visage" viewBox="0 0 52 52" aria-hidden="true">'
   +'<g class="yeux"><circle cx="19" cy="33" r="3.6" fill="#fff"/><circle cx="33" cy="33" r="3.6" fill="#fff"/><circle cx="19.8" cy="33.6" r="1.7" fill="#3a0d0d"/><circle cx="32.2" cy="33.6" r="1.7" fill="#3a0d0d"/></g>'
@@ -284,7 +327,7 @@ function osSerieCarteHtml(e, x){
     ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
     : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
   var etatFlamme = e.gel0 ? ' gelee' : (e.faite ? '' : (e.serie > 0 ? ' eteinte' : ' fachee'));
-  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'" title="'+(e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme attend ta brève' : 'La flamme n\'est pas contente')))+'">'
+  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'"'+(etatFlamme === '' ? _serieFlammeStyle() : '')+' title="'+(e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme attend ta brève' : 'La flamme n\'est pas contente')))+'">'
     +'<i class="ti ti-flame"></i>'+(!e.faite && e.serie === 0 ? _SERIE_FLAMME_FACHEE : '')+(e.gel0 ? '<i class="ti ti-snowflake rp-serie-givre"></i>' : '')+'</div>';
   // Gel : réservé aux semaines pas encore faites ; coût et solde viennent du serveur
   var gel = '';

@@ -1194,6 +1194,8 @@ function lancerCompo(){
     if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
 
+    if(typeof osCosmetiquesCharger === 'function') osCosmetiquesCharger();
+
     // Définir la rédaction active si une seule
     if(!window._redacActiveId && window._membresRedactionsData && uid){
       var mesLiens = window._membresRedactionsData.filter(function(mr){ return mr.membre_id===uid; });
@@ -1318,6 +1320,8 @@ function assignValider(){
       // en réalité échoué — sans ce contrôle, on perdait le brouillon local tout
       // en croyant l'article correctement envoyé en correction.
       if(!r.ok) throw new Error('PATCH statut/correcteur échoué (HTTP '+r.status+')');
+      // Relecture express cochée dans la modale : consomme un jeton (js/34-boutique.js)
+      if(typeof osExpressAppliquer === 'function') return osExpressAppliquer(docId).then(function(ok){ _assignDoc2.express = !!ok; });
     });
   }).then(function(){
     // Retirer le brouillon local

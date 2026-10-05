@@ -1610,6 +1610,8 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   h += '<span class="rp-camera"><i class="ti ti-camera"></i></span>';
   h += '</div>';
   h += '<div class="rp-nom">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
+  var titreBq = typeof osCosmetique === 'function' ? osCosmetique(membre.id).titre : '';
+  if(titreBq) h += '<div class="rp-titre-boutique"><i class="ti ti-feather"></i> '+esc(titreBq)+'</div>';
   if(fonctionShort(membre.fonction)) h += '<div class="rp-fonction">'+esc(fonctionShort(membre.fonction))+'</div>';
   h += '<div class="rp-badges">';
   if(membre.role) h += '<span title="Rôle sur Compo" style="'+BADGE+'background:#FDEEE8;color:#C73A18;">'+esc(ROLES_PROFIL[membre.role]||membre.role)+'</span>';
