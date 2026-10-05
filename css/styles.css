@@ -5197,3 +5197,6 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .acc-pill-serie.fachee i { color: #D6391E; animation: serie-pill-fache 3s ease-in-out infinite; display: inline-block; }
 @keyframes serie-pill-fache { 0%,65%,100% { transform: rotate(0); } 70% { transform: rotate(-14deg); } 75% { transform: rotate(12deg); } 80% { transform: rotate(-10deg); } 85% { transform: rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .acc-pill-serie.fachee i { animation: none; } }
+
+/* Plumes : solde affiché dans la carte « Ma série » */
+.rp-serie-plumes { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 9px; border-radius: 999px; background: #F3ECF8; color: #7D3C98; font-family: 'DM Sans', sans-serif; font-size: .74rem; font-weight: 700; vertical-align: middle; }

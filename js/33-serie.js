@@ -81,7 +81,7 @@ function _serieGels(uid){
 }
 // Coût et fréquence des gels (table serie_config, modifiable en SQL) ; valeurs par défaut sinon
 function _serieConfig(){
-  var cfg = { cout:3, jours:28 };
+  var cfg = { cout:30, jours:28 };
   return fetch(SB_URL+'/rest/v1/serie_config?select=cle,valeur', {headers:_serieH()})
     .then(function(r){ return r.ok ? r.json() : []; })
     .then(function(rows){
@@ -92,9 +92,9 @@ function _serieConfig(){
       window._serieCfg = cfg; return cfg;
     }).catch(function(){ return cfg; });
 }
-// Solde d'heures de bénévolat du membre (heures gagnées hors sorties, moins boutique et gels)
+// Solde de plumes du membre (journal des mouvements : heures, publications, semaines en règle, boutique, gels)
 function _serieSolde(){
-  return fetch(SB_URL+'/rest/v1/rpc/mon_solde_heures', {method:'POST', headers:Object.assign({}, _serieH(), {'Content-Type':'application/json'}), body:'{}'})
+  return fetch(SB_URL+'/rest/v1/rpc/mon_solde_plumes', {method:'POST', headers:Object.assign({}, _serieH(), {'Content-Type':'application/json'}), body:'{}'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(v){ return typeof v === 'number' ? v : null; })
     .catch(function(){ return null; });
@@ -112,7 +112,7 @@ function _serieGelPossible(gels, cfg, solde){
     if(dispo > lundi) return { ok:false, raison:'Prochain gel possible le '+dispo.getDate()+'/'+(dispo.getMonth()+1)+'.' };
   }
   if(solde === null) return { ok:false, raison:'' };
-  if(solde < cfg.cout) return { ok:false, raison:'Il te faut '+cfg.cout+' h pour geler, tu en as '+solde+' h.' };
+  if(solde < cfg.cout) return { ok:false, raison:'Il te faut '+cfg.cout+' plumes pour geler, tu en as '+solde+'.' };
   return { ok:true, raison:'' };
 }
 function _serieArrivee(uid){
@@ -292,15 +292,15 @@ function osSerieCarteHtml(e, x){
     if(e.gel0){
       gel = '<div class="rp-serie-gel gelee"><i class="ti ti-snowflake"></i><span>Ta série est protégée cette semaine : pas de relance, pas d\'alerte.</span></div>';
     } else if(!e.faite){
-      var cfg = x.cfg || { cout:3, jours:28 };
+      var cfg = x.cfg || { cout:30, jours:28 };
       var pos = _serieGelPossible(x.gels, cfg, x.solde);
-      if(pos.ok) gel = '<div class="rp-serie-gel"><button type="button" class="rp-serie-geler" onclick="osSerieGeler()"><i class="ti ti-snowflake"></i> Geler cette semaine ('+cfg.cout+' h)</button><span>Solde : '+x.solde+' h · protège la série, annule relances et alertes</span></div>';
+      if(pos.ok) gel = '<div class="rp-serie-gel"><button type="button" class="rp-serie-geler" onclick="osSerieGeler()"><i class="ti ti-snowflake"></i> Geler cette semaine ('+cfg.cout+' <i class="ti ti-feather"></i>)</button><span>Solde : '+x.solde+' plume'+(x.solde > 1 ? 's' : '')+' · protège la série, annule relances et alertes</span></div>';
       else if(pos.raison) gel = '<div class="rp-serie-gel inactif"><i class="ti ti-snowflake"></i><span>Gel indisponible. '+esc(pos.raison)+'</span></div>';
     }
   }
   return flamme
     +'<div class="rp-serie-corps">'
-      +'<div class="rp-serie-titre">'+esc(titre)+'</div>'
+      +'<div class="rp-serie-titre">'+esc(titre)+(typeof x.solde === 'number' ? '<span class="rp-serie-plumes" title="Tes plumes"><i class="ti ti-feather"></i> '+x.solde+'</span>' : '')+'</div>'
       +'<div class="rp-serie-ligne'+(brevOk ? ' fait' : '')+'"><i class="ti '+(brevOk ? 'ti-circle-check' : 'ti-circle')+'"></i><span>'+esc(breve)+'</span></div>'
       +'<div class="rp-serie-ligne'+(e.articleMois ? ' fait' : '')+'"><i class="ti '+(e.articleMois ? 'ti-circle-check' : 'ti-circle')+'"></i><span>'+esc(art)+'</span></div>'
     +'</div>'
@@ -323,13 +323,13 @@ var _SERIE_ERREURS = {
   deja_gelee:'Cette semaine est déjà gelée.',
   semaine_precedente_gelee:'Pas deux semaines gelées de suite.',
   gel_trop_recent:'Un gel a déjà été utilisé récemment.',
-  solde_insuffisant:'Il n\'y a pas assez d\'heures dans ton solde.',
+  solde_insuffisant:'Tu n\'as pas assez de plumes.',
   non_connecte:'Reconnecte-toi puis réessaie.'
 };
 function osSerieGeler(){
-  var cfg = window._serieCfg || { cout:3, jours:28 };
+  var cfg = window._serieCfg || { cout:30, jours:28 };
   var solde = window._serieSoldeCourant;
-  var msg = 'Geler cette semaine ? Ça coûte '+cfg.cout+' h de ton solde'+(typeof solde === 'number' ? ' ('+solde+' h → '+(solde - cfg.cout)+' h)' : '')+'. Ta série est protégée et Compo ne te relancera pas cette semaine.';
+  var msg = 'Geler cette semaine ? Ça coûte '+cfg.cout+' plumes de ton solde'+(typeof solde === 'number' ? ' ('+solde+' → '+(solde - cfg.cout)+')' : '')+'. Ta série est protégée et Compo ne te relancera pas cette semaine.';
   osConfirmer(msg, { oui:'Geler ❄', icone:'snowflake' }).then(function(ok){
     if(!ok) return;
     fetch(SB_URL+'/rest/v1/rpc/gel_serie_poser', {method:'POST', headers:Object.assign({}, _serieH(), {'Content-Type':'application/json'}), body:'{}'})
