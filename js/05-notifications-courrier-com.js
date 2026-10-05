@@ -263,7 +263,31 @@ function _osRattrapageMarquerLu(btn){
 }
 
 // Met à jour un badge sur le dock ET dans le launchpad si ouvert
+// Apps dont l'icône du bureau porte un point d'exclamation quand il y a du non lu
+var BUREAU_ALERTE_APPS = ['veille'];
+var _bureauNonLus = {};
+function _osAlerteIconeBureau(appId){
+  if(BUREAU_ALERTE_APPS.indexOf(appId) === -1) return;
+  var ic = document.querySelector('#os-desktop-icons .desktop-icon[data-app="'+appId+'"]');
+  if(!ic) return;
+  var img = ic.querySelector('.desktop-icon-img');
+  var marque = ic.querySelector('.desktop-icon-alerte');
+  var n = _bureauNonLus[appId] || 0;
+  if(n && img){
+    if(!marque){
+      marque = document.createElement('span');
+      marque.className = 'desktop-icon-alerte';
+      marque.textContent = '!';
+      img.appendChild(marque);
+    }
+    marque.title = n+' non lu'+(n>1?'s':'');
+  } else if(marque){
+    marque.remove();
+  }
+}
 function osMajBadge(appId, count){
+  _bureauNonLus[appId] = count || 0;
+  _osAlerteIconeBureau(appId);
   var dockBadge = document.getElementById('dock-badge-'+appId);
   var lpBadge   = document.getElementById('lp-badge-'+appId);
   [dockBadge, lpBadge].forEach(function(el){
@@ -1390,6 +1414,7 @@ function osBuildDesktopIcons(){
   if(role === 'admin' || role === 'redacteur' || role === 'correcteur'){
     var veilleIcon = document.createElement('div');
     veilleIcon.className = 'desktop-icon';
+    veilleIcon.dataset.app = 'veille';
     veilleIcon.onclick = function(){ osOpenWindow('veille'); };
     var veilleImg = document.createElement('div');
     veilleImg.className = 'desktop-icon-img';
@@ -1517,6 +1542,7 @@ function osBuildDesktopIcons(){
   chatIcon.appendChild(chatLabel);
   container.appendChild(chatIcon);
   _osTeinterTuiles();
+  BUREAU_ALERTE_APPS.forEach(_osAlerteIconeBureau);
 }
 
 // Surcharger go() pour ouvrir les fenêtres
