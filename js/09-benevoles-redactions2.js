@@ -1640,6 +1640,8 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
   function tuile(id, valeur, libelle, titre){
     return '<div class="rp-tuile" title="'+titre+'"><b'+(id?' id="'+id+'"':'')+'>'+valeur+'</b><span>'+libelle+'</span></div>';
   }
+  // Série : brève de la semaine, article du mois (calculée à l'affichage, voir js/33-serie.js)
+  if(!sansEcriture) h += '<div class="rp-serie" id="rp-serie" style="display:none;"></div>';
   h += '<div class="rp-tuiles">';
   if(!sansEcriture) h += tuile('', mesPublies.length, 'article'+(mesPublies.length>1?'s':'')+' publié'+(mesPublies.length>1?'s':''), 'Tous mes articles publiés dans cette rédaction');
   if(!sansEcriture) h += tuile('', publiesCeMois, 'publié'+(publiesCeMois>1?'s':'')+' ce mois-ci', 'Articles publiés depuis le 1er du mois');

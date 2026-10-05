@@ -1705,6 +1705,15 @@ function osRedacReglagesForm(redac){
   h += '</div>';
   }
 
+  if('rappel_serie' in redac){
+  h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Série</div>';
+  h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-rappel_serie" '+(redac.rappel_serie!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Rappel pour garder sa série</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">le vendredi à 18h30, Compo envoie un message Chat privé, sur un ton décalé, aux membres qui ont une série de 2 semaines ou plus et pas encore de brève cette semaine. Il leur reste le week-end pour la sauver.</span></span></label>';
+  h += '</div>';
+  }
+
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
   h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
@@ -1725,7 +1734,7 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves'];
+  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
@@ -2113,6 +2122,9 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     // Activités agenda
     var zoneActivites = document.getElementById('redac-mes-activites');
     if(zoneActivites) osRedacChargerMesActivites(zoneActivites);
+    // Série (brève de la semaine, article du mois)
+    var zoneSerie = document.getElementById('rp-serie');
+    if(zoneSerie && typeof osSerieChargerCarte === 'function') osSerieChargerCarte(zoneSerie);
     // Alertes et annonces
     var zoneAlertes = document.getElementById('redac-alertes-zone');
     if(zoneAlertes) osRedacChargerAlertes(zoneAlertes);
