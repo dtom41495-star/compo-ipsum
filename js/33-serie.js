@@ -35,13 +35,42 @@ function osSerieCalculer(items, arrivee, ignorerId){
     if(n[k] >= 1 || comp[k]) serie++; else break;
   }
   var limite = Date.now() - SERIE_JOURS_ARTICLE*86400000;
-  var articleMois = items.some(function(i){ return i.type !== 'breve' && i.id !== ignorerId && i.date.getTime() > limite; });
+  var articles = items.filter(function(i){ return i.type !== 'breve' && i.id !== ignorerId; });
+  var articleMois = articles.some(function(i){ return i.date.getTime() > limite; });
+  var dernierArticle = articles.reduce(function(m, i){ return !m || i.date > m ? i.date : m; }, null);
+  var joursArticle = dernierArticle ? Math.max(0, Math.floor((Date.now() - dernierArticle.getTime()) / 86400000)) : null;
   var pastilles = [];
   for(k = 6; k >= 0; k--){
     var debutK = new Date(lundi); debutK.setDate(debutK.getDate() - 7*k);
     pastilles.push({ debut:debutK, etat: avant[k] ? 'avant' : ((k === 0 ? faite : (n[k] >= 1)) ? 'ok' : (comp[k] ? 'comp' : (k === 0 ? 'attente' : 'vide'))), courante:k === 0 });
   }
-  return { n0:n[0], besoin:besoin, faite:faite, serie:serie, articleMois:articleMois, pastilles:pastilles };
+  return { n0:n[0], besoin:besoin, faite:faite, serie:serie, articleMois:articleMois, joursArticle:joursArticle, pastilles:pastilles };
+}
+
+// Articles du membre (brèves et articles envoyés au SR ou publiés, toutes rédactions confondues)
+function _serieCharger(uid, ajout){
+  var cols = window._srColsDispo === true ? ',envoye_sr_le' : '';
+  return fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide,publie)&select=id,type,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      var items = (Array.isArray(rows) ? rows : []).map(function(a){ return { id:a.id, type:a.type, date:_serieDate(a) }; }).filter(function(i){ return i.date; });
+      if(ajout){
+        items = items.filter(function(i){ return i.id !== ajout.id; });
+        items.push({ id:ajout.id, type:ajout.type, date:new Date() });
+      }
+      return items;
+    });
+}
+function _serieArrivee(uid){
+  var membre = (window._membresData || []).find(function(m){ return m.id === uid; });
+  return membre && membre.created_at ? new Date(membre.created_at) : null;
+}
+function _seriePastillesHtml(pastilles){
+  return pastilles.map(function(p){
+    var lib = p.debut.getDate()+'/'+(p.debut.getMonth()+1);
+    var ic = (p.etat === 'ok' || p.etat === 'comp') ? '<i class="ti ti-check"></i>' : (p.etat === 'vide' ? '<i class="ti ti-minus"></i>' : '');
+    return '<div class="serie-past '+p.etat+(p.courante ? ' courante' : '')+'"><span class="serie-rond">'+ic+'</span><small>'+(p.courante ? 'cette sem.' : lib)+'</small></div>';
+  }).join('');
 }
 
 // ---- Sons (synthétisés, aucun fichier) ----
@@ -104,11 +133,7 @@ function osSerieAfficher(info){
     conf += '<i style="left:'+(Math.random()*100).toFixed(1)+'%;background:'+couleurs[i % couleurs.length]
       +';animation-delay:'+(Math.random()*0.9).toFixed(2)+'s;animation-duration:'+(2.2+Math.random()*1.6).toFixed(2)+'s;--r:'+Math.round(Math.random()*720-360)+'deg;--dx:'+Math.round(Math.random()*160-80)+'px"></i>';
   }
-  var pasts = info.pastilles.map(function(p){
-    var lib = p.debut.getDate()+'/'+(p.debut.getMonth()+1);
-    var ic = p.etat === 'ok' ? '<i class="ti ti-check"></i>' : (p.etat === 'comp' ? '<i class="ti ti-check"></i>' : (p.etat === 'avant' ? '' : (p.etat === 'vide' ? '<i class="ti ti-minus"></i>' : '')));
-    return '<div class="serie-past '+p.etat+(p.courante ? ' courante' : '')+'"><span class="serie-rond">'+ic+'</span><small>'+(p.courante ? 'cette sem.' : lib)+'</small></div>';
-  }).join('');
+  var pasts = _seriePastillesHtml(info.pastilles);
   var objs = info.objectifs.map(function(o, idx){
     return '<div class="serie-obj'+(o.fait ? ' fait' : '')+(o.nouveau ? ' nouveau' : '')+'" style="--i:'+idx+'"><span class="serie-case">'+(o.fait ? '<i class="ti ti-check"></i>' : '')+'</span><span>'+esc(o.label)+'</span></div>';
   }).join('');
@@ -148,16 +173,9 @@ function osSerieApresEnvoi(doc){
     var vus = [];
     try{ vus = JSON.parse(localStorage.getItem('ipsum_serie_vus_'+uid) || '[]'); }catch(e){}
     if(vus.indexOf(doc.id) !== -1) return;                   // cet envoi a déjà été fêté
-    var cols = window._srColsDispo === true ? ',envoye_sr_le' : '';
-    fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide,publie)&select=id,type,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
-      .then(function(r){ return r.json(); })
-      .then(function(rows){
-        rows = Array.isArray(rows) ? rows : [];
-        var items = rows.map(function(a){ return { id:a.id, type:a.type, date:_serieDate(a) }; }).filter(function(i){ return i.date; });
-        items = items.filter(function(i){ return i.id !== doc.id; });
-        items.push({ id:doc.id, type:doc.type, date:new Date() });
-        var membre = (window._membresData || []).find(function(m){ return m.id === uid; });
-        var arrivee = membre && membre.created_at ? new Date(membre.created_at) : null;
+    _serieCharger(uid, doc)
+      .then(function(items){
+        var arrivee = _serieArrivee(uid);
         var avant = osSerieCalculer(items, arrivee, doc.id);
         var apres = osSerieCalculer(items, arrivee, null);
         var estBreve = doc.type === 'breve';
@@ -189,4 +207,32 @@ function osSerieApresEnvoi(doc){
         osSerieAfficher(info);
       }).catch(function(){});
   }catch(e){}
+}
+
+// ---- Carte « Ma série » du profil (Ma rédac') ----
+function osSerieCarteHtml(e){
+  var jours = 7 - ((new Date().getDay() + 6) % 7);               // jours restants, dimanche compris
+  var titre = e.serie > 0 ? e.serie+' semaine'+(e.serie > 1 ? 's' : '')+' de série' : 'Pas de série en cours';
+  var breve, brevOk = e.faite;
+  if(e.faite) breve = 'Brève de la semaine : faite';
+  else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), encore '+jours+' jour'+(jours > 1 ? 's' : '');
+  else breve = e.serie > 0 ? 'Une brève avant dimanche pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : 'Envoie une brève cette semaine pour lancer ta série';
+  var art = e.articleMois
+    ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
+    : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
+  return '<div class="rp-serie-flamme'+(e.faite ? '' : ' eteinte')+'"><i class="ti ti-flame"></i></div>'
+    +'<div class="rp-serie-corps">'
+      +'<div class="rp-serie-titre">'+esc(titre)+'</div>'
+      +'<div class="rp-serie-ligne'+(brevOk ? ' fait' : '')+'"><i class="ti '+(brevOk ? 'ti-circle-check' : 'ti-circle')+'"></i><span>'+esc(breve)+'</span></div>'
+      +'<div class="rp-serie-ligne'+(e.articleMois ? ' fait' : '')+'"><i class="ti '+(e.articleMois ? 'ti-circle-check' : 'ti-circle')+'"></i><span>'+esc(art)+'</span></div>'
+    +'</div>'
+    +'<div class="serie-pasts rp-serie-pasts">'+_seriePastillesHtml(e.pastilles)+'</div>';
+}
+function osSerieChargerCarte(zone){
+  var uid = getUserId();
+  if(!zone || !uid) return;
+  _serieCharger(uid).then(function(items){
+    zone.innerHTML = osSerieCarteHtml(osSerieCalculer(items, _serieArrivee(uid), null));
+    zone.style.display = '';
+  }).catch(function(){ zone.style.display = 'none'; });
 }

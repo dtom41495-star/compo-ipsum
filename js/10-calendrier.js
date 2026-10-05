@@ -2113,6 +2113,9 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     // Activités agenda
     var zoneActivites = document.getElementById('redac-mes-activites');
     if(zoneActivites) osRedacChargerMesActivites(zoneActivites);
+    // Série (brève de la semaine, article du mois)
+    var zoneSerie = document.getElementById('rp-serie');
+    if(zoneSerie && typeof osSerieChargerCarte === 'function') osSerieChargerCarte(zoneSerie);
     // Alertes et annonces
     var zoneAlertes = document.getElementById('redac-alertes-zone');
     if(zoneAlertes) osRedacChargerAlertes(zoneAlertes);
