@@ -5184,3 +5184,16 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 @keyframes serie-yeux { 0%,88%,100% { transform: scaleY(1); } 92% { transform: scaleY(.1); } }
 @keyframes serie-givre { 0%,100% { box-shadow: 0 4px 14px rgba(28,176,246,.4); } 50% { box-shadow: 0 4px 22px rgba(28,176,246,.7); } }
 @media (prefers-reduced-motion: reduce) { .rp-serie-flamme.fachee, .rp-serie-flamme.gelee, .rp-serie-visage .yeux { animation: none !important; } }
+
+/* Pastille de série dans l'accueil mobile (js/33-serie.js) */
+.acc-pill-serie { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; background: #fff; border: 1px solid #E7E5E4; font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif; color: #1A1A2E; }
+.acc-pill-serie i { font-size: 18px; }
+.acc-pill-serie.allumee { border-color: #FFD9A8; background: #FFF7EC; }
+.acc-pill-serie.allumee i { color: #FF9600; }
+.acc-pill-serie.eteinte i { color: #B8B2A8; }
+.acc-pill-serie.gelee { border-color: #BFE3FA; background: #EEF8FF; color: #1B6FB5; }
+.acc-pill-serie.gelee i { color: #1CB0F6; }
+.acc-pill-serie.fachee { border-color: #F4B8A8; background: #FFF1ED; color: #B3261E; }
+.acc-pill-serie.fachee i { color: #D6391E; animation: serie-pill-fache 3s ease-in-out infinite; display: inline-block; }
+@keyframes serie-pill-fache { 0%,65%,100% { transform: rotate(0); } 70% { transform: rotate(-14deg); } 75% { transform: rotate(12deg); } 80% { transform: rotate(-10deg); } 85% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .acc-pill-serie.fachee i { animation: none; } }

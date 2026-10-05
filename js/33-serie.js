@@ -346,3 +346,30 @@ function osSerieGeler(){
       }).catch(function(){ osShowToast('Impossible de geler la semaine pour le moment.', 'erreur'); });
   });
 }
+
+// ---- Pastille de l'accueil mobile : le compteur de série, un toucher ouvre le profil ----
+function _seriePastilleAppliquer(el, etat){
+  if(!el || !etat) return;
+  el.className = 'acc-pill-serie '+etat.classe;
+  el.querySelector('span').textContent = etat.texte;
+  el.setAttribute('aria-label', etat.titre);
+  el.title = etat.titre;
+  el.style.display = '';
+}
+function osSerieChargerPastille(el){
+  var uid = getUserId();
+  if(!el || !uid) return;
+  // Affichage immédiat avec le dernier état connu, puis mise à jour (l'accueil se redessine souvent)
+  if(window._seriePastilleEtat) _seriePastilleAppliquer(el, window._seriePastilleEtat);
+  if(window._seriePastilleLe && Date.now() - window._seriePastilleLe < 60000 && window._seriePastilleEtat) return;
+  Promise.all([_serieCharger(uid), _serieGels(uid)]).then(function(res){
+    var e = osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set);
+    var classe = e.gel0 ? 'gelee' : (e.faite ? 'allumee' : (e.serie > 0 ? 'eteinte' : 'fachee'));
+    var titre = e.serie > 0 ? 'Série de '+e.serie+' semaine'+(e.serie > 1 ? 's' : '') : 'Pas de série en cours';
+    if(e.gel0) titre += ', semaine gelée';
+    else if(!e.faite) titre += e.serie > 0 ? ' : une brève avant dimanche pour la garder' : ' : envoie une brève pour la lancer';
+    window._seriePastilleEtat = { classe:classe, texte:e.serie+' sem.', titre:titre };
+    window._seriePastilleLe = Date.now();
+    _seriePastilleAppliquer(document.getElementById('acc-serie') || el, window._seriePastilleEtat);
+  }).catch(function(){ el.style.display = 'none'; });
+}
