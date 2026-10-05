@@ -1194,6 +1194,8 @@ function lancerCompo(){
     if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
 
+    if(typeof osCosmetiquesCharger === 'function') osCosmetiquesCharger();
+
     // Définir la rédaction active si une seule
     if(!window._redacActiveId && window._membresRedactionsData && uid){
       var mesLiens = window._membresRedactionsData.filter(function(mr){ return mr.membre_id===uid; });
