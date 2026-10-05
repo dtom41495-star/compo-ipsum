@@ -40,6 +40,13 @@ var TRESORERIE_MOYENS = ['CB','Chèque','Virement','Prélèvement','HelloAsso','
 
 
 
+// Prix en plumes : colonne cout_plumes, ou ancien coût en heures x 10 tant qu'elle n'est pas remplie
+function _boutiquePrix(o){ return (o && o.cout_plumes !== null && o.cout_plumes !== undefined) ? o.cout_plumes : Math.round(((o && o.cout_heures) || 0) * 10); }
+function _boutiquePlumesFetch(authH){
+  return fetch(SB_URL+'/rest/v1/rpc/mon_solde_plumes',{method:'POST',headers:Object.assign({},authH,{'Content-Type':'application/json'}),body:'{}'})
+    .then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+}
+
 function osBoutiqueRender(){
   var wc = document.getElementById('wincontent-boutique');
   if(!wc) return;
@@ -54,12 +61,14 @@ function osBoutiqueRender(){
   Promise.all([
     fetch(SB_URL+'/rest/v1/boutique_articles?actif=eq.true&order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&select=cout_heures,statut',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&select=*',{headers:authH}).then(function(r){return r.json();}),
     isAdmin ? fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.en_attente&select=*,membres(prenom,nom)&order=created_at.desc',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
     // Pour la gestion admin, il faut voir aussi les articles désactivés — sinon un
     // article désactivé disparaît du catalogue ET de cette liste, sans plus aucun
     // moyen de le réactiver ou de le modifier depuis l'appli.
-    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_articles?order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
+    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_articles?order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
+    // Solde de plumes (journal des mouvements)
+    _boutiquePlumesFetch(authH)
   ]).then(function(results){
     var articles = (!results[0]||results[0].code) ? [] : results[0];
     var heures   = (!results[1]||results[1].code) ? [] : results[1];
@@ -70,12 +79,11 @@ function osBoutiqueRender(){
     // Les sorties (agenda) ne comptent pas pour la boutique — seulement pour le suivi général des heures
     var heuresBoutique = heures.filter(function(h){ return !(h.type==='agenda' && h.categorie_agenda==='sortie'); });
     var totalMin = heuresBoutique.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
-    var depensesH = commandes.filter(function(c){return c.statut!=='refuse';}).reduce(function(s,c){return s+(c.cout_heures||0);},0);
     var totalH = Math.floor(totalMin/60);
     var totalM = totalMin % 60;
     var totalStr = totalH > 0 ? totalH+'h'+(totalM>0?totalM+'m':'') : totalM+'m';
-    var soldeH = Math.max(0, totalH - depensesH);
-    var soldeStr = soldeH > 0 ? soldeH+'h' : '0h';
+    var soldePlumes = typeof results[5] === 'number' ? results[5] : 0;
+    var soldeStr = soldePlumes+'';
 
     var h = '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">';
 
@@ -83,16 +91,12 @@ function osBoutiqueRender(){
     h += '<div style="flex-shrink:0;background:linear-gradient(135deg,#7D3C98,#5B2C6F);padding:1.2rem 1.5rem;">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;">';
     h += '<div><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;"><i class="ti ti-gift"></i> Boutique Ipsum Média</div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.6);margin-top:2px;">Échangez vos heures de bénévolat</div></div>';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(255,255,255,0.6);margin-top:2px;">Échangez vos plumes <i class="ti ti-feather"></i></div></div>';
     h += '<div style="text-align:right;">';
-    h += '<div style="font-family:Poppins,sans-serif;font-size:1.6rem;font-weight:800;color:white;">'+soldeStr+'</div>';
-    h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">disponibles / '+totalStr+' total</div>';
+    h += '<div style="font-family:Poppins,sans-serif;font-size:1.6rem;font-weight:800;color:white;"><i class="ti ti-feather" style="font-size:1.3rem;"></i> '+soldeStr+'</div>';
+    h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.6);">plume'+(soldePlumes>1?'s':'')+' disponible'+(soldePlumes>1?'s':'')+' · '+totalStr+' de bénévolat</div>';
     h += '</div></div>';
 
-    // Barre de progression solde
-    var pct = totalH > 0 ? Math.min(100, Math.round(soldeH/totalH*100)) : 0;
-    h += '<div style="margin-top:0.8rem;background:rgba(255,255,255,0.2);border-radius:10px;height:6px;">';
-    h += '<div style="background:white;border-radius:10px;height:6px;width:'+pct+'%;transition:width 0.5s;"></div></div>';
     h += '</div>';
 
     // Alertes admin
@@ -120,7 +124,7 @@ function osBoutiqueRender(){
         h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.6rem;margin-top:0.4rem;">'+esc(cat)+'</div>';
         h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.7rem;margin-bottom:1rem;">';
         cats[cat].forEach(function(art){
-          var peutAcheter = soldeH >= art.cout_heures;
+          var peutAcheter = soldePlumes >= _boutiquePrix(art);
           var stockOk = art.stock === null || art.stock > 0;
           var dejaCommande = commandes.some(function(c){return c.article_id===art.id && c.statut!=='refuse';});
           h += '<div style="background:white;border:1px solid var(--gris-bord);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:0.5rem;opacity:'+(stockOk?'1':'0.5')+'">';
@@ -128,7 +132,7 @@ function osBoutiqueRender(){
           h += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);text-align:center;">'+esc(art.nom.replace(/^[\u{1F300}-\u{1F9FF}]\s*/u,''))+'</div>';
           if(art.description) h += '<div style="font-size:0.75rem;color:var(--gris);text-align:center;line-height:1.3;">'+esc(art.description)+'</div>';
           h += '<div style="text-align:center;">';
-          h += '<span style="font-family:Poppins,sans-serif;font-size:1.1rem;font-weight:800;color:#7D3C98;">'+art.cout_heures+'h</span>';
+          h += '<span style="font-family:Poppins,sans-serif;font-size:1.1rem;font-weight:800;color:#7D3C98;"><i class="ti ti-feather" style="font-size:0.95rem;"></i> '+_boutiquePrix(art)+'</span>';
           if(art.stock !== null) h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-left:0.4rem;">'+art.stock+' dispo</span>';
           h += '</div>';
           if(dejaCommande){
@@ -136,7 +140,7 @@ function osBoutiqueRender(){
           } else if(!stockOk){
             h += '<div style="text-align:center;font-family:Space Mono,monospace;font-size:0.65rem;color:var(--gris);background:var(--gris-clair);padding:4px 8px;border-radius:6px;">Épuisé</div>';
           } else {
-            h += '<button onclick="osBoutiqueCommander(\''+art.id+'\',\''+esc(art.nom)+'\','+art.cout_heures+')" style="width:100%;padding:0.5rem;background:'+(peutAcheter?'#7D3C98':'var(--gris-clair)')+';color:'+(peutAcheter?'white':'var(--gris)')+';border:none;border-radius:8px;font-family:Space Mono,monospace;font-size:0.7rem;font-weight:600;cursor:'+(peutAcheter?'pointer':'not-allowed')+'">'+(peutAcheter?'Échanger →':'Solde insuffisant')+'</button>';
+            h += '<button onclick="osBoutiqueCommander(\''+art.id+'\',\''+esc(art.nom)+'\','+_boutiquePrix(art)+')" style="width:100%;padding:0.5rem;background:'+(peutAcheter?'#7D3C98':'var(--gris-clair)')+';color:'+(peutAcheter?'white':'var(--gris)')+';border:none;border-radius:8px;font-family:Space Mono,monospace;font-size:0.7rem;font-weight:600;cursor:'+(peutAcheter?'pointer':'not-allowed')+'">'+(peutAcheter?'Échanger →':'Solde insuffisant')+'</button>';
           }
           h += '</div>';
         });
@@ -160,7 +164,7 @@ function osBoutiqueRender(){
         h += '<div style="font-size:1.2rem;">'+(artCmd?artCmd.nom.charAt(0):'<i class="ti ti-gift"></i>')+'</div>';
         h += '<div style="flex:1;">';
         h += '<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(artCmd?artCmd.nom:'Article supprimé')+'</div>';
-        h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+cmd.cout_heures+'h · '+dateCmd+'</div>';
+        h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+_boutiquePrix(cmd)+' plumes · '+dateCmd+'</div>';
         if(cmd.message) h += '<div style="font-size:0.72rem;color:var(--gris);margin-top:2px;font-style:italic;">'+esc(cmd.message)+'</div>';
         h += '</div>';
         h += '<span style="font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 8px;background:'+sc.bg+';color:'+sc.c+';border-radius:4px;white-space:nowrap;">'+sc.l+'</span>';
@@ -184,7 +188,7 @@ function osBoutiqueRender(){
           h += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">';
           h += '<div style="font-size:1rem;">'+(artCmd?artCmd.nom.charAt(0):'<i class="ti ti-gift"></i>')+'</div>';
           h += '<div style="flex:1;"><div style="font-weight:600;font-size:0.85rem;">'+esc(artCmd?artCmd.nom:'Inconnu')+'</div>';
-          h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+memNom+' · '+cmd.cout_heures+'h · '+dateCmd+'</div></div>';
+          h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+memNom+' · '+_boutiquePrix(cmd)+' plumes · '+dateCmd+'</div></div>';
           h += '</div>';
           h += '<div style="display:flex;gap:0.5rem;">';
           h += '<button onclick="osBoutiqueValider(\''+cmd.id+'\')" style="flex:1;padding:0.4rem;background:#D4EDDA;border:0.5px solid #A9DFBF;color:#155724;border-radius:6px;font-family:Space Mono,monospace;font-size:0.68rem;cursor:pointer;font-weight:600;"><i class="ti ti-check"></i> Valider</button>';
@@ -198,7 +202,7 @@ function osBoutiqueRender(){
       articlesAdmin.forEach(function(art){
         h += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);'+(art.actif?'':'opacity:0.5;')+'">';
         h += '<div style="flex:1;font-size:0.82rem;">'+esc(art.nom)+'</div>';
-        h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:#7D3C98;font-weight:600;">'+art.cout_heures+'h</span>';
+        h += '<span style="font-family:Space Mono,monospace;font-size:0.65rem;color:#7D3C98;font-weight:600;">'+_boutiquePrix(art)+' plumes</span>';
         h += '<button onclick="osBoutiqueOuvrirEditionArticle(\''+art.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);"><i class="ti ti-pencil"></i></button>';
         h += '<button onclick="osBoutiqueToggleActif(\''+art.id+'\','+art.actif+')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid var(--gris-bord);border-radius:4px;cursor:pointer;background:white;color:var(--gris);">'+(art.actif?'Désactiver':'Activer')+'</button>';
         h += '<button onclick="osBoutiqueSupprimerArticle(\''+art.id+'\',\''+esc(art.nom).replace(/\'/g,"\\'")+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 7px;border:0.5px solid #A32D2D;border-radius:4px;cursor:pointer;background:white;color:#A32D2D;"><i class="ti ti-trash"></i></button>';
@@ -213,7 +217,7 @@ function osBoutiqueRender(){
     // Stocker pour les fonctions
     window._boutiqueArticles = articles;
     window._boutiqueArticlesAdmin = articlesAdmin;
-    window._boutiqueSolde = soldeH;
+    window._boutiqueSolde = soldePlumes;
   }).catch(function(e){
     wc.innerHTML = osErreurHtml('osTresorerieRender');
   });
@@ -234,12 +238,12 @@ function osBoutiqueOnglet(onglet){
 }
 
 function osBoutiqueCommander(articleId, nom, cout){
-  if(window._boutiqueSolde < cout){ notif('Solde insuffisant — il vous faut '+cout+'h, vous avez '+window._boutiqueSolde+'h'); return; }
-  if(!osConfirmerPuis('Échanger '+cout+'h contre "'+nom+'" ?', {oui:'Échanger'}, osBoutiqueCommander, this, arguments)) return;
+  if(window._boutiqueSolde < cout){ notif('Solde insuffisant — il te faut '+cout+' plumes, tu en as '+window._boutiqueSolde); return; }
+  if(!osConfirmerPuis('Échanger '+cout+' plumes contre "'+nom+'" ?', {oui:'Échanger'}, osBoutiqueCommander, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_commandes',{
     method:'POST', headers:authH,
-    body:JSON.stringify({membre_id:getUserId(),article_id:articleId,cout_heures:cout,statut:'en_attente'})
+    body:JSON.stringify({membre_id:getUserId(),article_id:articleId,cout_heures:Math.round(cout/10),cout_plumes:cout,statut:'en_attente'})
   }).then(function(r){
     if(r.ok){
       notif('Commande envoyée — en attente de validation','succes');
@@ -255,7 +259,7 @@ function osBoutiqueCommander(articleId, nom, cout){
             +osEnteteEmailLogo('🎁 Nouvelle commande boutique')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(admin.prenom||'')+'</p>'
-            +'<p><strong>'+esc(monNom)+'</strong> souhaite échanger <strong>'+cout+'h</strong> contre <strong>'+esc(nom)+'</strong>.</p>'
+            +'<p><strong>'+esc(monNom)+'</strong> souhaite échanger <strong>'+cout+' plumes</strong> contre <strong>'+esc(nom)+'</strong>.</p>'
             +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#7D3C98;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Valider sur Compo</a>'
             +'</div></div>';
           envoyerEmailResend(admin.email,'[Compo] Boutique : '+esc(nom),html,'boutique').catch(function(){});
@@ -269,7 +273,7 @@ function osBoutiqueValider(cmdId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Récupérer la commande pour notifier
-  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,cout_heures,article_id',{headers:authHGet})
+  fetch(SB_URL+'/rest/v1/boutique_commandes?id=eq.'+cmdId+'&select=membre_id,cout_heures,cout_plumes,article_id',{headers:authHGet})
   .then(function(r){return r.json();})
   .then(function(data){
     var cmd = data&&data[0];
@@ -289,10 +293,10 @@ function osBoutiqueValider(cmdId){
             +osEnteteEmailLogo('✅ Commande validée')
             +'<div style="padding:1rem 1.5rem;">'
             +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> a été validée ! ('+cmd.cout_heures+'h déduits)</p>'
+            +'<p>Ta commande <strong>'+(art?esc(art.nom):'')+'</strong> a été validée ! ('+_boutiquePrix(cmd)+' plumes déduites)</p>'
             +'<a href="https://compo.ipsummedia.fr" style="display:inline-block;background:#7D3C98;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;font-size:0.82rem;">Voir sur Compo</a>'
             +'</div></div>';
-          var chatTexte = '✅ Ta commande boutique "'+(art?art.nom:'')+'" a été validée ! ('+cmd.cout_heures+'h déduits) https://compo.ipsummedia.fr';
+          var chatTexte = '✅ Ta commande boutique "'+(art?art.nom:'')+'" a été validée ! ('+_boutiquePrix(cmd)+' plumes déduites) https://compo.ipsummedia.fr';
           notifierPersonnel(cmd.membre_id, m.canal_notif, chatTexte, 'boutique', function(){
             envoyerEmailResend(m.email,'[Compo] Boutique : commande validée',html,'boutique').catch(function(){});
           });
@@ -375,7 +379,7 @@ function osBoutiqueOuvrirEditionArticle(articleId){
     +'<div style="padding:1.2rem 1.5rem;">'
     +'<div class="form-grid" style="margin-bottom:1rem;">'
     +'<div class="form-group full"><label>Nom *</label><input type="text" id="be-nom" value="'+esc(art.nom||'')+'"></div>'
-    +'<div class="form-group"><label>Coût (heures) *</label><input type="number" min="0" id="be-cout" value="'+(art.cout_heures||0)+'"></div>'
+    +'<div class="form-group"><label>Coût (plumes) *</label><input type="number" min="0" id="be-cout" value="'+_boutiquePrix(art)+'"></div>'
     +'<div class="form-group"><label>Stock (vide = illimité)</label><input type="number" min="0" id="be-stock" value="'+(art.stock===null||art.stock===undefined?'':art.stock)+'"></div>'
     +'<div class="form-group full"><label>Description</label><textarea id="be-desc" style="min-height:60px;">'+esc(art.description||'')+'</textarea></div>'
     +'</div>'
@@ -400,7 +404,7 @@ function osBoutiqueEnregistrerEditionArticle(articleId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/boutique_articles?id=eq.'+encodeURIComponent(articleId),{
     method:'PATCH', headers:authH,
-    body:JSON.stringify({nom:nom, cout_heures:cout, stock:stock, description:description||null})
+    body:JSON.stringify({nom:nom, cout_plumes:cout, cout_heures:Math.round(cout/10), stock:stock, description:description||null})
   }).then(function(r){
     if(r.ok){
       notif('Article mis à jour','succes');
@@ -1938,7 +1942,8 @@ function osChargerWidgets(){
     fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+uid+'&statut=neq.publie'+(redacId?'&redaction_id=eq.'+redacId:'')+'&select=id,titre,statut&order=updated_at.desc&limit=5',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&statut=neq.refuse&select=cout_heures',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();}),
+    _boutiquePlumesFetch(authH)
   ]).then(function(res){
     var evs      = (!res[0]||res[0].code) ? [] : res[0];
     var arts     = (!res[1]||res[1].code) ? [] : res[1];
@@ -1948,12 +1953,10 @@ function osChargerWidgets(){
     // Les sorties (agenda) ne comptent pas pour la boutique — seulement pour le suivi général des heures
     var heuresBoutique = heures.filter(function(h){ return !(h.type==='agenda' && h.categorie_agenda==='sortie'); });
     var totalMin = heuresBoutique.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
-    var depH = depenses.reduce(function(s,c){return s+(c.cout_heures||0);},0);
     var totalH = Math.floor(totalMin/60);
     var totalM = totalMin % 60;
     var totalStr = totalH > 0 ? totalH+'h'+(totalM>0?totalM+'m':'') : totalM+'m';
-    var soldeH = Math.max(0, totalH - depH);
-    var soldeStr = soldeH+'h';
+    var soldeStr = (typeof res[5] === 'number' ? res[5] : 0)+'';
     container.innerHTML = '';
     function widget(icon, titre, contenu, onclick){
       var w = document.createElement('div');
@@ -1990,14 +1993,14 @@ function osChargerWidgets(){
       +'</div>'+notifHtml;
     container.appendChild(notifW);
     // Heures
-    widget('<i class="ti ti-coin"></i>','Mes heures',
+    widget('<i class="ti ti-feather"></i>','Mes heures et plumes',
       '<div style="display:flex;gap:0.5rem;">'
       +'<div style="flex:1;text-align:center;background:rgba(0,0,0,0.05);border-radius:8px;padding:0.5rem;">'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.3rem;color:rgba(0,0,0,0.8);">'+totalStr+'</div>'
       +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:rgba(0,0,0,0.4);text-transform:uppercase;">Total</div></div>'
       +'<div style="flex:1;text-align:center;background:rgba(125,60,152,0.12);border-radius:8px;padding:0.5rem;">'
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.3rem;color:#7D3C98;">'+soldeStr+'</div>'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:rgba(0,0,0,0.4);text-transform:uppercase;">Boutique</div></div>'
+      +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;color:rgba(0,0,0,0.4);text-transform:uppercase;">Plumes</div></div>'
       +'</div>',
       function(){ osOpenWindow('boutique'); }
     );

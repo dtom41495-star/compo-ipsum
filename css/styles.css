@@ -5164,3 +5164,39 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .rp-serie-pasts { margin: 0; flex-shrink: 0; }
 .rp-serie-pasts .serie-rond { width: 26px; height: 26px; font-size: .75rem; }
 @media (max-width: 700px) { .rp-serie { padding: .8rem .9rem; } .rp-serie-pasts { width: 100%; justify-content: space-between; } }
+
+/* Gel de série et flamme pas contente (js/33-serie.js) */
+.serie-past.gel .serie-rond { background: #CDE9FF; color: #1B6FB5; }
+.serie-past.gel.courante .serie-rond { box-shadow: 0 0 0 4px rgba(28,176,246,.22); }
+.rp-serie-flamme { position: relative; }
+.rp-serie-flamme.gelee { background: radial-gradient(circle at 35% 30%, #E6F6FF, #6CC8FA 55%, #1B8FD6); box-shadow: 0 4px 14px rgba(28,176,246,.4); animation: serie-givre 2.4s ease-in-out infinite; }
+.rp-serie-givre { position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #1B8FD6; font-size: .85rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.rp-serie-flamme.fachee { background: radial-gradient(circle at 35% 30%, #FF6B4A, #D6391E 55%, #8E1B0F); box-shadow: 0 0 0 0 rgba(214,57,30,.5); color: rgba(255,255,255,.35); animation: serie-fache 3.2s ease-in-out infinite, serie-fache-halo 1.6s ease-out infinite; }
+.rp-serie-visage { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rp-serie-visage .yeux { animation: serie-yeux 3.2s ease-in-out infinite; transform-origin: 26px 33px; }
+.rp-serie-gel { width: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: #EAF4FF; color: #1B6FB5; font-size: .74rem; line-height: 1.35; box-sizing: border-box; }
+.rp-serie-gel.inactif { background: #F4F1EC; color: var(--gris, #6B7280); }
+.rp-serie-gel.gelee { background: #E3F3FF; font-weight: 600; }
+.rp-serie-geler { border: none; border-radius: 10px; padding: 8px 14px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: .78rem; color: #fff; background: #1CB0F6; box-shadow: 0 3px 0 #1899D6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.rp-serie-geler:active { transform: translateY(2px); box-shadow: 0 1px 0 #1899D6; }
+@keyframes serie-fache { 0%,60%,100% { transform: translateX(0) rotate(0); } 64% { transform: translateX(-3px) rotate(-5deg); } 68% { transform: translateX(3px) rotate(5deg); } 72% { transform: translateX(-3px) rotate(-4deg); } 76% { transform: translateX(2px) rotate(3deg); } 80% { transform: translateX(0) rotate(0); } }
+@keyframes serie-fache-halo { 0% { box-shadow: 0 0 0 0 rgba(214,57,30,.45); } 100% { box-shadow: 0 0 0 14px rgba(214,57,30,0); } }
+@keyframes serie-yeux { 0%,88%,100% { transform: scaleY(1); } 92% { transform: scaleY(.1); } }
+@keyframes serie-givre { 0%,100% { box-shadow: 0 4px 14px rgba(28,176,246,.4); } 50% { box-shadow: 0 4px 22px rgba(28,176,246,.7); } }
+@media (prefers-reduced-motion: reduce) { .rp-serie-flamme.fachee, .rp-serie-flamme.gelee, .rp-serie-visage .yeux { animation: none !important; } }
+
+/* Pastille de série dans l'accueil mobile (js/33-serie.js) */
+.acc-pill-serie { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; background: #fff; border: 1px solid #E7E5E4; font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif; color: #1A1A2E; }
+.acc-pill-serie i { font-size: 18px; }
+.acc-pill-serie.allumee { border-color: #FFD9A8; background: #FFF7EC; }
+.acc-pill-serie.allumee i { color: #FF9600; }
+.acc-pill-serie.eteinte i { color: #B8B2A8; }
+.acc-pill-serie.gelee { border-color: #BFE3FA; background: #EEF8FF; color: #1B6FB5; }
+.acc-pill-serie.gelee i { color: #1CB0F6; }
+.acc-pill-serie.fachee { border-color: #F4B8A8; background: #FFF1ED; color: #B3261E; }
+.acc-pill-serie.fachee i { color: #D6391E; animation: serie-pill-fache 3s ease-in-out infinite; display: inline-block; }
+@keyframes serie-pill-fache { 0%,65%,100% { transform: rotate(0); } 70% { transform: rotate(-14deg); } 75% { transform: rotate(12deg); } 80% { transform: rotate(-10deg); } 85% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .acc-pill-serie.fachee i { animation: none; } }
+
+/* Plumes : solde affiché dans la carte « Ma série » */
+.rp-serie-plumes { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 9px; border-radius: 999px; background: #F3ECF8; color: #7D3C98; font-family: 'DM Sans', sans-serif; font-size: .74rem; font-weight: 700; vertical-align: middle; }

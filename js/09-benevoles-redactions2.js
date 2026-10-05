@@ -233,7 +233,9 @@ function osBenevolesDashRender(){
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    // Semaines gelées (table créée par le SQL des gels : sans elle, la liste reste vide)
+    fetch(SB_URL+'/rest/v1/gels_serie?select=membre_id,semaine',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():[];}).catch(function(){return [];})
   ];
   Promise.all(fetches).then(function(results){
     var membres=(!results[0]||results[0].code)?[]:results[0];
@@ -242,6 +244,9 @@ function osBenevolesDashRender(){
     var membresAvecRedac={}; membresRedacsRows.forEach(function(row){ membresAvecRedac[row.membre_id]=true; });
     var commandesValidees=(!results[3]||results[3].code)?[]:results[3];
     var boutiqueArticles=(!results[4]||results[4].code)?[]:results[4];
+    var gelsRows=Array.isArray(results[5])?results[5]:[];
+    window._gelsSerie=Object.create(null);
+    gelsRows.forEach(function(g){ if(!window._gelsSerie[g.membre_id]) window._gelsSerie[g.membre_id]=new Set(); window._gelsSerie[g.membre_id].add(g.semaine); });
     var recompensesParMembre={};
     commandesValidees.forEach(function(cmd){
       var art=boutiqueArticles.find(function(a){return a.id===cmd.article_id;});
