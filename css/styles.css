@@ -5280,3 +5280,8 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   .bq-solde { text-align: left; }
 }
 .bq-carte .bq-titre + .bq-nom { display: none; }
+.assign-express { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: #FFF6DB; color: #8A5A00; font-size: .84rem; cursor: pointer; }
+.assign-express input { width: 18px; height: 18px; accent-color: #E0A100; flex-shrink: 0; }
+.assign-express small { color: #A8791F; }
+.sr-express { display: inline-block; background: #FFC800; color: #5A3E00; font-size: .66rem; font-weight: 700; border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
+.assign-express, .assign-express span, .assign-express b, .assign-express small { text-transform: none; letter-spacing: 0; font-family: inherit; font-size: .84rem; font-weight: 400; } .assign-express b { font-weight: 700; } .assign-express small { font-size: .76rem; }

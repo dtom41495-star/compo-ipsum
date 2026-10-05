@@ -36,7 +36,7 @@ function _srChargerFile(){
       var uid = getUserId();
       return arts.filter(function(a){ return a.auteur_id !== uid && _srPeutPrendre(a.redaction_id); })
         .sort(function(a, b){
-          return ((b.urgence==='urgent')?1:0) - ((a.urgence==='urgent')?1:0) || (a.updated_at||'').localeCompare(b.updated_at||'');
+          return ((b.express)?1:0) - ((a.express)?1:0) || ((b.urgence==='urgent')?1:0) - ((a.urgence==='urgent')?1:0) || (a.updated_at||'').localeCompare(b.updated_at||'');
         });
     }).catch(function(){ return []; });
 }
@@ -95,7 +95,7 @@ function _srNotifierFile(doc, rendu){
     var nomRedacFile = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
     cibles.forEach(function(m){
       if(m.canal_notif === 'chat'){
-        notifierChatDM(m.id, '*Un article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>', 'correction');
+        notifierChatDM(m.id, '*'+(doc.express ? '⚡ Relecture express : u' : 'U')+'n article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>', 'correction');
       } else if(m.email && !osEstEnLigne(m.id)){
         var html = _emailCompo({
           accent:'bleu', etiquette:'FILE DU SR', titre:'Un article attend une relecture',
@@ -123,7 +123,7 @@ function _srRenderFile(list, file){
     el.className = 'sr-file-item';
     var depuis = a.updated_at ? _srDepuis(a.updated_at) : '';
     el.innerHTML = '<div class="sr-file-rang">'+(i+1)+'</div>'
-      +'<div class="sr-file-infos"><div class="sr-file-titre">'+esc(a.titre||'Sans titre')+'</div>'
+      +'<div class="sr-file-infos"><div class="sr-file-titre">'+(a.express ? '<span class="sr-express" title="Relecture express">⚡ Express</span> ' : '')+esc(a.titre||'Sans titre')+'</div>'
       +'<div class="sr-file-meta">'+(a.urgence==='urgent' ? '<b>Urgent</b> · ' : '')+esc(a.auteur||'')+(a.redaction ? ' · '+esc(a.redaction) : '')+(depuis ? ' · en attente '+depuis : '')+'</div></div>'
       +'<button class="mac-btn mac-btn-principal" data-id="'+esc(a.id)+'" onclick="osSrPrendre(this.dataset.id,this)"><i class="ti ti-hand-grab"></i> Je prends</button>';
     list.appendChild(el);

@@ -29,7 +29,8 @@ var BOUTIQUE_ERREURS = {
   rattrapage_expire:'Trop tard : on peut rattraper la semaine dernière jusqu\'à mardi soir.',
   article_introuvable:'Cet article n\'est plus disponible.',
   effet_inconnu:'Cet article n\'est pas encore disponible.',
-  non_connecte:'Reconnecte-toi puis réessaie.'
+  non_connecte:'Reconnecte-toi puis réessaie.',
+  pas_de_jeton:'Tu n\'as plus de jeton express.'
 };
 
 // ---------- Cosmétiques équipés (cadre, couleur de flamme, titre) ----------
@@ -114,7 +115,8 @@ function osBoutiqueRender(){
     _boutiquePlumesFetch(Object.assign({}, _boutiqueH())),
     _boutiqueLire('plumes_objets?membre_id=eq.'+encodeURIComponent(uid)+'&select=*'),
     _boutiqueLire('serie_config?select=cle,valeur'),
-    _boutiqueLire('heures_benevolat?membre_id=eq.'+encodeURIComponent(uid)+'&select=duree_minutes,type,categorie_agenda')
+    _boutiqueLire('heures_benevolat?membre_id=eq.'+encodeURIComponent(uid)+'&select=duree_minutes,type,categorie_agenda'),
+    _boutiqueLire('plumes_jetons?membre_id=eq.'+encodeURIComponent(uid)+'&utilise_le=is.null&select=id')
   ]).then(function(r){
     var articles = r[0], commandes = r[1], pending = r[2], articlesAdmin = isAdmin && r[3].length ? r[3] : articles;
     var solde = typeof r[4] === 'number' ? r[4] : 0;
@@ -125,7 +127,7 @@ function osBoutiqueRender(){
     window._boutiqueArticlesAdmin = articlesAdmin;
     window._boutiqueSolde = solde;
     window._boutiqueObjets = objets;
-    window._boutiqueCtx = {articles:articles, commandes:commandes, pending:pending, articlesAdmin:articlesAdmin, solde:solde, objets:objets, config:config, minutes:minutes, isAdmin:isAdmin};
+    window._boutiqueCtx = {articles:articles, commandes:commandes, pending:pending, articlesAdmin:articlesAdmin, solde:solde, objets:objets, config:config, minutes:minutes, jetons:(r[8]||[]).length, isAdmin:isAdmin};
     _boutiqueDessiner(wc);
   }).catch(function(){ wc.innerHTML = osErreurHtml('osBoutiqueRender'); });
 }
@@ -141,6 +143,7 @@ function _boutiqueApercu(a){
   }
   if(a.effet === 'titre') return '<span class="bq-apercu bq-titre"><i class="ti ti-feather"></i> '+esc(v)+'</span>';
   if(a.effet === 'gel' || a.effet === 'gel_secours') return '<span class="bq-apercu bq-gel"><i class="ti ti-snowflake"></i></span>';
+  if(a.effet === 'express') return '<span class="bq-apercu bq-gel" style="background:radial-gradient(circle at 35% 30%,#FFE98A,#FFC800 55%,#E0A100)"><i class="ti ti-bolt"></i></span>';
   if(a.effet === 'rattrapage') return '<span class="bq-apercu bq-gel"><i class="ti ti-rewind-backward-5"></i></span>';
   var emoji = (a.nom||'').match(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
   return '<span class="bq-apercu bq-emoji">'+(emoji ? emoji[0] : '<i class="ti ti-gift"></i>')+'</span>';
@@ -251,8 +254,9 @@ function _boutiqueHtmlCatalogue(ctx){
 }
 
 function _boutiqueHtmlObjets(ctx){
-  if(!ctx.objets.length) return '<div class="bq-vide"><i class="ti ti-backpack"></i><div>Tu n\'as pas encore d\'objet.<br>Les titres, flammes et cadres que tu achètes apparaissent ici.</div></div>';
-  var h = '<div class="bq-rayon"><div class="bq-rayon-titre"><i class="ti ti-backpack"></i><div><b>Mes objets</b><span>Équipe ce que tu veux montrer : un seul de chaque sorte à la fois</span></div></div>';
+  var jet = ctx.jetons ? '<div class="bq-ligne"><span class="bq-apercu bq-gel" style="background:radial-gradient(circle at 35% 30%,#FFE98A,#FFC800 55%,#E0A100)"><i class="ti ti-bolt"></i></span><div class="bq-ligne-txt"><b>'+ctx.jetons+' jeton'+(ctx.jetons > 1 ? 's' : '')+' de relecture express</b><span>À utiliser en envoyant un article au SR : coche « Relecture express »</span></div></div>' : '';
+  if(!ctx.objets.length) return jet ||  '<div class="bq-vide"><i class="ti ti-backpack"></i><div>Tu n\'as pas encore d\'objet.<br>Les titres, flammes et cadres que tu achètes apparaissent ici.</div></div>';
+  var h = jet + '<div class="bq-rayon"><div class="bq-rayon-titre"><i class="ti ti-backpack"></i><div><b>Mes objets</b><span>Équipe ce que tu veux montrer : un seul de chaque sorte à la fois</span></div></div>';
   ['titre','flamme','cadre'].forEach(function(eff){
     var liste = ctx.objets.filter(function(o){ return o.effet === eff; });
     if(!liste.length) return;
@@ -335,7 +339,8 @@ function osBoutiqueAcheter(btn){
         notif('« '+nom+' » est à toi et équipé ✨', 'succes');
         osCosmetiquesCharger();
       } else {
-        notif('« '+nom+' » appliqué ❄ Ta série est protégée.', 'succes');
+        if(d.effet === 'express') notif('Jeton express ajouté ⚡ Coche « Relecture express » quand tu enverras un article au SR.', 'succes');
+        else notif('« '+nom+' » appliqué ❄ Ta série est protégée.', 'succes');
       }
       window._serieSoldeCourant = d.solde;
       osBoutiqueRender();
@@ -461,4 +466,35 @@ function osBoutiqueEnregistrerEditionArticle(articleId){
       if(r.ok){ notif(articleId ? 'Article mis à jour' : 'Article ajouté', 'succes'); var ov = document.getElementById('boutique-edit-overlay'); if(ov) ov.remove(); window._boutiqueOnglet = 'admin'; osBoutiqueRender(); }
       else notif('Erreur : le SQL de la boutique refaite est-il lancé ?', 'erreur');
     }).catch(function(){ notif('Erreur réseau', 'erreur'); });
+}
+
+
+// ---------- Relecture express : case dans la modale « Envoyer au SR » ----------
+function _expressInjecter(){
+  var modale = document.getElementById('modal-assign');
+  if(!modale || !modale.classList.contains('visible')) return;
+  var ancien = document.getElementById('assign-express'); if(ancien) ancien.remove();
+  _boutiqueLire('plumes_jetons?membre_id=eq.'+encodeURIComponent(getUserId())+'&utilise_le=is.null&select=id').then(function(j){
+    if(!j.length || !modale.classList.contains('visible') || document.getElementById('assign-express')) return;
+    var zone = document.getElementById('assign-membres-list');
+    if(!zone) return;
+    var div = document.createElement('label');
+    div.id = 'assign-express'; div.className = 'assign-express';
+    div.innerHTML = '<input type="checkbox" id="assign-express-cb"><span><b>⚡ Relecture express</b> · passe en tête de la file du SR <small>('+j.length+' jeton'+(j.length > 1 ? 's' : '')+')</small></span>';
+    zone.parentNode.insertBefore(div, zone);
+  });
+}
+['ouvrirAssignation', 'ouvrirAssignationDepuisDoc'].forEach(function(nom){
+  var orig = window[nom];
+  if(typeof orig !== 'function') return;
+  window[nom] = function(){ var r = orig.apply(this, arguments); _expressInjecter(); return r; };
+});
+// Appelée par assignValider une fois l'article bien parti au SR : consomme un jeton
+function osExpressAppliquer(articleId){
+  var cb = document.getElementById('assign-express-cb');
+  if(!cb || !cb.checked) return Promise.resolve(false);
+  return _boutiqueRpc('express_utiliser', {p_article:String(articleId)}).then(function(res){
+    if(!res.ok){ notif('Envoyé au SR, mais le jeton express n\'a pas pu être utilisé', 'erreur'); return false; }
+    return true;
+  }).catch(function(){ return false; });
 }

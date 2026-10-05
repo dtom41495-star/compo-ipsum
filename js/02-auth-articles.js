@@ -1320,6 +1320,8 @@ function assignValider(){
       // en réalité échoué — sans ce contrôle, on perdait le brouillon local tout
       // en croyant l'article correctement envoyé en correction.
       if(!r.ok) throw new Error('PATCH statut/correcteur échoué (HTTP '+r.status+')');
+      // Relecture express cochée dans la modale : consomme un jeton (js/34-boutique.js)
+      if(typeof osExpressAppliquer === 'function') return osExpressAppliquer(docId).then(function(ok){ _assignDoc2.express = !!ok; });
     });
   }).then(function(){
     // Retirer le brouillon local
