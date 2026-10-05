@@ -5014,3 +5014,18 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .sujet-carte .sujet-actions { gap: 8px; flex-wrap: wrap; }
 .sujet-carte .sujet-actions > div { flex-wrap: wrap; }
 .sujet-carte .sujet-actions { justify-content: flex-start !important; align-items: center; }
+
+
+/* Icône du bureau avec du non lu : un point d'exclamation dans un rond rouge */
+.desktop-icon-img { position: relative; }
+.desktop-icon-alerte {
+  position: absolute; top: -6px; right: -6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #E8461E; color: #fff;
+  border: 2px solid #fff;
+  font-family: 'Poppins', Arial, sans-serif; font-weight: 800; font-size: .8rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  animation: desktop-alerte 2.4s ease-in-out infinite;
+}
+@keyframes desktop-alerte { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
