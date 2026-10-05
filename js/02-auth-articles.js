@@ -1341,6 +1341,8 @@ function assignValider(){
     osClearAutosave();
     setTimeout(function(){ osCloseWindowForce('redaction'); }, 300);
     benvMajActivite();
+    // Série : une carte de félicitations si cet envoi remplit l'objectif de la semaine ou du mois
+    if(typeof osSerieApresEnvoi === 'function') setTimeout(function(){ osSerieApresEnvoi(_assignDoc2); }, 1400);
 
     // Notifier le correcteur — _assignDoc2 (capturé au clic), pas les variables globales
     // _assignCorrecteur/_assignCorrecteurId : même raison que le PATCH plus haut, ce

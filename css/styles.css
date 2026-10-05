@@ -5093,3 +5093,61 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .reg-ok { color: #27AE60; font-size: 1rem; }
 @media (max-width: 700px) { .reg-resume { grid-template-columns: 1fr; } }
 .reg-outils label { text-transform: none; letter-spacing: 0; font-family: 'DM Sans', sans-serif; font-size: .78rem; color: var(--encre); }
+
+/* ===== Série : carte de félicitations après l'envoi au SR (js/33-serie.js) ===== */
+.serie-ov { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20,18,40,.55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: serie-fond .25s ease both; font-family: 'DM Sans', sans-serif; }
+.serie-ov.sortie { animation: serie-fond-sortie .25s ease both; }
+.serie-conf { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.serie-conf i { position: absolute; top: -16px; width: 9px; height: 14px; border-radius: 2px; opacity: 0; animation: serie-chute 3s ease-in forwards; }
+.serie-carte { position: relative; width: min(100%, 400px); max-height: 94vh; overflow-y: auto; background: #fff; border-radius: 22px; padding: 30px 24px 22px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.35); animation: serie-carte .55s cubic-bezier(.2,1.4,.4,1) both; box-sizing: border-box; }
+.serie-son { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border: none; border-radius: 10px; background: var(--gris-clair, #F4F1EC); color: var(--gris, #6B7280); cursor: pointer; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; }
+.serie-son:hover { color: var(--encre, #1A1A2E); }
+.serie-flamme { width: 88px; height: 88px; margin: 0 auto 6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFC800, #FF9600 55%, #EA5B1C); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 2.9rem; box-shadow: 0 8px 24px rgba(234,91,28,.45); animation: serie-bond .8s cubic-bezier(.2,1.5,.4,1) .15s both, serie-flamme 1.6s ease-in-out 1s infinite; }
+.serie-compteur { display: flex; flex-direction: column; align-items: center; line-height: 1; margin-bottom: 8px; }
+.serie-compteur span { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 3.6rem; color: #FF9600; display: inline-block; }
+.serie-compteur span.pop { animation: serie-pop .6s cubic-bezier(.2,1.6,.4,1); }
+.serie-compteur small { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #E58600; margin-top: 3px; }
+.serie-carte h2 { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; line-height: 1.25; margin: 6px 0 4px; color: var(--encre, #1A1A2E); }
+.serie-carte p { font-size: .86rem; line-height: 1.45; color: var(--gris, #6B7280); margin: 0 0 14px; }
+.serie-pasts { display: flex; justify-content: center; gap: 6px; margin: 14px 0 16px; }
+.serie-past { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.serie-past small { font-size: .56rem; color: var(--gris, #6B7280); white-space: nowrap; }
+.serie-rond { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .9rem; box-sizing: border-box; background: #F1EDE8; color: #B8B2A8; }
+.serie-past.ok .serie-rond { background: #FF9600; color: #fff; }
+.serie-past.comp .serie-rond { background: #FFD66B; color: #8A5A00; }
+.serie-past.avant .serie-rond { background: transparent; border: 2px dotted #E4DED5; }
+.serie-past.attente .serie-rond { background: #fff; border: 2px dashed #FF9600; }
+.serie-past.courante small { color: #E58600; font-weight: 700; }
+.serie-past.courante.ok .serie-rond { animation: serie-pop .6s cubic-bezier(.2,1.6,.4,1) .9s both; box-shadow: 0 0 0 4px rgba(255,150,0,.22); }
+.serie-objs { display: flex; flex-direction: column; gap: 8px; text-align: left; margin-bottom: 18px; }
+.serie-obj { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: #F8F6F2; font-size: .84rem; font-weight: 600; color: var(--gris, #6B7280); animation: serie-monte .4s ease both; animation-delay: calc(.55s + var(--i) * .12s); }
+.serie-obj.fait { background: #EAF7DC; color: #2E6B0B; }
+.serie-case { width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0; background: #fff; border: 2px solid #E4DED5; display: flex; align-items: center; justify-content: center; font-size: .8rem; box-sizing: border-box; }
+.serie-obj.fait .serie-case { background: #58CC02; border-color: #58CC02; color: #fff; }
+.serie-obj.nouveau .serie-case { animation: serie-pop .6s cubic-bezier(.2,1.6,.4,1) 1.4s both; }
+.serie-go { width: 100%; border: none; border-radius: 14px; padding: 13px 16px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: .92rem; letter-spacing: .03em; text-transform: uppercase; color: #fff; background: #58CC02; box-shadow: 0 4px 0 #46A302; cursor: pointer; }
+.serie-go:focus { outline: none; }
+.serie-go:active { transform: translateY(3px); box-shadow: 0 1px 0 #46A302; }
+@keyframes serie-fond { from { opacity: 0; } to { opacity: 1; } }
+@keyframes serie-fond-sortie { to { opacity: 0; } }
+@keyframes serie-carte { from { opacity: 0; transform: translateY(40px) scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes serie-bond { from { transform: scale(0) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+@keyframes serie-flamme { 0%,100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.06) rotate(-3deg); } }
+@keyframes serie-pop { 0% { transform: scale(.4); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes serie-monte { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes serie-chute { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 1; transform: translate(var(--dx), 105vh) rotate(var(--r)); } }
+@media (max-width: 480px) {
+  .serie-ov { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); align-items: flex-end; }
+  .serie-carte { padding: 26px 16px 16px; border-radius: 22px; }
+  .serie-flamme { width: 76px; height: 76px; font-size: 2.5rem; }
+  .serie-compteur span { font-size: 3.1rem; }
+  .serie-carte h2 { font-size: 1.15rem; }
+  .serie-pasts { gap: 4px; }
+  .serie-rond { width: 28px; height: 28px; font-size: .8rem; }
+  .serie-past small { font-size: .52rem; }
+  .serie-go { padding: 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .serie-conf { display: none; }
+  .serie-ov, .serie-carte, .serie-flamme, .serie-obj, .serie-compteur span.pop, .serie-obj.nouveau .serie-case, .serie-past.courante.ok .serie-rond { animation: none !important; }
+}
