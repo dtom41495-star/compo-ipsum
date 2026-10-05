@@ -30,7 +30,8 @@ var BOUTIQUE_ERREURS = {
   article_introuvable:'Cet article n\'est plus disponible.',
   effet_inconnu:'Cet article n\'est pas encore disponible.',
   non_connecte:'Reconnecte-toi puis réessaie.',
-  pas_de_jeton:'Tu n\'as plus de jeton express.'
+  pas_de_jeton:'Tu n\'as plus de jeton express.',
+  pas_de_redaction:'La boutique est réservée aux membres d\'une rédaction.'
 };
 
 // ---------- Cosmétiques équipés (cadre, couleur de flamme, titre) ----------

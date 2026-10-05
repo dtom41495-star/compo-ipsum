@@ -1590,7 +1590,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
   { id:'mail',           icon:'<i class="ti ti-mail"></i>', label:'Mail',           color:'#1A6BC4', roles:['redacteur','correcteur','admin'], external:'https://mail.google.com/a/ipsummedia.fr' },
   { id:'tresorerie',     icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie',     color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'] },
-  { id:'boutique',       icon:'<i class="ti ti-gift"></i>', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','admin'], store:true, desc:'Échangez vos heures de bénévolat contre des récompenses.' },
+  { id:'boutique',       icon:'<i class="ti ti-gift"></i>', label:'Boutique',       color:'#7D3C98', roles:['redacteur','correcteur','redac_chef','communicant','admin'], store:true, desc:'Dépense tes plumes : protège ta série, personnalise ton profil, obtiens des récompenses.' },
   { id:'stats-dashboard',icon:'<i class="ti ti-chart-bar"></i>', label:'Stats',          color:'#0D0D1A', roles:['admin'] },
   { id:'benevoles',      icon:'<i class="ti ti-users"></i>', label:'Bénévoles',      color:'#0F6E56', roles:['admin','redacteur','correcteur'], fonctions_requises:['vie_asso'] },
   { id:'redactions',     icon:'<i class="ti ti-news"></i>', label:'Ma rédac\'',     color:'#1A5276', roles:['admin','redac_chef','redacteur','correcteur','communicant'] },
@@ -1650,7 +1650,9 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     // n'était jamais atteignable pour personne d'autre qu'un admin, MÊME accordée
     // explicitement depuis Gestion apps — appAccessible() ne comparait qu'au rôle
     // global (redacteur/correcteur/...), qui n'est jamais littéralement 'redac_chef'.
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.redac_chef&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.redac_chef&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    // Membre d'au moins une rédaction ? La Boutique n'est accessible qu'à celles et ceux qui en font partie
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ])
   .then(function(resultats){
     var data = resultats[0];
@@ -1658,6 +1660,8 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     var fonctionFraiche = fonctionRow ? fonctionArray(fonctionRow.fonction) : null;
     if(fonctionFraiche) window._membreCourantFonction = fonctionFraiche;
     var estChefQuelquePart = !!(resultats[2] && !resultats[2].code && resultats[2].length);
+    // Si la requête échoue (null), on ne retire rien : mieux vaut laisser la Boutique que la cacher à tort
+    var estDansUneRedac = resultats[3] && !resultats[3].code ? resultats[3].length > 0 : true;
     if(!data || data.code){
       // Erreur API (ex: token pas encore synchronisé) — retenter avant de conclure à un compte non configuré
       _retryCount = _retryCount || 0;
@@ -1775,6 +1779,19 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
         }).catch(function(){});
       }
 
+      // Boutique : pour tous les membres d'une rédaction (même mécanisme que Veille)
+      if(estDansUneRedac && !allIds.includes('boutique')){
+        allIds.push('boutique');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'boutique' })
+        }).catch(function(){});
+      }
+
       // Projets : accessible à tout le monde (même mécanisme que Veille ci-dessus)
       if(!allIds.includes('projets')){
         allIds.push('projets');
@@ -1792,6 +1809,8 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
       // SAUF si le membre a la fonction requise (ex: tresorier)
       function appAccessible(a){
         if(a.legacy) return false;
+        // Boutique : réservée aux membres d'une rédaction (les admins la gèrent, ils l'ont toujours)
+        if(a.id === 'boutique' && roleEffectif !== 'admin' && !estDansUneRedac) return false;
         if(!a.roles) return true;
         // "redac_chef" en plus du rôle global, jamais à sa place : role_redac est un
         // statut par rédaction, pas le rôle Compo de la personne. Le vérifier EN PLUS
