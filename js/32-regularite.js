@@ -22,8 +22,16 @@ function _regDatePub(a){
   return t && !isNaN(t) ? t : null;
 }
 
-// Calcule la régularité d'un membre à partir de ses articles (déjà rattachés à lui)
+function _regCle(d){
+  function p(n){ return (n < 10 ? '0' : '')+n; }
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+
+// Calcule la régularité d'un membre à partir de ses articles (déjà rattachés à lui).
+// Les semaines gelées (window._gelsSerie, chargé avec la liste des bénévoles) comptent comme en règle,
+// sans alerte, et rattrapent la semaine vide qui les précède.
 function osRegulariteCalculer(membre, arts){
+  var gels = membre && window._gelsSerie ? window._gelsSerie[membre.id] : null;
   var lundiCourant = _regLundi(new Date());
   var arrivee = membre && membre.created_at ? new Date(membre.created_at) : null;
   var publis = (arts || []).filter(function(a){ return a.statut === 'publie'; }).map(function(a){
@@ -36,7 +44,7 @@ function osRegulariteCalculer(membre, arts){
     var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
     var dans = publis.filter(function(p){ return p.date >= debut && p.date < fin; });
     semaines.push({
-      debut:debut, courante:k === 0,
+      debut:debut, courante:k === 0, gel:!!(gels && gels.has(_regCle(debut))),
       breves:dans.filter(function(p){ return p.breve; }).length,
       articles:dans.filter(function(p){ return !p.breve; }).length,
       avant: !!(arrivee && fin <= arrivee)           // semaine terminée avant l'arrivée du membre
@@ -44,14 +52,14 @@ function osRegulariteCalculer(membre, arts){
   }
   // Une semaine vide est compensée si la suivante (même en cours) compte au moins 2 brèves
   semaines.forEach(function(w, i){
-    w.comp = !w.avant && !w.courante && w.breves === 0 && !!semaines[i+1] && semaines[i+1].breves >= 2;
+    w.comp = !w.avant && !w.courante && !w.gel && w.breves === 0 && !!semaines[i+1] && (semaines[i+1].breves >= 2 || semaines[i+1].gel);
   });
   var terminees = semaines.filter(function(s){ return !s.courante && !s.avant; });
   var quatre = terminees.slice(-4);
-  var manquesBreve = quatre.filter(function(s){ return s.breves === 0 && !s.comp; }).length;
+  var manquesBreve = quatre.filter(function(s){ return s.breves === 0 && !s.comp && !s.gel; }).length;
   var compensees = quatre.filter(function(s){ return s.comp; }).length;
   var serie = 0;
-  for(var i = terminees.length - 1; i >= 0 && terminees[i].breves === 0 && !terminees[i].comp; i--) serie++;
+  for(var i = terminees.length - 1; i >= 0 && terminees[i].breves === 0 && !terminees[i].comp && !terminees[i].gel; i--) serie++;
 
   // Articles : blocs de 28 jours en remontant depuis aujourd'hui
   var blocs = [];
@@ -73,14 +81,16 @@ function osRegulariteCalculer(membre, arts){
 
 var _REG_COUL = {
   ok:     ['#D4EDDA', '#155724'],
+  gel:    ['#CDE9FF', '#1B6FB5'],
   orange: ['#FFE5CF', '#B45309'],
   rouge:  ['#FCEBEB', '#A32D2D'],
   neutre: ['#F1EDE8', '#9CA3AF']
 };
 function _regCellule(n, s){
-  var c = s.avant ? _REG_COUL.neutre : (n > 0 || s.comp ? _REG_COUL.ok : (s.courante ? _REG_COUL.neutre : _REG_COUL.orange));
-  var txt = s.avant ? '·' : (s.comp ? n+' ✓' : n);
-  return '<span class="reg-cel'+(s.courante ? ' courante' : '')+(s.comp ? ' comp' : '')+'"'+(s.comp ? ' title="Semaine sans brève, compensée la semaine suivante"' : '')+' style="background:'+c[0]+';color:'+c[1]+';">'+txt+'</span>';
+  var c = s.avant ? _REG_COUL.neutre : (s.gel ? _REG_COUL.gel : (n > 0 || s.comp ? _REG_COUL.ok : (s.courante ? _REG_COUL.neutre : _REG_COUL.orange)));
+  var txt = s.avant ? '·' : (s.gel ? '<i class="ti ti-snowflake"></i>'+(n > 0 ? ' '+n : '') : (s.comp ? n+' ✓' : n));
+  var titre = s.gel ? 'Semaine gelée avec des heures de bénévolat : pas de relance, pas d\'alerte' : (s.comp ? 'Semaine sans brève, compensée la semaine suivante' : '');
+  return '<span class="reg-cel'+(s.courante ? ' courante' : '')+(s.comp ? ' comp' : '')+(s.gel ? ' gel' : '')+'"'+(titre ? ' title="'+titre+'"' : '')+' style="background:'+c[0]+';color:'+c[1]+';">'+txt+'</span>';
 }
 function _regAlerteBadge(niveau, texte){
   if(!niveau) return '';
@@ -108,7 +118,7 @@ function osRegulariteFicheHtml(s){
   r.semaines.forEach(function(w){
     h += '<div class="reg-col-sem"><small>'+w.debut.getDate()+'/'+(w.debut.getMonth()+1)+'</small>'+_regCellule(w.breves, w)+'</div>';
   });
-  h += '</div><div class="reg-legende">Brèves publiées par semaine (la dernière colonne est la semaine en cours). ✓ : semaine vide compensée par la suivante</div>';
+  h += '</div><div class="reg-legende">Brèves publiées par semaine (la dernière colonne est la semaine en cours). ✓ : semaine vide compensée par la suivante, ❄ : semaine gelée</div>';
   var b = _regAlerteBadge(r.alerteBreve, _regTexteBreve(r)) + _regAlerteBadge(r.alerteArticle, _regTexteArticle(r));
   var enRegle = r.nbSemainesCompte - r.manquesBreve;
   var okBreve = r.nbSemainesCompte ? enRegle+' semaine'+(enRegle > 1 ? 's' : '')+' en règle sur les '+r.nbSemainesCompte+' dernières'+(r.compensees ? ' (dont '+r.compensees+' compensée'+(r.compensees > 1 ? 's' : '')+')' : '') : 'Arrivé·e il y a moins d\'une semaine';
@@ -139,7 +149,7 @@ function osRegulariteRendreOnglet(div, stats){
       +'<div class="'+(sansArticle ? 'orange' : '')+'"><b>'+sansArticle+'</b><span>sans article depuis 4 semaines</span></div>'
     +'</div>'
     +'<div class="reg-outils"><label><input type="checkbox" '+(_regInclureInactifs ? 'checked ' : '')+'onchange="_regInclureInactifs=this.checked;osRegulariteRafraichir()"> Inclure les inactifs et indisponibles</label>'
-      +'<span class="reg-legende">Règlement : une brève par semaine. Une semaine vide se compense la semaine suivante avec 2 brèves (✓). Rouge : '+REG_SEUIL_INACTIF+' semaines vides d\'affilée, à passer inactif ?</span></div>'
+      +'<span class="reg-legende">Règlement : une brève par semaine. Une semaine vide se compense la semaine suivante avec 2 brèves (✓), ou se gèle avec des heures de bénévolat (❄). Rouge : '+REG_SEUIL_INACTIF+' semaines vides d\'affilée, à passer inactif ?</span></div>'
     +'<div class="reg-tableau-zone"><table class="reg-tableau"><thead><tr><th class="reg-nom">Bénévole</th>';
   sem.forEach(function(w){ h += '<th>'+w.debut.getDate()+'/'+(w.debut.getMonth()+1)+(w.courante ? '<small>en cours</small>' : '')+'</th>'; });
   h += '<th class="reg-sep">Articles<small>par 4 sem.</small></th><th>À signaler</th></tr></thead><tbody>';

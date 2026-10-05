@@ -59,7 +59,9 @@ function osBoutiqueRender(){
     // Pour la gestion admin, il faut voir aussi les articles désactivés — sinon un
     // article désactivé disparaît du catalogue ET de cette liste, sans plus aucun
     // moyen de le réactiver ou de le modifier depuis l'appli.
-    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_articles?order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
+    isAdmin ? fetch(SB_URL+'/rest/v1/boutique_articles?order=cout_heures.asc&select=*',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
+    // Gels de série payés en heures : déduits du solde comme une commande
+    fetch(SB_URL+'/rest/v1/gels_serie?membre_id=eq.'+uid+'&select=cout_heures',{headers:authH}).then(function(r){return r.ok?r.json():[];}).catch(function(){return [];})
   ]).then(function(results){
     var articles = (!results[0]||results[0].code) ? [] : results[0];
     var heures   = (!results[1]||results[1].code) ? [] : results[1];
@@ -70,7 +72,8 @@ function osBoutiqueRender(){
     // Les sorties (agenda) ne comptent pas pour la boutique — seulement pour le suivi général des heures
     var heuresBoutique = heures.filter(function(h){ return !(h.type==='agenda' && h.categorie_agenda==='sortie'); });
     var totalMin = heuresBoutique.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
-    var depensesH = commandes.filter(function(c){return c.statut!=='refuse';}).reduce(function(s,c){return s+(c.cout_heures||0);},0);
+    var depensesH = commandes.filter(function(c){return c.statut!=='refuse';}).reduce(function(s,c){return s+(c.cout_heures||0);},0)
+      + (Array.isArray(results[5]) ? results[5] : []).reduce(function(s,g){return s+(g.cout_heures||0);},0);
     var totalH = Math.floor(totalMin/60);
     var totalM = totalMin % 60;
     var totalStr = totalH > 0 ? totalH+'h'+(totalM>0?totalM+'m':'') : totalM+'m';
@@ -1938,7 +1941,8 @@ function osChargerWidgets(){
     fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+uid+'&statut=neq.publie'+(redacId?'&redaction_id=eq.'+redacId:'')+'&select=id,titre,statut&order=updated_at.desc&limit=5',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?membre_id=eq.'+uid+'&statut=neq.refuse&select=cout_heures',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type',{headers:SB_HEADERS}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/gels_serie?membre_id=eq.'+uid+'&select=cout_heures',{headers:authH}).then(function(r){return r.ok?r.json():[];}).catch(function(){return [];})
   ]).then(function(res){
     var evs      = (!res[0]||res[0].code) ? [] : res[0];
     var arts     = (!res[1]||res[1].code) ? [] : res[1];
@@ -1948,7 +1952,8 @@ function osChargerWidgets(){
     // Les sorties (agenda) ne comptent pas pour la boutique — seulement pour le suivi général des heures
     var heuresBoutique = heures.filter(function(h){ return !(h.type==='agenda' && h.categorie_agenda==='sortie'); });
     var totalMin = heuresBoutique.reduce(function(s,h){return s+(h.duree_minutes||0);},0);
-    var depH = depenses.reduce(function(s,c){return s+(c.cout_heures||0);},0);
+    var depH = depenses.reduce(function(s,c){return s+(c.cout_heures||0);},0)
+      + (Array.isArray(res[5]) ? res[5] : []).reduce(function(s,g){return s+(g.cout_heures||0);},0);
     var totalH = Math.floor(totalMin/60);
     var totalM = totalMin % 60;
     var totalStr = totalH > 0 ? totalH+'h'+(totalM>0?totalM+'m':'') : totalM+'m';
