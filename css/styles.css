@@ -5029,3 +5029,28 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   animation: desktop-alerte 2.4s ease-in-out infinite;
 }
 @keyframes desktop-alerte { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+
+/* Capsule défilante du widget du bureau */
+.os-w-ticker { pointer-events: auto; position: relative; width: 100%; }
+.os-w-ticker-vue { position: relative; height: 46px; overflow: hidden; border-radius: 14px; background: rgba(255,255,255,0.1); }
+.os-w-item {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px; border: none; background: transparent; color: #fff; cursor: pointer; text-align: left;
+  font-family: 'DM Sans', sans-serif;
+}
+.os-w-item:hover { background: rgba(255,255,255,0.08); }
+.os-w-item > i { font-size: 1.15rem; flex-shrink: 0; opacity: .9; }
+.os-w-item.chaud { background: rgba(234,91,28,0.3); color: #FFD2BE; }
+.os-w-item-t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.os-w-item-t small { font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.os-w-item-t b { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.os-w-item.entre { animation: os-w-entre .5s cubic-bezier(.4,0,.2,1) forwards; }
+.os-w-item.sort { animation: os-w-sort .5s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes os-w-entre { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes os-w-sort { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+.os-w-ticker-points { display: flex; justify-content: center; gap: 4px; margin-top: 7px; }
+.os-w-ticker-points span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.28); transition: background .3s, width .3s; }
+.os-w-ticker-points span.on { width: 14px; border-radius: 3px; background: rgba(255,255,255,.85); }
+@media (prefers-reduced-motion: reduce) { .os-w-item.entre, .os-w-item.sort { animation: none; } }
