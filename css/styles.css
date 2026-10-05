@@ -5029,3 +5029,67 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
   animation: desktop-alerte 2.4s ease-in-out infinite;
 }
 @keyframes desktop-alerte { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+
+/* Capsule défilante du widget du bureau */
+.os-w-ticker { pointer-events: auto; position: relative; width: 100%; }
+.os-w-ticker-vue { position: relative; height: 46px; overflow: hidden; border-radius: 14px; background: rgba(255,255,255,0.1); }
+.os-w-item {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px; border: none; background: transparent; color: #fff; cursor: pointer; text-align: left;
+  font-family: 'DM Sans', sans-serif;
+}
+.os-w-item:hover { background: rgba(255,255,255,0.08); }
+.os-w-item > i { font-size: 1.15rem; flex-shrink: 0; opacity: .9; }
+.os-w-item.chaud { background: rgba(234,91,28,0.3); color: #FFD2BE; }
+.os-w-item-t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.os-w-item-t small { font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.os-w-item-t b { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.os-w-item.entre { animation: os-w-entre .5s cubic-bezier(.4,0,.2,1) forwards; }
+.os-w-item.sort { animation: os-w-sort .5s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes os-w-entre { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes os-w-sort { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+.os-w-ticker-points { display: flex; justify-content: center; gap: 4px; margin-top: 7px; }
+.os-w-ticker-points span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.28); transition: background .3s, width .3s; }
+.os-w-ticker-points span.on { width: 14px; border-radius: 3px; background: rgba(255,255,255,.85); }
+@media (prefers-reduced-motion: reduce) { .os-w-item.entre, .os-w-item.sort { animation: none; } }
+
+
+/* ===== VIE ASSOCIATIVE : RÉGULARITÉ ===== */
+.reg-cel { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 6px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: .76rem; box-sizing: border-box; }
+.reg-cel.courante { box-shadow: inset 0 0 0 1.5px rgba(26,26,46,.35); }
+.reg-badge { display: inline-flex; align-items: center; font-family: 'DM Sans', sans-serif; font-size: .7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.reg-legende { font-family: 'DM Sans', sans-serif; font-size: .7rem; color: var(--gris); margin-top: 4px; }
+.reg-ligne-sem { display: flex; gap: 4px; flex-wrap: wrap; }
+.reg-col-sem { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.reg-col-sem small { font-family: 'DM Sans', sans-serif; font-size: .6rem; color: var(--gris); }
+.reg-page { padding: 1rem 1.4rem 2rem; font-family: 'DM Sans', sans-serif; color: var(--encre); }
+.reg-resume { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; margin-bottom: .9rem; }
+.reg-resume > div { background: var(--gris-clair); border-radius: 12px; padding: .7rem .9rem; display: flex; flex-direction: column; }
+.reg-resume > div.orange { background: #FFF1E3; }
+.reg-resume > div.orange b { color: #B45309; }
+.reg-resume b { font-family: 'Poppins', sans-serif; font-size: 1.4rem; line-height: 1.1; }
+.reg-resume span { font-size: .72rem; color: var(--gris); margin-top: 2px; }
+.reg-outils { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; font-size: .78rem; }
+.reg-outils label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.reg-tableau-zone { overflow-x: auto; border: 1px solid var(--gris-bord); border-radius: 14px; background: #fff; }
+.reg-tableau { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.reg-tableau th { padding: 8px 6px; font-size: .68rem; font-weight: 700; color: var(--gris); text-align: center; white-space: nowrap; background: #FBF9F6; border-bottom: 1px solid var(--gris-bord); }
+.reg-tableau th small { display: block; font-weight: 400; font-size: .58rem; }
+.reg-tableau td { padding: 6px; text-align: center; border-bottom: 1px solid #F1EDE8; }
+.reg-tableau tr:last-child td { border-bottom: none; }
+.reg-tableau tbody tr { cursor: pointer; }
+.reg-tableau tbody tr:hover td { background: #FBF9F6; }
+.reg-tableau .reg-nom { text-align: left; min-width: 170px; position: sticky; left: 0; background: inherit; }
+.reg-tableau td.reg-nom { display: table-cell; font-weight: 600; }
+.reg-tableau td.reg-nom > span { vertical-align: middle; }
+.reg-tableau td.reg-nom small { display: block; font-weight: 400; font-size: .66rem; color: var(--gris); }
+.reg-av { display: inline-flex; margin-right: 8px; vertical-align: middle; }
+.reg-sep { border-left: 1px solid var(--gris-bord); }
+.reg-sep .reg-cel { margin: 0 1px; }
+.reg-signal { text-align: left !important; min-width: 220px; }
+.reg-signal .reg-badge { margin: 1px 4px 1px 0; }
+.reg-ok { color: #27AE60; font-size: 1rem; }
+@media (max-width: 700px) { .reg-resume { grid-template-columns: 1fr; } }
+.reg-outils label { text-transform: none; letter-spacing: 0; font-family: 'DM Sans', sans-serif; font-size: .78rem; color: var(--encre); }

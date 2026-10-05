@@ -1796,33 +1796,117 @@ function osClockInit(){
   setInterval(osWidgetPastilles, 5*60*1000);
 }
 
-// Pastilles du widget : articles qui attendent dans la file du SR, prochain événement
+// Capsule du widget : une seule ligne qui défile vers le haut, avec tour à tour ce qui compte
+// (tâches du jour, file du SR, prochain événement, candidatures, veille…) puis, quand il n'y a
+// rien d'urgent, des chiffres de la rédaction et une astuce.
+var _wTicker = { items:[], i:0, timer:null, pause:false };
+var W_ASTUCES = [
+  'Ctrl K ouvre la recherche : apps, articles, membres, sujets.',
+  'Clic droit sur une app du menu pour l\'épingler dans la barre.',
+  'Dans Projets, écris « relire le portrait vendredi #projet @Lola » pour créer une tâche.',
+  'Glisse une tâche d\'un jour à l\'autre dans le calendrier des projets.',
+  'Redimensionne une fenêtre en petit format : elle prend la mise en page mobile.',
+  'Dans Sujets, le bouton Aperçu montre le communiqué lié avant de réserver.',
+  'Une alerte de Ma rédac\' peut être masquée avec sa petite croix.'
+];
+
 function osWidgetPastilles(){
   var zone = document.getElementById('os-clock-chips');
   if(!zone || !_session || !getUserId()) return;
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')});
-  var pFile = (typeof _srVoitLaFile === 'function' && _srVoitLaFile() && typeof _srChargerFile === 'function')
-    ? _srChargerFile() : Promise.resolve([]);
-  var pEvt = fetch(SB_URL+'/rest/v1/agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut', {headers:authH})
-    .then(function(r){ return r.json(); }).catch(function(){ return []; });
-  var aujD = new Date(), aujIso = aujD.getFullYear()+'-'+String(aujD.getMonth()+1).padStart(2,'0')+'-'+String(aujD.getDate()).padStart(2,'0');
-  var pTaches = fetch(SB_URL+'/rest/v1/projets_taches?assignes=cs.{'+getUserId()+'}&statut=neq.fait&date_limite=lte.'+aujIso+'&select=id', {headers:authH})
-    .then(function(r){ return r.json(); }).catch(function(){ return []; });
-  Promise.all([pFile, pEvt, pTaches]).then(function(res){
-    var file = Array.isArray(res[0]) ? res[0] : [], evt = Array.isArray(res[1]) ? res[1][0] : null, taches = Array.isArray(res[2]) ? res[2] : [];
-    var h = '';
-    if(taches.length) h += '<button type="button" class="os-w-chip" onclick="osOpenWindow(\'projets\')"><i class="ti ti-checkbox"></i> '+taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui</button>';
-    if(file.length) h += '<button type="button" class="os-w-chip chaud" onclick="osOpenWindow(\'mes-articles\')"><i class="ti ti-eye-check"></i> '+file.length+' article'+(file.length>1?'s':'')+' dans la file du SR</button>';
-    if(evt && evt.date_debut){
-      var dt = new Date(evt.date_debut), auj = new Date();
-      var demain = new Date(auj.getFullYear(), auj.getMonth(), auj.getDate()+1);
-      var quand = dt.toDateString() === auj.toDateString() ? 'aujourd\'hui' : (dt.toDateString() === demain.toDateString() ? 'demain' : dt.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}));
-      var heure = dt.toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'}).replace(':','h');
-      var titre = String(evt.titre||'Événement'); if(titre.length > 26) titre = titre.slice(0,25)+'…';
-      h += '<button type="button" class="os-w-chip" onclick="osOpenWindow(\'agenda\')"><i class="ti ti-calendar-event"></i> '+esc(titre)+' · '+esc(quand)+' '+heure+'</button>';
+  var uid = getUserId(), role = getUserRole();
+  var fonctions = (typeof getUserFonction === 'function' ? getUserFonction() : []) || [];
+  var voitCand = role === 'admin' || fonctions.indexOf('vie_asso') !== -1;
+  var d = new Date(), aujIso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var debutMois = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  function lire(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, {headers:authH}).then(function(r){ return r.json(); }).then(function(x){ return Array.isArray(x) ? x : []; }).catch(function(){ return []; }); }
+
+  var pFile = (typeof _srVoitLaFile === 'function' && _srVoitLaFile() && typeof _srChargerFile === 'function') ? _srChargerFile() : Promise.resolve([]);
+  Promise.all([
+    pFile,
+    lire('agenda_evenements?date_debut=gt.'+encodeURIComponent(d.toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut'),
+    lire('projets_taches?assignes=cs.{'+uid+'}&statut=neq.fait&date_limite=lte.'+aujIso+'&select=id,date_limite'),
+    voitCand ? lire('recrutement_candidatures?statut=eq.en_attente&select=id') : Promise.resolve([]),
+    lire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(debutMois)+'&select=id&limit=300'),
+    lire('articles?statut=eq.publie&order=updated_at.desc&limit=1&select=id,titre'),
+    voitCand ? lire('membres?marque_inactif=eq.true&actif=eq.true&select=id') : Promise.resolve([])
+  ]).then(function(r){
+    var file = r[0], evt = r[1][0], taches = r[2], cand = r[3], publiesMois = r[4], dernier = r[5][0], inactifs = r[6];
+    var items = [];
+    function ajouter(ico, etiquette, texte, action, chaud){ items.push({ico:ico, etiquette:etiquette, texte:texte, action:action, chaud:!!chaud}); }
+    if(taches.length){
+      var nRet = taches.filter(function(t){ return String(t.date_limite).slice(0,10) < aujIso; }).length;
+      ajouter('ti-checkbox', nRet ? 'Projets · '+nRet+' en retard' : 'Projets', taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui', "osOpenWindow('projets')", nRet > 0);
     }
-    zone.innerHTML = h;
+    if(file.length) ajouter('ti-eye-check', 'File du SR', file.length+' article'+(file.length>1?'s':'')+' à relire', "_maOnglet='corriger';osOpenWindow('mes-articles')", true);
+    if(evt && evt.date_debut){
+      var dt = new Date(evt.date_debut), demain = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+      var quand = dt.toDateString() === d.toDateString() ? 'aujourd\'hui' : (dt.toDateString() === demain.toDateString() ? 'demain' : dt.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}));
+      var heure = dt.toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'}).replace(':','h');
+      ajouter('ti-calendar-event', quand.charAt(0).toUpperCase()+quand.slice(1)+' · '+heure, String(evt.titre||'Événement'), "osOpenWindow('agenda')");
+    }
+    if(inactifs.length) ajouter('ti-user-off', 'Vie associative', inactifs.length+' membre'+(inactifs.length>1?'s':'')+' noté'+(inactifs.length>1?'s':'')+' inactif'+(inactifs.length>1?'s':''), "osOpenWindow('benevoles')", true);
+    if(cand.length) ajouter('ti-user-plus', 'Bénévoles', cand.length+' nouvelle'+(cand.length>1?'s':'')+' candidature'+(cand.length>1?'s':''), "osOpenWindow('benevoles')");
+    var nv = (typeof _bureauNonLus !== 'undefined' && _bureauNonLus.veille) || 0;
+    if(nv) ajouter('ti-rss', 'Veille', nv+' article'+(nv>1?'s':'')+' non lu'+(nv>1?'s':''), "osOpenWindow('veille')");
+    // Quand il n'y a rien de pressant (ou en complément) : la vie de la rédaction
+    if(publiesMois.length) ajouter('ti-news', 'Ce mois-ci', publiesMois.length+' article'+(publiesMois.length>1?'s':'')+' publié'+(publiesMois.length>1?'s':''), "osOpenWindow('mes-articles')");
+    if(dernier && dernier.titre) ajouter('ti-circle-check', 'Dernier article en ligne', String(dernier.titre), "osOpenWindow('mes-articles')");
+    var nEnLigne = (typeof _osEnLigneListe === 'function') ? _osEnLigneListe().length : 0;
+    if(nEnLigne > 1) ajouter('ti-users', 'En ce moment', nEnLigne+' personnes connectées', "osEnLigneBasculer()");
+    var jour = Math.floor(Date.now() / 86400000);
+    ajouter('ti-bulb', 'Astuce', W_ASTUCES[jour % W_ASTUCES.length], "osStartMenuRecherche()");
+    _osTickerDemarrer(zone, items);
   });
+}
+
+function _osTickerDemarrer(zone, items){
+  clearInterval(_wTicker.timer);
+  var precedent = _wTicker.items.length ? _wTicker.items[_wTicker.i] : null;
+  _wTicker.items = items;
+  // Si on revient sur le même élément après une mise à jour, on ne saute pas
+  _wTicker.i = Math.max(0, items.findIndex(function(x){ return precedent && x.etiquette === precedent.etiquette && x.texte === precedent.texte; }));
+  zone.innerHTML = '<div class="os-w-ticker" id="os-w-ticker"><div class="os-w-ticker-vue" id="os-w-ticker-vue"></div>'
+    +(items.length > 1 ? '<div class="os-w-ticker-points" id="os-w-ticker-points"></div>' : '')+'</div>';
+  var cap = document.getElementById('os-w-ticker');
+  cap.addEventListener('mouseenter', function(){ _wTicker.pause = true; });
+  cap.addEventListener('mouseleave', function(){ _wTicker.pause = false; });
+  _osTickerAfficher(false);
+  if(items.length > 1){
+    _wTicker.timer = setInterval(function(){
+      if(_wTicker.pause || document.hidden) return;
+      _wTicker.i = (_wTicker.i + 1) % _wTicker.items.length;
+      _osTickerAfficher(true);
+    }, 5500);
+  }
+}
+
+function _osTickerAfficher(anime){
+  var vue = document.getElementById('os-w-ticker-vue');
+  if(!vue) return;
+  var it = _wTicker.items[_wTicker.i];
+  if(!it) return;
+  var el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'os-w-item'+(it.chaud ? ' chaud' : '');
+  el.title = it.etiquette+' : '+it.texte;
+  el.innerHTML = '<i class="ti '+it.ico+'"></i><span class="os-w-item-t"><small>'+esc(it.etiquette)+'</small><b>'+esc(it.texte)+'</b></span>';
+  el.onclick = function(){ try{ new Function(it.action)(); }catch(e){} };
+  var ancien = vue.querySelector('.os-w-item:not(.sort)');
+  var reduit = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(anime && ancien && !reduit){
+    ancien.classList.add('sort');
+    el.classList.add('entre');
+    vue.appendChild(el);
+    setTimeout(function(){ ancien.remove(); el.classList.remove('entre'); }, 520);
+  } else {
+    vue.innerHTML = '';
+    vue.appendChild(el);
+  }
+  var pts = document.getElementById('os-w-ticker-points');
+  if(pts){
+    pts.innerHTML = _wTicker.items.map(function(x, k){ return '<span'+(k === _wTicker.i ? ' class="on"' : '')+'></span>'; }).join('');
+  }
 }
 
 // ===== SIDEBAR WIDGETS =====

@@ -722,6 +722,7 @@ function osBenevolesOuvrirFiche(membreId){
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.4rem;">Fraîcheur de publication</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursBreve!==null&&s.joursBreve>7?'#A32D2D':'var(--encre)')+';margin-bottom:2px;">Dernière brève : '+breveTxt+'</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursArticle!==null&&s.joursArticle>30?'#A32D2D':'var(--encre)')+';margin-bottom:6px;">Dernier article : '+articleTxt+'</div>';
+    html += (typeof osRegulariteFicheHtml === 'function' ? osRegulariteFicheHtml(s) : '');
     html += m.dnd
       ? '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;background:#FCEBEB;color:#A32D2D;">Indisponible</span>'
       : '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;background:#EAF3DE;color:#27500A;">Disponible</span>';
