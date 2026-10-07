@@ -1570,7 +1570,12 @@ function chargerDansRedaction(doc){
     notif('Cet article est publie. Contacte un admin pour le modifier.');
     return;
   }
-  if(getUserRole() === 'redacteur' && (doc.statut === 'en-relecture' || doc.statut === 'corrige' || doc.statut === 'valide')){
+  // Le verrou pendant la relecture vise l'auteur·rice. Il ne s'applique pas au SR de la rédaction
+  // de l'article (rôle SR de rédac, même si son rôle global est « rédacteur »), ni au relecteur désigné.
+  var uidVerrou = getUserId();
+  var estRelecteurDeCetArticle = (doc.correcteur_id && doc.correcteur_id === uidVerrou)
+    || (doc.auteur_id !== uidVerrou && typeof osEstSR === 'function' && osEstSR(doc.redaction_id));
+  if(getUserRole() === 'redacteur' && !estRelecteurDeCetArticle && (doc.statut === 'en-relecture' || doc.statut === 'corrige' || doc.statut === 'valide')){
     notif('Article en cours de relecture par le SR : modification impossible pour l\'instant.');
     return;
   }
