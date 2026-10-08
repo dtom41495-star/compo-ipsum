@@ -2010,6 +2010,13 @@ function osDemanderBesoinVisuel(){
   overlay.onclick = function(e){ if(e.target===overlay) fermer(); };
 }
 
+// Après un changement de statut (relu, bon à publier, en ligne), la fenêtre Mes articles ne doit
+// pas garder l'ancien statut : son rafraîchissement au retour est limité à une fois par minute.
+function _osRafraichirMesArticles(){
+  if(_windows['mes-articles']) _windows['mes-articles']._lastRefresh = 0;
+  if(document.getElementById('ma-os-list') && typeof osMesArticlesCharger === 'function') osMesArticlesCharger();
+}
+
 function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var doc = buildDoc();
@@ -2029,6 +2036,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     if(srDessaisi) _osPrevenirSRDessaisi(srDessaisi, doc, nouveauStatut);
     currentDoc = doc;
     rWorkflowMajInterface(currentDoc);
+    _osRafraichirMesArticles();
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide' && doc.besoin_visuel) osNotifierComArticleValide(currentDoc);
