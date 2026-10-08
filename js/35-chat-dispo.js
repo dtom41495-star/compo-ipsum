@@ -39,7 +39,18 @@ function _chatDispoAppel(jeton, suffixe, methode, corps){
     method: methode,
     headers: { 'Authorization':'Bearer '+jeton, 'Content-Type':'application/json' },
     body: corps ? JSON.stringify(corps) : undefined
-  }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+  }).then(function(r){
+    if(r.ok) return r.json();
+    // Garder le motif du refus de Google, pour l'afficher après un clic sur le bouton
+    return r.json().catch(function(){ return null; }).then(function(d){
+      window._chatDispoDerniereErreur = 'HTTP '+r.status+(d && d.error && d.error.message ? ' : '+d.error.message : '');
+      console.warn('[Chat dispo]', window._chatDispoDerniereErreur);
+      return null;
+    });
+  }).catch(function(e){ window._chatDispoDerniereErreur = 'réseau'; return null; });
+}
+function _chatDispoSignalerEchec(){
+  notif('Google Chat n\'a pas pu être mis à jour'+(window._chatDispoDerniereErreur ? ' ('+window._chatDispoDerniereErreur+')' : ''), 'erreur');
 }
 
 // Lit l'état Chat : true = Ne pas déranger, false = autre état, null = illisible
@@ -52,28 +63,32 @@ function _chatDispoLire(jeton){
 // Appelée par osToggleDND (js/05) une fois le nouvel état enregistré dans Compo
 function osChatDispoSuiteCompo(indispo){
   _chatDispoJeton().then(function(jeton){
-    if(!jeton){ _chatDispoProposerRelier(); return; }
+    // Clic volontaire sur le bouton : on repropose de relier Chat à chaque fois tant que ce n'est pas fait
+    if(!jeton){ _chatDispoProposerRelier(true); return; }
     if(indispo){
       _chatDispoAppel(jeton, ':markAsDoNotDisturb', 'POST', { ttl:CHAT_DISPO_DUREE_DND }).then(function(a){
-        if(a) _chatDispoDerniereDND = true;
+        if(a) _chatDispoDerniereDND = true; else _chatDispoSignalerEchec();
       });
     } else {
       // Un ACTIVE très court rend la main à Chat, qui recalcule l'état selon l'activité
       _chatDispoLire(jeton).then(function(dnd){
         if(dnd === false){ _chatDispoDerniereDND = false; return; }
         _chatDispoAppel(jeton, ':markAsActive', 'POST', { ttl:'60s' }).then(function(a){
-          if(a) _chatDispoDerniereDND = false;
+          if(a) _chatDispoDerniereDND = false; else _chatDispoSignalerEchec();
         });
       });
     }
   });
 }
 
-// Une seule fois par appareil : proposer de relier Google Chat (nouvel accord Google)
-function _chatDispoProposerRelier(){
-  if(_chatDispoRelierPropose) return;
-  _chatDispoRelierPropose = true;
-  try{ if(localStorage.getItem('compo_chat_dispo_propose') === '1') return; localStorage.setItem('compo_chat_dispo_propose', '1'); }catch(e){}
+// Proposer de relier Google Chat (nouvel accord Google). À l'ouverture de Compo : une seule fois
+// par appareil. Après un clic sur Disponible / Indispo (insiste = true) : à chaque fois.
+function _chatDispoProposerRelier(insiste){
+  if(!insiste){
+    if(_chatDispoRelierPropose) return;
+    _chatDispoRelierPropose = true;
+    try{ if(localStorage.getItem('compo_chat_dispo_propose') === '1') return; localStorage.setItem('compo_chat_dispo_propose', '1'); }catch(e){}
+  }
   if(typeof notifPersistante !== 'function') return;
   notifPersistante('Relie Google Chat pour que « Ne pas déranger » suive ta disponibilité dans Compo.', 'info', 'Relier', osChatDispoRelier, 'brand-google');
 }
