@@ -1868,6 +1868,7 @@ function osBuildDock(){
   // Init DND au démarrage
   if(_session) setTimeout(function(){
     osInitDND(); osVerifierDispoVisuels();
+    if(typeof osChatDispoDemarrer === 'function') osChatDispoDemarrer();
     if(window._comDejaConnecte===undefined) osVerifierComDejaConnecte();
     if(localStorage.getItem('compo_os_tour_pending')){
       localStorage.removeItem('compo_os_tour_pending');

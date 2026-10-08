@@ -2861,6 +2861,7 @@ function osInitDND(){
   .then(function(d){
     var m = d&&d[0];
     _dndActif = m ? !!m.dnd : false;
+    window._dndCharge = true; // la synchro avec Google Chat attend de connaître l'état Compo
     osDNDMajUI();
     osVerifierDispoVisuels();
   }).catch(function(){});
@@ -2879,6 +2880,8 @@ function osToggleDND(){
       osVerifierDispoVisuels();
       notif(_dndActif ? 'Mode Ne pas déranger activé' : 'Tu es de nouveau disponible', _dndActif?'':'succes');
       if(_dndActif) _osNotifierVieAssoIndisponibilite(getUserNomComplet(), 'signalé(e) indisponible');
+      // Google Chat suit : Ne pas déranger activé ou retiré (js/35-chat-dispo.js)
+      if(typeof osChatDispoSuiteCompo === 'function') osChatDispoSuiteCompo(_dndActif);
     }
   });
 }
