@@ -1203,6 +1203,7 @@ function osAppCorrectionAvancer(id, nouveauStatut){
       var labels = {'en-relecture':'Envoyé au SR','corrige':'Marqué comme relu','valide':'Passé en bon à publier','publie':'Mis en ligne'};
       notif(labels[nouveauStatut]||'Mis à jour','succes');
       osAppCorrectionCharger();
+      if(typeof _osRafraichirMesArticles === 'function') _osRafraichirMesArticles();
       // Notifier la com si article validé
       if(nouveauStatut==='valide'){
         var authH2 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
