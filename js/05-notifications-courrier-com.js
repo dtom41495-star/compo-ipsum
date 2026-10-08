@@ -2861,6 +2861,7 @@ function osInitDND(){
   .then(function(d){
     var m = d&&d[0];
     _dndActif = m ? !!m.dnd : false;
+    window._dndCharge = true; // la synchro avec Google Chat attend de connaître l'état Compo
     osDNDMajUI();
     osVerifierDispoVisuels();
   }).catch(function(){});

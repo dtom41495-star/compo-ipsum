@@ -101,17 +101,29 @@ function _chatDispoAppliquerDansCompo(indispo){
   }).catch(function(){});
 }
 
-// Relit Chat. Compo ne suit qu'un CHANGEMENT d'état dans Chat : la première lecture sert de
-// point de départ, pour ne rien basculer à l'ouverture de Compo.
+// Relit Chat et aligne Compo.
+//  - À l'ouverture de Compo, c'est l'état de Chat qui fait foi : un Ne pas déranger posé (ou
+//    retiré) dans Chat pendant que Compo était fermé est repris. Les changements faits dans
+//    Compo, même sur un autre appareil, ont déjà été recopiés dans Chat, donc rien ne se perd.
+//    Exception : la toute première fois que Chat est relié sur cet appareil, c'est Compo qui
+//    fait foi (son état est recopié dans Chat), pour ne pas basculer quelqu'un par surprise.
+//  - Ensuite, tant que Compo est ouvert, Compo ne suit qu'un CHANGEMENT d'état dans Chat.
 function osChatDispoVerifier(){
-  if(!_session || !getUserId() || document.hidden) return;
+  if(!_session || !getUserId() || document.hidden || !window._dndCharge) return;
   _chatDispoJeton().then(function(jeton){
     if(!jeton){ _chatDispoProposerRelier(); return; }
     _chatDispoLire(jeton).then(function(dnd){
       if(dnd === null) return;
       var avant = _chatDispoDerniereDND;
       _chatDispoDerniereDND = dnd;
-      if(avant !== null && avant !== dnd) _chatDispoAppliquerDansCompo(dnd);
+      if(avant === null){
+        var cle = 'compo_chat_dispo_lie_'+getUserId(), dejaLie = false;
+        try{ dejaLie = localStorage.getItem(cle) === '1'; localStorage.setItem(cle, '1'); }catch(e){}
+        if(!dejaLie){ if(dnd !== _dndActif) osChatDispoSuiteCompo(_dndActif); return; }
+        if(dnd !== _dndActif) _chatDispoAppliquerDansCompo(dnd);
+        return;
+      }
+      if(avant !== dnd) _chatDispoAppliquerDansCompo(dnd);
     });
   });
 }
