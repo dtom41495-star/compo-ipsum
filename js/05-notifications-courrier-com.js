@@ -2879,6 +2879,8 @@ function osToggleDND(){
       osVerifierDispoVisuels();
       notif(_dndActif ? 'Mode Ne pas déranger activé' : 'Tu es de nouveau disponible', _dndActif?'':'succes');
       if(_dndActif) _osNotifierVieAssoIndisponibilite(getUserNomComplet(), 'signalé(e) indisponible');
+      // Google Chat suit : Ne pas déranger activé ou retiré (js/35-chat-dispo.js)
+      if(typeof osChatDispoSuiteCompo === 'function') osChatDispoSuiteCompo(_dndActif);
     }
   });
 }
