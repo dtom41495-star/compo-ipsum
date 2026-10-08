@@ -239,9 +239,9 @@ function osAccueilMobileRendre(){
     +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
     +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
     +(etatRedac && etatRedac.ouvert ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
-    // Série : le compteur sans passer par le profil (rempli après le rendu, js/33-serie.js)
-    +(aMaRedac ? '<button type="button" class="acc-pill-serie" id="acc-serie" data-app="redac:profil" style="display:none;"><i class="ti ti-flame"></i><span></span></button>' : '')
     +'</div>';
+  // Série : la carte « Ma série » complète, comme dans Ma rédac' (remplie après le rendu, js/33-serie.js)
+  if(aMaRedac) h += '<div class="rp-serie acc-serie-carte" id="acc-serie-carte" style="display:none;"></div>';
   // Rédaction fermée : un bandeau bien visible, pas une pastille qu'on confond avec « Disponible »
   h += osRedacBandeauFermeeHtml(redac);
   if(_accueilProposerInstall()){
@@ -271,7 +271,7 @@ function osAccueilMobileRendre(){
   zone.innerHTML = h;
   zone.scrollTop = defil;
   try{ osDNDMajUI(); }catch(e){}
-  if(typeof osSerieChargerPastille === 'function') osSerieChargerPastille(document.getElementById('acc-serie'));
+  if(typeof osSerieChargerCarte === 'function') osSerieChargerCarte(document.getElementById('acc-serie-carte'), true);
 }
 
 // ---- Installer Compo sur l'écran d'accueil du téléphone ----
