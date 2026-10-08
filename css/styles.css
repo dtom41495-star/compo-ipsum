@@ -5303,3 +5303,6 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 @keyframes serie-bonus-eclat { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(.5); } }
 @media (max-width: 640px) { .serie-bonus { bottom: calc(86px + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .serie-bonus, .serie-bonus-flamme, .serie-bonus-conf i { animation: none !important; } .serie-bonus-conf { display: none; } }
+
+/* Accueil mobile : carte « Ma série » complète sous la ligne de statut */
+.acc-serie-carte { margin: 0 0 16px; }

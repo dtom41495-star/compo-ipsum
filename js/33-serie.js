@@ -248,6 +248,7 @@ function osSerieBonus(info){
 
 // Appelée juste après un envoi réussi au SR (assignValider, js/02-auth-articles.js)
 function osSerieApresEnvoi(doc){
+  window._serieCarteCache = null; // la série a pu changer : la carte de l'accueil mobile se recharge
   try{
     var uid = getUserId();
     if(!uid || !doc) return;
@@ -350,15 +351,34 @@ function osSerieCarteHtml(e, x){
     +'<div class="serie-pasts rp-serie-pasts">'+_seriePastillesHtml(e.pastilles)+'</div>'
     +gel;
 }
-function osSerieChargerCarte(zone){
+// enCache : l'accueil mobile se redessine souvent ; on y remet aussitôt la dernière carte connue
+// et on ne recharge qu'au bout d'une minute.
+function osSerieChargerCarte(zone, enCache){
   var uid = getUserId();
   if(!zone || !uid) return;
+  var c = window._serieCarteCache;
+  if(enCache && c && c.uid === uid){
+    zone.innerHTML = c.html; zone.style.display = '';
+    if(Date.now() - c.le < 60000) return;
+  }
   Promise.all([_serieCharger(uid), _serieGels(uid), _serieConfig(), _serieSolde()]).then(function(res){
     var x = { gels:res[1], cfg:res[2], solde:res[3] };
     window._serieSoldeCourant = res[3];
-    zone.innerHTML = osSerieCarteHtml(osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set), x);
-    zone.style.display = '';
-  }).catch(function(){ zone.style.display = 'none'; });
+    var html = osSerieCarteHtml(osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set), x);
+    window._serieCarteCache = { uid:uid, html:html, le:Date.now() };
+    // La zone a pu être remplacée entre-temps (accueil redessiné) : viser l'élément actuel
+    var cible = (zone.id && document.getElementById(zone.id)) || zone;
+    cible.innerHTML = html;
+    cible.style.display = '';
+  }).catch(function(){ if(!enCache) zone.style.display = 'none'; });
+}
+// Après un gel ou un envoi : remettre à jour toutes les cartes « Ma série » affichées
+function osSerieRafraichirCartes(){
+  window._serieCarteCache = null;
+  ['rp-serie', 'acc-serie-carte'].forEach(function(id){
+    var z = document.getElementById(id);
+    if(z) osSerieChargerCarte(z);
+  });
 }
 
 // Geler la semaine en cours : le serveur contrôle le solde, la fréquence et les semaines voisines
@@ -385,7 +405,7 @@ function osSerieGeler(){
         }
         osShowToast('Semaine gelée ❄ Ta série est protégée.', 'succes', {icon:'snowflake'});
         osSerieSon('coche');
-        osSerieChargerCarte(document.getElementById('rp-serie'));
+        osSerieRafraichirCartes();
       }).catch(function(){ osShowToast('Impossible de geler la semaine pour le moment.', 'erreur'); });
   });
 }

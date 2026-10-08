@@ -344,6 +344,7 @@ function osBoutiqueAcheter(btn){
         else notif('« '+nom+' » appliqué ❄ Ta série est protégée.', 'succes');
       }
       window._serieSoldeCourant = d.solde;
+      window._serieCarteCache = null;
       osBoutiqueRender();
     }).catch(function(){ btn.disabled = false; notif('Erreur réseau', 'erreur'); });
   });
