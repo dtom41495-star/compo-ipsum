@@ -1766,7 +1766,9 @@ function _osGoogleDemanderJeton(){
   .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, status:r.status, data:d||{}}; }); })
   .then(function(res){
     if(!res.ok || !res.data.access_token){
-      if(!res.ok) console.warn('[Google] google-token a répondu HTTP '+res.status+(res.data && res.data.error ? ' : '+res.data.error : '')+' — nouvel essai dans 5 min');
+      if(!res.ok && !(res.data && res.data.reconnexionRequise)){
+        console.warn('[Google] google-token a répondu HTTP '+res.status+' : '+[res.data.error, res.data.motif, typeof res.data.detail === 'string' ? res.data.detail : (res.data.detail ? JSON.stringify(res.data.detail) : '')].filter(Boolean).join(' · ')+' (nouvel essai dans 5 min)');
+      }
       if(res.data && res.data.reconnexionRequise){
         _googleAuth = null;
         // Accès retiré côté Google : redemander l'accord à la prochaine connexion
