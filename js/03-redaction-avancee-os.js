@@ -2130,6 +2130,8 @@ function osLancer(){
   // Plus de plein écran automatique au lancement : gênant sur téléphone. Le bouton
   // « Plein écran » de la barre des tâches reste là pour qui le veut sur ordinateur.
   setTimeout(osShowAppsMovedTooltip, 8500);
+  // Lien de signature ouvert avant la connexion : le document s'affiche maintenant (js/07)
+  if(typeof osSignatureLienEnAttente === 'function') setTimeout(osSignatureLienEnAttente, 1200);
 
   setTimeout(function(){
     benvMajDerniereConnexion();
