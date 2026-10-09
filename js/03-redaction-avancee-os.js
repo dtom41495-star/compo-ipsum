@@ -1413,7 +1413,8 @@ function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
     _emailDernierEnvoi = Date.now();
     return fetch(SB_URL+'/functions/v1/envoyer-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // envoyer-email n'accepte que les membres connectés : on présente le jeton de session
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_session&&_session.access_token||'') },
       body: JSON.stringify({ to: to, subject: subject, html: html })
     });
   }).then(function(r){
