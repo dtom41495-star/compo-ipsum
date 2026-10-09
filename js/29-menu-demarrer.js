@@ -12,7 +12,7 @@ var SM_CATEGORIES = [
 ];
 var SM_CAT_APPS = {
   ecrire: ['redaction','mes-articles','app-correction','correction','notes','compteur','titres','carnet','veille'],
-  equipe: ['redactions','benevoles','agenda','projets','tableau','tickets','boutique','tutos'],
+  equipe: ['redactions','benevoles','agenda','projets','tableau','tickets','boutique','ecran-redac','tutos'],
   com:    ['app-com','cps-admin','communique','newsletter','app-courrier','signatures','substack'],
   outils: ['upload-medias','magneto','flouter','visuels-pro','app-dub','mail','compo-store','minuteur'],
   admin:  ['stats-dashboard','tresorerie','gestion-apps','nettoyage','params','bugs','log']

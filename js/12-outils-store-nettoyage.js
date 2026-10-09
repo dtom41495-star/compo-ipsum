@@ -1600,6 +1600,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
+  { id:'ecran-redac',    icon:'<i class="ti ti-device-tv"></i>', label:'Écran rédac',    color:'#1A1A2E', roles:['admin','redac_chef'], desc:'Tableau de bord en direct pour un écran d\'affichage : circuit des articles, agenda et sujets ouverts, toutes rédactions. Aucune notification.' },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
   { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
@@ -1789,6 +1790,19 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'boutique' })
+        }).catch(function(){});
+      }
+
+      // Écran rédac : pour les rédac chefs et les admins (même mécanisme que Veille)
+      if((estChefQuelquePart || roleEffectif === 'admin') && !allIds.includes('ecran-redac')){
+        allIds.push('ecran-redac');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'ecran-redac' })
         }).catch(function(){});
       }
 

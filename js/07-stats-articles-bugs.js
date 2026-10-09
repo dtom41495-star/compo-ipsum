@@ -2463,7 +2463,7 @@ function osSignatureEnvoyer(){
   _sigNouveauPdfFile.arrayBuffer().then(function(buf){
     return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
       method:'POST',
-      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+(_session?_session.access_token:SB_KEY), 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/pdf', 'x-upsert':'true' },
       body: buf
     });
   }).then(function(r){
@@ -2519,13 +2519,40 @@ function osSignatureEnvoyer(){
   });
 }
 
-// ---- Écran public de signature (accessible sans connexion via ?signature=token) ----
+// ---- Lien de signature reçu par email (?signature=token) ----
+// Les signataires sont toujours des membres : il faut être connecté·e pour signer (la base
+// n'est plus ouverte sans compte). Le lien est mis de côté le temps de la connexion — y
+// compris l'aller-retour chez Google, qui revient sans le ?signature= — et l'écran de
+// signature s'ouvre une fois Compo lancé (osSignatureLienEnAttente, appelé par osLancer).
+var SIG_LIEN_EN_ATTENTE = 'compo_signature_en_attente';
 function _osCheckSignatureLien(){
   var params = new URLSearchParams(window.location.search);
   var token = params.get('signature');
   if(!token) return false;
-  osAfficherEcranSignature(token);
-  return true;
+  try{ sessionStorage.setItem(SIG_LIEN_EN_ATTENTE, token); }catch(e){}
+  params.delete('signature');
+  var reste = params.toString();
+  history.replaceState(null, '', location.pathname + (reste ? '?'+reste : '') + location.hash);
+  // Pas déjà connecté·e : un mot sur l'écran de connexion
+  var dejaConnecte = false;
+  try{ var st = JSON.parse(localStorage.getItem('ipsum_session')||'null'); dejaConnecte = !!(st && st.expires_at > Date.now()); }catch(e){}
+  if(!dejaConnecte) setTimeout(function(){
+    var login = document.getElementById('os-login');
+    if(!login || document.getElementById('sig-login-info')) return;
+    var info = document.createElement('div');
+    info.id = 'sig-login-info';
+    info.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100000;max-width:min(440px,92vw);padding:0.75rem 1rem;background:#1A1A2E;color:white;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:0.6rem;align-items:flex-start;';
+    info.innerHTML = '<i class="ti ti-signature" style="font-size:1.2rem;color:#F6A58F;margin-top:1px;"></i><span>Un document attend ta signature. <strong>Connecte-toi</strong> avec ton compte Ipsum Média : il s\'ouvrira tout de suite après.</span>';
+    document.body.appendChild(info);
+  }, 300);
+  return false; // la suite du démarrage (session ou connexion) continue normalement
+}
+function osSignatureLienEnAttente(){
+  var token = null;
+  try{ token = sessionStorage.getItem(SIG_LIEN_EN_ATTENTE); sessionStorage.removeItem(SIG_LIEN_EN_ATTENTE); }catch(e){}
+  var info = document.getElementById('sig-login-info');
+  if(info) info.remove();
+  if(token && _session) osAfficherEcranSignature(token);
 }
 
 function _sigEcranMessage(titre, texte, succes){
@@ -2571,7 +2598,7 @@ function osAfficherEcranSignature(token){
   .then(function(r){ return r.json(); })
   .then(function(rows){
     var signataire = rows && rows[0];
-    if(!signataire){ screen.innerHTML = _sigEcranMessage('Lien invalide', 'Ce lien de signature n\'existe pas ou plus.'); return; }
+    if(!signataire){ screen.innerHTML = _sigEcranMessage('Lien invalide', 'Ce lien de signature n\'existe plus, ou il est destiné à une autre personne : vérifie que tu es connecté·e avec ton propre compte.'); return; }
     _sigCourantSignataire = signataire;
     _sigCourantDocument = signataire.signature_documents;
     if(signataire.statut === 'signe'){
@@ -2906,7 +2933,8 @@ function _sigAssemblerPdfFinal(doc, signataires){
     var path = 'documents/'+doc.id+'-final.pdf';
     return fetch(SB_URL+'/storage/v1/object/documents-signature/'+path, {
       method:'POST',
-      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/pdf', 'x-upsert':'true' },
+      // Jeton de la personne connectée : le dépôt des documents est fermé aux visiteurs sans compte
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/pdf', 'x-upsert':'true' },
       body: finalBytes
     }).then(function(r){
       if(!r.ok) throw new Error('upload du PDF final échoué');

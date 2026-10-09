@@ -246,21 +246,91 @@ function osAfficherSessionExpiree(){
   document.body.appendChild(overlay);
 }
 
+// ===== RENOUVELLEMENT DE LA CONNEXION =====
+// Le jeton de connexion dure 1 h. Le minuteur de renouvellement (js/03) est mis en pause par le
+// navigateur quand l'onglet est en arrière-plan, l'ordinateur en veille ou l'appli mobile fermée :
+// au retour, le jeton était mort et le premier appel affichait « Connexion expirée ». Désormais :
+// renouvellement avant un appel si le jeton expire bientôt, et après un refus (401) on renouvelle
+// puis on réessaie une fois ; la fenêtre n'apparaît que si le renouvellement échoue vraiment.
+var _osRenouvellementEnCours = null;
+function _osFetchNatif(){ return window._fetchNatifCompo.apply(window, arguments); }
+function osRafraichirSession(){
+  if(_osRenouvellementEnCours) return _osRenouvellementEnCours;
+  var sess = null;
+  try { sess = JSON.parse(localStorage.getItem('ipsum_session') || 'null'); } catch(e){}
+  // Un autre onglet a pu renouveler entre-temps : reprendre sa session si elle est plus fraîche
+  if(sess && sess.access_token && sess.expires_at && _session && (!_session.expires_at || sess.expires_at > _session.expires_at) && sess.expires_at - Date.now() > 2*60*1000){
+    _session = sess;
+    return Promise.resolve(true);
+  }
+  var rt = (sess && sess.refresh_token) || (_session && _session.refresh_token);
+  if(!rt) return Promise.resolve(false);
+  _osRenouvellementEnCours = _osFetchNatif(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
+    method:'POST', headers:{ 'apikey':SB_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ refresh_token: rt })
+  }).then(function(r){ return r.json().catch(function(){ return {}; }); })
+  .then(function(data){
+    if(!data || !data.access_token) return false;
+    var base = sess || _session || {};
+    var nouvelle = Object.assign({}, base, {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || rt,
+      user: data.user || base.user,
+      expires_at: Date.now() + ((data.expires_in||3600)*1000)
+    });
+    _session = nouvelle;
+    try { localStorage.setItem('ipsum_session', JSON.stringify(nouvelle)); } catch(e){}
+    return true;
+  }).catch(function(){ return false; })
+  .then(function(ok){ _osRenouvellementEnCours = null; return ok; });
+  return _osRenouvellementEnCours;
+}
+// Renouvelle seulement si le jeton expire dans moins de `marge` ms (par défaut 5 min)
+function osAssurerSession(marge){
+  if(typeof _session === 'undefined' || !_session || !_session.access_token) return Promise.resolve(false);
+  if(_session.expires_at && _session.expires_at - Date.now() > (marge || 5*60*1000)) return Promise.resolve(true);
+  return osRafraichirSession();
+}
+['visibilitychange', 'focus', 'online', 'pageshow'].forEach(function(ev){
+  (ev === 'visibilitychange' ? document : window).addEventListener(ev, function(){
+    if(ev === 'visibilitychange' && document.hidden) return;
+    osAssurerSession();
+  });
+});
+
 (function(){
   var _fetchNatif = window.fetch.bind(window);
+  window._fetchNatifCompo = _fetchNatif;
+  function _estAuth(u){ return u.indexOf('/auth/v1/token') !== -1 || u.indexOf('/auth/v1/recover') !== -1; }
+  // Remplace l'ancien jeton par le nouveau dans les en-têtes d'un appel (objet ou Headers)
+  function _avecJeton(opts, ancien){
+    if(!opts || !opts.headers || !_session || !_session.access_token) return opts;
+    var nouveau = 'Bearer ' + _session.access_token;
+    var h = opts.headers;
+    if(typeof Headers !== 'undefined' && h instanceof Headers){
+      var copie = new Headers(h);
+      var v = copie.get('Authorization');
+      if(v && v !== nouveau && (!ancien || v === ancien) && v !== 'Bearer ' + SB_KEY) copie.set('Authorization', nouveau);
+      return Object.assign({}, opts, {headers: copie});
+    }
+    var o = {}; Object.keys(h).forEach(function(k){ o[k] = h[k]; });
+    var cle = Object.keys(o).find(function(k){ return k.toLowerCase() === 'authorization'; });
+    if(cle && o[cle] !== nouveau && (!ancien || o[cle] === ancien) && o[cle] !== 'Bearer ' + SB_KEY) o[cle] = nouveau;
+    return Object.assign({}, opts, {headers: o});
+  }
   window.fetch = function(url, opts){
-    return _fetchNatif(url, opts).then(function(r){
-      if(r.status === 401){
-        var u = String(url);
-        // /auth/v1/token (login, refresh) et /auth/v1/recover gèrent déjà eux-mêmes
-        // un 401 (mauvais mot de passe, refresh token expiré) — ne pas les court-
-        // circuiter avec ce message, qui ne s'applique qu'à une session censée
-        // être valide qui ne l'est plus.
-        if(u.indexOf(SB_URL) === 0 && u.indexOf('/auth/v1/token') === -1 && u.indexOf('/auth/v1/recover') === -1){
-          osAfficherSessionExpiree();
-        }
-      }
-      return r;
+    var u = String(url && url.url || url);
+    if(u.indexOf(SB_URL) !== 0 || _estAuth(u)) return _fetchNatif(url, opts);
+    var jetonAvant = (typeof _session !== 'undefined' && _session && _session.access_token) ? 'Bearer ' + _session.access_token : null;
+    return osAssurerSession(2*60*1000).then(function(){
+      return _fetchNatif(url, _avecJeton(opts, jetonAvant));
+    }).then(function(r){
+      if(r.status !== 401 || !jetonAvant) return r;
+      return osRafraichirSession().then(function(ok){
+        if(!ok){ osAfficherSessionExpiree(); return r; }
+        // Un refus persistant après renouvellement ne vient pas de la connexion (droits, fonction serveur…)
+        return _fetchNatif(url, _avecJeton(opts, null));
+      });
     });
   };
 })();
