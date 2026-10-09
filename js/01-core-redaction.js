@@ -2,9 +2,14 @@
 var SB_URL = 'https://ctmekufqaxdelgfyjwly.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE';
 
+// Authorization suit toujours la session en cours (jeton de la personne connectée, renouvelé
+// automatiquement), sinon la clé publique. Les règles d'accès de la base (RLS) peuvent ainsi
+// s'appuyer sur l'identité réelle pour chaque appel, y compris ceux qui passent SB_HEADERS tel quel.
+// Le setter garde la compatibilité avec les anciennes affectations SB_HEADERS['Authorization'] = ….
 var SB_HEADERS = {
   'apikey': SB_KEY,
-  'Authorization': 'Bearer ' + SB_KEY,
+  get 'Authorization'(){ return 'Bearer ' + ((typeof _session !== 'undefined' && _session && _session.access_token) || SB_KEY); },
+  set 'Authorization'(v){},
   'Content-Type': 'application/json',
   'Prefer': 'return=representation'
 }
