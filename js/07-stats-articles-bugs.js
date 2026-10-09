@@ -1268,9 +1268,11 @@ function osMesArticlesCharger(){
     // liste sans aucun indice visuel de pourquoi).
     q = SB_URL+'/rest/v1/articles?select=*&order=updated_at.desc.nullslast';
   } else if(_maOnglet === 'corriger'){
+    // Seulement ce qui reste à relire : un article relu attend le bon à publier du chef,
+    // il est dans « À valider », pas ici (il y apparaissait avec un bouton « Valider »)
     q = role === 'admin'
-      ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast'
-      : SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige)&select=*&order=updated_at.desc.nullslast';
+      ? SB_URL+'/rest/v1/articles?statut=eq.en-relecture&select=*&order=updated_at.desc.nullslast'
+      : SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=*&order=updated_at.desc.nullslast';
   } else if(_maOnglet === 'validation-centrale'){
     // Articles des AUTRES rédactions en attente (ou déjà passés) de validation centrale —
     // toutes rédactions confondues, filtré ensuite côté client (la rédaction centrale elle-même
