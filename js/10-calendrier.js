@@ -2088,15 +2088,6 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   }
 
   h += '</div>';
-  // Barre flottante façon barre des tâches — indique la section actuellement ouverte
-  var onglets = _osRedacOngletsListe();
-  var ongletActif = onglets.find(function(o){ return o.id === _redacOnglet; });
-  if(ongletActif){
-    h += '<div class="redac-barre-flottante" style="position:absolute;left:14px;bottom:14px;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,0.14);pointer-events:none;">';
-    h += '<span style="font-size:0.9rem;">'+ongletActif.icon+'</span>';
-    h += '<span style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.72rem;color:var(--encre);">'+ongletActif.label+'</span>';
-    h += '</div>';
-  }
   outer.innerHTML = h;
   // Filet de sécurité contre un bug de peinture Chrome déjà constaté sur cette fenêtre :
   // du contenu fraîchement injecté par innerHTML reste invisible tant que rien ne force

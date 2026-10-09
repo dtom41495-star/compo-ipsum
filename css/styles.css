@@ -3692,7 +3692,6 @@ input:focus,select:focus,textarea:focus{
 .acc-btn-menu, .acc-flottant { display: none; }
 @media (max-width: 768px) {
   #win-redactions.redac-directe #redac-sidebar-rail { display: none !important; }
-  .redac-barre-flottante { display: none !important; }
   #redac-alertes-zone:empty, #redac-annonces-zone:empty { display: none; }
   .redac-directe .redac-contenu { padding: 1rem 1rem 6rem !important; }
   .redac-directe .redac-actions-rapides { display: none !important; }
