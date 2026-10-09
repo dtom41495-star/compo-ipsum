@@ -3085,6 +3085,51 @@ function osNotifierValidationCentraleOK(article){
   }).catch(function(){});
 }
 
+// Prévient le(s) rédac chef(s) de la rédaction de l'article qu'il vient d'être relu par le SR
+// et attend leur bon à publier. S'il y a plusieurs chefs, tous sont prévenus : le premier qui
+// valide s'en occupe (l'article sort alors de l'onglet « À valider » des autres). Pas de chef
+// joignable dans la rédaction : ce sont les admins qui sont prévenus, comme pour les relances.
+function osNotifierChefsArticleRelu(article){
+  if(!article || !article.id || !article.redaction_id) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var moi = getUserId();
+  var joignable = function(m){ return m && m.actif && !m.dnd && m.id !== moi; };
+  fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(article.redaction_id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,email,actif,dnd,canal_notif)',{headers:authH})
+  .then(function(r){ return r.json(); })
+  .then(function(liens){
+    var tous = ((liens&&!liens.code)?liens:[]).map(function(l){ return l.membres; });
+    // Relu par un des chefs lui-même : il donnera le bon à publier, inutile d'appeler les admins
+    var chefs = tous.filter(joignable);
+    if(chefs.length || tous.some(function(m){ return m && m.id === moi; }) || getUserRole() === 'admin') return chefs;
+    return fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,email,actif,dnd,canal_notif',{headers:authH})
+      .then(function(r){ return r.json(); })
+      .then(function(admins){ return ((admins&&!admins.code)?admins:[]).filter(joignable); });
+  })
+  .then(function(destinataires){
+    if(!destinataires || !destinataires.length) return;
+    var titre = article.titre || 'Sans titre';
+    var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(article.id);
+    var nomRedac = article.redaction || (typeof _nomRedac === 'function' ? _nomRedac(article.redaction_id) : '');
+    var qui = getUserNomComplet() || 'Le SR';
+    var chat = '*Un article attend ton bon à publier*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedac ? ' · '+_chatSansMiseEnForme(nomRedac) : '')
+      +' : relu par '+_chatSansMiseEnForme(qui)+'.\n<'+lien+'|Ouvrir l\'article>';
+    destinataires.forEach(function(m){
+      notifierPersonnel(m.id, m.canal_notif, chat, 'validation', function(){
+        if(!m.email || osEstEnLigne(m.id)) return;
+        var html = _emailCompo({
+          accent:'bleu', etiquette:'BON À PUBLIER', titre:'Un article attend ton bon à publier',
+          bonjour:'Bonjour '+esc(m.prenom||'')+',',
+          texte:'<strong>'+esc(qui)+'</strong> vient de relire cet article. Il n\'attend plus que le bon à publier'+(destinataires.length > 1 ? ' : le premier ou la première qui le donne s\'en occupe.' : '.'),
+          contenu:_emailCarteArticle(article),
+          boutons:[{ label:'Ouvrir l\'article', url:lien }],
+          pourquoi:'Tu reçois cet email car tu valides les articles de cette rédaction.'
+        });
+        envoyerEmailResend(m.email, '[Ipsum Média] Bon à publier attendu : '+titre, html, 'validation').catch(function(){});
+      });
+    });
+  }).catch(function(){});
+}
+
 // ── Material ripple effect ──
 document.addEventListener('click', function(e){
   var target = e.target.closest('.btn,.os-btn-win,.dock-icon-img');

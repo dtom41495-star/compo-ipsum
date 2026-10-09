@@ -2040,6 +2040,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     _docModifie = false;
     osNotifStatutArticle(currentDoc, nouveauStatut);
     if(nouveauStatut==='valide' && doc.besoin_visuel) osNotifierComArticleValide(currentDoc);
+    if(nouveauStatut==='corrige' && typeof osNotifierChefsArticleRelu === 'function') osNotifierChefsArticleRelu(currentDoc);
     if(nouveauStatut==='valide') osNotifierValidateursCentraux(currentDoc);
     if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
