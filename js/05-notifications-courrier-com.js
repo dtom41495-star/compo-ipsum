@@ -353,10 +353,9 @@ function _osOpenWindowExecuter(pageId){
   // Titre
   var titles = {
     bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'titres':'Générateur de titres', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
-    correction:'Relecture', lecture:'Lecture', edition:'Édition',
-    comparaison:'Comparaison',
+    lecture:'Lecture',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
-    guide:'Manuel', tickets:'Assistance', log:'Journal', 'lire-cp':'Lire un CP',
+    guide:'Manuel', tickets:'Assistance', log:'Journal', 
     newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Projets',
     snake:'Presse Express', substack:'Articles publiés', signatures:'Signatures',
     'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie'
@@ -703,7 +702,6 @@ function osLoadPageContent(pageId, winEl){
   setTimeout(function(){
     if(pageId === 'mes-articles') osMesArticlesRender();
     if(pageId === 'tickets') chargerTickets();
-    if(pageId === 'correction') setTimeout(preremplirCorrecteur, 100);
     if(pageId === 'cps-admin') cpsAdminCharger();
     if(pageId === 'boutique') osBoutiqueRender();
     if(pageId === 'tresorerie') osTresorerieRender();
@@ -886,7 +884,7 @@ function osCloseWindowForce(pageId){
   // réelles (croix, invite de sauvegarde, envoi en correction). osChronoStop est
   // idempotent, donc un double appel ne compte pas le temps deux fois.
   if(pageId === 'redaction') osChronoStop('redaction');
-  if(pageId === 'app-correction' || pageId === 'correction') osChronoStop('correction');
+  if(pageId === 'app-correction') osChronoStop('correction');
   if(pageId === 'snake') osSnakeCleanup();
   // Même effet de rebond que l'ouverture, mais à la fermeture
   var dockIcon = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
@@ -1347,12 +1345,7 @@ function osBuildDesktopIcons(){
   container.appendChild(statsIcon);
 
   // Toutes les apps disponibles
-  var OFFLINE_APPS = ['edition', 'lecture'];
-  var allApps = [
-    { id:'edition', icon:'<i class="ti ti-pencil"></i>', label:'Edition', color:'#6C3483', offline:true, legacy:true },
-    { id:'comparaison', icon:'<i class="ti ti-scale"></i>', label:'Comparer', color:'#1A5276', legacy:true },
-    { id:'lecture', icon:'<i class="ti ti-eye"></i>', label:'Lecture', color:'#117A65', offline:true, legacy:true },
-  ];
+  var allApps = [];
   allApps.push({ id:'upload-medias', icon:'<i class="ti ti-folder"></i>', label:'Fichiers', color:'#1A5276', forceBureau:true });
   if(role === 'admin' || role === 'correcteur'){
     allApps.push({ id:'newsletter', icon:'<i class="ti ti-mail"></i>', label:'Newsletter', color:'#155724' });

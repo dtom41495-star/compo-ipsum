@@ -313,36 +313,6 @@ function rLectureAfficherCpSource(doc, container){
   }).catch(function(){});
 }
 
-// ===== LIAISON CP SOURCE — ÉDITION =====
-
-function rEditionAfficherCpSource(doc){
-  if(!doc || !doc.cp_id) return;
-  fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(doc.cp_id)+'&select=id,titre,source,organisation,date_cp', {
-    headers: SB_HEADERS
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    var cp = data && data[0]; if(!cp) return;
-    var zone = document.getElementById('e-cp-source-zone');
-    if(!zone) return;
-    zone.innerHTML = '<div style="display:flex;align-items:center;gap:0.8rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.7rem 1rem;">'
-      +'<span style="font-size:1rem;"><i class="ti ti-news"></i></span>'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">CP source</div>'
-      +'<div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(cp.titre||cp.id)+'</div>'
-      +(cp.source||cp.organisation ? '<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+esc(cp.source||cp.organisation||'')+'</div>' : '')
-      +'</div>'
-      +'<button onclick="rEditionDetacherCpSource()" style="background:none;border:none;color:var(--gris);cursor:pointer;font-size:0.8rem;padding:2px 6px;" title="Retirer"><i class="ti ti-x"></i></button>'
-      +'</div>';
-  }).catch(function(){});
-}
-
-function rEditionDetacherCpSource(){
-  if(currentDoc) currentDoc.cp_id = null;
-  var zone = document.getElementById('e-cp-source-zone');
-  if(zone) zone.innerHTML = '<div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-news"></i> Lier un CP source</p></div>';
-}
-
 // ===== OOBE (PREMIÈRE CONNEXION) =====
 
 var _oobeAppsSelectionnees = new Set();
