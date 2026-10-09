@@ -643,8 +643,9 @@ function osMenuMobile(items){
   document.body.appendChild(ov);
 }
 
-// Onglets « À prendre » / « En cours » des Sujets sur téléphone
+// Onglets « À prendre » / « En cours » des Sujets (téléphone et ordinateur)
 function _osSujetsFiltrer(btn){
+  window._sujetsFiltre = btn.dataset.f;
   var barre = btn.parentNode;
   barre.querySelectorAll('button').forEach(function(b){ b.classList.toggle('actif', b === btn); });
   var liste = barre.parentNode.querySelector('.sujets-liste');

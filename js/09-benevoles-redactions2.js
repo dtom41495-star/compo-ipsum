@@ -1966,14 +1966,16 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     var PRIO_BG={urgente:'#F8D7DA',normale:'#FFF3CD',faible:'#D4EDDA'};
     var PRIO_C={urgente:'#721C24',normale:'#856404',faible:'#155724'};
     var h = '';
-    // Sur téléphone : onglets « À prendre » / « En cours »
+    // Onglets « À prendre » / « En cours » (téléphone et ordinateur). L'onglet choisi est
+    // gardé quand la liste se recharge (réservation, modification…).
     var nbLibres = sujets.filter(function(s){ return !(s.statut==='en_cours' && s.responsable); }).length;
-    if(typeof osEstMobile === 'function' && osEstMobile()){
-      h += '<div class="sujets-onglets" data-choix="libres">'
-        +'<button type="button" class="actif" data-f="libres" onclick="_osSujetsFiltrer(this)">À prendre ('+nbLibres+')</button>'
-        +'<button type="button" data-f="pris" onclick="_osSujetsFiltrer(this)">En cours ('+(sujets.length-nbLibres)+')</button></div>';
-    }
-    h += '<div class="sujets-liste" data-filtre="libres" style="display:flex;flex-direction:column;gap:0.6rem;">';
+    var filtre = window._sujetsFiltre === 'pris' ? 'pris' : 'libres';
+    h += '<div class="sujets-onglets">'
+      +'<button type="button" class="'+(filtre==='libres'?'actif':'')+'" data-f="libres" onclick="_osSujetsFiltrer(this)"><i class="ti ti-hand-stop"></i>À prendre <span class="sujets-onglets-nb">'+nbLibres+'</span></button>'
+      +'<button type="button" class="'+(filtre==='pris'?'actif':'')+'" data-f="pris" onclick="_osSujetsFiltrer(this)"><i class="ti ti-pencil"></i>En cours <span class="sujets-onglets-nb">'+(sujets.length-nbLibres)+'</span></button></div>';
+    h += '<div class="sujets-liste" data-filtre="'+filtre+'" style="display:flex;flex-direction:column;gap:0.6rem;">';
+    if(!nbLibres) h += '<div class="sujets-vide" data-pour="libres"><i class="ti ti-mood-empty"></i>Aucun sujet à prendre pour l\'instant.</div>';
+    if(nbLibres === sujets.length) h += '<div class="sujets-vide" data-pour="pris"><i class="ti ti-pencil-off"></i>Aucun sujet en cours de rédaction.</div>';
     sujets.forEach(function(s){
       var artLie = articleParSujet[s.id];
       var prio = s.priorite||'normale';
