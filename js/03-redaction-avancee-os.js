@@ -2093,27 +2093,8 @@ var DOCK_APPS = {
 };
 
 function osRefreshToken(){
-  var stored = localStorage.getItem('ipsum_session');
-  if(!stored) return;
-  var sess;
-  try { sess = JSON.parse(stored); } catch(e){ return; }
-  if(!sess || !sess.refresh_token) return;
-
-  fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
-    method:'POST',
-    headers:{ 'apikey':SB_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ refresh_token: sess.refresh_token })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(!data.access_token) return; // refresh_token expiré — laisser le login apparaître normalement
-    sess.access_token = data.access_token;
-    if(data.refresh_token) sess.refresh_token = data.refresh_token;
-    sess.expires_at = Date.now() + ((data.expires_in||3600)*1000);
-    _session = sess;
-    SB_HEADERS['Authorization'] = 'Bearer ' + sess.access_token;
-    localStorage.setItem('ipsum_session', JSON.stringify(sess));
-  }).catch(function(){});
+  // Renouvellement centralisé dans js/01 (osRafraichirSession) : un seul appel à la fois, partagé entre onglets
+  if(typeof osRafraichirSession === 'function') return osRafraichirSession();
 }
 
 // Refresh toutes les 45 minutes (token dure 1h)
