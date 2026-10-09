@@ -17,11 +17,15 @@ function osRenvoyerArticle(id, doc){
         .then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d[0] : null; });
   charger.then(function(art){
     if(!art){ notif('Article introuvable', 'erreur'); return; }
-    _renvoiFenetre(art);
+    // Les commentaires posés sur des paragraphes accompagnent le renvoi
+    return fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(art.id)+'&select=id,bloc_index,texte&order=bloc_index.asc', {headers:authH})
+      .then(function(r){ return r.json(); }).catch(function(){ return []; })
+      .then(function(rows){ _renvoiFenetre(art, Array.isArray(rows) ? rows : []); });
   }).catch(function(){ notif('Impossible de charger l\'article', 'erreur'); });
 }
 
-function _renvoiFenetre(art){
+function _renvoiFenetre(art, commentaires){
+  commentaires = commentaires || [];
   var prenom = String(art.auteur || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
   var mo = document.createElement('div');
   mo.className = 'renvoi-voile';
@@ -36,6 +40,9 @@ function _renvoiFenetre(art){
       }).join('')+'</div>'
       +'<label class="renvoi-label" for="renvoi-message">Ton message</label>'
       +'<textarea id="renvoi-message" rows="4" placeholder="Explique ce qu\'il faut changer, avec un exemple si tu peux : « Le chapô répète le titre, essaie de commencer par le chiffre clé »."></textarea>'
+      +(commentaires.length ? '<label class="renvoi-joindre"><input type="checkbox" id="renvoi-joindre" checked>'
+        +'<span>Joindre au message '+(commentaires.length > 1 ? 'les '+commentaires.length+' commentaires posés' : 'le commentaire posé')+' sur des paragraphes'
+        +'<small>'+esc(prenom)+' les verra aussi sous chaque paragraphe concerné, dans son article.</small></span></label>' : '')
       +'<div class="renvoi-explication"><i class="ti ti-info-circle"></i><span>L\'article repasse en brouillon. '+esc(prenom)+' reçoit ton message par mail ou Chat et le retrouve en haut de son article. Une fois repris, il ou elle le renverra au SR.</span></div>'
       +'<div class="renvoi-erreur" id="renvoi-erreur"></div>'
     +'</div>'
@@ -61,20 +68,21 @@ function _renvoiFenetre(art){
         return;
       }
       var note = (motifs.length ? 'À reprendre : '+motifs.join(', ')+'.' : '') + (motifs.length && message ? '\n' : '') + message;
+      var joindre = mo.querySelector('#renvoi-joindre');
       fermer();
-      _renvoiEnregistrer(art, note);
+      _renvoiEnregistrer(art, note, (joindre && joindre.checked) ? commentaires : null);
     }
   });
 }
 
-function _renvoiEnregistrer(art, note){
+function _renvoiEnregistrer(art, note, commentaires){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(art.id), {
     method:'PATCH', headers:authH, body:JSON.stringify({ statut:'brouillon', note_interne:note })
   }).then(function(r){
     if(!r.ok){ notif('Le renvoi n\'a pas pu être enregistré', 'erreur'); return; }
     art.statut = 'brouillon'; art.note_interne = note;
-    if(typeof _osEmailRefusArticle === 'function') _osEmailRefusArticle(art, note);
+    if(typeof _osEmailRefusArticle === 'function') _osEmailRefusArticle(art, note, commentaires);
     if(typeof osNotifStatutArticle === 'function') osNotifStatutArticle({ titre:art.titre, auteur_id:art.auteur_id }, 'refuse');
     // Toutes les vues qui montrent cet article
     if(typeof currentDoc !== 'undefined' && currentDoc && currentDoc.id === art.id){
