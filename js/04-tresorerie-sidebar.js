@@ -1741,7 +1741,7 @@ function osChargerWidgets(){
           +'</div>'
           +'<div style="flex:1;min-width:0;">'
           +'<div style="font-size:0.73rem;color:rgba(0,0,0,0.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.icon+' '+esc(ev.titre||'')+'</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.56rem;color:rgba(0,0,0,0.4);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>'
+          +'<div style="font-family:Space Mono,monospace;font-size:0.56rem;color:rgba(0,0,0,0.4);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(_agLieu(ev)?' · '+esc(_agLieu(ev)):'')+'</div>'
           +'</div></div>';
       });
     } else { evHtml = '<div style="font-family:Space Mono,monospace;font-size:0.63rem;color:rgba(0,0,0,0.35);text-align:center;padding:0.5rem;">Aucun événement à venir</div>'; }
