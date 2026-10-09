@@ -2274,7 +2274,7 @@ function osOpenWindow(pageId){
   if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
   if(pageId === 'visuels-pro' && !osVisuelsVerifierAcces()) return;
   if(pageId === 'redaction') osChronoStart('redaction');
-  if(pageId === 'app-correction' || pageId === 'correction') osChronoStart('correction');
+  if(pageId === 'app-correction') osChronoStart('correction');
   _osOpenWindowExecuter(pageId);
   // Mettre à jour le dock pour montrer la fenêtre ouverte
   setTimeout(osDockMajFenetresOuvertes, 50);

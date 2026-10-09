@@ -4542,13 +4542,6 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .st-bouton { width: 100%; justify-content: center; }
 .st-ancien { background: #FAFAF9; }
 .st-ancien .st-icone { opacity: 0.6; }
-.st-anciens { margin-top: 1.4rem; }
-.st-anciens summary { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; list-style: none; font-size: 0.8rem; font-weight: 700; color: #57534E; }
-.st-anciens summary::-webkit-details-marker { display: none; }
-.st-anciens summary i { transition: transform 0.15s; }
-.st-anciens[open] summary i { transform: rotate(90deg); }
-.st-anciens summary span { font-weight: 500; color: #A8A29E; }
-.st-anciens-aide { font-size: 0.74rem; color: #6B7280; margin: 0.4rem 0 0.7rem; }
 @media (max-width: 768px) {
   .st { padding: 1rem 12px 2rem; }
   .st-grille { grid-template-columns: 1fr; }

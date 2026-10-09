@@ -2,8 +2,7 @@
 
 // ───────────────────────────────────────────────────────────────────────────────
 // 1. RENVOYER UN ARTICLE À SON AUTEUR·RICE
-// Une seule fenêtre et un seul comportement, d'où que l'on renvoie (éditeur, Mes articles,
-// ancienne appli Correction). Avant, il y en avait quatre : l'une ne prévenait pas l'auteur,
+// Une seule fenêtre et un seul comportement, d'où que l'on renvoie (éditeur, Mes articles). Avant, il y en avait quatre : l'une ne prévenait pas l'auteur,
 // une autre écrivait la remarque dans une colonne que personne ne lisait.
 // L'article repasse en brouillon avec la remarque (note_interne), l'auteur est prévenu par
 // mail ou Chat, et la remarque s'affiche en haut de son article.
@@ -88,7 +87,6 @@ function _renvoiEnregistrer(art, note){
     });
     if(typeof maOsFiltre === 'function' && document.getElementById('ma-os-list')) maOsFiltre();
     if(typeof _osRafraichirMesArticles === 'function') _osRafraichirMesArticles();
-    if(typeof osAppCorrectionCharger === 'function' && document.getElementById('corr-contenu')) osAppCorrectionCharger();
   }).catch(function(){ notif('Le renvoi n\'a pas pu être enregistré', 'erreur'); });
 }
 
@@ -96,7 +94,6 @@ function _renvoiEnregistrer(art, note){
 window.rWorkflowRenvoyer = function(){ if(currentDoc) osRenvoyerArticle(currentDoc.id, currentDoc); };
 window.maOsRefuser = function(id){ osRenvoyerArticle(id); };
 window.maRefuserArticle = function(id){ osRenvoyerArticle(id); };
-window.osAppCorrectionRenvoyer = function(id){ osRenvoyerArticle(id); };
 
 
 // ───────────────────────────────────────────────────────────────────────────────

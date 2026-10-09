@@ -883,40 +883,6 @@
   </div>
 </div>
 
-<div class="page" id="page-correction" style="padding:0!important;max-width:none!important;margin:0!important;min-height:100%;background:#F7F8FA;">
-
-  <!-- Header -->
-  <div style="background:white;border-bottom:1px solid var(--gris-bord);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-    <div>
-      <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-file-search"></i> Secrétariat de rédaction</div>
-      <div style="font-size:0.65rem;color:var(--gris);margin-top:2px;" id="corr-subtitle">Chargement...</div>
-    </div>
-    <button onclick="osAppCorrectionCharger()" style="font-size:0.68rem;padding:4px 12px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;"><i class="ti ti-refresh"></i> Actualiser</button>
-  </div>
-
-  <!-- Onglets selon rôle -->
-  <div id="corr-tabs" style="display:flex;border-bottom:1px solid var(--gris-bord);background:white;padding:0 0.8rem;overflow-x:auto;"></div>
-
-  <!-- Contenu -->
-  <div id="corr-contenu" style="padding:1rem 1.2rem;">
-    <div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.82rem;">Chargement...</div>
-  </div>
-
-  <!-- Modale commentaire renvoi -->
-  <div id="corr-renvoi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:white;border-radius:12px;padding:1.5rem;width:min(480px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-      <div style="font-weight:700;font-size:0.9rem;color:var(--encre);margin-bottom:0.8rem;"><i class="ti ti-arrow-back-up"></i> Renvoyer au rédacteur</div>
-      <div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">Explique ce qui doit être retravaillé — le rédacteur verra ce message.</div>
-      <textarea id="corr-renvoi-commentaire" rows="4" placeholder="Ex: Le titre est trop vague, l'intro manque d'accroche..." style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--gris-bord);border-radius:8px;font-size:0.82rem;font-family:'DM Sans',sans-serif;resize:none;outline:none;box-sizing:border-box;"></textarea>
-      <div style="display:flex;gap:0.5rem;margin-top:0.8rem;">
-        <button onclick="osAppCorrectionConfirmerRenvoi()" style="flex:1;padding:0.5rem;background:#856404;color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">Confirmer le renvoi</button>
-        <button onclick="document.getElementById('corr-renvoi-modal').style.display='none'" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;cursor:pointer;color:var(--gris);">Annuler</button>
-      </div>
-    </div>
-  </div>
-
-</div>
-
 <!-- LECTURE -->
 <div class="page" id="page-lecture">
   <!-- Écran d'attente : l'article s'ouvre depuis Mes articles (bouton « Lire ») -->
@@ -928,74 +894,6 @@
   <!-- Rempli par renderLecture (article) ou renderDiffLecture (corrections) -->
   <div id="lect-content" style="display:none"></div>
 </div>
-
-<!-- ÉDITION -->
-<div class="page" id="page-edition">
-  <div class="page-title">Modifier un article</div>
-  <div class="page-sub">Ouvre un article pour le modifier librement</div>
-  <div class="import-zone" id="edit-iz" onclick="document.getElementById('edit-file').click()">
-    <div class="iz-icon">↑</div><p>Ouvre l'article à modifier</p>
-    <input type="file" id="edit-file" accept="*/*" style="display:none" onchange="loadEdition(event)">
-  </div>
-  <div id="edit-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;flex-wrap:wrap;">
-      <div id="e-codeid"></div><div id="e-statbadge"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Auteur</label><input type="text" id="e-auteur"></div>
-      <div class="form-group"><label>Rédaction</label>
-        <select id="e-redaction"><option value="Rédaction Tarn">Rédaction Tarn</option><option value="Rédaction Aveyron">Rédaction Aveyron</option><option value="Rédaction Hérault">Rédaction Hérault</option><option value="Rédaction Ariège">Rédaction Ariège</option><option value="Rédaction Haute-Garonne">Rédaction Haute-Garonne</option></select>
-      </div>
-      <div class="form-group full"><label>Titre</label><input type="text" id="e-titre"></div>
-      <div class="form-group full" id="eg-ch"><label>Introduction</label><input type="text" id="e-chapeau"></div>
-      <div class="form-group full"><label>Texte</label><textarea id="e-corps"></textarea></div>
-      <div class="form-group full"><label>Statut</label>
-        <div class="status-row" id="e-statrow">
-          <button class="status-opt" onclick="setStatEdit('brouillon')">En écriture</button>
-          <button class="status-opt" onclick="setStatEdit('en-relecture')">Au SR</button>
-          <button class="status-opt" onclick="setStatEdit('corrige')">Relu par le SR</button>
-          <button class="status-opt" onclick="setStatEdit('valide')">Bon à publier</button>
-          <button class="status-opt" onclick="setStatEdit('publie')">En ligne</button>
-        </div>
-      </div>
-    </div>
-    <div class="section-label">Communiqué source</div>
-    <div id="e-cp-source-zone" style="margin-bottom:0.8rem;">
-      <div class="import-zone" onclick="rArticleLierCpSource()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-news"></i> Lier un CP source</p></div>
-    </div>
-    <div class="section-label">Historique</div><div id="e-hist"></div>
-    <div class="btn-row">
-      <button class="btn" onclick="exporterEdition()">Sauvegarder</button>
-      <button class="btn sec" onclick="exporterFichier(currentDoc,currentDoc.id)"><i class="ti ti-file-text"></i> Exporter en JSON</button>
-      <button class="btn sec" onclick="genMd('edit')">Copier le texte</button>
-    </div>
-    <div class="md-out" id="md-edit"></div>
-  </div>
-</div>
-
-<!-- COMPARAISON -->
-<div class="page" id="page-comparaison">
-  <div class="page-title">Comparer deux versions</div>
-  <div class="page-sub">Charge deux versions du même article pour voir les différences</div>
-  <div class="cmp-grid">
-    <div>
-      <div class="cmp-label" style="color:var(--bleu)">Version A</div>
-      <div class="import-zone" onclick="document.getElementById('cmp-a').click()"><div class="iz-icon">↑</div><p>Ouvre la version A</p><input type="file" id="cmp-a" accept="*/*" style="display:none" onchange="loadCmp('a',event)"></div>
-      <div id="cmp-a-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-a-id" class="code-id"></span><span id="cmp-a-stat"></span></div><div class="cmp-content cmp-a" id="cmp-a-txt"></div></div>
-    </div>
-    <div>
-      <div class="cmp-label" style="color:var(--rouge)">Version B</div>
-      <div class="import-zone" onclick="document.getElementById('cmp-b').click()"><div class="iz-icon">↑</div><p>Ouvre la version B</p><input type="file" id="cmp-b" accept="*/*" style="display:none" onchange="loadCmp('b',event)"></div>
-      <div id="cmp-b-info" style="display:none"><div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;"><span id="cmp-b-id" class="code-id"></span><span id="cmp-b-stat"></span></div><div class="cmp-content cmp-b" id="cmp-b-txt"></div></div>
-    </div>
-  </div>
-  <div id="cmp-diff" style="display:none;margin-top:1.5rem;">
-    <hr class="divider">
-    <div class="section-label">Différences</div>
-    <div class="diff-block" id="cmp-diff-out" style="min-height:60px;"></div>
-  </div>
-</div>
-
 
 <!-- BRIEFING -->
 <!-- BOUTIQUE -->
@@ -1222,27 +1120,6 @@
     <button class="statut-filtre" onclick="ticketFiltrer('ferme',this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Fermes</button>
   </div>
   <div id="tickets-list"></div>
-</div>
-
-<!-- LIRE CP -->
-<div class="page" id="page-lire-cp">
-  <div class="panel-title">Lire un communiqué</div>
-  <div class="panel-subtitle">Ouvre un communiqué enregistré pour consulter ses informations et son PDF</div>
-  <div class="import-zone" onclick="document.getElementById('input-lire-cp').click()">
-    <div class="import-icon"><i class="ti ti-clipboard-list"></i></div>
-    <p>Clique ici pour ouvrir un communiqué enregistré</p>
-    <input type="file" id="input-lire-cp" accept="*/*" style="display:none" onchange="loadLectCP(event)">
-  </div>
-  <div id="lect-cp-content" style="display:none">
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-      <span id="lcp-id" class="code-id"></span>
-      <span id="lcp-type-badge"></span>
-    </div>
-    <div class="cp-reader" id="lcp-reader"></div>
-    <div class="btn-row">
-      <button class="btn secondary" onclick="resetLectCP()">Ouvrir un autre communiqué</button>
-    </div>
-  </div>
 </div>
 
 <!-- NEWSLETTER -->

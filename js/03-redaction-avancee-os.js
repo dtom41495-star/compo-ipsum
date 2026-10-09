@@ -1228,7 +1228,7 @@ document.addEventListener('visibilitychange', function(){
   } else {
     // Reprendre uniquement si la fenêtre rédaction est ouverte
     if(_windows && _windows['redaction']) osChronoStart('redaction');
-    if(_windows && (_windows['app-correction'] || _windows['correction'])) osChronoStart('correction');
+    if(_windows && _windows['app-correction']) osChronoStart('correction');
   }
 });
 

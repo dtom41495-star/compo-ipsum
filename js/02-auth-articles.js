@@ -382,8 +382,7 @@ function modalActionChoisir(action){
   } else if(action === 'correction'){
     chargerDansRedaction(_docFromURL);
   } else if(action === 'edition'){
-    go('edition');
-    setTimeout(function(){ renderEdition(_docFromURL); }, 100);
+    chargerDansRedaction(_docFromURL);
   }
 }
 
@@ -394,36 +393,6 @@ function modalActionFermer(){
 
 
 // Charger statut depuis Supabase
-function afficherCPDansLecteur(cp){
-  var el = document.getElementById('lcp-id');
-  var badge = document.getElementById('lcp-type-badge');
-  var reader = document.getElementById('lcp-reader');
-  if(el) el.textContent = cp.id;
-  if(badge){
-    var tCls = cp.type_actu==='local' ? 'b-local' : 'b-national';
-    var tLbl = cp.type_actu==='local' ? 'Actu locale' : 'Actu nationale';
-    badge.innerHTML = '<span class="badge '+tCls+'">'+tLbl+'</span>';
-  }
-  if(reader){
-    var fields = [
-      ['Sujet', cp.objet],
-      ['Organisation', cp.organisation],
-      ['Recu le', cp.date_reception],
-      ['Embargo', cp.embargo]
-    ];
-    var html = '';
-    fields.forEach(function(p){
-      if(p[1]) html += '<div class="cp-field"><span class="cp-field-label">'+p[0]+'</span><span class="cp-field-val">'+esc(p[1])+'</span></div>';
-    });
-    if(cp.fichier_b64){
-      html += '<div style="margin-top:1rem;"><div style="font-size:0.67rem;color:var(--gris);text-transform:uppercase;margin-bottom:0.5rem;">Document PDF</div>';
-      html += '<embed src="'+cp.fichier_b64+'" type="application/pdf" class="cp-pdf-embed"></div>';
-    } else {
-      html += '<p style="color:var(--gris);font-size:0.84rem;margin-top:1rem;">Aucun PDF joint.</p>';
-    }
-    reader.innerHTML = html;
-  }
-}
 
 
 // Export article en JSON (fallback)
@@ -1454,14 +1423,6 @@ function uploadImageVersDrive(file, redacId, titre){
 var imgFile = null;
 
 
-function ouvrirAssignationDepuisEdition(){
-  if(!currentDoc){ notif('Aucun article ouvert'); return; }
-  // Sauvegarder d'abord puis ouvrir la modale
-  exporterEdition();
-  setTimeout(function(){
-    ouvrirAssignationDepuisDoc(currentDoc);
-  }, 500);
-}
 
 function ouvrirAssignationDepuisDoc(doc){
   if(!doc){ notif('Aucun article'); return; }

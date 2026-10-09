@@ -760,15 +760,6 @@ function osStoreRender(){
       +'<div class="cpa-sous">Des applis en plus, à installer selon ce qui te sert. Tu peux les retirer quand tu veux.</div></div></div>';
     html += '<div class="st-grille">'+storeApps.map(function(a){ return carte(a, false); }).join('')+'</div>';
 
-    // Outils de la première version, repliés : rarement utiles
-    var role = getUserRole();
-    var legacyApps = ALL_APPS_CATALOGUE.filter(function(a){ return a.legacy && a.roles.includes(role); });
-    if(legacyApps.length){
-      var ouvert = legacyApps.some(function(a){ return installees.includes(a.id); });
-      html += '<details class="st-anciens"'+(ouvert ? ' open' : '')+'><summary><i class="ti ti-chevron-right"></i>Anciens outils <span>'+legacyApps.length+'</span></summary>'
-        +'<p class="st-anciens-aide">Ils viennent de la première version de Compo et fonctionnent avec des fichiers JSON. Leurs fonctions existent maintenant dans les applis principales.</p>'
-        +'<div class="st-grille">'+legacyApps.map(function(a){ return carte(a, true); }).join('')+'</div></details>';
-    }
     html += '</div>';
     wc.innerHTML = html;
   }).catch(function(){
@@ -1602,11 +1593,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'ecran-redac',    icon:'<i class="ti ti-device-tv"></i>', label:'Écran rédac',    color:'#1A1A2E', roles:['admin','redac_chef'], desc:'Tableau de bord en direct pour un écran d\'affichage : circuit des articles, agenda et sujets ouverts, toutes rédactions. Aucune notification.' },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
-  { id:'comparaison',    icon:'<i class="ti ti-scale"></i>', label:'Comparer (v1)',  color:'#856404', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — comparaison de deux versions de texte. Désactivé par défaut.' },
-  { id:'lecture',        icon:'<i class="ti ti-eye"></i>', label:'Lecture',   color:'#117A65', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'articles JSON. Désactivé par défaut.' },
-  { id:'edition',        icon:'<i class="ti ti-pencil"></i>', label:'Édition (v1)',   color:'#6C3483', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — édition d\'articles JSON. Désactivé par défaut.' },
-  { id:'lire-cp',        icon:'<i class="ti ti-file-description"></i>', label:'Lire un CP (v1)',color:'#2C3E50', roles:['redacteur','correcteur','admin'], legacy:true, desc:'Outil v1 — lecture d\'un communiqué de presse en fichier JSON local.' },
-  { id:'correction',     icon:'<i class="ti ti-pencil"></i>', label:'Corriger (v1)',  color:'#E8461E', roles:['correcteur','admin'], legacy:true, desc:'Outil v1 — correction d\'articles JSON. Remplacé par l\'app Secrétariat de rédaction.' },
   // Apps Store
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
@@ -1822,7 +1808,6 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
       // Filtrer aussi selon le rôle — une app admin ne doit pas apparaître pour un rédacteur
       // SAUF si le membre a la fonction requise (ex: tresorier)
       function appAccessible(a){
-        if(a.legacy) return false;
         // Boutique : réservée aux membres d'une rédaction (les admins la gèrent, ils l'ont toujours)
         if(a.id === 'boutique' && roleEffectif !== 'admin' && !estDansUneRedac) return false;
         if(!a.roles) return true;
@@ -2470,7 +2455,6 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.4rem;">';
 
       appsDisponibles.forEach(function(app){
-        if(app.legacy) return; // traitées séparément en bas
         var checked = membreApps.has(app.id);
         // Certaines apps exigent en plus une fonction associative (ex: Bénévoles ->
         // vie_asso) — cochées ici, elles resteront pourtant invisibles pour le membre
@@ -2488,23 +2472,6 @@ function _osGestionAppsBodyRender(zone, membres, appsData){
         if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;"><i class="ti ti-alert-triangle"></i></span>';
         html += '</label>';
       });
-
-      // Apps legacy (v1) — section séparée
-      var legacyDispo = appsDisponibles.filter(function(a){ return a.legacy; });
-      if(legacyDispo.length){
-        html += '</div>';
-        html += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin:0.8rem 0 0.4rem;display:flex;align-items:center;gap:0.5rem;">';
-        html += '<span>Outils v1</span><span style="flex:1;height:1px;background:var(--gris-bord);"></span><span style="color:var(--gris);font-size:0.55rem;">Désactivés par défaut</span></div>';
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.4rem;">';
-        legacyDispo.forEach(function(app){
-          var checked = membreApps.has(app.id);
-          html += '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border:0.5px dashed var(--gris-bord);border-radius:6px;cursor:pointer;background:'+(checked?'#FFF8E7':'#FAFAFA')+';opacity:0.85;" id="gapp-label-'+m.id+'-'+app.id+'">';
-          html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="osGestionAppsToggleApp(\''+m.id+'\',\''+app.id+'\',this.checked)" style="accent-color:#856404;width:14px;height:14px;flex-shrink:0;">';
-          html += '<span style="font-size:0.82rem;">'+app.icon+'</span>';
-          html += '<span style="font-size:0.72rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(app.label)+'</span>';
-          html += '</label>';
-        });
-      }
 
       html += '</div>';
 
