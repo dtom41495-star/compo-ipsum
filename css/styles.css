@@ -5458,3 +5458,4 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .relu-pied { flex-wrap: wrap; }
 .relu-ok { padding: 9px 16px; border-radius: 10px; border: none; background: #1E7A45; color: #fff; font: 700 14px 'DM Sans', Arial, sans-serif; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
 .relu-ok:hover { filter: brightness(.95); }
+.mac-btn.renvoi-verrouille { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
