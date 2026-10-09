@@ -5437,3 +5437,11 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 /* Remarques de renvoi sur plusieurs lignes (motifs + message) */
 .mac-note span, .ma-carte-note span, .ma-note-refuse { white-space: pre-line; }
 .verif-espaces { color: #B33A14; font-weight: 700; }
+
+/* Communiqués : sections « Nouveaux » / « Tous les communiqués » (js/08) */
+.cps-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--gris-bord); font-family: 'DM Sans', Arial, sans-serif; }
+.cps-section:first-of-type { margin-top: 4px; }
+.cps-section i { color: #7D3C98; font-size: 16px; }
+.cps-section-titre { font-weight: 700; font-size: 14px; color: var(--encre); }
+.cps-section-nb { padding: 0 8px; border-radius: 999px; background: #F3EAF7; color: #7D3C98; font-size: 12px; font-weight: 700; line-height: 20px; }
+.cps-section-aide { font-size: 12px; color: var(--gris); }

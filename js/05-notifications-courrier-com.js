@@ -1715,6 +1715,7 @@ function _osGoogleRangerJeton(providerToken, providerRefreshToken){
       if(!r.ok){ console.warn('[Google] jeton non enregistré côté serveur (HTTP '+r.status+')'); return; }
       // Accord à Drive rangé : les prochaines connexions ne le redemandent plus
       try{ localStorage.setItem('compo_google_accord', '1'); }catch(e){}
+      osGoogleJetonReessayer();
     }).catch(function(e){ console.warn('[Google] jeton non enregistré :', e); });
   });
 }
@@ -1735,18 +1736,39 @@ function _osHeadersFonction(){
 // avant expiration, pour ne pas rappeler le serveur à chaque fichier envoyé.
 // Renvoie null si la personne doit se reconnecter — l'appelant doit gérer ce cas
 // plutôt que de supposer un jeton toujours disponible.
+// Un seul appel à la fois (plusieurs applis le demandent souvent en même temps), et après
+// un échec côté serveur, pas de nouvel essai avant quelques minutes : sans ça, la synchro
+// « Ne pas déranger » le rappelait en boucle et remplissait la console d'erreurs 500.
+var _googleJetonEnCours = null;
+var _googleJetonEchecJusqua = 0;
+var GOOGLE_JETON_PAUSE_ECHEC = 5 * 60 * 1000;
 function osGoogleAccessToken(){
   if(_googleAuth && _googleAuth.access_token && _googleAuth.expires_at > Date.now() + 60000){
     return Promise.resolve(_googleAuth.access_token);
   }
+  if(_googleJetonEnCours) return _googleJetonEnCours;
+  if(Date.now() < _googleJetonEchecJusqua) return Promise.resolve(null);
+  _googleJetonEnCours = _osGoogleDemanderJeton().then(function(t){
+    _googleJetonEnCours = null;
+    if(!t) _googleJetonEchecJusqua = Date.now() + GOOGLE_JETON_PAUSE_ECHEC;
+    return t;
+  });
+  return _googleJetonEnCours;
+}
+// Après une reconnexion à Google, on peut réessayer tout de suite
+function osGoogleJetonReessayer(){ _googleJetonEchecJusqua = 0; }
+function _osGoogleDemanderJeton(){
   return fetch(SB_URL+'/functions/v1/google-token', {
     method:'POST',
     headers: _osHeadersFonction(),
     body: JSON.stringify({ action:'access' })
   })
-  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+  .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, status:r.status, data:d||{}}; }); })
   .then(function(res){
     if(!res.ok || !res.data.access_token){
+      if(!res.ok && !(res.data && res.data.reconnexionRequise)){
+        console.warn('[Google] google-token a répondu HTTP '+res.status+' : '+[res.data.error, res.data.motif, typeof res.data.detail === 'string' ? res.data.detail : (res.data.detail ? JSON.stringify(res.data.detail) : '')].filter(Boolean).join(' · ')+' (nouvel essai dans 5 min)');
+      }
       if(res.data && res.data.reconnexionRequise){
         _googleAuth = null;
         // Accès retiré côté Google : redemander l'accord à la prochaine connexion

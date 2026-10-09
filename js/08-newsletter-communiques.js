@@ -1027,7 +1027,8 @@ function cpsRendreListe(liste, cps){
     if(filtreType==='invitation_presse' && c.type!=='invitation_presse') return false;
     if(filtreType==='non_lus' && vus.indexOf(c.id)!==-1) return false;
     if(rechercheVal){
-      var hay = _cpsSansAccent((c.titre||'')+' '+(c.organisation||'')+' '+(c.corps||'')+' '+(c.objet||''));
+      // « source » : c'est là que le formulaire range l'organisation
+      var hay = _cpsSansAccent((c.titre||'')+' '+(c.organisation||'')+' '+(c.source||'')+' '+(c.corps||'')+' '+(c.objet||'')+' '+(c.lieu_evenement||''));
       if(hay.indexOf(rechercheVal)===-1) return false;
     }
     if(filtreDate !== 'tous'){
@@ -1150,12 +1151,36 @@ function cpsRendreListe(liste, cps){
     cpsvCalendrier(liste, filtres);
   } else if(filtreVue==='veille'){
     cpsvVeille(liste, parOrga);
-  } else if(filtreVue==='liste'){
-    cpsvListe(liste, filtres, vus);
   } else {
-    // Cartes
-    filtres.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+    // « Nouveaux » en tête : non lus et ajoutés dans Compo ces 2 derniers jours. Le reste
+    // garde le tri par date du communiqué — sans ça, un CP saisi aujourd'hui mais daté d'il
+    // y a une semaine se perdait au milieu de la liste.
+    var nouveaux = [], suite = filtres;
+    if(filtreType !== 'non_lus' && !rechercheVal){
+      var depuis = Date.now() - CPS_NOUVEAUX_MS;
+      nouveaux = filtres.filter(function(c){ return vus.indexOf(c.id) === -1 && c.created_at && new Date(c.created_at).getTime() >= depuis; })
+        .sort(function(a, b){ return new Date(b.created_at) - new Date(a.created_at); });
+      suite = filtres.filter(function(c){ return nouveaux.indexOf(c) === -1; });
+    }
+    var rendre = function(lot){
+      if(filtreVue==='liste') cpsvListe(liste, lot, vus);
+      else lot.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+    };
+    if(nouveaux.length){
+      liste.appendChild(_cpsTitreSection('ti-sparkles', 'Nouveaux', nouveaux.length, 'Ajoutés ces 2 derniers jours, pas encore lus'));
+      rendre(nouveaux);
+      if(suite.length) liste.appendChild(_cpsTitreSection('ti-calendar', 'Tous les communiqués', suite.length, 'Par date du communiqué'));
+    }
+    rendre(suite);
   }
+}
+
+var CPS_NOUVEAUX_MS = 2 * 24 * 3600 * 1000;
+function _cpsTitreSection(icone, titre, n, aide){
+  var h = document.createElement('div');
+  h.className = 'cps-section';
+  h.innerHTML = '<i class="ti '+icone+'"></i><span class="cps-section-titre">'+esc(titre)+'</span><span class="cps-section-nb">'+n+'</span><span class="cps-section-aide">'+esc(aide)+'</span>';
+  return h;
 }
 
 function cpsvListe(liste, cps, vus){
