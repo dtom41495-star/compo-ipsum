@@ -2132,6 +2132,8 @@ function osLancer(){
   setTimeout(osShowAppsMovedTooltip, 8500);
   // Lien de signature ouvert avant la connexion : le document s'affiche maintenant (js/07)
   if(typeof osSignatureLienEnAttente === 'function') setTimeout(osSignatureLienEnAttente, 1200);
+  // compo.ipsummedia.fr/?ecran=1 : l'écran rédac se lance seul (js/36)
+  if(typeof osEcranLienEnAttente === 'function') setTimeout(osEcranLienEnAttente, 1500);
 
   setTimeout(function(){
     benvMajDerniereConnexion();
