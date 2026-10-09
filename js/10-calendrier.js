@@ -474,7 +474,7 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
           h += '</div>';
           h += '<div style="flex:1;min-width:0;">';
           h += '<div style="font-size:0.82rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.icon+' '+esc(ev.titre||'')+'</div>';
-          h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
+          h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(_agLieu(ev)?' · '+esc(_agLieu(ev)):'')+'</div>';
           h += '</div>';
           h += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;flex-shrink:0;">'+sc.l+'</span>';
           h += '</div>';
@@ -657,7 +657,7 @@ function osRedacChargerMesActivites(zone){
           h += '</div>';
           h += '<div style="flex:1;min-width:0;">';
           h += '<div style="font-size:0.78rem;font-weight:600;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.icon+' '+esc(ev.titre||'')+'</div>';
-          h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ev.lieu?' · '+esc(ev.lieu):'')+'</div>';
+          h += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);">'+debut.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(_agLieu(ev, insc.statut)?' · '+esc(_agLieu(ev, insc.statut)):'')+'</div>';
           h += '</div>';
           h += '<span style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 5px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;flex-shrink:0;">'+sc.l+'</span>';
           h += '</div>';
@@ -1859,7 +1859,7 @@ function osRedacEnvoyerRecapHebdo(redacId){
           ? artsSemaine.map(function(a){ return ligne(esc(a.titre||'Sans titre'), auteurNom(a.auteur_id) ? esc(auteurNom(a.auteur_id)) : ''); }).join('')
           : vide('Aucun article publié cette semaine.'))
       + section('📅 Prochains événements', evenements.length
-          ? evenements.map(function(e){ return ligne(esc(e.titre||''), new Date(e.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(e.lieu?' — '+esc(e.lieu):'')); }).join('')
+          ? evenements.map(function(e){ return ligne(esc(e.titre||''), new Date(e.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(_agLieu(e, null, true)?' — '+esc(_agLieu(e, null, true)):'')); }).join('')
           : vide('Rien de prévu pour le moment.'))
       + (nouveaux.length ? section('👋 Nouveaux bénévoles', nouveaux.map(function(m){ return ligne(esc(((m.prenom||'')+' '+(m.nom||'')).trim()), 'Bienvenue dans l\'équipe !'); }).join('')) : '')
       + '<div style="margin-top:0.4rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>';

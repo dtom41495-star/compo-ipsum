@@ -78,8 +78,13 @@ function afficherFormulaire(ev){
   var html = '<div class="bandeau"><div class="marque">Ipsum Média</div><div class="titre-ev">'+escHtml(ev.titre)+'</div></div>';
   html += '<div class="corps">';
   html += '<div class="info-ligne"><span class="puce"><i class="ti ti-calendar"></i></span><span>'+formatDate(ev.date_debut)+'</span></div>';
-  if(ev.lieu) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-map-pin"></i></span><span>'+escHtml(ev.lieu)+'</span></div>';
-  if(ev.lien_visio) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-link"></i></span><span>Rendez-vous en visio (le lien te sera envoyé par email)</span></div>';
+  if(ev.infos_reservees){
+    // Option « réservé aux inscrit·es » : le lieu et le lien partent dans l'email de confirmation
+    html += '<div class="info-ligne"><span class="puce"><i class="ti ti-lock"></i></span><span>Le lieu'+(ev.visio ? ' et le lien de connexion' : '')+' vous seront communiqués par email après votre inscription</span></div>';
+  } else {
+    if(ev.lieu) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-map-pin"></i></span><span>'+escHtml(ev.lieu)+'</span></div>';
+    if(ev.visio || ev.lien_visio) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-link"></i></span><span>Rendez-vous en visio (le lien vous sera envoyé par email)</span></div>';
+  }
 
   if(ev.complet){
     html += '<div class="etat" style="padding:1.5rem 0 0.5rem;"><div class="picto"><i class="ti ti-mood-sad"></i></div><div class="msg">Complet</div><div class="detail">Il n\'y a plus de place disponible pour cet événement.</div></div>';

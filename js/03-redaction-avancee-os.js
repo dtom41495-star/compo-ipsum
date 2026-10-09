@@ -1413,7 +1413,8 @@ function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
     _emailDernierEnvoi = Date.now();
     return fetch(SB_URL+'/functions/v1/envoyer-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // envoyer-email n'accepte que les membres connectés : on présente le jeton de session
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_session&&_session.access_token||'') },
       body: JSON.stringify({ to: to, subject: subject, html: html })
     });
   }).then(function(r){
@@ -1684,8 +1685,8 @@ function ticketFermer(ticket, reponse){
     var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
       osEnteteEmailLogo('Ta demande a ete traitee')+
       '<div style="padding:1.2rem 1.5rem;">'+
-      '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
-      '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
+      '<p><strong>Ticket :</strong> '+esc(ticket.titre)+'</p>'+
+      '<p><strong>Reponse :</strong><br>'+esc(reponse).replace(/\n/g,'<br>')+'</p>'+
       '<p>Demande fermee par l administrateur.</p>'+
       '<p><a href="https://compo.ipsummedia.fr">Voir sur Compo</a></p>'+
       '</div></div>';
@@ -1700,8 +1701,8 @@ function ticketFermer(ticket, reponse){
           osEnteteEmailLogo('Ta demande d assistance a ete traitee !')+
           '<div style="padding:1.2rem 1.5rem;">'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
-          '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
-          '<p><strong>Reponse de l admin :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
+          '<p><strong>Ticket :</strong> '+esc(ticket.titre)+'</p>'+
+          '<p><strong>Reponse de l admin :</strong><br>'+esc(reponse).replace(/\n/g,'<br>')+'</p>'+
           '<p>Ce ticket est maintenant ferme.</p>'+
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour ouvrir un nouveau ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
@@ -1770,8 +1771,8 @@ function ticketRepondre(ticket, reponse){
           osEnteteEmailLogo('Nouvelle reponse sur ta demande d assistance')+
           '<div style="padding:1.2rem 1.5rem;">'+
           '<p>Bonjour '+(membre.prenom||ticket.auteur)+',</p>'+
-          '<p><strong>Ticket :</strong> '+ticket.titre+'</p>'+
-          '<p><strong>Reponse :</strong><br>'+reponse.replace(/\n/g,'<br>')+'</p>'+
+          '<p><strong>Ticket :</strong> '+esc(ticket.titre)+'</p>'+
+          '<p><strong>Reponse :</strong><br>'+esc(reponse).replace(/\n/g,'<br>')+'</p>'+
           '<p style="color:#856404;background:#FFF3CD;padding:0.8rem;border-left:3px solid #856404;">'+
           'Pour repondre ou suivre ce ticket, connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a>. '+
           'Cette adresse email ne recoit pas de messages.</p>'+
@@ -1809,8 +1810,8 @@ function ticketRepondreRedacteur(ticket, message){
     var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
       osEnteteEmailLogo('Nouvelle reponse sur une demande d assistance')+
       '<div style="padding:1.2rem 1.5rem;">'+
-      '<p><strong>'+auteur+'</strong> a repondu sur la demande : <strong>'+ticket.titre+'</strong></p>'+
-      '<p><strong>Message :</strong><br>'+message.replace(/\n/g,'<br>')+'</p>'+
+      '<p><strong>'+esc(auteur)+'</strong> a repondu sur la demande : <strong>'+esc(ticket.titre)+'</strong></p>'+
+      '<p><strong>Message :</strong><br>'+esc(message).replace(/\n/g,'<br>')+'</p>'+
       '<p style="color:#1A5276;background:#D6EAF8;padding:0.8rem;border-left:3px solid #1A5276;">'+
       'Connecte-toi sur <a href="https://compo.ipsummedia.fr">Compo</a> pour repondre. '+
       'Cette adresse email ne recoit pas de messages.</p>'+

@@ -2365,7 +2365,13 @@ function mdVersHtml(md){
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url){
     return '<img src="'+_driveImgSrc(url)+'" data-md-url="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">';
   });
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Seuls les liens web, mail et internes sont gardés : un lien « javascript: » glissé dans un
+  // article ou une annonce s'exécuterait dans la session de qui clique (SR, admin…).
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, txt, url){
+    var u = String(url).trim();
+    if(!/^(https?:|mailto:|\/|#)/i.test(u)) return txt;
+    return '<a href="'+u+'" target="_blank" rel="noopener">'+txt+'</a>';
+  });
   html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
