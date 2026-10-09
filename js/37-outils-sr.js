@@ -359,3 +359,61 @@ if(typeof rWorkflowMajInterface === 'function'){
     return r;
   };
 }
+
+
+// ───────────────────────────────────────────────────────────────────────────────
+// 3. GARDE-FOU AVANT « MARQUER COMME RELU »
+// « Relu » envoie l'article au rédac chef pour le bon à publier : l'auteur·rice ne le
+// retouchera plus. On clique parfois dessus alors qu'on voulait renvoyer l'article à
+// l'auteur·rice : à chaque fois, Compo rappelle la différence et propose les deux boutons
+// (avec insistance quand des commentaires viennent d'être posés sur des paragraphes).
+// ───────────────────────────────────────────────────────────────────────────────
+function osMarquerRelu(){
+  if(!currentDoc || !currentDoc.id){ rWorkflowAvancer('corrige'); return; }
+  var doc = currentDoc;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Seulement les commentaires de cette relecture (depuis l'envoi au SR), pas ceux d'un
+  // aller-retour précédent que l'auteur·rice a déjà traités
+  var depuis = doc.envoye_sr_le ? '&created_at=gte.'+encodeURIComponent(doc.envoye_sr_le) : '';
+  fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(doc.id)+depuis+'&select=id', {headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; })
+    .then(function(rows){
+      _reluFenetre(doc, Array.isArray(rows) ? rows.length : 0);
+    });
+}
+
+function _reluFenetre(doc, nbCommentaires){
+  var prenom = String(doc.auteur || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
+  var titre = nbCommentaires
+    ? 'Tu as laissé '+(nbCommentaires > 1 ? nbCommentaires+' commentaires' : 'un commentaire')+' : l\'article est-il prêt ?'
+    : 'L\'article est-il prêt à partir chez le rédac chef ?';
+  var mo = document.createElement('div');
+  mo.className = 'renvoi-voile';
+  mo.innerHTML = '<div class="renvoi-boite" role="dialog" aria-labelledby="relu-titre">'
+    +'<div class="renvoi-entete"><div class="renvoi-icone relu-icone"><i class="ti ti-help-circle"></i></div><div>'
+      +'<div id="relu-titre" class="renvoi-titre">'+esc(titre)+'</div>'
+      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' »</div></div></div>'
+    +'<div class="renvoi-corps">'
+      +'<div class="relu-choix"><div class="relu-choix-titre"><i class="ti ti-circle-check"></i> Marquer comme relu</div>'
+        +'<div>L\'article est prêt : il part chez le rédac chef pour le bon à publier. '+esc(prenom)+' ne le retouchera plus'
+        +(nbCommentaires ? ', et ne recevra pas tes commentaires.' : '.')+'</div></div>'
+      +'<div class="relu-choix relu-choix-renvoi"><div class="relu-choix-titre"><i class="ti ti-corner-up-left"></i> Renvoyer à '+esc(prenom)+'</div>'
+        +'<div>'+esc(prenom)+' doit encore corriger quelque chose'+(nbCommentaires ? ' (par exemple ce que disent tes commentaires)' : '')+' : l\'article lui revient avec ton message, et il ou elle te le renverra.</div></div>'
+    +'</div>'
+    +'<div class="renvoi-pied relu-pied"><button type="button" class="renvoi-annuler" data-a="annuler">Annuler</button>'
+      +'<button type="button" class="renvoi-annuler" data-a="renvoyer"><i class="ti ti-corner-up-left"></i> Renvoyer à '+esc(prenom)+'</button>'
+      +'<button type="button" class="relu-ok" data-a="relu"><i class="ti ti-circle-check"></i> C\'est relu</button></div>'
+    +'</div>';
+  document.body.appendChild(mo);
+  var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
+  var touche = function(e){ if(e.key === 'Escape') fermer(); };
+  document.addEventListener('keydown', touche);
+  mo.addEventListener('click', function(e){
+    if(e.target === mo){ fermer(); return; }
+    var b = e.target.closest('[data-a]');
+    if(!b) return;
+    fermer();
+    if(b.dataset.a === 'relu') rWorkflowAvancer('corrige');
+    else if(b.dataset.a === 'renvoyer') osRenvoyerArticle(doc.id, doc);
+  });
+}
