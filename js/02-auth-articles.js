@@ -2218,7 +2218,14 @@ function _osEmailStatutArticle(doc, statut, cfg){
 }
 
 // Article renvoyé à son auteur·rice, avec la remarque et le début du texte
-function _osEmailRefusArticle(doc, note){
+// Début d'un paragraphe de l'article, pour situer un commentaire dans un mail ou sur Chat
+function _osDebutParagraphe(doc, index){
+  var p = String((doc && doc.corps) || '').split(/\n{2,}/)[index] || '';
+  p = p.replace(/<[^>]*>/g, ' ').replace(/^\s*#+\s*/, '').replace(/[*_>`~]/g, '').replace(/\s+/g, ' ').trim();
+  return p.length > 60 ? p.slice(0, 60).replace(/\s+\S*$/, '')+'…' : p;
+}
+
+function _osEmailRefusArticle(doc, note, commentaires){
   if(!doc.auteur_id) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/membres?id=eq.'+doc.auteur_id+'&select=email,prenom,canal_notif',{headers:authH})
@@ -2228,19 +2235,36 @@ function _osEmailRefusArticle(doc, note){
     if(!_osRedacNotifActive(doc.redaction_id, 'notif_refus_article')) return;
     var lienArt = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var remarque = note || 'Article à reprendre';
+    var coms = (commentaires || []).slice(0, 15);
+    var comsReste = (commentaires || []).length - coms.length;
+    var comsHtml = coms.length
+      ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="border:1px solid '+EMAIL_COUL.bord+';border-radius:10px;padding:12px 14px;font:400 14px/1.55 '+EMAIL_POLICE+';color:'+EMAIL_COUL.encre+';">'
+        +'<div style="font:700 10px/1.4 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:'+EMAIL_COUL.gris+';margin-bottom:6px;">Commentaires sur ton texte</div>'
+        +coms.map(function(c){
+          var debut = _osDebutParagraphe(doc, c.bloc_index);
+          return '<div style="margin:0 0 8px;"><div style="font-size:12px;color:'+EMAIL_COUL.gris+';">Paragraphe '+(c.bloc_index + 1)+(debut ? ' · « '+esc(debut)+' »' : '')+'</div>'+esc(c.texte)+'</div>';
+        }).join('')
+        +(comsReste > 0 ? '<div style="font-size:12px;color:'+EMAIL_COUL.gris+';">et '+comsReste+' autre'+(comsReste > 1 ? 's' : '')+', à retrouver dans l\'article</div>' : '')
+        +'</td></tr></table>'
+      : '';
     var html = _emailCompo({
       accent:'rouge', etiquette:'À REPRENDRE', titre:'Ton article est à reprendre',
       bonjour:'Bonjour '+esc(m.prenom||'')+',',
       texte:'Ton article a été relu : quelques modifications sont demandées avant qu\'il passe en bon à publier.',
       contenu:_emailCarteArticle(doc)
         +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="background:#FDECEC;border-radius:10px;padding:12px 14px;font:400 14px/1.55 '+EMAIL_POLICE+';color:#7F1D1D;">'
-        +'<div style="font:700 10px/1.4 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:#B42318;margin-bottom:4px;">Remarque</div>'+esc(remarque)+'</td></tr></table>',
+        +'<div style="font:700 10px/1.4 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:#B42318;margin-bottom:4px;">Remarque</div>'+esc(remarque).replace(/\n/g, '<br>')+'</td></tr></table>'+comsHtml,
       description:_emailExtraitArticle(doc),
       boutons:[{ label:'Reprendre l\'article', url:lienArt }],
       pourquoi:'Tu reçois cet email car tu es l\'auteur·rice de cet article.'
     });
     var nomRedacRefus = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
-    var chatTexte = '*Ton article est à reprendre*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »'+(nomRedacRefus ? ' · '+_chatSansMiseEnForme(nomRedacRefus) : '')+'\nRemarque : '+_chatSansMiseEnForme(remarque)+'\n<'+lienArt+'|Reprendre l\'article>';
+    var chatTexte = '*Ton article est à reprendre*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »'+(nomRedacRefus ? ' · '+_chatSansMiseEnForme(nomRedacRefus) : '')+'\nRemarque : '+_chatSansMiseEnForme(remarque.replace(/\n/g, ' '))
+      +(coms.length ? '\n\n*Commentaires sur ton texte*\n'+coms.map(function(c){
+          var debut = _osDebutParagraphe(doc, c.bloc_index);
+          return '• Paragraphe '+(c.bloc_index + 1)+(debut ? ' (« '+_chatSansMiseEnForme(debut)+' »)' : '')+' : '+_chatSansMiseEnForme(c.texte);
+        }).join('\n')+(comsReste > 0 ? '\n… et '+comsReste+' autre'+(comsReste > 1 ? 's' : '') : '') : '')
+      +'\n<'+lienArt+'|Reprendre l\'article>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'refus_article', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] Ton article est à reprendre : '+(doc.titre||''), html, 'refus_article');
     });

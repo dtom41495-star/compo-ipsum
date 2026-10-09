@@ -351,6 +351,9 @@ function rCommentairesInit(doc){
   var btn = document.getElementById('r-btn-commenter');
   if(btn) btn.style.display = peutCommenter ? '' : 'none';
   if(peutCommenter && doc && doc.id) rChargerCommentaires(doc.id);
+  // Article renvoyé à son auteur·rice : les commentaires du SR s'affichent sous chaque
+  // paragraphe, là où il ou elle corrige (en lecture seule, ils sont au SR)
+  else if(isAuteur && doc && doc.id && (doc.statut || 'brouillon') === 'brouillon' && doc.note_interne) rChargerCommentaires(doc.id);
 }
 // Charge et affiche les commentaires déjà posés sur cet article, en encart juste après
 // chaque paragraphe concerné dans #r-corps-live (jamais dans une liste à part).
