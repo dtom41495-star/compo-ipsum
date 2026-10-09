@@ -55,7 +55,7 @@ function osEcranLancer(){
   el.innerHTML =
     '<header class="ecr-entete">'
       +'<div class="ecr-marque"><img src="https://ipsummedia.fr/assets/logo.png" alt=""><span>La rédaction en direct</span></div>'
-      +'<div class="ecr-heure"><div id="ecr-horloge">--:--</div><div id="ecr-date"></div></div>'
+      +'<div class="ecr-heure"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
@@ -92,7 +92,7 @@ function osEcranLancer(){
   });
 
   _ecranHorloge();
-  _ecran.timerHorloge = setInterval(_ecranHorloge, 10 * 1000);
+  _ecran.timerHorloge = setInterval(_ecranHorloge, 1000);
   _ecranCharger();
   _ecran.timerData = setInterval(_ecranCharger, ECRAN_RAFRAICHIR_MS);
 }
@@ -124,8 +124,11 @@ function _ecranGarderAllume(){
 function _ecranMaj(t){ return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 function _ecranHorloge(){
   var d = new Date();
-  var h = document.getElementById('ecr-horloge'), j = document.getElementById('ecr-date');
-  if(h) h.textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  var hh = document.getElementById('ecr-hh'), mm = document.getElementById('ecr-mm'), dp = document.getElementById('ecr-deux-points'), j = document.getElementById('ecr-date');
+  if(hh) hh.textContent = String(d.getHours()).padStart(2,'0');
+  if(mm) mm.textContent = String(d.getMinutes()).padStart(2,'0');
+  // Les deux-points clignotent : visibles une seconde, cachés la suivante
+  if(dp) dp.style.visibility = d.getSeconds() % 2 ? 'hidden' : 'visible';
   if(j) j.textContent = _ecranMaj(d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' }));
 }
 
@@ -154,15 +157,15 @@ function _ecranCharger(){
     _ecranLire('articles?statut=neq.publie&select=id,titre,type,statut,auteur,redaction_id,updated_at&order=updated_at.asc&limit=500'),
     _ecranLire('articles?statut=eq.publie&select=id,titre,type,auteur,redaction_id,updated_at&order=updated_at.desc&limit=6'),
     _ecranLire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(ilYaUneSemaine.toISOString())+'&select=id'),
-    _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=12'),
-    _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=12')
+    _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=30'),
+    _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30')
   ]).then(function(res){
     if(!_ecran) return;
-    _ecranCompteurs(res[0], res[2].length);
-    _ecranCircuit(res[0]);
-    _ecranEnLigne(res[1]);
-    _ecranAgenda(res[3]);
-    _ecranSujets(res[4]);
+    var premier = !_ecran.dernier;
+    _ecran.dernier = res;
+    _ecranRendre(res);
+    // Les polices arrivent parfois après le premier affichage et changent les hauteurs
+    if(premier && document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ if(_ecran && _ecran.dernier) _ecranRendre(_ecran.dernier); });
     var m = document.getElementById('ecr-maj'), e = document.getElementById('ecr-etat');
     if(m) m.textContent = 'Mis à jour à '+String(maintenant.getHours()).padStart(2,'0')+':'+String(maintenant.getMinutes()).padStart(2,'0');
     if(e) e.textContent = '';
@@ -172,6 +175,42 @@ function _ecranCharger(){
     if(e) e.textContent = 'Connexion perdue, nouvel essai dans une minute';
   });
 }
+
+function _ecranRendre(res){
+  _ecranCompteurs(res[0], res[2].length);
+  _ecranEnLigne(res[1]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
+  _ecranCircuit(res[0]);
+  _ecranAgenda(res[3]);
+  _ecranSujets(res[4]);
+}
+
+// Garde dans chaque colonne ce qui tient à l'écran, sans couper ni chevaucher : les derniers
+// éléments qui débordent sont retirés et remplacés par « et N autres ». Sur téléphone, la
+// page défile : tout reste.
+function _ecranAjuster(z, total){
+  if(!z || window.innerWidth <= 900) return;
+  var plus = null;
+  var items = function(){ return z.querySelectorAll('.ecr-item'); };
+  var maj = function(){
+    var n = total - items().length;
+    if(n <= 0) return;
+    if(!plus){ plus = document.createElement('div'); plus.className = 'ecr-plus'; z.appendChild(plus); }
+    plus.textContent = 'et '+n+' autre'+(n > 1 ? 's' : '');
+  };
+  maj();
+  while(z.scrollHeight > z.clientHeight + 1 && items().length > 1){
+    var l = items(), dernier = l[l.length - 1], avant = dernier.previousElementSibling;
+    dernier.remove();
+    // Un jour de l'agenda qui n'a plus d'événement en dessous disparaît aussi
+    if(avant && avant.classList.contains('ecr-jour') && !(avant.nextElementSibling && avant.nextElementSibling.classList.contains('ecr-item'))) avant.remove();
+    maj();
+  }
+}
+window.addEventListener('resize', function(){
+  if(!_ecran || !_ecran.dernier) return;
+  clearTimeout(_ecran.timerResize);
+  _ecran.timerResize = setTimeout(function(){ if(_ecran && _ecran.dernier) _ecranRendre(_ecran.dernier); }, 200);
+});
 
 function _ecranArticleEstCentral(a){
   var centrale = (window._redactionsData||[]).find(function(r){ return r.est_centrale; });
@@ -207,8 +246,7 @@ function _ecranCircuit(arts){
   var z = document.getElementById('ecr-circuit');
   if(!z) return;
   if(!liste.length){ z.innerHTML = '<div class="ecr-vide">Rien en attente : tout avance !</div>'; return; }
-  var plus = liste.length > 7 ? liste.length - 7 : 0;
-  z.innerHTML = liste.slice(0, 7).map(function(a){
+  z.innerHTML = liste.slice(0, 20).map(function(a){
     var e = ECRAN_ETAPE[a.statut];
     var etape = (a.statut === 'valide' && !_ecranArticleEstCentral(a)) ? { l:'Attend la centrale', c:'violet' } : e;
     var vieux = (Date.now() - new Date(a.updated_at).getTime()) > 3 * 86400000;
@@ -218,27 +256,29 @@ function _ecranCircuit(arts){
         +'<span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'
         +'<span class="'+(vieux ? 'ecr-vieux' : '')+'">'+_ecranDepuis(a.updated_at)+'</span></div>'
       +'</div>';
-  }).join('') + (plus ? '<div class="ecr-plus">et '+plus+' autre'+(plus > 1 ? 's' : '')+'</div>' : '');
+  }).join('');
+  _ecranAjuster(z, liste.length);
 }
 
 function _ecranEnLigne(arts){
   var z = document.getElementById('ecr-en-ligne');
   if(!z) return;
   if(!arts.length){ z.innerHTML = '<div class="ecr-vide">Pas encore d\'article en ligne</div>'; return; }
-  z.innerHTML = arts.slice(0, 4).map(function(a){
+  z.innerHTML = arts.slice(0, 3).map(function(a){
     return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+esc(a.titre||'Sans titre')+'</div>'
       +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span><span>'+_ecranDepuis(a.updated_at).replace('depuis ', 'il y a ')+'</span></div></div>';
   }).join('');
 }
 
 function _ecranAgenda(evs){
-  evs = evs.filter(function(ev){ return ev.statut !== 'annule'; });
+  evs = evs.filter(function(ev){ return ev.statut !== 'annule'; })
+    .sort(function(a, b){ return new Date(a.date_debut) - new Date(b.date_debut); });
   var z = document.getElementById('ecr-agenda');
   if(!z) return;
   if(!evs.length){ z.innerHTML = '<div class="ecr-vide">Rien de prévu cette semaine</div>'; return; }
   var auj = new Date(); auj.setHours(0,0,0,0);
   var jourPrec = null, h = '';
-  evs.slice(0, 8).forEach(function(ev){
+  evs.slice(0, 20).forEach(function(ev){
     var d = new Date(ev.date_debut);
     var j = new Date(d); j.setHours(0,0,0,0);
     var ecart = Math.round((j - auj) / 86400000);
@@ -253,6 +293,7 @@ function _ecranAgenda(evs){
       +'</div></div>';
   });
   z.innerHTML = h;
+  _ecranAjuster(z, evs.length);
 }
 
 function _ecranSujets(sujets){
@@ -261,8 +302,9 @@ function _ecranSujets(sujets){
   if(!sujets.length){ z.innerHTML = '<div class="ecr-vide">Aucun sujet libre pour l\'instant</div>'; return; }
   var ordre = { urgente:0, normale:1, faible:2 };
   sujets = sujets.slice().sort(function(a, b){ return (ordre[a.priorite] == null ? 1 : ordre[a.priorite]) - (ordre[b.priorite] == null ? 1 : ordre[b.priorite]); });
-  z.innerHTML = sujets.slice(0, 8).map(function(s){
+  z.innerHTML = sujets.slice(0, 20).map(function(s){
     return '<div class="ecr-item"><div class="ecr-item-titre">'+(s.priorite === 'urgente' ? '<span class="ecr-tag ecr-tag-urgent">Urgent</span>' : '')+esc(s.titre||s.sujet||'Sujet')+'</div>'
       +'<div class="ecr-item-meta"><span>'+esc(_ecranRedac(s.redaction_id))+'</span></div></div>';
   }).join('');
+  _ecranAjuster(z, sujets.length);
 }
