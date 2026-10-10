@@ -69,6 +69,8 @@ function _renvoiFenetre(art, commentaires){
       }
       var note = (motifs.length ? 'À reprendre : '+motifs.join(', ')+'.' : '') + (motifs.length && message ? '\n' : '') + message;
       var joindre = mo.querySelector('#renvoi-joindre');
+      _renvoiVerrouPoser(art.id);
+      if(typeof currentDoc !== 'undefined' && currentDoc && currentDoc.id === art.id) _renvoiVerrouMajBoutons(currentDoc);
       fermer();
       _renvoiEnregistrer(art, note, (joindre && joindre.checked) ? commentaires : null);
     }
@@ -356,6 +358,131 @@ if(typeof rWorkflowMajInterface === 'function'){
       var res = osVerifierArticle();
       _verifMajBadge(res.points.length + res.global.length);
     }, 300);
+    return r;
+  };
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────────
+// 3. GARDE-FOU AVANT « MARQUER COMME RELU »
+// « Relu » envoie l'article au rédac chef pour le bon à publier : l'auteur·rice ne le
+// retouchera plus. On clique parfois dessus alors qu'on voulait renvoyer l'article à
+// l'auteur·rice : à chaque fois, Compo rappelle la différence et propose les deux boutons
+// (avec insistance quand des commentaires viennent d'être posés sur des paragraphes).
+// ───────────────────────────────────────────────────────────────────────────────
+function osMarquerRelu(){
+  if(!currentDoc || !currentDoc.id){ rWorkflowAvancer('corrige'); return; }
+  var doc = currentDoc;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Seulement les commentaires de cette relecture (depuis l'envoi au SR), pas ceux d'un
+  // aller-retour précédent que l'auteur·rice a déjà traités
+  var depuis = doc.envoye_sr_le ? '&created_at=gte.'+encodeURIComponent(doc.envoye_sr_le) : '';
+  fetch(SB_URL+'/rest/v1/commentaires_articles?article_id=eq.'+encodeURIComponent(doc.id)+depuis+'&select=id', {headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; })
+    .then(function(rows){
+      _reluFenetre(doc, Array.isArray(rows) ? rows.length : 0);
+    });
+}
+
+function _reluFenetre(doc, nbCommentaires){
+  var prenom = String(doc.auteur || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
+  var titre = nbCommentaires
+    ? 'Tu as laissé '+(nbCommentaires > 1 ? nbCommentaires+' commentaires' : 'un commentaire')+' : l\'article est-il prêt ?'
+    : 'L\'article est-il prêt à partir chez le rédac chef ?';
+  var mo = document.createElement('div');
+  mo.className = 'renvoi-voile';
+  mo.innerHTML = '<div class="renvoi-boite" role="dialog" aria-labelledby="relu-titre">'
+    +'<div class="renvoi-entete"><div class="renvoi-icone relu-icone"><i class="ti ti-help-circle"></i></div><div>'
+      +'<div id="relu-titre" class="renvoi-titre">'+esc(titre)+'</div>'
+      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' »</div></div></div>'
+    +'<div class="renvoi-corps">'
+      +'<div class="relu-choix"><div class="relu-choix-titre"><i class="ti ti-circle-check"></i> Marquer comme relu</div>'
+        +'<div>L\'article est prêt : il part chez le rédac chef pour le bon à publier. '+esc(prenom)+' ne le retouchera plus'
+        +(nbCommentaires ? ', et ne recevra pas tes commentaires.' : '.')+'</div></div>'
+      +'<div class="relu-choix relu-choix-renvoi"><div class="relu-choix-titre"><i class="ti ti-corner-up-left"></i> Renvoyer à '+esc(prenom)+'</div>'
+        +'<div>'+esc(prenom)+' doit encore corriger quelque chose'+(nbCommentaires ? ' (par exemple ce que disent tes commentaires)' : '')+' : l\'article lui revient avec ton message, et il ou elle te le renverra.</div></div>'
+    +'</div>'
+    +'<div class="renvoi-pied relu-pied"><button type="button" class="renvoi-annuler" data-a="annuler">Annuler</button>'
+      +'<button type="button" class="renvoi-annuler" data-a="renvoyer"><i class="ti ti-corner-up-left"></i> Renvoyer à '+esc(prenom)+'</button>'
+      +'<button type="button" class="relu-ok" data-a="relu"><i class="ti ti-circle-check"></i> C\'est relu</button></div>'
+    +'</div>';
+  document.body.appendChild(mo);
+  var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
+  var touche = function(e){ if(e.key === 'Escape') fermer(); };
+  document.addEventListener('keydown', touche);
+  mo.addEventListener('click', function(e){
+    if(e.target === mo){ fermer(); return; }
+    var b = e.target.closest('[data-a]');
+    if(!b) return;
+    fermer();
+    if(b.dataset.a === 'relu') rWorkflowAvancer('corrige');
+    else if(b.dataset.a === 'renvoyer') osRenvoyerArticle(doc.id, doc);
+  });
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────────
+// 4. VERROU APRÈS UN RENVOI
+// Après « Renvoyer », on peut être tenté de cliquer dans la foulée sur « Marquer comme
+// relu » (« j'ai fini ma correction ») : l'article partirait alors chez le rédac chef au
+// lieu de rester chez l'auteur·rice. Pendant 10 minutes, sur cet article, plus aucun
+// bouton ne peut le faire avancer (relu, bon à publier, en ligne). Le verrou tombe plus tôt
+// si l'auteur·rice le renvoie entre-temps au SR.
+// ───────────────────────────────────────────────────────────────────────────────
+var RENVOI_VERROU_MS = 10 * 60 * 1000;
+var RENVOI_VERROU_CLE = 'compo_renvoi_verrou';
+function _renvoiVerrous(){
+  try{ return JSON.parse(localStorage.getItem(RENVOI_VERROU_CLE) || '{}') || {}; }catch(e){ return {}; }
+}
+function _renvoiVerrouPoser(id){
+  var v = _renvoiVerrous(), now = Date.now();
+  Object.keys(v).forEach(function(k){ if(now - v[k] > RENVOI_VERROU_MS) delete v[k]; });
+  v[id] = now;
+  try{ localStorage.setItem(RENVOI_VERROU_CLE, JSON.stringify(v)); }catch(e){}
+  window._renvoiVerrouMemoire = window._renvoiVerrouMemoire || {};
+  window._renvoiVerrouMemoire[id] = now;  // au cas où le stockage du navigateur est indisponible
+}
+// Minutes restantes du verrou sur cet article (0 = libre)
+function osRenvoiVerrouRestant(doc){
+  if(!doc || !doc.id) return 0;
+  var t = _renvoiVerrous()[doc.id] || (window._renvoiVerrouMemoire || {})[doc.id];
+  if(!t) return 0;
+  var reste = t + RENVOI_VERROU_MS - Date.now();
+  if(reste <= 0) return 0;
+  // L'auteur·rice l'a renvoyé au SR après le renvoi : nouvelle relecture, verrou levé
+  if(doc.statut === 'en-relecture' && doc.envoye_sr_le && new Date(doc.envoye_sr_le).getTime() > t) return 0;
+  return Math.ceil(reste / 60000);
+}
+
+if(typeof rWorkflowAvancer === 'function'){
+  var _rWorkflowAvancerAvantVerrou = rWorkflowAvancer;
+  rWorkflowAvancer = function(nouveauStatut){
+    var min = ['corrige', 'valide', 'valide_central', 'publie'].indexOf(nouveauStatut) !== -1 && osRenvoiVerrouRestant(currentDoc);
+    if(min){
+      var prenom = String((currentDoc && currentDoc.auteur) || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
+      notif('Tu viens de renvoyer cet article à '+prenom+' : il est chez lui ou elle pour correction, pas besoin de le marquer comme relu. Il reviendra au SR une fois repris.', 'alerte');
+      return;
+    }
+    return _rWorkflowAvancerAvantVerrou.apply(this, arguments);
+  };
+}
+// Les boutons concernés sont grisés tant que le verrou dure
+function _renvoiVerrouMajBoutons(doc){
+  var min = osRenvoiVerrouRestant(doc);
+  var boutons = document.querySelectorAll('#r-actions-correcteur .mac-btn-vert, #r-btn-relu, #r-btn-valider, #r-btn-valider-central, #r-btn-publier');
+  boutons.forEach(function(b){
+    b.disabled = !!min;
+    b.classList.toggle('renvoi-verrouille', !!min);
+    b.title = min ? 'Article renvoyé à son auteur·rice il y a un instant : bouton bloqué encore '+min+' min' : '';
+  });
+  clearTimeout(window._renvoiVerrouTimer);
+  if(min) window._renvoiVerrouTimer = setTimeout(function(){ _renvoiVerrouMajBoutons(currentDoc); }, 30000);
+}
+if(typeof rWorkflowMajInterface === 'function'){
+  var _rWorkflowMajInterfaceAvantVerrou = rWorkflowMajInterface;
+  rWorkflowMajInterface = function(doc){
+    var r = _rWorkflowMajInterfaceAvantVerrou.apply(this, arguments);
+    _renvoiVerrouMajBoutons(doc);
     return r;
   };
 }

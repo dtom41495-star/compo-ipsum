@@ -2250,7 +2250,7 @@ function _osEmailRefusArticle(doc, note, commentaires){
     var html = _emailCompo({
       accent:'rouge', etiquette:'À REPRENDRE', titre:'Ton article est à reprendre',
       bonjour:'Bonjour '+esc(m.prenom||'')+',',
-      texte:'Ton article a été relu : quelques modifications sont demandées avant qu\'il passe en bon à publier.',
+      texte:'Ton article t\'est renvoyé : quelques points sont à reprendre avant qu\'il passe en bon à publier.',
       contenu:_emailCarteArticle(doc)
         +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="background:#FDECEC;border-radius:10px;padding:12px 14px;font:400 14px/1.55 '+EMAIL_POLICE+';color:#7F1D1D;">'
         +'<div style="font:700 10px/1.4 '+EMAIL_POLICE+';letter-spacing:0.08em;text-transform:uppercase;color:#B42318;margin-bottom:4px;">Remarque</div>'+esc(remarque).replace(/\n/g, '<br>')+'</td></tr></table>'+comsHtml,

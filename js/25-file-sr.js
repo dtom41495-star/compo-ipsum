@@ -80,11 +80,19 @@ function osSrRendre(articleId){
 // (ou du SR général) et admins — pas les rédac chefs, pour ne pas les noyer.
 function _srNotifierFile(doc, rendu){
   if(!doc || (typeof _osRedacNotifActive === 'function' && !_osRedacNotifActive(doc.redaction_id, 'notif_correction'))) return;
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()})
-  .then(function(r){ return r.json(); })
-  .then(function(membres){
+  // Les SR de la rédaction sont relus dans la base : la mémoire du navigateur de l'auteur·rice
+  // ne contient pas forcément les rôles des autres membres. Une fiche sans « actif » renseigné
+  // (comptes anciens) compte comme active : seules les fiches marquées inactives sont écartées.
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?actif=not.is.false&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()}).then(function(r){ return r.json(); }),
+    doc.redaction_id
+      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&role_redac=eq.correcteur&select=membre_id,redaction_id,role_redac', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
+      : Promise.resolve([])
+  ])
+  .then(function(res){
+    var membres = res[0];
     if(!Array.isArray(membres)) return;
-    var liens = window._membresRedactionsData || [];
+    var liens = (window._membresRedactionsData || []).concat(Array.isArray(res[1]) ? res[1] : []);
     var cibles = membres.filter(function(m){
       if(m.id === doc.auteur_id || m.id === getUserId() || m.dnd || m.marque_inactif) return false;
       // Les admins aussi : ils voient la file et peuvent y prendre un article, il faut donc les prévenir
@@ -94,9 +102,9 @@ function _srNotifierFile(doc, rendu){
     var titre = doc.titre || 'Sans titre';
     var nomRedacFile = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
     cibles.forEach(function(m){
-      if(m.canal_notif === 'chat'){
-        notifierChatDM(m.id, '*'+(doc.express ? '⚡ Relecture express : u' : 'U')+'n article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>', 'correction');
-      } else if(m.email && !osEstEnLigne(m.id)){
+      var chat = '*'+(doc.express ? '⚡ Relecture express : u' : 'U')+'n article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>';
+      notifierPersonnel(m.id, m.canal_notif, chat, 'correction', function(secours){
+        if(!m.email || (!secours && osEstEnLigne(m.id))) return;
         var html = _emailCompo({
           accent:'bleu', etiquette:'FILE DU SR', titre:'Un article attend une relecture',
           bonjour:'Bonjour '+esc(m.prenom||'')+',',
@@ -106,7 +114,7 @@ function _srNotifierFile(doc, rendu){
           pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
         });
         envoyerEmailResend(m.email, '[Ipsum Média] File du SR : '+titre, html, 'correction').catch(function(){});
-      }
+      });
     });
   }).catch(function(){});
 }

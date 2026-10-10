@@ -41,11 +41,20 @@ function _srEstRelecteur(m, redacId, adminsInclus){
 function osSrContexteClassement(){
   var authH = _srAuth();
   return Promise.all([
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=*&order=prenom.asc', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }),
+    // « actif » vide (comptes anciens) = actif : seules les fiches marquées inactives sont écartées
+    fetch(SB_URL+'/rest/v1/membres?actif=not.is.false&select=*&order=prenom.asc', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }),
     fetch(SB_URL+'/rest/v1/articles?statut=eq.en-relecture&correcteur_id=not.is.null&select=id,correcteur_id', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }),
     fetch(SB_URL+'/rest/v1/articles?correcteur_id=not.is.null&order=updated_at.desc&limit=300&select=correcteur_id,updated_at', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }),
-    typeof osSrStatsDelais === 'function' ? osSrStatsDelais().catch(function(){ return null; }) : Promise.resolve(null)
+    typeof osSrStatsDelais === 'function' ? osSrStatsDelais().catch(function(){ return null; }) : Promise.resolve(null),
+    // Rôles de tous les membres dans les rédactions, relus ici : la mémoire du navigateur peut
+    // ne contenir que ceux de la personne connectée, et les SR d'une rédaction disparaissaient
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(res){
+    if(Array.isArray(res[4]) && res[4].length){
+      var connus = {};
+      (window._membresRedactionsData||[]).forEach(function(l){ connus[l.membre_id+'|'+l.redaction_id] = 1; });
+      res[4].forEach(function(l){ if(!connus[l.membre_id+'|'+l.redaction_id]) (window._membresRedactionsData = window._membresRedactionsData || []).push(l); });
+    }
     var charge = {}, derniere = {};
     (Array.isArray(res[1]) ? res[1] : []).forEach(function(a){ charge[a.correcteur_id] = (charge[a.correcteur_id]||0) + 1; });
     (Array.isArray(res[2]) ? res[2] : []).forEach(function(a){
@@ -244,10 +253,11 @@ function osSrNotifierRelecteur(doc, membre, auto){
   var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
   var titre = doc.titre || 'Sans titre';
   var redac = doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '');
-  if(membre.canal_notif === 'chat'){
-    notifierChatDM(membre.id, '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(redac ? ' · '+_chatSansMiseEnForme(redac) : '')
-      +(auto ? ', désigné par Compo' : '')+'\n<'+lien+'|Relire l\'article>', 'correction');
-  } else if(membre.email && !osEstEnLigne(membre.id)){
+  var chat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(redac ? ' · '+_chatSansMiseEnForme(redac) : '')
+    +(auto ? ', désigné par Compo' : '')+'\n<'+lien+'|Relire l\'article>';
+  notifierPersonnel(membre.id, membre.canal_notif, chat, 'correction', function(secours){
+    // Connecté·e à Compo : la notification s'affiche déjà dans Compo (sauf si Chat a échoué)
+    if(!membre.email || (!secours && osEstEnLigne(membre.id))) return;
     var html = _emailCompo({
       accent:'bleu', etiquette:'AU SR', titre:'Un article t\'attend',
       bonjour:'Bonjour '+esc(membre.prenom||'')+',',
@@ -258,5 +268,5 @@ function osSrNotifierRelecteur(doc, membre, auto){
       pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
     });
     envoyerEmailResend(membre.email, '[Ipsum Média] Un article t\'attend au SR : '+titre, html, 'correction').catch(function(){});
-  }
+  });
 }

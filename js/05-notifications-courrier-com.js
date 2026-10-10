@@ -3042,11 +3042,11 @@ function osNotifierValidateursCentraux(article){
     if(!redacCentrale || redacCentrale.id===article.redaction_id) return;
 
     return Promise.all([
-      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,nom,email,avatar_id',{headers:authH}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=not.is.false&select=id,prenom,nom,email,avatar_id',{headers:authH}).then(function(r){return r.json();}),
       fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacCentrale.id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,nom,email,actif)',{headers:authH}).then(function(r){return r.json();})
     ]).then(function(res){
       var admins = (res[0]&&!res[0].code) ? res[0] : [];
-      var chefs  = ((res[1]&&!res[1].code) ? res[1] : []).map(function(l){ return l.membres; }).filter(function(m){ return m && m.actif; });
+      var chefs  = ((res[1]&&!res[1].code) ? res[1] : []).map(function(l){ return l.membres; }).filter(function(m){ return m && m.actif !== false; });
       var vus = {};
       var destinataires = admins.concat(chefs).filter(function(m){
         if(!m || !m.email || vus[m.id]) return false;
@@ -3084,7 +3084,7 @@ function osNotifierValidationCentraleOK(article){
   fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(article.redaction_id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,nom,email,actif)',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(liens){
-    var chefs = ((liens&&!liens.code)?liens:[]).map(function(l){return l.membres;}).filter(function(m){return m && m.actif && m.email;});
+    var chefs = ((liens&&!liens.code)?liens:[]).map(function(l){return l.membres;}).filter(function(m){return m && m.actif !== false && m.email;});
     if(!chefs.length) return;
     if(!_osRedacNotifActive(article.redaction_id, 'notif_validation_centrale_ok')) return;
     var titre = article.titre||'Sans titre';
@@ -3108,7 +3108,7 @@ function osNotifierChefsArticleRelu(article){
   if(!article || !article.id || !article.redaction_id) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var moi = getUserId();
-  var joignable = function(m){ return m && m.actif && !m.dnd && m.id !== moi; };
+  var joignable = function(m){ return m && m.actif !== false && !m.dnd && m.id !== moi; };
   fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(article.redaction_id)+'&role_redac=eq.redac_chef&select=membres(id,prenom,email,actif,dnd,canal_notif)',{headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(liens){
@@ -3116,7 +3116,7 @@ function osNotifierChefsArticleRelu(article){
     // Relu par un des chefs lui-même : il donnera le bon à publier, inutile d'appeler les admins
     var chefs = tous.filter(joignable);
     if(chefs.length || tous.some(function(m){ return m && m.id === moi; }) || getUserRole() === 'admin') return chefs;
-    return fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,email,actif,dnd,canal_notif',{headers:authH})
+    return fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=not.is.false&select=id,prenom,email,actif,dnd,canal_notif',{headers:authH})
       .then(function(r){ return r.json(); })
       .then(function(admins){ return ((admins&&!admins.code)?admins:[]).filter(joignable); });
   })

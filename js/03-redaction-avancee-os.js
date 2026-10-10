@@ -1370,11 +1370,17 @@ function _chatSansMiseEnForme(s){
 // garde intact le comportement email propre à chaque site (gating _osRedacNotifActive,
 // check osEstEnLigne, contenu HTML...) — pas de fallback email si le DM échoue, le choix
 // du membre est respecté tel quel, comme pour le site pilote assignValider().
+// Canal choisi par la personne. Si le message Chat ne part pas (espace Chat introuvable,
+// fonction en erreur…), l'email prend le relais : sans ça, la personne ne recevait rien.
 function notifierPersonnel(membreId, canalNotif, chatTexte, type, emailCallback){
   if(canalNotif === 'chat'){
-    notifierChatDM(membreId, chatTexte, type);
-  } else {
-    emailCallback();
+    notifierChatDM(membreId, chatTexte, type).then(function(res){
+      if(res && res.ok) return;
+      console.warn('[Notif] message Chat non parti ('+type+'), envoi par email à la place', res && res.data);
+      if(emailCallback) emailCallback(true);
+    });
+  } else if(emailCallback){
+    emailCallback(false);
   }
 }
 

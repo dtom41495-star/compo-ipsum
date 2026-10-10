@@ -843,11 +843,11 @@
           <button class="mac-btn" onclick="ouvrirFS('r')"><i class="ti ti-arrows-maximize"></i>Plein écran</button>
         </div>
         <div id="r-actions-correcteur" class="r-actions-groupe" style="display:none;">
-          <button class="mac-btn mac-btn-vert" data-sombre-ignore onclick="rWorkflowAvancer('corrige')"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
+          <button class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osMarquerRelu()"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
           <button class="mac-btn mac-btn-refus" onclick="rWorkflowRenvoyer()"><i class="ti ti-corner-up-left"></i>Renvoyer au rédacteur</button>
         </div>
         <div id="r-actions-chef" class="r-actions-groupe" style="display:none;">
-          <button id="r-btn-relu" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="rWorkflowAvancer('corrige')"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
+          <button id="r-btn-relu" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osMarquerRelu()"><i class="ti ti-circle-check"></i>Marquer comme relu</button>
           <button id="r-btn-valider" class="mac-btn mac-btn-vert" data-sombre-ignore onclick="osDemanderBesoinVisuel()"><i class="ti ti-check"></i>Bon à publier</button>
           <button id="r-btn-valider-central" class="mac-btn mac-btn-bleu" data-sombre-ignore onclick="rWorkflowAvancer('valide_central')"><i class="ti ti-shield-check"></i>Bon à publier (centrale)</button>
           <button id="r-btn-publier" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="rWorkflowAvancer('publie')"><i class="ti ti-world-upload"></i>Mettre en ligne</button>
