@@ -624,9 +624,14 @@
     <input type="hidden" id="r-redaction" value="">
     <div style="flex:1;"></div>
     <div id="r-statut-badge" style="display:none;font-size:0.62rem;padding:4px 12px;border-radius:20px;font-weight:600;"></div>
+    <!-- Vérifications du SR (js/37) : en haut, visible dès l'ouverture de l'article -->
+    <button class="mac-btn verif-btn" id="r-btn-verifier" type="button" style="display:none;" onclick="osVerifOuvrir()" title="Points de typographie et de style à regarder"><i class="ti ti-list-check"></i><span class="r-lib">Vérifier</span><span class="verif-btn-badge" style="display:none;"></span></button>
     <button class="mac-btn" onclick="rOuvrirReglages()" title="Réglages de l'article"><i class="ti ti-adjustments-horizontal"></i><span class="r-lib">Réglages</span></button>
     <button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="sauvegarderCloud()"><i class="ti ti-cloud-upload"></i>Enregistrer</button>
   </div>
+
+  <!-- Qui a écrit l'article, où il en est (js/37) -->
+  <div id="r-bandeau-article" class="r-bandeau" style="display:none;"></div>
 
   <!-- Commentaire correction -->
   <div id="r-commentaire-correction" style="display:none;flex-shrink:0;background:#FFF3CD;border-bottom:1px solid #856404;padding:0.6rem 1rem;">

@@ -337,30 +337,19 @@ document.addEventListener('input', function(e){
   _verifRendre._t = setTimeout(_verifRendre, 600);
 });
 
-// Bouton « Vérifier » dans les zones du SR et du chef, avec le nombre de points
-(function(){
-  ['r-actions-correcteur', 'r-actions-chef'].forEach(function(id){
-    var zone = document.getElementById(id);
-    if(!zone || zone.querySelector('.verif-btn')) return;
-    var b = document.createElement('button');
-    b.className = 'mac-btn verif-btn';
-    b.type = 'button';
-    b.title = 'Points de typographie et de style à regarder';
-    b.innerHTML = '<i class="ti ti-list-check"></i>Vérifier<span class="verif-btn-badge" style="display:none;"></span>';
-    // En attribut (pas b.onclick) : la page est copiée dans la fenêtre, et une copie ne garde
-    // pas les actions posées en JavaScript — le bouton ne faisait rien
-    b.setAttribute('onclick', 'osVerifOuvrir()');
-    zone.insertBefore(b, zone.querySelector('.mac-btn-refus'));
-  });
-})();
-// Le compte est calculé dès que l'article s'affiche avec les boutons du SR ou du chef
+// Bouton « Vérifier » (en haut de l'éditeur, index.html) : montré au SR et au chef, avec le
+// nombre de points relevés dès que l'article s'affiche ; et le bandeau « qui a écrit, où
+// en est l'article », pour tout le monde sauf l'auteur·rice sur son brouillon pas encore envoyé.
 if(typeof rWorkflowMajInterface === 'function'){
   var _rWorkflowMajInterfaceAvantVerif = rWorkflowMajInterface;
   rWorkflowMajInterface = function(doc){
     var r = _rWorkflowMajInterfaceAvantVerif.apply(this, arguments);
+    _srBandeauMaj(doc);
     setTimeout(function(){
       var zc = _srEl('r-actions-correcteur'), zh = _srEl('r-actions-chef');
       var visible = (zc && zc.style.display === 'flex') || (zh && zh.style.display === 'flex');
+      var btn = _srEl('r-btn-verifier');
+      if(btn) btn.style.display = visible ? '' : 'none';
       if(!visible){ osVerifFermer(); return; }
       var res = osVerifierArticle();
       _verifMajBadge(res.points.length + res.global.length);
@@ -369,6 +358,34 @@ if(typeof rWorkflowMajInterface === 'function'){
   };
 }
 
+// ── Bandeau en haut de l'éditeur ──
+function _srBandeauMaj(doc){
+  var el = _srEl('r-bandeau-article');
+  if(!el) return;
+  var moi = getUserId();
+  var statut = (doc && doc.statut) || 'brouillon';
+  if(!doc || !doc.id || (doc.auteur_id === moi && statut === 'brouillon' && !doc.note_interne)){ el.style.display = 'none'; return; }
+  var auteur = doc.auteur_id === moi ? 'toi' : (doc.auteur || 'auteur·rice inconnu·e');
+  var redac = (typeof _nomRedac === 'function' && doc.redaction_id ? _nomRedac(doc.redaction_id) : '') || doc.redaction || '';
+  var centrale = (window._redactionsData||[]).find(function(x){ return x.est_centrale; });
+  var horsCentrale = centrale && doc.redaction_id && doc.redaction_id !== centrale.id;
+  var renvoye = !!doc.note_interne;
+  var etape, icone, ton;
+  if(statut === 'brouillon'){ etape = renvoye ? 'Renvoyé à '+(doc.auteur_id === moi ? 'toi' : (doc.auteur||'l\'auteur·rice'))+' pour reprise' : 'En écriture'; icone = renvoye ? 'corner-up-left' : 'pencil'; ton = renvoye ? 'rouge' : 'gris'; }
+  else if(statut === 'en-relecture'){ etape = doc.correcteur ? 'Au SR chez '+doc.correcteur : 'Dans la file d\'attente du SR'; icone = 'search'; ton = 'bleu'; }
+  else if(statut === 'corrige'){ etape = 'Relu'+(doc.correcteur ? ' par '+doc.correcteur : '')+', attend le bon à publier'; icone = 'circle-check'; ton = 'cyan'; }
+  else if(statut === 'valide'){ etape = horsCentrale ? 'Bon à publier, attend la centrale' : 'Bon à publier'; icone = 'star'; ton = 'vert'; }
+  else if(statut === 'valide_central'){ etape = 'Bon à publier de la centrale'; icone = 'shield-check'; ton = 'vert'; }
+  else if(statut === 'publie'){ etape = 'En ligne'; icone = 'world-upload'; ton = 'vert'; }
+  else { etape = statut; icone = 'point'; ton = 'gris'; }
+  var deja = statut === 'en-relecture' && renvoye;
+  el.className = 'r-bandeau r-bandeau-'+ton;
+  el.innerHTML = '<span class="r-bandeau-auteur"><i class="ti ti-user-edit"></i>Écrit par <strong>'+esc(auteur)+'</strong></span>'
+    +(redac ? '<span class="r-bandeau-sep">·</span><span>'+esc(redac)+'</span>' : '')
+    +'<span class="r-bandeau-sep">·</span><span class="r-bandeau-etape"><i class="ti ti-'+icone+'"></i>'+esc(etape)+'</span>'
+    +(deja ? '<span class="r-bandeau-pastille" title="L\'article a déjà été renvoyé à son auteur·rice au moins une fois">Déjà renvoyé une fois</span>' : '');
+  el.style.display = 'flex';
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 // 3. GARDE-FOU AVANT « MARQUER COMME RELU »
