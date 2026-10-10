@@ -237,6 +237,22 @@ var db = {
   }
 };
 
+// Ajoute une ligne à l'historique d'un article (les étapes elles-mêmes sont notées par la
+// base ; Compo y ajoute ce qu'elle seule sait, comme les notifications envoyées)
+function osHistoriqueAjouter(articleId, action, note, details){
+  if(!articleId || !_session) return Promise.resolve();
+  var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token, 'Prefer':'return=minimal'});
+  var ligne = { article_id: articleId, action: action, auteur: getUserNomComplet() || '', note: note || null,
+    membre_id: getUserId(), details: details || null };
+  return fetch(SB_URL+'/rest/v1/historique', { method:'POST', headers:h, body: JSON.stringify(ligne) })
+    .then(function(r){
+      if(r.ok || action === 'notification') return;
+      // Colonnes pas encore ajoutées dans la base : on garde au moins l'essentiel
+      return fetch(SB_URL+'/rest/v1/historique', { method:'POST', headers:h,
+        body: JSON.stringify({ article_id: articleId, action: action, auteur: ligne.auteur, note: ligne.note }) });
+    }).catch(function(){});
+}
+
 // Générer lien de partage
 function genererLien(id){
   var base = window.location.origin + window.location.pathname;
@@ -2043,7 +2059,7 @@ function _osPrevenirSRDessaisi(srId, doc, statut){
         pourquoi:'Tu reçois cet email car cet article t\'avait été confié pour relecture.'
       });
       envoyerEmailResend(m.email, '[Ipsum Média] Déjà relu : '+titre, html, 'correction').catch(function(){});
-    });
+    }, doc.id);
   }).catch(function(){});
 }
 
@@ -2213,7 +2229,7 @@ function _osEmailStatutArticle(doc, statut, cfg){
     var chatTexte = '*'+conf.sujet+'*\n« '+_chatSansMiseEnForme(doc.titre||'Sans titre')+' »'+(nomRedacChat ? ' · '+_chatSansMiseEnForme(nomRedacChat) : '')+'\n<'+lienChat+'|'+(statut==='publie' && doc.lien_publication ? 'Voir l\'article en ligne' : 'Ouvrir dans Compo')+'>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'statut_article', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] '+conf.sujet+' : '+(doc.titre||''), html, 'statut_article');
-    });
+    }, doc.id);
   }).catch(function(){});
 }
 
@@ -2267,7 +2283,7 @@ function _osEmailRefusArticle(doc, note, commentaires){
       +'\n<'+lienArt+'|Reprendre l\'article>';
     notifierPersonnel(doc.auteur_id, m.canal_notif, chatTexte, 'refus_article', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] Ton article est à reprendre : '+(doc.titre||''), html, 'refus_article');
-    });
+    }, doc.id);
   }).catch(function(){});
 }
 

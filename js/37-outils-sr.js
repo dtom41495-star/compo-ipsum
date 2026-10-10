@@ -383,8 +383,133 @@ function _srBandeauMaj(doc){
   el.innerHTML = '<span class="r-bandeau-auteur"><i class="ti ti-user-edit"></i>Écrit par <strong>'+esc(auteur)+'</strong></span>'
     +(redac ? '<span class="r-bandeau-sep">·</span><span>'+esc(redac)+'</span>' : '')
     +'<span class="r-bandeau-sep">·</span><span class="r-bandeau-etape"><i class="ti ti-'+icone+'"></i>'+esc(etape)+'</span>'
-    +(deja ? '<span class="r-bandeau-pastille" title="L\'article a déjà été renvoyé à son auteur·rice au moins une fois">Déjà renvoyé une fois</span>' : '');
+    +(deja ? '<span class="r-bandeau-pastille" title="L\'article a déjà été renvoyé à son auteur·rice au moins une fois">Déjà renvoyé une fois</span>' : '')
+    +(_histPeutVoir(doc) ? '<button type="button" class="r-bandeau-hist" onclick="osHistoriqueOuvrir()" title="Toutes les étapes de l\'article, qui les a faites, qui a été prévenu"><i class="ti ti-history"></i>Historique</button>' : '');
   el.style.display = 'flex';
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────────
+// 5. HISTORIQUE DE L'ARTICLE
+// Les étapes sont notées par la base (envoi au SR, prise, renvoi avec le message, relu,
+// bon à publier, centrale, en ligne : qui, avec quel rôle) ; Compo y ajoute qui a été
+// prévenu et par quel canal. Visible en entier par l'auteur·rice, les SR, les chefs, les admins.
+// ───────────────────────────────────────────────────────────────────────────────
+function _histPeutVoir(doc){
+  var moi = getUserId();
+  if(!doc || !doc.id || !moi) return false;
+  if(doc.auteur_id === moi || doc.correcteur_id === moi) return true;
+  var role = typeof getUserRole === 'function' ? getUserRole() : '';
+  if(role === 'admin' || role === 'correcteur') return true;
+  var centrale = (window._redactionsData||[]).find(function(x){ return x.est_centrale; });
+  return (window._membresRedactionsData||[]).some(function(l){
+    if(l.membre_id !== moi) return false;
+    if(l.role_redac === 'redac_chef') return l.redaction_id === doc.redaction_id || (centrale && l.redaction_id === centrale.id);
+    return l.role_redac === 'correcteur' && l.redaction_id === doc.redaction_id;
+  });
+}
+
+var HIST_ROLES = { auteur:'auteur·rice', sr:'SR', redac_chef:'rédac chef', chef_centrale:'rédac chef de la centrale', admin:'admin' };
+var HIST_ETAPES = {
+  creation:              { icone:'file-plus',      ton:'gris',  texte:'a commencé l\'article' },
+  envoi_sr:              { icone:'send',           ton:'bleu',  texte:'a envoyé l\'article au SR' },
+  renvoi_sr:             { icone:'send',           ton:'bleu',  texte:'a renvoyé l\'article au SR après l\'avoir repris' },
+  prise_sr:              { icone:'hand-grab',      ton:'bleu',  texte:'a pris l\'article en relecture' },
+  sr_designe:            { icone:'user-check',     ton:'bleu',  texte:'a confié la relecture à {sr}' },
+  rendu_file:            { icone:'arrow-back-up',  ton:'gris',  texte:'a rendu l\'article à la file du SR' },
+  renvoi_auteur:         { icone:'corner-up-left', ton:'rouge', texte:'a renvoyé l\'article à {auteur} pour reprise' },
+  retour_brouillon:      { icone:'pencil',         ton:'gris',  texte:'a remis l\'article en écriture' },
+  relu:                  { icone:'circle-check',   ton:'cyan',  texte:'a marqué l\'article comme relu' },
+  bon_a_publier:         { icone:'star',           ton:'vert',  texte:'a donné le bon à publier' },
+  bon_a_publier_central: { icone:'shield-check',   ton:'vert',  texte:'a donné le bon à publier de la centrale' },
+  en_ligne:              { icone:'world-upload',   ton:'vert',  texte:'a mis l\'article en ligne' },
+  publication:           { icone:'world-upload',   ton:'vert',  texte:'a mis l\'article en ligne' },
+  statut:                { icone:'point',          ton:'gris',  texte:'a changé l\'étape de l\'article' }
+};
+var HIST_CANAUX = { chat:'Chat', email:'mail', compo:'dans Compo (connecté·e)', echec:'Chat en panne, pas de mail' };
+
+function osHistoriqueOuvrir(){
+  var doc = currentDoc;
+  if(!doc || !doc.id) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var mo = document.createElement('div');
+  mo.className = 'renvoi-voile';
+  mo.innerHTML = '<div class="renvoi-boite hist-boite" role="dialog" aria-labelledby="hist-titre">'
+    +'<div class="renvoi-entete"><div class="renvoi-icone hist-icone"><i class="ti ti-history"></i></div><div>'
+      +'<div id="hist-titre" class="renvoi-titre">Historique de l\'article</div>'
+      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' » · écrit par '+esc(doc.auteur || 'auteur·rice inconnu·e')+'</div></div>'
+      +'<button type="button" class="verif-btn-icone hist-fermer" data-a="fermer" title="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="renvoi-corps hist-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div>'
+    +'</div>';
+  document.body.appendChild(mo);
+  var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
+  var touche = function(e){ if(e.key === 'Escape') fermer(); };
+  document.addEventListener('keydown', touche);
+  mo.addEventListener('click', function(e){ if(e.target === mo || e.target.closest('[data-a="fermer"]')) fermer(); });
+
+  fetch(SB_URL+'/rest/v1/historique?article_id=eq.'+encodeURIComponent(doc.id)+'&order=created_at.asc&select=*', {headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(lignes){
+      lignes = Array.isArray(lignes) ? lignes : [];
+      var ids = [];
+      lignes.forEach(function(l){ var d = l.details && l.details.destinataire_id; if(d && ids.indexOf(d) === -1) ids.push(d); });
+      if(!ids.length) return [lignes, []];
+      return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.map(encodeURIComponent).join(',')+')&select=id,prenom,nom', {headers:authH})
+        .then(function(r){ return r.json(); }).catch(function(){ return []; })
+        .then(function(m){ return [lignes, Array.isArray(m) ? m : []]; });
+    })
+    .then(function(res){
+      var corps = mo.querySelector('.hist-corps');
+      if(corps) corps.innerHTML = _histRendre(doc, res[0], res[1]);
+    })
+    .catch(function(){
+      var corps = mo.querySelector('.hist-corps');
+      if(corps) corps.innerHTML = '<div class="verif-vide"><i class="ti ti-alert-triangle"></i>Impossible de charger l\'historique pour le moment.</div>';
+    });
+}
+
+function _histRendre(doc, lignes, membres){
+  var noms = {};
+  membres.forEach(function(m){ noms[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
+  var prenomAuteur = String(doc.auteur || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
+  // Les notifications sont rattachées à l'étape qui les a déclenchées (la précédente)
+  var etapes = [];
+  lignes.forEach(function(l){
+    if(l.action === 'notification'){
+      var dernier = etapes[etapes.length - 1];
+      if(dernier) (dernier.notifs = dernier.notifs || []).push(l);
+      return;
+    }
+    // Ancienne ligne « publication » notée par Compo en plus de celle de la base
+    if(l.action === 'publication' && etapes.some(function(e){ return e.action === 'en_ligne' && Math.abs(new Date(e.created_at) - new Date(l.created_at)) < 5*60000; })) return;
+    etapes.push(l);
+  });
+  if(!etapes.length) return '<div class="verif-vide"><i class="ti ti-history"></i>Aucune étape notée pour cet article. L\'historique détaillé est noté depuis sa mise en place : les articles plus anciens peuvent ne rien afficher.</div>';
+  var h = '<ol class="hist-liste">';
+  etapes.forEach(function(e){
+    var conf = HIST_ETAPES[e.action] || { icone:'point', ton:'gris', texte:e.action };
+    var qui = e.role === 'systeme' ? 'Compo' : (e.auteur || 'Quelqu\'un');
+    var role = HIST_ROLES[e.role];
+    var texte = conf.texte
+      .replace('{sr}', esc((e.details && e.details.sr) || 'un·e SR'))
+      .replace('{auteur}', esc(prenomAuteur));
+    if(e.action === 'statut' && e.details && e.details.vers) texte += ' ('+esc(e.details.vers)+')';
+    var date = new Date(e.created_at);
+    h += '<li class="hist-etape hist-'+conf.ton+'"><span class="hist-pastille"><i class="ti ti-'+conf.icone+'"></i></span><div class="hist-contenu">'
+      +'<div class="hist-ligne"><strong>'+esc(qui)+'</strong>'+(role ? ' <span class="hist-role">'+esc(role)+'</span>' : '')+' '+texte+'</div>'
+      +'<div class="hist-date">'+esc(isNaN(date) ? '' : date.toLocaleString('fr-FR', { weekday:'short', day:'numeric', month:'short', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined, hour:'2-digit', minute:'2-digit' }))+'</div>'
+      +(e.note && e.action !== 'creation' && e.action !== 'publication' ? '<div class="hist-note">'+esc(e.note).replace(/\n/g, '<br>')+'</div>' : '');
+    if(e.notifs && e.notifs.length){
+      h += '<div class="hist-notifs"><i class="ti ti-bell"></i>Prévenu·es : '+e.notifs.map(function(n){
+        var d = n.details || {};
+        var canal = HIST_CANAUX[d.canal] || d.canal || '';
+        if(d.canal === 'email' && d.repli) canal = 'mail, le Chat n\'est pas passé';
+        return '<span class="hist-dest">'+esc(noms[d.destinataire_id] || 'un membre')+'</span> <span class="hist-canal">('+esc(canal)+')</span>';
+      }).join(', ')+'</div>';
+    }
+    h += '</div></li>';
+  });
+  return h+'</ol><div class="verif-pied">Étapes notées depuis la mise en place de l\'historique : pour un article plus ancien, les premières peuvent manquer.</div>';
 }
 
 // ───────────────────────────────────────────────────────────────────────────────

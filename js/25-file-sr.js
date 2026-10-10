@@ -114,7 +114,7 @@ function _srNotifierFile(doc, rendu){
           pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
         });
         envoyerEmailResend(m.email, '[Ipsum Média] File du SR : '+titre, html, 'correction').catch(function(){});
-      });
+      }, doc.id);
     });
   }).catch(function(){});
 }
