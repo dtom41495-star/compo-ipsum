@@ -81,9 +81,10 @@ function osSrRendre(articleId){
 function _srNotifierFile(doc, rendu){
   if(!doc || (typeof _osRedacNotifActive === 'function' && !_osRedacNotifActive(doc.redaction_id, 'notif_correction'))) return;
   // Les SR de la rédaction sont relus dans la base : la mémoire du navigateur de l'auteur·rice
-  // ne contient pas forcément les rôles des autres membres
+  // ne contient pas forcément les rôles des autres membres. Une fiche sans « actif » renseigné
+  // (comptes anciens) compte comme active : seules les fiches marquées inactives sont écartées.
   Promise.all([
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()}).then(function(r){ return r.json(); }),
+    fetch(SB_URL+'/rest/v1/membres?actif=not.is.false&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()}).then(function(r){ return r.json(); }),
     doc.redaction_id
       ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&role_redac=eq.correcteur&select=membre_id,redaction_id,role_redac', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
       : Promise.resolve([])
