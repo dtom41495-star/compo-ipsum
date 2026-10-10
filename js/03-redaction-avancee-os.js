@@ -1321,6 +1321,7 @@ function _emailCompo(o){
 // d'envoi aux appelants qui affichent une erreur sur !r.ok : ici il n'y a pas
 // d'échec, l'envoi a été volontairement retenu.
 function envoyerEmailResend(to, subject, html, type){
+  _notifMailsEnvoyes++;  // pour l'historique de l'article (voir notifierPersonnel)
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   return fetch(SB_URL+'/rest/v1/membres?email=eq.'+encodeURIComponent(to)+'&select=marque_inactif,dnd,role', {headers:authH})
     .then(function(r){ return r.json(); })
@@ -1372,16 +1373,33 @@ function _chatSansMiseEnForme(s){
 // du membre est respecté tel quel, comme pour le site pilote assignValider().
 // Canal choisi par la personne. Si le message Chat ne part pas (espace Chat introuvable,
 // fonction en erreur…), l'email prend le relais : sans ça, la personne ne recevait rien.
-function notifierPersonnel(membreId, canalNotif, chatTexte, type, emailCallback){
+// articleId (facultatif) : la notification est notée dans l'historique de l'article
+// (qui a été prévenu, par Chat ou par mail).
+function notifierPersonnel(membreId, canalNotif, chatTexte, type, emailCallback, articleId){
   if(canalNotif === 'chat'){
     notifierChatDM(membreId, chatTexte, type).then(function(res){
-      if(res && res.ok) return;
+      if(res && res.ok){ _notifHistorique(articleId, membreId, type, 'chat', false); return; }
       console.warn('[Notif] message Chat non parti ('+type+'), envoi par email à la place', res && res.data);
-      if(emailCallback) emailCallback(true);
+      _notifEmailCallback(emailCallback, true, articleId, membreId, type);
     });
-  } else if(emailCallback){
-    emailCallback(false);
+  } else {
+    _notifEmailCallback(emailCallback, false, articleId, membreId, type);
   }
+}
+// Le rappel décide lui-même d'envoyer le mail ou non (inutile si la personne est connectée à
+// Compo) : on regarde s'il en a envoyé un pendant qu'il s'exécutait
+var _notifMailsEnvoyes = 0;
+function _notifEmailCallback(emailCallback, secours, articleId, membreId, type){
+  var avant = _notifMailsEnvoyes;
+  if(emailCallback) emailCallback(secours);
+  if(!articleId) return;
+  if(_notifMailsEnvoyes > avant) _notifHistorique(articleId, membreId, type, 'email', secours);
+  else if(!secours) _notifHistorique(articleId, membreId, type, 'compo', false);
+  else _notifHistorique(articleId, membreId, type, 'echec', true);
+}
+function _notifHistorique(articleId, membreId, type, canal, secours){
+  if(!articleId || typeof osHistoriqueAjouter !== 'function') return;
+  osHistoriqueAjouter(articleId, 'notification', null, { destinataire_id: membreId, canal: canal, repli: !!secours, type: type });
 }
 
 // File d'envoi : Resend refuse (erreur 429) au-delà de quelques emails par seconde, et

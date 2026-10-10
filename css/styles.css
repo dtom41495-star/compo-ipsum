@@ -5459,3 +5459,39 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .relu-ok { padding: 9px 16px; border-radius: 10px; border: none; background: #1E7A45; color: #fff; font: 700 14px 'DM Sans', Arial, sans-serif; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
 .relu-ok:hover { filter: brightness(.95); }
 .mac-btn.renvoi-verrouille { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+
+/* Bandeau « qui a écrit, où en est l'article » en haut de l'éditeur (js/37) */
+.r-bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 7px 16px; border-bottom: 1px solid var(--gris-bord); background: #F7F5F2; font: 400 13px/1.4 'DM Sans', Arial, sans-serif; color: #44403C; flex-shrink: 0; }
+.r-bandeau i { font-size: 15px; vertical-align: -2px; margin-right: 4px; }
+.r-bandeau strong { color: var(--encre); }
+.r-bandeau-sep { color: #A8A29E; }
+.r-bandeau-etape { font-weight: 600; }
+.r-bandeau-bleu .r-bandeau-etape { color: #1A5276; }
+.r-bandeau-cyan .r-bandeau-etape { color: #0C5460; }
+.r-bandeau-vert .r-bandeau-etape { color: #155724; }
+.r-bandeau-rouge .r-bandeau-etape { color: #A32D2D; }
+.r-bandeau-pastille { margin-left: 4px; padding: 1px 9px; border-radius: 999px; background: #FDECE6; color: #B33A14; font-size: 12px; font-weight: 700; }
+.r-bandeau-hist { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; padding: 4px 11px; border-radius: 8px; border: 1px solid var(--gris-bord); background: #fff; color: var(--encre); font: 600 12.5px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+.r-bandeau-hist:hover { background: #F2EFEA; }
+
+/* Historique de l'article (js/37) */
+.hist-boite { width: min(600px, 100%); display: flex; flex-direction: column; }
+.hist-icone { background: #EDF2F7 !important; color: #1A5276 !important; }
+.hist-fermer { margin-left: auto; flex-shrink: 0; }
+.hist-corps { padding-bottom: 8px; }
+.hist-liste { list-style: none; margin: 0; padding: 4px 0 0; position: relative; }
+.hist-liste::before { content: ''; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 2px; background: #E7E5E4; }
+.hist-etape { position: relative; display: flex; gap: 12px; padding: 0 0 14px; }
+.hist-pastille { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; background: #F5F5F4; color: #57534E; border: 2px solid #fff; }
+.hist-bleu .hist-pastille { background: #E3EEF7; color: #1A5276; }
+.hist-cyan .hist-pastille { background: #DFF3F5; color: #0C5460; }
+.hist-vert .hist-pastille { background: #E6F4EA; color: #1E7A45; }
+.hist-rouge .hist-pastille { background: #FDECEC; color: #A32D2D; }
+.hist-contenu { min-width: 0; flex: 1; padding-top: 5px; font-size: 14px; line-height: 1.45; color: #292524; }
+.hist-role { display: inline-block; padding: 0 7px; border-radius: 999px; background: #F2EFEA; color: #57534E; font-size: 11.5px; font-weight: 600; }
+.hist-date { font-size: 12px; color: #78716C; margin-top: 1px; }
+.hist-note { margin-top: 6px; padding: 8px 11px; border-left: 3px solid #E8A598; background: #FFF7F5; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #44403C; overflow-wrap: anywhere; }
+.hist-notifs { margin-top: 5px; font-size: 12.5px; color: #57534E; }
+.hist-notifs i { font-size: 14px; vertical-align: -2px; margin-right: 4px; }
+.hist-dest { font-weight: 600; color: #44403C; }
+.hist-canal { color: #78716C; }

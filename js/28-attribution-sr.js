@@ -268,5 +268,5 @@ function osSrNotifierRelecteur(doc, membre, auto){
       pourquoi:'Tu reçois cet email car tu fais partie du secrétariat de rédaction.'
     });
     envoyerEmailResend(membre.email, '[Ipsum Média] Un article t\'attend au SR : '+titre, html, 'correction').catch(function(){});
-  });
+  }, doc.id);
 }

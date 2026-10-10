@@ -3140,7 +3140,7 @@ function osNotifierChefsArticleRelu(article){
           pourquoi:'Tu reçois cet email car tu valides les articles de cette rédaction.'
         });
         envoyerEmailResend(m.email, '[Ipsum Média] Bon à publier attendu : '+titre, html, 'validation').catch(function(){});
-      });
+      }, article.id);
     });
   }).catch(function(){});
 }
