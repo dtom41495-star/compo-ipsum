@@ -173,12 +173,12 @@ function _verifTous(texte, re, filtre){
 
 // Les champs vérifiés, tels qu'ils sont dans l'éditeur à cet instant
 function _verifChamps(){
-  var live = document.getElementById('r-corps-live');
+  var live = _srEl('r-corps-live');
   var liveVisible = live && live.offsetParent !== null;
-  var corps = liveVisible ? live : document.getElementById('r-corps');
+  var corps = liveVisible ? live : _srEl('r-corps');
   return [
-    { cle:'titre',   nom:'Titre', el:document.getElementById('r-titre') },
-    { cle:'chapeau', nom:'Chapô', el:document.getElementById('r-chapeau') },
+    { cle:'titre',   nom:'Titre', el:_srEl('r-titre') },
+    { cle:'chapeau', nom:'Chapô', el:_srEl('r-chapeau') },
     { cle:'corps',   nom:'Texte', el:corps }
   ].filter(function(c){ return c.el; }).map(function(c){
     c.texte = c.el.isContentEditable ? (c.el.innerText || '') : (c.el.value || '');
@@ -203,8 +203,8 @@ function osVerifierArticle(){
     });
   });
   // Règles sur l'article dans son ensemble
-  var titre = (document.getElementById('r-titre')||{}).value || '';
-  var chapeau = (document.getElementById('r-chapeau')||{}).value || '';
+  var titre = (_srEl('r-titre')||{}).value || '';
+  var chapeau = (_srEl('r-chapeau')||{}).value || '';
   var global = [];
   if(titre.length > 90) global.push({ titre:'Titre long', conseil:titre.length+' signes : au-delà de 90, il sera coupé dans les partages et les moteurs de recherche.' });
   if(/[.]\s*$/.test(titre.trim()) && !/\.\.\.$|…$/.test(titre.trim())) global.push({ titre:'Point à la fin du titre', conseil:'Un titre ne se termine pas par un point.' });
@@ -223,12 +223,17 @@ function _verifContexte(texte, index, cible){
   return (debut > 0 ? '…' : '') + texte.slice(debut, fin).replace(/\n+/g, ' ') + (fin < texte.length ? '…' : '');
 }
 
+// L'éditeur affiché est une copie de la page d'origine, placée dans la fenêtre : on cherche
+// d'abord dans la fenêtre ouverte (osGetEl), sinon dans la page.
+function _srEl(id){ return (typeof osGetEl === 'function' ? osGetEl(id) : null) || document.getElementById(id); }
+
 // ── Panneau ──
 var _verifDernier = null;
 function osVerifOuvrir(){
-  var page = document.getElementById('drawer-redac-reglages');
+  var page = _srEl('drawer-redac-reglages');
   var parent = page ? page.parentNode : document.body;
-  var p = document.getElementById('verif-panneau');
+  var p = _srEl('verif-panneau');
+  if(p && p.parentNode !== parent){ p.remove(); p = null; }  // resté dans une ancienne fenêtre
   if(!p){
     p = document.createElement('div');
     p.id = 'verif-panneau';
@@ -238,10 +243,10 @@ function osVerifOuvrir(){
   p.style.display = 'flex';
   _verifRendre();
 }
-function osVerifFermer(){ var p = document.getElementById('verif-panneau'); if(p) p.style.display = 'none'; }
+function osVerifFermer(){ var p = _srEl('verif-panneau'); if(p) p.style.display = 'none'; }
 
 function _verifRendre(){
-  var p = document.getElementById('verif-panneau');
+  var p = _srEl('verif-panneau');
   if(!p) return;
   var res = _verifDernier = osVerifierArticle();
   var total = res.points.length + res.global.length;
@@ -325,7 +330,7 @@ function _verifMajBadge(total){
 
 // Le panneau se met à jour pendant que le SR corrige
 document.addEventListener('input', function(e){
-  var p = document.getElementById('verif-panneau');
+  var p = _srEl('verif-panneau');
   if(!p || p.style.display === 'none') return;
   if(!e.target.closest || !e.target.closest('#r-titre, #r-chapeau, #r-corps, #r-corps-live')) return;
   clearTimeout(_verifRendre._t);
@@ -342,7 +347,9 @@ document.addEventListener('input', function(e){
     b.type = 'button';
     b.title = 'Points de typographie et de style à regarder';
     b.innerHTML = '<i class="ti ti-list-check"></i>Vérifier<span class="verif-btn-badge" style="display:none;"></span>';
-    b.onclick = osVerifOuvrir;
+    // En attribut (pas b.onclick) : la page est copiée dans la fenêtre, et une copie ne garde
+    // pas les actions posées en JavaScript — le bouton ne faisait rien
+    b.setAttribute('onclick', 'osVerifOuvrir()');
     zone.insertBefore(b, zone.querySelector('.mac-btn-refus'));
   });
 })();
@@ -352,7 +359,7 @@ if(typeof rWorkflowMajInterface === 'function'){
   rWorkflowMajInterface = function(doc){
     var r = _rWorkflowMajInterfaceAvantVerif.apply(this, arguments);
     setTimeout(function(){
-      var zc = document.getElementById('r-actions-correcteur'), zh = document.getElementById('r-actions-chef');
+      var zc = _srEl('r-actions-correcteur'), zh = _srEl('r-actions-chef');
       var visible = (zc && zc.style.display === 'flex') || (zh && zh.style.display === 'flex');
       if(!visible){ osVerifFermer(); return; }
       var res = osVerifierArticle();
