@@ -5495,3 +5495,26 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .hist-notifs i { font-size: 14px; vertical-align: -2px; margin-right: 4px; }
 .hist-dest { font-weight: 600; color: #44403C; }
 .hist-canal { color: #78716C; }
+
+/* Versions du texte dans l'historique (js/37) */
+.hist-version { margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; border: 1px solid #D6D3D1; background: #fff; color: #1A5276; font: 600 12.5px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+.hist-version:hover { background: #EDF2F7; }
+.hist-version i { font-size: 14px; }
+.hist-inchange { margin-top: 5px; font-size: 12px; color: #A8A29E; }
+.hist-inchange i { font-size: 13px; vertical-align: -2px; margin-right: 3px; }
+.hist-retour { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 10px; padding: 4px 10px 4px 6px; border: none; border-radius: 8px; background: #F2EFEA; color: #44403C; font: 600 12.5px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+.vers-entete { margin-bottom: 12px; }
+.vers-titre { font-weight: 700; font-size: 15px; color: #292524; }
+.vers-legende { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 12px; font-size: 12.5px; color: #57534E; }
+.vers-leg-moins { background: #FECACA; color: #991B1B; text-decoration: line-through; padding: 0 6px; border-radius: 4px; }
+.vers-leg-plus { background: #D1FAE5; color: #065F46; padding: 0 6px; border-radius: 4px; }
+.vers-champ { margin-bottom: 14px; }
+.vers-champ-nom { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #78716C; margin-bottom: 4px; }
+.vers-modifie { text-transform: none; letter-spacing: 0; font-weight: 600; color: #B45309; background: #FEF3C7; padding: 0 6px; border-radius: 999px; margin-left: 4px; }
+.vers-champ-texte { font-size: 14px; line-height: 1.55; color: #292524; overflow-wrap: anywhere; }
+.vers-p { margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; font-size: 14px; line-height: 1.55; color: #292524; overflow-wrap: anywhere; border-left: 3px solid transparent; }
+.vers-pareil { color: #A8A29E; padding-left: 13px; }
+.vers-retouche { background: #FFFBEB; border-left-color: #F59E0B; }
+.vers-ajout { background: #ECFDF5; border-left-color: #10B981; color: #065F46; }
+.vers-suppr { background: #FEF2F2; border-left-color: #EF4444; color: #991B1B; text-decoration: line-through; }
+.vers-replie { margin: 0 0 8px; padding: 3px 13px; font-size: 12px; font-style: italic; color: #A8A29E; }

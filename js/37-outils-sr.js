@@ -445,7 +445,13 @@ function osHistoriqueOuvrir(){
   var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
   var touche = function(e){ if(e.key === 'Escape') fermer(); };
   document.addEventListener('keydown', touche);
-  mo.addEventListener('click', function(e){ if(e.target === mo || e.target.closest('[data-a="fermer"]')) fermer(); });
+  mo.addEventListener('click', function(e){
+    if(e.target === mo || e.target.closest('[data-a="fermer"]')){ fermer(); return; }
+    var corps = mo.querySelector('.hist-corps');
+    var bv = e.target.closest('[data-v]');
+    if(bv){ _versAfficher(corps, doc, bv.dataset.v, bv.dataset.p, bv.dataset.titre); return; }
+    if(e.target.closest('[data-a="retour"]') && mo._frise){ corps.innerHTML = mo._frise; corps.scrollTop = mo._defil || 0; }
+  });
 
   fetch(SB_URL+'/rest/v1/historique?article_id=eq.'+encodeURIComponent(doc.id)+'&order=created_at.asc&select=*', {headers:authH})
     .then(function(r){ return r.json(); })
@@ -460,7 +466,8 @@ function osHistoriqueOuvrir(){
     })
     .then(function(res){
       var corps = mo.querySelector('.hist-corps');
-      if(corps) corps.innerHTML = _histRendre(doc, res[0], res[1]);
+      if(corps) corps.innerHTML = mo._frise = _histRendre(doc, res[0], res[1]);
+      if(corps) corps.addEventListener('scroll', function(){ if(corps.querySelector('.hist-liste')) mo._defil = corps.scrollTop; });
     })
     .catch(function(){
       var corps = mo.querySelector('.hist-corps');
@@ -486,6 +493,7 @@ function _histRendre(doc, lignes, membres){
   });
   if(!etapes.length) return '<div class="verif-vide"><i class="ti ti-history"></i>Aucune étape notée pour cet article. L\'historique détaillé est noté depuis sa mise en place : les articles plus anciens peuvent ne rien afficher.</div>';
   var h = '<ol class="hist-liste">';
+  var versionPrec = null;
   etapes.forEach(function(e){
     var conf = HIST_ETAPES[e.action] || { icone:'point', ton:'gris', texte:e.action };
     var qui = e.role === 'systeme' ? 'Compo' : (e.auteur || 'Quelqu\'un');
@@ -499,6 +507,19 @@ function _histRendre(doc, lignes, membres){
       +'<div class="hist-ligne"><strong>'+esc(qui)+'</strong>'+(role ? ' <span class="hist-role">'+esc(role)+'</span>' : '')+' '+texte+'</div>'
       +'<div class="hist-date">'+esc(isNaN(date) ? '' : date.toLocaleString('fr-FR', { weekday:'short', day:'numeric', month:'short', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined, hour:'2-digit', minute:'2-digit' }))+'</div>'
       +(e.note && e.action !== 'creation' && e.action !== 'publication' ? '<div class="hist-note">'+esc(e.note).replace(/\n/g, '<br>')+'</div>' : '');
+    // Texte de l'article à cette étape, comparé à l'étape précédente
+    var v = e.details && e.details.version_id;
+    if(v){
+      var titreVue = (qui+' '+conf.texte.replace('{sr}', (e.details && e.details.sr) || 'un·e SR').replace('{auteur}', prenomAuteur)).replace(/^./, function(c){ return c.toUpperCase(); });
+      if(!versionPrec) h += '<button type="button" class="hist-version" data-v="'+esc(String(v))+'" data-titre="'+esc(titreVue)+'"><i class="ti ti-file-text"></i>Voir le texte à cette étape</button>';
+      else if(String(v) === String(versionPrec)) h += '<div class="hist-inchange"><i class="ti ti-equal"></i>Texte inchangé depuis l\'étape précédente</div>';
+      else {
+        var lib = e.action === 'relu' ? 'Voir les corrections' : e.action === 'renvoi_sr' ? 'Voir ce que '+prenomAuteur+' a repris'
+          : e.action === 'renvoi_auteur' ? 'Voir ce qui a été corrigé avant le renvoi' : 'Voir ce qui a changé';
+        h += '<button type="button" class="hist-version" data-v="'+esc(String(v))+'" data-p="'+esc(String(versionPrec))+'" data-titre="'+esc(titreVue)+'"><i class="ti ti-arrows-diff"></i>'+esc(lib)+'</button>';
+      }
+      versionPrec = v;
+    }
     if(e.notifs && e.notifs.length){
       h += '<div class="hist-notifs"><i class="ti ti-bell"></i>Prévenu·es : '+e.notifs.map(function(n){
         var d = n.details || {};
@@ -634,4 +655,115 @@ if(typeof rWorkflowMajInterface === 'function'){
     _renvoiVerrouMajBoutons(doc);
     return r;
   };
+}
+
+// ── Versions du texte : ce qui a changé entre deux étapes ──
+function _versAfficher(corps, doc, v, p, titreVue){
+  if(!corps) return;
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var ids = p ? [v, p] : [v];
+  corps.innerHTML = '<div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement du texte…</div>';
+  corps.scrollTop = 0;
+  fetch(SB_URL+'/rest/v1/articles_versions?id=in.('+ids.map(encodeURIComponent).join(',')+')&select=id,titre,chapeau,corps,created_at', {headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      rows = Array.isArray(rows) ? rows : [];
+      var apres = rows.find(function(x){ return String(x.id) === String(v); });
+      var avant = p ? rows.find(function(x){ return String(x.id) === String(p); }) : null;
+      if(!apres) throw new Error('version introuvable');
+      corps.innerHTML = _versRendre(apres, avant, titreVue);
+    })
+    .catch(function(){
+      corps.innerHTML = '<button type="button" class="hist-retour" data-a="retour"><i class="ti ti-arrow-left"></i>Retour à l\'historique</button>'
+        +'<div class="verif-vide"><i class="ti ti-alert-triangle"></i>Impossible de charger ce texte pour le moment.</div>';
+    });
+}
+
+// Paragraphes de l'article en texte simple (DOMParser : rien n'est exécuté ni chargé)
+function _versParagraphes(html){
+  var d = new DOMParser().parseFromString('<div>'+(html || '')+'</div>', 'text/html').body;
+  var blocs = Array.prototype.filter.call(d.querySelectorAll('p,h1,h2,h3,h4,h5,li,blockquote,figcaption,pre'), function(el){
+    return !el.querySelector('p,h1,h2,h3,h4,h5,li,blockquote,figcaption,pre');
+  });
+  var textes = blocs.length ? blocs.map(function(el){ return el.textContent; }) : (d.innerText || d.textContent || '').split(/\n+/);
+  return textes.map(function(t){ return t.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+}
+
+// Paragraphes alignés : '=' inchangé, '~' modifié, '+' ajouté, '-' supprimé
+function _versComparer(a, b){
+  var m = a.length, n = b.length, dp = [], i, j;
+  for(i = 0; i <= m; i++){ dp[i] = new Array(n + 1).fill(0); }
+  for(i = m - 1; i >= 0; i--) for(j = n - 1; j >= 0; j--)
+    dp[i][j] = a[i] === b[j] ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  var ops = []; i = 0; j = 0;
+  while(i < m && j < n){
+    if(a[i] === b[j]){ ops.push({ t:'=', b:b[j] }); i++; j++; }
+    else if(dp[i+1][j] >= dp[i][j+1]){ ops.push({ t:'-', a:a[i] }); i++; }
+    else { ops.push({ t:'+', b:b[j] }); j++; }
+  }
+  while(i < m) ops.push({ t:'-', a:a[i++] });
+  while(j < n) ops.push({ t:'+', b:b[j++] });
+  // Un paragraphe supprimé suivi d'un ajouté = le même paragraphe retouché
+  var res = [], k = 0;
+  while(k < ops.length){
+    if(ops[k].t === '=' ){ res.push(ops[k++]); continue; }
+    var moins = [], plus = [];
+    while(k < ops.length && ops[k].t !== '='){ (ops[k].t === '-' ? moins : plus).push(ops[k]); k++; }
+    var paires = Math.min(moins.length, plus.length);
+    for(var x = 0; x < paires; x++) res.push({ t:'~', a:moins[x].a, b:plus[x].b });
+    moins.slice(paires).forEach(function(o){ res.push(o); });
+    plus.slice(paires).forEach(function(o){ res.push(o); });
+  }
+  return res;
+}
+
+function _versRendre(apres, avant, titreVue){
+  var date = new Date(apres.created_at);
+  var h = '<button type="button" class="hist-retour" data-a="retour"><i class="ti ti-arrow-left"></i>Retour à l\'historique</button>'
+    +'<div class="vers-entete"><div class="vers-titre">'+esc(titreVue || 'Texte de l\'article')+'</div>'
+    +'<div class="hist-date">'+esc(isNaN(date) ? '' : date.toLocaleString('fr-FR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' }))+'</div></div>';
+  var champ = function(nom, a, b){
+    if(!a && !b) return '';
+    var diff = avant && (a || '') !== (b || '');
+    return '<div class="vers-champ"><div class="vers-champ-nom">'+nom+(diff ? ' <span class="vers-modifie">modifié</span>' : '')+'</div>'
+      +'<div class="vers-champ-texte">'+(diff ? osDiffTexte(a || '', b || '') : esc(b || '—'))+'</div></div>';
+  };
+  var champs = champ('Titre', avant && avant.titre, apres.titre) + champ('Chapô', avant && avant.chapeau, apres.chapeau);
+  var pb = _versParagraphes(apres.corps);
+  if(!avant){
+    return h + champs + '<div class="vers-champ"><div class="vers-champ-nom">Texte</div>'+pb.map(function(t){ return '<p class="vers-p">'+esc(t)+'</p>'; }).join('')+'</div>';
+  }
+  var ops = _versComparer(_versParagraphes(avant.corps), pb);
+  var nb = { '~':0, '+':0, '-':0 };
+  ops.forEach(function(o){ if(nb[o.t] !== undefined) nb[o.t]++; });
+  var resume = [];
+  if(nb['~']) resume.push(nb['~']+' paragraphe'+(nb['~'] > 1 ? 's' : '')+' retouché'+(nb['~'] > 1 ? 's' : ''));
+  if(nb['+']) resume.push(nb['+']+' ajouté'+(nb['+'] > 1 ? 's' : ''));
+  if(nb['-']) resume.push(nb['-']+' supprimé'+(nb['-'] > 1 ? 's' : ''));
+  h += '<div class="vers-legende"><span class="vers-leg-moins">supprimé</span><span class="vers-leg-plus">ajouté</span>'
+    +'<span>'+esc(resume.length ? resume.join(', ') : 'Texte du corps inchangé')+'</span></div>';
+  h += champs + '<div class="vers-champ"><div class="vers-champ-nom">Texte</div>';
+  // Les longues suites de paragraphes inchangés sont repliées
+  var i = 0;
+  while(i < ops.length){
+    if(ops[i].t === '='){
+      var debut = i; while(i < ops.length && ops[i].t === '=') i++;
+      var suite = ops.slice(debut, i);
+      // On garde un paragraphe de contexte de chaque côté d'un changement
+      var avantN = debut === 0 ? 0 : 1, apresN = i === ops.length ? 0 : 1;
+      var cache = suite.length - avantN - apresN;
+      if(cache >= 2){
+        var garde = function(o){ return '<p class="vers-p vers-pareil">'+esc(o.b)+'</p>'; };
+        h += suite.slice(0, avantN).map(garde).join('')
+          +'<div class="vers-replie">'+cache+' paragraphes inchangés</div>'
+          +suite.slice(suite.length - apresN).map(garde).join('');
+      } else h += suite.map(function(o){ return '<p class="vers-p vers-pareil">'+esc(o.b)+'</p>'; }).join('');
+      continue;
+    }
+    var o = ops[i++];
+    if(o.t === '~') h += '<p class="vers-p vers-retouche">'+osDiffTexte(o.a, o.b)+'</p>';
+    else if(o.t === '+') h += '<p class="vers-p vers-ajout">'+esc(o.b)+'</p>';
+    else h += '<p class="vers-p vers-suppr">'+esc(o.a)+'</p>';
+  }
+  return h+'</div>';
 }
