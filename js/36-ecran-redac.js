@@ -61,7 +61,7 @@ function osEcranLancer(){
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
       +'<section class="ecr-col"><h2 id="ecr-titre-circuit"></h2><div id="ecr-circuit" class="ecr-liste"></div>'
-        +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
+        +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-nl-compte"></div><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-calendar-event"></i> Agenda</h2><div id="ecr-agenda" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-bulb"></i> Sujets ouverts</h2><div id="ecr-sujets" class="ecr-liste"></div>'
         +'<h2 class="ecr-h2-bas"><i class="ti ti-hourglass-high"></i> Réservés, pas encore commencés</h2><div id="ecr-reserves" class="ecr-liste"></div></section>'
@@ -195,27 +195,17 @@ function _ecranRendre(res){
   _ecranSujets(res[3].filter(function(s){ return s.statut === 'ouvert'; }));
 }
 
-// Garde dans chaque colonne ce qui tient à l'écran, sans couper ni chevaucher : les derniers
-// éléments qui débordent sont retirés et remplacés par « et N autres ». Sur téléphone, la
-// page défile : tout reste.
-function _ecranAjuster(z, total){
-  if(!z || window.innerWidth <= 900) return;
-  var plus = null;
-  var items = function(){ return z.querySelectorAll('.ecr-item'); };
-  var maj = function(){
-    var n = total - items().length;
-    if(n <= 0) return;
-    if(!plus){ plus = document.createElement('div'); plus.className = 'ecr-plus'; z.appendChild(plus); }
-    plus.textContent = 'et '+n+' autre'+(n > 1 ? 's' : '');
-  };
-  maj();
-  while(z.scrollHeight > z.clientHeight + 1 && items().length > 1){
-    var l = items(), dernier = l[l.length - 1], avant = dernier.previousElementSibling;
-    dernier.remove();
-    // Un jour de l'agenda qui n'a plus d'événement en dessous disparaît aussi
-    if(avant && avant.classList.contains('ecr-jour') && !(avant.nextElementSibling && avant.nextElementSibling.classList.contains('ecr-item'))) avant.remove();
-    maj();
-  }
+// Pose le contenu d'une liste. Tout est listé : si ça dépasse de la colonne, la liste défile
+// en continu à la verticale, comme un panneau de gare (voir _ecranDefiler). Rien n'est relancé
+// si le contenu et la taille de l'écran n'ont pas changé, pour ne pas faire sauter le défilement.
+function _ecranPoser(z, html, nb){
+  if(!z) return;
+  var sig = window.innerWidth+'x'+window.innerHeight+'|'+html;
+  if(z.dataset.sig === sig) return;
+  z.dataset.sig = sig;
+  z.style.flex = ''; z.style.height = '';
+  z.innerHTML = html;
+  _ecranDefiler(z, html, nb);
 }
 window.addEventListener('resize', function(){
   if(!_ecran || !_ecran.dernier) return;
@@ -289,7 +279,7 @@ function _ecranBloques(arts, publies, sujets){
 }
 
 function _ecranBloquesRendre(z, liste){
-  z.innerHTML = liste.slice(0, 20).map(function(b){
+  var html = liste.map(function(b){
     var a = b.a;
     var titre = b.prive ? 'Brouillon de '+esc(a.auteur || 'quelqu\'un') : esc(a.titre || 'Sans titre');
     return '<div class="ecr-item">'
@@ -298,7 +288,7 @@ function _ecranBloquesRendre(z, liste){
         +'<span>'+esc([b.prive ? '' : a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'
         +'<span class="ecr-vieux">'+(b.j <= 0 ? 'aujourd\'hui' : 'depuis '+b.j+' j')+'</span></div></div>';
   }).join('');
-  _ecranAjuster(z, liste.length);
+  _ecranPoser(z, html, liste.length);
 }
 
 // Le panneau alterne entre « À faire avancer » et « Bloqués » (s'il y en a)
@@ -337,8 +327,8 @@ function _ecranCircuit(arts){
   var liste = arts.filter(function(a){ return ECRAN_ETAPE[a.statut]; });
   var z = document.getElementById('ecr-circuit');
   if(!z) return;
-  if(!liste.length){ z.innerHTML = '<div class="ecr-vide">Rien en attente : tout avance !</div>'; return; }
-  z.innerHTML = liste.slice(0, 20).map(function(a){
+  if(!liste.length){ z.dataset.sig = ''; z.innerHTML = '<div class="ecr-vide">Rien en attente : tout avance !</div>'; return; }
+  var html = liste.map(function(a){
     var e = ECRAN_ETAPE[a.statut];
     var etape = (a.statut === 'valide' && !_ecranArticleEstCentral(a)) ? { l:'Attend la centrale', c:'violet' } : e;
     var vieux = (Date.now() - new Date(a.updated_at).getTime()) > 3 * 86400000;
@@ -349,7 +339,7 @@ function _ecranCircuit(arts){
         +'<span class="'+(vieux ? 'ecr-vieux' : '')+'">'+_ecranDepuis(a.updated_at)+'</span></div>'
       +'</div>';
   }).join('');
-  _ecranAjuster(z, liste.length);
+  _ecranPoser(z, html, liste.length);
 }
 
 // Ce qui partira dans la prochaine newsletter : bons à publier ou en ligne depuis le dernier envoi
@@ -364,13 +354,16 @@ function _ecranNewsletter(arts, envois){
     var depuis = dernier[a.redaction_id] || defaut;
     return new Date(a.publie_le || a.updated_at) >= depuis;
   });
-  if(!prets.length){ z.innerHTML = '<div class="ecr-vide">Rien de prêt pour le moment</div>'; return; }
+  var cptVide = document.getElementById('ecr-nl-compte'); if(cptVide) cptVide.innerHTML = '';
+  if(!prets.length){ z.dataset.sig = ''; z.innerHTML = '<div class="ecr-vide">Rien de prêt pour le moment</div>'; return; }
   var etape = function(a){ return a.statut === 'publie' ? '<span class="ecr-etape ecr-c-vert">En ligne</span>' : '<span class="ecr-etape ecr-c-vert">Bon à publier</span>'; };
-  z.innerHTML = '<div class="ecr-compte-nl">'+prets.length+' contenu'+(prets.length > 1 ? 's' : '')+' dans la prochaine newsletter</div>'
-    + prets.slice(0, 3).map(function(a){
+  var cpt = document.getElementById('ecr-nl-compte');
+  if(cpt) cpt.innerHTML = '<div class="ecr-compte-nl">'+prets.length+' contenu'+(prets.length > 1 ? 's' : '')+' dans la prochaine newsletter</div>';
+  var html = prets.map(function(a){
     return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+esc(a.titre||'Sans titre')+'</div>'
       +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'+etape(a)+'</div></div>';
   }).join('');
+  _ecranPoser(z, html, prets.length);
 }
 
 function _ecranAgenda(evs){
@@ -378,10 +371,10 @@ function _ecranAgenda(evs){
     .sort(function(a, b){ return new Date(a.date_debut) - new Date(b.date_debut); });
   var z = document.getElementById('ecr-agenda');
   if(!z) return;
-  if(!evs.length){ z.innerHTML = '<div class="ecr-vide">Rien de prévu cette semaine</div>'; return; }
+  if(!evs.length){ z.dataset.sig = ''; z.innerHTML = '<div class="ecr-vide">Rien de prévu cette semaine</div>'; return; }
   var auj = new Date(); auj.setHours(0,0,0,0);
   var jourPrec = null, h = '';
-  evs.slice(0, 20).forEach(function(ev){
+  evs.forEach(function(ev){
     var d = new Date(ev.date_debut);
     var j = new Date(d); j.setHours(0,0,0,0);
     var ecart = Math.round((j - auj) / 86400000);
@@ -395,8 +388,7 @@ function _ecranAgenda(evs){
       +(lieu ? '<div class="ecr-item-meta"><span><i class="ti ti-map-pin"></i> '+esc(lieu)+'</span></div>' : '')
       +'</div></div>';
   });
-  z.innerHTML = h;
-  _ecranAjuster(z, evs.length);
+  _ecranPoser(z, h, evs.length);
 }
 
 // Ce qui est annoncé mais pas encore commencé : sujet réservé, sans article ou avec un brouillon à peine entamé
@@ -412,29 +404,52 @@ function _ecranReserves(liste){
       +'<span>'+(x.etat === 'entame' ? 'brouillon à peine entamé' : 'pas encore d\u2019article')+'</span></div></div>';
   };
   var html = liste.map(item).join('');
-  if(z.dataset.sig === html) return;   // rien de changé : on laisse le défilement tourner sans le relancer
-  z.dataset.sig = html;
-  z.innerHTML = html;
-  _ecranDefiler(z, html, liste.length);
+  _ecranPoser(z, html, liste.length);
 }
 
-// Défilement vertical continu, comme un panneau de gare : tout est listé, la liste monte doucement et boucle.
-// Si tout tient dans la colonne, rien ne bouge. Sur téléphone la page défile, donc tout reste affiché.
+// Défilement par paliers, comme les marches d'un escalier : toutes les ECRAN_PALIER_MS la liste monte
+// d'un seul élément (un jour d'agenda monte avec son titre), puis boucle. Rien ne défile en continu,
+// pour que ce soit lisible sans devenir hypnotique. Si tout tient dans la colonne, rien ne bouge.
+// Sur téléphone la page défile : tout reste affiché.
+var ECRAN_PALIER_MS = 5000;
 function _ecranDefiler(z, html, nb){
+  if(z._palier){ clearInterval(z._palier); z._palier = null; }
   if(window.innerWidth <= 900 || z.scrollHeight <= z.clientHeight + 1) return;
-  z.innerHTML = '<div class="ecr-defile" style="animation-duration:'+Math.max(12, nb * 4)+'s;">'
-    +'<div class="ecr-defile-bloc">'+html+'</div><div class="ecr-defile-bloc" aria-hidden="true">'+html+'</div></div>';
+  // La fenêtre se cale sur des éléments entiers : pas de ligne coupée en deux au bas de la colonne
+  var haut = 0, zone = z.clientHeight, base0 = z.offsetTop;
+  Array.prototype.forEach.call(z.querySelectorAll('.ecr-item'), function(el){
+    var bas = el.offsetTop - base0 + el.offsetHeight;
+    if(bas <= zone) haut = bas;
+  });
+  if(haut > 0){ z.style.flex = 'none'; z.style.height = haut+'px'; }
+  z.innerHTML = '<div class="ecr-defile"><div class="ecr-defile-bloc">'+html+'</div><div class="ecr-defile-bloc" aria-hidden="true">'+html+'</div></div>';
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var piste = z.firstChild, blocs = piste.children;
+  // Début de chaque marche dans le premier bloc : un élément, ou le jour qui le précède
+  var marches = [], base = blocs[0].offsetTop;
+  Array.prototype.forEach.call(blocs[0].children, function(el){
+    if(el.classList.contains('ecr-item')) marches.push((el.previousElementSibling && el.previousElementSibling.classList.contains('ecr-jour') ? el.previousElementSibling : el).offsetTop - base);
+  });
+  marches.push(blocs[1].offsetTop - base);   // retour au début : le second bloc est identique au premier
+  var k = 0;
+  piste.addEventListener('transitionend', function(){
+    if(k === marches.length - 1){ k = 0; piste.style.transition = 'none'; piste.style.transform = 'translateY(0)'; void piste.offsetHeight; piste.style.transition = ''; }
+  });
+  z._palier = setInterval(function(){
+    if(!document.body.contains(z)){ clearInterval(z._palier); return; }
+    if(k < marches.length - 1){ k++; piste.style.transform = 'translateY(-'+marches[k]+'px)'; }
+  }, ECRAN_PALIER_MS);
 }
 
 function _ecranSujets(sujets){
   var z = document.getElementById('ecr-sujets');
   if(!z) return;
-  if(!sujets.length){ z.innerHTML = '<div class="ecr-vide">Aucun sujet libre pour l\'instant</div>'; return; }
+  if(!sujets.length){ z.dataset.sig = ''; z.innerHTML = '<div class="ecr-vide">Aucun sujet libre pour l\'instant</div>'; return; }
   var ordre = { urgente:0, normale:1, faible:2 };
   sujets = sujets.slice().sort(function(a, b){ return (ordre[a.priorite] == null ? 1 : ordre[a.priorite]) - (ordre[b.priorite] == null ? 1 : ordre[b.priorite]); });
-  z.innerHTML = sujets.slice(0, 20).map(function(s){
+  var html = sujets.map(function(s){
     return '<div class="ecr-item"><div class="ecr-item-titre">'+(s.priorite === 'urgente' ? '<span class="ecr-tag ecr-tag-urgent">Urgent</span>' : '')+esc(s.titre||s.sujet||'Sujet')+'</div>'
       +'<div class="ecr-item-meta"><span>'+esc(_ecranRedac(s.redaction_id))+'</span></div></div>';
   }).join('');
-  _ecranAjuster(z, sujets.length);
+  _ecranPoser(z, html, sujets.length);
 }
