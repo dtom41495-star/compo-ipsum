@@ -61,7 +61,7 @@ function osEcranLancer(){
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
       +'<section class="ecr-col"><h2><i class="ti ti-route"></i> À faire avancer</h2><div id="ecr-circuit" class="ecr-liste"></div>'
-        +'<h2 class="ecr-h2-bas"><i class="ti ti-world-upload"></i> Derniers en ligne</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
+        +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-calendar-event"></i> Agenda</h2><div id="ecr-agenda" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-bulb"></i> Sujets ouverts</h2><div id="ecr-sujets" class="ecr-liste"></div></section>'
     +'</main>'
@@ -156,12 +156,14 @@ function _ecranCharger(){
   var ilYaUneSemaine = new Date(maintenant.getTime() - 7 * 86400000);
   Promise.all([
     _ecranLire('articles?statut=neq.publie&select=id,titre,type,statut,auteur,redaction_id,updated_at&order=updated_at.asc&limit=500'),
-    _ecranLire('articles?statut=eq.publie&select=id,titre,type,auteur,redaction_id,updated_at&order=updated_at.desc&limit=6'),
+    // Candidats de la newsletter : bons à publier ou en ligne, comme dans l'appli Newsletter (filtrés ensuite depuis le dernier envoi de leur rédaction)
+    _ecranLire('articles?statut=in.(valide,publie)&updated_at=gte.'+encodeURIComponent(new Date(maintenant.getTime() - 30 * 86400000).toISOString())+'&select=id,titre,type,statut,auteur,redaction_id,updated_at,publie_le&order=updated_at.desc&limit=200'),
     _ecranLire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(ilYaUneSemaine.toISOString())+'&select=id'),
     _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=30'),
     _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30'),
     // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
-    _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; })
+    _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; }),
+    _ecranLire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=50').catch(function(){ return []; })
   ]).then(function(res){
     if(!_ecran) return;
     var premier = !_ecran.dernier;
@@ -182,7 +184,7 @@ function _ecranCharger(){
 function _ecranRendre(res){
   _ecranCompteurs(res[0], res[2].length);
   _ecranPresence(_ecranNbConnectes(res[5]));
-  _ecranEnLigne(res[1]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
+  _ecranNewsletter(res[1], res[6]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranCircuit(res[0]);
   _ecranAgenda(res[3]);
   _ecranSujets(res[4]);
@@ -275,13 +277,24 @@ function _ecranCircuit(arts){
   _ecranAjuster(z, liste.length);
 }
 
-function _ecranEnLigne(arts){
+// Ce qui partira dans la prochaine newsletter : bons à publier ou en ligne depuis le dernier envoi
+// de la rédaction (7 jours s'il n'y en a jamais eu), comme dans l'appli Newsletter.
+function _ecranNewsletter(arts, envois){
   var z = document.getElementById('ecr-en-ligne');
   if(!z) return;
-  if(!arts.length){ z.innerHTML = '<div class="ecr-vide">Pas encore d\'article en ligne</div>'; return; }
-  z.innerHTML = arts.slice(0, 3).map(function(a){
+  var dernier = {};
+  (envois || []).forEach(function(e){ if(e.redaction_id && !dernier[e.redaction_id]) dernier[e.redaction_id] = new Date(e.date_envoi); });
+  var defaut = new Date(Date.now() - 7 * 86400000);
+  var prets = (arts || []).filter(function(a){
+    var depuis = dernier[a.redaction_id] || defaut;
+    return new Date(a.publie_le || a.updated_at) >= depuis;
+  });
+  if(!prets.length){ z.innerHTML = '<div class="ecr-vide">Rien de prêt pour le moment</div>'; return; }
+  var etape = function(a){ return a.statut === 'publie' ? '<span class="ecr-etape ecr-c-vert">En ligne</span>' : '<span class="ecr-etape ecr-c-vert">Bon à publier</span>'; };
+  z.innerHTML = '<div class="ecr-compte-nl">'+prets.length+' contenu'+(prets.length > 1 ? 's' : '')+' dans la prochaine newsletter</div>'
+    + prets.slice(0, 3).map(function(a){
     return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+esc(a.titre||'Sans titre')+'</div>'
-      +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span><span>'+_ecranDepuis(a.updated_at).replace('depuis ', 'il y a ')+'</span></div></div>';
+      +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'+etape(a)+'</div></div>';
   }).join('');
 }
 
