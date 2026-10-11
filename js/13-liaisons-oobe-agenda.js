@@ -2326,94 +2326,11 @@ function osAgendaCreditHeuresAuto(){
     });
   }).catch(function(){});
 
-  // Créditer aussi les invitations presse dont le membre est sélectionné
+  // Invitations presse terminées : la personne retenue déclare ses heures (plus d'heure créditée d'office)
   osInvitationPresseCrediterHeures();
 }
 
-function osInvitationPresseCrediterHeures(){
-  var maintenant = new Date().toISOString();
-  var uid = getUserId();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-
-  // Invitations presse passées où le membre est sélectionné
-  fetch(SB_URL+'/rest/v1/invitations_disponibilites?membre_id=eq.'+uid+'&statut=eq.selectionne&select=id,communique_id',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(dispos){
-    if(!dispos||dispos.code||!dispos.length) return;
-    var cpIds = dispos.map(function(d){return d.communique_id;});
-    // Récupérer les communiqués avec date_evenement passée
-    fetch(SB_URL+'/rest/v1/communiques?id=in.('+cpIds.join(',')+')'+'&type=eq.invitation_presse&date_evenement=lt.'+encodeURIComponent(maintenant)+'&select=id,titre,date_evenement,lieu_evenement',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(cps){
-      if(!cps||cps.code||!cps.length) return;
-
-      // Vérifier quelles heures ont déjà été créditées (reference_id = disp.id)
-      var dispIds = dispos.map(function(d){return d.id;});
-      fetch(SB_URL+'/rest/v1/heures_benevolat?reference_id=in.('+dispIds.join(',')+')'+'&select=reference_id',{headers:authH})
-      .then(function(r){return r.json();})
-      .then(function(dejaCreditees){
-        var dejaIds = (dejaCreditees&&!dejaCreditees.code) ? dejaCreditees.map(function(h){return h.reference_id;}) : [];
-
-        cps.forEach(function(cp){
-          var disp = dispos.find(function(d){return d.communique_id===cp.id;});
-          if(!disp || dejaIds.indexOf(disp.id)!==-1) return;
-
-          // Créditer 1h par défaut (durée non connue pour les CPs)
-          fetch(SB_URL+'/rest/v1/heures_benevolat',{
-            method:'POST', headers:authHPost,
-            body:JSON.stringify({
-              membre_id:uid, type:'invitation_presse', duree_minutes:60,
-              reference_id:disp.id,
-              description:'Couverture : '+esc(cp.titre||'')
-            })
-          }).catch(function(){});
-
-          // Créer une entrée agenda privée si elle n'existe pas
-          var dateEv = cp.date_evenement;
-          if(dateEv){
-            var fin = new Date(new Date(dateEv).getTime() + 3600000).toISOString();
-            // Vérifier si déjà un event lié
-            fetch(SB_URL+'/rest/v1/agenda_evenements?titre=eq.'+encodeURIComponent('📰 '+cp.titre)+'&created_by_cp=eq.'+encodeURIComponent(cp.id)+'&select=id',{headers:authH})
-            .then(function(r){return r.json();})
-            .then(function(existants){
-              if(existants&&existants.length) return; // déjà créé
-              // Créer l'événement agenda privé
-              fetch(SB_URL+'/rest/v1/agenda_evenements',{
-                method:'POST',
-                headers:Object.assign({},authHPost,{'Prefer':'return=representation'}),
-                body:JSON.stringify({
-                  titre:'📰 '+esc(cp.titre||''),
-                  type:'reportage',
-                  date_debut:dateEv,
-                  date_fin:fin,
-                  lieu:cp.lieu_evenement||null,
-                  statut:'publie',
-                  organisateur:'Ipsum Média',
-                  description:'Couverture de cette invitation presse',
-                  created_by_cp:cp.id,
-                  // Cibler uniquement ce membre
-                  cible_roles:[], cible_fonctions:[], places_max:1, validation_admin:false
-                })
-              })
-              .then(function(r){return r.json();})
-              .then(function(evData){
-                if(!evData||evData.code) return;
-                var newEv = Array.isArray(evData)?evData[0]:evData;
-                if(!newEv||!newEv.id) return;
-                // Inscrire le membre directement
-                fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
-                  method:'POST', headers:authHPost,
-                  body:JSON.stringify({evenement_id:newEv.id, membre_id:uid, statut:'confirme'})
-                }).catch(function(){});
-              }).catch(function(){});
-            }).catch(function(){});
-          }
-        });
-      });
-    });
-  }).catch(function(){});
-}
+// osInvitationPresseCrediterHeures() : voir js/38-invitations-heures.js (la personne déclare ses heures)
 
 function osAgendaEnvoyerNotif(evId, titre, btnEl){
   var envoyerMail = (document.getElementById('ag-notif-email')||{}).checked !== false;

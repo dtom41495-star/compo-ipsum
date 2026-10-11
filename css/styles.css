@@ -5518,3 +5518,24 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .vers-ajout { background: #ECFDF5; border-left-color: #10B981; color: #065F46; }
 .vers-suppr { background: #FEF2F2; border-left-color: #EF4444; color: #991B1B; text-decoration: line-through; }
 .vers-replie { margin: 0 0 8px; padding: 3px 13px; font-size: 12px; font-style: italic; color: #A8A29E; }
+
+/* Heures des invitations presse (js/38) */
+.invh-boite { width: min(480px, 100%); }
+.invh-icone { background: #EDF2F7 !important; color: #1A5276 !important; }
+.invh-question { font-size: 14px; font-weight: 600; color: #292524; margin-bottom: 10px; }
+.invh-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.invh-chip { position: relative; min-width: 64px; padding: 9px 14px; border-radius: 10px; border: 1.5px solid #D6D3D1; background: #fff; color: #292524; font: 700 14px 'DM Sans', Arial, sans-serif; cursor: pointer; }
+.invh-chip small { display: block; font-size: 10px; font-weight: 600; color: #1A5276; margin-top: -1px; }
+.invh-chip:hover { border-color: #A8A29E; }
+.invh-chip.actif { border-color: #1E7A45; background: #E6F4EA; color: #155724; }
+.invh-libre { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #44403C; text-transform: none !important; letter-spacing: 0 !important; }
+.invh-saisie { background: #fff; width: 72px; padding: 6px 8px; border: 1px solid #D6D3D1; border-radius: 8px; font: 600 14px 'DM Sans', Arial, sans-serif; }
+.invh-aide { margin-top: 10px; font-size: 12px; line-height: 1.45; color: #78716C; }
+.invh-pied { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.relu-ok:disabled { opacity: .45; cursor: not-allowed; }
+.invh-ligne { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--gris-bord); flex-wrap: wrap; }
+.invh-nom { flex: 1; min-width: 90px; font-size: 0.8rem; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invh-etat { font: 600 0.62rem 'DM Sans', Arial, sans-serif; padding: 2px 8px; border-radius: 999px; background: var(--gris-clair); color: var(--gris); }
+.invh-etat.invh-fait { background: #E3F6EA; color: #1E7A45; }
+.invh-etat.invh-attente { background: #FFF6DB; color: #8A6400; }
+.invh-bouton { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--gris-bord); background: #fff; color: var(--encre); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; }

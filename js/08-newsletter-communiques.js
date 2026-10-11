@@ -277,6 +277,8 @@ function _cpsRemplirChampsType(cp){
   var dEv = document.getElementById('cps-date-evenement'); if(dEv) dEv.value = _cpsVersDatetimeLocal(cp.date_evenement);
   var lieu = document.getElementById('cps-lieu-evenement'); if(lieu) lieu.value = cp.lieu_evenement || '';
   var places = document.getElementById('cps-places-max'); if(places) places.value = cp.places_max || '';
+  var dureePrevue = document.getElementById('cps-duree-prevue'); if(dureePrevue) dureePrevue.value = cp.duree_prevue_minutes ? cp.duree_prevue_minutes / 60 : '';
+  window._cpsDureePrevueConnue = ('duree_prevue_minutes' in cp);   // la colonne n'existe qu'une fois le SQL passé
   var dRep = document.getElementById('cps-date-reponse'); if(dRep) dRep.value = cp.date_reponse ? String(cp.date_reponse).slice(0,10) : '';
   var req = document.getElementById('cps-reponse-requise'); if(req) req.checked = !!cp.reponse_requise;
   cpsToggleInvitationFields(type);
@@ -854,6 +856,7 @@ function _cpInvitRendreFiche(cp, conteneur){
 
 function _cpInvitCouvertureHTML(cp, dispos, membres, gerer, sujet){
   var e = _cpInvitEtat(cp, dispos);
+  if(typeof _invHeuresRegistrer === 'function') _invHeuresRegistrer(cp, dispos, membres);
   var BTN = 'display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;';
   var BTN_SEC = BTN+'border:1px solid var(--gris-bord);background:white;color:var(--encre);text-decoration:none;';
   var BTN_DANGER = BTN+'border:1px solid #F1C2C2;background:white;color:#A32D2D;';
@@ -888,8 +891,11 @@ function _cpInvitCouvertureHTML(cp, dispos, membres, gerer, sujet){
     var st = e.moi && e.moi.statut;
     if(st === 'selectionne'){
       var lienAg = _cpInvitLienAgenda(cp);
-      h += bloc('#E3F6EA', '#1E7A45', 'circle-check', 'C\'est toi qui couvres', 'Tu as été choisi·e pour y aller.',
-        (lienAg && !e.passe ? '<a href="'+esc(lienAg)+'" target="_blank" rel="noopener" style="'+BTN_SEC+'"><i class="ti ti-calendar-plus"></i> Ajouter à mon agenda</a>' : '')
+      var hr = (typeof _invHeuresResume === 'function' && _invTerminee(cp)) ? _invHeuresResume(e.moi) : null;
+      var sousMoi = 'Tu as été choisi·e pour y aller.'+(hr && hr.cle !== 'attente' ? ' Heures : '+esc(hr.texte)+'.' : '');
+      h += bloc('#E3F6EA', '#1E7A45', 'circle-check', 'C\'est toi qui couvres', sousMoi,
+        (hr && hr.cle === 'attente' ? '<button data-id="'+esc(e.moi.id)+'" onclick="invHeuresDeclarerMoi(this.dataset.id)" style="'+BTN+'border:none;background:#1E7A45;color:white;"><i class="ti ti-clock-hour-4"></i> Déclarer mes heures</button>' : '')
+        +(lienAg && !e.passe ? '<a href="'+esc(lienAg)+'" target="_blank" rel="noopener" style="'+BTN_SEC+'"><i class="ti ti-calendar-plus"></i> Ajouter à mon agenda</a>' : '')
         +(!e.passe ? '<button data-id="'+esc(e.moi.id)+'" data-cp="'+cpIdAttr+'" onclick="cpsInvitationSeRetirer(this.dataset.id,this.dataset.cp,true)" style="'+BTN_DANGER+'">Je ne peux plus y aller</button>' : ''));
     } else if(st === 'disponible'){
       h += bloc('#FFF6DB', '#8A6400', 'hourglass', 'Tu es disponible', 'Les responsables choisiront qui y va. Tu seras prévenu·e dans tous les cas.',
@@ -964,6 +970,10 @@ function _cpInvitCouvertureHTML(cp, dispos, membres, gerer, sujet){
         +'<button data-cp="'+cpIdAttr+'" onclick="cpsInvitationCreerSujet(this.dataset.cp,this)" style="'+BTN_SEC+'"><i class="ti ti-pin"></i> Créer un sujet</button>';
     }
     h += '</div>';
+  }
+  // Heures de la couverture : admin, vie asso, rédac chef de la rédaction
+  if(typeof _invHeuresBloc === 'function'){
+    h += _invHeuresBloc(cp, dispos, membres, gerer || getUserRole() === 'admin' || getUserHasFonction('vie_asso'));
   }
   return h;
 }
@@ -1914,6 +1924,7 @@ function cpsAdminSauvegarder(statut){
   var dateEv = (document.getElementById('cps-date-evenement')||{}).value||'';
   var lieuEv = (document.getElementById('cps-lieu-evenement')||{}).value||'';
   var placesMax = (document.getElementById('cps-places-max')||{}).value||'';
+  var dureePrevue = (document.getElementById('cps-duree-prevue')||{}).value||'';
   var dateRep = (document.getElementById('cps-date-reponse')||{}).value||'';
   var repReq = !!(document.getElementById('cps-reponse-requise')||{}).checked;
 
@@ -1963,6 +1974,10 @@ function cpsAdminSauvegarder(statut){
     payload.id = cpId;
     payload.created_by = getUserId();
   }
+  // Durée prévue : seulement si la colonne existe (SQL passé) ou si une valeur est saisie
+  if(!window._cpsSansDuree && (dureePrevue !== '' || window._cpsDureePrevueConnue)){
+    payload.duree_prevue_minutes = dureePrevue !== '' ? Math.min(240, Math.max(30, Math.round(parseFloat(String(dureePrevue).replace(',', '.')) * 60))) : null;
+  }
 
   var url = isNew
     ? SB_URL+'/rest/v1/communiques'
@@ -1979,7 +1994,18 @@ function cpsAdminSauvegarder(statut){
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    if(data && data.code){ if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); notif('Erreur : '+(data.message||data.code)); return; }
+    if(data && data.code){
+      if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      // Colonne « durée prévue » pas encore ajoutée dans la base : on enregistre le reste
+      if(payload.duree_prevue_minutes !== undefined && /duree_prevue_minutes/.test(data.message||'')){
+        window._cpsSansDuree = true;
+        notif('Durée prévue ignorée : lance d\'abord le SQL « invitation-heures » dans Supabase.');
+        cpsAdminSauvegarder(statut);
+        return;
+      }
+      notif('Erreur : '+(data.message||data.code)); return;
+    }
+    window._cpsSansDuree = false;
     var cp = Array.isArray(data) ? data[0] : data;
 
     // Le CP existe désormais en base (nécessaire avant d'y rattacher des fichiers — clé
