@@ -37,7 +37,8 @@ function _regCle(d){
 function osRegulariteCalculer(membre, arts){
   var gels = membre && window._gelsSerie ? window._gelsSerie[membre.id] : null;
   var debutCourant = _regDebutSemaine(new Date());
-  var arrivee = membre && membre.created_at ? new Date(membre.created_at) : null;
+  // Arrivée : rattachement à une rédaction si connu (anciens : création du compte, via le SQL), sinon création du compte
+  var arrivee = membre && window._rattacheLe && window._rattacheLe[membre.id] ? window._rattacheLe[membre.id] : (membre && membre.created_at ? new Date(membre.created_at) : null);
   var publis = (arts || []).filter(function(a){ return a.statut === 'publie'; }).map(function(a){
     return { date:_regDatePub(a), breve:a.type === 'breve' };
   }).filter(function(p){ return p.date; });
@@ -137,7 +138,8 @@ function osRegulariteFicheHtml(s){
 // Onglet « Régularité » de Bénévoles : tous les membres sur les dernières semaines
 var _regInclureInactifs = false;
 function osRegulariteRendreOnglet(div, stats){
-  var liste = (stats || []).filter(function(s){ return s.reg && (_regInclureInactifs || !s.inactif); });
+  // Pas de rédaction = pas de série à tenir (vie asso, com, ou membre pas encore rattaché) : hors tableau
+  var liste = (stats || []).filter(function(s){ return s.reg && !s.sansRedaction && !s.sansRedactionVoulu && (_regInclureInactifs || !s.inactif); });
   liste.sort(function(a, b){
     var pa = (a.reg.serie*10 + a.reg.manquesBreve*2 + (a.reg.alerteArticle ? 1 : 0)), pb = (b.reg.serie*10 + b.reg.manquesBreve*2 + (b.reg.alerteArticle ? 1 : 0));
     return pb - pa || ((a.membre.prenom||'').localeCompare(b.membre.prenom||'', 'fr'));

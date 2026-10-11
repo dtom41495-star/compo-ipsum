@@ -231,7 +231,8 @@ function osBenevolesDashRender(){
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    // rattache_le : date d'arrivée dans la rédaction (SQL date-rattachement) ; sans lui on retombe sur la liste simple
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,rattache_le',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r2){return r2.json();});}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     // Semaines gelées (table créée par le SQL des gels : sans elle, la liste reste vide)
@@ -242,6 +243,8 @@ function osBenevolesDashRender(){
     var articles=(!results[1]||results[1].code)?[]:results[1];
     var membresRedacsRows=(!results[2]||results[2].code)?[]:results[2];
     var membresAvecRedac={}; membresRedacsRows.forEach(function(row){ membresAvecRedac[row.membre_id]=true; });
+    // Arrivée dans le système d'écriture = premier rattachement à une rédaction (une série par personne, toutes rédactions confondues)
+    window._rattacheLe={}; membresRedacsRows.forEach(function(row){ if(!row.rattache_le) return; var d=new Date(row.rattache_le); if(!window._rattacheLe[row.membre_id]||d<window._rattacheLe[row.membre_id]) window._rattacheLe[row.membre_id]=d; });
     var commandesValidees=(!results[3]||results[3].code)?[]:results[3];
     var boutiqueArticles=(!results[4]||results[4].code)?[]:results[4];
     var gelsRows=Array.isArray(results[5])?results[5]:[];
@@ -366,7 +369,7 @@ function osBenevolesDashRender(){
       sh+='<div style="display:flex;align-items:center;gap:0.55rem;">';
       sh+='<div style="position:relative;flex-shrink:0;">'+renderAvatarHTML(m,32,{})+'<span data-presence-id="'+m.id+'" style="position:absolute;bottom:-1px;right:-1px;display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(osEstEnLigne(m.id)?'#27AE60':'#888')+';border:1.5px solid white;" title="'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'"></span></div>';
       sh+='<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+nomAff+'</div>'
-        +((isVieAsso && s.reg && (s.reg.alerteBreve||s.reg.alerteArticle) && !s.inactif)?'<span title="'+esc([(typeof _regTexteBreve==='function'?_regTexteBreve(s.reg):''),(typeof _regTexteArticle==='function'?_regTexteArticle(s.reg):'')].filter(Boolean).join(' · '))+'" style="font-size:0.9rem;flex-shrink:0;color:'+((s.reg.alerteBreve==='rouge'||s.reg.alerteArticle==='rouge')?'#A32D2D':'#B45309')+';display:flex;"><i class="ti ti-alert-triangle"></i></span>':'')
+        +((isVieAsso && s.reg && !s.sansRedaction && !s.sansRedactionVoulu && (s.reg.alerteBreve||s.reg.alerteArticle) && !s.inactif)?'<span title="'+esc([(typeof _regTexteBreve==='function'?_regTexteBreve(s.reg):''),(typeof _regTexteArticle==='function'?_regTexteArticle(s.reg):'')].filter(Boolean).join(' · '))+'" style="font-size:0.9rem;flex-shrink:0;color:'+((s.reg.alerteBreve==='rouge'||s.reg.alerteArticle==='rouge')?'#A32D2D':'#B45309')+';display:flex;"><i class="ti ti-alert-triangle"></i></span>':'')
         +(s.total===0?'<span title="N\'a encore écrit aucun article ni brève" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-file-off"></i></span>':'')
         +(s.sansRedaction?'<span title="N\'est rattaché·e à aucune rédaction" style="font-size:0.9rem;flex-shrink:0;color:#B91C1C;display:flex;"><i class="ti ti-unlink"></i></span>':'')
         +(s.recompenses.length?'<span title="Récompense(s) : '+esc(s.recompenses.join(', '))+'" style="font-size:0.9rem;flex-shrink:0;color:#B45309;display:flex;"><i class="ti ti-award"></i></span>':'')
