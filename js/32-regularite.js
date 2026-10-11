@@ -137,7 +137,8 @@ function osRegulariteFicheHtml(s){
 // Onglet « Régularité » de Bénévoles : tous les membres sur les dernières semaines
 var _regInclureInactifs = false;
 function osRegulariteRendreOnglet(div, stats){
-  var liste = (stats || []).filter(function(s){ return s.reg && (_regInclureInactifs || !s.inactif); });
+  // Pas de rédaction = pas de série à tenir (vie asso, com, ou membre pas encore rattaché) : hors tableau
+  var liste = (stats || []).filter(function(s){ return s.reg && !s.sansRedaction && !s.sansRedactionVoulu && (_regInclureInactifs || !s.inactif); });
   liste.sort(function(a, b){
     var pa = (a.reg.serie*10 + a.reg.manquesBreve*2 + (a.reg.alerteArticle ? 1 : 0)), pb = (b.reg.serie*10 + b.reg.manquesBreve*2 + (b.reg.alerteArticle ? 1 : 0));
     return pb - pa || ((a.membre.prenom||'').localeCompare(b.membre.prenom||'', 'fr'));
