@@ -1495,7 +1495,6 @@ function osAgendaOuvrirDetail(ev){
   html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-link"></i> Copier le lien</button>';
   if(isAdmin && !isAnnule){
     html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-pencil"></i> Modifier</button>';
-    html += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',null)" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Ordre de mission</button>';
     html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" title="Annuler l\'événement" style="'+BTN_DANGER+'"><i class="ti ti-ban"></i> Annuler</button>';
     html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" title="Supprimer définitivement" style="'+BTN_DANGER+'"><i class="ti ti-trash"></i></button>';
   }
@@ -2587,16 +2586,26 @@ function osAgendaOrdreMission(evId, membreId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = membreId || getUserId();
 
-  // Charger les infos du membre
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=prenom,nom,role,email,fonction',{headers:authH})
+  // Un ordre de mission n'existe que pour une inscription confirmée, même pour un admin
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id',{headers:authH})
   .then(function(r){return r.json();})
+  .then(function(ins){
+    if(!Array.isArray(ins) || !ins.length){
+      try{ win.close(); }catch(e){}
+      notif('Pas d\'ordre de mission : cette personne n\'est pas inscrite à l\'événement (inscription confirmée).','alerte');
+      return null;
+    }
+    // Charger les infos du membre
+    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=prenom,nom,role,email,fonction',{headers:authH}).then(function(r){return r.json();});
+  })
   .then(function(data){
+    if(data===null) return;
     var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
     _osGenererOrdreMission(ev, m, win);
   }).catch(function(){
-    // Fallback avec les données locales
-    var mLocal = (_membresData||[]).find(function(x){return x.id===uid;}) || {prenom:getUserPrenom(),nom:'',role:getUserRole(),email:'',fonction:[]};
-    _osGenererOrdreMission(ev, mLocal, win);
+    // Sans vérification de l'inscription, pas de document
+    try{ win.close(); }catch(e){}
+    notif('Impossible de vérifier l\'inscription pour le moment, réessaie.','erreur');
   });
 }
 
