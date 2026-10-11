@@ -5314,12 +5314,14 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 #ecr-deux-points { display: inline-block; margin: 0 .04em; }
 #ecr-horloge { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(2rem, 6vh, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
 #ecr-date { color: var(--ecr-doux); font-size: clamp(.85rem, 1.9vh, 1.3rem); margin-top: 4px; }
-.ecr-compteurs { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 1.2vw, 18px); }
+.ecr-compteurs { display: grid; grid-template-columns: repeat(6, 1fr); gap: clamp(8px, 1.2vw, 18px); }
 .ecr-compteur { background: var(--ecr-carte); border: 1px solid var(--ecr-bord); border-top: 4px solid var(--ecr-c, var(--ecr-gris)); border-radius: 14px; padding: clamp(8px, 1.6vh, 20px) clamp(10px, 1.2vw, 20px); }
 .ecr-compteur-v { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(1.8rem, 6vh, 4.4rem); line-height: 1; color: var(--ecr-c, var(--ecr-texte)); font-variant-numeric: tabular-nums; }
 .ecr-compteur-l { margin-top: 6px; color: var(--ecr-doux); font-size: clamp(.75rem, 1.7vh, 1.15rem); }
 .ecr-c-gris { --ecr-c: var(--ecr-gris); } .ecr-c-bleu { --ecr-c: var(--ecr-bleu); } .ecr-c-cyan { --ecr-c: var(--ecr-cyan); }
-.ecr-c-vert { --ecr-c: var(--ecr-vert); } .ecr-c-violet { --ecr-c: var(--ecr-violet); } .ecr-c-rouge { --ecr-c: var(--ecr-rouge); }
+.ecr-c-vert { --ecr-c: var(--ecr-vert); } .ecr-c-violet { --ecr-c: var(--ecr-violet); } .ecr-c-rouge { --ecr-c: var(--ecr-rouge); } .ecr-c-orange { --ecr-c: #F2B24E; }
+.ecr-points { margin-left: auto; display: inline-flex; gap: 6px; } .ecr-point { width: 9px; height: 9px; border-radius: 50%; background: var(--ecr-bord); display: inline-block; } .ecr-point.on { background: var(--ecr-rouge); }
+.ecr-compte-h { background: var(--ecr-rouge); color: #12121C; border-radius: 999px; padding: 0 .55em; font-size: .8em; line-height: 1.5; }
 .ecr-grille { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: clamp(10px, 1.4vw, 22px); }
 .ecr-col { background: var(--ecr-carte); border: 1px solid var(--ecr-bord); border-radius: 16px; padding: clamp(12px, 2vh, 24px); min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .ecr-col h2 { margin: 0 0 clamp(6px, 1.2vh, 14px); font-family: Poppins, sans-serif; font-size: clamp(1rem, 2.3vh, 1.6rem); font-weight: 700; display: flex; align-items: center; gap: 10px; }
