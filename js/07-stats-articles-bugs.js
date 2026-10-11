@@ -1852,6 +1852,7 @@ function bugEnvoyer(message, stack, source){
   setTimeout(function(){ _bugCooldown = false; }, 5000);
 
   var rapport = {
+    type: 'js',
     message: (message||'Erreur inconnue').substring(0, 500),
     stack: (stack||'').substring(0, 2000),
     url: window.location.href.substring(0,200),
@@ -1862,17 +1863,7 @@ function bugEnvoyer(message, stack, source){
     user_agent: navigator.userAgent.substring(0,200)
   };
 
-  // Envoyer en base
-  if(_session && _session.access_token){
-    fetch(SB_URL+'/rest/v1/bug_reports', {
-      method: 'POST',
-      headers: Object.assign({}, SB_HEADERS, {
-        'Authorization': 'Bearer '+_session.access_token,
-        'Prefer': 'return=minimal'
-      }),
-      body: JSON.stringify(rapport)
-    }).catch(function(){});
-  }
+  _bugPoster(rapport);   // js/45 : envoi, repli sans les nouvelles colonnes, file d'attente hors ligne
 
   var critique = _bugEstCritique();
   if(critique) _bugAlerterAdminCritique(rapport);
@@ -1981,6 +1972,8 @@ window.addEventListener('error', function(e){
 window.addEventListener('unhandledrejection', function(e){
   var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Promise rejetee';
   var stack = e.reason && e.reason.stack ? e.reason.stack : '';
+  // Une requête qui échoue faute de réseau est déjà signalée (en silence) par js/45 : pas de fenêtre d'erreur pour ça
+  if(/Failed to fetch|NetworkError|Load failed|Network request failed/i.test(msg)) return;
   bugEnvoyer(msg, stack, 'promise');
 });
 
@@ -1990,45 +1983,7 @@ function osOuvrirBugs(){
   else { osOpenWindow('bugs'); }
 }
 
-function osBugsRender(){
-  var wc = document.getElementById('wincontent-bugs');
-  if(!wc) return;
-  wc.innerHTML = '<div style="padding:1.2rem;"><div class="panel-title"><i class="ti ti-bug"></i> Rapports de bugs</div><div class="panel-subtitle" style="margin-bottom:1rem;">Erreurs détectées automatiquement</div><div id="bugs-list" style="font-family:Space Mono,monospace;font-size:0.75rem;"></div></div>';
-
-  fetch(SB_URL+'/rest/v1/bug_reports?order=created_at.desc&limit=50&select=*', {
-    headers: Object.assign({}, SB_HEADERS, {
-      'Authorization': 'Bearer '+(_session&&_session.access_token||'')
-    })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(bugs){
-    var list = document.getElementById('bugs-list');
-    if(!list) return;
-    if(!bugs || bugs.code || !bugs.length){
-      list.innerHTML = '<div style="color:var(--gris);padding:2rem;text-align:center;"><i class="ti ti-circle-check"></i> Aucun bug signalé</div>';
-      return;
-    }
-    list.innerHTML = '';
-    bugs.forEach(function(b){
-      var card = document.createElement('div');
-      card.style.cssText = 'background:white;border:1px solid var(--gris-bord);border-radius:6px;padding:0.8rem;margin-bottom:0.6rem;';
-      var date = b.created_at ? new Date(b.created_at).toLocaleString('fr-FR') : '';
-      card.innerHTML =
-        '<div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">'+
-          '<span style="font-weight:700;color:var(--encre);font-size:0.78rem;">'+esc(b.message||'')+'</span>'+
-          '<span style="color:var(--gris);font-size:0.62rem;">'+date+'</span>'+
-        '</div>'+
-        '<div style="color:var(--gris);font-size:0.62rem;margin-bottom:0.3rem;">'+
-          '<i class="ti ti-user"></i> '+(b.user_nom||'Inconnu')+' · '+esc(b.user_role||'')+' · '+(b.page||'')+
-        '</div>'+
-        (b.stack ? '<details style="margin-top:0.4rem;"><summary style="color:var(--rouge);cursor:pointer;font-size:0.62rem;">Stack trace</summary><pre style="font-size:0.6rem;overflow-x:auto;color:var(--gris);white-space:pre-wrap;margin-top:0.3rem;">'+esc(b.stack.substring(0,500))+'</pre></details>' : '');
-      list.appendChild(card);
-    });
-  }).catch(function(){
-    var list = document.getElementById('bugs-list');
-    if(list) list.innerHTML = '<div style="color:var(--gris);padding:2rem;text-align:center;">Erreur de chargement</div>';
-  });
-}
+// osBugsRender : voir js/45-signalement-bugs.js
 
 
 // ===== APP SUBSTACK (derniers articles publiés) =====

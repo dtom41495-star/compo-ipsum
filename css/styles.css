@@ -5715,3 +5715,17 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .sc-choix:hover { background: var(--gris-clair); }
 .sc-choix b { font-size: .85rem; color: var(--encre); }
 .sc-choix small { font-size: .66rem; color: var(--gris); }
+/* ===== Signalements : filtres et cartes ===== */
+.bug-filtres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: .8rem; }
+.bug-filtre { font-family: 'Space Mono', monospace; font-size: .66rem; padding: 4px 10px; border: .5px solid var(--gris-bord); border-radius: 999px; background: white; color: var(--gris); cursor: pointer; }
+.bug-filtre b { color: var(--encre); margin-left: 2px; }
+.bug-filtre.on { background: var(--encre); color: white; border-color: var(--encre); }
+.bug-filtre.on b { color: white; }
+.bug-carte { background: white; border: 1px solid var(--gris-bord); border-radius: 6px; padding: .8rem; margin-bottom: .6rem; }
+.bug-haut { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: .35rem; }
+.bug-type { color: white; font-size: .6rem; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.bug-msg { flex: 1; min-width: 160px; font-weight: 700; color: var(--encre); font-size: .78rem; word-break: break-word; }
+.bug-n { font-size: .66rem; color: var(--rouge); font-weight: 700; }
+.bug-date { color: var(--gris); font-size: .62rem; }
+.bug-meta { color: var(--gris); font-size: .62rem; margin-bottom: .2rem; }
+.bug-detail { color: var(--encre); font-size: .64rem; background: var(--gris-clair); border-radius: 4px; padding: 4px 7px; margin-top: .3rem; word-break: break-word; }
