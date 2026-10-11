@@ -85,7 +85,7 @@ function _mrCharger(){
     var inIds = ids.length ? ids.map(encodeURIComponent).join(',') : null;
     return Promise.all([
       inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,email,avatar_id,created_at,fonction') : Promise.resolve([]),
-      _mrLireTout('articles?redaction_id=eq.'+enc+'&select=id,titre,type,statut,auteur,auteur_id,urgence,updated_at,created_at,publie_le,correcteur,note_interne,sujet_id'),
+      _mrLireTout('articles?redaction_id=eq.'+enc+'&select=id,titre,type,statut,auteur,auteur_id,urgence,updated_at,created_at,publie_le,correcteur,correcteur_id,note_interne,sujet_id'),
       inIds ? _mrLire('agenda_inscriptions?membre_id=in.('+inIds+')&created_at=gte.'+encodeURIComponent(debutMois.toISOString())+'&select=membre_id,statut').catch(function(){ return []; }) : Promise.resolve([]),
       chef ? _mrLire('briefing?redaction_id=eq.'+enc+'&statut=eq.en_cours&select=*').catch(function(){ return []; }) : Promise.resolve([])
     ]).then(function(res){
@@ -136,14 +136,18 @@ function _mrAfficher(){
   var jeton = ++_mr.jeton;
   if(!_mr.donnees) racine.innerHTML = osLoadingHtml();
   _mrCharger().then(function(d){
+    // La vue Relecture a besoin des dates d'envoi et de relecture (colonnes facultatives), lues une fois
+    return (_redacSousOnglet === 'relecture' && _mrEstChef() && d.relecture === undefined) ? _mrChargerRelecture(d).then(function(){ return d; }) : d;
+  }).then(function(d){
     if(jeton !== _mr.jeton || !document.getElementById('mr-racine')) return;     // un affichage plus récent a pris le relais
     var chef = _mrEstChef();
     var sous = chef ? _redacSousOnglet : 'vue';
-    if(['vue', 'membres', 'edito', 'reglages'].indexOf(sous) === -1) sous = 'vue';
+    if(['vue', 'membres', 'edito', 'relecture', 'reglages'].indexOf(sous) === -1) sous = 'vue';
     var h = _mrBandeau(d);
     if(chef) h += _mrSousOnglets(sous);
     if(sous === 'membres') h += _mrMembres(d);
     else if(sous === 'edito') h += _mrEdito(d);
+    else if(sous === 'relecture') h += _mrRelecture(d);
     else if(sous === 'reglages') h += osRedacReglagesForm(d.redac);
     else h += _mrVue(d, chef);
     racine.innerHTML = h;
@@ -166,7 +170,7 @@ function _mrBandeau(d){
 function _mrSousOnglets(actif){
   var liste = [
     ['vue', 'Vue d’ensemble', 'layout-dashboard'], ['membres', 'Membres', 'users'],
-    ['edito', 'Suivi éditorial', 'clipboard-list'], ['reglages', 'Réglages', 'settings']
+    ['edito', 'Suivi éditorial', 'clipboard-list'], ['relecture', 'Relecture', 'eye-check'], ['reglages', 'Réglages', 'settings']
   ];
   return '<div class="mr-sous">'+liste.map(function(o){
     return '<button type="button" class="mr-sous-btn'+(actif === o[0] ? ' actif' : '')+'" data-act="sous" data-id="'+o[0]+'"><i class="ti ti-'+o[2]+'"></i>'+o[1]+'</button>';
@@ -322,6 +326,107 @@ function _mrEdito(d){
   return h+'</tbody></table></div></div>';
 }
 
+
+// ── Relecture : charge par correcteur et textes qui attendent (rédac chef, admin) ──
+
+// Dates d'envoi au SR et de relecture : colonnes facultatives (SQL du délai de relecture). Sans elles, null.
+function _mrChargerRelecture(d){
+  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
+  return _mrLire('articles?redaction_id=eq.'+encodeURIComponent(d.redac.id)+'&relu_le=gte.'+encodeURIComponent(debutMois.toISOString())+'&select=id,correcteur_id,envoye_sr_le,relu_le&limit=1000')
+    .then(function(l){ d.relecture = l; })
+    .catch(function(){ d.relecture = null; });
+}
+
+function _mrJours(iso){ return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+function _mrDuree(ms){
+  if(!isFinite(ms) || ms < 0) return '—';
+  var h = ms / 3600000;
+  if(h < 1) return Math.max(1, Math.round(ms / 60000))+' min';
+  return h < 48 ? Math.round(h)+' h' : Math.round(h / 24)+' j';
+}
+
+var MR_SEUIL_FILE = 3;   // jours : au-delà, un texte sans correcteur ou resté chez un SR est signalé
+
+function _mrRelecture(d){
+  var enRel = d.arts.filter(function(a){ return a.statut === 'en-relecture'; });
+  var sansSr = enRel.filter(function(a){ return !a.correcteur_id; }).sort(function(a, b){ return new Date(a.updated_at) - new Date(b.updated_at); });
+  var prises = enRel.filter(function(a){ return a.correcteur_id; });
+  var longues = sansSr.filter(function(a){ return _mrJours(a.updated_at) >= MR_SEUIL_FILE; });
+  var dorment = prises.filter(function(a){ return _mrJours(a.updated_at) >= MR_SEUIL_FILE; }).sort(function(a, b){ return new Date(a.updated_at) - new Date(b.updated_at); });
+  var rel = d.relecture;        // null : colonnes absentes ; undefined : jamais lu
+  var relusMois = rel ? rel.length : null;
+  var durees = (rel || []).filter(function(r){ return r.envoye_sr_le && r.relu_le; }).map(function(r){ return new Date(r.relu_le) - new Date(r.envoye_sr_le); });
+  var moy = function(l){ return l.length ? l.reduce(function(a, b){ return a + b; }, 0) / l.length : null; };
+
+  var h = '<div class="mr-tuiles">'
+    +_mrTuile(sansSr.length, 'Sans correcteur', sansSr.length ? '#1A5276' : 'var(--gris)')
+    +_mrTuile(longues.length, 'dont ≥ '+MR_SEUIL_FILE+' jours', longues.length ? '#C0392B' : 'var(--gris)')
+    +_mrTuile(prises.length, 'En relecture', '#0C5460')
+    +_mrTuile(relusMois === null ? '—' : relusMois, 'Relus ce mois', '#27AE60')
+    +_mrTuile(durees.length ? _mrDuree(moy(durees)) : '—', 'Délai moyen', 'var(--encre)')
+    +_mrTuile(dorment.length, 'Dorment chez un SR', dorment.length ? '#B45309' : 'var(--gris)')
+    +'</div>';
+
+  // Charge par correcteur
+  var sr = {};
+  d.membres.forEach(function(m){ if(m.roleRedac === 'correcteur' || m.role === 'correcteur') sr[m.id] = { id:m.id, nom:((m.prenom || '')+' '+(m.nom || '')).trim(), enCours:0, dort:0, relus:0, durees:[] }; });
+  prises.forEach(function(a){
+    if(!sr[a.correcteur_id]) sr[a.correcteur_id] = { id:a.correcteur_id, nom:a.correcteur || 'Correcteur·rice', enCours:0, dort:0, relus:0, durees:[] };
+    sr[a.correcteur_id].enCours++;
+    if(_mrJours(a.updated_at) >= MR_SEUIL_FILE) sr[a.correcteur_id].dort++;
+  });
+  (rel || []).forEach(function(r){
+    if(!r.correcteur_id) return;
+    if(!sr[r.correcteur_id]) return;
+    sr[r.correcteur_id].relus++;
+    if(r.envoye_sr_le && r.relu_le) sr[r.correcteur_id].durees.push(new Date(r.relu_le) - new Date(r.envoye_sr_le));
+  });
+  var lignes = Object.keys(sr).map(function(k){ return sr[k]; }).sort(function(a, b){ return (b.enCours - a.enCours) || a.nom.localeCompare(b.nom, 'fr'); });
+  h += '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-users"></i> Charge par correcteur</div>';
+  if(!lignes.length) h += '<div class="mr-vide">Aucun correcteur ni SR dans cette rédaction. Les textes envoyés au SR n’ont personne pour les prendre : ajoute un SR dans l’onglet Membres.</div>';
+  else {
+    h += '<table class="mr-table"><thead><tr><th>Correcteur·rice</th><th>En cours</th><th>Dorment</th><th>Relus ce mois</th><th>Délai moyen</th></tr></thead><tbody>';
+    lignes.forEach(function(l){
+      h += '<tr><td>'+esc(l.nom)+'</td><td class="mr-centre">'+l.enCours+'</td><td class="mr-centre'+(l.dort ? ' mr-rouge' : '')+'">'+l.dort+'</td>'
+        +'<td class="mr-centre">'+(rel === null ? '—' : l.relus)+'</td><td class="mr-centre">'+(l.durees.length ? _mrDuree(moy(l.durees)) : '—')+'</td></tr>';
+    });
+    h += '</tbody></table>';
+    if(rel === null) h += '<div class="mr-vide">Les « relus » et les délais apparaîtront quand les dates de relecture seront enregistrées par Compo.</div>';
+  }
+  h += '</div>';
+
+  // Sans correcteur
+  h += '<div class="mr-bloc"><div class="mr-membres-tete"><span class="mr-titre"><i class="ti ti-list-numbers"></i> Sans correcteur'+(sansSr.length ? ' <span class="mr-compte">'+sansSr.length+'</span>' : '')+'</span>'
+    +(longues.length ? '<button type="button" class="mr-btn" data-act="relancer-sr"><i class="ti ti-bell-ringing"></i> Relancer les SR</button>' : '')+'</div>';
+  if(!sansSr.length) h += '<div class="mr-vide">Aucun texte n’attend de correcteur. Tout est pris.</div>';
+  sansSr.forEach(function(a){
+    var j = _mrJours(a.updated_at);
+    h += '<div class="mr-ligne"><div class="mr-ligne-titre">'+esc(a.titre || 'Sans titre')+' <small>'+esc(a.auteur || '')+'</small></div>'
+      +'<span class="mr-depuis'+(j >= MR_SEUIL_FILE ? '' : ' mr-doux')+'">en attente depuis '+(j <= 0 ? 'moins d’un jour' : j+' j')+'</span></div>';
+  });
+  h += '</div>';
+
+  // Dorment chez un SR
+  if(dorment.length){
+    h += '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-clock-exclamation"></i> Dorment chez un SR <span class="mr-compte">'+dorment.length+'</span></div>';
+    dorment.forEach(function(a){
+      h += '<div class="mr-ligne"><div class="mr-ligne-titre">'+esc(a.titre || 'Sans titre')+' <small>'+esc(a.auteur || '')+'</small><div class="mr-cause">chez '+esc(a.correcteur || 'un·e correcteur·rice')+'</div></div>'
+        +'<span class="mr-depuis">depuis '+_mrJours(a.updated_at)+' j</span></div>';
+    });
+    h += '</div>';
+  }
+  return h;
+}
+
+// Remet les textes sans correcteur depuis trop longtemps sous les yeux des SR (même message que l'envoi au SR)
+function osMrRelancerSr(){
+  if(!osConfirmerPuis('Relancer les correcteur·rices ?\n\nChaque texte qui attend depuis '+MR_SEUIL_FILE+' jours ou plus est de nouveau annoncé aux SR (Chat ou mail, comme à l’envoi).', {oui:'Relancer'}, osMrRelancerSr, this, arguments)) return;
+  var d = _mr.donnees; if(!d) return;
+  var cibles = d.arts.filter(function(a){ return a.statut === 'en-relecture' && !a.correcteur_id && _mrJours(a.updated_at) >= MR_SEUIL_FILE; });
+  cibles.forEach(function(a){ if(typeof _srNotifierFile === 'function') _srNotifierFile(Object.assign({}, a, { redaction_id:d.redac.id, redaction:d.redac.nom }), true); });
+  notif(cibles.length+' texte'+(cibles.length > 1 ? 's' : '')+' re-annoncé'+(cibles.length > 1 ? 's' : '')+' aux SR', 'succes');
+}
+
 // ── Actions : un seul écouteur sur la racine ────────────────────
 
 function _mrBrancher(racine){
@@ -337,6 +442,7 @@ function _mrBrancher(racine){
     else if(act === 'ajouter') osRedacChefAjouterMembre(_mr.redacId);
     else if(act === 'retirer') osRedacChefRetirerMembre(el.dataset.mid, _mr.redacId);
     else if(act === 'filtre') _mrFiltrer(el.dataset.f);
+    else if(act === 'relancer-sr') osMrRelancerSr();
     else if(act === 'ouvrir') benvOuvrirArticle(el.dataset.id);
     else if(act === 'publier'){
       publierArticle(el.dataset.id);

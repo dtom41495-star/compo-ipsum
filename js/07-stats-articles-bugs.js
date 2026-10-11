@@ -1024,6 +1024,7 @@ function _maBrouillonsLocaux(){
 }
 
 var MA_VUES = {
+  'tableau-sr':         { icon:'ti-layout-dashboard', label:'Tableau de bord' },
   mes:                  { icon:'ti-file-text',    label:'Mes articles' },
   brouillons:           { icon:'ti-notebook',     label:'Mes brouillons' },
   secours:              { icon:'ti-device-floppy',label:'Non sauvegardés' },
@@ -1042,7 +1043,7 @@ var MA_VUES = {
 // précis avant que son rôle ne change (ex: passé rédacteur/communicant depuis) doit
 // quand même pouvoir retrouver l'onglet. window._aDesCorrectionsAssignees est vérifié
 // et mis à jour par osMesArticlesRender() avant le premier rendu du rail.
-var MA_VUES_COURTES = { brouillons:'Brouillons', tous:'Tous' };
+var MA_VUES_COURTES = { brouillons:'Brouillons', tous:'Tous', 'tableau-sr':'Tableau' };
 
 // « À valider » : articles relus par le SR, en attente du bon à publier. Pour les admins
 // (toutes rédactions) et les rédac chefs (leurs rédactions). null = toutes.
@@ -1109,6 +1110,8 @@ function _maPoserPastilleValider(){
 function _maVuesAutorisees(){
   var role = getUserRole();
   var ids = ['mes','brouillons'];
+  // Tableau de bord du SR (js/40-tableau-sr.js) : tout en haut du rail
+  if(typeof osTableauSrAutorise === 'function' && osTableauSrAutorise()) ids.unshift('tableau-sr');
   if(_maBrouillonsLocaux().length) ids.push('secours');
   if(role === 'correcteur' || role === 'admin' || window._aDesCorrectionsAssignees || (typeof _srVoitLaFile === 'function' && _srVoitLaFile())) ids.push('corriger');
   if(_maPeutValider()) ids.push('a-valider', 'a-publier');
@@ -1149,7 +1152,9 @@ function _maRailRender(){
       +'<i class="ti '+v.icon+'" style="font-size:'+(estSousItem?'0.85rem':'0.95rem')+';display:flex;flex-shrink:0;"></i>'+v.label+'</button>';
   }
 
-  var h = bouton('mes') + bouton('brouillons');
+  var h = '';
+  if(autorisees.indexOf('tableau-sr') !== -1) h += bouton('tableau-sr') + '<div style="height:0.5px;background:var(--gris-bord);margin:8px 4px;"></div>';
+  h += bouton('mes') + bouton('brouillons');
   // « Non sauvegardés » est un sous-élément de Mes brouillons — masqué tant qu'il n'y a
   // rien en local, pour ne pas afficher une entrée vide en permanence.
   if(autorisees.indexOf('secours') !== -1){
@@ -1251,6 +1256,12 @@ function osMesArticlesCharger(){
   // Brouillons locaux : rien à demander au serveur, ils n'y sont pas (c'est tout
   // l'intérêt de cette vue).
   if(_maOnglet === 'secours'){ _maCache = []; maOsFiltre(); return; }
+  // Tableau de bord du SR : sa propre vue (js/40-tableau-sr.js)
+  if(_maOnglet === 'tableau-sr' && typeof osTableauSrRendre === 'function'){
+    _maChargerPastilleValider(); _maChargerPastilleRelire(); _maChargerPastillePublier();
+    osTableauSrRendre();
+    return;
+  }
 
   _maChargerPastilleValider();
   _maChargerPastilleRelire();
@@ -1353,6 +1364,7 @@ function maOsFiltre(){
   var role   = getUserRole();
 
   if(_maOnglet === 'secours'){ _maRenderBrouillonsLocaux(list, count); return; }
+  if(_maOnglet === 'tableau-sr') return;   // le tableau de bord se dessine seul
 
   var arts = _maCache.slice();
   // Mes brouillons / Mes articles partagent la même requête (mes articles + ceux que je
