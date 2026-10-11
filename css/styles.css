@@ -5645,3 +5645,40 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .tsr-actions, .tsr-ligne > .mac-btn { width: 100%; }
   .tsr-actions .mac-btn { flex: 1; }
 }
+
+/* ===== Points de rigueur (js/41-rigueur-sr.js) ===== */
+.rig-panneau { display: none; position: absolute; top: 0; right: 0; height: 100%; width: min(940px, 96%); z-index: 50; flex-direction: column; background: #fff; border-left: 1px solid var(--gris-bord); box-shadow: -4px 0 24px rgba(0,0,0,.16); font-family: 'DM Sans', Arial, sans-serif; }
+.rig-entete { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--gris-bord); flex-shrink: 0; }
+.rig-titre { font: 700 15px Poppins, Arial, sans-serif; color: var(--encre); display: flex; gap: 8px; align-items: center; }
+.rig-entete-btns { display: flex; gap: 4px; }
+.rig-corps { flex: 1; overflow-y: auto; padding: 14px 16px 18px; }
+.rig-resume { display: flex; gap: 10px; align-items: flex-start; background: linear-gradient(135deg, #FFF6F2, #fff); border: 1px solid #F9D8CC; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.rig-resume > i { font-size: 20px; color: var(--rouge, #E8461E); margin-top: 2px; }
+.rig-resume-t { font: 700 14px Poppins, Arial, sans-serif; color: var(--encre); }
+.rig-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.rig-chip { font: 11px 'Space Mono', monospace; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.rig-c-ok { background: #E6F6EC; color: #136C39; } .rig-c-warn { background: #FFF1D6; color: #8A5300; }
+.rig-c-ko { background: #FDE7E8; color: #A21F24; } .rig-c-na { background: #F0F1F3; color: #6B7280; } .rig-c-info { background: #EAF1FF; color: #1F4FBF; }
+.rig-colonnes { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 18px; align-items: start; }
+.rig-texte { font-size: 15px; line-height: 1.8; color: #2b2b3a; }
+.rig-texte p { margin: 0 0 12px; }
+.rig-champ-titre { font: 700 19px/1.35 Poppins, Arial, sans-serif; color: var(--encre); } .rig-champ-chapeau { font-style: italic; color: #4b5060; }
+.rig-hl { cursor: pointer; border-bottom: 2px solid; border-radius: 2px; padding-bottom: 1px; }
+.rig-h-ko { border-color: #D93036; background: #FDE7E8; } .rig-h-warn { border-color: #D98200; background: #FFF1D6; } .rig-h-info { border-color: #437DFB; background: #EAF1FF; }
+.rig-hl sup { font: 700 10px 'Space Mono', monospace; margin-left: 2px; color: var(--encre); }
+.rig-notes { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; }
+.rig-note { border: 1px solid var(--gris-bord); border-left: 4px solid; border-radius: 10px; padding: 9px 11px; background: #fff; font-size: 12.5px; }
+.rig-n-ko { border-left-color: #D93036; } .rig-n-warn { border-left-color: #D98200; } .rig-n-info { border-left-color: #437DFB; } .rig-n-na { border-left-color: #9CA3AF; }
+.rig-flash { box-shadow: 0 0 0 3px rgba(232,70,30,.35); }
+.rig-note-t { display: flex; gap: 7px; align-items: center; font-weight: 700; font-size: 12.5px; margin-bottom: 3px; }
+.rig-note-d { color: #4b5060; line-height: 1.45; }
+.rig-note-b { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.rig-note-b button { font: 600 11px 'DM Sans', Arial, sans-serif; border: 1px solid var(--gris-bord); background: #fff; border-radius: 7px; padding: 3px 9px; cursor: pointer; color: var(--encre); }
+.rig-note-b button:hover { background: var(--gris-clair); }
+.rig-num { font: 700 11px 'Space Mono', monospace; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+.rig-bg-ko { background: #D93036; } .rig-bg-warn { background: #D98200; } .rig-bg-info { background: #437DFB; }
+.rig-vide { display: flex; gap: 8px; align-items: center; color: #136C39; background: #E6F6EC; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; }
+.rig-legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--gris); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--gris-bord); }
+.rig-legende span { display: inline-flex; gap: 5px; align-items: center; }
+.rig-pt { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+@media (max-width: 768px) { .rig-panneau { width: 100%; } .rig-colonnes { grid-template-columns: 1fr; } .rig-notes { position: static; } }
