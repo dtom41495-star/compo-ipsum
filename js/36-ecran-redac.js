@@ -55,12 +55,13 @@ function osEcranLancer(){
   el.innerHTML =
     '<header class="ecr-entete">'
       +'<div class="ecr-marque"><img src="https://ipsummedia.fr/assets/logo.png" alt=""><span>La rédaction en direct</span></div>'
-      +'<div class="ecr-heure"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div>'
+      +'<div class="ecr-heure"><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div>'
+        +'<div class="ecr-heure-bloc"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
-      +'<section class="ecr-col"><h2><i class="ti ti-route"></i> À faire avancer</h2><div id="ecr-circuit" class="ecr-liste"></div>'
-        +'<h2 class="ecr-h2-bas"><i class="ti ti-world-upload"></i> Derniers en ligne</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
+      +'<section class="ecr-col"><h2 id="ecr-titre-circuit"></h2><div id="ecr-circuit" class="ecr-liste"></div>'
+        +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-calendar-event"></i> Agenda</h2><div id="ecr-agenda" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-bulb"></i> Sujets ouverts</h2><div id="ecr-sujets" class="ecr-liste"></div></section>'
     +'</main>'
@@ -95,11 +96,12 @@ function osEcranLancer(){
   _ecran.timerHorloge = setInterval(_ecranHorloge, 1000);
   _ecranCharger();
   _ecran.timerData = setInterval(_ecranCharger, ECRAN_RAFRAICHIR_MS);
+  _ecran.timerVue = setInterval(_ecranBasculerVue, ECRAN_VUE_MS);
 }
 
 function osEcranQuitter(){
   if(!_ecran) return;
-  clearInterval(_ecran.timerData); clearInterval(_ecran.timerHorloge);
+  clearInterval(_ecran.timerData); clearInterval(_ecran.timerHorloge); clearInterval(_ecran.timerVue);
   if(_ecran.wakeLock){ try{ _ecran.wakeLock.release(); }catch(e){} }
   var n = _ecran.notifsAvant;
   window.notif = n.notif; window.osShowToast = n.osShowToast; window.notifPersistante = n.notifPersistante;
@@ -152,13 +154,15 @@ function _ecranCharger(){
   var maintenant = new Date();
   var debutJour = new Date(maintenant); debutJour.setHours(0,0,0,0);
   var dansUneSemaine = new Date(debutJour.getTime() + 8 * 86400000);
-  var ilYaUneSemaine = new Date(maintenant.getTime() - 7 * 86400000);
   Promise.all([
-    _ecranLire('articles?statut=neq.publie&select=id,titre,type,statut,auteur,redaction_id,updated_at&order=updated_at.asc&limit=500'),
-    _ecranLire('articles?statut=eq.publie&select=id,titre,type,auteur,redaction_id,updated_at&order=updated_at.desc&limit=6'),
-    _ecranLire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(ilYaUneSemaine.toISOString())+'&select=id'),
+    _ecranLire('articles?statut=neq.publie&select=id,titre,type,statut,auteur,redaction_id,updated_at,correcteur,note_interne,sujet_id&order=updated_at.asc&limit=500'),
+    // Candidats de la newsletter : bons à publier ou en ligne, comme dans l'appli Newsletter (filtrés ensuite depuis le dernier envoi de leur rédaction)
+    _ecranLire('articles?statut=in.(valide,publie)&updated_at=gte.'+encodeURIComponent(new Date(maintenant.getTime() - 30 * 86400000).toISOString())+'&select=id,titre,type,statut,auteur,redaction_id,updated_at,publie_le,sujet_id&order=updated_at.desc&limit=200'),
     _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=30'),
-    _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30')
+    _ecranLire('briefing?statut=in.(ouvert,en_cours)&select=*&order=created_at.desc&limit=100'),
+    // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
+    _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; }),
+    _ecranLire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=50').catch(function(){ return []; })
   ]).then(function(res){
     if(!_ecran) return;
     var premier = !_ecran.dernier;
@@ -177,11 +181,14 @@ function _ecranCharger(){
 }
 
 function _ecranRendre(res){
-  _ecranCompteurs(res[0], res[2].length);
-  _ecranEnLigne(res[1]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
-  _ecranCircuit(res[0]);
-  _ecranAgenda(res[3]);
-  _ecranSujets(res[4]);
+  var bloques = _ecranBloques(res[0], res[1], res[3]);
+  _ecran.bloques = bloques;
+  _ecranCompteurs(res[0], bloques.length);
+  _ecranPresence(_ecranNbConnectes(res[4]));
+  _ecranNewsletter(res[1], res[5]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
+  _ecranVueCircuit();
+  _ecranAgenda(res[2]);
+  _ecranSujets(res[3].filter(function(s){ return s.statut === 'ouvert'; }));
 }
 
 // Garde dans chaque colonne ce qui tient à l'écran, sans couper ni chevaucher : les derniers
@@ -217,7 +224,18 @@ function _ecranArticleEstCentral(a){
   return !centrale || a.redaction_id === centrale.id;
 }
 
-function _ecranCompteurs(arts, enLigneSemaine){
+// Même pastille que sur le bureau (« N en ligne »), à côté de l'heure
+function _ecranPresence(n){
+  var t = document.getElementById('ecr-enligne-n');
+  if(t) t.textContent = n+' en ligne';
+}
+
+function _ecranNbConnectes(lignes){
+  var seuil = typeof PRESENCE_SEUIL_MS === 'number' ? PRESENCE_SEUIL_MS : 120000;
+  return (lignes || []).filter(function(p){ return p && p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < seuil; }).length;
+}
+
+function _ecranCompteurs(arts, nbBloques){
   var n = function(f){ return arts.filter(f).length; };
   var cases = [
     // Brouillons touchés ces 30 derniers jours : les vieux brouillons abandonnés ne comptent pas
@@ -226,12 +244,82 @@ function _ecranCompteurs(arts, enLigneSemaine){
     { l:'Relus',          v:n(function(a){ return a.statut === 'corrige'; }), c:'cyan' },
     { l:'Bons à publier', v:n(function(a){ return a.statut === 'valide_central' || (a.statut === 'valide' && _ecranArticleEstCentral(a)); }), c:'vert' },
     { l:'Attente centrale', v:n(function(a){ return a.statut === 'valide' && !_ecranArticleEstCentral(a); }), c:'violet' },
-    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' }
+    { l:'Bloqué'+(nbBloques > 1 ? 's' : ''), v:nbBloques, c:nbBloques ? 'rouge' : 'gris' }
   ];
   var z = document.getElementById('ecr-compteurs');
   if(z) z.innerHTML = cases.map(function(k){
     return '<div class="ecr-compteur ecr-c-'+k.c+'"><div class="ecr-compteur-v">'+k.v+'</div><div class="ecr-compteur-l">'+k.l+'</div></div>';
   }).join('');
+}
+
+// ── Bloqués : ce qui dort trop longtemps, avec la cause ──
+// Seuils en jours. Au-delà de 30 jours sans mouvement, un brouillon est considéré comme abandonné (comme pour le compteur « En écriture »).
+var ECRAN_SEUILS = { sansCorrecteur:3, relu:2, renvoye:5, brouillon:7, sujet:10, abandon:30 };
+var ECRAN_VUE_MS = 15000;
+
+function _ecranBloques(arts, publies, sujets){
+  var jour = 86400000, now = Date.now();
+  var age = function(iso){ return iso ? Math.floor((now - new Date(iso).getTime()) / jour) : 0; };
+  var S = ECRAN_SEUILS, res = [];
+  (arts || []).forEach(function(a){
+    var j = age(a.updated_at);
+    if(a.statut === 'en-relecture' && !a.correcteur && j >= S.sansCorrecteur)
+      res.push({ cause:'Attend un correcteur', c:'bleu', j:j, a:a });
+    else if(a.statut === 'corrige' && j >= S.relu)
+      res.push({ cause:'Relu, attend le bon à publier', c:'cyan', j:j, a:a });
+    else if(a.statut === 'brouillon' && j <= S.abandon){
+      // Les brouillons restent privés : pas de titre, juste l'auteur
+      if(a.note_interne && j >= S.renvoye) res.push({ cause:'Renvoyé à l\'auteur, sans réponse', c:'orange', j:j, a:a, prive:true });
+      else if(!a.note_interne && j >= S.brouillon) res.push({ cause:'Brouillon sans nouvelle', c:'gris', j:j, a:a, prive:true });
+    }
+  });
+  // Sujet réservé mais aucun article commencé
+  var lies = {};
+  (arts || []).concat(publies || []).forEach(function(a){ if(a.sujet_id) lies[a.sujet_id] = true; });
+  (sujets || []).forEach(function(su){
+    var j = age(su.created_at);
+    if(su.statut === 'en_cours' && !lies[su.id] && j >= S.sujet)
+      res.push({ cause:'Sujet réservé, aucun article commencé', c:'orange', j:j, a:{ titre:su.titre||su.sujet, auteur:su.responsable, redaction_id:su.redaction_id } });
+  });
+  return res.sort(function(x, y){ return y.j - x.j; });
+}
+
+function _ecranBloquesRendre(z, liste){
+  z.innerHTML = liste.slice(0, 20).map(function(b){
+    var a = b.a;
+    var titre = b.prive ? 'Brouillon de '+esc(a.auteur || 'quelqu\'un') : esc(a.titre || 'Sans titre');
+    return '<div class="ecr-item">'
+      +'<div class="ecr-item-titre">'+(!b.prive && a.type === 'breve' ? '<span class="ecr-tag">Brève</span>' : '')+titre+'</div>'
+      +'<div class="ecr-item-meta"><span class="ecr-etape ecr-c-'+b.c+'">'+b.cause+'</span>'
+        +'<span>'+esc([b.prive ? '' : a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'
+        +'<span class="ecr-vieux">'+(b.j <= 0 ? 'aujourd\'hui' : 'depuis '+b.j+' j')+'</span></div></div>';
+  }).join('');
+  _ecranAjuster(z, liste.length);
+}
+
+// Le panneau alterne entre « À faire avancer » et « Bloqués » (s'il y en a)
+function _ecranVueCircuit(){
+  if(!_ecran) return;
+  var liste = _ecran.bloques || [];
+  if(!liste.length) _ecran.vue = 'circuit';
+  var h = document.getElementById('ecr-titre-circuit'), z = document.getElementById('ecr-circuit');
+  if(!h || !z) return;
+  var points = liste.length
+    ? '<span class="ecr-points"><i class="ecr-point'+(_ecran.vue === 'circuit' ? ' on' : '')+'"></i><i class="ecr-point'+(_ecran.vue === 'bloques' ? ' on' : '')+'"></i></span>'
+    : '';
+  if(_ecran.vue === 'bloques'){
+    h.innerHTML = '<i class="ti ti-alert-octagon"></i> Bloqués <span class="ecr-compte-h">'+liste.length+'</span>'+points;
+    _ecranBloquesRendre(z, liste);
+  } else {
+    h.innerHTML = '<i class="ti ti-route"></i> À faire avancer'+points;
+    _ecranCircuit(_ecran.dernier ? _ecran.dernier[0] : []);
+  }
+}
+
+function _ecranBasculerVue(){
+  if(!_ecran || !(_ecran.bloques || []).length) return;
+  _ecran.vue = _ecran.vue === 'bloques' ? 'circuit' : 'bloques';
+  _ecranVueCircuit();
 }
 
 var ECRAN_ETAPE = {
@@ -260,13 +348,24 @@ function _ecranCircuit(arts){
   _ecranAjuster(z, liste.length);
 }
 
-function _ecranEnLigne(arts){
+// Ce qui partira dans la prochaine newsletter : bons à publier ou en ligne depuis le dernier envoi
+// de la rédaction (7 jours s'il n'y en a jamais eu), comme dans l'appli Newsletter.
+function _ecranNewsletter(arts, envois){
   var z = document.getElementById('ecr-en-ligne');
   if(!z) return;
-  if(!arts.length){ z.innerHTML = '<div class="ecr-vide">Pas encore d\'article en ligne</div>'; return; }
-  z.innerHTML = arts.slice(0, 3).map(function(a){
+  var dernier = {};
+  (envois || []).forEach(function(e){ if(e.redaction_id && !dernier[e.redaction_id]) dernier[e.redaction_id] = new Date(e.date_envoi); });
+  var defaut = new Date(Date.now() - 7 * 86400000);
+  var prets = (arts || []).filter(function(a){
+    var depuis = dernier[a.redaction_id] || defaut;
+    return new Date(a.publie_le || a.updated_at) >= depuis;
+  });
+  if(!prets.length){ z.innerHTML = '<div class="ecr-vide">Rien de prêt pour le moment</div>'; return; }
+  var etape = function(a){ return a.statut === 'publie' ? '<span class="ecr-etape ecr-c-vert">En ligne</span>' : '<span class="ecr-etape ecr-c-vert">Bon à publier</span>'; };
+  z.innerHTML = '<div class="ecr-compte-nl">'+prets.length+' contenu'+(prets.length > 1 ? 's' : '')+' dans la prochaine newsletter</div>'
+    + prets.slice(0, 3).map(function(a){
     return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+esc(a.titre||'Sans titre')+'</div>'
-      +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span><span>'+_ecranDepuis(a.updated_at).replace('depuis ', 'il y a ')+'</span></div></div>';
+      +'<div class="ecr-item-meta"><span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'+etape(a)+'</div></div>';
   }).join('');
 }
 

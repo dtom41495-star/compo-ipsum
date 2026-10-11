@@ -1495,7 +1495,6 @@ function osAgendaOuvrirDetail(ev){
   html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-link"></i> Copier le lien</button>';
   if(isAdmin && !isAnnule){
     html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-pencil"></i> Modifier</button>';
-    html += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',null)" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Ordre de mission</button>';
     html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" title="Annuler l\'événement" style="'+BTN_DANGER+'"><i class="ti ti-ban"></i> Annuler</button>';
     html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" title="Supprimer définitivement" style="'+BTN_DANGER+'"><i class="ti ti-trash"></i></button>';
   }
@@ -2587,16 +2586,26 @@ function osAgendaOrdreMission(evId, membreId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = membreId || getUserId();
 
-  // Charger les infos du membre
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=prenom,nom,role,email,fonction',{headers:authH})
+  // Un ordre de mission n'existe que pour une inscription confirmée, même pour un admin
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id',{headers:authH})
   .then(function(r){return r.json();})
+  .then(function(ins){
+    if(!Array.isArray(ins) || !ins.length){
+      try{ win.close(); }catch(e){}
+      notif('Pas d\'ordre de mission : cette personne n\'est pas inscrite à l\'événement (inscription confirmée).','alerte');
+      return null;
+    }
+    // Charger les infos du membre
+    return fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=prenom,nom,role,email,fonction',{headers:authH}).then(function(r){return r.json();});
+  })
   .then(function(data){
+    if(data===null) return;
     var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
     _osGenererOrdreMission(ev, m, win);
   }).catch(function(){
-    // Fallback avec les données locales
-    var mLocal = (_membresData||[]).find(function(x){return x.id===uid;}) || {prenom:getUserPrenom(),nom:'',role:getUserRole(),email:'',fonction:[]};
-    _osGenererOrdreMission(ev, mLocal, win);
+    // Sans vérification de l'inscription, pas de document
+    try{ win.close(); }catch(e){}
+    notif('Impossible de vérifier l\'inscription pour le moment, réessaie.','erreur');
   });
 }
 
@@ -2785,7 +2794,7 @@ function osAgendaOuvrirFormulaire(ev){
   function puces(label, items, labels, selected, name){
     var h = '<div><div style="'+LABEL+'">'+label+'</div><div style="display:flex;flex-wrap:wrap;gap:0.35rem;">';
     items.forEach(function(item){
-      var checked = !selected || !selected.length || selected.indexOf(item)!==-1;
+      var checked = !!selected && selected.indexOf(item)!==-1;   // rien de pré-coché : rien de coché = toute l'équipe
       h += '<label style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:500;text-transform:none;letter-spacing:0;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:20px;cursor:pointer;background:white;color:var(--encre);">'
         +'<input type="checkbox" name="'+name+'" value="'+item+'"'+(checked?' checked':'')+' style="accent-color:var(--rouge);margin:0;"> '+esc(labels[item]||item)+'</label>';
     });
@@ -2874,9 +2883,10 @@ function osAgendaOuvrirFormulaire(ev){
 
   html += '<div style="'+CARTE+'">';
   html += '<div style="'+TITRE_SECTION+'">Qui est invité</div>';
-  html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;">Tout coché ou tout décoché = toute l\'équipe.</div>';
+  html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;line-height:1.5;">Rien de coché = toute l\'équipe. Sinon, sont invités les membres qui ont <b>un des rôles</b> cochés <b>ou une des fonctions</b> cochées. Les rédacteurs et SR doivent appartenir à la « Rédaction concernée » choisie plus haut (« Toutes » = rattaché·es à au moins une rédaction). Les membres marqués inactifs ne sont jamais invités.</div>';
   html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'SR', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
+  html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
   html += '</div>';
 
   html += '</div>';
@@ -2896,6 +2906,7 @@ function osAgendaOuvrirFormulaire(ev){
 
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
   if(!isEdit){ var t = document.getElementById('ag-titre'); if(t) t.focus(); }
+  osAgendaInitApercuCibles(isEdit);
 }
 
 // Quitter le formulaire sans enregistrer : retour à la fiche de l'événement si on le
@@ -3061,23 +3072,71 @@ function osAgendaPrevenirContactExterne(ev){
   });
 }
 
-function osAgendaEnvoyerInvitations(ev, roles, fonctions){
+// Qui est invité : rien de coché (ou tout coché) = toute l'équipe ; sinon les membres qui ont un des
+// rôles cochés OU une des fonctions cochées. Les rédacteurs et SR doivent appartenir à la rédaction
+// de l'événement (ou à au moins une rédaction si « Toutes »), pour ne pas inviter les anciens dont le
+// compte est resté actif. Les inactifs (marqués par la vie asso) et les comptes bloqués ne sont jamais invités.
+function _osAgendaCiblesMembres(membres, liens, roles, fonctions, redactionId){
+  var rattaches = {};
+  (liens||[]).forEach(function(l){
+    if(redactionId && String(l.redaction_id)!==String(redactionId)) return;
+    rattaches[l.membre_id] = true;
+  });
+  var toutLeMonde = (!roles.length && !fonctions.length)
+    || (roles.length===AGENDA_CIBLE_ROLES.length && fonctions.length===AGENDA_CIBLE_FONCTIONS.length);
+  return (membres||[]).filter(function(m){
+    if(!m.email || m.role==='interdit' || m.marque_inactif) return false;
+    if(toutLeMonde) return true;
+    if(fonctionArray(m.fonction).some(function(f){ return fonctions.indexOf(f)!==-1; })) return true;
+    if(roles.indexOf(m.role)!==-1){
+      if(m.role==='admin') return true;
+      return !!rattaches[m.id];
+    }
+    return false;
+  });
+}
+
+function _osAgendaChargerCiblesBase(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id',{headers:authH})
-  .then(function(r){return r.json();})
-  .then(function(membres){
-    if(!membres||membres.code) return;
-    // Rien de coché = toute l'équipe. Sinon : les membres qui ont un des rôles cochés OU
-    // une des fonctions cochées. Avant, cocher seulement des fonctions invitait tout le
-    // monde (aucun rôle coché valait "tous les rôles"), et m.fonction, qui est une liste,
-    // était comparé comme une chaîne : un membre à plusieurs fonctions n'était jamais ciblé.
-    var toutLeMonde = !roles.length && !fonctions.length;
-    var cibles = membres.filter(function(m){
-      if(!m.email) return false;
-      if(toutLeMonde) return true;
-      if(roles.indexOf(m.role)!==-1) return true;
-      return fonctionArray(m.fonction).some(function(f){ return fonctions.indexOf(f)!==-1; });
-    });
+  return Promise.all([
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id,marque_inactif',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){ return []; })
+  ]).then(function(res){
+    if(!Array.isArray(res[0])) return null;
+    return {membres:res[0], liens:Array.isArray(res[1])?res[1]:[]};
+  });
+}
+
+// Aperçu en direct, sous les cases : combien de personnes, et lesquelles
+function osAgendaInitApercuCibles(isEdit){
+  var zone = document.getElementById('ag-apercu-cibles');
+  if(!zone) return;
+  if(isEdit){ zone.style.display='none'; return; }   // pas d'invitation à la modification
+  var base = null;
+  function lire(name){ return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;}); }
+  function maj(){
+    if(!base){ return; }
+    var sel = document.getElementById('ag-redaction');
+    var cibles = _osAgendaCiblesMembres(base.membres, base.liens, lire('ag-roles'), lire('ag-fonctions'), sel&&sel.value||null);
+    var noms = cibles.map(function(m){ return esc(((m.prenom||'')+' '+(m.nom||'')).trim()||m.email); }).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+    zone.innerHTML = '<b>'+(cibles.length===0?'Personne ne sera prévenu·e':cibles.length+' personne'+(cibles.length>1?'s seront prévenues':' sera prévenue')+' par email')+'</b> à la création.'
+      +(noms.length?'<div style="color:var(--gris);margin-top:0.25rem;max-height:5.5rem;overflow:auto;">'+noms.join(' · ')+'</div>':'');
+  }
+  _osAgendaChargerCiblesBase().then(function(b){
+    if(!b){ zone.textContent='Impossible de calculer la liste des invités pour le moment.'; return; }
+    base = b; maj();
+  });
+  var carte = zone.parentNode;
+  if(carte) carte.addEventListener('change', maj);
+  var selR = document.getElementById('ag-redaction');
+  if(selR) selR.addEventListener('change', maj);
+}
+
+function osAgendaEnvoyerInvitations(ev, roles, fonctions){
+  _osAgendaChargerCiblesBase()
+  .then(function(base){
+    if(!base) return;
+    var cibles = _osAgendaCiblesMembres(base.membres, base.liens, roles, fonctions, ev.redaction_id||null);
     cibles.forEach(function(m){
       var html = _emailCompo({ accent:'neutre', etiquette:'INVITATION', titre:'Tu es invité·e : '+esc(ev.titre||''),
         bonjour:'Bonjour '+esc(m.prenom||'')+',',
