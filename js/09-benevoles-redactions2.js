@@ -231,7 +231,8 @@ function osBenevolesDashRender(){
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    // rattache_le : date d'arrivée dans la rédaction (SQL date-rattachement) ; sans lui on retombe sur la liste simple
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,rattache_le',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r2){return r2.json();});}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     // Semaines gelées (table créée par le SQL des gels : sans elle, la liste reste vide)
@@ -242,6 +243,8 @@ function osBenevolesDashRender(){
     var articles=(!results[1]||results[1].code)?[]:results[1];
     var membresRedacsRows=(!results[2]||results[2].code)?[]:results[2];
     var membresAvecRedac={}; membresRedacsRows.forEach(function(row){ membresAvecRedac[row.membre_id]=true; });
+    // Arrivée dans le système d'écriture = premier rattachement à une rédaction (une série par personne, toutes rédactions confondues)
+    window._rattacheLe={}; membresRedacsRows.forEach(function(row){ if(!row.rattache_le) return; var d=new Date(row.rattache_le); if(!window._rattacheLe[row.membre_id]||d<window._rattacheLe[row.membre_id]) window._rattacheLe[row.membre_id]=d; });
     var commandesValidees=(!results[3]||results[3].code)?[]:results[3];
     var boutiqueArticles=(!results[4]||results[4].code)?[]:results[4];
     var gelsRows=Array.isArray(results[5])?results[5]:[];
