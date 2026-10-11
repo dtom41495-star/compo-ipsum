@@ -186,9 +186,15 @@ function _verifChamps(){
   });
 }
 
-function osVerifierArticle(){
+// entree (facultatif) : { titre, chapeau, corps, type, sources } pour contrôler un article hors de l'éditeur
+// (tableau de bord du SR) ; sans lui, on lit l'éditeur ouvert.
+function osVerifierArticle(entree){
   var points = [];
-  var champs = _verifChamps();
+  var champs = entree ? [
+    { cle:'titre', nom:'Titre', el:null, texte:String(entree.titre || '') },
+    { cle:'chapeau', nom:'Chapô', el:null, texte:String(entree.chapeau || '') },
+    { cle:'corps', nom:'Texte', el:null, texte:String(entree.corps || '') }
+  ] : _verifChamps();
   _verifRegles().forEach(function(regle){
     champs.forEach(function(ch){
       var vus = {};
@@ -203,17 +209,17 @@ function osVerifierArticle(){
     });
   });
   // Règles sur l'article dans son ensemble
-  var titre = (_srEl('r-titre')||{}).value || '';
-  var chapeau = (_srEl('r-chapeau')||{}).value || '';
+  var titre = entree ? String(entree.titre || '') : ((_srEl('r-titre')||{}).value || '');
+  var chapeau = entree ? String(entree.chapeau || '') : ((_srEl('r-chapeau')||{}).value || '');
   var global = [];
   if(titre.length > 90) global.push({ titre:'Titre long', conseil:titre.length+' signes : au-delà de 90, il sera coupé dans les partages et les moteurs de recherche.' });
   if(/[.]\s*$/.test(titre.trim()) && !/\.\.\.$|…$/.test(titre.trim())) global.push({ titre:'Point à la fin du titre', conseil:'Un titre ne se termine pas par un point.' });
   var lettres = titre.replace(/[^A-Za-zÀ-ÿ]/g, '');
   if(lettres.length > 10 && lettres.replace(/[^A-ZÀ-Þ]/g, '').length / lettres.length > 0.7) global.push({ titre:'Titre en capitales', conseil:'Écrire le titre en minuscules, avec une majuscule au début.' });
-  var type = (typeof currentDoc !== 'undefined' && currentDoc && currentDoc.type) || 'article';
+  var type = entree ? (entree.type || 'article') : ((typeof currentDoc !== 'undefined' && currentDoc && currentDoc.type) || 'article');
   if(type !== 'breve' && !chapeau.trim()) global.push({ titre:'Pas de chapô', conseil:'Deux phrases qui résument l\'essentiel et donnent envie de lire.' });
   if(chapeau.length > 350) global.push({ titre:'Chapô long', conseil:chapeau.length+' signes : viser 200 à 300.' });
-  var sources = (typeof currentDoc !== 'undefined' && currentDoc && currentDoc.sources) || [];
+  var sources = entree ? (entree.sources || []) : ((typeof currentDoc !== 'undefined' && currentDoc && currentDoc.sources) || []);
   if(type !== 'breve' && !(sources && sources.length)) global.push({ titre:'Aucune source renseignée', conseil:'Les sources se notent dans les Réglages de l\'article.' });
   return { points:points, global:global };
 }

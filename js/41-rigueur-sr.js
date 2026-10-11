@@ -16,7 +16,10 @@ var _rigDernier = null;
 var _rigCp = {};            // communiqués déjà lus : id -> { titre, corps }
 
 // ── Lecture des champs de l'éditeur (comme « Vérifier ») ──
-function _rigChamps(){
+function _rigChamps(entree){
+  if(entree) return [['titre', 'Titre'], ['chapeau', 'Chapô'], ['corps', 'Texte']].map(function(c){
+    return { cle:c[0], nom:c[1], el:null, texte:String(entree[c[0]] || '').replace(/[  ]/g, ' ') };
+  });
   return _verifChamps().map(function(c){ return { cle:c.cle, nom:c.nom, el:c.el, texte:String(c.texte || '').replace(/[  ]/g, ' ') }; });
 }
 
@@ -50,8 +53,8 @@ function _rigRang(texte, cible, index){
 }
 
 function _rigCle(a){ return a.critere + '|' + a.texte.slice(0, 60); }
-function _rigVerifies(){
-  try{ var o = JSON.parse(localStorage.getItem('compo_rigueur_ok') || '{}'); return (o && o[(currentDoc && currentDoc.id) || '_'] ) || []; }catch(e){ return []; }
+function _rigVerifies(id){
+  try{ var o = JSON.parse(localStorage.getItem('compo_rigueur_ok') || '{}'); return (o && o[id || (currentDoc && currentDoc.id) || '_'] ) || []; }catch(e){ return []; }
 }
 function _rigMarquer(cle, oui){
   try{
@@ -64,12 +67,14 @@ function _rigMarquer(cle, oui){
 }
 
 // ── Analyse ──
-function osRigueurAnalyser(){
-  var champs = _rigChamps(), notes = [];
+// entree (facultatif) : { titre, chapeau, corps, doc } pour analyser un article hors de l'éditeur
+// (doc : l'article, avec type, sources, cp_id) ; sans lui, on analyse l'article ouvert dans l'éditeur.
+function osRigueurAnalyser(entree){
+  var champs = _rigChamps(entree), notes = [];
   var byCle = {}; champs.forEach(function(c){ byCle[c.cle] = c; });
   var titre = (byCle.titre || {}).texte || '', chapeau = (byCle.chapeau || {}).texte || '', corps = (byCle.corps || {}).texte || '';
   var tout = [titre, chapeau, corps].join('\n');
-  var doc = (typeof currentDoc !== 'undefined' && currentDoc) || {};
+  var doc = entree ? (entree.doc || {}) : ((typeof currentDoc !== 'undefined' && currentDoc) || {});
   var breve = doc.type === 'breve';
   var ajouter = function(a){ a.cle = _rigCle(a); notes.push(a); };
   var posDe = function(champ, index, longueur){ var ch = byCle[champ]; return { champ:champ, index:index, longueur:longueur, rang: ch ? _rigRang(ch.texte, ch.texte.substr(index, longueur), index) : 0 }; };
@@ -151,10 +156,10 @@ function osRigueurAnalyser(){
   }
 
   // 6. Langue : les remarques de « Vérifier »
-  var lang = osVerifierArticle(), nLang = lang.points.length + lang.global.length;
+  var lang = osVerifierArticle(entree ? { titre:titre, chapeau:chapeau, corps:corps, type:doc.type, sources:doc.sources } : null), nLang = lang.points.length + lang.global.length;
 
   // Verdict par critère
-  var verifies = _rigVerifies();
+  var verifies = _rigVerifies(doc.id);
   notes.forEach(function(a){ a.verifie = verifies.indexOf(a.cle) !== -1; });
   var etat = function(n){
     var l = notes.filter(function(a){ return a.critere === n && !a.verifie; });
@@ -212,6 +217,16 @@ function osRigueurOuvrir(){
   _rigRendre(true);
 }
 function osRigueurFermer(){ var p = _srEl('rig-panneau'); if(p) p.style.display = 'none'; }
+
+// Lit plusieurs communiqués d'un coup (tableau de bord) : id -> { titre, corps }
+function _rigChargerCpIds(ids){
+  var manque = (ids || []).filter(function(id){ return id && !_rigCp[id]; }).filter(function(id, i, a){ return a.indexOf(id) === i; });
+  if(!manque.length) return Promise.resolve();
+  return fetch(SB_URL+'/rest/v1/communiques?id=in.('+manque.map(encodeURIComponent).join(',')+')&select=id,titre,corps', { headers:_srAuth() })
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(d){ (d || []).forEach(function(c){ _rigCp[c.id] = { titre:c.titre, corps:c.corps }; }); })
+    .catch(function(){});
+}
 
 // Lit le communiqué lié une fois, puis relance l'analyse
 function _rigChargerCp(){

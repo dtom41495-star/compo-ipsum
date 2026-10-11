@@ -68,12 +68,26 @@ function _tsrCharger(){
   var champs = 'id,titre,auteur,redaction,redaction_id,statut,urgence,express,updated_at,note_interne';
   return Promise.all([
     typeof _srChargerFile === 'function' ? _srChargerFile() : Promise.resolve([]),
-    _tsrLire('articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select='+champs+'&order=updated_at.asc'),
+    _tsrLire('articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select='+champs+',chapeau,corps,sources,type,cp_id&order=updated_at.asc'),
     // Mes étapes des 30 derniers jours (le mois en cours en fait partie, sinon un début de mois verrait trop peu)
     _tsrLire('historique?membre_id=eq.'+encodeURIComponent(uid)+'&action=in.(relu,renvoi_auteur)&created_at=gte.'+encodeURIComponent(il30.toISOString())+'&select=article_id,action,created_at&order=created_at.desc&limit=500').catch(function(){ return null; })
   ]).then(function(res){
     var file = res[0] || [], enCours = res[1], etapes = res[2];
-    var d = { file:file, enCours:enCours, historique:etapes !== null, relusSemaine:null, renvoyesMois:null, delai:null, devenir:[] };
+    var d = { file:file, enCours:enCours, historique:etapes !== null, relusSemaine:null, renvoyesMois:null, delai:null, devenir:[], rigueur:{} };
+    // Points de rigueur de mes relectures en cours (js/41-rigueur-sr.js) : les communiqués liés sont lus d'un coup
+    var pRigueur = typeof osRigueurAnalyser === 'function'
+      ? _rigChargerCpIds(enCours.map(function(a){ return a.cp_id; })).then(function(){
+          enCours.forEach(function(a){
+            try{ d.rigueur[a.id] = osRigueurAnalyser({ titre:a.titre, chapeau:a.chapeau, corps:a.corps, doc:a }); }catch(e){}
+          });
+        })
+      : Promise.resolve();
+    return pRigueur.then(function(){ return _tsrSuite(d, etapes, uid, debutMois, debutSemaine); });
+  });
+}
+
+function _tsrSuite(d, etapes, uid, debutMois, debutSemaine){
+  return Promise.resolve().then(function(){
     if(etapes === null) return d;
     d.relusSemaine = etapes.filter(function(e){ return e.action === 'relu' && new Date(e.created_at) >= debutSemaine; }).length;
     d.renvoyesMois = etapes.filter(function(e){ return e.action === 'renvoi_auteur' && new Date(e.created_at) >= debutMois; }).length;
@@ -149,19 +163,22 @@ function _tsrHtml(d){
   if(!d.file.length) h += '<div class="tsr-vide">La file est vide : rien n’attend de relecture. Merci !</div>';
   d.file.slice(0, TSR_MAX_FILE).forEach(function(a){
     h += '<div class="tsr-ligne"><div class="tsr-infos"><div class="tsr-titre-art">'+(a.express ? '<span class="tsr-express">⚡ Express</span> ' : '')+esc(a.titre || 'Sans titre')+'</div>'
-      +'<div class="tsr-meta">'+(a.urgence === 'urgent' ? '<b>Urgent</b> · ' : '')+esc(a.auteur || '')+(a.redaction ? ' · '+esc(a.redaction) : '')+' · en attente '+_srDepuis(a.updated_at).replace('depuis ', 'depuis ')+'</div></div>'
+      +'<div class="tsr-meta">'+(a.urgence === 'urgent' ? '<b>Urgent</b> · ' : '')+esc(a.auteur || '')+(a.redaction ? ' · '+esc(a.redaction) : '')+' · en attente '+_srDepuis(a.updated_at)+'</div></div>'
       +'<button type="button" class="mac-btn mac-btn-principal" data-tsr="prendre" data-id="'+esc(a.id)+'"><i class="ti ti-hand-grab"></i> Je prends</button></div>';
   });
   if(d.file.length > TSR_MAX_FILE) h += '<button type="button" class="tsr-lien" data-tsr="file">Voir toute la file ('+d.file.length+') <i class="ti ti-arrow-right"></i></button>';
   h += '</section>';
 
   // Mes relectures en cours
-  h += '<section class="tsr-bloc"><div class="tsr-titre"><i class="ti ti-eye-check"></i> Mes relectures en cours'+(d.enCours.length ? ' <span class="tsr-n">'+d.enCours.length+'</span>' : '')+'</div>';
+  var nbRigueur = d.enCours.reduce(function(t, a){ return t + (d.rigueur[a.id] ? d.rigueur[a.id].aRegarder : 0); }, 0);
+  h += '<section class="tsr-bloc"><div class="tsr-titre"><i class="ti ti-eye-check"></i> Mes relectures en cours'+(d.enCours.length ? ' <span class="tsr-n">'+d.enCours.length+'</span>' : '')
+    +(nbRigueur ? ' <small>'+nbRigueur+' point'+(nbRigueur > 1 ? 's' : '')+' de rigueur à regarder</small>' : '')+'</div>';
   if(!d.enCours.length) h += '<div class="tsr-vide">Aucune relecture en cours. Prends un texte dans la file ci-dessus.</div>';
   d.enCours.forEach(function(a){
     var j = _tsrJours(a.updated_at), dort = j >= TSR_DORT_JOURS;
     h += '<div class="tsr-ligne"><div class="tsr-infos"><div class="tsr-titre-art">'+esc(a.titre || 'Sans titre')+'</div>'
-      +'<div class="tsr-meta">'+esc(a.auteur || '')+(a.redaction ? ' · '+esc(a.redaction) : '')+' · <span'+(dort ? ' class="tsr-dort"' : '')+'>'+(dort ? '<i class="ti ti-clock-exclamation"></i> chez toi depuis '+j+' j' : (j <= 0 ? 'modifié aujourd’hui' : 'modifié il y a '+j+' j'))+'</span></div></div>'
+      +'<div class="tsr-meta">'+esc(a.auteur || '')+(a.redaction ? ' · '+esc(a.redaction) : '')+' · <span'+(dort ? ' class="tsr-dort"' : '')+'>'+(dort ? '<i class="ti ti-clock-exclamation"></i> chez toi depuis '+j+' j' : (j <= 0 ? 'modifié aujourd’hui' : 'modifié il y a '+j+' j'))+'</span></div>'
+      +_tsrRigueur(d.rigueur[a.id])+'</div>'
       +'<div class="tsr-actions"><button type="button" class="mac-btn mac-btn-principal" data-tsr="reprendre" data-id="'+esc(a.id)+'"><i class="ti ti-pencil"></i> Reprendre</button>'
       +'<button type="button" class="tsr-discret" data-tsr="rendre" data-id="'+esc(a.id)+'" title="Remettre ce texte dans la file">Rendre</button></div></div>';
   });
@@ -180,6 +197,16 @@ function _tsrHtml(d){
   });
   h += '</section></div>';
   return h;
+}
+
+// Petites puces de rigueur sous un texte en cours : ce que le panneau « Rigueur » signalerait
+function _tsrRigueur(r){
+  if(!r) return '';
+  var puces = r.criteres.filter(function(c){ return c.etat === 'ko' || c.etat === 'warn'; }).map(function(c){
+    var classe = c.etat === 'ko' ? 'rig-c-ko' : (c.n === 5 ? 'rig-c-info' : 'rig-c-warn');
+    return '<span class="rig-chip '+classe+'">'+esc(c.n === 4 ? '5 W + H '+c.texte.split(' · ')[0] : c.nom+(c.nb ? ' · '+c.nb : ''))+'</span>';
+  });
+  return '<div class="tsr-rigueur">'+(puces.length ? '<i class="ti ti-scale" title="Points de rigueur"></i>'+puces.join('') : '<span class="rig-chip rig-c-ok">Rien à signaler côté rigueur</span>')+'</div>';
 }
 
 function _tsrIlYa(iso){
