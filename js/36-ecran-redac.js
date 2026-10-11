@@ -98,11 +98,13 @@ function osEcranLancer(){
   _ecranCharger();
   _ecran.timerData = setInterval(_ecranCharger, ECRAN_RAFRAICHIR_MS);
   _ecran.timerVue = setInterval(_ecranBasculerVue, ECRAN_VUE_MS);
+  _ecranActifsCharger();
+  _ecran.timerActifs = setInterval(_ecranActifsCharger, ECRAN_ACTIFS_MS);
 }
 
 function osEcranQuitter(){
   if(!_ecran) return;
-  clearInterval(_ecran.timerData); clearInterval(_ecran.timerHorloge); clearInterval(_ecran.timerVue);
+  clearInterval(_ecran.timerData); clearInterval(_ecran.timerHorloge); clearInterval(_ecran.timerVue); clearInterval(_ecran.timerActifs);
   if(_ecran.wakeLock){ try{ _ecran.wakeLock.release(); }catch(e){} }
   var n = _ecran.notifsAvant;
   window.notif = n.notif; window.osShowToast = n.osShowToast; window.notifPersistante = n.notifPersistante;
@@ -149,6 +151,26 @@ function _ecranDepuis(iso){
   var j = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   return j <= 0 ? 'aujourd\'hui' : j === 1 ? 'depuis hier' : 'depuis '+j+' j';
 }
+
+// ── En train d'écrire ──
+// L'éditeur enregistre tout seul toutes les 45 s : un article modifié dans les 2 dernières minutes est
+// en cours d'édition « en ce moment même ». On relit ça toutes les 15 s, sans toucher au reste de l'écran.
+var ECRAN_ACTIFS_MS = 15000, ECRAN_ACTIF_S = 120;
+function _ecranActifsCharger(){
+  if(!_ecran) return;
+  var depuis = new Date(Date.now() - ECRAN_ACTIF_S * 1000).toISOString();
+  _ecranLire('articles?statut=neq.publie&updated_at=gte.'+encodeURIComponent(depuis)+'&select=id,statut&limit=100').then(function(l){
+    if(!_ecran) return;
+    var actifs = {}, brouillons = 0;
+    l.forEach(function(a){ actifs[a.id] = true; if(a.statut === 'brouillon') brouillons++; });
+    var cle = Object.keys(actifs).sort().join(',');
+    var change = cle !== _ecran.actifsCle || brouillons !== _ecran.nbEcrivent;
+    _ecran.actifs = actifs; _ecran.actifsCle = cle; _ecran.nbEcrivent = brouillons;
+    if(change && _ecran.dernier) _ecranRendre(_ecran.dernier);
+  }).catch(function(){});
+}
+function _ecranEnDirect(a){ return !!(_ecran && _ecran.actifs && _ecran.actifs[a.id]); }
+var ECRAN_LIVE = '<span class="ecr-live" title="Modifié à l\u2019instant"><i></i><i></i><i></i><em>en train d\u2019écrire</em></span>';
 
 function _ecranCharger(){
   if(!_ecran) return;
@@ -233,7 +255,7 @@ function _ecranCompteurs(arts, nbBloques){
   var n = function(f){ return arts.filter(f).length; };
   var cases = [
     // Brouillons touchés ces 30 derniers jours : les vieux brouillons abandonnés ne comptent pas
-    { l:'En écriture',    v:n(function(a){ return a.statut === 'brouillon' && (Date.now() - new Date(a.updated_at).getTime()) < 30 * 86400000; }), c:'gris' },
+    { l:'En écriture',    live:(_ecran && _ecran.nbEcrivent) || 0, v:n(function(a){ return a.statut === 'brouillon' && (Date.now() - new Date(a.updated_at).getTime()) < 30 * 86400000; }), c:'gris' },
     { l:'Au SR',          v:n(function(a){ return a.statut === 'en-relecture'; }), c:'bleu' },
     { l:'Relus',          v:n(function(a){ return a.statut === 'corrige'; }), c:'cyan' },
     { l:'Bons à publier', v:n(function(a){ return a.statut === 'valide_central' || (a.statut === 'valide' && _ecranArticleEstCentral(a)); }), c:'vert' },
@@ -242,7 +264,7 @@ function _ecranCompteurs(arts, nbBloques){
   ];
   var z = document.getElementById('ecr-compteurs');
   if(z) z.innerHTML = cases.map(function(k){
-    return '<div class="ecr-compteur ecr-c-'+k.c+'"><div class="ecr-compteur-v">'+k.v+'</div><div class="ecr-compteur-l">'+k.l+'</div></div>';
+    return '<div class="ecr-compteur ecr-c-'+k.c+'"><div class="ecr-compteur-v">'+k.v+'</div><div class="ecr-compteur-l">'+k.l+(k.live ? ' <span class="ecr-live ecr-live-tuile"><i></i><i></i><i></i><em>'+k.live+' en direct</em></span>' : '')+'</div></div>';
   }).join('');
 }
 
@@ -336,7 +358,7 @@ function _ecranCircuit(arts){
       +'<div class="ecr-item-titre">'+(a.type === 'breve' ? '<span class="ecr-tag">Brève</span>' : '')+esc(a.titre||'Sans titre')+'</div>'
       +'<div class="ecr-item-meta"><span class="ecr-etape ecr-c-'+etape.c+'">'+etape.l+'</span>'
         +'<span>'+esc([a.auteur, _ecranRedac(a.redaction_id)].filter(Boolean).join(' · '))+'</span>'
-        +'<span class="'+(vieux ? 'ecr-vieux' : '')+'">'+_ecranDepuis(a.updated_at)+'</span></div>'
+        +(_ecranEnDirect(a) ? ECRAN_LIVE : '<span class="'+(vieux ? 'ecr-vieux' : '')+'">'+_ecranDepuis(a.updated_at)+'</span>')+'</div>'
       +'</div>';
   }).join('');
   _ecranPoser(z, html, liste.length);
