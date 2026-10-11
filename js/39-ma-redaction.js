@@ -87,7 +87,8 @@ function _mrCharger(){
       inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,email,avatar_id,created_at,fonction') : Promise.resolve([]),
       _mrLireTout('articles?redaction_id=eq.'+enc+'&select=id,titre,type,statut,auteur,auteur_id,urgence,updated_at,created_at,publie_le,correcteur,correcteur_id,note_interne,sujet_id'),
       inIds ? _mrLire('agenda_inscriptions?membre_id=in.('+inIds+')&created_at=gte.'+encodeURIComponent(debutMois.toISOString())+'&select=membre_id,statut').catch(function(){ return []; }) : Promise.resolve([]),
-      chef ? _mrLire('briefing?redaction_id=eq.'+enc+'&statut=eq.en_cours&select=*').catch(function(){ return []; }) : Promise.resolve([])
+      chef ? _mrLire('briefing?redaction_id=eq.'+enc+'&statut=eq.en_cours&select=*').catch(function(){ return []; }) : Promise.resolve([]),
+      typeof osPipelineCharger === 'function' ? osPipelineCharger(redacId).catch(function(){ return []; }) : Promise.resolve([])
     ]).then(function(res){
       var redac = (window._redactionsData || []).find(function(r){ return r.id === redacId; });
       if(!redac) throw new Error('rédaction introuvable');
@@ -99,7 +100,7 @@ function _mrCharger(){
       }).sort(function(a, b){
         return ((b.roleRedac === 'redac_chef') - (a.roleRedac === 'redac_chef')) || (a.prenom || '').localeCompare(b.prenom || '', 'fr');
       });
-      var d = { redac:redac, membres:membres, parId:parId, arts:res[1], inscriptions:res[2], sujets:res[3] };
+      var d = { redac:redac, membres:membres, parId:parId, arts:res[1], inscriptions:res[2], sujets:res[3], pipeline:res[4] };
       d.stats = _mrStats(d, debutMois);
       _mr.donnees = d;
       return d;
@@ -197,6 +198,7 @@ function _mrVue(d, chef){
     +_mrTuile(s.nouveaux, 'Nouveaux (30 j)', s.nouveaux ? '#E67E22' : 'var(--gris)')
     +'</div>';
   h += _mrBloques(d, chef);
+  h += _mrPipeline(d);
   if(!chef){
     h += '<div class="mr-bloc"><div class="mr-titre">Membres de la rédaction</div><div class="mr-puces">'
       +d.membres.map(function(m){
@@ -227,6 +229,21 @@ function _mrBloques(d, chef){
     var a = b.a, titre = b.prive ? 'Brouillon de '+(a.auteur || 'quelqu’un') : (a.titre || 'Sans titre');
     h += '<div class="mr-ligne"><div class="mr-ligne-titre">'+esc(titre)+(!b.prive && a.auteur ? ' <small>'+esc(a.auteur)+'</small>' : '')
       +'<div class="mr-cause">'+esc(b.cause)+'</div></div><span class="mr-depuis">depuis '+b.j+' j</span></div>';
+  });
+  if(liste.length > 8) h += '<div class="mr-vide">et '+(liste.length - 8)+' autre'+(liste.length - 8 > 1 ? 's' : '')+'</div>';
+  return h+'</div>';
+}
+
+// Sujets réservés mais pas encore commencés : ce qui est annoncé et va arriver. Visible de tous (les sujets ne sont pas privés).
+function _mrPipeline(d){
+  var liste = d.pipeline || [];
+  var h = '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-hourglass-high" style="color:#1A5276;"></i> Réservés, pas encore commencés'
+    +(liste.length ? ' <span class="mr-compte">'+liste.length+'</span>' : '')+'</div>';
+  if(!liste.length) return h+'<div class="mr-vide">Tous les sujets réservés sont lancés.</div></div>';
+  liste.slice(0, 8).forEach(function(x){
+    var s = x.sujet;
+    h += '<div class="mr-ligne"><div class="mr-ligne-titre">'+esc(s.titre || s.sujet || 'Sujet')+(s.responsable ? ' <small>'+esc(s.responsable)+'</small>' : '')
+      +'<div class="mr-cause">'+(x.etat === 'entame' ? 'Brouillon à peine entamé' : 'Pas encore d’article')+'</div></div></div>';
   });
   if(liste.length > 8) h += '<div class="mr-vide">et '+(liste.length - 8)+' autre'+(liste.length - 8 > 1 ? 's' : '')+'</div>';
   return h+'</div>';
