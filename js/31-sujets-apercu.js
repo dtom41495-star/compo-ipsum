@@ -109,6 +109,7 @@ function _sjApRendre(){
         +(s.note ? '<div class="sjap-note">'+esc(s.note)+'</div>' : '<div class="sjap-vide">Aucun angle précisé pour ce sujet.</div>')+'</div>'
       +'<div class="sjap-section" id="sjap-cp"><div class="sjap-sec-t">Communiqué lié</div>'
         +(s.cp_id ? '<div class="sjap-vide">Chargement…</div>' : '<div class="sjap-vide">Aucun communiqué lié.</div>')+'</div>'
+      +'<div class="sjap-section" id="sjap-cp-plus"></div>'
       +'<div class="sjap-section" id="sjap-art" style="display:none;"></div>'
       +'<div class="sjap-infos">'
         +(redac ? '<span><i class="ti ti-news"></i>'+esc(redac.nom)+'</span>' : '')
@@ -126,6 +127,12 @@ function _sjApRendre(){
 
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session && _session.access_token || '')});
   var courant = s.id;
+  // Les autres communiqués du sujet (le premier est montré au-dessus), avec ajout / retrait pour qui gère le sujet
+  var plus = document.getElementById('sjap-cp-plus');
+  if(plus && typeof osSujetCpBloc === 'function' && (s.cp_id || osSujetCpPeutGerer(s))){
+    plus.innerHTML = '<div class="sjap-sec-t">'+(s.cp_id ? 'Autres communiqués' : 'Communiqués liés')+'</div><div id="sjap-cp-plus-liste"></div>';
+    osSujetCpBloc(s, document.getElementById('sjap-cp-plus-liste'), { sansPremier:!!s.cp_id });
+  }
   if(s.cp_id){
     fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(s.cp_id)+'&select=*,communique_fichiers(id)', {headers:authH})
       .then(function(r){ return r.json(); })
