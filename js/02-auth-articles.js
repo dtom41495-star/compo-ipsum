@@ -663,6 +663,9 @@ function mesArticlesOuvrir(id, action){
   notif('Chargement...');
   db.getArticle(id).then(function(doc){
     if(!doc){ notif('Article introuvable'); return; }
+    // L'ancien mode Diff est remplacé par l'historique de l'article (étapes, qui, messages, texte à chaque étape) :
+    // on l'ouvre sans toucher à l'article en cours d'édition.
+    if(action === 'historique' || action === 'diff'){ osHistoriqueOuvrir(doc); return; }
     // Repartir de la ligne complète (pas d'un sous-ensemble de champs) — sinon auteur_id,
     // redaction_id, cp_id etc. se perdent silencieusement et la correction change l'auteur au save
     var docCompo = Object.assign({}, doc, {

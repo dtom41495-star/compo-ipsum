@@ -5480,10 +5480,11 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .r-bandeau-hist:hover { background: #F2EFEA; }
 
 /* Historique de l'article (js/37) */
-.hist-boite { width: min(600px, 100%); display: flex; flex-direction: column; }
+.hist-boite { width: min(600px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+.hist-boite .renvoi-entete { flex-shrink: 0; }
 .hist-icone { background: #EDF2F7 !important; color: #1A5276 !important; }
 .hist-fermer { margin-left: auto; flex-shrink: 0; }
-.hist-corps { padding-bottom: 8px; }
+.hist-corps { padding-bottom: 8px; flex: 1; min-height: 0; overflow-y: auto; }
 .hist-liste { list-style: none; margin: 0; padding: 4px 0 0; position: relative; }
 .hist-liste::before { content: ''; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 2px; background: #E7E5E4; }
 .hist-etape { position: relative; display: flex; gap: 12px; padding: 0 0 14px; }

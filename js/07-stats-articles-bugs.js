@@ -1627,9 +1627,9 @@ function maOsMakeCard(doc, uid, role){
   _maActionsEtape(doc, uid, role).forEach(function(a){
     actions += '<button class="mac-btn'+(a.type ? ' mac-btn-'+a.type : '')+'"'+(a.type==='vert'||a.type==='principal' ? ' data-sombre-ignore' : '')+' data-id="'+doc.id+'" onclick="'+a.action+'"><i class="ti ti-'+a.icon+'"></i>'+a.label+'</button>';
   });
-  if((doc.titre_original||doc.corps_original)&&estAuteur){
-    var nbCommentaires = _maCommentairesCountMap[doc.id]||0;
-    actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCommentaires?' ('+nbCommentaires+')':'')+'</button>';
+  // Historique de l'article (remplace l'ancien mode Diff) : dès qu'il est parti au SR
+  if(estAuteur && (doc.titre_original||doc.corps_original||doc.statut !== 'brouillon')){
+    actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'historique\')"><i class="ti ti-history"></i>Historique</button>';
   }
   actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
 
@@ -1706,9 +1706,8 @@ function _maCarteMobile(doc, uid, role){
   _maActionsEtape(doc, uid, role).forEach(function(a){
     actions += '<button class="ma-btn'+(a.type ? ' ma-btn-'+a.type : '')+'" data-id="'+doc.id+'" onclick="'+a.action+'"><i class="ti ti-'+a.icon+'"></i>'+a.label+'</button>';
   });
-  if((doc.titre_original||doc.corps_original) && estAuteur){
-    var nbCom = _maCommentairesCountMap[doc.id]||0;
-    actions += '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'diff\')"><i class="ti ti-git-compare"></i>Corrections'+(nbCom?' ('+nbCom+')':'')+'</button>';
+  if(estAuteur && (doc.titre_original||doc.corps_original||doc.statut !== 'brouillon')){
+    actions += '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'historique\')"><i class="ti ti-history"></i>Historique</button>';
   }
   if(!actions) actions = '<button class="ma-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
 
