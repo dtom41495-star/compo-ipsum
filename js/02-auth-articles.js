@@ -2049,7 +2049,7 @@ function _osPrevenirSRDessaisi(srId, doc, statut){
     var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var chat = '*Article relu à ta place*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedac?' · '+_chatSansMiseEnForme(nomRedac):'')+' : '+_chatSansMiseEnForme(qui)+' '+fait+'. Plus besoin de t\'en occuper, merci !\n<'+lien+'|Voir l\'article>';
     notifierPersonnel(srId, m.canal_notif, chat, 'correction', function(){
-      if(!m.email || osEstEnLigne(srId)) return;
+      if(!m.email) return;
       var html = _emailCompo({
         accent:'bleu', etiquette:'DÉJÀ RELU', titre:'Plus besoin de relire cet article',
         bonjour:'Bonjour '+esc(m.prenom||'')+',',

@@ -1369,8 +1369,8 @@ function _chatSansMiseEnForme(s){
 // invitation presse, sujet assigné, agenda...) : Chat DM si le membre a choisi ce canal
 // (toujours envoyé, cf. notifierChatDM ci-dessus), sinon on délègue à emailCallback qui
 // garde intact le comportement email propre à chaque site (gating _osRedacNotifActive,
-// check osEstEnLigne, contenu HTML...) — pas de fallback email si le DM échoue, le choix
-// du membre est respecté tel quel, comme pour le site pilote assignValider().
+// contenu HTML...). Être connecté·e à Compo ne retient aucun envoi : certain·es ne regardent pas
+// les notifications affichées dans Compo.
 // Canal choisi par la personne. Si le message Chat ne part pas (espace Chat introuvable,
 // fonction en erreur…), l'email prend le relais : sans ça, la personne ne recevait rien.
 // articleId (facultatif) : la notification est notée dans l'historique de l'article
@@ -1394,7 +1394,7 @@ function _notifEmailCallback(emailCallback, secours, articleId, membreId, type){
   if(emailCallback) emailCallback(secours);
   if(!articleId) return;
   if(_notifMailsEnvoyes > avant) _notifHistorique(articleId, membreId, type, 'email', secours);
-  else if(!secours) _notifHistorique(articleId, membreId, type, 'compo', false);
+  else if(!secours) _notifHistorique(articleId, membreId, type, 'aucun', false);
   else _notifHistorique(articleId, membreId, type, 'echec', true);
 }
 function _notifHistorique(articleId, membreId, type, canal, secours){

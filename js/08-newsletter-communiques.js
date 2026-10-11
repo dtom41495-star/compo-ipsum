@@ -2516,10 +2516,6 @@ function cpsEnvoyerNotifsManuelles(){
             .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
             return;
           }
-          // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
-          // moment-là — inutile de doubler avec un email pour cette personne précise.
-          // Ni un envoi ni un échec : on passe simplement au destinataire suivant.
-          if(osEstEnLigne(m.id)){ setTimeout(function(){ envoyerProchain(idx+1); }, 0); return; }
           var nbLibelle = sesCps.length+' '+(sesCps.length>1?'nouveaux communiqués':'nouveau communiqué');
           var html = _emailCompo({ accent:'neutre', etiquette:nbLibelle.toUpperCase(),
             titre:'Du nouveau dans les communiqués',

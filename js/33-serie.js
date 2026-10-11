@@ -20,14 +20,14 @@ function _serieCle(d){
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
 
-// `gels` : Set des lundis (AAAA-MM-JJ) des semaines gelées. Une semaine gelée compte comme en règle
+// `gels` : Set des débuts de semaine, des mercredis (AAAA-MM-JJ), des semaines gelées. Une semaine gelée compte comme en règle
 // (série protégée, ni relance ni alerte) et rattrape aussi la semaine vide qui la précède.
 function osSerieCalculer(items, arrivee, ignorerId, gels){
-  var lundi = _regLundi(new Date());
+  var debutSem = _regDebutSemaine(new Date());
   var breves = items.filter(function(i){ return i.type === 'breve' && i.id !== ignorerId; });
   var n = [], avant = [], comp = [], gel = [];
   for(var k = 0; k <= SERIE_SEMAINES; k++){
-    var debut = new Date(lundi); debut.setDate(debut.getDate() - 7*k);
+    var debut = new Date(debutSem); debut.setDate(debut.getDate() - 7*k);
     var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
     n[k] = breves.filter(function(b){ return b.date >= debut && b.date < fin; }).length;
     avant[k] = !!(arrivee && fin <= arrivee);
@@ -49,7 +49,7 @@ function osSerieCalculer(items, arrivee, ignorerId, gels){
   var joursArticle = dernierArticle ? Math.max(0, Math.floor((Date.now() - dernierArticle.getTime()) / 86400000)) : null;
   var pastilles = [];
   for(k = 6; k >= 0; k--){
-    var debutK = new Date(lundi); debutK.setDate(debutK.getDate() - 7*k);
+    var debutK = new Date(debutSem); debutK.setDate(debutK.getDate() - 7*k);
     pastilles.push({ debut:debutK, etat: avant[k] ? 'avant' : (gel[k] ? 'gel' : ((k === 0 ? faite : (n[k] >= 1)) ? 'ok' : (comp[k] ? 'comp' : (k === 0 ? 'attente' : 'vide')))), courante:k === 0 });
   }
   return { n0:n[0], besoin:besoin, faite:faite, gel0:gel[0], serie:serie, articleMois:articleMois, joursArticle:joursArticle, pastilles:pastilles };
@@ -103,15 +103,15 @@ function _serieSolde(){
 }
 // Peut-on geler cette semaine ? (le serveur revérifie tout)
 function _serieGelPossible(gels, cfg, solde){
-  var lundi = _regLundi(new Date());
-  var prec = new Date(lundi); prec.setDate(prec.getDate() - 7);
-  if(gels.set.has(_serieCle(lundi))) return { ok:false, raison:'Cette semaine est déjà gelée.' };
+  var debutSem = _regDebutSemaine(new Date());
+  var prec = new Date(debutSem); prec.setDate(prec.getDate() - 7);
+  if(gels.set.has(_serieCle(debutSem))) return { ok:false, raison:'Cette semaine est déjà gelée.' };
   if(gels.set.has(_serieCle(prec))) return { ok:false, raison:'Pas deux semaines gelées de suite.' };
   var dernier = null;
   gels.liste.forEach(function(d){ var t = new Date(d+'T00:00:00'); if(!dernier || t > dernier) dernier = t; });
   if(dernier){
     var dispo = new Date(dernier.getTime() + cfg.jours*86400000);
-    if(dispo > lundi) return { ok:false, raison:'Prochain gel possible le '+dispo.getDate()+'/'+(dispo.getMonth()+1)+'.' };
+    if(dispo > debutSem) return { ok:false, raison:'Prochain gel possible le '+dispo.getDate()+'/'+(dispo.getMonth()+1)+'.' };
   }
   if(solde === null) return { ok:false, raison:'' };
   if(solde < cfg.cout) return { ok:false, raison:'Il te faut '+cfg.cout+' plumes pour geler, tu en as '+solde+'.' };
@@ -317,13 +317,13 @@ var _SERIE_FLAMME_FACHEE = '<svg class="rp-serie-visage" viewBox="0 0 52 52" ari
 
 function osSerieCarteHtml(e, x){
   x = x || {};
-  var jours = 7 - ((new Date().getDay() + 6) % 7);               // jours restants, dimanche compris
+  var jours = 7 - ((new Date().getDay() - REG_JOUR_DEBUT + 7) % 7);   // jours restants, aujourd'hui compris, jusqu'à mardi
   var titre = e.serie > 0 ? e.serie+' semaine'+(e.serie > 1 ? 's' : '')+' de série' : 'Pas de série en cours';
   var breve, brevOk = e.faite;
   if(e.gel0) breve = 'Semaine gelée : série protégée, pas de brève à envoyer';
   else if(e.faite) breve = 'Brève de la semaine : faite';
   else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), encore '+jours+' jour'+(jours > 1 ? 's' : '');
-  else breve = e.serie > 0 ? 'Une brève avant dimanche pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : 'Envoie une brève cette semaine pour lancer ta série';
+  else breve = e.serie > 0 ? 'Une brève avant mercredi pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : 'Envoie une brève cette semaine pour lancer ta série';
   var art = e.articleMois
     ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
     : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
@@ -430,7 +430,7 @@ function osSerieChargerPastille(el){
     var classe = e.gel0 ? 'gelee' : (e.faite ? 'allumee' : (e.serie > 0 ? 'eteinte' : 'fachee'));
     var titre = e.serie > 0 ? 'Série de '+e.serie+' semaine'+(e.serie > 1 ? 's' : '') : 'Pas de série en cours';
     if(e.gel0) titre += ', semaine gelée';
-    else if(!e.faite) titre += e.serie > 0 ? ' : une brève avant dimanche pour la garder' : ' : envoie une brève pour la lancer';
+    else if(!e.faite) titre += e.serie > 0 ? ' : une brève avant mercredi pour la garder' : ' : envoie une brève pour la lancer';
     window._seriePastilleEtat = { classe:classe, texte:e.serie+' sem.', titre:titre };
     window._seriePastilleLe = Date.now();
     _seriePastilleAppliquer(document.getElementById('acc-serie') || el, window._seriePastilleEtat);
