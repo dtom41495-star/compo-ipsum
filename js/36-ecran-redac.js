@@ -404,14 +404,26 @@ function _ecranReserves(liste){
   var z = document.getElementById('ecr-reserves');
   if(!z) return;
   liste = liste || [];
-  if(!liste.length){ z.innerHTML = '<div class="ecr-vide">Tous les sujets réservés sont lancés</div>'; return; }
-  z.innerHTML = liste.slice(0, 20).map(function(x){
+  if(!liste.length){ z.dataset.sig = ''; z.innerHTML = '<div class="ecr-vide">Tous les sujets réservés sont lancés</div>'; return; }
+  var item = function(x){
     var s = x.sujet;
     return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+(s.priorite === 'urgente' ? '<span class="ecr-tag ecr-tag-urgent">Urgent</span>' : '')+esc(s.titre || s.sujet || 'Sujet')+'</div>'
       +'<div class="ecr-item-meta"><span>'+esc([s.responsable, _ecranRedac(s.redaction_id)].filter(Boolean).join(' · ') || 'Sans responsable')+'</span>'
       +'<span>'+(x.etat === 'entame' ? 'brouillon à peine entamé' : 'pas encore d\u2019article')+'</span></div></div>';
-  }).join('');
-  _ecranAjuster(z, liste.length);
+  };
+  var html = liste.map(item).join('');
+  if(z.dataset.sig === html) return;   // rien de changé : on laisse le défilement tourner sans le relancer
+  z.dataset.sig = html;
+  z.innerHTML = html;
+  _ecranDefiler(z, html, liste.length);
+}
+
+// Défilement vertical continu, comme un panneau de gare : tout est listé, la liste monte doucement et boucle.
+// Si tout tient dans la colonne, rien ne bouge. Sur téléphone la page défile, donc tout reste affiché.
+function _ecranDefiler(z, html, nb){
+  if(window.innerWidth <= 900 || z.scrollHeight <= z.clientHeight + 1) return;
+  z.innerHTML = '<div class="ecr-defile" style="animation-duration:'+Math.max(12, nb * 4)+'s;">'
+    +'<div class="ecr-defile-bloc">'+html+'</div><div class="ecr-defile-bloc" aria-hidden="true">'+html+'</div></div>';
 }
 
 function _ecranSujets(sujets){

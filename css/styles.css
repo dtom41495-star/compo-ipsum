@@ -5345,6 +5345,11 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-ag-heure { font-family: Poppins, sans-serif; font-weight: 700; font-size: clamp(.95rem, 2.2vh, 1.5rem); color: var(--ecr-cyan); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .ecr-compte-nl { color: var(--ecr-vert); font-weight: 700; font-size: clamp(.85rem, 1.9vh, 1.25rem); margin: 0 0 4px; }
 .ecr-vide { color: var(--ecr-doux); font-size: clamp(.9rem, 2vh, 1.3rem); padding: 12px 0; }
+.ecr-defile { display: flex; flex-direction: column; animation: ecr-defile linear infinite; }
+.ecr-defile:hover { animation-play-state: paused; }
+.ecr-defile-bloc { display: flex; flex-direction: column; gap: clamp(6px, 1vh, 12px); padding-bottom: clamp(6px, 1vh, 12px); flex-shrink: 0; }
+@keyframes ecr-defile { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ecr-defile { animation: none; } }
 .ecr-plus { color: var(--ecr-doux); font-size: clamp(.8rem, 1.7vh, 1.1rem); }
 .ecr-pied { display: flex; justify-content: space-between; color: var(--ecr-gris); font-size: clamp(.7rem, 1.4vh, .95rem); }
 #ecr-etat { color: var(--ecr-rouge); }
