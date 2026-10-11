@@ -11,9 +11,13 @@ var REG_SEMAINES = 8;            // semaines terminées affichées
 var REG_BLOCS_ARTICLE = 3;       // blocs de 4 semaines affichés pour les articles
 var REG_SEUIL_INACTIF = 3;       // semaines vides d'affilée à partir desquelles on signale « à passer inactif »
 
-function _regLundi(d){
+// La semaine de brèves commence le mercredi à minuit (0 = dimanche … 3 = mercredi) : la newsletter
+// sort le jeudi matin et se met en page la veille, donc les brèves doivent être prêtes avant mercredi.
+// Même réglage côté serveur (fonctions benevoles-*, JOUR_DEBUT_SEMAINE) et dans le SQL des gels.
+var REG_JOUR_DEBUT = 3;
+function _regDebutSemaine(d){
   var x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  x.setDate(x.getDate() - ((x.getDay() - REG_JOUR_DEBUT + 7) % 7));
   return x;
 }
 function _regDatePub(a){
@@ -32,7 +36,7 @@ function _regCle(d){
 // sans alerte, et rattrapent la semaine vide qui les précède.
 function osRegulariteCalculer(membre, arts){
   var gels = membre && window._gelsSerie ? window._gelsSerie[membre.id] : null;
-  var lundiCourant = _regLundi(new Date());
+  var debutCourant = _regDebutSemaine(new Date());
   var arrivee = membre && membre.created_at ? new Date(membre.created_at) : null;
   var publis = (arts || []).filter(function(a){ return a.statut === 'publie'; }).map(function(a){
     return { date:_regDatePub(a), breve:a.type === 'breve' };
@@ -40,7 +44,7 @@ function osRegulariteCalculer(membre, arts){
 
   var semaines = [];
   for(var k = REG_SEMAINES; k >= 0; k--){            // k = 0 : semaine en cours
-    var debut = new Date(lundiCourant); debut.setDate(debut.getDate() - 7*k);
+    var debut = new Date(debutCourant); debut.setDate(debut.getDate() - 7*k);
     var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
     var dans = publis.filter(function(p){ return p.date >= debut && p.date < fin; });
     semaines.push({

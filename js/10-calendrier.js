@@ -1700,8 +1700,8 @@ function osRedacReglagesForm(redac){
   h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Brèves</div>';
   h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-relance_breves" '+(redac.relance_breves!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
-    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Petit mot du lundi</span>'
-    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">le lundi, Compo envoie un message Chat privé, sur un ton décalé, aux membres sans brève la semaine dernière (une semaine vide se compense par 2 brèves, article 3 du règlement). Il propose parfois un sujet libre ou un événement. Deux semaines de suite, il s\'arrête et te prévient : c\'est à toi de prendre le relais. Tu reçois un récap de ce qui est parti.</span></span></label>';
+    +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Petit mot du mercredi</span>'
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">le mercredi, début de la semaine de brèves, Compo envoie un message Chat privé, sur un ton décalé, aux membres sans brève la semaine dernière (une semaine vide se compense par 2 brèves, article 3 du règlement). Il propose parfois un sujet libre ou un événement. Deux semaines de suite, il s\'arrête et te prévient : c\'est à toi de prendre le relais. Tu reçois un récap de ce qui est parti.</span></span></label>';
   h += '</div>';
   }
 
@@ -1710,7 +1710,7 @@ function osRedacReglagesForm(redac){
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Série</div>';
   h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-rappel_serie" '+(redac.rappel_serie!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
     +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Rappel pour garder sa série</span>'
-    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">le vendredi à 18h30, Compo envoie un message Chat privé, sur un ton décalé, aux membres qui ont une série de 2 semaines ou plus et pas encore de brève cette semaine. Il leur reste le week-end pour la sauver.</span></span></label>';
+    +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">le lundi à 18h30, Compo envoie un message Chat privé, sur un ton décalé, aux membres qui ont une série de 2 semaines ou plus et pas encore de brève cette semaine. Il leur reste jusqu\'à mardi soir pour la sauver.</span></span></label>';
   h += '</div>';
   }
 

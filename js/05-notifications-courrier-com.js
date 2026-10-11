@@ -3067,9 +3067,6 @@ function osNotifierValidateursCentraux(article){
       });
 
       destinataires.forEach(function(m){
-        // Déjà signalé par la notification urgente in-app pour qui est connecté à ce
-        // moment-là — inutile de doubler avec un email pour cette personne précise.
-        if(osEstEnLigne(m.id)) return;
         envoyerEmailResend(m.email, '[Ipsum Média] Bon à publier de la centrale attendu : '+titre, emailHtml, 'valide-central');
       });
     });
@@ -3130,7 +3127,7 @@ function osNotifierChefsArticleRelu(article){
       +' : relu par '+_chatSansMiseEnForme(qui)+'.\n<'+lien+'|Ouvrir l\'article>';
     destinataires.forEach(function(m){
       notifierPersonnel(m.id, m.canal_notif, chat, 'validation', function(){
-        if(!m.email || osEstEnLigne(m.id)) return;
+        if(!m.email) return;
         var html = _emailCompo({
           accent:'bleu', etiquette:'BON À PUBLIER', titre:'Un article attend ton bon à publier',
           bonjour:'Bonjour '+esc(m.prenom||'')+',',

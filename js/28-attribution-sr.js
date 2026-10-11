@@ -256,8 +256,7 @@ function osSrNotifierRelecteur(doc, membre, auto){
   var chat = '*Un article t\'attend au SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(redac ? ' · '+_chatSansMiseEnForme(redac) : '')
     +(auto ? ', désigné par Compo' : '')+'\n<'+lien+'|Relire l\'article>';
   notifierPersonnel(membre.id, membre.canal_notif, chat, 'correction', function(secours){
-    // Connecté·e à Compo : la notification s'affiche déjà dans Compo (sauf si Chat a échoué)
-    if(!membre.email || (!secours && osEstEnLigne(membre.id))) return;
+    if(!membre.email) return;
     var html = _emailCompo({
       accent:'bleu', etiquette:'AU SR', titre:'Un article t\'attend',
       bonjour:'Bonjour '+esc(membre.prenom||'')+',',

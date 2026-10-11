@@ -104,7 +104,7 @@ function _srNotifierFile(doc, rendu){
     cibles.forEach(function(m){
       var chat = '*'+(doc.express ? '⚡ Relecture express : u' : 'U')+'n article attend dans la file du SR*\n« '+_chatSansMiseEnForme(titre)+' »'+(nomRedacFile ? ' · '+_chatSansMiseEnForme(nomRedacFile) : '')+(rendu ? ' (rendu à la file)' : '')+'. Le premier ou la première qui le prend s\'en occupe.\n<'+lien+'|Voir l\'article>';
       notifierPersonnel(m.id, m.canal_notif, chat, 'correction', function(secours){
-        if(!m.email || (!secours && osEstEnLigne(m.id))) return;
+        if(!m.email) return;
         var html = _emailCompo({
           accent:'bleu', etiquette:'FILE DU SR', titre:'Un article attend une relecture',
           bonjour:'Bonjour '+esc(m.prenom||'')+',',

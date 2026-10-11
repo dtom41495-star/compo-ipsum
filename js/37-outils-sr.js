@@ -426,7 +426,7 @@ var HIST_ETAPES = {
   publication:           { icone:'world-upload',   ton:'vert',  texte:'a mis l\'article en ligne' },
   statut:                { icone:'point',          ton:'gris',  texte:'a changé l\'étape de l\'article' }
 };
-var HIST_CANAUX = { chat:'Chat', email:'mail', compo:'dans Compo (connecté·e)', echec:'Chat en panne, pas de mail' };
+var HIST_CANAUX = { chat:'Chat', email:'mail', compo:'dans Compo (connecté·e)', aucun:'rien envoyé : pas d\'adresse mail', echec:'Chat en panne, pas de mail' };
 
 function osHistoriqueOuvrir(){
   var doc = currentDoc;
