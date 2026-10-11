@@ -5612,3 +5612,36 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .mr-tuiles { grid-template-columns: repeat(2, 1fr); }
   .mr-bandeau { padding: 1rem; }
 }
+
+/* ===== Tableau de bord du SR (js/40-tableau-sr.js) ===== */
+.tsr { display: flex; flex-direction: column; gap: 0.9rem; }
+.tsr-tuiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; }
+.tsr-tuile { background: #fff; border: 0.5px solid var(--gris-bord); border-radius: 10px; padding: 0.7rem 0.4rem; text-align: center; }
+.tsr-tuile strong { display: block; font-family: Poppins, sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--encre); }
+.tsr-tuile span { display: block; margin-top: 2px; font-family: 'Space Mono', monospace; font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gris); }
+.tsr-bloc { background: #fff; border: 0.5px solid var(--gris-bord); border-radius: 10px; padding: 0.8rem 1rem; }
+.tsr-titre { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-family: 'Space Mono', monospace; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gris); }
+.tsr-titre small { text-transform: none; letter-spacing: 0; font-size: 0.62rem; opacity: 0.8; }
+.tsr-n { background: #1A5276; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 0.6rem; }
+.tsr-vide { font-size: 0.8rem; color: var(--gris); padding: 0.4rem 0; }
+.tsr-ligne { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; border-top: 0.5px solid var(--gris-bord); }
+.tsr-titre + .tsr-ligne { border-top: none; }
+.tsr-infos { flex: 1; min-width: 0; }
+.tsr-titre-art { font-size: 0.85rem; font-weight: 600; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsr-meta { font-size: 0.72rem; color: var(--gris); margin-top: 1px; }
+.tsr-express { background: #FFF3CD; color: #856404; border-radius: 4px; padding: 0 6px; font-size: 0.66rem; font-weight: 700; }
+.tsr-dort { color: #B45309; font-weight: 600; }
+.tsr-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.tsr-discret { border: none; background: none; color: var(--gris); font-size: 0.72rem; cursor: pointer; padding: 4px 6px; border-radius: 6px; text-decoration: underline; text-underline-offset: 2px; }
+.tsr-discret:hover { color: var(--encre); background: var(--gris-clair); }
+.tsr-etat { font-family: 'Space Mono', monospace; font-size: 0.56rem; padding: 2px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+.tsr-lien { border: none; background: none; color: #1A5276; font-size: 0.76rem; font-weight: 600; cursor: pointer; padding: 0.4rem 0 0; }
+.tsr-erreur { padding: 2rem; text-align: center; color: #A32D2D; font-size: 0.8rem; }
+.tsr-erreur button { margin-left: 0.5rem; padding: 4px 12px; border: 1px solid #A32D2D; border-radius: 6px; background: #fff; color: #A32D2D; cursor: pointer; }
+@media (max-width: 768px) {
+  .tsr { padding-bottom: 5rem; }
+  .tsr-tuiles { grid-template-columns: repeat(3, 1fr); }
+  .tsr-ligne { flex-wrap: wrap; }
+  .tsr-actions, .tsr-ligne > .mac-btn { width: 100%; }
+  .tsr-actions .mac-btn { flex: 1; }
+}
