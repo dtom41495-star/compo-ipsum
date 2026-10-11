@@ -5345,6 +5345,10 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-ag-heure { font-family: Poppins, sans-serif; font-weight: 700; font-size: clamp(.95rem, 2.2vh, 1.5rem); color: var(--ecr-cyan); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .ecr-compte-nl { color: var(--ecr-vert); font-weight: 700; font-size: clamp(.85rem, 1.9vh, 1.25rem); margin: 0 0 4px; }
 .ecr-vide { color: var(--ecr-doux); font-size: clamp(.9rem, 2vh, 1.3rem); padding: 12px 0; }
+.ecr-page { margin-left: auto; font-family: 'Space Mono', monospace; font-size: .6em; font-weight: 700; color: var(--ecr-doux); }
+/* Les listes du bas d'une colonne se contentent de la place de leur contenu, sans dépasser 42 % de la colonne :
+   la liste du haut garde toujours de quoi afficher au moins un élément en entier. */
+#ecr-en-ligne, #ecr-reserves { flex: 0 1 auto; max-height: 42%; }
 .ecr-live { display: inline-flex; align-items: center; gap: 3px; color: var(--ecr-vert, #5fd38a); font-weight: 700; }
 .ecr-live i { width: .38em; height: .38em; border-radius: 50%; background: currentColor; animation: ecr-live 1.2s ease-in-out infinite; }
 .ecr-live i:nth-child(2) { animation-delay: .15s; }
@@ -5353,8 +5357,6 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-live-tuile { margin-left: 4px; font-size: .85em; }
 @keyframes ecr-live { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-.25em); } }
 @media (prefers-reduced-motion: reduce) { .ecr-live i { animation: none; opacity: 1; } }
-.ecr-defile { display: flex; flex-direction: column; transition: transform .7s cubic-bezier(.45, 0, .2, 1); }
-.ecr-defile-bloc { display: flex; flex-direction: column; gap: clamp(6px, 1vh, 12px); padding-bottom: clamp(6px, 1vh, 12px); flex-shrink: 0; }
 .ecr-pied { display: flex; justify-content: space-between; color: var(--ecr-gris); font-size: clamp(.7rem, 1.4vh, .95rem); }
 #ecr-etat { color: var(--ecr-rouge); }
 .ecr-quitter { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity .2s;
@@ -5365,7 +5367,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .ecr-compteurs { grid-template-columns: repeat(3, 1fr); }
   .ecr-grille { grid-template-columns: 1fr; flex: none; }
   .ecr-col { overflow: visible; }
-  .ecr-liste, #ecr-en-ligne { flex: none; overflow: visible; }
+  .ecr-liste, #ecr-en-ligne, #ecr-reserves { flex: none; overflow: visible; max-height: none; }
   .ecr-quitter { opacity: 1; pointer-events: auto; position: fixed; top: auto; bottom: 14px; left: auto; right: 14px; transform: none; background: #2C2C3E; }
   .ecr-pied { padding-bottom: 52px; }
 }
