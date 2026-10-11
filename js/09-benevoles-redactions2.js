@@ -346,6 +346,14 @@ function osBenevolesDashRender(){
     [['tous','Tous'],['rédacteur','Rédacteur'],['correcteur','SR'],['admin','Admin']].forEach(function(rr){var r=rr[1];sh+='<button class="benv-filtre-btn btn sec" onclick="osBenevolesFiltre(this,\''+rr[0]+'\')" style="font-size:0.62rem;padding:0.2rem 0.6rem;border-radius:4px;"'+(r==='Tous'?' id="benv-filtre-actif"':'')+'>'+r+'</button>';});
     sh+='<button onclick="osBenevolesExporterPDF()" title="Document PDF listant l\'équipe, inactifs en tête" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 9px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Exporter PDF</button>';
     sh+='<div style="font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);">'+membres.length+' membre(s)</div></div>';
+    // Légende des pictogrammes des cartes
+    sh+='<div class="benv-legende" style="padding:0.35rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem 1.1rem;flex-wrap:wrap;align-items:center;font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);background:var(--creme,#faf8f5);">'
+      +'<span style="text-transform:uppercase;letter-spacing:0.06em;">Légende</span>'
+      +(isVieAsso?'<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-alert-triangle" style="font-size:0.85rem;color:#B45309;"></i> Semaines sans brève (orange : à surveiller · rouge : 3 semaines vides ou plus, à passer inactif ?)</span>':'')
+      +'<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-file-off" style="font-size:0.85rem;color:#B45309;"></i> N\'a encore écrit aucun article ni brève</span>'
+      +'<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-unlink" style="font-size:0.85rem;color:#B91C1C;"></i> N\'est rattaché·e à aucune rédaction</span>'
+      +'<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-award" style="font-size:0.85rem;color:#B45309;"></i> A reçu une ou plusieurs récompenses</span>'
+      +'</div>';
     if(isVieAsso) sh+='<div id="benv-recontacter" style="display:none;padding:0.7rem 1.4rem 0;flex-shrink:0;"></div>';
     // Deux colonnes : liste à gauche, fiche du bénévole sélectionné à droite — intégrée
     // directement dans l'appli (plus de popup), qui se met à jour au clic sur une ligne.
