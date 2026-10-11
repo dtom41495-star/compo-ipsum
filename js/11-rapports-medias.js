@@ -69,6 +69,12 @@ function _osRapportTableauRepartition(map, enTete, total){
   return h+'</table>';
 }
 
+// Sections ajoutées par js/43-rapports-v2.js ; sans elles, ou en cas d'erreur, le rapport sort tel quel
+function _rapExtrasSafe(type, ctx){
+  try{ return Promise.resolve(typeof _rapExtras === 'function' ? _rapExtras(type, ctx) : '').catch(function(){ return ''; }); }
+  catch(e){ return Promise.resolve(''); }
+}
+
 function _osRapportHeures(minutes){
   var h = Math.floor(minutes/60), m = minutes%60;
   return h ? (h+' h'+(m?' '+String(m).padStart(2,'0'):'')) : (m+' min');
@@ -130,7 +136,7 @@ function osRapportActiviteAnnuel(annee){
       var t = a.type==='breve'?'Brève':'Article';
       parType[t]=(parType[t]||0)+1;
     });
-    var LBL_H={redaction:'Rédaction',correction:'Relecture (SR)',reunion:'Réunion',evenement:'Événement',autre:'Autre'};
+    var LBL_H={redaction:'Rédaction',correction:'Relecture (SR)',reunion:'Réunion',evenement:'Événement',invitation_presse:'Invitation presse',agenda:'Agenda',manuel:'Saisie manuelle',autre:'Autre'};
     heures.forEach(function(h){
       var t=LBL_H[h.type]||h.type||'Autre';
       parHeureType[t]=(parHeureType[t]||0)+(h.duree_minutes||0);
@@ -173,9 +179,11 @@ function osRapportActiviteAnnuel(annee){
       +'<tr><td>Membres inscrits à l\'association</td><td class="num">'+membres.filter(function(m){return m.actif!==false;}).length+'</td></tr>'
       +'</table></section>';
 
-    win.document.open();
-    win.document.write(_osRapportHtml('Rapport d\'activité '+annee, 'Bilan de l\'année civile '+annee+' — document destiné à l\'assemblée générale et aux demandes de subvention', corps));
-    win.document.close();
+    return _rapExtrasSafe('activite', { annee:annee }).then(function(extra){
+      win.document.open();
+      win.document.write(_osRapportHtml('Rapport d\'activité '+annee, 'Bilan de l\'année civile '+annee+' — document destiné à l\'assemblée générale et aux demandes de subvention', corps+extra));
+      win.document.close();
+    });
   });
 }
 
@@ -249,9 +257,11 @@ function osRapportRedaction(redactionId, annee){
     } else corps += '<div class="vide">Aucun sujet ouvert sur la période.</div>';
     corps += '</section>';
 
-    win.document.open();
-    win.document.write(_osRapportHtml('Rédaction '+nomRedac, 'Activité de la rédaction sur l\'année '+annee, corps));
-    win.document.close();
+    return _rapExtrasSafe('redaction', { annee:annee, redacId:redactionId }).then(function(extra){
+      win.document.open();
+      win.document.write(_osRapportHtml('Rédaction '+nomRedac, 'Activité de la rédaction sur l\'année '+annee, corps+extra));
+      win.document.close();
+    });
   });
 }
 

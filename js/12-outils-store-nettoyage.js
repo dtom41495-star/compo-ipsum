@@ -1999,13 +1999,18 @@ function _osGestionRapportsRender(zone, membres, redacs){
   h += '<div style="font-size:.74rem;color:var(--gris);margin-bottom:1rem;line-height:1.5;">Chaque rapport s\'ouvre dans un nouvel onglet, prêt à imprimer ou à enregistrer en PDF.</div>';
 
   h += carte('ti-report','Rapport d\'activité annuel',
-    'Bilan complet de l\'association : publications, bénévolat, communiqués, événements et audience. C\'est le document à joindre à une demande de subvention ou à présenter en assemblée générale.',
+    'Bilan complet de l\'association : publications, bénévolat, communiqués, événements, audience, parcours des sujets et circuit de relecture. C\'est le document à joindre à une demande de subvention ou à présenter en assemblée générale.',
     selAnnee('rap-annee-activite'),
     btn('osRapportActiviteAnnuel(document.getElementById(\'rap-annee-activite\').value)','Générer'));
 
   var optsRedac = (redacs||[]).map(function(r){ return '<option value="'+esc(r.id)+'">'+esc(r.nom)+'</option>'; }).join('');
+  h += carte('ti-calendar-week','Point de la semaine',
+    'Photo de l\'instant pour le point du mercredi : ce qui est publié depuis mercredi, ce qui avance, ce qui est bloqué, les sujets réservés pas encore commencés, la régularité des rédacteurs et le circuit de relecture des 4 dernières semaines.',
+    '<select id="rap-semaine-redac" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;"><option value="toutes">Toutes les rédactions</option>'+(redacs||[]).map(function(r){ return '<option value="'+esc(r.id)+'">'+esc(r.nom)+'</option>'; }).join('')+'</select>',
+    btn('osRapportSemaine(document.getElementById(\'rap-semaine-redac\').value)','Générer'));
+
   h += carte('ti-users-group','Rapport par rédaction',
-    'Activité d\'une rédaction locale : son équipe, ses publications par auteur et par rubrique, ses sujets ouverts.',
+    'Activité d\'une rédaction locale : son équipe, ses publications par auteur et par rubrique, ses sujets ouverts, les sujets réservés pas encore commencés, la régularité de ses rédacteurs et son circuit de relecture.',
     '<select id="rap-redac" style="padding:.4rem .6rem;border:1.5px solid var(--gris-bord);border-radius:7px;font-size:.78rem;background:white;">'+(optsRedac||'<option value="">Aucune rédaction</option>')+'</select> '+selAnnee('rap-annee-redac'),
     btn('osRapportRedaction(document.getElementById(\'rap-redac\').value, document.getElementById(\'rap-annee-redac\').value)','Générer'));
 

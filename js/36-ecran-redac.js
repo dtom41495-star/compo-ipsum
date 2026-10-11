@@ -63,7 +63,8 @@ function osEcranLancer(){
       +'<section class="ecr-col"><h2 id="ecr-titre-circuit"></h2><div id="ecr-circuit" class="ecr-liste"></div>'
         +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
       +'<section class="ecr-col"><h2><i class="ti ti-calendar-event"></i> Agenda</h2><div id="ecr-agenda" class="ecr-liste"></div></section>'
-      +'<section class="ecr-col"><h2><i class="ti ti-bulb"></i> Sujets ouverts</h2><div id="ecr-sujets" class="ecr-liste"></div></section>'
+      +'<section class="ecr-col"><h2><i class="ti ti-bulb"></i> Sujets ouverts</h2><div id="ecr-sujets" class="ecr-liste"></div>'
+        +'<h2 class="ecr-h2-bas"><i class="ti ti-hourglass-high"></i> Réservés, pas encore commencés</h2><div id="ecr-reserves" class="ecr-liste"></div></section>'
     +'</main>'
     +'<footer class="ecr-pied"><span id="ecr-maj"></span><span id="ecr-etat"></span></footer>'
     +'<button class="ecr-quitter" onclick="osEcranQuitter()" title="Quitter l\'écran (Échap)"><i class="ti ti-x"></i> Quitter</button>';
@@ -162,7 +163,9 @@ function _ecranCharger(){
     _ecranLire('briefing?statut=in.(ouvert,en_cours)&select=*&order=created_at.desc&limit=100'),
     // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
     _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; }),
-    _ecranLire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=50').catch(function(){ return []; })
+    _ecranLire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=50').catch(function(){ return []; }),
+    // Sujets réservés dont l'article n'est pas encore commencé (js/42-pipeline-sujets.js)
+    typeof osPipelineCharger === 'function' ? osPipelineCharger(null).catch(function(){ return []; }) : Promise.resolve([])
   ]).then(function(res){
     if(!_ecran) return;
     var premier = !_ecran.dernier;
@@ -188,6 +191,7 @@ function _ecranRendre(res){
   _ecranNewsletter(res[1], res[5]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranVueCircuit();
   _ecranAgenda(res[2]);
+  _ecranReserves(res[6]);   // avant les sujets libres : sa hauteur décide de la place qui reste
   _ecranSujets(res[3].filter(function(s){ return s.statut === 'ouvert'; }));
 }
 
@@ -393,6 +397,21 @@ function _ecranAgenda(evs){
   });
   z.innerHTML = h;
   _ecranAjuster(z, evs.length);
+}
+
+// Ce qui est annoncé mais pas encore commencé : sujet réservé, sans article ou avec un brouillon à peine entamé
+function _ecranReserves(liste){
+  var z = document.getElementById('ecr-reserves');
+  if(!z) return;
+  liste = liste || [];
+  if(!liste.length){ z.innerHTML = '<div class="ecr-vide">Tous les sujets réservés sont lancés</div>'; return; }
+  z.innerHTML = liste.slice(0, 20).map(function(x){
+    var s = x.sujet;
+    return '<div class="ecr-item ecr-item-court"><div class="ecr-item-titre">'+(s.priorite === 'urgente' ? '<span class="ecr-tag ecr-tag-urgent">Urgent</span>' : '')+esc(s.titre || s.sujet || 'Sujet')+'</div>'
+      +'<div class="ecr-item-meta"><span>'+esc([s.responsable, _ecranRedac(s.redaction_id)].filter(Boolean).join(' · ') || 'Sans responsable')+'</span>'
+      +'<span>'+(x.etat === 'entame' ? 'brouillon à peine entamé' : 'pas encore d\u2019article')+'</span></div></div>';
+  }).join('');
+  _ecranAjuster(z, liste.length);
 }
 
 function _ecranSujets(sujets){
