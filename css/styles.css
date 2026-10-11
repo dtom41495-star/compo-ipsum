@@ -5748,3 +5748,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-ag-heure { font-size:clamp(1.1rem,2.7vh,1.9rem); min-width:3.2em; }
 .ecr-compte-nl { padding:0 clamp(12px,1.6vh,22px); }
 @media (max-width: 900px) { .ecr-item { display: block; } .ecr-item-meta { flex-direction: row; align-items: flex-start; text-align: left; margin-top: 4px; } }
+
+/* Les titres ne sont plus tronqués sur l'écran rédac : ils passent à la ligne (4 lignes au plus, par sécurité) ;
+   la pagination s'adapte à leur hauteur réelle. */
+.ecr-item-titre, .ecr-item-court .ecr-item-titre { -webkit-line-clamp: 4; overflow-wrap: anywhere; }
