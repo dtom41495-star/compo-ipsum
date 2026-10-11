@@ -153,12 +153,10 @@ function _ecranCharger(){
   var maintenant = new Date();
   var debutJour = new Date(maintenant); debutJour.setHours(0,0,0,0);
   var dansUneSemaine = new Date(debutJour.getTime() + 8 * 86400000);
-  var ilYaUneSemaine = new Date(maintenant.getTime() - 7 * 86400000);
   Promise.all([
     _ecranLire('articles?statut=neq.publie&select=id,titre,type,statut,auteur,redaction_id,updated_at&order=updated_at.asc&limit=500'),
     // Candidats de la newsletter : bons à publier ou en ligne, comme dans l'appli Newsletter (filtrés ensuite depuis le dernier envoi de leur rédaction)
     _ecranLire('articles?statut=in.(valide,publie)&updated_at=gte.'+encodeURIComponent(new Date(maintenant.getTime() - 30 * 86400000).toISOString())+'&select=id,titre,type,statut,auteur,redaction_id,updated_at,publie_le&order=updated_at.desc&limit=200'),
-    _ecranLire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(ilYaUneSemaine.toISOString())+'&select=id'),
     _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=30'),
     _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30'),
     // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
@@ -182,12 +180,12 @@ function _ecranCharger(){
 }
 
 function _ecranRendre(res){
-  _ecranCompteurs(res[0], res[2].length);
-  _ecranPresence(_ecranNbConnectes(res[5]));
-  _ecranNewsletter(res[1], res[6]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
+  _ecranCompteurs(res[0]);
+  _ecranPresence(_ecranNbConnectes(res[4]));
+  _ecranNewsletter(res[1], res[5]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranCircuit(res[0]);
-  _ecranAgenda(res[3]);
-  _ecranSujets(res[4]);
+  _ecranAgenda(res[2]);
+  _ecranSujets(res[3]);
 }
 
 // Garde dans chaque colonne ce qui tient à l'écran, sans couper ni chevaucher : les derniers
@@ -234,7 +232,7 @@ function _ecranNbConnectes(lignes){
   return (lignes || []).filter(function(p){ return p && p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < seuil; }).length;
 }
 
-function _ecranCompteurs(arts, enLigneSemaine){
+function _ecranCompteurs(arts){
   var n = function(f){ return arts.filter(f).length; };
   var cases = [
     // Brouillons touchés ces 30 derniers jours : les vieux brouillons abandonnés ne comptent pas
@@ -242,8 +240,7 @@ function _ecranCompteurs(arts, enLigneSemaine){
     { l:'Au SR',          v:n(function(a){ return a.statut === 'en-relecture'; }), c:'bleu' },
     { l:'Relus',          v:n(function(a){ return a.statut === 'corrige'; }), c:'cyan' },
     { l:'Bons à publier', v:n(function(a){ return a.statut === 'valide_central' || (a.statut === 'valide' && _ecranArticleEstCentral(a)); }), c:'vert' },
-    { l:'Attente centrale', v:n(function(a){ return a.statut === 'valide' && !_ecranArticleEstCentral(a); }), c:'violet' },
-    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' }
+    { l:'Attente centrale', v:n(function(a){ return a.statut === 'valide' && !_ecranArticleEstCentral(a); }), c:'violet' }
   ];
   var z = document.getElementById('ecr-compteurs');
   if(z) z.innerHTML = cases.map(function(k){

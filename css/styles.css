@@ -5314,7 +5314,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 #ecr-deux-points { display: inline-block; margin: 0 .04em; }
 #ecr-horloge { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(2rem, 6vh, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
 #ecr-date { color: var(--ecr-doux); font-size: clamp(.85rem, 1.9vh, 1.3rem); margin-top: 4px; }
-.ecr-compteurs { display: grid; grid-template-columns: repeat(6, 1fr); gap: clamp(8px, 1.2vw, 18px); }
+.ecr-compteurs { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 1.2vw, 18px); }
 .ecr-compteur { background: var(--ecr-carte); border: 1px solid var(--ecr-bord); border-top: 4px solid var(--ecr-c, var(--ecr-gris)); border-radius: 14px; padding: clamp(8px, 1.6vh, 20px) clamp(10px, 1.2vw, 20px); }
 .ecr-compteur-v { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(1.8rem, 6vh, 4.4rem); line-height: 1; color: var(--ecr-c, var(--ecr-texte)); font-variant-numeric: tabular-nums; }
 .ecr-compteur-l { margin-top: 6px; color: var(--ecr-doux); font-size: clamp(.75rem, 1.7vh, 1.15rem); }
