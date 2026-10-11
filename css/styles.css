@@ -5731,3 +5731,20 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .bug-date { color: var(--gris); font-size: .62rem; }
 .bug-meta { color: var(--gris); font-size: .62rem; margin-bottom: .2rem; }
 .bug-detail { color: var(--encre); font-size: .64rem; background: var(--gris-clair); border-radius: 4px; padding: 4px 7px; margin-top: .3rem; word-break: break-word; }
+
+/* ===== Écran rédac : mise en forme « tableau des départs » (mêmes couleurs et police qu'avant, horloge en Poppins) ===== */
+.ecr-marque { letter-spacing:.14em; text-transform:uppercase; font-size:clamp(.9rem,2vh,1.4rem); }
+#ecr-date { text-transform:uppercase; letter-spacing:.12em; }
+.ecr-compteur { border-radius:8px; border-top:0; border-bottom:4px solid var(--ecr-c,var(--ecr-gris)); text-align:center; }
+.ecr-compteur-l { text-transform:uppercase; letter-spacing:.12em; font-size:clamp(.62rem,1.35vh,.92rem); }
+.ecr-col { padding-left:0; padding-right:0; border-radius:12px; }
+.ecr-col h2 { text-transform:uppercase; letter-spacing:.14em; font-size:clamp(.85rem,1.9vh,1.25rem); margin:0 0 6px; padding:0 clamp(12px,1.6vh,22px) 10px; border-bottom:1px solid var(--ecr-bord); }
+.ecr-liste { gap:0; }
+.ecr-item { border-bottom:0; padding:clamp(7px,1.2vh,13px) clamp(12px,1.6vh,22px); display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:18px; align-items:center; }
+.ecr-liste > .ecr-item:nth-child(odd) { background:rgba(255,255,255,.04); }
+.ecr-item-meta { margin:0; flex-direction:column; align-items:flex-end; text-align:right; gap:2px; }
+.ecr-jour { padding:6px clamp(12px,1.6vh,22px); margin:0; background:rgba(255,255,255,.07); text-transform:uppercase; letter-spacing:.12em; font-size:clamp(.65rem,1.4vh,.95rem); }
+.ecr-item-agenda { display:flex; gap:16px; }
+.ecr-ag-heure { font-size:clamp(1.1rem,2.7vh,1.9rem); min-width:3.2em; }
+.ecr-compte-nl { padding:0 clamp(12px,1.6vh,22px); }
+@media (max-width: 900px) { .ecr-item { display: block; } .ecr-item-meta { flex-direction: row; align-items: flex-start; text-align: left; margin-top: 4px; } }
