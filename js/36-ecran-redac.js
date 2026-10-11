@@ -158,7 +158,9 @@ function _ecranCharger(){
     _ecranLire('articles?statut=eq.publie&select=id,titre,type,auteur,redaction_id,updated_at&order=updated_at.desc&limit=6'),
     _ecranLire('articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(ilYaUneSemaine.toISOString())+'&select=id'),
     _ecranLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dansUneSemaine.toISOString())+'&select=*&order=date_debut.asc&limit=30'),
-    _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30')
+    _ecranLire('briefing?statut=eq.ouvert&select=*&order=created_at.desc&limit=30'),
+    // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
+    _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; })
   ]).then(function(res){
     if(!_ecran) return;
     var premier = !_ecran.dernier;
@@ -177,7 +179,7 @@ function _ecranCharger(){
 }
 
 function _ecranRendre(res){
-  _ecranCompteurs(res[0], res[2].length);
+  _ecranCompteurs(res[0], res[2].length, _ecranNbConnectes(res[5]));
   _ecranEnLigne(res[1]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranCircuit(res[0]);
   _ecranAgenda(res[3]);
@@ -217,7 +219,12 @@ function _ecranArticleEstCentral(a){
   return !centrale || a.redaction_id === centrale.id;
 }
 
-function _ecranCompteurs(arts, enLigneSemaine){
+function _ecranNbConnectes(lignes){
+  var seuil = typeof PRESENCE_SEUIL_MS === 'number' ? PRESENCE_SEUIL_MS : 120000;
+  return (lignes || []).filter(function(p){ return p && p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < seuil; }).length;
+}
+
+function _ecranCompteurs(arts, enLigneSemaine, connectes){
   var n = function(f){ return arts.filter(f).length; };
   var cases = [
     // Brouillons touchés ces 30 derniers jours : les vieux brouillons abandonnés ne comptent pas
@@ -226,7 +233,8 @@ function _ecranCompteurs(arts, enLigneSemaine){
     { l:'Relus',          v:n(function(a){ return a.statut === 'corrige'; }), c:'cyan' },
     { l:'Bons à publier', v:n(function(a){ return a.statut === 'valide_central' || (a.statut === 'valide' && _ecranArticleEstCentral(a)); }), c:'vert' },
     { l:'Attente centrale', v:n(function(a){ return a.statut === 'valide' && !_ecranArticleEstCentral(a); }), c:'violet' },
-    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' }
+    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' },
+    { l:'Connecté'+(connectes > 1 ? 's' : '')+' sur Compo', v:connectes, c:'vert' }
   ];
   var z = document.getElementById('ecr-compteurs');
   if(z) z.innerHTML = cases.map(function(k){
