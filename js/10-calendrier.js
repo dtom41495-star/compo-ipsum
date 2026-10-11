@@ -1435,6 +1435,49 @@ function osRedacChangerSousOngletRedac(id){
   }
 }
 
+// Carte « Bloqués » de la vue rédaction : ce qui dort trop longtemps dans le circuit (mêmes règles et seuils
+// que l'écran rédac, voir _ecranBloques). Pour tout le monde : les articles déjà envoyés au SR (sans correcteur,
+// relus qui attendent le bon à publier). Les brouillons et les sujets réservés (donc des noms et des retards
+// individuels) ne sont montrés qu'au rédac chef et aux admins.
+function _osRedacBloquesZone(){
+  return '<div id="redac-bloques-zone" style="margin:0.2rem 0 0.5rem;"></div>';
+}
+
+function osRedacBloquesCharger(redacId, complet){
+  var zone = document.getElementById('redac-bloques-zone');
+  if(!zone || !redacId || typeof _ecranBloques !== 'function') return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var champs = 'id,titre,type,statut,auteur,redaction_id,updated_at,correcteur,note_interne,sujet_id';
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=neq.publie&select='+champs+'&limit=500',{headers:authH}).then(function(r){return r.json();}),
+    complet ? fetch(SB_URL+'/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.en_cours&select=*&limit=100',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
+    complet ? fetch(SB_URL+'/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.publie&sujet_id=not.is.null&select=id,sujet_id&limit=500',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([])
+  ]).then(function(res){
+    var arts = Array.isArray(res[0]) ? res[0] : [];
+    var sujets = Array.isArray(res[1]) ? res[1] : [];
+    var publies = Array.isArray(res[2]) ? res[2] : [];
+    var liste = _ecranBloques(arts, publies, sujets);
+    if(!complet) liste = liste.filter(function(b){ return !b.prive && b.a && b.a.statut; });
+    var h = '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.8rem 1rem;">';
+    h += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:'+(liste.length?'0.5rem':'0')+';font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);"><i class="ti ti-alert-octagon" style="font-size:0.9rem;color:'+(liste.length?'#C0392B':'#27AE60')+';"></i> Bloqués'
+      +(liste.length?' <span style="background:#C0392B;color:white;border-radius:10px;padding:0 7px;font-size:0.6rem;">'+liste.length+'</span>':'')+'</div>';
+    if(!liste.length){
+      h += '<div style="font-size:0.8rem;color:var(--gris);margin-top:0.35rem;">Rien de bloqué : tout avance, bravo !</div>';
+    } else {
+      liste.slice(0, 8).forEach(function(b, i){
+        var a = b.a;
+        var titre = b.prive ? 'Brouillon de '+(a.auteur||'quelqu’un') : (a.titre||'Sans titre');
+        h += '<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.4rem 0;'+(i<Math.min(liste.length,8)-1?'border-bottom:0.5px solid var(--gris-bord);':'')+'">'
+          +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(titre)+(!b.prive&&a.auteur?' <span style="color:var(--gris);font-size:0.72rem;">'+esc(a.auteur)+'</span>':'')+'</div>'
+          +'<div style="font-size:0.7rem;color:var(--gris);">'+esc(b.cause)+'</div></div>'
+          +'<span style="font-family:Space Mono,monospace;font-size:0.6rem;color:#C0392B;flex-shrink:0;">depuis '+b.j+' j</span></div>';
+      });
+      if(liste.length > 8) h += '<div style="font-size:0.7rem;color:var(--gris);padding-top:0.3rem;">et '+(liste.length-8)+' autre'+(liste.length-8>1?'s':'')+'</div>';
+    }
+    zone.innerHTML = h+'</div>';
+  }).catch(function(){ zone.innerHTML = ''; });
+}
+
 function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
   if(!redacId){ return '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune r\u00e9daction assign\u00e9e.</div>'; }
   var redac = _redactionsData.find(function(r){ return r.id === redacId; });
@@ -1473,6 +1516,8 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += sc3(artsMois.length,'Ce mois','#EA5B1C');
     h += sc3(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',true);
     h += '</div>';
+    h += _osRedacBloquesZone();
+    setTimeout(function(){ osRedacBloquesCharger(redacId, false); }, 50);
 
     h += '<div>';
     h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gris);margin-bottom:0.5rem;">Membres de la rédaction</div>';
@@ -1579,6 +1624,8 @@ function osRedactionsMembre_OngletRedac(uid, redacId, roleRedac, membre){
     h += sc2(participationsRedac.length,'Participations','#7D3C98',null);
     h += sc2(nouveauxRedac.length,'Nouveaux',nouveauxRedac.length>0?'#E67E22':'var(--gris)',null);
     h += '</div>';
+    h += _osRedacBloquesZone();
+    setTimeout(function(){ osRedacBloquesCharger(redacId, true); }, 50);
 
     var artsRecents = artsRedac.filter(function(a){return a.statut==='publie';}).slice(0,5);
     if(artsRecents.length){
