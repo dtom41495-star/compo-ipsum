@@ -5308,8 +5308,9 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-entete { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .ecr-marque { display: flex; align-items: center; gap: 14px; font-family: Poppins, sans-serif; font-weight: 700; font-size: clamp(1rem, 2.2vh, 1.6rem); color: var(--ecr-doux); }
 .ecr-marque img { height: clamp(32px, 5vh, 60px); filter: brightness(0) invert(1); opacity: .92; }
-.ecr-heure { text-align: right; }
-.ecr-enligne { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; padding: 5px 14px 5px 11px; border-radius: 999px; border: 1px solid var(--ecr-bord); background: var(--ecr-carte); color: var(--ecr-doux); font-size: clamp(.8rem, 1.8vh, 1.2rem); }
+.ecr-heure { display: flex; align-items: center; justify-content: flex-end; gap: clamp(14px, 2vw, 32px); }
+.ecr-heure-bloc { text-align: right; }
+.ecr-enligne { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; padding: 5px 14px 5px 11px; border-radius: 999px; border: 1px solid var(--ecr-bord); background: var(--ecr-carte); color: var(--ecr-doux); font-size: clamp(.8rem, 1.8vh, 1.2rem); }
 #ecr-deux-points { display: inline-block; margin: 0 .04em; }
 #ecr-horloge { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(2rem, 6vh, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
 #ecr-date { color: var(--ecr-doux); font-size: clamp(.85rem, 1.9vh, 1.3rem); margin-top: 4px; }

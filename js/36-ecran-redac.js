@@ -55,7 +55,8 @@ function osEcranLancer(){
   el.innerHTML =
     '<header class="ecr-entete">'
       +'<div class="ecr-marque"><img src="https://ipsummedia.fr/assets/logo.png" alt=""><span>La rédaction en direct</span></div>'
-      +'<div class="ecr-heure"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div></div>'
+      +'<div class="ecr-heure"><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div>'
+        +'<div class="ecr-heure-bloc"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
