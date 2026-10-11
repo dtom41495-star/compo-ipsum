@@ -55,7 +55,7 @@ function osEcranLancer(){
   el.innerHTML =
     '<header class="ecr-entete">'
       +'<div class="ecr-marque"><img src="https://ipsummedia.fr/assets/logo.png" alt=""><span>La rédaction en direct</span></div>'
-      +'<div class="ecr-heure"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div>'
+      +'<div class="ecr-heure"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
     +'<main class="ecr-grille">'
@@ -179,7 +179,8 @@ function _ecranCharger(){
 }
 
 function _ecranRendre(res){
-  _ecranCompteurs(res[0], res[2].length, _ecranNbConnectes(res[5]));
+  _ecranCompteurs(res[0], res[2].length);
+  _ecranPresence(_ecranNbConnectes(res[5]));
   _ecranEnLigne(res[1]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranCircuit(res[0]);
   _ecranAgenda(res[3]);
@@ -219,12 +220,18 @@ function _ecranArticleEstCentral(a){
   return !centrale || a.redaction_id === centrale.id;
 }
 
+// Même pastille que sur le bureau (« N en ligne »), à côté de l'heure
+function _ecranPresence(n){
+  var t = document.getElementById('ecr-enligne-n');
+  if(t) t.textContent = n+' en ligne';
+}
+
 function _ecranNbConnectes(lignes){
   var seuil = typeof PRESENCE_SEUIL_MS === 'number' ? PRESENCE_SEUIL_MS : 120000;
   return (lignes || []).filter(function(p){ return p && p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < seuil; }).length;
 }
 
-function _ecranCompteurs(arts, enLigneSemaine, connectes){
+function _ecranCompteurs(arts, enLigneSemaine){
   var n = function(f){ return arts.filter(f).length; };
   var cases = [
     // Brouillons touchés ces 30 derniers jours : les vieux brouillons abandonnés ne comptent pas
@@ -233,8 +240,7 @@ function _ecranCompteurs(arts, enLigneSemaine, connectes){
     { l:'Relus',          v:n(function(a){ return a.statut === 'corrige'; }), c:'cyan' },
     { l:'Bons à publier', v:n(function(a){ return a.statut === 'valide_central' || (a.statut === 'valide' && _ecranArticleEstCentral(a)); }), c:'vert' },
     { l:'Attente centrale', v:n(function(a){ return a.statut === 'valide' && !_ecranArticleEstCentral(a); }), c:'violet' },
-    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' },
-    { l:'Connecté'+(connectes > 1 ? 's' : '')+' sur Compo', v:connectes, c:'vert' }
+    { l:'En ligne (7 j)', v:enLigneSemaine, c:'rouge' }
   ];
   var z = document.getElementById('ecr-compteurs');
   if(z) z.innerHTML = cases.map(function(k){
