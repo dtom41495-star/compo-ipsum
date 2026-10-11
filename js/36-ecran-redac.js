@@ -225,7 +225,6 @@ function _ecranPoser(z, html, nb){
   var sig = window.innerWidth+'x'+window.innerHeight+'|'+html;
   if(z.dataset.sig === sig) return;
   z.dataset.sig = sig;
-  z.style.flex = ''; z.style.height = '';
   z.innerHTML = html;
   _ecranDefiler(z, html, nb);
 }
@@ -429,38 +428,58 @@ function _ecranReserves(liste){
   _ecranPoser(z, html, liste.length);
 }
 
-// Défilement par paliers, comme les marches d'un escalier : toutes les ECRAN_PALIER_MS la liste monte
-// d'un seul élément (un jour d'agenda monte avec son titre), puis boucle. Rien ne défile en continu,
-// pour que ce soit lisible sans devenir hypnotique. Si tout tient dans la colonne, rien ne bouge.
-// Sur téléphone la page défile : tout reste affiché.
+// Pagination, sans aucune animation : si une liste dépasse de sa colonne, elle est découpée en pages
+// d'éléments entiers (page 1, 2, 3…) qui se remplacent toutes les ECRAN_PALIER_MS. Le numéro de page
+// s'affiche à droite du titre de la liste. Un jour d'agenda reste avec ses événements (il est répété
+// en haut de la page suivante). Si tout tient, rien ne change. Sur téléphone la page défile : tout reste.
 var ECRAN_PALIER_MS = 5000;
 function _ecranDefiler(z, html, nb){
   if(z._palier){ clearInterval(z._palier); z._palier = null; }
+  _ecranNumeroPage(z, 0, 0);
   if(window.innerWidth <= 900 || z.scrollHeight <= z.clientHeight + 1) return;
-  // La fenêtre se cale sur des éléments entiers : pas de ligne coupée en deux au bas de la colonne
-  var haut = 0, zone = z.clientHeight, base0 = z.offsetTop;
-  Array.prototype.forEach.call(z.querySelectorAll('.ecr-item'), function(el){
-    var bas = el.offsetTop - base0 + el.offsetHeight;
-    if(bas <= zone) haut = bas;
+  var zone = z.clientHeight, haut = z.getBoundingClientRect().top;
+  // Unités insécables : un élément, précédé de son titre de jour s'il en a un
+  var unites = [], jour = null, enAttente = null;
+  Array.prototype.forEach.call(z.children, function(el){
+    if(el.classList.contains('ecr-jour')){ enAttente = el; return; }
+    if(!el.classList.contains('ecr-item')) return;
+    var r = el.getBoundingClientRect();
+    var debut = enAttente ? enAttente.getBoundingClientRect().top : r.top;
+    if(enAttente) jour = enAttente;
+    unites.push({ html:(enAttente ? enAttente.outerHTML : '')+el.outerHTML, jour:jour, entete:!!enAttente, haut:debut - haut, bas:r.bottom - haut });
+    enAttente = null;
   });
-  if(haut > 0){ z.style.flex = 'none'; z.style.height = haut+'px'; }
-  z.innerHTML = '<div class="ecr-defile"><div class="ecr-defile-bloc">'+html+'</div><div class="ecr-defile-bloc" aria-hidden="true">'+html+'</div></div>';
-  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var piste = z.firstChild, blocs = piste.children;
-  // Début de chaque marche dans le premier bloc : un élément, ou le jour qui le précède
-  var marches = [], base = blocs[0].offsetTop;
-  Array.prototype.forEach.call(blocs[0].children, function(el){
-    if(el.classList.contains('ecr-item')) marches.push((el.previousElementSibling && el.previousElementSibling.classList.contains('ecr-jour') ? el.previousElementSibling : el).offsetTop - base);
+  if(unites.length < 2) return;
+  var pages = [], courante = null;
+  unites.forEach(function(u){
+    if(!courante || u.bas - courante.depart > zone){
+      courante = { depart:u.haut, html:'' };
+      pages.push(courante);
+      // Page qui commence au milieu d'une journée : on rappelle le jour
+      if(!u.entete && u.jour) courante.html += u.jour.outerHTML;
+    }
+    courante.html += u.html;
   });
-  marches.push(blocs[1].offsetTop - base);   // retour au début : le second bloc est identique au premier
+  if(pages.length < 2) return;
   var k = 0;
-  piste.addEventListener('transitionend', function(){
-    if(k === marches.length - 1){ k = 0; piste.style.transition = 'none'; piste.style.transform = 'translateY(0)'; void piste.offsetHeight; piste.style.transition = ''; }
-  });
+  var afficher = function(){ z.innerHTML = pages[k].html; _ecranNumeroPage(z, k + 1, pages.length); };
+  afficher();
   z._palier = setInterval(function(){
     if(!document.body.contains(z)){ clearInterval(z._palier); return; }
-    if(k < marches.length - 1){ k++; piste.style.transform = 'translateY(-'+marches[k]+'px)'; }
+    k = (k + 1) % pages.length;
+    afficher();
   }, ECRAN_PALIER_MS);
+}
+
+// « 2/3 » à droite du titre de la liste (rien s'il n'y a qu'une page)
+function _ecranNumeroPage(z, n, total){
+  var h = z.previousElementSibling;
+  while(h && h.tagName !== 'H2') h = h.previousElementSibling;
+  if(!h) return;
+  var b = h.querySelector('.ecr-page');
+  if(!total){ if(b) b.remove(); return; }
+  if(!b){ b = document.createElement('span'); b.className = 'ecr-page'; h.appendChild(b); }
+  b.textContent = n+'/'+total;
 }
 
 function _ecranSujets(sujets){

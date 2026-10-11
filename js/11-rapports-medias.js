@@ -387,20 +387,27 @@ function osRapportCommuniques(annee){
   Promise.all([
     _osRapportGet('/rest/v1/communiques?select=id,titre,source,organisation,contact_id,statut,type,created_at'),
     _osRapportGet('/rest/v1/contacts_sources?select=id,nom,organisation'),
-    _osRapportGet('/rest/v1/articles?select=id,cp_id,statut'),
-    _osRapportGet('/rest/v1/briefing?select=id,cp_id,statut')
+    _osRapportGet('/rest/v1/articles?select=id,cp_id,statut,sujet_id'),
+    _osRapportGet('/rest/v1/briefing?select=id,cp_id,statut'),
+    _osRapportGet('/rest/v1/briefing_communiques?select=briefing_id,communique_id')   // plusieurs communiqués par sujet
   ]).then(function(r){
-    var cps=r[0], contacts=r[1], articles=r[2], sujets=r[3];
+    var cps=r[0], contacts=r[1], articles=r[2], sujets=r[3], liens=r[4];
     var cpAnnee = cps.filter(function(c){ return c.created_at && String(c.created_at).substring(0,4)===String(annee); });
 
     var mapContact={}; contacts.forEach(function(c){ mapContact[c.id]=c; });
     // Un CP est "exploité" s'il a donné un sujet ou un article.
     var cpAvecSujet={}, cpAvecArticle={}, cpAvecPublication={};
     sujets.forEach(function(s){ if(s.cp_id) cpAvecSujet[s.cp_id]=true; });
+    // Communiqués d'un sujet : le principal (cp_id) et ceux ajoutés ensuite
+    var cpsParSujet={};
+    liens.forEach(function(l){ cpAvecSujet[l.communique_id]=true; (cpsParSujet[l.briefing_id]=cpsParSujet[l.briefing_id]||[]).push(l.communique_id); });
+    sujets.forEach(function(s){ if(s.cp_id){ var l=cpsParSujet[s.id]=cpsParSujet[s.id]||[]; if(l.indexOf(s.cp_id)<0) l.push(s.cp_id); } });
     articles.forEach(function(a){
-      if(!a.cp_id) return;
-      cpAvecArticle[a.cp_id]=true;
-      if(a.statut==='publie') cpAvecPublication[a.cp_id]=true;
+      var ids=(a.cp_id?[a.cp_id]:[]).concat(a.sujet_id&&cpsParSujet[a.sujet_id]?cpsParSujet[a.sujet_id]:[]);
+      ids.forEach(function(id){
+        cpAvecArticle[id]=true;
+        if(a.statut==='publie') cpAvecPublication[id]=true;
+      });
     });
 
     function nomSource(c){

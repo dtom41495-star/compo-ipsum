@@ -1143,6 +1143,7 @@ function osSujetOuvrirModifier(sujetId){
     +'</select></div>'
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ms-rubrique" value="'+esc(sujet.rubrique||'')+'"></div>'
     +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ms-note" style="min-height:70px;">'+esc(sujet.note||'')+'</textarea></div>'
+    +'<div class="form-group full"><label>Communiqués liés</label><div id="ms-cp-zone"></div></div>'
     +'</div>'
     +'<div class="btn-row">'
     +'<button class="btn" onclick="osModifierSujet(\''+sujetId+'\')">Enregistrer</button>'
@@ -1152,6 +1153,7 @@ function osSujetOuvrirModifier(sujetId){
   overlay.appendChild(card);
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
+  if(typeof osSujetCpBloc === 'function') osSujetCpBloc(sujet, document.getElementById('ms-cp-zone'));
   setTimeout(function(){ var t=document.getElementById('ms-titre'); if(t) t.focus(); }, 50);
 }
 

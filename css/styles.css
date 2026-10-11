@@ -5345,6 +5345,10 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-ag-heure { font-family: Poppins, sans-serif; font-weight: 700; font-size: clamp(.95rem, 2.2vh, 1.5rem); color: var(--ecr-cyan); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .ecr-compte-nl { color: var(--ecr-vert); font-weight: 700; font-size: clamp(.85rem, 1.9vh, 1.25rem); margin: 0 0 4px; }
 .ecr-vide { color: var(--ecr-doux); font-size: clamp(.9rem, 2vh, 1.3rem); padding: 12px 0; }
+.ecr-page { margin-left: auto; font-family: 'Space Mono', monospace; font-size: .6em; font-weight: 700; color: var(--ecr-doux); }
+/* Les listes du bas d'une colonne se contentent de la place de leur contenu, sans dépasser 42 % de la colonne :
+   la liste du haut garde toujours de quoi afficher au moins un élément en entier. */
+#ecr-en-ligne, #ecr-reserves { flex: 0 1 auto; max-height: 42%; }
 .ecr-live { display: inline-flex; align-items: center; gap: 3px; color: var(--ecr-vert, #5fd38a); font-weight: 700; }
 .ecr-live i { width: .38em; height: .38em; border-radius: 50%; background: currentColor; animation: ecr-live 1.2s ease-in-out infinite; }
 .ecr-live i:nth-child(2) { animation-delay: .15s; }
@@ -5353,8 +5357,6 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .ecr-live-tuile { margin-left: 4px; font-size: .85em; }
 @keyframes ecr-live { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-.25em); } }
 @media (prefers-reduced-motion: reduce) { .ecr-live i { animation: none; opacity: 1; } }
-.ecr-defile { display: flex; flex-direction: column; transition: transform .7s cubic-bezier(.45, 0, .2, 1); }
-.ecr-defile-bloc { display: flex; flex-direction: column; gap: clamp(6px, 1vh, 12px); padding-bottom: clamp(6px, 1vh, 12px); flex-shrink: 0; }
 .ecr-pied { display: flex; justify-content: space-between; color: var(--ecr-gris); font-size: clamp(.7rem, 1.4vh, .95rem); }
 #ecr-etat { color: var(--ecr-rouge); }
 .ecr-quitter { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity .2s;
@@ -5365,7 +5367,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .ecr-compteurs { grid-template-columns: repeat(3, 1fr); }
   .ecr-grille { grid-template-columns: 1fr; flex: none; }
   .ecr-col { overflow: visible; }
-  .ecr-liste, #ecr-en-ligne { flex: none; overflow: visible; }
+  .ecr-liste, #ecr-en-ligne, #ecr-reserves { flex: none; overflow: visible; max-height: none; }
   .ecr-quitter { opacity: 1; pointer-events: auto; position: fixed; top: auto; bottom: 14px; left: auto; right: 14px; transform: none; background: #2C2C3E; }
   .ecr-pied { padding-bottom: 52px; }
 }
@@ -5695,3 +5697,54 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .rig-legende span { display: inline-flex; gap: 5px; align-items: center; }
 .rig-pt { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 @media (max-width: 768px) { .rig-panneau { width: 100%; } .rig-colonnes { grid-template-columns: 1fr; } .rig-notes { position: static; } }
+
+/* ===== Plusieurs communiqués par sujet ===== */
+.sc-bloc { display: flex; flex-direction: column; gap: 6px; }
+.sc-ligne { display: flex; align-items: center; gap: 10px; background: var(--gris-clair); border: .5px solid var(--gris-bord); border-radius: 8px; padding: 8px 10px; }
+.sc-ligne > i { color: var(--gris); flex-shrink: 0; }
+.sc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sc-t b { font-size: .8rem; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-t small { font-size: .66rem; color: var(--gris); }
+.sc-btn { background: none; border: .5px solid var(--gris-bord); color: var(--encre); border-radius: 6px; cursor: pointer; font-size: .7rem; padding: 4px 9px; font-family: inherit; }
+.sc-btn:hover { background: var(--gris-clair); }
+.sc-retirer { color: var(--gris); padding: 4px 7px; }
+.sc-ajout { align-self: flex-start; border-style: dashed; }
+.sc-vide { font-size: .76rem; color: var(--gris); }
+.sc-etiquette { font-family: 'Space Mono', monospace; font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; color: var(--gris); margin: 8px 0 4px; }
+#r-cp-autres:not(:empty) { margin-top: 8px; }
+#r-cp-autres .sc-ligne { margin-bottom: 4px; }
+.sc-choix { padding: .7rem .9rem; border: .5px solid var(--gris-bord); border-radius: 8px; margin-bottom: .5rem; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.sc-choix:hover { background: var(--gris-clair); }
+.sc-choix b { font-size: .85rem; color: var(--encre); }
+.sc-choix small { font-size: .66rem; color: var(--gris); }
+/* ===== Signalements : filtres et cartes ===== */
+.bug-filtres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: .8rem; }
+.bug-filtre { font-family: 'Space Mono', monospace; font-size: .66rem; padding: 4px 10px; border: .5px solid var(--gris-bord); border-radius: 999px; background: white; color: var(--gris); cursor: pointer; }
+.bug-filtre b { color: var(--encre); margin-left: 2px; }
+.bug-filtre.on { background: var(--encre); color: white; border-color: var(--encre); }
+.bug-filtre.on b { color: white; }
+.bug-carte { background: white; border: 1px solid var(--gris-bord); border-radius: 6px; padding: .8rem; margin-bottom: .6rem; }
+.bug-haut { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: .35rem; }
+.bug-type { color: white; font-size: .6rem; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.bug-msg { flex: 1; min-width: 160px; font-weight: 700; color: var(--encre); font-size: .78rem; word-break: break-word; }
+.bug-n { font-size: .66rem; color: var(--rouge); font-weight: 700; }
+.bug-date { color: var(--gris); font-size: .62rem; }
+.bug-meta { color: var(--gris); font-size: .62rem; margin-bottom: .2rem; }
+.bug-detail { color: var(--encre); font-size: .64rem; background: var(--gris-clair); border-radius: 4px; padding: 4px 7px; margin-top: .3rem; word-break: break-word; }
+
+/* ===== Écran rédac : mise en forme « tableau des départs » (mêmes couleurs et police qu'avant, horloge en Poppins) ===== */
+.ecr-marque { letter-spacing:.14em; text-transform:uppercase; font-size:clamp(.9rem,2vh,1.4rem); }
+#ecr-date { text-transform:uppercase; letter-spacing:.12em; }
+.ecr-compteur { border-radius:8px; border-top:0; border-bottom:4px solid var(--ecr-c,var(--ecr-gris)); text-align:center; }
+.ecr-compteur-l { text-transform:uppercase; letter-spacing:.12em; font-size:clamp(.62rem,1.35vh,.92rem); }
+.ecr-col { padding-left:0; padding-right:0; border-radius:12px; }
+.ecr-col h2 { text-transform:uppercase; letter-spacing:.14em; font-size:clamp(.85rem,1.9vh,1.25rem); margin:0 0 6px; padding:0 clamp(12px,1.6vh,22px) 10px; border-bottom:1px solid var(--ecr-bord); }
+.ecr-liste { gap:0; }
+.ecr-item { border-bottom:0; padding:clamp(7px,1.2vh,13px) clamp(12px,1.6vh,22px); display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:18px; align-items:center; }
+.ecr-liste > .ecr-item:nth-child(odd) { background:rgba(255,255,255,.04); }
+.ecr-item-meta { margin:0; flex-direction:column; align-items:flex-end; text-align:right; gap:2px; }
+.ecr-jour { padding:6px clamp(12px,1.6vh,22px); margin:0; background:rgba(255,255,255,.07); text-transform:uppercase; letter-spacing:.12em; font-size:clamp(.65rem,1.4vh,.95rem); }
+.ecr-item-agenda { display:flex; gap:16px; }
+.ecr-ag-heure { font-size:clamp(1.1rem,2.7vh,1.9rem); min-width:3.2em; }
+.ecr-compte-nl { padding:0 clamp(12px,1.6vh,22px); }
+@media (max-width: 900px) { .ecr-item { display: block; } .ecr-item-meta { flex-direction: row; align-items: flex-start; text-align: left; margin-top: 4px; } }

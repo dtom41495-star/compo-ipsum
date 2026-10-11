@@ -989,7 +989,27 @@ function _cpsChargerSujetsParCp(cpIds, callback){
       var existant = map[row.cp_id];
       if(!existant || (row.statut==='en_cours' && existant.statut!=='en_cours')) map[row.cp_id] = row;
     });
-    window._cpsSujetsParCp = map;
+    // Communiqués ajoutés à un sujet après coup (table briefing_communiques, js/44)
+    return fetch(SB_URL+'/rest/v1/briefing_communiques?communique_id=in.('+cpIds.map(function(id){return encodeURIComponent(id);}).join(',')+')&select=briefing_id,communique_id', {headers:authH})
+    .then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+    .then(function(liens){
+      liens = Array.isArray(liens) ? liens.filter(function(l){ return !map[l.communique_id]; }) : [];
+      if(!liens.length) return map;
+      var ids = liens.map(function(l){ return encodeURIComponent(l.briefing_id); });
+      return fetch(SB_URL+'/rest/v1/briefing?id=in.('+ids.join(',')+')&select=id,cp_id,statut,responsable', {headers:authH})
+      .then(function(r){ return r.json(); }).catch(function(){ return []; })
+      .then(function(sujets){
+        var parId = {}; (Array.isArray(sujets) ? sujets : []).forEach(function(s){ parId[s.id] = s; });
+        liens.forEach(function(l){
+          var s = parId[l.briefing_id]; if(!s) return;
+          var ex = map[l.communique_id];
+          if(!ex || (s.statut==='en_cours' && ex.statut!=='en_cours')) map[l.communique_id] = s;
+        });
+        return map;
+      });
+    });
+  }).then(function(map){
+    window._cpsSujetsParCp = map || {};
     if(callback) callback();
   }).catch(function(){ window._cpsSujetsParCp = {}; if(callback) callback(); });
 }
@@ -1370,6 +1390,7 @@ function cpsMakeCard(cp, isAdmin){
   // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
   var actions = dispBtn;
   if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
+  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsAjouterAuSujet(this.dataset.cpid)" title="Ajouter ce communiqué à un sujet existant"><i class="ti ti-link-plus"></i><span class="cpc-long">Ajouter à un sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
   if(isAdmin){
     actions += '<button class="mac-btn cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'

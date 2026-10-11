@@ -134,6 +134,7 @@ function rArticleAfficherCpSourceExistant(cpId){
 // mauvais sujet choisi par erreur, article antérieur à l'auto-création, etc. Ce bloc
 // permet de corriger le lien directement depuis l'éditeur.
 function rArticleAfficherSujetLie(sujetId){
+  if(typeof rArticleAfficherCpAutres === 'function') rArticleAfficherCpAutres(sujetId);   // autres communiqués du sujet (js/44)
   var zone = document.getElementById('r-sujet-lie-zone');
   if(!zone) return;
   if(!sujetId){
