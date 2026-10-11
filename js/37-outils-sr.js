@@ -434,8 +434,9 @@ var HIST_ETAPES = {
 };
 var HIST_CANAUX = { chat:'Chat', email:'mail', compo:'dans Compo (connecté·e)', aucun:'rien envoyé : pas d\'adresse mail', echec:'Chat en panne, pas de mail' };
 
-function osHistoriqueOuvrir(){
-  var doc = currentDoc;
+// doc (facultatif) : un article de la liste, sans l'ouvrir dans l'éditeur ; sinon l'article ouvert.
+function osHistoriqueOuvrir(docArg){
+  var doc = (docArg && docArg.id) ? docArg : currentDoc;
   if(!doc || !doc.id) return;
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var mo = document.createElement('div');
