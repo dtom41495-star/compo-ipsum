@@ -754,7 +754,7 @@ function renderCpLies(){
   const meta=document.getElementById('cp-meta-display');
   if(!list||!meta) return;
   if(!cpLies.length){list.innerHTML='';meta.innerHTML='';return;}
-  list.innerHTML=cpLies.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - <em>'+esc(cp.organisation)+'</em></span><div class="cp-actions"><button class="btn-lire" onclick="lireCP(\''+cp.id+'\')">Lire</button><button class="btn-retirer" onclick="detacherCP(\''+cp.id+'\')">Retirer</button></div></div>').join('');
+  list.innerHTML=cpLies.map(cp=>'<div class="cp-item"><span class="cp-id">'+esc(cp.id)+'</span><span class="cp-label">'+esc(cp.objet)+' - <em>'+esc(cp.organisation)+'</em></span><div class="cp-actions"><button class="btn-lire" data-cpid="'+esc(cp.id)+'" onclick="lireCP(this.dataset.cpid)">Lire</button><button class="btn-retirer" data-cpid="'+esc(cp.id)+'" onclick="detacherCP(this.dataset.cpid)">Retirer</button></div></div>').join('');
   // Auto-remplissage si un seul CP
   if(cpLies.length===1){
     const cp=cpLies[0];
@@ -1791,7 +1791,7 @@ function exporterPDF(){
   var communiques = currentDoc.communiques && currentDoc.communiques.length ? currentDoc.communiques : [];
 
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
-  html += '<title>'+titre+'</title>';
+  html += '<title>'+escHtml(titre)+'</title>';
   html += '<style>';
   html += '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap");';
   html += 'body{font-family:"DM Sans",Arial,sans-serif;margin:0;padding:2cm;font-size:11pt;color:#1A1A2E;line-height:1.7;}';
