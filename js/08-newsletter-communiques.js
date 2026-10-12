@@ -1515,8 +1515,9 @@ function cpsCréerArticle(cpId){
   // Un sujet existe déjà pour ce communiqué : on le reprend plutôt que d'en créer un autre
   var existant = (window._cpsSujetsParCp||{})[cp.id];
   var moi = (getUserNomComplet()||'').trim().toLowerCase();
-  if(existant && existant.statut === 'en_cours' && (existant.responsable||'').trim().toLowerCase() !== moi){
-    notif('Ce communiqué est déjà traité : sujet réservé par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
+  // Réservé, ou seulement proposé (en attente du rédac chef) par quelqu'un d'autre : pas touche
+  if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose') && (existant.responsable||'').trim().toLowerCase() !== moi){
+    notif('Ce communiqué est déjà traité : sujet '+(existant.statut === 'propose' ? 'proposé' : 'réservé')+' par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
     return;
   }
   if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose')){
