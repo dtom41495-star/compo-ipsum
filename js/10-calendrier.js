@@ -882,6 +882,7 @@ function osSujetsChargerPropositions(zone){
       h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
         +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>'
         +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
+        +(chef ? '<div class="prop-doublon" data-pid="'+esc(s.id)+'"></div>' : '')
         +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+new Date(s.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'
         +(chef
           ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
@@ -894,13 +895,51 @@ function osSujetsChargerPropositions(zone){
     });
     h += '</div>';
     zone.innerHTML = h;
+    if(chef) _osPropositionsDoublons(props, zone);
   }).catch(function(){ zone.innerHTML = ''; });
+}
+
+// Pour le rédac chef qui valide : y a-t-il déjà un sujet, un article ou un communiqué commun qui ressemble à la
+// proposition ? Titres proches (même détection que dans l'éditeur) et même communiqué. Prévient, n'empêche rien.
+function _osPropositionsDoublons(props, zone){
+  var cps = props.filter(function(s){ return s.cp_id; }).map(function(s){ return encodeURIComponent(s.cp_id); });
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var lire = function(u){ return fetch(SB_URL+u,{headers:authH}).then(function(r){return r.json();}).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; }); };
+  _doublonsCache = null;
+  Promise.all([
+    _doublonsCharger(),
+    cps.length ? lire('/rest/v1/briefing?cp_id=in.('+cps.join(',')+')&select=id,titre,statut,responsable,cp_id') : Promise.resolve([]),
+    cps.length ? lire('/rest/v1/articles?cp_id=in.('+cps.join(',')+')&select=id,titre,auteur,statut,cp_id') : Promise.resolve([])
+  ]).then(function(res){
+    var cache = res[0];
+    props.forEach(function(s){
+      var autres = Object.assign({}, cache, { sujets:cache.sujets.filter(function(x){ return x.id !== s.id; }) });
+      var trouves = _doublonsChercher(s.titre, autres, null, true);
+      var vus = {}; trouves.forEach(function(t){ vus[t.titre] = true; });
+      // Même communiqué : signal plus fort que le titre
+      res[1].filter(function(x){ return x.cp_id === s.cp_id && x.id !== s.id; }).forEach(function(x){
+        if(!vus[x.titre]){ vus[x.titre] = true; trouves.unshift({ titre:x.titre, detail:'sujet '+(x.statut === 'en_cours' && x.responsable ? 'réservé par '+x.responsable : x.statut === 'propose' ? 'proposé, en attente' : 'ouvert')+', même communiqué' }); }
+      });
+      res[2].filter(function(x){ return x.cp_id === s.cp_id; }).forEach(function(x){
+        if(!vus[x.titre]){ vus[x.titre] = true; trouves.unshift({ titre:x.titre, detail:'article'+(x.auteur ? ' de '+x.auteur : '')+' sur le même communiqué' }); }
+      });
+      s._doublons = trouves.slice(0, 4);
+      var bloc = zone.querySelector('.prop-doublon[data-pid="'+(window.CSS && CSS.escape ? CSS.escape(s.id) : s.id)+'"]');
+      if(!bloc || !s._doublons.length) return;
+      bloc.innerHTML = '<div style="margin-top:0.5rem;background:#FFF3CD;border:1px solid #F3DFA2;border-radius:8px;padding:0.5rem 0.7rem;">'
+        +'<div style="font-weight:700;font-size:0.76rem;color:#856404;"><i class="ti ti-alert-triangle"></i> Peut-être un doublon</div>'
+        +s._doublons.map(function(t){ return '<div style="font-size:0.74rem;color:var(--encre);margin-top:3px;">« '+esc(t.titre)+' » : '+esc(t.detail)+'</div>'; }).join('')
+        +'</div>';
+    });
+  }).catch(function(){});
 }
 
 function osSujetValiderProposition(sujetId, accepte){
   var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
   if(!s) return;
   if(!accepte && !osConfirmerPuis('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.', null, osSujetValiderProposition, this, arguments)) return;
+  // Un sujet ou un article très proche existe déjà : on demande confirmation avant de publier
+  if(accepte && s._doublons && s._doublons.length && !osConfirmerPuis('Publier quand même ?\n'+s._doublons.map(function(t){ return '« '+t.titre+' » : '+t.detail; }).join('\n'), { titre:'Ce sujet ressemble à autre chose', oui:'Publier quand même', non:'Annuler' }, osSujetValiderProposition, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var req = accepte
     ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert'})})
