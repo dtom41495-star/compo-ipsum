@@ -685,6 +685,8 @@ function osRedacRedigerSujetNouveauBrouillon(sujetId){
   localStorage.setItem('ipsum_drafts', JSON.stringify(drafts));
   go('redaction');
   setTimeout(function(){
+    resetRedaction();   // éditeur vierge : plus rien (corps, auteur…) de l'article ouvert avant
+    currentDoc = brouillon;   // avant preremplirAuteur : sinon il lit encore l'article précédent
     setType(brouillon.type);
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = brouillon.titre; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
@@ -702,7 +704,6 @@ function osRedacRedigerSujetNouveauBrouillon(sujetId){
     // lié" (qui lit doc.sujet_id, un champ persisté). La bannière ci-dessus suffit.
     var zoneSujetLie = document.getElementById('r-sujet-lie-zone');
     if(zoneSujetLie) zoneSujetLie.innerHTML = '';
-    currentDoc = brouillon;
     osStartAutosave();
   }, 100);
 }

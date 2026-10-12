@@ -1485,6 +1485,8 @@ function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
 
   go('redaction');
   setTimeout(function(){
+    resetRedaction();   // éditeur vierge : plus rien (corps, auteur…) de l'article ouvert avant
+    currentDoc = brouillon;   // avant preremplirAuteur : sinon il lit encore l'article précédent
     setType('article');
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = brouillon.titre; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
@@ -1499,7 +1501,6 @@ function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
       abandonBtn.dataset.sujetTitre = titre;
     }
     rArticleSetCpSource(cp);
-    currentDoc = brouillon;
     osStartAutosave();
   }, 150);
 }

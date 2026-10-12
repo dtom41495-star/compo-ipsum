@@ -805,8 +805,9 @@ function buildDoc(){
     auteurNom = optSel.value;
     auteurId  = optSel.dataset.membreId || getUserId();
   } else {
-    // Rédacteur normal
-    auteurNom = elAuteur ? elAuteur.value.trim() : getUserNomComplet();
+    // Rédacteur normal : le champ est verrouillé (grisé) et peut garder le nom de l'auteur d'un article
+    // corrigé juste avant ; seul un champ réellement modifiable (admin, chef) fait foi.
+    auteurNom = (elAuteur && !elAuteur.readOnly) ? elAuteur.value.trim() : getUserNomComplet();
     auteurId  = getUserId();
   }
 
@@ -2125,7 +2126,7 @@ function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, m
       // Rédacteur normal : input grisé avec son propre nom
       // Si c'est son article — son nom. Si c'est l'article de quelqu'un d'autre — ne pas toucher
       if(auteurCibleId === uid){
-        if(!elAuteur.value) elAuteur.value = n;
+        elAuteur.value = n;   // jamais le nom resté d'un article de quelqu'un d'autre corrigé juste avant
       }
       // Si auteur différent, elAuteur.value a déjà été rempli par chargerDansRedaction — on ne touche pas
       elAuteur.readOnly = true;
