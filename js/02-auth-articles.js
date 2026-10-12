@@ -127,10 +127,21 @@ var db = {
       // Garde-fou : jamais deux articles sur le même sujet. Une copie gardée sur
       // l'appareil (autre id) renvoyée au serveur créait un doublon.
       if(estUneCreation && payload.sujet_id){
-        return fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(payload.sujet_id)+'&id=neq.'+encodeURIComponent(articleId)+'&select=id&limit=1', {
-          headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')})
-        }).then(function(r){ return r.json(); }).then(function(autres){
+        var hAuth = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+        return Promise.all([
+          fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(payload.sujet_id)+'&id=neq.'+encodeURIComponent(articleId)+'&select=id&limit=1', { headers:hAuth }).then(function(r){ return r.json(); }),
+          fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(payload.sujet_id)+'&select=statut,responsable,redaction_id', { headers:hAuth }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+        ]).then(function(res){
+          var autres = res[0], sujet = Array.isArray(res[1]) ? res[1][0] : null;
           if(Array.isArray(autres) && autres.length) throw _errSujetDejaEcrit(autres[0].id);
+          // Un sujet réservé (ou proposé) par quelqu'un d'autre n'est pas à nous : seuls un admin ou le rédac chef peuvent écrire à sa place
+          if(sujet && (sujet.statut === 'en_cours' || sujet.statut === 'propose') && sujet.responsable
+              && sujet.responsable.trim().toLowerCase() !== (payload.auteur||'').trim().toLowerCase()
+              && !(typeof _sdEstChef === 'function' && _sdEstChef(sujet.redaction_id))){
+            var e2 = new Error('Ce sujet est réservé par '+sujet.responsable+' : choisis un autre sujet ou demande-lui.');
+            e2.code = 'SUJET_AUTRE_PERSONNE';
+            throw e2;
+          }
           return envoyer();
         });
       }
@@ -1524,7 +1535,7 @@ function osStartAutosave(){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
-      var doublon = err && err.code === 'SUJET_DEJA_ECRIT';
+      var doublon = err && (err.code === 'SUJET_DEJA_ECRIT' || err.code === 'SUJET_AUTRE_PERSONNE');
       if(ind){ ind.textContent = doublon ? 'Un article existe déjà pour ce sujet — copie gardée sur l\'appareil' : 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
       // Prévenir une seule fois par article (l'autosave repasse toutes les 45 s)
       if(doublon && _autosaveDoublonSignale !== doc.id){ _autosaveDoublonSignale = doc.id; notif(err.message, 'erreur'); }

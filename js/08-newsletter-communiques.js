@@ -1485,6 +1485,8 @@ function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
 
   go('redaction');
   setTimeout(function(){
+    resetRedaction();   // éditeur vierge : plus rien (corps, auteur…) de l'article ouvert avant
+    currentDoc = brouillon;   // avant preremplirAuteur : sinon il lit encore l'article précédent
     setType('article');
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = brouillon.titre; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
@@ -1499,7 +1501,6 @@ function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
       abandonBtn.dataset.sujetTitre = titre;
     }
     rArticleSetCpSource(cp);
-    currentDoc = brouillon;
     osStartAutosave();
   }, 150);
 }
@@ -1515,8 +1516,9 @@ function cpsCréerArticle(cpId){
   // Un sujet existe déjà pour ce communiqué : on le reprend plutôt que d'en créer un autre
   var existant = (window._cpsSujetsParCp||{})[cp.id];
   var moi = (getUserNomComplet()||'').trim().toLowerCase();
-  if(existant && existant.statut === 'en_cours' && (existant.responsable||'').trim().toLowerCase() !== moi){
-    notif('Ce communiqué est déjà traité : sujet réservé par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
+  // Réservé, ou seulement proposé (en attente du rédac chef) par quelqu'un d'autre : pas touche
+  if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose') && (existant.responsable||'').trim().toLowerCase() !== moi){
+    notif('Ce communiqué est déjà traité : sujet '+(existant.statut === 'propose' ? 'proposé' : 'réservé')+' par '+(existant.responsable||'quelqu\'un d\'autre'), 'alerte');
     return;
   }
   if(existant && (existant.statut === 'en_cours' || existant.statut === 'propose')){

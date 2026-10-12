@@ -767,7 +767,7 @@ function osRedactionMettreDeCote(){
     notif(nom+' est enregistré dans Mes articles', 'succes');
   }).catch(function(err){
     _autosaveFallbackLocal(doc);
-    notif(nom+' est gardé sur cet appareil : '+(err && err.code === 'SUJET_DEJA_ECRIT' ? 'un article existe déjà pour ce sujet' : 'pas de connexion'), 'alerte');
+    notif(nom+' est gardé sur cet appareil : '+(err && err.code === 'SUJET_DEJA_ECRIT' ? 'un article existe déjà pour ce sujet' : (err && err.code === 'SUJET_AUTRE_PERSONNE' ? 'ce sujet est réservé par quelqu’un d’autre' : 'pas de connexion')), 'alerte');
   });
   return true;
 }

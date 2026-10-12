@@ -1070,8 +1070,11 @@ function _reserverSujetCreerBrouillonEtOuvrir(sujet){
   notif('Sujet reserve ! Brouillon cree dans Mes brouillons.');
 
   // Ouvrir directement dans la redaction
+  osRedactionMettreDeCote(); // un autre article (celui qu'on corrigeait, par exemple) était peut-être ouvert
   go('redaction');
   setTimeout(function(){
+    resetRedaction();   // éditeur vierge : plus rien (corps, auteur…) de l'article ouvert avant
+    currentDoc = brouillon;   // avant preremplirAuteur : sinon il lit encore l'article précédent
     setType(brouillon.type);
     var titreEl = document.getElementById('r-titre');
     if(titreEl){ titreEl.value = brouillon.titre; titreEl.style.height='auto'; titreEl.style.height=titreEl.scrollHeight+'px'; }
@@ -1088,6 +1091,7 @@ function _reserverSujetCreerBrouillonEtOuvrir(sujet){
     }
     // Suggestion : ouvrir le communiqué source si le sujet en avait un lié
     if(window._sujetModalCp) rArticleSetCpSource(window._sujetModalCp);
+    osStartAutosave();
   }, 150);
 }
 
