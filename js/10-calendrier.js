@@ -910,18 +910,24 @@ function _osPropositionsDoublons(props, zone){
   Promise.all([
     _doublonsCharger(),
     cps.length ? lire('/rest/v1/briefing?cp_id=in.('+cps.join(',')+')&select=id,titre,statut,responsable,cp_id') : Promise.resolve([]),
-    cps.length ? lire('/rest/v1/articles?cp_id=in.('+cps.join(',')+')&select=id,titre,auteur,statut,cp_id') : Promise.resolve([])
+    cps.length ? lire('/rest/v1/articles?cp_id=in.('+cps.join(',')+')&select=id,titre,auteur,statut,cp_id,sujet_id') : Promise.resolve([])
   ]).then(function(res){
     var cache = res[0];
     props.forEach(function(s){
-      var autres = Object.assign({}, cache, { sujets:cache.sujets.filter(function(x){ return x.id !== s.id; }) });
+      // L'article déjà rattaché à CE sujet (on peut écrire avant la validation) n'est pas un doublon : c'est son article
+      var pasLeSien = function(a){ return a.sujet_id !== s.id; };
+      var autres = Object.assign({}, cache, {
+        sujets:cache.sujets.filter(function(x){ return x.id !== s.id; }),
+        articles:(cache.articles || []).filter(pasLeSien),
+        publies:(cache.publies || []).filter(pasLeSien)
+      });
       var trouves = _doublonsChercher(s.titre, autres, null, true);
       var vus = {}; trouves.forEach(function(t){ vus[t.titre] = true; });
       // Même communiqué : signal plus fort que le titre
       res[1].filter(function(x){ return x.cp_id === s.cp_id && x.id !== s.id; }).forEach(function(x){
         if(!vus[x.titre]){ vus[x.titre] = true; trouves.unshift({ titre:x.titre, detail:'sujet '+(x.statut === 'en_cours' && x.responsable ? 'réservé par '+x.responsable : x.statut === 'propose' ? 'proposé, en attente' : 'ouvert')+', même communiqué' }); }
       });
-      res[2].filter(function(x){ return x.cp_id === s.cp_id; }).forEach(function(x){
+      res[2].filter(function(x){ return x.cp_id === s.cp_id && pasLeSien(x); }).forEach(function(x){
         if(!vus[x.titre]){ vus[x.titre] = true; trouves.unshift({ titre:x.titre, detail:'article'+(x.auteur ? ' de '+x.auteur : '')+' sur le même communiqué' }); }
       });
       s._doublons = trouves.slice(0, 4);
