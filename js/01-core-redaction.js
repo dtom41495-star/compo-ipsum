@@ -469,9 +469,9 @@ function _doublonsCharger(){
     // Sujets encore ouverts ou déjà réservés par quelqu'un
     get('/rest/v1/briefing?statut=in.(ouvert,en_cours,propose)&select=id,titre,statut,responsable'),
     // Articles pas encore publiés — c'est là que se cache le doublon en train de s'écrire
-    get('/rest/v1/articles?statut=neq.publie&select=id,titre,auteur,auteur_id,statut'),
+    get('/rest/v1/articles?statut=neq.publie&select=id,titre,auteur,auteur_id,statut,sujet_id'),
     // Articles publiés ces 4 derniers mois : utiles quand on propose un nouveau sujet
-    get('/rest/v1/articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(new Date(Date.now()-120*86400000).toISOString())+'&select=id,titre,auteur,updated_at')
+    get('/rest/v1/articles?statut=eq.publie&updated_at=gte.'+encodeURIComponent(new Date(Date.now()-120*86400000).toISOString())+'&select=id,titre,auteur,updated_at,sujet_id')
   ]).then(function(res){
     _doublonsCache = { sujets:res[0], articles:res[1], publies:res[2], charge_a: Date.now() };
     return _doublonsCache;
