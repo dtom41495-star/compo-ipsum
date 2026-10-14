@@ -1568,11 +1568,14 @@ function _maActionsEtape(doc, uid, role){
   var ouvrir = 'mesArticlesOuvrir(this.dataset.id,\'correction\')';
   var refuser = { type:'refus', icon:'x', label:'Refuser', action:'maOsRefuser(this.dataset.id)' };
   if(s==='en-relecture'){
-    if(estCorrecteur) return [{ type:'vert', icon:'search', label:'Corriger', action:ouvrir }, refuser];
+    // Admin ou rédac chef : peut confier la relecture à quelqu'un d'autre (js/46-changer-relecteur.js)
+    var changer = (estChef && typeof osChangerRelecteur === 'function')
+      ? [{ type:'', icon:'user-exchange', label:(doc.correcteur_id ? 'Changer de relecteur' : 'Confier à un relecteur'), action:'osChangerRelecteur(this.dataset.id)' }] : [];
+    if(estCorrecteur) return [{ type:'vert', icon:'search', label:'Corriger', action:ouvrir }, refuser].concat(changer);
     if(!doc.correcteur_id && typeof _srPeutPrendre === 'function' && _srPeutPrendre(doc.redaction_id))
-      return [{ type:'principal', icon:'hand-grab', label:'Je prends', action:'osSrPrendre(this.dataset.id,this)' }];
-    if(role==='admin') return [{ type:'', icon:'search', label:'Corriger', action:ouvrir }, refuser];
-    return [];
+      return [{ type:'principal', icon:'hand-grab', label:'Je prends', action:'osSrPrendre(this.dataset.id,this)' }].concat(changer);
+    if(role==='admin') return [{ type:'', icon:'search', label:'Corriger', action:ouvrir }, refuser].concat(changer);
+    return changer;
   }
   if(s==='corrige' && estChef) return [{ type:'vert', icon:'circle-check', label:'Valider', action:ouvrir }, refuser];
   if((s==='valide' || s==='valide_central') && estChef && (typeof _osArticlePubliable !== 'function' || _osArticlePubliable(doc)))
