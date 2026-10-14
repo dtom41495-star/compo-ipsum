@@ -1775,8 +1775,25 @@ function nlToggleCarteHistorique(cardId){
 // Export PDF via impression navigateur
 function exporterPDF(){
   if(!currentDoc){ notif('Aucun article charge'); return; }
-  
-  // Créer une fenêtre d'impression avec le contenu mis en forme
+  // La fenêtre s'ouvre tout de suite (sinon le navigateur la bloque) ; la date de validation des tampons est lue ensuite
+  var fenetre = window.open('', '_blank');
+  if(!fenetre){ notif('Autorise les popups pour exporter le PDF', 'erreur'); return; }
+  try { fenetre.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Préparation du document…</p>'); } catch(e){}
+  var docExport = currentDoc;
+  var ecrire = function(d){
+    if(typeof currentDoc !== 'undefined' && currentDoc !== docExport) window.currentDoc = docExport;
+    fenetre.document.open();
+    fenetre.document.write(_exporterPDFHtml(d));
+    fenetre.document.close();
+    fenetre.onload = function(){ setTimeout(function(){ fenetre.print(); }, 500); };
+  };
+  if(typeof osTamponsDonnees === 'function') osTamponsDonnees(docExport).then(ecrire, function(){ ecrire(null); });
+  else ecrire(null);
+  notif('Fenetre d impression ouverte - choisis PDF comme destination');
+}
+
+function _exporterPDFHtml(donneesTampons){
+  // Créer le document d'impression avec le contenu mis en forme
   var titre = currentDoc.titre || 'Article';
   var auteur = currentDoc.auteur || '';
   var redaction = currentDoc.redaction || '';
@@ -1794,10 +1811,11 @@ function exporterPDF(){
   var correcteur = currentDoc.correcteur || '';   // le SR de l'article, s'il y en a un
   var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
 
+  var tamponsHtml = (typeof osTamponsHtml === 'function') ? osTamponsHtml(currentDoc, donneesTampons) : '';
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
   html += '<title>'+escHtml(titre)+'</title>';
   html += '<style>';
-  html += '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap");';
+  html += '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Montserrat:wght@800&family=Caveat:wght@700&display=swap");';
   html += 'body{font-family:"DM Sans",Arial,sans-serif;margin:0;padding:2cm;font-size:11pt;color:#1A1A2E;line-height:1.7;}';
   html += '.header{border-bottom:3px solid #ea5b1c;padding-bottom:1rem;margin-bottom:1.5rem;}';
   html += '.entete{display:flex;align-items:center;gap:14px;margin-bottom:0.4rem;}';
@@ -1817,6 +1835,7 @@ function exporterPDF(){
   html += '.communiques{background:#D6EAF8;padding:0.8rem 1rem;margin-top:1rem;font-size:8.5pt;font-family:Space Mono,monospace;color:#1A5276;border-left:3px solid #1A5276;}';
   html += '.footer{border-top:1px solid #E5E7EB;margin-top:2rem;padding-top:0.8rem;font-size:8pt;color:#6B7280;font-family:Space Mono,monospace;}';
   html += '@media print{body{padding:1.5cm;}@page{margin:1.5cm;}}';
+  if(tamponsHtml && typeof TAMPON_CSS_PDF !== 'undefined') html += TAMPON_CSS_PDF;
   html += '</style></head><body>';
 
   // Header
@@ -1868,6 +1887,9 @@ function exporterPDF(){
     html += '</div>';
   }
 
+  // Tampons « Bon à publier » / « Publié » (mêmes qu'en lecture)
+  if(tamponsHtml) html += '<div class="tampons">'+TAMPON_SVG+tamponsHtml+'</div>';
+
   // Footer
   html += '<div class="footer">';
   html += 'Ipsum Media - Association loi 1901 - SIRET 10023843500018 - contact@ipsummedia.fr<br>';
@@ -1875,16 +1897,7 @@ function exporterPDF(){
   html += '</div>';
 
   html += '</body></html>';
-
-  var fenetre = window.open('', '_blank');
-  fenetre.document.write(html);
-  fenetre.document.close();
-  fenetre.onload = function(){
-    setTimeout(function(){
-      fenetre.print();
-    }, 500);
-  };
-  notif('Fenetre d impression ouverte - choisis PDF comme destination');
+  return html;
 }
 
 function escHtml(str){
