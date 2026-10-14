@@ -5752,3 +5752,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 /* Les titres ne sont plus tronqués sur l'écran rédac : ils passent à la ligne (4 lignes au plus, par sécurité) ;
    la pagination s'adapte à leur hauteur réelle. */
 .ecr-item-titre, .ecr-item-court .ecr-item-titre { -webkit-line-clamp: 4; overflow-wrap: anywhere; }
+
+/* Changer de relecteur */
+.cr-liste { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; margin: 10px 0 14px; }
+.cr-choix { cursor: pointer; }

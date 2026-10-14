@@ -1789,6 +1789,8 @@ function exporterPDF(){
   var image = currentDoc.image || null;
   var imageLegende = currentDoc.image_legende || '';
   var communiques = currentDoc.communiques && currentDoc.communiques.length ? currentDoc.communiques : [];
+  var correcteur = currentDoc.correcteur || '';   // le SR de l'article, s'il y en a un
+  var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
 
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
   html += '<title>'+escHtml(titre)+'</title>';
@@ -1796,7 +1798,9 @@ function exporterPDF(){
   html += '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap");';
   html += 'body{font-family:"DM Sans",Arial,sans-serif;margin:0;padding:2cm;font-size:11pt;color:#1A1A2E;line-height:1.7;}';
   html += '.header{border-bottom:3px solid #ea5b1c;padding-bottom:1rem;margin-bottom:1.5rem;}';
-  html += '.logo{font-size:9pt;color:#6B7280;margin-bottom:0.3rem;letter-spacing:0.05em;text-transform:uppercase;}';
+  html += '.entete{display:flex;align-items:center;gap:14px;margin-bottom:0.4rem;}';
+  html += '.entete img{height:56px;width:auto;flex-shrink:0;}';
+  html += '.logo{font-size:8.5pt;color:#6B7280;letter-spacing:0.12em;text-transform:uppercase;}';
   html += 'h1{font-size:22pt;font-weight:700;margin:0.5rem 0;line-height:1.2;color:#1A1A2E;}';
   html += '.chapeau{font-size:12pt;font-style:italic;color:#6B7280;border-left:3px solid #ea5b1c;padding-left:1rem;margin:1rem 0;}';
   html += '.meta{font-size:8.5pt;color:#6B7280;margin-bottom:1.5rem;font-family:Space Mono,monospace;display:flex;gap:1.5rem;flex-wrap:wrap;}';
@@ -1815,7 +1819,7 @@ function exporterPDF(){
 
   // Header
   html += '<div class="header">';
-  html += '<div class="logo">Ipsum Media - Compo</div>';
+  html += '<div class="entete">'+(logo ? '<img src="'+escHtml(logo)+'" alt="Ipsum Média">' : '')+'<div class="logo">Association Ipsum Média</div></div>';
   html += '<h1>'+escHtml(titre)+'</h1>';
   if(chapeau) html += '<div class="chapeau">'+escHtml(chapeau)+'</div>';
   html += '</div>';
@@ -1823,6 +1827,7 @@ function exporterPDF(){
   // Meta
   html += '<div class="meta">';
   html += '<span>Par <strong>'+escHtml(auteur)+'</strong></span>';
+  if(correcteur) html += '<span>Relu par <strong>'+escHtml(correcteur)+'</strong></span>';
   if(redaction) html += '<span>'+escHtml(redaction)+'</span>';
   if(rubrique) html += '<span>'+escHtml(rubrique)+'</span>';
   if(dateCreation) html += '<span>'+escHtml(dateCreation)+'</span>';
