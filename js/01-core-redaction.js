@@ -1228,6 +1228,7 @@ function renderLecture(){
     window._corrCPs = doc.communiques;
   }
   if(pied) a += '<div class="lx-pied">'+pied+'</div>';
+  a += '<div class="lx-tampons" id="lx-tampons"></div>';
 
   // Supprimer : admin sur tout, auteur·rice tant que l'article n'est pas bon à publier
   var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && ['brouillon','en-relecture','corrige'].indexOf(s)!==-1);
@@ -1237,6 +1238,7 @@ function renderLecture(){
     +'<div class="lx-bas">'+(peutSupprimerLect ? '<button class="mac-btn mac-btn-refus" onclick="maOsSupprimer(\''+esc(doc.id)+'\')"><i class="ti ti-trash"></i> Supprimer l\'article</button>' : '')+'</div>'
     +'<div class="md-out" id="md-lect"></div>';
 
+  if(typeof osLectureTampons === 'function') osLectureTampons(doc);   // tampons « Bon à publier » / « Publié » (js/47)
   if(doc.cp_id) rLectureAfficherCpSource(doc, document.getElementById('art-preview'));
   // Commentaires du SR, en encart après chaque paragraphe — uniquement pour l'auteur·rice
   if(estAuteurLect && doc.id) rLectureAfficherCommentaires(doc);
