@@ -5777,3 +5777,24 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .tampon-publie { animation-delay: .5s; }
 @media (prefers-reduced-motion: reduce) { .tampon { animation: none; } }
 @media (max-width: 600px) { .tampons-rang { justify-content: center; } .tampon-titre { font-size: 1.25rem; } }
+
+/* ===== Co-écriture (js/49-coecriture.js) ===== */
+.coec-liste { display: flex; flex-direction: column; gap: 6px; }
+.coec-ligne, .coec-candidat { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--gris-bord); border-radius: 10px; }
+.coec-ligne .se-btn-lien { width: auto; min-height: 30px; margin-left: auto; padding: 0 8px; }
+.coec-candidat { width: 100%; background: transparent; color: var(--encre); font: inherit; text-align: left; cursor: pointer; }
+.coec-candidat:hover { border-color: var(--rouge); }
+.coec-candidat > i { margin-left: auto; color: var(--rouge); }
+.coec-candidats { display: flex; flex-direction: column; gap: 6px; }
+.coec-avatar { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #6B2F8A; color: #fff; font-weight: 700; font-size: 0.8rem; }
+.coec-nom { display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; min-width: 0; }
+.coec-nom small { font-weight: 400; font-size: 0.72rem; color: var(--gris); }
+.coec-label { font-size: 0.75rem; font-weight: 600; margin-top: 4px; }
+.coec-recherche { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1.5px solid var(--gris-bord); border-radius: 10px; font: inherit; font-size: 0.85rem; background: transparent; color: var(--encre); }
+.ma-groupe-titre { font-family: Space Mono, monospace; font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; color: var(--gris); margin: .4rem 0 .45rem; }
+.coec-carte { cursor: default; }
+.coec-invit { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78rem; line-height: 1.45; color: #6B2F8A; background: #F3E8FA; border-radius: 10px; padding: 8px 11px; margin-bottom: 0.55rem; }
+.coec-signature { font-size: 0.76rem; color: var(--gris); margin-bottom: 0.6rem; }
+.coec-carte .mac-actions { flex-wrap: wrap; }
+.coec-vide { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 2.5rem 1rem; color: var(--gris); font-size: 0.82rem; line-height: 1.5; }
+.coec-vide i { font-size: 2rem; } .coec-vide strong { color: var(--encre); }

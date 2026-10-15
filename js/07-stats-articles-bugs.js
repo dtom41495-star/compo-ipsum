@@ -1155,6 +1155,7 @@ function _maRailRender(){
   var h = '';
   if(autorisees.indexOf('tableau-sr') !== -1) h += bouton('tableau-sr') + '<div style="height:0.5px;background:var(--gris-bord);margin:8px 4px;"></div>';
   h += bouton('mes') + bouton('brouillons');
+  if(autorisees.indexOf('coecriture') !== -1) h += bouton('coecriture');   // js/49-coecriture.js
   // « Non sauvegardés » est un sous-élément de Mes brouillons — masqué tant qu'il n'y a
   // rien en local, pour ne pas afficher une entrée vide en permanence.
   if(autorisees.indexOf('secours') !== -1){

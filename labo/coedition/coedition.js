@@ -5,6 +5,7 @@
 //
 // ?salon=<nom>        : tous ceux qui ouvrent le même salon écrivent le même texte
 // ?transport=local    : sans Supabase, entre onglets du même navigateur (essais, tests automatiques)
+// ?article=<id>       : un vrai article, pour son auteur·rice et ses co-auteur·rices (js/49-coecriture.js)
 
 (function(){
   var L = window.CoEditionLib;
@@ -16,6 +17,10 @@
   var params = new URLSearchParams(location.search);
   var salon = (params.get('salon') || 'essai').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 60) || 'essai';
   var local = params.get('transport') === 'local';
+  // ?article=<id> : co-écriture d'un vrai article de Compo (invitation acceptée, docs/sql/coecriture-articles.sql)
+  var articleId = params.get('article');
+  var article = null, generation = 0, baseMaj = null, lectureSeule = false;
+  var nomCanal = 'coedition:' + salon;
 
   function $(id){ return document.getElementById(id); }
   function lire(cle){ try { return localStorage.getItem(cle); } catch(e){ return null; } }
@@ -60,7 +65,7 @@
 
   // ── Transport : un canal où chacun diffuse ses modifications à tous les autres ──
   function transportLocal(surMessage, surEtat){
-    var bc = new BroadcastChannel('coedition:' + salon);
+    var bc = new BroadcastChannel(nomCanal);
     bc.onmessage = function(e){ surMessage(e.data); };
     setTimeout(function(){ surEtat('connecte'); }, 0);
     return { envoyer:function(m){ bc.postMessage(m); }, arreter:function(){ bc.close(); } };
@@ -68,7 +73,8 @@
   function transportSupabase(jeton, surMessage, surEtat){
     var client = new L.RealtimeClient(SB_URL.replace(/^http/, 'ws') + '/realtime/v1', { params:{ apikey:SB_KEY } });
     client.setAuth(jeton);
-    var canal = client.channel('coedition:' + salon, { config:{ broadcast:{ self:false } } });
+    // Un article passe par un canal privé : Supabase vérifie à l'entrée que l'on participe à sa co-écriture
+    var canal = client.channel(nomCanal, { config:{ private:!!article, broadcast:{ self:false } } });
     canal.on('broadcast', { event:'m' }, function(e){ surMessage(e.payload); });
     canal.subscribe(function(statut){
       surEtat(statut === 'SUBSCRIBED' ? 'connecte' : statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' ? 'erreur' : 'reconnexion');
@@ -108,7 +114,8 @@
   });
   function surMessage(m){
     if(!m || !m.t) return;
-    if(m.t === 'maj'){ Y.applyUpdate(doc, deB64(m.d), DISTANT); planifierSauvegarde(); }
+    // Pour un article, chacun n'enregistre que ce qu'il tape (l'état enregistré contient aussi ce que les autres ont écrit)
+    if(m.t === 'maj'){ Y.applyUpdate(doc, deB64(m.d), DISTANT); if(!article) planifierSauvegarde(); }
     else if(m.t === 'pres') AW.applyAwarenessUpdate(awareness, deB64(m.d), DISTANT);
     else if(m.t === 'bonjour' || m.t === 'reponse'){
       if(m.d) Y.applyUpdate(doc, deB64(m.d), DISTANT);
@@ -136,10 +143,12 @@
   var sauvegardeActive = true, minuterieSauvegarde = null, jetonCourant = null;
   function planifierSauvegarde(){
     clearTimeout(minuterieSauvegarde);
-    minuterieSauvegarde = setTimeout(sauvegarder, 2000);
+    minuterieSauvegarde = setTimeout(function(){ minuterieSauvegarde = null; sauvegarder(); }, 2000);
   }
   function sauvegarder(){
+    if(lectureSeule) return;
     var etat = b64(Y.encodeStateAsUpdate(doc));
+    if(article) return sauvegarderArticle(etat);
     if(local){ ecrire('coedition_local:' + salon, etat); afficherSauvegarde('Enregistré dans ce navigateur'); return; }
     if(!sauvegardeActive || !jetonCourant) return;
     session().then(function(s){
@@ -156,6 +165,7 @@
     }).catch(function(){ afficherSauvegarde('Échec de l’enregistrement (réseau)'); });
   }
   function charger(){
+    if(article) return Promise.resolve();   // déjà chargé par demarrerArticle
     if(local){
       var l = lire('coedition_local:' + salon);
       if(l) Y.applyUpdate(doc, deB64(l), CHARGE);
@@ -254,25 +264,33 @@
   });
 
   // ── L'éditeur ──
-  var editeur = new L.Editor({
-    element:$('editeur'),
-    extensions:[
-      L.StarterKit.configure({
-        undoRedo:false,   // l'annulation passe par Yjs : chacun n'annule que ce qu'il a écrit
-        heading:{ levels:[2, 3] },
-        code:false, codeBlock:false, strike:false, underline:false, horizontalRule:false,
-        link:{ openOnClick:false, autolink:true }
-      }),
-      L.Collaboration.configure({ document:doc, field:'corps' }),
-      L.CollaborationCaret.configure({ provider:{ awareness:awareness }, user:{ name:prenom, color:couleur } }),
-      Guillemets,
-      VerifDemo
-    ],
-    editorProps:{ attributes:{ class:'art-corps', spellcheck:'true', lang:'fr', 'aria-label':'Corps de l’article' } },
-    onUpdate:function(){ majMarkdown(); majVerif(); },
-    onSelectionUpdate:majBarre
-  });
-  window._coeditionEditeur = editeur;   // pour les essais dans la console et les tests automatiques
+  // Créé une fois le texte de départ en place (sinon il écrirait lui-même un paragraphe vide dans le document partagé)
+  var EXTENSIONS = [
+    L.StarterKit.configure({
+      undoRedo:false,   // l'annulation passe par Yjs : chacun n'annule que ce qu'il a écrit
+      heading:{ levels:[2, 3] },
+      code:false, codeBlock:false, strike:false, underline:false, horizontalRule:false,
+      link:{ openOnClick:false, autolink:true }
+    }),
+    Guillemets,
+    VerifDemo
+  ];
+  var editeur = null;
+  function creerEditeur(){
+    editeur = new L.Editor({
+      element:$('editeur'),
+      editable:!lectureSeule,
+      extensions:EXTENSIONS.concat([
+        L.Collaboration.configure({ document:doc, field:'corps' }),
+        L.CollaborationCaret.configure({ provider:{ awareness:awareness }, user:{ name:prenom, color:couleur } })
+      ]),
+      editorProps:{ attributes:{ class:'art-corps', spellcheck:'true', lang:'fr', 'aria-label':'Corps de l’article' } },
+      // Le texte de départ déclenche une mise à jour pendant la construction même de l'éditeur : on le retient dès là
+      onUpdate:function(o){ editeur = o.editor; majMarkdown(); majVerif(); },
+      onSelectionUpdate:majBarre
+    });
+    window._coeditionEditeur = editeur;   // pour les essais dans la console et les tests automatiques
+  }
 
   // ── Markdown, dans le dialecte de Compo (htmlVersMd) : ## / ### / > / - / **gras** / _italique_ / [lien](url) ──
   var ORDRE_MARQUES = ['link', 'bold', 'italic'];
@@ -332,7 +350,7 @@
     p.className = 'pastille etat-' + e;
     p.textContent = e === 'connecte' ? (local ? 'Connecté (entre onglets)' : 'Connecté') : e === 'erreur' ? 'Connexion impossible' : e === 'hors-ligne' ? 'Hors ligne' : 'Connexion…';
   }
-  function afficherSauvegarde(t){ $('sauvegarde').textContent = t; }
+  function afficherSauvegarde(t){ $(article ? 'sauvegarde-article' : 'sauvegarde').textContent = t; }
   // Aperçu : titre et chapô à part (ce sont des champs distincts dans Compo), puis le corps tel qu'il serait enregistré
   function majMarkdown(){
     $('md-titre').textContent = yTitre.toString() || '—';
@@ -411,13 +429,109 @@
     (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).then(function(){ afficherSauvegarde('Lien copié : envoie-le à la personne qui écrit avec toi'); }, function(){});
   });
 
+  // ── Un vrai article ──
+  function rest(chemin, options){
+    return fetch(SB_URL + '/rest/v1/' + chemin, Object.assign({}, options || {}, {
+      headers:Object.assign({ apikey:SB_KEY, Authorization:'Bearer ' + jetonCourant, 'Content-Type':'application/json' }, (options && options.headers) || {})
+    }));
+  }
+  function alerte(html){ $('alerte').hidden = false; $('alerte').innerHTML = html; }
+  function memeDate(a, b){ return !!a && !!b && new Date(a).getTime() === new Date(b).getTime(); }
+  // Même article, même version de départ -> même numéro chez tout le monde (voir initialiser)
+  function generationDe(a){
+    var h = 7, t = String(a.id) + '|' + new Date(a.updated_at || 0).getTime();
+    for(var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+    return 1 + (h % 1000000000);
+  }
+  // Texte de départ, tiré de l'article. Chacun le construit de son côté, avec le même identifiant d'auteur (la génération) :
+  // les deux versions sont identiques lettre pour lettre, et Yjs les fusionne en une seule au lieu de doubler le texte.
+  function initialiser(a){
+    var d0 = new Y.Doc();
+    d0.clientID = generation;
+    var json = L.generateJSON(depuisMarkdown(a.corps || '') || '<p></p>', EXTENSIONS);
+    d0.transact(function(){
+      L.prosemirrorJSONToYXmlFragment(L.getSchema(EXTENSIONS), json, d0.getXmlFragment('corps'));
+      if(a.titre) d0.getText('titre').insert(0, a.titre);
+      if(a.chapeau) d0.getText('chapo').insert(0, a.chapeau);
+    });
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(d0), CHARGE);
+  }
+  function passerEnLecture(message){
+    lectureSeule = true;
+    if(editeur) editeur.setEditable(false);
+    $('titre').readOnly = true; $('chapo').readOnly = true;
+    document.querySelector('.barre').hidden = true;
+    alerte(message);
+  }
+  function sauvegarderArticle(etat){
+    if(!sauvegardeActive) return;
+    var corps = { p_article:String(article.id), p_generation:generation, p_base:baseMaj, p_titre:yTitre.toString().trim(),
+      p_chapeau:article.type === 'breve' ? '' : yChapo.toString().trim(), p_corps:versMarkdown(), p_etat:etat };
+    return session().then(function(s){
+      if(s) jetonCourant = s.access_token;
+      return rest('rpc/coecriture_enregistrer', { method:'POST', body:JSON.stringify(corps), keepalive:true });
+    }).then(function(r){
+      if(r.ok){ afficherSauvegarde('Enregistré dans l’article · ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })); return; }
+      return r.json().catch(function(){ return {}; }).then(function(e){
+        var m = e.message || '';
+        if(m === 'ferme'){ sauvegardeActive = false; passerEnLecture('L’article est parti au SR : la co-écriture est fermée. S’il revient pour être repris, elle se rouvrira.'); }
+        else if(m === 'modifie_ailleurs'){
+          sauvegardeActive = false;
+          alerte('L’article a été modifié en dehors de la co-écriture (dans l’éditeur de Compo ou par le SR). Recharge la page pour reprendre sa dernière version. '
+            + '<a href="#" onclick="location.reload();return false;">Recharger</a>');
+        }
+        else afficherSauvegarde('Échec de l’enregistrement' + (m ? ' : ' + m : ' (' + r.status + ')'));
+      });
+    }).catch(function(){ afficherSauvegarde('Échec de l’enregistrement (réseau)'); });
+  }
+  function demarrerArticle(moi){
+    var id = encodeURIComponent(articleId);
+    return Promise.all([
+      rest('articles?id=eq.' + id + '&select=id,titre,chapeau,corps,statut,type,auteur,auteur_id,cosignataires,redaction_id,updated_at').then(function(r){ return r.json(); }),
+      rest('articles_coauteurs?article_id=eq.' + id + '&select=membre_id,statut').then(function(r){ return r.ok ? r.json() : null; }),
+      rest('articles_coecriture?article_id=eq.' + id + '&select=etat,generation,article_maj_le').then(function(r){ return r.ok ? r.json() : null; })
+    ]).then(function(res){
+      var a = Array.isArray(res[0]) && res[0][0];
+      if(!a){ alerte('Article introuvable.'); return false; }
+      if(!res[1] || !res[2]){ alerte('La co-écriture n’est pas encore installée dans la base (docs/sql/coecriture-articles.sql).'); return false; }
+      var ligne = res[1].filter(function(c){ return c.membre_id === moi; })[0];
+      var rang = a.auteur_id === moi ? 'auteur' : (ligne && ligne.statut);
+      if(rang === 'en_attente'){
+        alerte('Tu es invité·e à co-écrire cet article. <a href="../../?coecriture=' + id + '">Réponds à l’invitation dans Compo</a>.');
+        return false;
+      }
+      if(rang !== 'auteur' && rang !== 'accepte'){ alerte('Tu ne fais pas partie de la co-écriture de cet article : seul·e son auteur·rice peut t’y inviter.'); return false; }
+      article = a;
+      var e = res[2][0];
+      if(e && memeDate(e.article_maj_le, a.updated_at)){
+        generation = Number(e.generation); baseMaj = e.article_maj_le;
+        Y.applyUpdate(doc, deB64(e.etat), CHARGE);
+      } else {
+        // Première co-écriture, ou article modifié ailleurs depuis : on repart de l'article
+        generation = generationDe(a); baseMaj = a.updated_at;
+        initialiser(a);
+      }
+      nomCanal = 'coecriture:' + a.id + ':' + generation;
+      document.title = (a.titre || 'Article') + ' · Co-écriture';
+      $('salon-nom').parentNode.innerHTML = 'Article <strong>' + esc(a.titre || 'Sans titre') + '</strong>';
+      $('carte-inviter').hidden = true;
+      $('btn-importer').hidden = true;
+      $('carte-article').hidden = false;
+      $('article-signature').textContent = [a.auteur].concat(String(a.cosignataires || '').split(',').map(function(x){ return x.trim(); })).filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' et $1');
+      $('article-retour').href = '../../?article=' + id;
+      if(a.type === 'breve') $('chapo').hidden = true;
+      if((a.statut || 'brouillon') !== 'brouillon') lectureSeule = true;
+      return true;
+    });
+  }
+
   // ── Démarrage ──
   awareness.setLocalStateField('user', { name:prenom, color:couleur });
   afficherEtat('reconnexion');
   majVerif();
-  var pret = local ? Promise.resolve(null) : session();
+  var pret = local && !articleId ? Promise.resolve(null) : session();
   pret.then(function(s){
-    if(!local && !s){
+    if(!s && (!local || articleId)){
       afficherEtat('erreur');
       $('alerte').hidden = false;
       $('alerte').innerHTML = 'Pour écrire à plusieurs, ouvre d’abord Compo et connecte-toi dans ce navigateur, puis reviens sur cette page. '
@@ -425,16 +539,27 @@
       return;
     }
     if(s) jetonCourant = s.access_token;
-    return charger().then(function(){
+    var moi = '';
+    try { moi = s && (s.user && s.user.id || JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub) || ''; } catch(e){}
+    return (articleId ? demarrerArticle(moi) : charger().then(function(){ return true; })).then(function(ok){
+      if(!ok) return;
+      creerEditeur();
       relierChamp($('titre'), yTitre);
       relierChamp($('chapo'), yChapo);
       majMarkdown();
+      if(lectureSeule){ passerEnLecture('L’article n’est plus en écriture (au SR ou plus loin) : la co-écriture est fermée. Tu peux le lire ici.'); afficherEtat('hors-ligne'); return; }
       transport = local ? transportLocal(surMessage, surEtat) : transportSupabase(jetonCourant, surMessage, surEtat);
+      // En partant (onglet fermé ou mis de côté), on enregistre tout de suite plutôt que d'attendre 2 s
+      document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden' && minuterieSauvegarde){ clearTimeout(minuterieSauvegarde); minuterieSauvegarde = null; sauvegarder(); } });
       window.addEventListener('offline', function(){ afficherEtat('hors-ligne'); });
       // Le jeton de Compo dure une heure : on le renouvelle avant qu'il expire, sinon le canal se fermerait
       if(!local) setInterval(function(){
         session().then(function(n){ if(n && n.access_token !== jetonCourant){ jetonCourant = n.access_token; transport.majJeton(jetonCourant); } });
       }, 5 * 60000);
     });
+  }).catch(function(e){
+    console.error(e);
+    afficherEtat('erreur');
+    alerte('La page n’a pas pu démarrer : ' + esc(e && e.message || e) + '. Recharge-la ; si ça recommence, signale-le.');
   });
 })();

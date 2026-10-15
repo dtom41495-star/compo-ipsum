@@ -109,7 +109,14 @@
   </section>
 
   <aside class="cote">
-    <div class="carte">
+    <div class="carte" id="carte-article" hidden>
+      <h2>Article</h2>
+      <div class="md-meta"><span>Signé :</span> <strong id="article-signature"></strong></div>
+      <p class="note" style="margin:6px 0 0;">Le texte est enregistré dans l’article de Compo pendant que vous écrivez. Pour inviter quelqu’un, ou le retirer : bouton « Écrire à plusieurs » de l’article, dans Compo.</p>
+      <div class="ligne"><a class="outil" id="article-retour" href="../../" style="text-decoration:none;"><i class="ti ti-arrow-left"></i> Ouvrir dans Compo</a></div>
+      <div id="sauvegarde-article" class="note" style="margin-top:8px;"></div>
+    </div>
+    <div class="carte" id="carte-inviter">
       <h2>Inviter</h2>
       <div class="ligne" style="margin-top:0;"><input id="lien-salon" readonly aria-label="Lien du salon"><button type="button" class="outil" id="btn-lien"><i class="ti ti-copy"></i> Copier</button></div>
       <div id="sauvegarde" style="margin-top:8px;"></div>
