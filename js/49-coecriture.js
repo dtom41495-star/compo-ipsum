@@ -366,6 +366,18 @@ _srBandeauMaj = function(doc){
 };
 
 // ───────────────────────────────────────────────────────────────────────────
+// HISTORIQUE DE L'ARTICLE : les étapes de la co-écriture (notées par la base, docs/sql/coecriture-articles.sql)
+// ───────────────────────────────────────────────────────────────────────────
+if(typeof HIST_ETAPES !== 'undefined'){
+  HIST_ETAPES.coecriture_invitation = { icone:'user-plus',  ton:'violet', texte:'a invité {coauteur} à co-écrire l\'article' };
+  HIST_ETAPES.coecriture_acceptee   = { icone:'users',      ton:'violet', texte:'a accepté de co-écrire l\'article, et le co-signe' };
+  HIST_ETAPES.coecriture_refusee    = { icone:'user-x',     ton:'gris',   texte:'a décliné l\'invitation à co-écrire' };
+  HIST_ETAPES.coecriture_retrait    = { icone:'user-minus', ton:'gris',   texte:'a retiré {coauteur} de la co-écriture' };
+  HIST_ETAPES.coecriture_annulation = { icone:'user-minus', ton:'gris',   texte:'a annulé l\'invitation de {coauteur}' };
+  HIST_ETAPES.coecriture_depart     = { icone:'logout',     ton:'gris',   texte:'a quitté la co-écriture' };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // SR : un·e co-auteur·rice ne relit pas l'article qu'il ou elle a écrit (comme l'auteur·rice)
 // ───────────────────────────────────────────────────────────────────────────
 var _coecSrClasserAvant = osSrClasser;

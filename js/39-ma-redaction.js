@@ -355,6 +355,12 @@ function _mrChargerRelecture(d){
 }
 
 function _mrJours(iso){ return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+// Nom d'un membre à partir de son id (membres de la rédaction, puis tous les membres connus de Compo)
+function _mrNomMembre(d, id){
+  var m = (d.membres || []).filter(function(x){ return x.id === id; })[0]
+    || (window._membresData || []).filter(function(x){ return x.id === id; })[0];
+  return m ? ((m.prenom || '')+' '+(m.nom || '')).trim() || 'Correcteur·rice' : 'Correcteur·rice';
+}
 function _mrDuree(ms){
   if(!isFinite(ms) || ms < 0) return '—';
   var h = ms / 3600000;
@@ -384,17 +390,18 @@ function _mrRelecture(d){
     +_mrTuile(dorment.length, 'Dorment chez un SR', dorment.length ? '#B45309' : 'var(--gris)')
     +'</div>';
 
-  // Charge par correcteur
+  // Charge par correcteur : les SR de la rédaction, et toute personne qui a relu ou relit (admin, rédac chef…)
   var sr = {};
   d.membres.forEach(function(m){ if(m.roleRedac === 'correcteur' || m.role === 'correcteur') sr[m.id] = { id:m.id, nom:((m.prenom || '')+' '+(m.nom || '')).trim(), enCours:0, dort:0, relus:0, durees:[] }; });
   prises.forEach(function(a){
-    if(!sr[a.correcteur_id]) sr[a.correcteur_id] = { id:a.correcteur_id, nom:a.correcteur || 'Correcteur·rice', enCours:0, dort:0, relus:0, durees:[] };
+    if(!sr[a.correcteur_id]) sr[a.correcteur_id] = { id:a.correcteur_id, nom:a.correcteur || _mrNomMembre(d, a.correcteur_id), enCours:0, dort:0, relus:0, durees:[] };
     sr[a.correcteur_id].enCours++;
     if(_mrJours(a.updated_at) >= MR_SEUIL_FILE) sr[a.correcteur_id].dort++;
   });
   (rel || []).forEach(function(r){
     if(!r.correcteur_id) return;
-    if(!sr[r.correcteur_id]) return;
+    // Quiconque a relu compte, même sans le rôle de SR (un admin ou un rédac chef qui corrige)
+    if(!sr[r.correcteur_id]) sr[r.correcteur_id] = { id:r.correcteur_id, nom:_mrNomMembre(d, r.correcteur_id), enCours:0, dort:0, relus:0, durees:[] };
     sr[r.correcteur_id].relus++;
     if(r.envoye_sr_le && r.relu_le) sr[r.correcteur_id].durees.push(new Date(r.relu_le) - new Date(r.envoye_sr_le));
   });

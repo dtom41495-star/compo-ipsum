@@ -7,7 +7,7 @@
 -- et il ou elle ne peut ni changer le statut, ni envoyer au SR, ni supprimer, ni inviter à son tour.
 -- Tout passe par les fonctions ci-dessous : aucune règle n'ouvre la table des articles aux invités.
 --
--- À lancer une fois ; sans danger si relancé.
+-- À lancer une fois ; sans danger si relancé (le relancer après une mise à jour de ce fichier).
 
 -- Co-signature : noms des co-auteur·rices acceptés, tenus à jour par les fonctions (affichés après l'auteur·rice)
 alter table public.articles add column if not exists cosignataires text;
@@ -68,6 +68,22 @@ begin
 end $$;
 revoke execute on function public.coecriture_maj_signature(text) from public, anon, authenticated;
 
+-- Étape de co-écriture dans l'historique de l'article (invitation, acceptation, refus, retrait, départ).
+-- Ne bloque jamais l'action elle-même : si la ligne ne peut pas être notée, on passe.
+create or replace function public.coecriture_historique(p_article text, p_action text, p_coauteur uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_id public.articles.id%type; v_qui text; v_co text;
+begin
+  select id into v_id from public.articles where id::text = p_article;
+  select trim(coalesce(prenom, '') || ' ' || coalesce(nom, '')) into v_qui from public.membres where id = auth.uid();
+  select trim(coalesce(prenom, '') || ' ' || coalesce(nom, '')) into v_co from public.membres where id = p_coauteur;
+  insert into public.historique (article_id, action, auteur, details)
+  values (v_id, p_action, coalesce(v_qui, ''), jsonb_build_object('coauteur', v_co, 'coauteur_id', p_coauteur));
+exception when others then
+  raise warning 'Historique de co-écriture non noté : %', sqlerrm;
+end $$;
+revoke execute on function public.coecriture_historique(text, text, uuid) from public, anon, authenticated;
+
 create or replace function public.coecriture_inviter(p_article text, p_membre uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare a record;
@@ -83,6 +99,7 @@ begin
   on conflict (article_id, membre_id) do update
     set statut = 'en_attente', invite_par = excluded.invite_par, cree_le = now(), repondu_le = null
     where public.articles_coauteurs.statut in ('refuse', 'retire');
+  perform public.coecriture_historique(p_article, 'coecriture_invitation', p_membre);
 end $$;
 
 create or replace function public.coecriture_repondre(p_article text, p_accepte boolean) returns void
@@ -93,19 +110,26 @@ begin
    where article_id = p_article and membre_id = auth.uid() and statut = 'en_attente';
   if not found then raise exception 'Pas d''invitation en attente pour cet article'; end if;
   if p_accepte then perform public.coecriture_maj_signature(p_article); end if;
+  perform public.coecriture_historique(p_article, case when p_accepte then 'coecriture_acceptee' else 'coecriture_refusee' end, auth.uid());
 end $$;
 
 -- L'auteur·rice retire un·e invité·e, ou l'invité·e se retire (quitter)
 create or replace function public.coecriture_retirer(p_article text, p_membre uuid) returns void
 language plpgsql security definer set search_path = public as $$
+declare v_avant text;
 begin
   if not (p_membre = auth.uid() or public.est_admin()
           or exists (select 1 from public.articles a where a.id::text = p_article and a.auteur_id = auth.uid())) then
     raise exception 'Seul·e l''auteur·rice peut retirer un·e co-auteur·rice';
   end if;
+  select statut into v_avant from public.articles_coauteurs where article_id = p_article and membre_id = p_membre;
   update public.articles_coauteurs set statut = 'retire', repondu_le = now()
    where article_id = p_article and membre_id = p_membre and statut in ('en_attente', 'accepte');
+  if not found then return; end if;
   perform public.coecriture_maj_signature(p_article);
+  perform public.coecriture_historique(p_article,
+    case when p_membre = auth.uid() then 'coecriture_depart' when v_avant = 'en_attente' then 'coecriture_annulation' else 'coecriture_retrait' end,
+    p_membre);
 end $$;
 
 -- Enregistre le texte écrit à plusieurs dans l'article. Refusé si l'article n'est plus en brouillon (« ferme ») ou s'il a
