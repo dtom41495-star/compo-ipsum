@@ -1688,7 +1688,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   var redacRail = (window._redactionsData||[]).find(function(r){ return r.id === redacId; });
   var coulRail = (redacRail && redacRail.couleur) || '#EA5B1C';
   h += '<div id="redac-sidebar-rail" class="mobile-onglets" style="width:170px;flex-shrink:0;'
-    +'background:linear-gradient(180deg,'+_osHexRgba(coulRail,0.14)+' 0%,rgba(255,255,255,0.5) 55%,rgba(255,255,255,0.5) 100%);'
+    +'background:linear-gradient(180deg,'+_osHexRgba(coulRail,0.14)+' 0%,var(--rail-fin) 55%,var(--rail-fin) 100%);'
     +'backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);'
     +'border-right:1px solid '+_osHexRgba(coulRail,0.28)+';'
     +'box-shadow:inset 1px 0 0 rgba(255,255,255,0.6);'
