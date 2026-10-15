@@ -1211,7 +1211,7 @@ function renderLecture(){
   if(surtitre.length) a += '<div class="lx-surtitre">'+surtitre.join(' · ')+'</div>';
   a += '<h1 class="lx-titre">'+esc(doc.titre||'Sans titre')+'</h1>';
   if(doc.chapeau) a += '<p class="lx-chapo">'+esc(doc.chapeau)+'</p>';
-  a += '<div class="lx-signature"><div><strong>Par '+esc(doc.auteur||'—')+'</strong>'+(doc.redaction ? ' · Rédaction '+esc(String(doc.redaction).replace(/^Rédaction\s+/i,'')) : '')+'</div>'
+  a += '<div class="lx-signature"><div><strong>Par '+esc((typeof osSignature === 'function' ? osSignature(doc) : doc.auteur)||'—')+'</strong>'+(doc.redaction ? ' · Rédaction '+esc(String(doc.redaction).replace(/^Rédaction\s+/i,'')) : '')+'</div>'
     +'<div class="lx-signature-infos">'
       +(dateArt ? new Date(dateArt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '')
       +(mots ? '<span class="lx-sep"> · </span>'+Math.max(1, Math.round(mots/200))+' min de lecture' : '')
@@ -1314,7 +1314,7 @@ function genMd(src){
   if(!currentDoc)return;
   let md='# '+currentDoc.titre+'\n\n';
   if(currentDoc.chapeau)md+='*'+currentDoc.chapeau+'*\n\n';
-  md+='---\n\n'+currentDoc.corps+'\n\n---\n*Par '+currentDoc.auteur;
+  md+='---\n\n'+currentDoc.corps+'\n\n---\n*Par '+(typeof osSignature === 'function' ? osSignature(currentDoc) : currentDoc.auteur);
   if(currentDoc.redaction)md+=' — '+currentDoc.redaction;
   if(currentDoc.rubrique)md+=' — '+currentDoc.rubrique;
   md+='*\n';
@@ -1579,7 +1579,7 @@ function nlGenerer(){
   arts.forEach(function(doc, i){
     md += (i===0 ? '## À la une' : '## '+(doc.rubrique||'Article')) + '\n\n### ' + doc.titre + '\n\n';
     if(doc.chapeau) md += '*' + doc.chapeau + '*\n\n';
-    md += doc.corps + '\n\n*Par ' + doc.auteur + (doc.redaction ? ' - '+doc.redaction : '') + '*\n\n---\n\n';
+    md += doc.corps + '\n\n*Par ' + (typeof osSignature === 'function' ? osSignature(doc) : doc.auteur) + (doc.redaction ? ' - '+doc.redaction : '') + '*\n\n---\n\n';
   });
   if(brvs.length){
     md += '## Brèves\n\n';
@@ -1795,7 +1795,7 @@ function exporterPDF(){
 function _exporterPDFHtml(donneesTampons){
   // Créer le document d'impression avec le contenu mis en forme
   var titre = currentDoc.titre || 'Article';
-  var auteur = currentDoc.auteur || '';
+  var auteur = (typeof osSignature === 'function' ? osSignature(currentDoc) : currentDoc.auteur) || '';   // avec les co-signataires (js/49)
   var redaction = currentDoc.redaction || '';
   var chapeau = currentDoc.chapeau || '';
   var corps = currentDoc.corps || '';
