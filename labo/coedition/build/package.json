@@ -1,0 +1,22 @@
+{
+  "name": "compo-coedition-lib",
+  "private": true,
+  "description": "Construit vendor/coedition-lib.js (voir README.md)",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=iife --global-name=CoEditionLib --minify --legal-comments=eof --target=es2019 --outfile=../vendor/coedition-lib.js"
+  },
+  "dependencies": {
+    "@supabase/realtime-js": "2.117.1",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-collaboration": "3.31.3",
+    "@tiptap/extension-collaboration-caret": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
+    "@tiptap/y-tiptap": "3.0.7",
+    "y-protocols": "1.0.6",
+    "yjs": "13.6.27"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}
