@@ -444,7 +444,7 @@ function osHistoriqueOuvrir(docArg){
   mo.innerHTML = '<div class="renvoi-boite hist-boite" role="dialog" aria-labelledby="hist-titre">'
     +'<div class="renvoi-entete"><div class="renvoi-icone hist-icone"><i class="ti ti-history"></i></div><div>'
       +'<div id="hist-titre" class="renvoi-titre">Historique de l\'article</div>'
-      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' » · écrit par '+esc(doc.auteur || 'auteur·rice inconnu·e')+'</div></div>'
+      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' » · écrit par '+esc((typeof osSignature === 'function' ? osSignature(doc) : doc.auteur) || 'auteur·rice inconnu·e')+'</div></div>'
       +'<button type="button" class="verif-btn-icone hist-fermer" data-a="fermer" title="Fermer"><i class="ti ti-x"></i></button></div>'
     +'<div class="renvoi-corps hist-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div>'
     +'</div>';
@@ -485,7 +485,9 @@ function osHistoriqueOuvrir(docArg){
 function _histRendre(doc, lignes, membres){
   var noms = {};
   membres.forEach(function(m){ noms[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
-  var prenomAuteur = String(doc.auteur || '').trim().split(/\s+/)[0] || 'l\'auteur·rice';
+  // Prénoms de l'auteur·rice et des co-signataires (co-écriture, js/49) : « Tom », ou « Tom et Lola »
+  var prenoms = [doc.auteur].concat(String(doc.cosignataires || '').split(',')).map(function(n){ return String(n || '').trim().split(/\s+/)[0]; }).filter(Boolean);
+  var prenomAuteur = prenoms.length > 1 ? prenoms.slice(0, -1).join(', ')+' et '+prenoms[prenoms.length - 1] : (prenoms[0] || 'l\'auteur·rice');
   // Les notifications sont rattachées à l'étape qui les a déclenchées (la précédente)
   var etapes = [];
   lignes.forEach(function(l){
@@ -507,7 +509,8 @@ function _histRendre(doc, lignes, membres){
     var role = HIST_ROLES[e.role];
     var texte = conf.texte
       .replace('{sr}', esc((e.details && e.details.sr) || 'un·e SR'))
-      .replace('{auteur}', esc(prenomAuteur));
+      .replace('{auteur}', esc(prenomAuteur))
+      .replace('{coauteur}', esc((e.details && e.details.coauteur) || 'un·e membre'));
     if(e.action === 'statut' && e.details && e.details.vers) texte += ' ('+esc(e.details.vers)+')';
     var date = new Date(e.created_at);
     h += '<li class="hist-etape hist-'+conf.ton+'"><span class="hist-pastille"><i class="ti ti-'+conf.icone+'"></i></span><div class="hist-contenu">'
@@ -521,7 +524,7 @@ function _histRendre(doc, lignes, membres){
       if(!versionPrec) h += '<button type="button" class="hist-version" data-v="'+esc(String(v))+'" data-titre="'+esc(titreVue)+'"><i class="ti ti-file-text"></i>Voir le texte à cette étape</button>';
       else if(String(v) === String(versionPrec)) h += '<div class="hist-inchange"><i class="ti ti-equal"></i>Texte inchangé depuis l\'étape précédente</div>';
       else {
-        var lib = e.action === 'relu' ? 'Voir les corrections' : e.action === 'renvoi_sr' ? 'Voir ce que '+prenomAuteur+' a repris'
+        var lib = e.action === 'relu' ? 'Voir les corrections' : e.action === 'renvoi_sr' ? 'Voir ce que '+prenomAuteur+(prenoms.length > 1 ? ' ont' : ' a')+' repris'
           : e.action === 'renvoi_auteur' ? 'Voir ce qui a été corrigé avant le renvoi' : 'Voir ce qui a changé';
         h += '<button type="button" class="hist-version" data-v="'+esc(String(v))+'" data-p="'+esc(String(versionPrec))+'" data-titre="'+esc(titreVue)+'"><i class="ti ti-arrows-diff"></i>'+esc(lib)+'</button>';
       }

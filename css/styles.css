@@ -5798,3 +5798,4 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .coec-carte .mac-actions { flex-wrap: wrap; }
 .coec-vide { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 2.5rem 1rem; color: var(--gris); font-size: 0.82rem; line-height: 1.5; }
 .coec-vide i { font-size: 2rem; } .coec-vide strong { color: var(--encre); }
+.hist-violet .hist-pastille { background: #F3E8FA; color: #6B2F8A; }   /* co-écriture (js/49) */
