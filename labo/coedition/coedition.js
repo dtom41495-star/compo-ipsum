@@ -101,6 +101,9 @@
   });
   awareness.on('update', function(ch, origine){
     if(origine === DISTANT) return;
+    // Le texte en attente part d'abord : la position du curseur désigne les lettres qu'on vient de taper.
+    // Si elle arrivait avant elles, l'autre ne saurait pas où la placer et l'étiquette disparaîtrait (clignotement).
+    if(minuterie){ clearTimeout(minuterie); vider(); }
     envoyer({ t:'pres', d:b64(AW.encodeAwarenessUpdate(awareness, ch.added.concat(ch.updated, ch.removed))) });
   });
   function surMessage(m){
