@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Co-écriture · Labo Compo</title>
+<link rel="icon" href="../../icons/compo-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bitter:wght@600;700&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
+<style>
+  :root {
+    --rouge: #E8461E; --encre: #1A1A2E; --gris: #6B7280; --gris-bord: #E5E7EB; --fond: #F7F5F2; --carte: #FFFFFF; --code: #F3F1EE;
+  }
+  :root.sombre {
+    --encre: #E8E6E1; --gris: #9A9590; --gris-bord: rgba(255,255,255,0.1); --fond: #0D0D1A; --carte: #1A1A2E; --code: #131320;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.5 'DM Sans', system-ui, sans-serif; }
+  .haut { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 20px; border-bottom: 1px solid var(--gris-bord); background: var(--carte); position: sticky; top: 0; z-index: 5; }
+  .haut h1 { margin: 0; font-size: 1rem; font-weight: 700; }
+  .haut .labo { font: 0.62rem 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--rouge); border: 1px solid var(--rouge); padding: 2px 6px; border-radius: 4px; }
+  .salon { font-size: 0.82rem; color: var(--gris); }
+  .salon strong { color: var(--encre); }
+  .droite { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .pastille { font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--code); color: var(--gris); }
+  .pastille::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
+  .etat-connecte { color: #1F9D55; } .etat-erreur, .etat-hors-ligne { color: #D93036; }
+  #presence { display: flex; }
+  .present { width: 28px; height: 28px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #fff; font-size: 0.78rem; font-weight: 700; border: 2px solid var(--carte); }
+  .present:first-child { margin-left: 0; }
+  #presence-nb { font-size: 0.78rem; color: var(--gris); }
+  .alerte { margin: 16px 20px 0; padding: 12px 14px; border-radius: 10px; background: #FEF2F2; color: #991B1B; font-size: 0.88rem; }
+  :root.sombre .alerte { background: rgba(217,48,54,0.15); color: #F09595; }
+  .alerte a { color: inherit; font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .carte { background: var(--carte); border: 1px solid var(--gris-bord); border-radius: 14px; padding: 22px 26px; }
+  .champ { width: 100%; border: none; background: transparent; color: var(--encre); outline: none; padding: 0; resize: none; font-family: inherit; }
+  #titre { font: 700 1.6rem/1.25 Bitter, Georgia, serif; margin-bottom: 8px; }
+  #chapo { font-size: 1.02rem; color: var(--gris); margin-bottom: 14px; }
+  .barre { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 0; margin-bottom: 10px; border-top: 1px solid var(--gris-bord); border-bottom: 1px solid var(--gris-bord); position: sticky; top: 57px; background: var(--carte); z-index: 2; }
+  .barre button, .outil { min-width: 32px; height: 30px; padding: 0 8px; border: 1px solid var(--gris-bord); border-radius: 6px; background: transparent; color: var(--encre); cursor: pointer; font: 600 0.78rem 'DM Sans', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .barre button:hover, .outil:hover { border-color: var(--rouge); }
+  .barre button.actif, .outil.actif { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+  .barre .sep { width: 1px; background: var(--gris-bord); margin: 2px 4px; }
+  #editeur .tiptap { min-height: 420px; outline: none; font-size: 0.98rem; line-height: 1.85; }
+  #editeur .tiptap > * + * { margin-top: 0.7em; }
+  #editeur p { margin: 0; }
+  #editeur h2 { font: 700 1.35rem/1.3 Bitter, Georgia, serif; margin: 1.3rem 0 0.4rem; }
+  #editeur h3 { font: 700 1.12rem/1.3 Bitter, Georgia, serif; margin: 1.1rem 0 0.3rem; }
+  #editeur blockquote { border-left: 3px solid var(--rouge); padding-left: 1rem; margin: 1rem 0; color: var(--gris); font-style: italic; }
+  #editeur ul { padding-left: 1.4rem; }
+  #editeur a { color: var(--rouge); }
+  #editeur .tiptap p.is-editor-empty:first-child::before { content: 'Écris ici… Ouvre le même lien dans un autre navigateur (ou envoie-le) pour écrire à deux.'; color: var(--gris); float: left; height: 0; pointer-events: none; }
+  /* Curseurs des autres : un trait de leur couleur et leur prénom au-dessus */
+  .collaboration-carets__caret { position: relative; margin-left: -1px; margin-right: -1px; border-left: 1px solid; border-right: 1px solid; word-break: normal; pointer-events: none; }
+  .collaboration-carets__label { position: absolute; top: -1.4em; left: -1px; padding: 0 5px; border-radius: 4px 4px 4px 0; color: #fff; font: 600 0.68rem/1.5 'DM Sans', sans-serif; white-space: nowrap; user-select: none; }
+  .collaboration-carets__selection { opacity: 0.35; }
+  .verif-souligne { text-decoration: underline wavy #D98200; text-underline-offset: 3px; background: rgba(217,130,0,0.12); }
+  .cote { display: flex; flex-direction: column; gap: 14px; }
+  .cote h2 { margin: 0 0 8px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gris); }
+  .cote .carte { padding: 16px; }
+  .md-meta { font-size: 0.8rem; margin-bottom: 6px; } .md-meta span { color: var(--gris); }
+  pre { margin: 0; padding: 10px 12px; max-height: 360px; overflow: auto; border-radius: 8px; background: var(--code); font: 0.76rem/1.5 'Space Mono', monospace; white-space: pre-wrap; word-break: break-word; }
+  .ligne { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .compteur { background: #fff; color: var(--rouge); border-radius: 999px; padding: 0 6px; font-size: 0.7rem; }
+  #lien-salon { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--gris-bord); border-radius: 6px; background: var(--code); color: var(--encre); font-size: 0.74rem; }
+  #sauvegarde { font-size: 0.78rem; color: var(--gris); min-height: 1.2em; }
+  textarea#import-texte { width: 100%; min-height: 140px; margin-top: 8px; padding: 8px; border: 1px solid var(--gris-bord); border-radius: 8px; background: var(--code); color: var(--encre); font: 0.78rem/1.5 'Space Mono', monospace; }
+  .note { font-size: 0.8rem; color: var(--gris); line-height: 1.5; }
+  .note p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<header class="haut">
+  <span class="labo">Labo</span>
+  <h1>Co-écriture en temps réel</h1>
+  <span class="salon">Salon <strong id="salon-nom"></strong></span>
+  <div class="droite">
+    <div id="presence"></div><span id="presence-nb"></span>
+    <span id="etat" class="pastille">Connexion…</span>
+  </div>
+</header>
+<div id="alerte" class="alerte" hidden></div>
+
+<main>
+  <section class="carte">
+    <input id="titre" class="champ" placeholder="Titre" aria-label="Titre" autocomplete="off" spellcheck="true" lang="fr">
+    <textarea id="chapo" class="champ" rows="2" placeholder="Chapô : l’essentiel en deux phrases" aria-label="Chapô" spellcheck="true" lang="fr"></textarea>
+    <div class="barre" role="toolbar" aria-label="Mise en forme">
+      <button type="button" data-cmd="gras" title="Gras"><b>G</b></button>
+      <button type="button" data-cmd="italique" title="Italique"><i>I</i></button>
+      <button type="button" data-cmd="lien" title="Lien"><i class="ti ti-link"></i></button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="h2" title="Intertitre">H2</button>
+      <button type="button" data-cmd="h3" title="Sous-intertitre">H3</button>
+      <button type="button" data-cmd="liste" title="Liste"><i class="ti ti-list"></i></button>
+      <button type="button" data-cmd="citation" title="Citation"><i class="ti ti-quote"></i></button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="annuler" title="Annuler ce que j’ai écrit"><i class="ti ti-arrow-back-up"></i></button>
+      <button type="button" data-cmd="refaire" title="Rétablir"><i class="ti ti-arrow-forward-up"></i></button>
+      <span class="sep"></span>
+      <button type="button" class="outil" id="btn-verif"></button>
+    </div>
+    <div id="editeur"></div>
+  </section>
+
+  <aside class="cote">
+    <div class="carte">
+      <h2>Inviter</h2>
+      <div class="ligne" style="margin-top:0;"><input id="lien-salon" readonly aria-label="Lien du salon"><button type="button" class="outil" id="btn-lien"><i class="ti ti-copy"></i> Copier</button></div>
+      <div id="sauvegarde" style="margin-top:8px;"></div>
+    </div>
+    <div class="carte">
+      <h2>Ce qui serait enregistré</h2>
+      <div class="md-meta"><span>Titre :</span> <strong id="md-titre">—</strong></div>
+      <div class="md-meta"><span>Chapô :</span> <span id="md-chapo" style="color:inherit;">—</span></div>
+      <pre id="markdown">(vide)</pre>
+      <div class="ligne">
+        <button type="button" class="outil" id="btn-copier"><i class="ti ti-copy"></i> Copier le texte</button>
+        <button type="button" class="outil" id="btn-importer"><i class="ti ti-file-import"></i> Partir d’un texte</button>
+      </div>
+      <div id="import" hidden>
+        <textarea id="import-texte" placeholder="Colle ici le texte d’un article (format Compo : ## intertitre, **gras**, _italique_, [lien](url), - liste, > citation)"></textarea>
+        <div class="ligne"><button type="button" class="outil actif" id="btn-import-ok">Remplacer le texte</button></div>
+      </div>
+    </div>
+    <div class="carte note">
+      <h2>Prototype</h2>
+      <p>Une page d’essai, à part de l’éditeur de Compo : rien n’est écrit dans les articles.</p>
+      <p>Chacun voit les curseurs des autres, et deux personnes peuvent modifier la même phrase en même temps. « Annuler » n’annule que ce que tu as écrit toi-même.</p>
+      <p>« Vérifier (démo) » souligne quelques fautes de typographie sans toucher au texte : c’est ainsi qu’il faudrait porter les outils du SR.</p>
+    </div>
+  </aside>
+</main>
+
+<script src="vendor/coedition-lib.js"></script>
+<script src="coedition.js"></script>
+</body>
+</html>
