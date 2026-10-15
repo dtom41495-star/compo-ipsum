@@ -137,7 +137,12 @@ function osModeSombreAdapter(actif){
       _sombreObs = new MutationObserver(function(muts){
         muts.forEach(function(m){
           if(m.type === 'childList'){
-            m.addedNodes.forEach(function(n){ if(n.nodeType === 1){ n._sombreArbre = true; _sombrePlanifier(n); } });
+            m.addedNodes.forEach(function(n){
+              if(n.nodeType === 1){ n._sombreArbre = true; _sombrePlanifier(n); }
+              // Du texte écrit dans un élément vide (textContent) : c'est lui qui devient lisible ou non,
+              // il faut le réévaluer (ex. la remarque de refus dans l'éditeur, écrite après coup)
+              else if(n.nodeType === 3 && n.textContent.trim() && m.target.nodeType === 1) _sombrePlanifier(m.target);
+            });
           } else if(m.target.nodeType === 1){
             // Un fond qui change de classe (onglet actif…) peut changer la lisibilité des enfants
             if(m.attributeName === 'class') m.target._sombreArbre = true;
