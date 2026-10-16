@@ -1108,23 +1108,26 @@ function lancerCompo(){
   var existing = document.getElementById('compo-loading-screen');
   if(existing) existing.remove();
 
+  // Écran de lancement : « Compo » se compose comme une ligne de caractères en plomb, passe sous le rouleau
+  // encreur, puis le logo d'Ipsum Média apparaît ; la réglette sous la ligne suit le chargement (styles : « ÉCRAN DE LANCEMENT », css/styles.css)
   var loader = document.createElement('div');
   loader.id = 'compo-loading-screen';
-  loader.style.cssText = 'position:fixed;inset:0;z-index:999990;background:#FDFAF9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;';
+  loader.setAttribute('data-sombre-ignore', '');
+  loader.setAttribute('role', 'status');
+  loader.setAttribute('aria-label', 'Compo démarre');
+  var prenomLancement = (localStorage.getItem('ipsum_user_prenom') || '').trim();
   loader.innerHTML =
-    '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
-    // Logo
-    +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);animation:popIn .35s cubic-bezier(.34,1.56,.64,1) forwards;">'
-    +'<span style="font-size:1.5rem;"><i class="ti ti-news"></i></span></div>'
-    // Titre
-    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.3rem;color:#1A1A2E;letter-spacing:-.02em;">Compo OS</div>'
-    // Etape courante
-    +'<div id="compo-loading-step" style="font-family:DM Sans,sans-serif;font-size:.72rem;color:#9CA3AF;min-height:1.2em;text-align:center;"></div>'
-    // Barre de progression
-    +'<div style="width:200px;height:3px;background:#F3F4F6;border-radius:2px;overflow:hidden;">'
-    +'<div id="compo-loading-bar" style="height:3px;background:linear-gradient(90deg,#E8461E,#F59E0B);border-radius:2px;width:0%;transition:width .4s ease;"></div>'
-    +'</div>'
+    '<div class="cl-scene">'
+    +'<div class="cl-casse" aria-hidden="true">'
+    +['C','o','m','p','o'].map(function(l, i){ return '<span class="cl-sorte" style="--i:'+i+'"><span>'+l+'</span></span>'; }).join('')
+    +'<span class="cl-rouleau-cadre"><span class="cl-rouleau"></span></span></div>'
+    +'<div class="cl-reglette"><div id="compo-loading-bar" class="cl-reglette-plein"></div></div>'
+    // Puis la signature : le logo d'Ipsum Média (version blanche en thème sombre)
+    +'<div class="cl-logo"><img class="cl-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="cl-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>'
+    +'<div class="cl-bonjour">'+(prenomLancement ? 'Bonjour '+esc(prenomLancement) : 'Bonjour')+'</div>'
+    +'<div id="compo-loading-step" class="cl-etape"></div>'
     +'</div>';
+  var lancementDebut = Date.now();
   document.body.appendChild(loader);
 
   // Fonction pour mettre a jour la progression
@@ -1136,13 +1139,15 @@ function lancerCompo(){
   };
 
   // Fermer l'ecran de chargement
+  // Fermer l'écran : au moins le temps que la ligne soit composée et le logo affiché (sinon, chargement en cache, on ne les verrait pas),
+  // puis les caractères se lèvent et l'écran s'efface
   var _loadDone = function(){
     var s = document.getElementById('compo-loading-screen');
-    if(s){
-      s.style.transition = 'opacity .4s ease';
-      s.style.opacity = '0';
-      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 420);
-    }
+    if(!s) return;
+    setTimeout(function(){
+      s.classList.add('cl-sortie');
+      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 520);
+    }, Math.max(0, 1400 - (Date.now() - lancementDebut)));
   };
 
   var roleActuel = getUserRole();
