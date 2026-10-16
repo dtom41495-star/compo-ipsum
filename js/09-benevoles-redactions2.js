@@ -336,7 +336,8 @@ function osBenevolesDashRender(){
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
     var nouveauxCeMois = membres.filter(function(m){ return m.created_at && new Date(m.created_at) >= debutMoisBenv; }).length;
     var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div class="benv-stats-grille" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
-    sh+=statCard(actifCount,'Disponibles','#0F6E56');
+    // Disponibles sur le total des membres actifs (« 12 / 24 »)
+    sh+=statCard(actifCount+'<span style="font-size:0.95rem;font-weight:600;color:var(--gris);"> / '+statsMembres.length+'</span>','Disponibles','#0F6E56');
     sh+=statCard(artDuMois.length,'Articles touchés','var(--encre)');
     sh+=statCard(artCorrection.length,'Au SR','#1A5276');
     sh+=statCard(artPublies.length,'En ligne au total','var(--rouge)');
