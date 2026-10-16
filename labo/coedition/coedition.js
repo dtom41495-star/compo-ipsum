@@ -13,6 +13,8 @@
   var SB_URL = 'https://ctmekufqaxdelgfyjwly.supabase.co';
   var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE';
   var COULEURS = ['#E8461E', '#1A73E8', '#1F9D55', '#9333EA', '#D98200', '#DB2777', '#0E7490'];
+  // Avatars illustrés de Compo (même liste que AVATARS_DISPONIBLES, dessins dans icons/avatars.svg)
+  var AVATARS = ['renard', 'hibou', 'montagne', 'comete', 'vague', 'trefle', 'soleil', 'lune', 'plume', 'goutte', 'lapin'];
 
   var params = new URLSearchParams(location.search);
   var salon = (params.get('salon') || 'essai').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 60) || 'essai';
@@ -29,6 +31,16 @@
   function deB64(s){ var b = atob(s), u = new Uint8Array(b.length); for(var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 
+  // Rond d'un participant : son avatar de Compo s'il en a choisi un, sinon son initiale, dans sa couleur
+  function avatarHtml(u, taille){
+    var t = taille + 'px';
+    if(u && AVATARS.indexOf(u.avatar) !== -1)
+      return '<span class="av" style="width:' + t + ';height:' + t + ';"><svg viewBox="0 0 64 64" width="100%" height="100%"><use href="../../icons/avatars.svg#avatar-' + u.avatar + '"></use></svg></span>';
+    return '<span class="av av-ini" style="width:' + t + ';height:' + t + ';font-size:' + Math.round(taille * 0.5) + 'px;background:' + esc((u && u.color) || '#999') + ';">'
+      + esc(((u && u.name) || '?').slice(0, 1).toUpperCase()) + '</span>';
+  }
+  function moiUtilisateur(){ return { name:prenom, color:couleur, avatar:avatar }; }
+
   if(lire('compo_os_theme') === 'dark') document.documentElement.classList.add('sombre');
   $('salon-nom').textContent = salon;
 
@@ -38,6 +50,7 @@
     prenom = (window.prompt('Ton prénom (il s’affiche à côté de ton curseur) :') || '').trim() || 'Invité';
     ecrire('coedition_prenom', prenom);
   }
+  var avatar = null;   // l'avatar choisi dans Compo (Réglages > Mon profil), lu au démarrage
   var couleur = COULEURS[Math.abs(Array.prototype.reduce.call(prenom + salon, function(h, c){ return (h * 31 + c.charCodeAt(0)) | 0; }, 7)) % COULEURS.length];
 
   // ── Session Compo (mode Supabase) : on reprend celle de Compo, renouvelée si elle a expiré ──
@@ -89,33 +102,41 @@
   // ── Synchronisation ──
   // « bonjour » : un arrivant donne ce qu'il a déjà (vecteur d'état) ; chacun lui répond avec ce qui lui manque,
   // et lui renvoie son propre vecteur pour recevoir à son tour ce que l'arrivant avait écrit hors ligne.
-  // Les modifications sont regroupées toutes les 60 ms : on n'envoie pas un message par lettre tapée.
-  var transport = null, enAttente = [], minuterie = null, connecte = false;
+  // Les modifications et le curseur partent ensemble, dans un seul message, au plus toutes les 150 ms : on n'envoie
+  // pas un message par lettre tapée ni par mouvement de curseur (le temps réel de Supabase compte les messages).
+  // Le texte passe avant le curseur dans le message : la position du curseur désigne les lettres qu'on vient de taper ;
+  // si elle arrivait avant elles, l'autre ne saurait pas où la placer et l'étiquette clignoterait.
+  var DELAI_ENVOI = 150;
+  var transport = null, enAttente = [], presenceEnAttente = null, minuterie = null, connecte = false;
   function envoyer(m){ if(transport && connecte) transport.envoyer(m); }
+  function planifierEnvoi(){ if(!minuterie) minuterie = setTimeout(vider, DELAI_ENVOI); }
   function vider(){
-    minuterie = null;
-    if(!enAttente.length) return;
-    var maj = enAttente.length === 1 ? enAttente[0] : Y.mergeUpdates(enAttente);
-    enAttente = [];
-    envoyer({ t:'maj', d:b64(maj) });
+    if(minuterie){ clearTimeout(minuterie); minuterie = null; }
+    var m = { t:'maj' };
+    if(enAttente.length){ m.d = b64(enAttente.length === 1 ? enAttente[0] : Y.mergeUpdates(enAttente)); enAttente = []; }
+    if(presenceEnAttente){ m.p = b64(AW.encodeAwarenessUpdate(awareness, presenceEnAttente)); presenceEnAttente = null; }
+    if(m.d || m.p) envoyer(m);
   }
   doc.on('update', function(maj, origine){
     if(origine === DISTANT || origine === CHARGE) return;
     enAttente.push(maj);
-    if(!minuterie) minuterie = setTimeout(vider, 60);
+    planifierEnvoi();
     planifierSauvegarde();
   });
   awareness.on('update', function(ch, origine){
     if(origine === DISTANT) return;
-    // Le texte en attente part d'abord : la position du curseur désigne les lettres qu'on vient de taper.
-    // Si elle arrivait avant elles, l'autre ne saurait pas où la placer et l'étiquette disparaîtrait (clignotement).
-    if(minuterie){ clearTimeout(minuterie); vider(); }
-    envoyer({ t:'pres', d:b64(AW.encodeAwarenessUpdate(awareness, ch.added.concat(ch.updated, ch.removed))) });
+    var ids = presenceEnAttente || [];
+    ch.added.concat(ch.updated, ch.removed).forEach(function(id){ if(ids.indexOf(id) === -1) ids.push(id); });
+    presenceEnAttente = ids;
+    planifierEnvoi();
   });
   function surMessage(m){
     if(!m || !m.t) return;
     // Pour un article, chacun n'enregistre que ce qu'il tape (l'état enregistré contient aussi ce que les autres ont écrit)
-    if(m.t === 'maj'){ Y.applyUpdate(doc, deB64(m.d), DISTANT); if(!article) planifierSauvegarde(); }
+    if(m.t === 'maj'){
+      if(m.d){ Y.applyUpdate(doc, deB64(m.d), DISTANT); if(!article) planifierSauvegarde(); }
+      if(m.p) AW.applyAwarenessUpdate(awareness, deB64(m.p), DISTANT);
+    }
     else if(m.t === 'pres') AW.applyAwarenessUpdate(awareness, deB64(m.d), DISTANT);
     else if(m.t === 'bonjour' || m.t === 'reponse'){
       if(m.d) Y.applyUpdate(doc, deB64(m.d), DISTANT);
@@ -137,7 +158,8 @@
       vider();
     }
   }
-  window.addEventListener('beforeunload', function(){ AW.removeAwarenessStates(awareness, [doc.clientID], 'depart'); });
+  // En partant, on prévient tout de suite (sans attendre l'envoi groupé) que l'on n'est plus là
+  window.addEventListener('beforeunload', function(){ AW.removeAwarenessStates(awareness, [doc.clientID], 'depart'); vider(); });
 
   // ── Sauvegarde : l'état Yjs complet (pour reprendre là où on en était) et le markdown (pour le lire ailleurs) ──
   var sauvegardeActive = true, minuterieSauvegarde = null, jetonCourant = null;
@@ -282,7 +304,21 @@
       editable:!lectureSeule,
       extensions:EXTENSIONS.concat([
         L.Collaboration.configure({ document:doc, field:'corps' }),
-        L.CollaborationCaret.configure({ provider:{ awareness:awareness }, user:{ name:prenom, color:couleur } })
+        L.CollaborationCaret.configure({
+          provider:{ awareness:awareness }, user:moiUtilisateur(),
+          // Curseur des autres : un trait de sa couleur, et au-dessus son avatar et son prénom
+          render:function(u){
+            var c = document.createElement('span');
+            c.className = 'collaboration-carets__caret';
+            c.style.borderColor = u.color;
+            var l = document.createElement('div');
+            l.className = 'collaboration-carets__label';
+            l.style.backgroundColor = u.color;
+            l.innerHTML = avatarHtml(u, 16) + '<span>' + esc(u.name || '') + '</span>';
+            c.appendChild(l);
+            return c;
+          }
+        })
       ]),
       editorProps:{ attributes:{ class:'art-corps', spellcheck:'true', lang:'fr', 'aria-label':'Corps de l’article' } },
       // Le texte de départ déclenche une mise à jour pendant la construction même de l'éditeur : on le retient dès là
@@ -368,7 +404,7 @@
       if(!etat.user) return;
       var moi = id === doc.clientID;
       html += '<span class="present" style="--c:' + esc(etat.user.color) + '" title="' + esc(etat.user.name) + (moi ? ' (toi)' : '') + '">'
-        + esc((etat.user.name || '?').slice(0, 1).toUpperCase()) + '</span>';
+        + avatarHtml(etat.user, 24) + '</span>';
     });
     $('presence').innerHTML = html;
     var n = awareness.getStates().size;
@@ -488,7 +524,7 @@
     var id = encodeURIComponent(articleId);
     return Promise.all([
       rest('articles?id=eq.' + id + '&select=id,titre,chapeau,corps,statut,type,auteur,auteur_id,cosignataires,redaction_id,updated_at').then(function(r){ return r.json(); }),
-      rest('articles_coauteurs?article_id=eq.' + id + '&select=membre_id,statut').then(function(r){ return r.ok ? r.json() : null; }),
+      rest('articles_coauteurs?article_id=eq.' + id + '&select=membre_id,statut,repondu_le,cree_le').then(function(r){ return r.ok ? r.json() : null; }),
       rest('articles_coecriture?article_id=eq.' + id + '&select=etat,generation,article_maj_le').then(function(r){ return r.ok ? r.json() : null; })
     ]).then(function(res){
       var a = Array.isArray(res[0]) && res[0][0];
@@ -502,6 +538,13 @@
       }
       if(rang !== 'auteur' && rang !== 'accepte'){ alerte('Tu ne fais pas partie de la co-écriture de cet article : seul·e son auteur·rice peut t’y inviter.'); return false; }
       article = a;
+      // Une couleur par participant·e, toujours la même pour cet article et jamais deux fois la même :
+      // l'auteur·rice d'abord, puis les co-auteur·rices dans l'ordre où ils ont accepté
+      var participants = [a.auteur_id].concat(res[1].filter(function(c){ return c.statut === 'accepte'; })
+        .sort(function(x, y){ return new Date(x.repondu_le || x.cree_le) - new Date(y.repondu_le || y.cree_le); })
+        .map(function(c){ return c.membre_id; }));
+      var rang2 = participants.indexOf(moi);
+      if(rang2 !== -1) couleur = COULEURS[rang2 % COULEURS.length];
       var e = res[2][0];
       if(e && memeDate(e.article_maj_le, a.updated_at)){
         generation = Number(e.generation); baseMaj = e.article_maj_le;
@@ -541,8 +584,14 @@
     if(s) jetonCourant = s.access_token;
     var moi = '';
     try { moi = s && (s.user && s.user.id || JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub) || ''; } catch(e){}
-    return (articleId ? demarrerArticle(moi) : charger().then(function(){ return true; })).then(function(ok){
+    // Mon prénom et mon avatar tels que dans Compo
+    var identite = (moi && jetonCourant) ? rest('membres?id=eq.' + encodeURIComponent(moi) + '&select=prenom,avatar_id')
+      .then(function(r){ return r.ok ? r.json() : []; })
+      .then(function(d){ var m = d && d[0]; if(m){ if(m.prenom && !params.get('nom')) prenom = m.prenom; avatar = m.avatar_id || null; } })
+      .catch(function(){}) : Promise.resolve();
+    return identite.then(function(){ return articleId ? demarrerArticle(moi) : charger().then(function(){ return true; }); }).then(function(ok){
       if(!ok) return;
+      awareness.setLocalStateField('user', moiUtilisateur());
       creerEditeur();
       relierChamp($('titre'), yTitre);
       relierChamp($('chapo'), yChapo);

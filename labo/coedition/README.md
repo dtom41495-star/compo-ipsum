@@ -18,12 +18,14 @@ Base : `docs/sql/coecriture-articles.sql`.
 - Si l'article a été modifié en dehors (éditeur classique, SR), l'enregistrement est refusé (`modifie_ailleurs`) : la page le dit, et au rechargement elle repart de la version de l'article.
 - Dès que l'article n'est plus en brouillon (envoi au SR), l'enregistrement est refusé (`ferme`) et la page passe en lecture seule.
 - Canal temps réel privé `coecriture:<article>:<génération>`, réservé aux participant·es par une règle sur `realtime.messages`.
+- 4 co-auteur·rices au plus par article (invitations en attente comprises), vérifié par la base.
+- Chacun a sa couleur (l'auteur·rice d'abord, puis dans l'ordre d'acceptation) et son avatar de Compo à côté de son curseur (`icons/avatars.svg`, copie du sprite de `index.html`).
 
 ## Comment ça marche
 
 - **Tiptap** (sur ProseMirror) : l'éditeur. Le texte est un document structuré (paragraphes, intertitres, listes…), l'écran n'en est qu'un affichage.
 - **Yjs** : fusionne les modifications faites en même temps, même sur le même mot. « Annuler » n'annule que ce qu'on a écrit soi-même.
-- **Supabase Realtime** (canal broadcast `coedition:<salon>`) : fait circuler les modifications et la présence (qui est là, où est son curseur). Les frappes sont regroupées toutes les 60 ms.
+- **Supabase Realtime** (canal broadcast `coedition:<salon>`) : fait circuler les modifications et la présence (qui est là, où est son curseur). Texte et curseur partent ensemble, dans un seul message, au plus toutes les 150 ms (environ 5 messages par seconde pour quelqu'un qui tape).
 - **Sauvegarde** : l'état Yjs et le markdown vont dans la table `coedition_labo` (`docs/sql/labo-coedition.sql`), 2 s après la dernière modification.
 - Le corps est converti dans le markdown de Compo (`## `, `### `, `> `, `- `, `**gras**`, `_italique_`, `[lien](url)`) : le même format que `htmlVersMd`.
 - Le titre et le chapô sont aussi partagés (champs texte reliés à un `Y.Text`).

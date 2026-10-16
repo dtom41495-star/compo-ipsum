@@ -6,6 +6,7 @@
 // Dans « Mes articles », la vue « À plusieurs » regroupe les invitations reçues et les articles écrits à plusieurs.
 
 var COEC_PAGE = 'labo/coedition/';
+var COEC_MAX = 4;   // co-auteur·rices au plus par article, invitations en attente comprises (vérifié aussi par la base)
 var _coecCache = {};   // id d'article -> lignes articles_coauteurs (pour le bandeau et pour écarter les co-auteurs du SR)
 var _coecEtat = null;  // fenêtre d'invitation ouverte
 
@@ -271,8 +272,11 @@ function _coecAfficher(){
     +'Elle peut être d’une autre rédaction : elle n’aura accès qu’à cet article. La co-écriture se ferme à l’envoi au SR.</p>'
     +(e.liste === null ? '<div class="se-chargement"><i class="ti ti-loader-2 se-tourne"></i> Chargement…</div>'
       : (participants ? '<div class="coec-liste">'+participants+'</div>' : '<p class="se-aide"><strong>Personne pour l’instant.</strong></p>'))
-    +(estAuteur && brouillon
-      ? '<label class="coec-label" for="coec-recherche">Inviter un membre</label>'
+    +(estAuteur && brouillon && Object.keys(dejaLa).length >= COEC_MAX
+      ? '<p class="se-aide coec-max"><i class="ti ti-users"></i> <strong>'+COEC_MAX+' co-auteur·rices au maximum par article.</strong> Pour inviter quelqu’un d’autre, retire d’abord une personne ou annule une invitation.</p>'
+      : '')
+    +(estAuteur && brouillon && Object.keys(dejaLa).length < COEC_MAX
+      ? '<label class="coec-label" for="coec-recherche">Inviter un membre <span class="coec-reste">('+(COEC_MAX - Object.keys(dejaLa).length)+' place'+(COEC_MAX - Object.keys(dejaLa).length > 1 ? 's' : '')+' restante'+(COEC_MAX - Object.keys(dejaLa).length > 1 ? 's' : '')+')</span></label>'
         +'<input id="coec-recherche" class="coec-recherche" type="search" placeholder="Prénom ou nom…" autocomplete="off" value="'+esc(e.recherche)+'">'
         +(candidats.length ? '<div class="coec-candidats">'+candidats.map(function(m){
             return '<button type="button" class="coec-candidat" data-membre="'+esc(m.id)+'"><span class="coec-avatar">'+esc(_coecNom(m).slice(0, 1).toUpperCase())+'</span>'
