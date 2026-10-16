@@ -5942,3 +5942,30 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .cand-colonne:not(:has(.cand-carte)) { display: none; }
   .cand-grille { grid-template-columns: 1fr; }
 }
+
+/* ===== MODE MAINTENANCE (js/51-maintenance.js) ===== */
+.maint-bandeau { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2147483500; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 10px 8px 14px; border-radius: 12px; background: #D9822B; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.maint-bandeau.ferme { background: #1A1A2E; }
+.maint-bandeau button { flex-shrink: 0; font: inherit; font-size: 0.74rem; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; cursor: pointer; }
+.maint-ecran { position: fixed; inset: 0; z-index: 2147483600; display: flex; align-items: center; justify-content: center; padding: 1rem; background: #F5F3EF; font-family: 'DM Sans', sans-serif; }
+:root.theme-dark .maint-ecran { background: #0D0D1A; }
+.maint-boite { max-width: 420px; text-align: center; color: var(--encre); display: flex; flex-direction: column; align-items: center; gap: 0.7rem; }
+.maint-boite h1 { margin: 0; font-family: Poppins, sans-serif; font-size: 1.35rem; }
+.maint-boite p { margin: 0; font-size: 0.92rem; line-height: 1.55; }
+.maint-boite .maint-petit { font-size: 0.78rem; color: var(--gris); }
+.maint-icone { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; background: rgba(217,130,43,0.15); color: #D9822B; }
+.maint-icone.ok { background: rgba(15,110,86,0.15); color: #0F6E56; }
+.maint-boite button { margin-top: 0.4rem; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.82rem; font-weight: 600; padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--gris-bord); background: transparent; color: var(--encre); cursor: pointer; }
+.maint-admin { padding: 1.2rem 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; max-width: 560px; }
+.maint-admin-titre { font-family: Poppins, sans-serif; font-weight: 700; font-size: 1rem; color: var(--encre); }
+.maint-admin-note { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--gris); }
+.maint-etat { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.maint-etat.ouvert { background: rgba(15,110,86,0.12); color: #0F6E56; }
+.maint-etat.preavis { background: rgba(217,130,43,0.14); color: #9A5512; }
+.maint-etat.ferme { background: rgba(232,70,30,0.12); color: var(--rouge); }
+.maint-champ { display: flex; flex-direction: column; gap: 4px; font-size: 0.7rem; color: var(--gris); }
+.maint-champ textarea { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1.5px solid var(--gris-bord); border-radius: 8px; font: inherit; font-size: 0.84rem; background: transparent; color: var(--encre); resize: vertical; }
+.maint-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
+.maint-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.78rem; font-weight: 600; padding: 7px 13px; border-radius: 8px; border: 1.5px solid var(--gris-bord); background: transparent; color: var(--encre); cursor: pointer; }
+.maint-btn.danger { border-color: var(--rouge); color: var(--rouge); }
+.maint-btn.principal { background: #0F6E56; border-color: #0F6E56; color: #fff; }
