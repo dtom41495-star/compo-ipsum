@@ -4,7 +4,7 @@
 // ou directement en SQL (update public.maintenance set active = true, debut = now() + interval '2 minutes').
 // Compo relit cette ligne toutes les 30 s et au retour sur l'onglet :
 // - avant la fermeture (préavis) : bandeau avec compte à rebours, l'article ouvert est enregistré juste avant ;
-// - pendant : écran « Compo est en maintenance » (les admins gardent la main, avec un bandeau) ;
+// - pendant : écran « Compo est en maintenance » pour tout le monde ; un admin peut « Entrer quand même » (bandeau ensuite) ;
 // - à la réouverture : la page se recharge toute seule.
 // La base refuse de toute façon les écritures des non-admins pendant la maintenance.
 
@@ -60,12 +60,27 @@ function _maintAppliquer(){
     _maint.bascule = setTimeout(osMaintenanceVerifier, reste + 500);
     return;
   }
-  // Fermé
-  if(admin){ _maintRetirerEcran(); _maintBandeau(m, true); return; }
+  // Fermé : tout le monde voit l'écran, admins compris ; un admin peut passer outre (bandeau ensuite)
+  if(admin && _maintContourne(m)){ _maintRetirerEcran(); _maintBandeau(m, true); return; }
   _maintRetirerBandeau();
   if(!_maint.bloque) _maintSauverEditeur();
   _maint.bloque = true;
-  _maintEcran(m);
+  _maintEcran(m, admin);
+}
+
+// « Entrer quand même » vaut pour cette maintenance-là, dans cet onglet : la suivante réaffiche l'écran
+function _maintCle(m){ return String(m.activee_le || m.debut || ''); }
+function _maintContourne(m){
+  var v = _maint.contourne;
+  try{ v = v || sessionStorage.getItem('compo_maintenance_contournee'); }catch(e){}
+  return !!v && v === _maintCle(m);
+}
+function osMaintenanceContourner(){
+  var m = _maint.etat; if(!m) return;
+  _maint.contourne = _maintCle(m);
+  try{ sessionStorage.setItem('compo_maintenance_contournee', _maint.contourne); }catch(e){}
+  _maint.bloque = false;  // l'admin travaille : pas de rechargement forcé à la réouverture
+  _maintAppliquer();
 }
 
 // Comme l'enregistrement automatique de l'éditeur : en base si elle est encore ouverte, sinon copie sur l'appareil
@@ -128,7 +143,7 @@ function _maintLogo(){
   return '<div class="maint-logo"><img class="maint-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="maint-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>';
 }
 
-function _maintEcran(m){
+function _maintEcran(m, admin){
   var e = document.getElementById('maint-ecran');
   if(!e){
     e = document.createElement('div');
@@ -148,12 +163,19 @@ function _maintEcran(m){
     +'<div class="maint-reglette"><span></span></div>'
     +'<p class="maint-petit">Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date()))+' · la page se rechargera toute seule</p>'
     +'<button type="button" id="maint-verifier"><i class="ti ti-refresh"></i> Vérifier maintenant</button>'
+    +(admin ? '<div class="maint-admin-acces"><span>Admin</span>'
+      +'<button type="button" id="maint-entrer"><i class="ti ti-door-enter"></i> Entrer quand même</button>'
+      +'<button type="button" id="maint-rouvrir-ecran"><i class="ti ti-lock-open"></i> Rouvrir Compo</button></div>' : '')
     +_maintLogo()
     +'</div>';
   e.querySelector('#maint-verifier').onclick = function(){
     var btn = this; btn.disabled = true;
     osMaintenanceVerifier().then(function(){ btn.disabled = false; });
   };
+  var entrer = e.querySelector('#maint-entrer');
+  if(entrer) entrer.onclick = osMaintenanceContourner;
+  var rouvrir = e.querySelector('#maint-rouvrir-ecran');
+  if(rouvrir) rouvrir.onclick = function(){ rouvrir.disabled = true; osMaintenanceRegler(false); };
 }
 
 function _maintReouverture(){
@@ -208,7 +230,7 @@ function osMaintenanceAdminRendre(conteneur){
     var h = '<div class="maint-admin">'
       +'<div class="maint-admin-titre">Mode maintenance</div>'
       +etat
-      +'<p class="maint-admin-note">Pendant la maintenance, les membres voient un écran d’attente et la base refuse leurs modifications. Les admins gardent l’accès. À la réouverture, Compo se recharge chez tout le monde.</p>';
+      +'<p class="maint-admin-note">Pendant la maintenance, tout le monde voit un écran d’attente et la base refuse les modifications des membres. Les admins ont en plus un bouton « Entrer quand même ». À la réouverture, Compo se recharge chez tout le monde.</p>';
     if(phase === 'ouvert'){
       h += '<label class="maint-champ"><span>Message affiché aux membres (facultatif)</span><textarea id="maint-message" rows="2" placeholder="On fait quelques réglages. Ce que tu as écrit est enregistré."></textarea></label>'
         +'<div class="maint-boutons">'

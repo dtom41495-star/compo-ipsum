@@ -6004,3 +6004,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .maint-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.78rem; font-weight: 600; padding: 7px 13px; border-radius: 8px; border: 1.5px solid var(--gris-bord); background: transparent; color: var(--encre); cursor: pointer; }
 .maint-btn.danger { border-color: var(--rouge); color: var(--rouge); }
 .maint-btn.principal { background: #0F6E56; border-color: #0F6E56; color: #fff; }
+.maint-admin-acces { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 0.5rem; padding-top: 0.8rem; border-top: 1px dashed rgba(26,26,46,.15); }
+.maint-admin-acces > span { width: 100%; font: .6rem/1.2 'Space Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #8A8580; }
+.maint-boite .maint-admin-acces button { margin-top: 0; font-size: 0.76rem; padding: 6px 12px; }
+:root.theme-dark .maint-admin-acces { border-top-color: rgba(255,255,255,.12); }
