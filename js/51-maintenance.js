@@ -191,8 +191,10 @@ function osMaintenanceRegler(active, preavisMin, message){
 }
 
 // Onglet Maintenance de l'appli Admin
-function osMaintenanceAdminRendre(zone){
-  zone.id = 'maint-admin';
+function osMaintenanceAdminRendre(conteneur){
+  // Une zone à nous dans le conteneur, qu'on retrouve pour la redessiner après un réglage
+  var zone = conteneur.id === 'maint-admin' ? conteneur : null;
+  if(!zone){ conteneur.innerHTML = '<div id="maint-admin"></div>'; zone = conteneur.firstChild; }
   zone.innerHTML = osLoadingHtml();
   osMaintenanceVerifier().then(function(m){
     if(!m){

@@ -1951,30 +1951,56 @@ function osGestionAppsRender(){
          ['maintenance','ti-tool','Maintenance','']
         ].map(function(t){
           var a = _onglet === t[0];
-          return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRafraichir(true)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
+          return '<button data-onglet="'+t[0]+'" onclick="osGestionAppsOnglet(\''+t[0]+'\')" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
             +'<span style="font-size:0.95rem;display:flex;flex-shrink:0;"><i class="ti '+t[1]+'"></i></span>'+t[2]
-            +(t[3] ? '<span style="margin-left:auto;background:'+(a?'rgba(255,255,255,0.28)':'var(--rouge)')+';color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:10px;">'+t[3]+'</span>' : '')
+            +(t[3] ? '<span class="admin-rail-badge" style="margin-left:auto;background:'+(a?'rgba(255,255,255,0.28)':'var(--rouge)')+';color:white;font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;border-radius:10px;">'+t[3]+'</span>' : '')
             +'</button>';
         }).join('');
     layout.appendChild(rail);
 
     var body = document.createElement('div');
+    body.id = 'admin-onglet-corps';
     body.style.cssText = 'flex:1;overflow-y:auto;min-width:0;';
     layout.appendChild(body);
     wc.appendChild(layout);
 
-    if(_onglet === 'membres'){
-      _osGestionMembresRender(body, membres, redacs);
-    } else if(_onglet === 'demandes'){
-      _osGestionDemandesRender(body, membres, demandes);
-    } else if(_onglet === 'rapports'){
-      _osGestionRapportsRender(body, membres, redacs);
-    } else if(_onglet === 'maintenance' && typeof osMaintenanceAdminRendre === 'function'){
-      osMaintenanceAdminRendre(body);  // js/51-maintenance.js
-    } else {
-      _osGestionAppsBodyRender(body, membres, appsData);
-    }
+    // Gardées pour changer d'onglet sans tout recharger (osGestionAppsOnglet)
+    window._gestionAppsDonnees = { membres:membres, appsData:appsData, redacs:redacs, demandes:demandes };
+    _osGestionAppsCorps(body, _onglet);
   }).catch(function(){ wc.innerHTML = osErreurHtml(osGestionAppsRender); });
+}
+
+function _osGestionAppsCorps(body, onglet){
+  var d = window._gestionAppsDonnees;
+  if(onglet === 'membres'){
+    _osGestionMembresRender(body, d.membres, d.redacs);
+  } else if(onglet === 'demandes'){
+    _osGestionDemandesRender(body, d.membres, d.demandes);
+  } else if(onglet === 'rapports'){
+    _osGestionRapportsRender(body, d.membres, d.redacs);
+  } else if(onglet === 'maintenance' && typeof osMaintenanceAdminRendre === 'function'){
+    osMaintenanceAdminRendre(body);  // js/51-maintenance.js
+  } else {
+    _osGestionAppsBodyRender(body, d.membres, d.appsData);
+  }
+}
+
+// Clic sur le rail : on change seulement le contenu de droite, avec les données déjà chargées.
+// Avant, chaque clic rechargeait toute l'appli : l'image de l'ancien écran, posée par-dessus
+// le temps du rechargement, laissait voir l'ancien et le nouveau menu l'un sur l'autre.
+function osGestionAppsOnglet(onglet){
+  window._gestionAppsOnglet = onglet;
+  var body = document.getElementById('admin-onglet-corps');
+  if(!body || !window._gestionAppsDonnees){ osGestionAppsRafraichir(true); return; }
+  document.querySelectorAll('#admin-sidebar-rail button[data-onglet]').forEach(function(b){
+    var a = b.getAttribute('data-onglet') === onglet;
+    b.style.background = a ? 'var(--rouge)' : 'transparent';
+    b.style.color = a ? 'white' : 'var(--encre)';
+    var badge = b.querySelector('.admin-rail-badge');
+    if(badge) badge.style.background = a ? 'rgba(255,255,255,0.28)' : 'var(--rouge)';
+  });
+  body.scrollTop = 0;
+  _osGestionAppsCorps(body, onglet);
 }
 
 // ── Onglet Rapports ─────────────────────────────────────────────────
