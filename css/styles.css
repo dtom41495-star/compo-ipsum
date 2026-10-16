@@ -5876,3 +5876,69 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 @keyframes osa-appli { from { opacity: 0; scale: .55; } to { opacity: 1; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { #os-desktop.os-arrivee * , #os-desktop.os-arrivee #os-bg { animation: none !important; } }
 :root.mode-leger #os-desktop.os-arrivee *, :root.mode-malvoyant #os-desktop.os-arrivee * { animation: none !important; }
+
+/* ===== VIE ASSO : CANDIDATS (js/50-vie-asso-candidats.js) ===== */
+.cand-page { padding: 1rem 1.4rem 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; min-width: 0; }
+.cand-entete { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.cand-titre { font-family: Poppins, sans-serif; font-weight: 700; font-size: 1rem; color: var(--encre); }
+.cand-sous { font-size: 0.75rem; color: var(--gris); margin-top: 2px; }
+.cand-btn-nouveau { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.76rem; font-weight: 600; padding: 7px 14px; background: var(--rouge); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+.cand-afaire { border: 1px solid var(--gris-bord); border-radius: 12px; padding: 0.7rem; background: var(--blanc); display: flex; flex-direction: column; gap: 5px; }
+.cand-afaire-titre { font-size: 0.72rem; font-weight: 700; color: var(--encre); display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.cand-afaire-ligne { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: none; border-left: 3px solid #D9822B; border-radius: 6px; background: var(--gris-clair); color: var(--encre); font: inherit; font-size: 0.78rem; text-align: left; cursor: pointer; }
+.cand-afaire-ligne.urgent { border-left-color: var(--rouge); }
+.cand-afaire-ligne span { color: var(--gris); flex: 1; min-width: 0; }
+.cand-afaire-ligne i { color: var(--gris); }
+.cand-tableau { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; align-items: flex-start; }
+.cand-colonne { flex: 1 0 170px; background: var(--gris-clair); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+.cand-col-titre { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; font-weight: 700; color: var(--encre); padding: 2px 4px 4px; }
+.cand-col-titre span { margin-left: auto; font-family: 'Space Mono', monospace; font-weight: 400; color: var(--gris); }
+.cand-carte { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 8px 9px; background: var(--blanc); color: var(--encre); border: 1px solid var(--gris-bord); border-left: 3px solid transparent; border-radius: 8px; font: inherit; text-align: left; cursor: pointer; }
+.cand-carte:hover { border-color: var(--rouge); }
+.cand-carte.afaire { border-left-color: #D9822B; }
+.cand-carte.urgent { border-left-color: var(--rouge); }
+.cand-carte-nom { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; }
+.cand-suivi { margin-left: auto; flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 0.52rem; font-weight: 700; background: var(--encre-fixe); color: #fff; }
+.cand-carte-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.65rem; color: var(--gris); }
+.cand-pastille { padding: 1px 7px; border-radius: 10px; background: color-mix(in srgb, var(--pc) 14%, transparent); color: var(--pc); font-weight: 600; }
+.cand-sans-suite { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; opacity: 0.75; }
+.cand-lien { align-self: flex-start; background: none; border: none; padding: 0; font: inherit; font-size: 0.74rem; color: var(--gris); text-decoration: underline; cursor: pointer; }
+.cand-rgpd { font-size: 0.68rem; color: var(--gris); display: flex; gap: 6px; align-items: center; }
+.cand-vide { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 2.5rem 1rem; color: var(--gris); font-size: 0.82rem; line-height: 1.5; }
+.cand-vide i { font-size: 2rem; } .cand-vide strong { color: var(--encre); }
+.cand-boite { width: 560px; }
+.cand-boite .se-corps > * { flex-shrink: 0; }
+.cand-parcours { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.cand-pas { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 6px; min-width: 58px; border: 1px solid var(--gris-bord); border-radius: 8px; background: transparent; color: var(--gris); font: inherit; font-size: 0.58rem; cursor: pointer; }
+.cand-pas i { font-size: 1rem; }
+.cand-pas.fait { color: #0F6E56; border-color: rgba(15,110,86,0.35); }
+.cand-pas.actif { background: var(--rouge); border-color: var(--rouge); color: #fff; font-weight: 700; }
+.cand-alerte { margin: 0; display: flex; gap: 6px; align-items: center; font-size: 0.78rem; padding: 7px 10px; border-radius: 8px; background: rgba(217,130,43,0.12); color: #9A5512; }
+.cand-alerte.urgent { background: rgba(232,70,30,0.12); color: var(--rouge); }
+.cand-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
+.cand-boutons .se-btn-secondaire { flex: 1 1 200px; width: auto; min-height: 40px; }
+.cand-boutons .se-btn-lien { width: auto; min-height: 40px; }
+.cand-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.cand-champ { display: flex; flex-direction: column; gap: 3px; font-size: 0.66rem; color: var(--gris); min-width: 0; }
+.cand-champ input, .cand-champ select, .cand-champ textarea, .cand-ligne-adresse input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1.5px solid var(--gris-bord); border-radius: 8px; font: inherit; font-size: 0.82rem; background: transparent; color: var(--encre); }
+.cand-champ select option { color: #1A1A2E; }
+.cand-champ textarea { resize: vertical; }
+.cand-tally { border: 1px solid var(--gris-bord); border-radius: 10px; padding: 8px 11px; font-size: 0.8rem; }
+.cand-tally summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.cand-tally dl { margin: 8px 0 0; display: flex; flex-direction: column; }
+.cand-tally dt { font-size: 0.68rem; color: var(--gris); margin-top: 7px; }
+.cand-tally dd { margin: 1px 0 0; white-space: pre-wrap; }
+.cand-compte { margin: 0; font-size: 0.8rem; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cand-bloc-compte { border: 1.5px solid var(--rouge); border-radius: 12px; padding: 0.8rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.cand-bloc-titre { font-weight: 700; font-size: 0.85rem; display: flex; gap: 6px; align-items: center; }
+.cand-ligne-adresse { display: flex; gap: 6px; }
+.cand-icone { flex-shrink: 0; width: 38px; border: 1.5px solid var(--gris-bord); border-radius: 8px; background: transparent; color: var(--encre); cursor: pointer; }
+.cand-note { display: flex; gap: 6px; }
+.cand-supprimer { color: #A32D2D; }
+@media (max-width: 700px){
+  .cand-page { padding: 0.8rem 1rem 1.2rem; }
+  .cand-tableau { flex-direction: column; overflow-x: visible; }
+  .cand-colonne { flex: 1 1 auto; width: 100%; box-sizing: border-box; }
+  .cand-colonne:not(:has(.cand-carte)) { display: none; }
+  .cand-grille { grid-template-columns: 1fr; }
+}

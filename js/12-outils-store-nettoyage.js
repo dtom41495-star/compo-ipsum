@@ -2185,17 +2185,7 @@ function osInviterMembreValider(){
       if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
       return;
     }
-    envoyerEmailResend(
-      email,
-      'Ton compte Compo est prêt',
-      '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-        +osEnteteEmailLogo('Ton compte Compo est prêt')
-        +'<div style="padding:1.2rem 1.5rem;">'
-        +'<p>Bonjour '+prenom+',</p><p>Ton compte Compo (Ipsum Média) a été créé.</p>'
-        +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
-        +'</div></div>',
-      'invitation'
-    );
+    osEmailCompteCompo(email, prenom, true);
     var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
     if(ov) ov.remove();
     notif('Compte créé pour '+email+' !','succes');
@@ -2208,23 +2198,28 @@ function osInviterMembreValider(){
   });
 }
 
+// « Ton compte Compo est prêt » : à la création du compte (appli Admin, Bénévoles > Candidats) et en rappel
+function osEmailCompteCompo(email, prenom, nouveau){
+  return envoyerEmailResend(
+    email,
+    'Ton compte Compo est prêt',
+    '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+      +osEnteteEmailLogo('Ton compte Compo est prêt')
+      +'<div style="padding:1.2rem 1.5rem;">'
+      +'<p>Bonjour '+esc(prenom)+',</p><p>Ton compte Compo (Ipsum Média) '+(nouveau ? 'a été créé' : 'est prêt')+'.</p>'
+      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+esc(email)+'</strong>).</p>'
+      +'</div></div>',
+    'invitation'
+  );
+}
+
 function osRenvoyerInvitation(email, nom, btn){
   if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
   if(!osConfirmerPuis('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?', {oui:'Renvoyer'}, osRenvoyerInvitation, this, arguments)) return;
   var texteOriginal = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
   var prenomSeul = (nom||'').split(' ')[0] || '';
-  envoyerEmailResend(
-    email,
-    'Ton compte Compo est prêt',
-    '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-      +osEnteteEmailLogo('Ton compte Compo est prêt')
-      +'<div style="padding:1.2rem 1.5rem;">'
-      +'<p>Bonjour '+prenomSeul+',</p><p>Ton compte Compo (Ipsum Média) est prêt.</p>'
-      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
-      +'</div></div>',
-    'invitation'
-  ).then(function(r){
+  osEmailCompteCompo(email, prenomSeul, false).then(function(r){
     notif(r.ok ? 'Rappel renvoyé à '+email+' !' : 'Erreur envoi email', r.ok ? 'succes' : 'erreur');
   }).catch(function(){
     notif('Erreur réseau, réessaie.','erreur');

@@ -298,6 +298,8 @@ function osBenevolesDashRender(){
     if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
     if(isVieAsso) tabDefs.push({id:'regularite',icon:'ti-calendar-stats',label:'Régularité'});
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
+    // Futur·es bénévoles, du premier appel à l'adhésion (js/50-vie-asso-candidats.js)
+    if(isVieAsso && typeof osCandidatsRendre==='function') tabDefs.push({id:'candidats',icon:'ti-user-plus',label:'Candidats'});
     // Les demandes d'accès sont de l'administration pure — elles vivent dans l'appli
     // Admin, pas ici : cette appli est dédiée à la vie associative.
     var rail=document.createElement('div');
@@ -557,6 +559,15 @@ function osBenevolesDashRender(){
     // mais pas encore attaché au document (ça n'arrive qu'à la toute fin de cette
     // fonction, avec wc.appendChild(app)) — document.getElementById ne le trouverait pas.
     osBenvChargerRecrutement(recrutDiv);
+
+    if(isVieAsso && typeof osCandidatsRendre==='function'){
+      var candDiv=document.createElement('div');
+      candDiv.id='benv-candidats';
+      candDiv.style.cssText='flex:1;min-height:0;overflow:auto;display:none;flex-direction:column;';
+      tabContents['candidats']=candDiv;
+      contentWrap.appendChild(candDiv);
+      osCandidatsRendre(candDiv);
+    }
 
     wc.innerHTML='';
     wc.appendChild(app);
