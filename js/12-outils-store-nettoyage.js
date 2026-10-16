@@ -1947,7 +1947,8 @@ function osGestionAppsRender(){
       + [['apps','ti-apps','Apps',''],
          ['membres','ti-users','Membres',''],
          ['demandes','ti-bell','Demandes', demandes.length ? String(demandes.length) : ''],
-         ['rapports','ti-file-text','Rapports','']
+         ['rapports','ti-file-text','Rapports',''],
+         ['maintenance','ti-tool','Maintenance','']
         ].map(function(t){
           var a = _onglet === t[0];
           return '<button data-onglet="'+t[0]+'" onclick="window._gestionAppsOnglet=\''+t[0]+'\';osGestionAppsRafraichir(true)" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:'+(a?'var(--rouge)':'transparent')+';color:'+(a?'white':'var(--encre)')+';font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;transition:background 0.15s;text-align:left;box-sizing:border-box;">'
@@ -1968,6 +1969,8 @@ function osGestionAppsRender(){
       _osGestionDemandesRender(body, membres, demandes);
     } else if(_onglet === 'rapports'){
       _osGestionRapportsRender(body, membres, redacs);
+    } else if(_onglet === 'maintenance' && typeof osMaintenanceAdminRendre === 'function'){
+      osMaintenanceAdminRendre(body);  // js/51-maintenance.js
     } else {
       _osGestionAppsBodyRender(body, membres, appsData);
     }
@@ -2185,17 +2188,7 @@ function osInviterMembreValider(){
       if(btn){btn.disabled=false;btn.textContent='Envoyer l\'invitation';}
       return;
     }
-    envoyerEmailResend(
-      email,
-      'Ton compte Compo est prêt',
-      '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-        +osEnteteEmailLogo('Ton compte Compo est prêt')
-        +'<div style="padding:1.2rem 1.5rem;">'
-        +'<p>Bonjour '+prenom+',</p><p>Ton compte Compo (Ipsum Média) a été créé.</p>'
-        +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
-        +'</div></div>',
-      'invitation'
-    );
+    osEmailCompteCompo(email, prenom, true);
     var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
     if(ov) ov.remove();
     notif('Compte créé pour '+email+' !','succes');
@@ -2208,23 +2201,28 @@ function osInviterMembreValider(){
   });
 }
 
+// « Ton compte Compo est prêt » : à la création du compte (appli Admin, Bénévoles > Candidats) et en rappel
+function osEmailCompteCompo(email, prenom, nouveau){
+  return envoyerEmailResend(
+    email,
+    'Ton compte Compo est prêt',
+    '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
+      +osEnteteEmailLogo('Ton compte Compo est prêt')
+      +'<div style="padding:1.2rem 1.5rem;">'
+      +'<p>Bonjour '+esc(prenom)+',</p><p>Ton compte Compo (Ipsum Média) '+(nouveau ? 'a été créé' : 'est prêt')+'.</p>'
+      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+esc(email)+'</strong>).</p>'
+      +'</div></div>',
+    'invitation'
+  );
+}
+
 function osRenvoyerInvitation(email, nom, btn){
   if(!email){ notif('Aucun email pour ce membre','erreur'); return; }
   if(!osConfirmerPuis('Renvoyer le rappel de connexion à '+nom+' ('+email+') ?', {oui:'Renvoyer'}, osRenvoyerInvitation, this, arguments)) return;
   var texteOriginal = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
   var prenomSeul = (nom||'').split(' ')[0] || '';
-  envoyerEmailResend(
-    email,
-    'Ton compte Compo est prêt',
-    '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-      +osEnteteEmailLogo('Ton compte Compo est prêt')
-      +'<div style="padding:1.2rem 1.5rem;">'
-      +'<p>Bonjour '+prenomSeul+',</p><p>Ton compte Compo (Ipsum Média) est prêt.</p>'
-      +'<p>Connecte-toi sur <a href="https://compo.ipsummedia.fr">compo.ipsummedia.fr</a> avec le bouton « Continuer avec Google », en utilisant cette adresse (<strong>'+email+'</strong>).</p>'
-      +'</div></div>',
-    'invitation'
-  ).then(function(r){
+  osEmailCompteCompo(email, prenomSeul, false).then(function(r){
     notif(r.ok ? 'Rappel renvoyé à '+email+' !' : 'Erreur envoi email', r.ok ? 'succes' : 'erreur');
   }).catch(function(){
     notif('Erreur réseau, réessaie.','erreur');
