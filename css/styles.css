@@ -5861,3 +5861,18 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 @media (max-width: 480px) { .cl-sorte { width: 40px; height: 52px; } .cl-sorte > span { font-size: 1.75rem; } }
 .coec-max { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: #F3E8FA; color: #6B2F8A; }
 .coec-reste { font-weight: 400; color: var(--gris); }
+
+/* ===== ARRIVÉE DU BUREAU (osArriveeBureau, js/02-auth-articles.js), sur PC =====
+   Les propriétés translate / scale (et non transform) laissent intacts les placements déjà faits par transform. */
+#os-desktop.os-arrivee #os-bg { animation: osa-fond .9s cubic-bezier(.2,.7,.2,1) both; }
+#os-desktop.os-arrivee #os-desktop-icons .desktop-icon { animation: osa-icone .5s cubic-bezier(.25,1.35,.5,1) calc(320ms + var(--osa-i, 0) * 45ms) both; }
+#os-desktop.os-arrivee #os-clock-widget { animation: osa-droite .65s cubic-bezier(.2,.9,.3,1) 380ms both; }
+#os-desktop.os-arrivee #os-dock { animation: osa-dock .6s cubic-bezier(.2,.9,.3,1.15) 260ms both; }
+#os-desktop.os-arrivee #os-dock-inner > * { animation: osa-appli .42s cubic-bezier(.3,1.6,.6,1) calc(480ms + var(--osa-i, 0) * 30ms) both; }
+@keyframes osa-fond { from { opacity: 0; scale: 1.06; } to { opacity: 1; scale: 1; } }
+@keyframes osa-icone { from { opacity: 0; translate: 0 -14px; scale: .85; } to { opacity: 1; translate: 0 0; scale: 1; } }
+@keyframes osa-droite { from { opacity: 0; translate: 36px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes osa-dock { from { opacity: 0; translate: 0 48px; } to { opacity: 1; translate: 0 0; } }
+@keyframes osa-appli { from { opacity: 0; scale: .55; } to { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { #os-desktop.os-arrivee * , #os-desktop.os-arrivee #os-bg { animation: none !important; } }
+:root.mode-leger #os-desktop.os-arrivee *, :root.mode-malvoyant #os-desktop.os-arrivee * { animation: none !important; }

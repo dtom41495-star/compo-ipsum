@@ -1099,6 +1099,23 @@ function seDeconnecter(){
   window.location.reload();
 }
 
+// Arrivée du bureau (sur PC) quand l'écran de lancement s'efface : le fond d'écran se pose, puis les icônes du bureau
+// tombent en place une à une, l'horloge glisse depuis la droite et la barre du bas monte, ses applis l'une après
+// l'autre. Une seule fois par lancement : la classe est retirée ensuite, pour que les barres reconstruites plus tard
+// n'animent pas. Styles : « ARRIVÉE DU BUREAU », css/styles.css (rien en mouvements réduits, mode léger, malvoyant).
+function osArriveeBureau(){
+  var bureau = document.getElementById('os-desktop');
+  if(!bureau || (typeof osEstMobile === 'function' && osEstMobile())) return;
+  var numeroter = function(sel){ bureau.querySelectorAll(sel).forEach(function(el, i){ el.style.setProperty('--osa-i', i); }); };
+  numeroter('#os-desktop-icons .desktop-icon');
+  numeroter('#os-dock-inner > *');
+  bureau.classList.remove('os-arrivee');
+  void bureau.offsetWidth;   // relance l'animation si elle avait déjà eu lieu
+  bureau.classList.add('os-arrivee');
+  clearTimeout(bureau._osArriveeFin);
+  bureau._osArriveeFin = setTimeout(function(){ bureau.classList.remove('os-arrivee'); }, 2200);
+}
+
 function lancerCompo(){
   // S'assurer que l'OS est lancé
   if(!_osReady) osLancer();
@@ -1146,6 +1163,7 @@ function lancerCompo(){
     if(!s) return;
     setTimeout(function(){
       s.classList.add('cl-sortie');
+      osArriveeBureau();
       setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 520);
     }, Math.max(0, 1400 - (Date.now() - lancementDebut)));
   };
