@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<!-- Copie des avatars illustrés de Compo (sprite au début de index.html), pour les pages hors de Compo (labo/coedition). -->
+<symbol id="avatar-renard" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FCEADF"/>
+    <polygon points="16,14 28,30 8,30" fill="#E8461E"/>
+    <polygon points="48,14 56,30 36,30" fill="#E8461E"/>
+    <polygon points="32,20 52,44 32,58 12,44" fill="#E8461E"/>
+    <polygon points="32,38 44,50 32,58 20,50" fill="#FFFFFF"/>
+    <circle cx="24" cy="38" r="3" fill="#1A1A2E"/>
+    <circle cx="40" cy="38" r="3" fill="#1A1A2E"/>
+    <circle cx="32" cy="50" r="2" fill="#1A1A2E"/>
+  </symbol>
+<symbol id="avatar-hibou" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#E3EFFA"/>
+    <polygon points="14,18 22,10 26,22" fill="#B5D4F4"/>
+    <polygon points="50,18 42,10 38,22" fill="#B5D4F4"/>
+    <ellipse cx="32" cy="36" rx="20" ry="20" fill="#B5D4F4"/>
+    <circle cx="24" cy="34" r="8" fill="#FFFFFF"/>
+    <circle cx="40" cy="34" r="8" fill="#FFFFFF"/>
+    <circle cx="24" cy="34" r="3.6" fill="#0C447C"/>
+    <circle cx="40" cy="34" r="3.6" fill="#0C447C"/>
+    <polygon points="32,40 28,46 36,46" fill="#E8461E"/>
+  </symbol>
+<symbol id="avatar-montagne" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FDE9D8"/>
+    <circle cx="44" cy="18" r="7" fill="#E8461E"/>
+    <polygon points="6,52 24,20 34,38 30,52" fill="#27500A"/>
+    <polygon points="24,52 40,16 58,52" fill="#0C447C"/>
+    <polygon points="40,16 46,28 34,28" fill="#FFFFFF"/>
+    <polygon points="24,20 29,29 19,29" fill="#FFFFFF"/>
+  </symbol>
+<symbol id="avatar-comete" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#F1EBFB"/>
+    <polygon points="26,22 8,32 16,24" fill="#4A235A"/>
+    <polygon points="30,26 6,42 20,30" fill="#C9AEE8"/>
+    <polygon points="34,30 10,52 26,36" fill="#E8D9F5"/>
+    <circle cx="40" cy="24" r="9" fill="#E8461E"/>
+  </symbol>
+<symbol id="avatar-vague" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#EAF3FB"/>
+    <path d="M4 24 Q16 14 28 24 T52 24 T60 24" stroke="#0C447C" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M4 36 Q16 26 28 36 T52 36 T60 36" stroke="#B5D4F4" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M4 48 Q16 38 28 48 T52 48 T60 48" stroke="#0C447C" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  </symbol>
+<symbol id="avatar-trefle" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#EFF7E4"/>
+    <circle cx="24" cy="24" r="10" fill="#C0DD97"/>
+    <circle cx="40" cy="24" r="10" fill="#C0DD97"/>
+    <circle cx="24" cy="40" r="10" fill="#C0DD97"/>
+    <circle cx="40" cy="40" r="10" fill="#C0DD97"/>
+    <rect x="30" y="40" width="4" height="16" rx="2" fill="#27500A"/>
+    <circle cx="32" cy="32" r="4" fill="#27500A"/>
+  </symbol>
+<symbol id="avatar-soleil" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FDEFDA"/>
+    <g fill="#E8461E">
+      <circle cx="32" cy="32" r="13"/>
+      <rect x="29" y="4" width="6" height="12" rx="3"/>
+      <rect x="29" y="48" width="6" height="12" rx="3"/>
+      <rect x="4" y="29" width="12" height="6" rx="3"/>
+      <rect x="48" y="29" width="12" height="6" rx="3"/>
+      <rect x="10" y="10" width="6" height="12" rx="3" transform="rotate(45 13 16)"/>
+      <rect x="48" y="10" width="6" height="12" rx="3" transform="rotate(-45 51 16)"/>
+      <rect x="10" y="42" width="6" height="12" rx="3" transform="rotate(-45 13 48)"/>
+      <rect x="48" y="42" width="6" height="12" rx="3" transform="rotate(45 51 48)"/>
+    </g>
+  </symbol>
+<symbol id="avatar-lune" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#1A1A2E"/>
+    <path d="M40 14 A18 18 0 1 0 40 50 A14 14 0 1 1 40 14 Z" fill="#F5C4B3"/>
+    <circle cx="18" cy="44" r="2.2" fill="#FFFFFF"/>
+    <circle cx="46" cy="20" r="1.6" fill="#FFFFFF"/>
+    <circle cx="14" cy="20" r="1.4" fill="#FFFFFF"/>
+  </symbol>
+<symbol id="avatar-plume" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#F3ECFA"/>
+    <path d="M32 6 C46 14 46 40 32 58 C18 40 18 14 32 6 Z" fill="#E8D9F5"/>
+    <line x1="32" y1="10" x2="32" y2="54" stroke="#4A235A" stroke-width="2.4"/>
+    <line x1="32" y1="20" x2="22" y2="14" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="28" x2="20" y2="24" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="36" x2="20" y2="34" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="20" x2="42" y2="14" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="28" x2="44" y2="24" stroke="#4A235A" stroke-width="2"/>
+    <line x1="32" y1="36" x2="44" y2="34" stroke="#4A235A" stroke-width="2"/>
+  </symbol>
+<symbol id="avatar-goutte" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#E4F3EF"/>
+    <path d="M32 10 C42 26 48 36 48 44 A16 16 0 1 1 16 44 C16 36 22 26 32 10 Z" fill="#0C447C"/>
+    <ellipse cx="26" cy="40" rx="4" ry="6" fill="#B5D4F4" opacity="0.8"/>
+  </symbol>
+<symbol id="avatar-lapin" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" fill="#FBEAF0"/>
+    <ellipse cx="21" cy="16" rx="7" ry="14" fill="#F6C9DA" transform="rotate(-10 21 16)"/>
+    <ellipse cx="43" cy="16" rx="7" ry="14" fill="#F6C9DA" transform="rotate(10 43 16)"/>
+    <ellipse cx="21" cy="17" rx="3" ry="9.5" fill="#FDF0F5" transform="rotate(-10 21 17)"/>
+    <ellipse cx="43" cy="17" rx="3" ry="9.5" fill="#FDF0F5" transform="rotate(10 43 17)"/>
+    <circle cx="32" cy="39" r="19" fill="#FFFFFF"/>
+    <circle cx="25" cy="37" r="3" fill="#1A1A2E"/>
+    <circle cx="39" cy="37" r="3" fill="#1A1A2E"/>
+    <circle cx="32" cy="43" r="2.2" fill="#E87DA0"/>
+    <path d="M28 47 Q32 50 36 47" stroke="#E87DA0" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  </symbol>
+</svg>

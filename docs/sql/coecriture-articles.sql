@@ -94,6 +94,11 @@ begin
   if coalesce(a.statut, 'brouillon') <> 'brouillon' then raise exception 'L''article n''est plus en écriture'; end if;
   if p_membre = a.auteur_id then raise exception 'Tu ne peux pas t''inviter toi-même'; end if;
   if not exists (select 1 from public.membres where id = p_membre) then raise exception 'Membre introuvable'; end if;
+  -- 4 co-auteur·rices au plus (5 personnes avec l'auteur·rice) : invitations en attente comprises
+  if (select count(*) from public.articles_coauteurs
+      where article_id = p_article and membre_id <> p_membre and statut in ('en_attente', 'accepte')) >= 4 then
+    raise exception 'Quatre co-auteur·rices au maximum par article';
+  end if;
   insert into public.articles_coauteurs (article_id, membre_id, invite_par)
   values (p_article, p_membre, auth.uid())
   on conflict (article_id, membre_id) do update

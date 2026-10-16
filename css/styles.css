@@ -5859,3 +5859,5 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 :root.mode-leger .cl-sorte > span, :root.mode-malvoyant .cl-sorte > span { animation: none !important; -webkit-text-fill-color: transparent; }
 :root.mode-leger .cl-rouleau, :root.mode-malvoyant .cl-rouleau { display: none; }
 @media (max-width: 480px) { .cl-sorte { width: 40px; height: 52px; } .cl-sorte > span { font-size: 1.75rem; } }
+.coec-max { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: #F3E8FA; color: #6B2F8A; }
+.coec-reste { font-weight: 400; color: var(--gris); }

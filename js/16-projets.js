@@ -511,8 +511,15 @@ function _ipjFormProjet(p){
       if(vis.mode === 'restreint' && !_ipjVisNbChoix(vis)){ notif('Choisis au moins une personne, un rôle, une fonction, une rédaction ou une commission'); return; }
       pl.visibilite = vis.mode;
     }
-    _ipjEcrire('/rest/v1/projets'+(edition ? '?id=eq.'+p.id : ''), edition ? 'PATCH' : 'POST', pl, 'return=representation')
-      .then(function(r){ return r.json(); })
+    // Sans « return=representation » : la base vérifie qui peut voir un projet (projet_visible) sur l'état d'avant
+    // l'enregistrement, où le projet qu'on crée n'existe pas encore ; demander la ligne créée en retour était donc
+    // refusé (403) et annulait la création. On enregistre, puis on relit le projet.
+    _ipjEcrire('/rest/v1/projets'+(edition ? '?id=eq.'+p.id : ''), edition ? 'PATCH' : 'POST', pl)
+      .then(function(r){
+        if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(e){ throw new Error(e.message || ('Erreur '+r.status)); });
+        if(edition) return [{ id:p.id }];
+        return _ipjLire('/rest/v1/projets?cree_par=eq.'+encodeURIComponent(getUserId())+'&titre=eq.'+encodeURIComponent(titre)+'&order=created_at.desc&limit=1&select=id');
+      })
       .then(function(d){
         notif(edition ? 'Projet modifié' : 'Projet créé', 'succes');
         ov.remove();
@@ -522,7 +529,7 @@ function _ipjFormProjet(p){
           var np = _ipj.projets.find(function(x){ return x.id === id; });
           if(np) _ipjOuvrirProjet(np);
         });
-      }).catch(function(){ notif('Erreur','erreur'); });
+      }).catch(function(err){ notif((edition ? 'Projet non modifié' : 'Projet non créé')+(err && err.message ? ' : '+err.message : ''), 'erreur'); });
   };
 }
 

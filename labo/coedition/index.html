@@ -29,7 +29,10 @@
   .pastille::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
   .etat-connecte { color: #1F9D55; } .etat-erreur, .etat-hors-ligne { color: #D93036; }
   #presence { display: flex; }
-  .present { width: 28px; height: 28px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #fff; font-size: 0.78rem; font-weight: 700; border: 2px solid var(--carte); }
+  /* Présents : l'avatar de Compo (ou l'initiale), cerclé de la couleur de son curseur */
+  .present { width: 28px; height: 28px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center; background: var(--carte); box-shadow: 0 0 0 2px var(--c); border: 2px solid var(--carte); }
+  .av { display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 50%; overflow: hidden; }
+  .av-ini { color: #fff; font-weight: 700; line-height: 1; }
   .present:first-child { margin-left: 0; }
   #presence-nb { font-size: 0.78rem; color: var(--gris); }
   .alerte { margin: 16px 20px 0; padding: 12px 14px; border-radius: 10px; background: #FEF2F2; color: #991B1B; font-size: 0.88rem; }
@@ -57,7 +60,9 @@
   #editeur .tiptap p.is-editor-empty:first-child::before { content: 'Écris ici… Ouvre le même lien dans un autre navigateur (ou envoie-le) pour écrire à deux.'; color: var(--gris); float: left; height: 0; pointer-events: none; }
   /* Curseurs des autres : un trait de leur couleur et leur prénom au-dessus */
   .collaboration-carets__caret { position: relative; margin-left: -1px; margin-right: -1px; border-left: 1px solid; border-right: 1px solid; word-break: normal; pointer-events: none; }
-  .collaboration-carets__label { position: absolute; top: -1.4em; left: -1px; padding: 0 5px; border-radius: 4px 4px 4px 0; color: #fff; font: 600 0.68rem/1.5 'DM Sans', sans-serif; white-space: nowrap; user-select: none; }
+  .collaboration-carets__label { position: absolute; top: -1.6em; left: -1px; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 2px; border-radius: 9px 9px 9px 0; color: #fff; font: 600 0.68rem/1.5 'DM Sans', sans-serif; white-space: nowrap; user-select: none; }
+  .collaboration-carets__label .av { background: #fff; }
+  .collaboration-carets__label .av-ini { background: rgba(255,255,255,.3) !important; }
   .collaboration-carets__selection { opacity: 0.35; }
   .verif-souligne { text-decoration: underline wavy #D98200; text-underline-offset: 3px; background: rgba(217,130,0,0.12); }
   .cote { display: flex; flex-direction: column; gap: 14px; }
