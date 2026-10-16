@@ -53,7 +53,7 @@ function enTexte(c: Champ): string {
   return c.options && c.options.length ? libelle(v) : String(v)
 }
 
-const sansAccents = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim()
+const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "POST attendu" }, 405)

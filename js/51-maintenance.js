@@ -117,6 +117,17 @@ function _maintBandeau(m, admin){
   }, 15000);
 }
 
+// La ligne « Compo » en caractères de plomb, comme à l'écran de lancement : pendant la maintenance,
+// le « p » est sorti du composteur et y revient sans cesse ; à la réouverture, toute la ligne s'encre
+function _maintCasse(complete){
+  return '<div class="maint-casse'+(complete ? ' complete' : '')+'" aria-hidden="true">'
+    +['C','o','m','p','o'].map(function(l, i){ return '<span class="maint-sorte'+(i === 3 && !complete ? ' sortie' : '')+'" style="--i:'+i+'"><span>'+l+'</span></span>'; }).join('')
+    +'</div>';
+}
+function _maintLogo(){
+  return '<div class="maint-logo"><img class="maint-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="maint-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>';
+}
+
 function _maintEcran(m){
   var e = document.getElementById('maint-ecran');
   if(!e){
@@ -125,14 +136,19 @@ function _maintEcran(m){
     e.className = 'maint-ecran';
     e.setAttribute('role', 'alertdialog');
     e.setAttribute('aria-modal', 'true');
+    e.setAttribute('aria-label', 'Compo est en maintenance');
+    e.setAttribute('data-sombre-ignore', '');
     document.body.appendChild(e);
   }
   e.innerHTML = '<div class="maint-boite">'
-    +'<div class="maint-icone"><i class="ti ti-tool"></i></div>'
-    +'<h1>Compo est en maintenance</h1>'
-    +'<p>'+(m && m.message ? esc(m.message) : 'On fait quelques réglages. Ce que tu as écrit est enregistré.')+'</p>'
-    +'<p class="maint-petit">Depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date()))+'. La page se rechargera toute seule à la réouverture.</p>'
+    +_maintCasse(false)
+    +'<div class="maint-surtitre">Maintenance</div>'
+    +'<h1>On recompose Compo</h1>'
+    +'<p>'+(m && m.message ? esc(m.message) : 'Quelques réglages en cours. Ce que tu as écrit est enregistré.')+'</p>'
+    +'<div class="maint-reglette"><span></span></div>'
+    +'<p class="maint-petit">Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date()))+' · la page se rechargera toute seule</p>'
     +'<button type="button" id="maint-verifier"><i class="ti ti-refresh"></i> Vérifier maintenant</button>'
+    +_maintLogo()
     +'</div>';
   e.querySelector('#maint-verifier').onclick = function(){
     var btn = this; btn.disabled = true;
@@ -142,8 +158,8 @@ function _maintEcran(m){
 
 function _maintReouverture(){
   var e = document.getElementById('maint-ecran');
-  if(e) e.innerHTML = '<div class="maint-boite"><div class="maint-icone ok"><i class="ti ti-check"></i></div><h1>C’est reparti !</h1><p>Compo se recharge…</p></div>';
-  setTimeout(function(){ location.reload(); }, 1200);
+  if(e) e.innerHTML = '<div class="maint-boite">'+_maintCasse(true)+'<div class="maint-surtitre">C’est reparti</div><h1>Compo est rouvert</h1><p>Rechargement…</p>'+_maintLogo()+'</div>';
+  setTimeout(function(){ location.reload(); }, 1600);
 }
 
 function _maintRetirerBandeau(){ var b = document.getElementById('maint-bandeau'); if(b) b.remove(); clearInterval(_maint.compteur); }

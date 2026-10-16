@@ -5947,15 +5947,50 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .maint-bandeau { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2147483500; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 10px 8px 14px; border-radius: 12px; background: #D9822B; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
 .maint-bandeau.ferme { background: #1A1A2E; }
 .maint-bandeau button { flex-shrink: 0; font: inherit; font-size: 0.74rem; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: #fff; cursor: pointer; }
-.maint-ecran { position: fixed; inset: 0; z-index: 2147483600; display: flex; align-items: center; justify-content: center; padding: 1rem; background: #F5F3EF; font-family: 'DM Sans', sans-serif; }
-:root.theme-dark .maint-ecran { background: #0D0D1A; }
-.maint-boite { max-width: 420px; text-align: center; color: var(--encre); display: flex; flex-direction: column; align-items: center; gap: 0.7rem; }
-.maint-boite h1 { margin: 0; font-family: Poppins, sans-serif; font-size: 1.35rem; }
+/* L'écran d'attente : la ligne « Compo » de l'écran de lancement, dont le « p » est sorti du composteur */
+.maint-ecran { position: fixed; inset: 0; z-index: 2147483600; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto;
+  background: radial-gradient(120% 90% at 50% 40%, #FFFFFF 0%, #FDFAF9 55%, #F7EFEA 100%); font-family: 'DM Sans', sans-serif; }
+:root.theme-dark .maint-ecran { background: radial-gradient(120% 90% at 50% 40%, #1B1B2E 0%, #131320 60%, #0D0D1A 100%); }
+.maint-boite { max-width: 440px; text-align: center; color: #1A1A2E; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+:root.theme-dark .maint-boite { color: #E8E6E1; }
+.maint-casse { position: relative; display: flex; gap: 6px; padding: 10px 12px 12px; margin: 34px 0 6px; border-radius: 14px;
+  background: rgba(26,26,46,.04); box-shadow: inset 0 0 0 1px rgba(26,26,46,.07); }
+.maint-sorte { width: 46px; height: 58px; border-radius: 9px; display: grid; place-items: center;
+  background: #FFFFFF; box-shadow: 0 1px 0 rgba(26,26,46,.08), 0 6px 14px -6px rgba(26,26,46,.25); }
+.maint-sorte > span { font: 800 2rem/1 'Poppins', sans-serif; color: #1A1A2E; }
+/* Le caractère en révision : il sort de la ligne, se penche, puis revient, en boucle */
+.maint-sorte.sortie { animation: maint-sortie 3.2s cubic-bezier(.45,.05,.3,1) infinite; }
+.maint-sorte.sortie > span { background: linear-gradient(135deg, #EA5B1C, #EC5B67); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.maint-casse.complete .maint-sorte > span { background: linear-gradient(135deg, #EA5B1C, #EC5B67); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: #1A1A2E; animation: cl-encre .25s ease calc(var(--i) * 70ms) forwards; }
+@keyframes maint-sortie {
+  0%, 12% { transform: none; }
+  32%, 62% { transform: translateY(-34px) rotate(-14deg); box-shadow: 0 1px 0 rgba(26,26,46,.08), 0 18px 22px -10px rgba(26,26,46,.3); }
+  82%, 100% { transform: none; }
+}
+.maint-surtitre { font: .66rem/1.2 'Space Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: #EA5B1C; }
+.maint-boite h1 { margin: 0; font: 800 1.55rem/1.2 'Poppins', sans-serif; }
 .maint-boite p { margin: 0; font-size: 0.92rem; line-height: 1.55; }
-.maint-boite .maint-petit { font-size: 0.78rem; color: var(--gris); }
-.maint-icone { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; background: rgba(217,130,43,0.15); color: #D9822B; }
-.maint-icone.ok { background: rgba(15,110,86,0.15); color: #0F6E56; }
-.maint-boite button { margin-top: 0.4rem; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.82rem; font-weight: 600; padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--gris-bord); background: transparent; color: var(--encre); cursor: pointer; }
+.maint-boite .maint-petit { font-size: 0.76rem; color: #8A8580; }
+.maint-reglette { width: 100%; max-width: 260px; height: 3px; border-radius: 3px; background: rgba(26,26,46,.08); overflow: hidden; margin-top: 4px; }
+.maint-reglette span { display: block; height: 100%; width: 34%; border-radius: 3px; background: linear-gradient(90deg, #EA5B1C, #EC5B67); animation: maint-va-et-vient 1.8s ease-in-out infinite alternate; }
+@keyframes maint-va-et-vient { from { transform: translateX(-10%); } to { transform: translateX(205%); } }
+.maint-boite button { margin-top: 0.3rem; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.82rem; font-weight: 600; padding: 8px 16px; border-radius: 10px;
+  border: 1.5px solid rgba(26,26,46,.15); background: #FFFFFF; color: #1A1A2E; cursor: pointer; }
+.maint-logo { height: 34px; margin-top: 1.4rem; opacity: .85; }
+.maint-logo img { height: 100%; width: auto; display: block; }
+.maint-logo .maint-logo-sombre { display: none; }
+:root.theme-dark .maint-logo .maint-logo-clair { display: none; }
+:root.theme-dark .maint-logo .maint-logo-sombre { display: block; }
+:root.theme-dark .maint-casse { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+:root.theme-dark .maint-sorte { background: #23233A; box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -6px rgba(0,0,0,.6); }
+:root.theme-dark .maint-sorte > span { color: #E8E6E1; }
+:root.theme-dark .maint-casse.complete .maint-sorte > span { -webkit-text-fill-color: #E8E6E1; }
+:root.theme-dark .maint-reglette { background: rgba(255,255,255,.1); }
+:root.theme-dark .maint-boite button { background: #23233A; color: #E8E6E1; border-color: rgba(255,255,255,.12); }
+@media (prefers-reduced-motion: reduce) { .maint-sorte.sortie, .maint-reglette span { animation: none; } .maint-sorte.sortie { transform: translateY(-34px) rotate(-14deg); } }
+:root.mode-leger .maint-sorte.sortie, :root.mode-malvoyant .maint-sorte.sortie, :root.mode-leger .maint-reglette span, :root.mode-malvoyant .maint-reglette span { animation: none; }
+@media (max-width: 480px) { .maint-sorte { width: 40px; height: 52px; } .maint-sorte > span { font-size: 1.75rem; } .maint-boite h1 { font-size: 1.35rem; } }
 .maint-admin { padding: 1.2rem 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; max-width: 560px; }
 .maint-admin-titre { font-family: Poppins, sans-serif; font-weight: 700; font-size: 1rem; color: var(--encre); }
 .maint-admin-note { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--gris); }

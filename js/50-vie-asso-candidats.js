@@ -328,7 +328,7 @@ function _candActionsHtml(c){
 
 // prenom.nom@ipsummedia.fr, sans accents ni espaces
 function _candAdresseGoogle(c){
-  function net(s){ return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  function net(s){ return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
   var p = net(c.prenom), n = net(c.nom);
   return p || n ? [p, n].filter(Boolean).join('.')+'@'+CAND_DOMAINE : '';
 }
