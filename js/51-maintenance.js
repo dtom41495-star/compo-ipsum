@@ -143,8 +143,20 @@ function _maintLogo(){
   return '<div class="maint-logo"><img class="maint-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="maint-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>';
 }
 
+// Le titre : un jeu de mots d'imprimerie, tiré au sort une fois par maintenance (le même pour tout le monde)
+var MAINT_TITRES = ['On chasse les coquilles', 'Compo est sous presse', 'Arrêtez les rotatives !', 'Compo refait sa mise en page'];
+function _maintTitre(m){
+  var cle = _maintCle(m), h = 0;
+  for(var i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) >>> 0;
+  return MAINT_TITRES[h % MAINT_TITRES.length];
+}
+
 function _maintEcran(m, admin){
-  var e = document.getElementById('maint-ecran');
+  // Relu toutes les 30 s : on ne redessine que si quelque chose a changé (sinon l'animation repartait de zéro)
+  var signature = _maintCle(m)+'|'+(m.message || '')+'|'+(admin ? 1 : 0);
+  var dejaLa = document.getElementById('maint-ecran');
+  if(dejaLa && dejaLa.getAttribute('data-signature') === signature) return;
+  var e = dejaLa;
   if(!e){
     e = document.createElement('div');
     e.id = 'maint-ecran';
@@ -157,8 +169,8 @@ function _maintEcran(m, admin){
   }
   e.innerHTML = '<div class="maint-boite">'
     +_maintCasse(false)
-    +'<div class="maint-surtitre">Maintenance</div>'
-    +'<h1>On recompose Compo</h1>'
+    +'<div class="maint-surtitre">Maintenance en cours</div>'
+    +'<h1>'+esc(_maintTitre(m))+'</h1>'
     +'<p>'+(m && m.message ? esc(m.message) : 'Quelques réglages en cours. Ce que tu as écrit est enregistré.')+'</p>'
     +'<div class="maint-reglette"><span></span></div>'
     +'<p class="maint-petit">Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date()))+' · la page se rechargera toute seule</p>'
@@ -168,6 +180,7 @@ function _maintEcran(m, admin){
       +'<button type="button" id="maint-rouvrir-ecran"><i class="ti ti-lock-open"></i> Rouvrir Compo</button></div>' : '')
     +_maintLogo()
     +'</div>';
+  e.setAttribute('data-signature', signature);
   e.querySelector('#maint-verifier').onclick = function(){
     var btn = this; btn.disabled = true;
     osMaintenanceVerifier().then(function(){ btn.disabled = false; });

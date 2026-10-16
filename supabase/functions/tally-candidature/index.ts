@@ -1,5 +1,6 @@
 // Reçoit les réponses au formulaire Tally de recrutement et les range dans la table candidats
 // (docs/sql/vie-asso-candidats.sql), où la vie associative les retrouve : Bénévoles > Candidats.
+// Remplit tout seul prénom, nom, email, téléphone et rédaction ; les réponses restent aussi telles quelles dans la fiche.
 //
 // Le webhook se règle dans Tally, sur le seul formulaire de recrutement (onglet Intégrations > Webhooks) :
 //   URL : https://ctmekufqaxdelgfyjwly.supabase.co/functions/v1/tally-candidature
@@ -94,6 +95,22 @@ Deno.serve(async (req) => {
   email = email.toLowerCase()
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+
+  // La rédaction, d'après la question sur le département (« Département du Tarn » → Tarn).
+  // Seulement si une seule rédaction correspond : avec plusieurs départements cochés, la vie asso choisit.
+  let redactionId: string | null = null
+  const reponseDepartement = champs
+    .filter((c) => /departement/.test(sansAccents(c.label || "")))
+    .map((c) => sansAccents(enTexte(c)).replace(/[-']/g, " "))
+    .join(" | ")
+  if (reponseDepartement) {
+    const { data: redacs } = await sb.from("redactions").select("id, nom")
+    const trouvees = (redacs || []).filter((r: { nom: string }) => {
+      const nom = sansAccents(r.nom || "").replace(/[-']/g, " ")
+      return nom && reponseDepartement.includes(nom)
+    })
+    if (trouvees.length === 1) redactionId = trouvees[0].id
+  }
   const maintenant = new Date().toISOString()
   const idEnvoi = d.submissionId || d.responseId || null
 
@@ -103,10 +120,10 @@ Deno.serve(async (req) => {
   }
 
   // La personne a peut-être déjà sa carte (créée après l'appel) : on la complète plutôt que d'en faire une deuxième
-  let existant: { id: string; etape: string; dates: Record<string, string>; prenom: string; nom: string; telephone: string | null } | null = null
+  let existant: { id: string; etape: string; dates: Record<string, string>; prenom: string; nom: string; telephone: string | null; redaction_id: string | null } | null = null
   if (email) {
     const { data } = await sb.from("candidats")
-      .select("id, etape, dates, prenom, nom, telephone")
+      .select("id, etape, dates, prenom, nom, telephone, redaction_id")
       .ilike("email", email.replace(/[\\%_]/g, "\\$&"))  // « _ » est courant dans les adresses : pas de joker
       .not("etape", "in", "(adherent,sans_suite)")
       .order("created_at", { ascending: false })
@@ -123,6 +140,7 @@ Deno.serve(async (req) => {
       prenom: existant.prenom || prenom,
       nom: existant.nom || nom,
       telephone: existant.telephone || telephone || null,
+      redaction_id: existant.redaction_id || redactionId,
     }
     if (avance) {
       maj.etape = "formulaire_recu"
@@ -136,6 +154,7 @@ Deno.serve(async (req) => {
 
   const { data: cree, error } = await sb.from("candidats").insert({
     prenom, nom, email: email || null, telephone: telephone || null,
+    redaction_id: redactionId,
     etape: "formulaire_recu",
     dates: { formulaire_recu: maintenant },
     etape_changee_le: maintenant,
