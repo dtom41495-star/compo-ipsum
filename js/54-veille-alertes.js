@@ -1,9 +1,10 @@
 // ===== VEILLE : ALERTES PERSONNELLES =====
 // Chaque bénévole choisit ses mots-clés (table veille_alertes, une ligne par personne, que lui seul voit :
 // docs/sql/veille-alertes.sql). Dans Compo : « Mes alertes » dans le rail de la Veille, un repère sur les
-// articles concernés (appli et widget), une notification quand un nouvel article tombe.
-// Hors de Compo, si « prevenir » est coché : un message Chat ou email, envoyé par veille-recuperer-flux
-// après chaque relevé. Même règle de correspondance des deux côtés : mots entiers, sans accents ni majuscules.
+// articles concernés (appli et widget), une notification groupée quand de nouveaux articles tombent.
+// Hors de Compo, si « prevenir » est coché : un récapitulatif Chat ou email au plus toutes les 5 heures,
+// pendant les horaires de ses rédactions, envoyé par veille-recuperer-flux.
+// Même règle de correspondance des deux côtés : mots entiers, sans accents ni majuscules.
 
 var _veilleAlertes = { mots:[], prevenir:true, charge:false };
 
@@ -39,21 +40,34 @@ function osVeilleAlertesCharger(){
     }).catch(function(){});
 }
 
-// Nouvel article qui correspond, vu par le widget (relevé toutes les 10 min) : une notification, une seule fois.
-// Seulement les articles récents, pour ne pas ressortir tout l'historique quand on ajoute un mot.
+// Nouveaux articles qui correspondent, vus par le widget (relevé toutes les 10 min) : pas une notification
+// par article, une seule qui les regroupe, au plus une fois par heure. Seulement les articles récents (pour ne
+// pas ressortir tout l'historique quand on ajoute un mot), et pas quand toutes ses rédactions sont fermées
+// (js/17-horaires-redactions.js) : la notification attend la réouverture.
+var VEILLE_ALERTES_PAUSE_MS = 3600000;
 function osVeilleAlertesSignaler(articles){
   if(!_veilleAlertes.mots.length || !Array.isArray(articles)) return;
-  var dejaVus;
-  try{ dejaVus = JSON.parse(localStorage.getItem('ipsum_veille_alertes_signalees') || '[]'); }catch(e){ dejaVus = []; }
-  var lus = osVeilleVus(), limite = Date.now() - 3 * 3600000;
-  articles.forEach(function(a){
-    if(dejaVus.indexOf(a.id) !== -1 || lus.indexOf(a.id) !== -1 || !a.date_publication || new Date(a.date_publication) < limite) return;
+  if(typeof _horairesReportPourMembre === 'function' && _horairesReportPourMembre(getUserId())) return;
+  var etat;
+  try{ etat = JSON.parse(localStorage.getItem('ipsum_veille_alertes_signal') || '{}'); }catch(e){ etat = {}; }
+  var dejaVus = Array.isArray(etat.ids) ? etat.ids : [];
+  if(etat.quand && Date.now() - etat.quand < VEILLE_ALERTES_PAUSE_MS) return;
+  var lus = osVeilleVus(), limite = Date.now() - 12 * 3600000, mots = [];
+  var neufs = articles.filter(function(a){
+    if(dejaVus.indexOf(a.id) !== -1 || lus.indexOf(a.id) !== -1 || !a.date_publication || new Date(a.date_publication) < limite) return false;
     var mot = osVeilleAlerteMot(a);
-    if(!mot) return;
-    dejaVus.push(a.id);
-    notifPersistante('Veille · « '+mot+' » : '+a.titre, 'info', 'Lire', function(){ osVeilleOuvrirArticle(a.id, a.lien); }, 'bell-ringing');
+    if(mot && mots.indexOf(mot) === -1) mots.push(mot);
+    return !!mot;
   });
-  try{ localStorage.setItem('ipsum_veille_alertes_signalees', JSON.stringify(dejaVus.slice(-300))); }catch(e){}
+  if(!neufs.length) return;
+  var texte = neufs.length === 1
+    ? 'Veille · « '+mots[0]+' » : '+neufs[0].titre
+    : 'Veille · '+neufs.length+' nouveaux articles pour tes alertes ('+mots.slice(0, 3).join(', ')+(mots.length > 3 ? '…' : '')+')';
+  notifPersistante(texte, 'info', 'Voir', function(){
+    _veilleSourceActive = 'alertes'; osOpenWindow('veille');
+    var wc = document.getElementById('wincontent-veille'); if(wc && wc.querySelector('.vl')) osVeilleRendreListe(wc);
+  }, 'bell-ringing');
+  try{ localStorage.setItem('ipsum_veille_alertes_signal', JSON.stringify({ quand:Date.now(), ids:dejaVus.concat(neufs.map(function(a){ return a.id; })).slice(-300) })); }catch(e){}
 }
 
 function osVeilleAlertesOuvrir(){
@@ -68,7 +82,7 @@ function osVeilleAlertesOuvrir(){
     +'<p class="se-aide">Choisis les mots qui t’intéressent : une commune, une association, un nom, un sujet. Dès qu’un article de la Veille en parle, il est signalé. Ces alertes sont rien qu’à toi : personne d’autre ne les voit ni ne les reçoit.</p>'
     +'<div class="vl-alertes-ajout"><input type="text" id="va-mot" maxlength="60" placeholder="Ex : Gaillac, rugby, Pierre Fabre"><button type="button" class="se-btn-secondaire" data-action="ajouter"><i class="ti ti-plus"></i> Ajouter</button></div>'
     +'<div class="vl-alertes-mots" id="va-mots"></div>'
-    +'<label class="se-consent vl-alertes-prevenir"><input type="checkbox" id="va-prevenir"'+(_veilleAlertes.prevenir ? ' checked' : '')+'><span>Me prévenir aussi quand je ne suis pas sur Compo<small>Par Chat ou par email, selon ton choix dans Réglages > Mon profil. Un seul message par relevé (toutes les 30 min), seulement pour les articles du jour.</small></span></label>'
+    +'<label class="se-consent vl-alertes-prevenir"><input type="checkbox" id="va-prevenir"'+(_veilleAlertes.prevenir ? ' checked' : '')+'><span>Me prévenir aussi quand je ne suis pas sur Compo<small>Par Chat ou par email, selon ton choix dans Réglages > Mon profil. Un seul récapitulatif qui regroupe tout, au plus toutes les 5 heures, et seulement pendant les horaires de ta rédaction.</small></span></label>'
     +'<button type="button" class="se-btn-principal" data-action="enregistrer"><i class="ti ti-check"></i> Enregistrer</button>'
     +'</div></div>';
   document.body.appendChild(ov);

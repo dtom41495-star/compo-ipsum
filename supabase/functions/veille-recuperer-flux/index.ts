@@ -196,7 +196,7 @@ async function majFlux(id: string, corps: Record<string, unknown>) {
   }).catch(() => {});
 }
 
-async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveaux: number; ajoutes: ArticleAjoute[]; erreur?: string }> {
+async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveaux: number; erreur?: string }> {
   try {
     const res = await fetch(flux.url, {
       headers: {
@@ -211,7 +211,7 @@ async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveau
 
     if (!articles.length) {
       await majFlux(flux.id, { derniere_recup: new Date().toISOString(), derniere_erreur: /<html[\s>]/i.test(texte) ? "Aucun article reconnu sur cette page" : null });
-      return { nouveaux: 0, ajoutes: [] };
+      return { nouveaux: 0 };
     }
 
     // Dédoublonnage : les liens déjà connus de cette source (les plus récents suffisent : un flux ne
@@ -227,18 +227,16 @@ async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveau
 
     const nouveaux = articles.filter((a) => !existants.has(a.lien));
     const maintenant = new Date().toISOString();
-    const ajoutes: ArticleAjoute[] = [];
     for (const a of nouveaux) {
       let datePublication: string | null = a.dateIso ?? null;
       if (!datePublication && a.date) {
         const d = new Date(a.date);
         if (!isNaN(d.getTime())) datePublication = d.toISOString();
       }
-      // on_conflict : un lien déjà présent (même source) est ignoré au lieu de faire échouer l'ajout.
-      // La base ne renvoie que les lignes vraiment ajoutées : ce sont elles qui peuvent déclencher une alerte.
-      const r = await fetch(`${SB_URL}/rest/v1/veille_articles?on_conflict=flux_id,lien&select=id,flux_id,titre,lien,resume,date_publication`, {
+      // on_conflict : un lien déjà présent (même source) est ignoré au lieu de faire échouer l'ajout
+      await fetch(`${SB_URL}/rest/v1/veille_articles?on_conflict=flux_id,lien`, {
         method: "POST",
-        headers: headersSb({ Prefer: "return=representation,resolution=ignore-duplicates" }),
+        headers: headersSb({ Prefer: "return=minimal,resolution=ignore-duplicates" }),
         body: JSON.stringify({
           flux_id: flux.id,
           titre: a.titre,
@@ -248,36 +246,43 @@ async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveau
           // Une page web sans heure : l'heure où on l'a vu passer (la récupération a lieu toutes les 30 min)
           date_publication: datePublication || maintenant,
         }),
-      }).catch(() => null);
-      const lignes = r && r.ok ? await r.json().catch(() => []) : [];
-      if (Array.isArray(lignes)) ajoutes.push(...lignes);
+      }).catch(() => {});
     }
 
     await majFlux(flux.id, { derniere_recup: maintenant, derniere_erreur: null });
-    return { nouveaux: nouveaux.length, ajoutes };
+    return { nouveaux: nouveaux.length };
   } catch (e) {
     // Une source en échec (URL invalide, timeout...) ne doit jamais bloquer les autres :
     // on note l'erreur pour que l'admin la voie, et on continue la boucle.
     await majFlux(flux.id, { derniere_erreur: String(e) });
-    return { nouveaux: 0, ajoutes: [], erreur: String(e) };
+    return { nouveaux: 0, erreur: String(e) };
   }
 }
 
 // ----- Alertes personnelles (table veille_alertes, docs/sql/veille-alertes.sql) -----
-// Chaque bénévole a ses propres mots-clés. Après le relevé, les articles ajoutés qui en contiennent un
-// partent en un seul message par personne, sur son canal (Chat, sinon email ; email aussi si Chat échoue).
-// Seuls les articles de moins de 24 h comptent : une source qu'on vient d'ajouter remonte des articles
-// anciens, ils ne doivent pas déclencher une avalanche d'alertes.
+// Chaque bénévole a ses propres mots-clés. Pas un message par article : les articles qui correspondent
+// s'accumulent, et un seul récapitulatif part au plus toutes les 5 heures (veille_alertes.dernier_envoi),
+// sur le canal de la personne (Chat, sinon email ; email aussi si Chat échoue).
+// Horaires des rédactions respectés, comme les autres notifications de Compo (js/17-horaires-redactions.js) :
+// rien ne part si toutes les rédactions de la personne sont fermées ; le récapitulatif attend la réouverture
+// et reprend alors tout ce qui est arrivé entre-temps.
 // Même règle de correspondance que dans Compo (js/54-veille-alertes.js) : mots entiers, sans accents ni majuscules.
 
-type ArticleAjoute = { id: string; flux_id: string; titre: string; lien: string; resume: string | null; date_publication: string | null };
+const ALERTES_INTERVALLE_MS = 5 * 3600000;
+const ALERTES_RECUL_MAX_MS = 72 * 3600000; // un week-end fermé, pas plus
+const MAX_PAR_MESSAGE = 15;
+
+type ArticleVeille = { id: string; flux_id: string; titre: string; lien: string; resume: string | null; date_publication: string | null; created_at: string };
+type Alerte = { membre_id: string; mots: string[]; dernier_envoi: string | null };
+type Membre = { id: string; prenom: string | null; email: string | null; canal_notif: string | null; actif: boolean; marque_inactif: boolean; dnd: boolean; role: string };
+type Plage = { de?: string; a?: string } | null;
+type Redaction = { id: string; horaires: Record<string, Plage> | null; pas_lancee: boolean | null };
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const enHtml = (s: string) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 const normAlerte = (s: string) => " " + String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
-const MAX_PAR_MESSAGE = 10;
 
-function motTrouve(a: ArticleAjoute, mots: string[]): string | null {
+function motTrouve(a: ArticleVeille, mots: string[]): string | null {
   const texte = normAlerte(a.titre + " " + (a.resume || ""));
   for (const m of mots) {
     const n = normAlerte(m);
@@ -286,69 +291,123 @@ function motTrouve(a: ArticleAjoute, mots: string[]): string | null {
   return null;
 }
 
+// ── Horaires (même calcul que osRedacHorairesEtat, heure de Paris) ──
+const JOURS_CLES = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+const minutes = (hhmm?: string) => { const t = String(hhmm || "").split(":"); return (+t[0] || 0) * 60 + (+t[1] || 0); };
+function horairesDefinis(r: Redaction): boolean {
+  const h = r.horaires;
+  return !!(h && typeof h === "object" && JOURS_CLES.some((j) => h[j] && h[j]!.de && h[j]!.a));
+}
+function ouverteMaintenant(r: Redaction, quand: Date): boolean {
+  if (!horairesDefinis(r)) return true;
+  const p: Record<string, string> = {};
+  new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false })
+    .formatToParts(quand).forEach((x) => { p[x.type] = x.value; });
+  const jour = JOURS_CLES[["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday)];
+  const plage = r.horaires![jour];
+  if (!plage || !plage.de || !plage.a) return false;
+  const maintenant = ((+p.hour) % 24) * 60 + (+p.minute);
+  return maintenant >= minutes(plage.de) && maintenant < minutes(plage.a);
+}
+// Joignable si au moins une de ses rédactions lancées est ouverte (ou sans horaires), ou s'il n'en a aucune
+function joignable(membreId: string, liens: { membre_id: string; redaction_id: string }[], redacs: Record<string, Redaction>, quand: Date): boolean {
+  const siennes = liens.filter((l) => l.membre_id === membreId).map((l) => redacs[l.redaction_id]).filter((r) => r && !r.pas_lancee);
+  return !siennes.length || siennes.some((r) => ouverteMaintenant(r, quand));
+}
+
+async function lire<T>(chemin: string): Promise<T[]> {
+  const d = await fetch(`${SB_URL}/rest/v1/${chemin}`, { headers: headersSb() }).then((r) => r.json()).catch(() => []);
+  return Array.isArray(d) ? d : [];
+}
+
 async function appelerFonction(nom: string, corps: unknown): Promise<boolean> {
   const r = await fetch(`${SB_URL}/functions/v1/${nom}`, { method: "POST", headers: headersSb(), body: JSON.stringify(corps) }).catch(() => null);
   return !!r && r.ok;
 }
 
-type Trouve = { a: ArticleAjoute; mot: string; source: string };
+// Articles regroupés par mot-clé, dans l'ordre des mots de la personne
+type Groupe = { mot: string; articles: { a: ArticleVeille; source: string }[] };
 
-function chatAlerte(liste: Trouve[], reste: number): string {
+function chatAlerte(groupes: Groupe[], total: number, affiches: number): string {
   const net = (s: string) => String(s).replace(/[*_~`]/g, "").replace(/\s+/g, " ").trim();
-  return `*Veille : ${liste.length + reste > 1 ? (liste.length + reste) + " articles pour tes alertes" : "un article pour tes alertes"}*\n`
-    + liste.map((t) => `• « ${net(t.mot)} » · ${net(t.source)} : ${net(t.a.titre)}  <${t.a.lien}|Lire>`).join("\n")
-    + (reste ? `\n… et ${reste} autre${reste > 1 ? "s" : ""} dans la Veille` : "")
+  return `*Veille : ${total > 1 ? total + " articles" : "un article"} pour tes alertes*\n`
+    + groupes.map((g) => `\n*${net(g.mot)}*\n` + g.articles.map((x) => `• ${net(x.source)} : ${net(x.a.titre)}  <${x.a.lien}|Lire>`).join("\n")).join("\n")
+    + (total > affiches ? `\n\n… et ${total - affiches} autre${total - affiches > 1 ? "s" : ""} dans la Veille` : "")
     + `\n\nTes mots-clés se règlent dans Compo : Veille > Mes alertes  <https://compo.ipsummedia.fr|Ouvrir Compo>`;
 }
 
-function emailAlerte(prenom: string, liste: Trouve[], reste: number): string {
+function emailAlerte(prenom: string, groupes: Groupe[], total: number, affiches: number): string {
   const P = "'DM Sans', Arial, Helvetica, sans-serif", ENCRE = "#1A1A2E", GRIS = "#6B7280", BORD = "#E7E5E4";
-  const lignes = liste.map((t) => `<tr><td style="padding:12px 0;border-top:1px solid ${BORD};">`
-    + `<div style="font:600 11px/1.5 ${P};color:${GRIS};"><span style="display:inline-block;padding:1px 8px;border-radius:999px;background:#FDECE6;color:#B5361A;">${enHtml(t.mot)}</span> &nbsp;${enHtml(t.source)}</div>`
-    + `<a href="${enHtml(t.a.lien)}" style="display:block;margin-top:4px;font:700 15px/1.4 ${P};color:${ENCRE};text-decoration:none;">${enHtml(t.a.titre)}</a></td></tr>`).join("");
+  const sections = groupes.map((g) => `<tr><td style="padding:16px 0 4px;"><span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#FDECE6;color:#B5361A;font:700 12px/1.4 ${P};">${enHtml(g.mot)} · ${g.articles.length}</span></td></tr>`
+    + g.articles.map((x) => `<tr><td style="padding:9px 0;border-bottom:1px solid ${BORD};">`
+      + `<div style="font:600 11px/1.5 ${P};color:${GRIS};">${enHtml(x.source)}</div>`
+      + `<a href="${enHtml(x.a.lien)}" style="display:block;margin-top:2px;font:700 15px/1.4 ${P};color:${ENCRE};text-decoration:none;">${enHtml(x.a.titre)}</a></td></tr>`).join("")).join("");
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F2EF;"><tr><td align="center" style="padding:24px 12px;">`
     + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid ${BORD};">`
     + `<tr><td align="center" style="padding:22px 24px 16px;border-bottom:1px solid ${BORD};"><img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" height="56" style="height:56px;display:block;"></td></tr>`
-    + `<tr><td style="padding:24px 28px 8px;"><span style="display:inline-block;padding:4px 11px;border-radius:999px;background:#FDECE6;color:#B5361A;font:700 11px/1.3 ${P};letter-spacing:0.04em;">Alerte Veille</span>`
-    + `<h1 style="margin:12px 0 0;font:700 22px/1.3 Arial, Helvetica, sans-serif;color:${ENCRE};">${prenom ? enHtml(prenom) + ", ç" : "Ç"}a parle de tes sujets</h1></td></tr>`
-    + `<tr><td style="padding:12px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${lignes}</table>`
-    + (reste ? `<p style="margin:10px 0 0;font:400 13px/1.5 ${P};color:${GRIS};">… et ${reste} autre${reste > 1 ? "s" : ""} dans la Veille.</p>` : "") + `</td></tr>`
+    + `<tr><td style="padding:24px 28px 0;"><span style="display:inline-block;padding:4px 11px;border-radius:999px;background:#FDECE6;color:#B5361A;font:700 11px/1.3 ${P};letter-spacing:0.04em;">Alerte Veille</span>`
+    + `<h1 style="margin:12px 0 0;font:700 22px/1.3 Arial, Helvetica, sans-serif;color:${ENCRE};">${prenom ? enHtml(prenom) + ", ç" : "Ç"}a parle de tes sujets</h1>`
+    + `<p style="margin:6px 0 0;font:400 14px/1.5 ${P};color:${GRIS};">${total > 1 ? total + " articles parus" : "Un article paru"} depuis le dernier récapitulatif.</p></td></tr>`
+    + `<tr><td style="padding:4px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${sections}</table>`
+    + (total > affiches ? `<p style="margin:10px 0 0;font:400 13px/1.5 ${P};color:${GRIS};">… et ${total - affiches} autre${total - affiches > 1 ? "s" : ""} dans la Veille.</p>` : "") + `</td></tr>`
     + `<tr><td style="padding:22px 28px 4px;"><a href="https://compo.ipsummedia.fr" style="display:inline-block;padding:12px 22px;border-radius:8px;font:600 14px/1 ${P};text-decoration:none;background:#E8461E;color:#fff;">Ouvrir la Veille</a></td></tr>`
-    + `<tr><td style="padding:26px 28px 24px;"><div style="border-top:1px solid ${BORD};padding-top:14px;font:400 12px/1.55 ${P};color:${GRIS};">Tu reçois ce message parce que tu as choisi ces mots-clés dans Compo (Veille &gt; Mes alertes). Tu peux les changer ou couper les messages à tout moment.<br>Cet email est envoyé automatiquement, merci de ne pas y répondre.</div></td></tr>`
+    + `<tr><td style="padding:26px 28px 24px;"><div style="border-top:1px solid ${BORD};padding-top:14px;font:400 12px/1.55 ${P};color:${GRIS};">Tu reçois ce récapitulatif (au plus toutes les 5 heures, pendant les horaires de ta rédaction) parce que tu as choisi ces mots-clés dans Compo : Veille &gt; Mes alertes. Tu peux les changer ou couper les messages à tout moment.<br>Cet email est envoyé automatiquement, merci de ne pas y répondre.</div></td></tr>`
     + `</table></td></tr></table>`;
 }
 
-async function alerter(ajoutes: ArticleAjoute[], noms: Record<string, string>) {
-  const limite = Date.now() - 24 * 3600000;
-  const recents = ajoutes.filter((a) => a.titre && a.lien && (!a.date_publication || new Date(a.date_publication).getTime() > limite));
-  if (!recents.length) return;
+async function alerter(noms: Record<string, string>) {
+  const quand = new Date(), maintenant = quand.getTime();
+  const pretes = (await lire<Alerte>("veille_alertes?prevenir=eq.true&select=membre_id,mots,dernier_envoi"))
+    .filter((x) => x.mots && x.mots.length && (!x.dernier_envoi || maintenant - new Date(x.dernier_envoi).getTime() >= ALERTES_INTERVALLE_MS));
+  if (!pretes.length) return;
 
-  const alertes = await fetch(`${SB_URL}/rest/v1/veille_alertes?prevenir=eq.true&select=membre_id,mots`, { headers: headersSb() })
-    .then((r) => r.json()).catch(() => []) as { membre_id: string; mots: string[] }[];
-  const actives = (Array.isArray(alertes) ? alertes : []).filter((x) => x.mots && x.mots.length);
-  if (!actives.length) return;
+  const ids = pretes.map((x) => x.membre_id).join(",");
+  const [membres, liens, redacsListe] = await Promise.all([
+    lire<Membre>(`membres?id=in.(${ids})&select=id,prenom,email,canal_notif,actif,marque_inactif,dnd,role`),
+    lire<{ membre_id: string; redaction_id: string }>(`membres_redactions?membre_id=in.(${ids})&select=membre_id,redaction_id`),
+    lire<Redaction>("redactions?select=id,horaires,pas_lancee"),
+  ]);
+  const parId: Record<string, Membre> = {};
+  for (const m of membres) parId[m.id] = m;
+  const redacs: Record<string, Redaction> = {};
+  for (const r of redacsListe) redacs[r.id] = r;
 
-  const membres = await fetch(`${SB_URL}/rest/v1/membres?id=in.(${actives.map((x) => x.membre_id).join(",")})&select=id,prenom,email,canal_notif,actif,marque_inactif,dnd,role`, { headers: headersSb() })
-    .then((r) => r.json()).catch(() => []) as { id: string; prenom: string | null; email: string | null; canal_notif: string | null; actif: boolean; marque_inactif: boolean; dnd: boolean; role: string }[];
-  const parId: Record<string, (typeof membres)[number]> = {};
-  for (const m of Array.isArray(membres) ? membres : []) parId[m.id] = m;
+  // Depuis le dernier récapitulatif ; la première fois, les 5 dernières heures
+  const depuis = (al: Alerte) => Math.max(al.dernier_envoi ? new Date(al.dernier_envoi).getTime() : maintenant - ALERTES_INTERVALLE_MS, maintenant - ALERTES_RECUL_MAX_MS);
+  const plusAncien = Math.min(...pretes.map(depuis));
+  const articles = await lire<ArticleVeille>(`veille_articles?created_at=gt.${new Date(plusAncien).toISOString()}&select=id,flux_id,titre,lien,resume,date_publication,created_at&order=date_publication.desc.nullslast&limit=1000`);
+  if (!articles.length) return;
 
-  for (const al of actives) {
+  for (const al of pretes) {
     const m = parId[al.membre_id];
     if (!m || !m.actif || m.marque_inactif || m.dnd || m.role === "interdit") continue;
-    const trouves: Trouve[] = [];
-    for (const a of recents) {
+    if (!joignable(m.id, liens, redacs, quand)) continue;  // rédactions fermées : le récapitulatif attend
+    const seuil = depuis(al);
+    const groupes: Groupe[] = al.mots.map((mot) => ({ mot, articles: [] }));
+    let total = 0;
+    for (const a of articles) {
+      if (new Date(a.created_at).getTime() <= seuil) continue;
+      // Une source qu'on vient d'ajouter remonte d'anciens articles : on ne garde que les récents
+      if (a.date_publication && maintenant - new Date(a.date_publication).getTime() > ALERTES_RECUL_MAX_MS) continue;
       const mot = motTrouve(a, al.mots);
-      if (mot) trouves.push({ a, mot, source: noms[a.flux_id] || "Veille" });
+      if (!mot) continue;
+      total++;
+      if (total <= MAX_PAR_MESSAGE) groupes.find((g) => g.mot === mot)!.articles.push({ a, source: noms[a.flux_id] || "Veille" });
     }
-    if (!trouves.length) continue;
-    const liste = trouves.slice(0, MAX_PAR_MESSAGE), reste = trouves.length - liste.length;
+    if (!total) continue;
+    const pleins = groupes.filter((g) => g.articles.length), affiches = Math.min(total, MAX_PAR_MESSAGE);
+
     let parti = false;
-    if (m.canal_notif === "chat") parti = await appelerFonction("envoyer-chat-dm", { membreId: m.id, message: chatAlerte(liste, reste), type: "veille" });
+    if (m.canal_notif === "chat") parti = await appelerFonction("envoyer-chat-dm", { membreId: m.id, message: chatAlerte(pleins, total, affiches), type: "veille" });
     if (!parti && m.email) {
-      const sujet = trouves.length > 1 ? `[Veille] ${trouves.length} articles pour tes alertes` : `[Veille] ${trouves[0].mot} : ${trouves[0].a.titre}`;
-      await appelerFonction("envoyer-email", { to: m.email, subject: sujet, html: emailAlerte(m.prenom || "", liste, reste) });
+      const sujet = total > 1 ? `[Veille] ${total} articles pour tes alertes` : `[Veille] ${pleins[0].mot} : ${pleins[0].articles[0].a.titre}`;
+      parti = await appelerFonction("envoyer-email", { to: m.email, subject: sujet, html: emailAlerte(m.prenom || "", pleins, total, affiches) });
       await pause(600); // Resend refuse au-delà de quelques emails par seconde
+    }
+    if (parti) {
+      await fetch(`${SB_URL}/rest/v1/veille_alertes?membre_id=eq.${m.id}`, {
+        method: "PATCH", headers: headersSb({ Prefer: "return=minimal" }), body: JSON.stringify({ dernier_envoi: quand.toISOString() }),
+      }).catch(() => {});
     }
   }
 }
@@ -363,15 +422,13 @@ Deno.serve(async (req) => {
     const fluxListe = (await fluxRes.json()) as { id: string; nom: string; url: string }[];
 
     const resultats = [];
-    const ajoutes: ArticleAjoute[] = [];
     for (const flux of fluxListe) {
-      const { ajoutes: lignes, ...r } = await traiterFlux(flux);
-      ajoutes.push(...lignes);
+      const r = await traiterFlux(flux);
       resultats.push({ flux_id: flux.id, ...r });
     }
     const noms: Record<string, string> = {};
     for (const f of fluxListe) noms[f.id] = f.nom;
-    try { await alerter(ajoutes, noms); } catch (e) { console.error("Alertes :", e); }
+    try { await alerter(noms); } catch (e) { console.error("Alertes :", e); }
 
     return new Response(JSON.stringify({ ok: true, fluxTraites: fluxListe.length, resultats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
