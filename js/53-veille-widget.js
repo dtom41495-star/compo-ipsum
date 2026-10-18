@@ -1,5 +1,5 @@
 // ===== WIDGET VEILLE SUR LE BUREAU =====
-// Sous l'horloge du bureau (PC) : les derniers articles de la Veille (js/10-calendrier.js, osVeille*),
+// À droite de l'horloge du bureau (PC), en haut, pour laisser le fond d'écran dégagé : les derniers articles de la Veille (js/10-calendrier.js, osVeille*),
 // un clic pour lire, l'ampoule pour en faire un sujet. Mêmes « lus » que l'appli Veille (ipsum_veille_vus).
 // Pour qui a l'appli Veille (rédacteurs, SR, admins). Rafraîchi toutes les 10 minutes et au retour sur l'onglet.
 
@@ -36,12 +36,17 @@ function osVeilleWidgetCharger(){
   }).catch(function(){});
 }
 
-function _veilleWidgetRetirer(){ var c = document.getElementById('os-w-veille'); if(c) c.remove(); }
+function _veilleWidgetRetirer(){
+  var c = document.getElementById('os-w-veille'); if(c) c.remove();
+  var ws = document.getElementById('os-workspace'); if(ws) ws.classList.remove('avec-veille');
+}
 
 function osVeilleWidgetRendre(){
-  var widget = document.getElementById('os-clock-widget');
+  // Posé dans le bureau à côté de l'horloge (et non dessous), l'horloge se décale vers la gauche (classe avec-veille)
+  var widget = document.getElementById('os-workspace');
   var liste = _veilleWidget.articles;
-  if(!widget || !liste || !liste.length || osEstMobile()){ _veilleWidgetRetirer(); return; }
+  if(!widget || !document.getElementById('os-clock-widget') || !liste || !liste.length || osEstMobile()){ _veilleWidgetRetirer(); return; }
+  widget.classList.add('avec-veille');
   var vus = osVeilleVus();
   var nonLus = liste.filter(function(a){ return vus.indexOf(a.id) === -1; }).length;
   var carte = document.getElementById('os-w-veille');

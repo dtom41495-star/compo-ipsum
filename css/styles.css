@@ -6025,7 +6025,12 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .inst-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--gris-clair); font-size: 0.72rem; font-weight: 700; color: var(--encre); }
 
 /* ===== WIDGET VEILLE SUR LE BUREAU (js/53-veille-widget.js) ===== */
-.os-w-veille { clear: both; margin-top: 10px; padding: 0.85rem 0.9rem 0.6rem; pointer-events: auto; user-select: none; font-family: 'DM Sans', sans-serif; }
+/* À droite de l'horloge, en haut : l'horloge se décale d'une colonne vers la gauche */
+.os-w-veille { position: absolute; top: 22px; right: 26px; width: 290px; box-sizing: border-box; z-index: 5; max-height: calc(100% - 140px); overflow: hidden; padding: 0.85rem 0.9rem 0.6rem; pointer-events: auto; user-select: none; font-family: 'DM Sans', sans-serif; }
+#os-workspace.avec-veille #os-clock-widget { right: 330px; }
+#os-desktop.os-arrivee .os-w-veille { animation: osa-droite .65s cubic-bezier(.2,.9,.3,1) 460ms both; }
+/* Écran trop étroit pour deux colonnes : la Veille reste dans son appli */
+@media (max-width: 1180px) { .os-w-veille { display: none; } #os-workspace.avec-veille #os-clock-widget { right: 26px; } }
 .os-w-veille-tete { display: flex; align-items: center; gap: 7px; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; }
 .os-w-veille-tete > i { color: #FFB27A; }
 .os-w-veille-nb { font-family: 'DM Sans', sans-serif; font-size: 0.64rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(234,91,28,0.35); color: #FFD3BD; }
@@ -6044,7 +6049,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .os-w-veille li:hover .os-w-veille-sujet, .os-w-veille-sujet:focus-visible { opacity: 1; }
 .os-w-veille-sujet:hover { background: rgba(255,178,122,0.2); color: #FFB27A; }
 @media (max-height: 700px) { .os-w-veille li:nth-child(n+4) { display: none; } }
-@media (max-height: 560px) { .os-w-veille { display: none; } }
+@media (max-height: 560px) { .os-w-veille { display: none; } #os-workspace.avec-veille #os-clock-widget { right: 26px; } }
 
 /* ===== APPLI VEILLE (osVeilleRendreListe, js/10-calendrier.js) ===== */
 .vl { display: flex; height: 100%; min-height: 0; overflow: hidden; font-family: 'DM Sans', sans-serif; color: var(--encre); }
