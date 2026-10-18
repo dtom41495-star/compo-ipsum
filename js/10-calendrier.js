@@ -1057,104 +1057,220 @@ function osVeilleCreerSujet(articleId){
   });
 }
 
-function osVeilleRendreListe(wc){
-  var vus = osVeilleVus();
-  if(_veilleSourceActive && !(window._veilleFlux||[]).some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
-  var articles = (window._veilleArticles||[]).filter(function(a){
-    return (_veilleFiltreActif !== 'non_lus' || vus.indexOf(a.id) === -1) && (!_veilleSourceActive || a.flux_id === _veilleSourceActive);
+// ── Affichage de l'appli Veille ──
+// Rail des sources à gauche (rangée d'onglets sur téléphone), « Sujets du moment » en tête,
+// puis les articles groupés par jour. Clics gérés par délégation (data-action).
+var _veilleRecherche = '';
+// Une couleur par source, dans l'ordre des sources (toutes différentes jusqu'à 8), lisibles en clair comme en sombre
+var VEILLE_COULEURS = ['#E8461E', '#2E86C1', '#17A589', '#8E44AD', '#D68910', '#C2185B', '#5D8AA8', '#7CB342'];
+function _veilleCouleur(fluxId){
+  var i = (window._veilleFlux || []).findIndex(function(f){ return f.id === fluxId; });
+  return VEILLE_COULEURS[(i < 0 ? 0 : i) % VEILLE_COULEURS.length];
+}
+function _veilleNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function _veilleJour(d){
+  if(!d) return 'Sans date';
+  var date = new Date(d), auj = new Date(); auj.setHours(0,0,0,0);
+  var j = new Date(date); j.setHours(0,0,0,0);
+  var ecart = Math.round((auj - j) / 86400000);
+  if(ecart === 0) return 'Aujourd’hui';
+  if(ecart === 1) return 'Hier';
+  var t = date.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function _veilleHeure(d){ return d ? new Date(d).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ') : ''; }
+
+// Sujets du moment : des articles d'au moins deux sources différentes, sur trois jours, qui partagent
+// au moins deux mots importants de leur titre (noms de lieux et de personnes compris).
+var VEILLE_MOTS_VIDES = ('tarn tarnais tarnaise avec dans pour plus sans sous leur leurs cette ces des les une aux sur par est sont ont fait faire '
+  +'entre apres avant comme mais tout tous toute toutes elle elles ils nous vous selon deux trois encore depuis vers chez quoi quel quelle quels '
+  +'quelles alors aussi bien tres sera seront etre avoir face pres ainsi dont lors veut peut doit cela ceux celle article abonnes reserve '
+  +'aujourd hier demain soir matin semaine jour jours annee mois nouveau nouvelle nouvelles premier premiere grand grande petit petite').split(' ');
+function _veilleMots(titre){
+  return _veilleNorm(titre).replace(/[^a-z0-9\s-]/g, ' ').split(/[\s-]+/).filter(function(m){
+    return m.length >= 4 && VEILLE_MOTS_VIDES.indexOf(m) === -1 && !/^\d+$/.test(m);
   });
-  var nonLusTotal = (window._veilleArticles||[]).filter(function(a){ return vus.indexOf(a.id)===-1; }).length;
-  var fluxParId = {};
-  (window._veilleFlux||[]).forEach(function(f){ fluxParId[f.id] = f; });
-
-  var h = '<div style="padding:1rem 1.5rem;">';
-
-  // Barre filtre + tout marquer lu
-  h += '<div style="display:flex;gap:0.4rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">';
-  [
-    {id:'tous', label:'Tous ('+(window._veilleArticles||[]).length+')'},
-    {id:'non_lus', label:'Non lus ('+nonLusTotal+')'}
-  ].forEach(function(f){
-    var actif = _veilleFiltreActif === f.id;
-    h += '<button onclick="_veilleFiltreActif=\''+f.id+'\';osVeilleRendreListe(document.getElementById(\'wincontent-veille\'))" style="font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;font-weight:'+(actif?'700':'400')+';border:1.5px solid '+(actif?'var(--rouge)':'var(--gris-bord)')+';background:'+(actif?'var(--rouge)':'white')+';color:'+(actif?'white':'var(--gris)')+';">'+esc(f.label)+'</button>';
+}
+function osVeilleSujetsDuMoment(articles){
+  var limite = Date.now() - 3 * 86400000;
+  var recents = articles.filter(function(a){ return a.date_publication && new Date(a.date_publication) > limite; })
+    .map(function(a){ return { a:a, mots:_veilleMots(a.titre) }; });
+  var groupes = [];
+  recents.forEach(function(r){
+    // Tous les groupes proches de cet article : il les relie, on les fusionne
+    var proches = groupes.filter(function(g){
+      return g.items.some(function(x){
+        return r.mots.filter(function(m){ return x.mots.indexOf(m) !== -1; }).length >= 2;
+      });
+    });
+    if(!proches.length){ groupes.push({ items:[r] }); return; }
+    var g = proches[0];
+    proches.slice(1).forEach(function(autre){ g.items = g.items.concat(autre.items); groupes.splice(groupes.indexOf(autre), 1); });
+    g.items.push(r);
   });
-  if(nonLusTotal > 0){
-    h += '<button onclick="osVeilleToutMarquerLu()" style="margin-left:auto;font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--gris);"><i class="ti ti-checks"></i> Tout marquer comme lu</button>';
-  }
-  if(osVeilleEstGestionnaire()){
-    h += '<button onclick="osVeilleOuvrirGestionFlux()" style="font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-settings"></i> Gérer les flux</button>';
-  }
-  h += '</div>';
-
-  // Filtre par source, dès qu'il y en a plusieurs
-  var sourcesAvecArticles = (window._veilleFlux||[]).filter(function(f){ return (window._veilleArticles||[]).some(function(a){ return a.flux_id === f.id; }); });
-  if(sourcesAvecArticles.length > 1){
-    h += '<div style="display:flex;gap:0.35rem;margin:-0.4rem 0 1rem;flex-wrap:wrap;">';
-    [{ id:null, nom:'Toutes les sources' }].concat(sourcesAvecArticles).forEach(function(f){
-      var actif = _veilleSourceActive === f.id;
-      var nb = f.id ? (window._veilleArticles||[]).filter(function(a){ return a.flux_id === f.id && vus.indexOf(a.id) === -1; }).length : 0;
-      h += '<button onclick="_veilleSourceActive='+(f.id ? '\''+f.id+'\'' : 'null')+';osVeilleRendreListe(document.getElementById(\'wincontent-veille\'))" style="font-size:0.66rem;padding:3px 10px;border-radius:20px;cursor:pointer;border:1px solid '+(actif?'var(--encre)':'var(--gris-bord)')+';background:'+(actif?'var(--encre)':'transparent')+';color:'+(actif?'var(--blanc)':'var(--gris)')+';">'+esc(f.nom)+(nb ? ' <strong style="color:'+(actif?'inherit':'var(--rouge)')+';">'+nb+'</strong>' : '')+'</button>';
-    });
-    h += '</div>';
-  }
-
-  if(!(window._veilleFlux||[]).length){
-    h += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Aucun flux suivi pour l\'instant.'+(osVeilleEstGestionnaire()?' <br><button onclick="osVeilleOuvrirGestionFlux()" class="btn sec" style="margin-top:0.8rem;">Ajouter un flux</button>':'')+'</div>';
-  } else if(!articles.length){
-    h += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Rien à lire ici pour l\'instant.</div>';
-  } else {
-    articles.forEach(function(a){
-      var flux = fluxParId[a.flux_id];
-      var estVu = vus.indexOf(a.id) !== -1;
-      var dateStr = a.date_publication ? new Date(a.date_publication).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-      h += '<div style="display:flex;gap:0.8rem;padding:0.8rem;border:1px solid var(--gris-bord);border-radius:10px;margin-bottom:0.6rem;'+(estVu?'':'background:var(--rouge-clair);')+'">';
-      if(a.image) h += '<img src="'+esc(a.image)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;" loading="lazy" onerror="this.remove()">';
-      h += '<div style="flex:1;min-width:0;">';
-      h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-bottom:2px;">'+esc(flux?flux.nom:'Source inconnue')+(dateStr?' · '+dateStr:'')+(estVu?'':' · <span style="color:var(--rouge);font-weight:700;">nouveau</span>')+'</div>';
-      h += '<div onclick="osVeilleOuvrirArticle(\''+a.id+'\',\''+esc(a.lien).replace(/'/g,"\\'")+'\')" style="font-weight:700;font-size:0.88rem;color:var(--encre);cursor:pointer;">'+esc(a.titre)+'</div>';
-      if(a.resume) h += '<div style="font-size:0.78rem;color:var(--gris);margin-top:3px;">'+esc(a.resume)+'</div>';
-      h += '<div style="margin-top:0.5rem;"><button onclick="osVeilleCreerSujet(\''+a.id+'\')" style="font-family:Space Mono,monospace;font-size:0.6rem;padding:3px 9px;border:0.5px solid var(--rouge);border-radius:4px;background:white;color:var(--rouge);cursor:pointer;"><i class="ti ti-bulb"></i> Créer un sujet</button></div>';
-      h += '</div></div>';
-    });
-  }
-  h += '</div>';
-  wc.innerHTML = h;
+  return groupes.map(function(g){
+    var sources = {};
+    g.items.forEach(function(x){ sources[x.a.flux_id] = true; });
+    var compte = {};
+    g.items.forEach(function(x){ x.mots.forEach(function(m){ compte[m] = (compte[m] || 0) + 1; }); });
+    var cles = Object.keys(compte).filter(function(m){ return compte[m] >= 2; }).sort(function(a, b){ return compte[b] - compte[a]; }).slice(0, 3);
+    return { articles:g.items.map(function(x){ return x.a; }), nbSources:Object.keys(sources).length, cles:cles };
+  }).filter(function(g){ return g.nbSources >= 2; })
+    .sort(function(a, b){ return b.nbSources - a.nbSources || b.articles.length - a.articles.length; })
+    .slice(0, 4);
 }
 
-// ── Gestion des flux (admin/rédac chef) — formulaire minimal nom+URL.
+function osVeilleRendreListe(wc){
+  if(!wc) return;
+  var vus = osVeilleVus();
+  var flux = window._veilleFlux || [];
+  var tous = window._veilleArticles || [];
+  if(_veilleSourceActive && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
+  var fluxParId = {};
+  flux.forEach(function(f){ fluxParId[f.id] = f; });
+  var nonLu = function(a){ return vus.indexOf(a.id) === -1; };
+  var q = _veilleNorm(_veilleRecherche.trim());
+  var articles = tous.filter(function(a){
+    return (_veilleFiltreActif !== 'non_lus' || nonLu(a))
+      && (!_veilleSourceActive || a.flux_id === _veilleSourceActive)
+      && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
+  });
+  var nonLusTotal = tous.filter(nonLu).length;
+  var gestion = osVeilleEstGestionnaire();
+  var focus = document.activeElement && document.activeElement.id === 'vl-recherche';
+
+  // Rail des sources
+  var r = '<nav class="vl-rail mobile-onglets"><div class="vl-rail-titre">Sources</div>'
+    +'<button type="button" class="vl-src'+(!_veilleSourceActive ? ' active' : '')+'" data-action="source" data-id=""><i class="ti ti-stack-2"></i><span class="vl-src-nom">Toutes</span>'+(nonLusTotal ? '<span class="vl-src-nb">'+nonLusTotal+'</span>' : '')+'</button>';
+  flux.forEach(function(f){
+    var nb = tous.filter(function(a){ return a.flux_id === f.id && nonLu(a); }).length;
+    r += '<button type="button" class="vl-src'+(_veilleSourceActive === f.id ? ' active' : '')+'" data-action="source" data-id="'+esc(f.id)+'" title="'+esc(f.derniere_erreur ? 'Problème : '+String(f.derniere_erreur).replace(/^Error:\s*/, '') : f.nom)+'">'
+      +'<span class="vl-pastille" style="--c:'+_veilleCouleur(f.id)+'"></span><span class="vl-src-nom">'+esc(f.nom)+'</span>'
+      +(f.derniere_erreur ? '<i class="ti ti-alert-triangle vl-src-alerte"></i>' : (nb ? '<span class="vl-src-nb">'+nb+'</span>' : ''))+'</button>';
+  });
+  if(gestion) r += '<button type="button" class="vl-src vl-gerer" data-action="gerer"><i class="ti ti-settings"></i><span class="vl-src-nom">Gérer les sources</span></button>';
+  r += '</nav>';
+
+  // Barre d'outils
+  var c = '<div class="vl-barre">'
+    +'<div class="vl-recherche"><i class="ti ti-search"></i><input id="vl-recherche" type="search" placeholder="Chercher dans les titres" value="'+esc(_veilleRecherche)+'"></div>'
+    +'<div class="vl-segments"><button type="button" class="'+(_veilleFiltreActif !== 'non_lus' ? 'active' : '')+'" data-action="filtre" data-id="tous">Tout</button>'
+    +'<button type="button" class="'+(_veilleFiltreActif === 'non_lus' ? 'active' : '')+'" data-action="filtre" data-id="non_lus">Non lus'+(nonLusTotal ? ' · '+nonLusTotal : '')+'</button></div>'
+    +(nonLusTotal ? '<button type="button" class="vl-lien" data-action="tout-lu"><i class="ti ti-checks"></i> Tout marquer comme lu</button>' : '')
+    +'</div>';
+
+  // Sujets du moment (vue d'ensemble seulement)
+  if(!_veilleSourceActive && !q && _veilleFiltreActif !== 'non_lus'){
+    var sujets = osVeilleSujetsDuMoment(tous);
+    if(sujets.length){
+      c += '<section class="vl-moment"><div class="vl-moment-titre"><i class="ti ti-flame"></i> Sujets du moment <span>repris par plusieurs médias ces trois derniers jours</span></div><div class="vl-moment-grille">';
+      sujets.forEach(function(s){
+        var a0 = s.articles[0];
+        c += '<div class="vl-moment-carte"><div class="vl-moment-cles">'+s.cles.map(function(k){ return '<span>'+esc(k)+'</span>'; }).join('')+'</div>'
+          +'<div class="vl-moment-une">'+esc(a0.titre)+'</div>'
+          +'<div class="vl-moment-sources">'+s.articles.slice(0, 4).map(function(a){ var f = fluxParId[a.flux_id]; return '<button type="button" data-action="lire" data-id="'+esc(a.id)+'" title="'+esc(a.titre)+'"><span class="vl-pastille" style="--c:'+_veilleCouleur(a.flux_id)+'"></span>'+esc(f ? f.nom : 'Source')+'</button>'; }).join('')+'</div>'
+          +'<button type="button" class="vl-btn-sujet" data-action="sujet" data-id="'+esc(a0.id)+'"><i class="ti ti-bulb"></i> En faire un sujet</button></div>';
+      });
+      c += '</div></section>';
+    }
+  }
+
+  // Articles, groupés par jour
+  if(!flux.length){
+    c += '<div class="vl-vide"><i class="ti ti-rss"></i><strong>Aucune source suivie pour l’instant.</strong>'+(gestion ? '<button type="button" class="vl-btn" data-action="gerer">Ajouter une source</button>' : '<span>Un·e admin ou un·e rédac chef peut en ajouter.</span>')+'</div>';
+  } else if(!articles.length){
+    c += '<div class="vl-vide"><i class="ti ti-mood-empty"></i><strong>'+(q ? 'Rien ne correspond à « '+esc(_veilleRecherche.trim())+' ».' : 'Rien à lire ici pour l’instant.')+'</strong></div>';
+  } else {
+    var jourCourant = null;
+    articles.forEach(function(a){
+      var jour = _veilleJour(a.date_publication);
+      if(jour !== jourCourant){ c += '<div class="vl-jour">'+esc(jour)+'</div>'; jourCourant = jour; }
+      var f = fluxParId[a.flux_id];
+      var abonnes = a.resume === 'Article réservé aux abonnés';
+      var neuf = nonLu(a);
+      c += '<article class="vl-carte'+(neuf ? ' nonlu' : '')+'">'
+        +'<div class="vl-carte-texte">'
+        +'<div class="vl-carte-tete"><span class="vl-source" style="--c:'+_veilleCouleur(a.flux_id)+'">'+esc(f ? f.nom : 'Source inconnue')+'</span>'
+        +(a.date_publication ? '<span>'+esc(_veilleHeure(a.date_publication))+'</span>' : '')
+        +(abonnes ? '<span class="vl-abonnes"><i class="ti ti-lock"></i> abonnés</span>' : '')
+        +(neuf ? '<span class="vl-nouveau">nouveau</span>' : '')+'</div>'
+        +'<h3><button type="button" data-action="lire" data-id="'+esc(a.id)+'">'+esc(a.titre)+'</button></h3>'
+        +(a.resume && !abonnes ? '<p>'+esc(a.resume)+'</p>' : '')
+        +'<div class="vl-actions">'
+        +'<button type="button" class="vl-btn-sujet" data-action="sujet" data-id="'+esc(a.id)+'"><i class="ti ti-bulb"></i> Créer un sujet</button>'
+        +'<button type="button" class="vl-lien" data-action="lire" data-id="'+esc(a.id)+'"><i class="ti ti-external-link"></i> Lire</button>'
+        +(neuf ? '<button type="button" class="vl-lien" data-action="lu" data-id="'+esc(a.id)+'"><i class="ti ti-check"></i> Marquer comme lu</button>' : '')
+        +'</div></div>'
+        +(a.image ? '<img class="vl-vignette" src="'+esc(a.image)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
+        +'</article>';
+    });
+  }
+
+  var defil = wc.querySelector('.vl-corps');
+  var haut = defil ? defil.scrollTop : 0;
+  wc.innerHTML = '<div class="vl mobile-onglets-page">'+r+'<section class="vl-corps">'+c+'</section></div>';
+  var corps = wc.querySelector('.vl-corps');
+  if(corps) corps.scrollTop = haut;
+  var champ = wc.querySelector('#vl-recherche');
+  champ.oninput = function(){ _veilleRecherche = champ.value; osVeilleRendreListe(wc); };
+  if(focus){ champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length); }
+  if(!wc._veilleClics){
+    wc._veilleClics = true;
+    wc.addEventListener('click', function(e){
+      var b = e.target.closest('[data-action]'); if(!b || !wc.contains(b)) return;
+      var id = b.getAttribute('data-id'), act = b.getAttribute('data-action');
+      var art = (window._veilleArticles || []).find(function(a){ return a.id === id; });
+      if(act === 'source'){ _veilleSourceActive = id || null; osVeilleRendreListe(wc); var cp = wc.querySelector('.vl-corps'); if(cp) cp.scrollTop = 0; }
+      else if(act === 'filtre'){ _veilleFiltreActif = id; osVeilleRendreListe(wc); }
+      else if(act === 'tout-lu') osVeilleToutMarquerLu();
+      else if(act === 'gerer') osVeilleOuvrirGestionFlux();
+      else if(act === 'lire' && art){ osVeilleOuvrirArticle(art.id, art.lien); osVeilleRendreListe(wc); }
+      else if(act === 'lu' && art){ osVeilleMarquerVu(art.id); osVeilleRendreListe(wc); }
+      else if(act === 'sujet' && art){ osVeilleMarquerVu(art.id); osVeilleCreerSujet(art.id); osVeilleRendreListe(wc); }
+    });
+  }
+}
+
+// ── Gérer les sources (admin, rédac chef) : ajouter, voir l'état, relever tout de suite, retirer
 function osVeilleOuvrirGestionFlux(){
   var existing = document.getElementById('veille-gestion-overlay');
   if(existing) existing.remove();
-  var overlay = document.createElement('div');
-  overlay.id = 'veille-gestion-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:white;border-radius:14px;width:min(480px,94vw);max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);';
-  var h = '<div style="padding:1.2rem 1.5rem;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:14px 14px 0 0;">'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);"><i class="ti ti-rss"></i> Flux suivis</div>'
-    +'<button onclick="document.getElementById(\'veille-gestion-overlay\').remove()" style="background:transparent;border:none;font-size:1.2rem;color:var(--gris);cursor:pointer;">×</button>'
-    +'</div><div style="padding:1.2rem 1.5rem;">';
-  h += '<div class="form-grid" style="margin-bottom:0.8rem;">'
-    +'<div class="form-group full"><label>Nom de la source</label><input type="text" id="vf-nom" placeholder="Ex : La Dépêche du Midi"></div>'
-    +'<div class="form-group full"><label>Adresse du flux RSS, ou d\'une page qui liste les articles</label><input type="text" id="vf-url" placeholder="https://exemple.fr/rss"></div>'
-    +'</div><p style="font-size:0.7rem;color:var(--gris);line-height:1.5;margin:-0.3rem 0 0.8rem;">Pas de flux RSS ? Mets l\'adresse d\'une page « dernières actualités » ou « en continu » du média : Compo y reprend les titres et les liens (pas les textes). Les articles de plus de 60 jours s\'effacent tout seuls.</p><div class="btn-row"><button class="btn" onclick="osVeilleAjouterFlux()">Ajouter</button></div><hr style="margin:1rem 0;border:none;border-top:1px solid var(--gris-bord);">';
-  h += '<div id="veille-liste-flux">'+(window._veilleFlux||[]).map(function(f){
-    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(f.nom)+'</div><div style="font-size:0.65rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(f.url)+'</div>'
-      // État de la source : dernière récupération, ou l'erreur rencontrée
-      +(f.derniere_erreur
-        ? '<div style="font-size:0.65rem;color:#A32D2D;margin-top:2px;"><i class="ti ti-alert-triangle"></i> '+esc(String(f.derniere_erreur).replace(/^Error:\s*/,''))+'</div>'
-        : f.derniere_recup ? '<div style="font-size:0.65rem;color:#0F6E56;margin-top:2px;"><i class="ti ti-check"></i> Relevé '+esc(typeof _veilleWidgetQuand === 'function' ? _veilleWidgetQuand(f.derniere_recup) : '')+'</div>'
-        : '<div style="font-size:0.65rem;color:var(--gris);margin-top:2px;">Pas encore relevé (toutes les 30 min)</div>')
-      +'</div>'
-      +'<button onclick="osVeilleSupprimerFlux(\''+f.id+'\')" title="Retirer ce flux" style="background:none;border:none;cursor:pointer;color:var(--rouge);font-size:0.9rem;"><i class="ti ti-trash"></i></button>'
-      +'</div>';
-  }).join('')+'</div>';
-  h += '</div>';
-  card.innerHTML = h;
-  overlay.appendChild(card);
-  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
+  var ov = document.createElement('div');
+  ov.id = 'veille-gestion-overlay';
+  ov.className = 'se-overlay';
+  var lignes = (window._veilleFlux || []).map(function(f){
+    var etat = f.derniere_erreur
+      ? '<span class="vl-etat erreur"><i class="ti ti-alert-triangle"></i> '+esc(String(f.derniere_erreur).replace(/^Error:\s*/, ''))+'</span>'
+      : f.derniere_recup ? '<span class="vl-etat ok"><i class="ti ti-check"></i> Relevé '+esc(typeof _veilleWidgetQuand === 'function' ? _veilleWidgetQuand(f.derniere_recup) : '')+'</span>'
+      : '<span class="vl-etat">Pas encore relevé</span>';
+    return '<div class="vl-gestion-ligne"><span class="vl-pastille" style="--c:'+_veilleCouleur(f.id)+'"></span>'
+      +'<div class="vl-gestion-txt"><strong>'+esc(f.nom)+'</strong><span class="vl-gestion-url">'+esc(f.url)+'</span>'+etat+'</div>'
+      +'<button type="button" class="vl-icone" onclick="osVeilleSupprimerFlux(\''+f.id+'\')" title="Retirer cette source"><i class="ti ti-trash"></i></button></div>';
+  }).join('');
+  ov.innerHTML = '<div class="se-boite vl-gestion" role="dialog" aria-modal="true"><div class="se-entete"><div class="se-titre"><i class="ti ti-rss"></i> Sources de la veille</div>'
+    +'<button class="se-fermer" aria-label="Fermer" onclick="document.getElementById(\'veille-gestion-overlay\').remove()"><i class="ti ti-x"></i></button></div>'
+    +'<div class="se-corps">'
+    +'<div class="vl-gestion-ajout"><label><span>Nom</span><input type="text" id="vf-nom" placeholder="Ex : La Dépêche du Midi"></label>'
+    +'<label><span>Adresse du flux RSS, ou d’une page qui liste les articles</span><input type="url" id="vf-url" placeholder="https://exemple.fr/rss"></label>'
+    +'<p class="se-aide">Pas de flux RSS ? Mets l’adresse d’une page « dernières actualités » ou « en continu » du média : Compo y reprend les titres et les liens (pas les textes). Les articles de plus de 60 jours s’effacent tout seuls.</p>'
+    +'<button type="button" class="se-btn-principal" onclick="osVeilleAjouterFlux()"><i class="ti ti-plus"></i> Ajouter la source</button></div>'
+    +(lignes ? '<div class="vl-gestion-liste">'+lignes+'</div>'
+      +'<button type="button" class="se-btn-secondaire" id="vl-relever"><i class="ti ti-refresh"></i> Relever toutes les sources maintenant</button>' : '')
+    +'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  var rel = ov.querySelector('#vl-relever');
+  if(rel) rel.onclick = function(){
+    rel.disabled = true; rel.innerHTML = '<i class="ti ti-loader-2 se-tourne"></i> Relevé en cours…';
+    fetch(SB_URL+'/functions/v1/veille-recuperer-flux', { method:'POST', headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || ''), 'Content-Type':'application/json' }), body:'{}' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var n = (d && d.resultats || []).reduce(function(s, x){ return s + (x.nouveaux || 0); }, 0);
+        notif(n ? n+' nouvel'+(n > 1 ? 'les' : '')+' article'+(n > 1 ? 's' : '') : 'Rien de nouveau', 'succes');
+        osVeilleRender(); setTimeout(osVeilleOuvrirGestionFlux, 600);
+      })
+      .catch(function(){ notif('Relevé impossible', 'erreur'); rel.disabled = false; });
+  };
 }
 
 function osVeilleAjouterFlux(){
@@ -1165,7 +1281,7 @@ function osVeilleAjouterFlux(){
   fetch(SB_URL+'/rest/v1/veille_flux',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,url:url,cree_par:getUserId()})})
   .then(function(r){
     if(r.ok){
-      notif('Flux ajouté — les premiers articles arriveront à la prochaine récupération','succes');
+      notif('Source ajoutée : « Relever maintenant » pour voir ses articles tout de suite','succes');
       var ov = document.getElementById('veille-gestion-overlay'); if(ov) ov.remove();
       osVeilleRender();
     } else notif('Erreur','erreur');
