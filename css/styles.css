@@ -797,40 +797,39 @@ body {
   animation: dock-bounce 0.5s ease;
 }
 
-/* Icône Ma rédac : contour orange lumineux qui clignote deux fois très vite (fondu),
-   puis 4 s de calme, tant qu'il reste du non lu et que la fenêtre n'est pas ouverte
-   (classe posée par osRedacMajClignotement). Le cycle dure 4,6 s : 0,55 s de double
-   clignotement + 4,05 s de pause. outline + filter:drop-shadow, PAS box-shadow :
-   .dock-icon-img a déjà un box-shadow en !important (plus haut) qu'une animation ne
-   peut pas surpasser, et son overflow:hidden !important rognerait un pseudo-élément. */
-@keyframes dock-notif-clignote {
-  0%, 12%, 100% { outline-color: rgba(255,150,40,0); filter: drop-shadow(0 0 0 rgba(255,150,40,0)) drop-shadow(0 0 0 rgba(255,140,30,0)); }
-  2.2%, 8.7%    { outline-color: rgba(255,150,40,1); filter: drop-shadow(0 0 3px rgba(255,150,40,1)) drop-shadow(0 0 10px rgba(255,140,30,0.95)); }
-  5.4%          { outline-color: rgba(255,150,40,0); filter: drop-shadow(0 0 0 rgba(255,150,40,0)) drop-shadow(0 0 0 rgba(255,140,30,0)); }
+/* Icône qui a du nouveau : Ma rédac en orange (non lu), Mes articles en vert (article à corriger).
+   Classes posées par osRedacMajClignotement / osMesArticlesMajClignotement et à la construction du dock.
+   Une pastille fixe dans le coin (lisible sans animation), et un halo doux qui s'élargit et s'efface
+   toutes les 5 s. Le halo est sur .dock-icon-pill : .dock-icon-img a un overflow:hidden et un box-shadow
+   en !important (plus haut). --notif-dephase (posé en JS) cale toutes les icônes sur la même horloge :
+   reconstruire le dock (ouverture, fermeture d'une fenêtre) ne relance plus l'animation. */
+.dock-icon.notif-clignote { --notif: 255,140,40; }
+.dock-icon.notif-clignote-vert { --notif: 60,200,100; }
+.dock-icon.notif-clignote .dock-icon-pill, .dock-icon.notif-clignote-vert .dock-icon-pill { position: relative; }
+.dock-icon.notif-clignote .dock-icon-pill::before, .dock-icon.notif-clignote-vert .dock-icon-pill::before {
+  content: ''; position: absolute; left: 0; top: 0; width: 38px; height: 38px; border-radius: 11px; pointer-events: none;
+  animation: dock-halo 5s ease-out infinite; animation-delay: var(--notif-dephase, 0s);
 }
-.dock-icon.notif-clignote .dock-icon-img {
-  outline: 2px solid rgba(255,150,40,0);
-  outline-offset: 1px;
-  animation: dock-notif-clignote 4.6s ease-in-out infinite;
+.dock-icon.notif-clignote .dock-icon-pill::after, .dock-icon.notif-clignote-vert .dock-icon-pill::after {
+  content: ''; position: absolute; left: 29px; top: -3px; width: 9px; height: 9px; border-radius: 50%; pointer-events: none;
+  background: rgb(var(--notif)); border: 2px solid rgba(20,20,42,0.9); box-shadow: 0 0 6px rgba(var(--notif),0.8);
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
 }
-/* Le rebond à l'ouverture/fermeture passe avant le clignotement le temps qu'il dure. */
-.dock-icon.notif-clignote.bouncing .dock-icon-img { animation: dock-bounce 0.5s ease; }
-/* Même clignotement en vert pour Mes articles quand un article attend ma correction
-   (classe posée par osMesArticlesMajClignotement). */
-@keyframes dock-notif-clignote-vert {
-  0%, 12%, 100% { outline-color: rgba(60,210,100,0); filter: drop-shadow(0 0 0 rgba(60,210,100,0)) drop-shadow(0 0 0 rgba(40,200,90,0)); }
-  2.2%, 8.7%    { outline-color: rgba(60,210,100,1); filter: drop-shadow(0 0 3px rgba(60,210,100,1)) drop-shadow(0 0 10px rgba(40,200,90,0.95)); }
-  5.4%          { outline-color: rgba(60,210,100,0); filter: drop-shadow(0 0 0 rgba(60,210,100,0)) drop-shadow(0 0 0 rgba(40,200,90,0)); }
+/* La pastille suit l'icône quand elle se soulève au survol */
+.dock-icon.notif-clignote:hover .dock-icon-pill::after, .dock-icon.notif-clignote-vert:hover .dock-icon-pill::after { transform: translate(3px, -8px); }
+.dock-icon.notif-clignote:hover .dock-icon-pill::before, .dock-icon.notif-clignote-vert:hover .dock-icon-pill::before { animation: none; }
+@keyframes dock-halo {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--notif),0.6); }
+  28%  { box-shadow: 0 0 0 10px rgba(var(--notif),0); }
+  100% { box-shadow: 0 0 0 10px rgba(var(--notif),0); }
 }
-.dock-icon.notif-clignote-vert .dock-icon-img {
-  outline: 2px solid rgba(60,210,100,0);
-  outline-offset: 1px;
-  animation: dock-notif-clignote-vert 4.6s ease-in-out infinite;
-}
-.dock-icon.notif-clignote-vert.bouncing .dock-icon-img { animation: dock-bounce 0.5s ease; }
 @media (prefers-reduced-motion: reduce) {
-  .dock-icon.notif-clignote .dock-icon-img { animation: none; outline-color: rgba(255,150,40,0.9); }
-  .dock-icon.notif-clignote-vert .dock-icon-img { animation: none; outline-color: rgba(60,210,100,0.9); }
+  .dock-icon.notif-clignote .dock-icon-pill::before, .dock-icon.notif-clignote-vert .dock-icon-pill::before { animation: none; }
+}
+:root.mode-leger .dock-icon .dock-icon-pill::before { animation: none !important; }
+/* Sur téléphone l'icône ne se soulève pas au survol : la pastille non plus */
+@media (max-width: 768px) {
+  .dock-icon.notif-clignote:hover .dock-icon-pill::after, .dock-icon.notif-clignote-vert:hover .dock-icon-pill::after { transform: none; }
 }
 
 /* ===== NOTIFICATIONS BUREAU ===== */

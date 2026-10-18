@@ -2026,15 +2026,30 @@ function _creerSepDock(id){
   return s;
 }
 
+// Fenêtre ouverte et pas réduite
+function osDockFenetreAffichee(pageId){
+  var win = _windows[pageId];
+  return !!win && !(win.el && win.el.classList.contains('minimized'));
+}
+// Allume ou éteint le signal « du nouveau » d'une icône du dock (voir .notif-clignote dans le CSS).
+// À l'allumage, le halo est calé sur l'horloge (période de 5 s) : toutes les icônes battent ensemble,
+// et une icône reconstruite reprend là où en était l'ancienne au lieu de repartir de zéro.
+function osDockSignal(icone, classe, actif){
+  if(!icone) return;
+  if(actif && !icone.classList.contains(classe)) icone.style.setProperty('--notif-dephase', -(Date.now() % 5000) + 'ms');
+  icone.classList.toggle(classe, !!actif);
+}
+
 function _creerIconeDock(app, isPinned){
   var icon = document.createElement('div');
   icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '');
   icon.dataset.page = app.id;
   icon.dataset.pinned = isPinned ? '1' : '0';
-  // Reconstruit avec le dock : sans ça le clignotement de Ma rédac attendait le prochain
-  // passage du minuteur (osRedacMajClignotement) avant de réapparaître.
-  if(app.id === 'redactions' && !_windows['redactions'] && osRedacResteDuNonLu()) icon.classList.add('notif-clignote');
-  if(app.id === 'mes-articles' && !_windows['mes-articles'] && _corrAArticleACorriger) icon.classList.add('notif-clignote-vert');
+  // Reconstruit avec le dock : sans ça le signal de Ma rédac attendait le prochain
+  // passage du minuteur (osRedacMajClignotement) avant de réapparaître. Même règle que le
+  // minuteur (fenêtre réduite = pas à l'écran), sinon le signal s'éteignait et se rallumait.
+  if(app.id === 'redactions' && !osDockFenetreAffichee('redactions') && osRedacResteDuNonLu()) osDockSignal(icon, 'notif-clignote', true);
+  if(app.id === 'mes-articles' && !osDockFenetreAffichee('mes-articles') && _corrAArticleACorriger) osDockSignal(icon, 'notif-clignote-vert', true);
 
   var pill = document.createElement('div');
   pill.className = 'dock-icon-pill';
