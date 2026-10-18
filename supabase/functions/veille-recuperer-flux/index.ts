@@ -214,13 +214,16 @@ async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveau
       return { nouveaux: 0 };
     }
 
-    // Dédoublonnage : quels liens de cette source sont déjà connus ?
-    const liens = articles.map((a) => a.lien);
+    // Dédoublonnage : les liens déjà connus de cette source (les plus récents suffisent : un flux ne
+    // remonte pas des mois en arrière). Avant, tous les liens partaient dans l'adresse de la requête
+    // (lien=in.(...)) : trop longue ou mal comprise pour certains flux (ici Occitanie), la base
+    // renvoyait une erreur et la source entière échouait.
     const existantsRes = await fetch(
-      `${SB_URL}/rest/v1/veille_articles?flux_id=eq.${flux.id}&lien=in.(${liens.map((l) => `"${l.replace(/"/g, '\\"')}"`).join(",")})&select=lien`,
+      `${SB_URL}/rest/v1/veille_articles?flux_id=eq.${flux.id}&select=lien&order=created_at.desc&limit=2000`,
       { headers: headersSb() }
     );
-    const existants = new Set(((await existantsRes.json()) as { lien: string }[]).map((r) => r.lien));
+    const connus = await existantsRes.json().catch(() => []);
+    const existants = new Set((Array.isArray(connus) ? connus : []).map((r: { lien: string }) => r.lien));
 
     const nouveaux = articles.filter((a) => !existants.has(a.lien));
     const maintenant = new Date().toISOString();
@@ -230,7 +233,8 @@ async function traiterFlux(flux: { id: string; url: string }): Promise<{ nouveau
         const d = new Date(a.date);
         if (!isNaN(d.getTime())) datePublication = d.toISOString();
       }
-      await fetch(`${SB_URL}/rest/v1/veille_articles`, {
+      // on_conflict : un lien déjà présent (même source) est ignoré au lieu de faire échouer l'ajout
+      await fetch(`${SB_URL}/rest/v1/veille_articles?on_conflict=flux_id,lien`, {
         method: "POST",
         headers: headersSb({ Prefer: "return=minimal,resolution=ignore-duplicates" }),
         body: JSON.stringify({
