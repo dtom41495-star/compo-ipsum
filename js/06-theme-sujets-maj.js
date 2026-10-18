@@ -214,11 +214,8 @@ function osRedacResteDuNonLu(){
 }
 
 function osRedacMajClignotement(){
-  var win = _windows['redactions'];
-  var fenetreVisible = !!win && !(win.el && win.el.classList.contains('minimized'));
-  var doitClignoter = !fenetreVisible && osRedacResteDuNonLu();
-  var icone = document.querySelector('#os-dock .dock-icon[data-page="redactions"]');
-  if(icone) icone.classList.toggle('notif-clignote', doitClignoter);
+  var doitClignoter = !osDockFenetreAffichee('redactions') && osRedacResteDuNonLu();
+  osDockSignal(document.querySelector('#os-dock .dock-icon[data-page="redactions"]'), 'notif-clignote', doitClignoter);
 }
 
 function osRedacChargerNonLus(){
@@ -265,10 +262,7 @@ var _corrClignoteInit = false;
 var _corrAArticleACorriger = false;
 
 function osMesArticlesMajClignotement(){
-  var win = _windows['mes-articles'];
-  var fenetreVisible = !!win && !(win.el && win.el.classList.contains('minimized'));
-  var icone = document.querySelector('#os-dock .dock-icon[data-page="mes-articles"]');
-  if(icone) icone.classList.toggle('notif-clignote-vert', !fenetreVisible && _corrAArticleACorriger);
+  osDockSignal(document.querySelector('#os-dock .dock-icon[data-page="mes-articles"]'), 'notif-clignote-vert', !osDockFenetreAffichee('mes-articles') && _corrAArticleACorriger);
 }
 
 function osMesArticlesChargerACorriger(){

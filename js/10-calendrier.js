@@ -969,6 +969,7 @@ function osSujetValiderProposition(sujetId, accepte){
 window._veilleFlux = [];
 window._veilleArticles = [];
 var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
+var _veilleSourceActive = null;  // id d'une source, ou null pour toutes
 
 function osVeilleRender(){
   var wc = document.getElementById('wincontent-veille');
@@ -976,7 +977,7 @@ function osVeilleRender(){
   wc.innerHTML = osLoadingHtml();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   Promise.all([
-    fetch(SB_URL+'/rest/v1/veille_flux?select=id,nom,url,actif&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/veille_flux?select=id,nom,url,actif,derniere_recup,derniere_erreur&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,resume,image,date_publication&order=date_publication.desc.nullslast&limit=200',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     window._veilleFlux = (!res[0]||res[0].code)?[]:res[0];
@@ -1036,7 +1037,8 @@ function osVeilleOuvrirArticle(articleId, lien){
 // avoir vérifié qu'un sujet très proche n'existe pas déjà (même détection que pour la
 // rédaction normale — non bloquant, juste un avertissement).
 function osVeilleCreerSujet(articleId){
-  var article = (window._veilleArticles||[]).find(function(a){ return a.id===articleId; });
+  // Depuis l'appli, ou depuis le widget du bureau (js/53-veille-widget.js)
+  var article = (window._veilleArticles||[]).concat(window._veilleWidgetArticles||[]).find(function(a){ return a.id===articleId; });
   if(!article) return;
   _doublonsCharger().then(function(cache){
     var proches = _doublonsChercher(article.titre, cache);
@@ -1048,15 +1050,18 @@ function osVeilleCreerSujet(articleId){
       var t = document.getElementById('ns-titre');
       var n = document.getElementById('ns-note');
       if(t) t.value = article.titre||'';
-      if(n) n.value = (article.resume?article.resume+'\n\n':'')+'Source : '+article.lien;
+      // Les pages sans flux (ex. le Tarn Libre) ne donnent pas de résumé, seulement la mention « abonnés »
+      var abonnes = article.resume === 'Article réservé aux abonnés';
+      if(n) n.value = (article.resume && !abonnes ? article.resume+'\n\n' : '')+'Source'+(abonnes ? ' (article réservé aux abonnés)' : '')+' : '+article.lien;
     }, 60);
   });
 }
 
 function osVeilleRendreListe(wc){
   var vus = osVeilleVus();
+  if(_veilleSourceActive && !(window._veilleFlux||[]).some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
   var articles = (window._veilleArticles||[]).filter(function(a){
-    return _veilleFiltreActif !== 'non_lus' || vus.indexOf(a.id) === -1;
+    return (_veilleFiltreActif !== 'non_lus' || vus.indexOf(a.id) === -1) && (!_veilleSourceActive || a.flux_id === _veilleSourceActive);
   });
   var nonLusTotal = (window._veilleArticles||[]).filter(function(a){ return vus.indexOf(a.id)===-1; }).length;
   var fluxParId = {};
@@ -1080,6 +1085,18 @@ function osVeilleRendreListe(wc){
     h += '<button onclick="osVeilleOuvrirGestionFlux()" style="font-size:0.7rem;padding:4px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-settings"></i> Gérer les flux</button>';
   }
   h += '</div>';
+
+  // Filtre par source, dès qu'il y en a plusieurs
+  var sourcesAvecArticles = (window._veilleFlux||[]).filter(function(f){ return (window._veilleArticles||[]).some(function(a){ return a.flux_id === f.id; }); });
+  if(sourcesAvecArticles.length > 1){
+    h += '<div style="display:flex;gap:0.35rem;margin:-0.4rem 0 1rem;flex-wrap:wrap;">';
+    [{ id:null, nom:'Toutes les sources' }].concat(sourcesAvecArticles).forEach(function(f){
+      var actif = _veilleSourceActive === f.id;
+      var nb = f.id ? (window._veilleArticles||[]).filter(function(a){ return a.flux_id === f.id && vus.indexOf(a.id) === -1; }).length : 0;
+      h += '<button onclick="_veilleSourceActive='+(f.id ? '\''+f.id+'\'' : 'null')+';osVeilleRendreListe(document.getElementById(\'wincontent-veille\'))" style="font-size:0.66rem;padding:3px 10px;border-radius:20px;cursor:pointer;border:1px solid '+(actif?'var(--encre)':'var(--gris-bord)')+';background:'+(actif?'var(--encre)':'transparent')+';color:'+(actif?'var(--blanc)':'var(--gris)')+';">'+esc(f.nom)+(nb ? ' <strong style="color:'+(actif?'inherit':'var(--rouge)')+';">'+nb+'</strong>' : '')+'</button>';
+    });
+    h += '</div>';
+  }
 
   if(!(window._veilleFlux||[]).length){
     h += '<div style="text-align:center;padding:3rem 1rem;color:var(--gris);font-size:0.85rem;">Aucun flux suivi pour l\'instant.'+(osVeilleEstGestionnaire()?' <br><button onclick="osVeilleOuvrirGestionFlux()" class="btn sec" style="margin-top:0.8rem;">Ajouter un flux</button>':'')+'</div>';
@@ -1119,11 +1136,17 @@ function osVeilleOuvrirGestionFlux(){
     +'</div><div style="padding:1.2rem 1.5rem;">';
   h += '<div class="form-grid" style="margin-bottom:0.8rem;">'
     +'<div class="form-group full"><label>Nom de la source</label><input type="text" id="vf-nom" placeholder="Ex : La Dépêche du Midi"></div>'
-    +'<div class="form-group full"><label>URL du flux RSS</label><input type="text" id="vf-url" placeholder="https://exemple.fr/rss"></div>'
-    +'</div><div class="btn-row"><button class="btn" onclick="osVeilleAjouterFlux()">Ajouter</button></div><hr style="margin:1rem 0;border:none;border-top:1px solid var(--gris-bord);">';
+    +'<div class="form-group full"><label>Adresse du flux RSS, ou d\'une page qui liste les articles</label><input type="text" id="vf-url" placeholder="https://exemple.fr/rss"></div>'
+    +'</div><p style="font-size:0.7rem;color:var(--gris);line-height:1.5;margin:-0.3rem 0 0.8rem;">Pas de flux RSS ? Mets l\'adresse d\'une page « dernières actualités » ou « en continu » du média : Compo y reprend les titres et les liens (pas les textes). Les articles de plus de 60 jours s\'effacent tout seuls.</p><div class="btn-row"><button class="btn" onclick="osVeilleAjouterFlux()">Ajouter</button></div><hr style="margin:1rem 0;border:none;border-top:1px solid var(--gris-bord);">';
   h += '<div id="veille-liste-flux">'+(window._veilleFlux||[]).map(function(f){
     return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:0.5px solid var(--gris-bord);">'
-      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(f.nom)+'</div><div style="font-size:0.65rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(f.url)+'</div></div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:600;color:var(--encre);">'+esc(f.nom)+'</div><div style="font-size:0.65rem;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(f.url)+'</div>'
+      // État de la source : dernière récupération, ou l'erreur rencontrée
+      +(f.derniere_erreur
+        ? '<div style="font-size:0.65rem;color:#A32D2D;margin-top:2px;"><i class="ti ti-alert-triangle"></i> '+esc(String(f.derniere_erreur).replace(/^Error:\s*/,''))+'</div>'
+        : f.derniere_recup ? '<div style="font-size:0.65rem;color:#0F6E56;margin-top:2px;"><i class="ti ti-check"></i> Relevé '+esc(typeof _veilleWidgetQuand === 'function' ? _veilleWidgetQuand(f.derniere_recup) : '')+'</div>'
+        : '<div style="font-size:0.65rem;color:var(--gris);margin-top:2px;">Pas encore relevé (toutes les 30 min)</div>')
+      +'</div>'
       +'<button onclick="osVeilleSupprimerFlux(\''+f.id+'\')" title="Retirer ce flux" style="background:none;border:none;cursor:pointer;color:var(--rouge);font-size:0.9rem;"><i class="ti ti-trash"></i></button>'
       +'</div>';
   }).join('')+'</div>';
