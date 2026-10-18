@@ -969,7 +969,7 @@ function osSujetValiderProposition(sujetId, accepte){
 window._veilleFlux = [];
 window._veilleArticles = [];
 var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
-var _veilleSourceActive = null;  // id d'une source, ou null pour toutes
+var _veilleSourceActive = null;  // id d'une source, 'alertes' (mes alertes, js/54-veille-alertes.js), ou null pour toutes
 
 function osVeilleRender(){
   var wc = document.getElementById('wincontent-veille');
@@ -1125,14 +1125,15 @@ function osVeilleRendreListe(wc){
   var vus = osVeilleVus();
   var flux = window._veilleFlux || [];
   var tous = window._veilleArticles || [];
-  if(_veilleSourceActive && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
+  var vueAlertes = _veilleSourceActive === 'alertes' && typeof osVeilleAlerteMot === 'function';
+  if(_veilleSourceActive && !vueAlertes && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
   var fluxParId = {};
   flux.forEach(function(f){ fluxParId[f.id] = f; });
   var nonLu = function(a){ return vus.indexOf(a.id) === -1; };
   var q = _veilleNorm(_veilleRecherche.trim());
   var articles = tous.filter(function(a){
     return (_veilleFiltreActif !== 'non_lus' || nonLu(a))
-      && (!_veilleSourceActive || a.flux_id === _veilleSourceActive)
+      && (!_veilleSourceActive || (vueAlertes ? osVeilleAlerteMot(a) : a.flux_id === _veilleSourceActive))
       && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
   });
   var nonLusTotal = tous.filter(nonLu).length;
@@ -1142,6 +1143,10 @@ function osVeilleRendreListe(wc){
   // Rail des sources
   var r = '<nav class="vl-rail mobile-onglets"><div class="vl-rail-titre">Sources</div>'
     +'<button type="button" class="vl-src'+(!_veilleSourceActive ? ' active' : '')+'" data-action="source" data-id=""><i class="ti ti-stack-2"></i><span class="vl-src-nom">Toutes</span>'+(nonLusTotal ? '<span class="vl-src-nb">'+nonLusTotal+'</span>' : '')+'</button>';
+  if(typeof osVeilleAlerteMot === 'function'){
+    var nbAlertes = tous.filter(function(a){ return nonLu(a) && osVeilleAlerteMot(a); }).length;
+    r += '<button type="button" class="vl-src vl-src-alertes'+(vueAlertes ? ' active' : '')+'" data-action="alertes"><i class="ti ti-bell-ringing"></i><span class="vl-src-nom">Mes alertes</span>'+(nbAlertes ? '<span class="vl-src-nb">'+nbAlertes+'</span>' : '')+'</button>';
+  }
   flux.forEach(function(f){
     var nb = tous.filter(function(a){ return a.flux_id === f.id && nonLu(a); }).length;
     r += '<button type="button" class="vl-src'+(_veilleSourceActive === f.id ? ' active' : '')+'" data-action="source" data-id="'+esc(f.id)+'" title="'+esc(f.derniere_erreur ? 'Problème : '+String(f.derniere_erreur).replace(/^Error:\s*/, '') : f.nom)+'">'
@@ -1158,6 +1163,14 @@ function osVeilleRendreListe(wc){
     +'<button type="button" class="'+(_veilleFiltreActif === 'non_lus' ? 'active' : '')+'" data-action="filtre" data-id="non_lus">Non lus'+(nonLusTotal ? ' · '+nonLusTotal : '')+'</button></div>'
     +(nonLusTotal ? '<button type="button" class="vl-lien" data-action="tout-lu"><i class="ti ti-checks"></i> Tout marquer comme lu</button>' : '')
     +'</div>';
+
+  // Mes alertes : les mots suivis, et de quoi les changer
+  if(vueAlertes){
+    var mesMots = _veilleAlertes.mots;
+    c += '<div class="vl-alertes-tete"><div><strong><i class="ti ti-bell-ringing"></i> Mes alertes</strong><span>Rien qu’à toi : les articles qui contiennent un de tes mots-clés.</span></div>'
+      +'<div class="vl-alertes-mots">'+(mesMots.length ? mesMots.map(function(m){ return '<span class="vl-alertes-mot">'+esc(m)+'</span>'; }).join('') : '')+'</div>'
+      +'<button type="button" class="vl-btn" data-action="alertes-regler"><i class="ti ti-adjustments"></i> '+(mesMots.length ? 'Modifier' : 'Choisir mes mots-clés')+'</button></div>';
+  }
 
   // Sujets du moment (vue d'ensemble seulement)
   if(!_veilleSourceActive && !q && _veilleFiltreActif !== 'non_lus'){
@@ -1179,7 +1192,8 @@ function osVeilleRendreListe(wc){
   if(!flux.length){
     c += '<div class="vl-vide"><i class="ti ti-rss"></i><strong>Aucune source suivie pour l’instant.</strong>'+(gestion ? '<button type="button" class="vl-btn" data-action="gerer">Ajouter une source</button>' : '<span>Un·e admin ou un·e rédac chef peut en ajouter.</span>')+'</div>';
   } else if(!articles.length){
-    c += '<div class="vl-vide"><i class="ti ti-mood-empty"></i><strong>'+(q ? 'Rien ne correspond à « '+esc(_veilleRecherche.trim())+' ».' : 'Rien à lire ici pour l’instant.')+'</strong></div>';
+    if(vueAlertes) c += '<div class="vl-vide"><i class="ti ti-bell-off"></i><strong>'+(_veilleAlertes.mots.length ? 'Aucun article récent ne contient tes mots-clés.' : 'Choisis des mots-clés pour être prévenu·e quand un média en parle.')+'</strong></div>';
+    else c += '<div class="vl-vide"><i class="ti ti-mood-empty"></i><strong>'+(q ? 'Rien ne correspond à « '+esc(_veilleRecherche.trim())+' ».' : 'Rien à lire ici pour l’instant.')+'</strong></div>';
   } else {
     var jourCourant = null;
     articles.forEach(function(a){
@@ -1193,7 +1207,8 @@ function osVeilleRendreListe(wc){
         +'<div class="vl-carte-tete"><span class="vl-source" style="--c:'+_veilleCouleur(a.flux_id)+'">'+esc(f ? f.nom : 'Source inconnue')+'</span>'
         +(a.date_publication ? '<span>'+esc(_veilleHeure(a.date_publication))+'</span>' : '')
         +(abonnes ? '<span class="vl-abonnes"><i class="ti ti-lock"></i> abonnés</span>' : '')
-        +(neuf ? '<span class="vl-nouveau">nouveau</span>' : '')+'</div>'
+        +(neuf ? '<span class="vl-nouveau">nouveau</span>' : '')
+        +(typeof osVeilleAlerteBadge === 'function' ? osVeilleAlerteBadge(a) : '')+'</div>'
         +'<h3><button type="button" data-action="lire" data-id="'+esc(a.id)+'">'+esc(a.titre)+'</button></h3>'
         +(a.resume && !abonnes ? '<p>'+esc(a.resume)+'</p>' : '')
         +'<div class="vl-actions">'
@@ -1220,7 +1235,13 @@ function osVeilleRendreListe(wc){
       var b = e.target.closest('[data-action]'); if(!b || !wc.contains(b)) return;
       var id = b.getAttribute('data-id'), act = b.getAttribute('data-action');
       var art = (window._veilleArticles || []).find(function(a){ return a.id === id; });
-      if(act === 'source'){ _veilleSourceActive = id || null; osVeilleRendreListe(wc); var cp = wc.querySelector('.vl-corps'); if(cp) cp.scrollTop = 0; }
+      if(act === 'alertes'){
+        _veilleSourceActive = 'alertes';
+        if(!_veilleAlertes.mots.length) osVeilleAlertesOuvrir();
+        osVeilleRendreListe(wc); var ca = wc.querySelector('.vl-corps'); if(ca) ca.scrollTop = 0;
+      }
+      else if(act === 'alertes-regler') osVeilleAlertesOuvrir();
+      else if(act === 'source'){ _veilleSourceActive = id || null; osVeilleRendreListe(wc); var cp = wc.querySelector('.vl-corps'); if(cp) cp.scrollTop = 0; }
       else if(act === 'filtre'){ _veilleFiltreActif = id; osVeilleRendreListe(wc); }
       else if(act === 'tout-lu') osVeilleToutMarquerLu();
       else if(act === 'gerer') osVeilleOuvrirGestionFlux();

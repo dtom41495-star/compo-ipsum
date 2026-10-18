@@ -6128,6 +6128,26 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .vl-etat.ok { color: #0F6E56; } .vl-etat.erreur { color: #A32D2D; }
 .vl-icone { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: var(--rouge); cursor: pointer; }
 .vl-icone:hover { background: rgba(232,70,30,0.08); }
+/* Mes alertes (js/54-veille-alertes.js) */
+.vl-alerte { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: rgba(232,70,30,0.12); color: var(--rouge); font-weight: 700; font-size: 0.6rem; }
+.os-w-veille-meta .vl-alerte { background: rgba(232,70,30,0.3); color: #fff; font-size: 0.58rem; padding: 0 6px; }
+.vl-alertes-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 0.8rem 1rem; margin-bottom: 1rem; border-radius: 12px; background: rgba(232,70,30,0.06); border: 1px solid rgba(232,70,30,0.18); }
+.vl-alertes-tete > div:first-child { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; font-size: 0.84rem; }
+.vl-alertes-tete > div:first-child span { font-size: 0.7rem; color: var(--gris); }
+.vl-alertes-tete .vl-alertes-mots:empty { display: none; }
+.vl-alertes-mots { display: flex; flex-wrap: wrap; gap: 6px; }
+.vl-alertes-mot { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--gris-bord); color: var(--encre); font-size: 0.74rem; font-weight: 600; }
+.vl-alertes-mot button { border: none; background: none; padding: 0; color: var(--gris); cursor: pointer; display: inline-flex; }
+.vl-alertes-mot button:hover { color: var(--rouge); }
+.vl-alertes-vide { font-size: 0.74rem; color: var(--gris); }
+.vl-alertes-boite { width: 480px; }
+.vl-alertes-boite .se-corps { display: flex; flex-direction: column; gap: 0.9rem; }
+.vl-alertes-ajout { display: flex; gap: 8px; }
+.vl-alertes-ajout input { flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid var(--gris-bord); border-radius: 8px; font: 0.84rem 'DM Sans', sans-serif; background: transparent; color: var(--encre); }
+.vl-alertes-ajout .se-btn-secondaire { width: auto; flex: 0 0 auto; min-height: 40px; }
+.vl-alertes-prevenir small { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--gris); }
+.vl-src-alertes:not(.active) i { color: var(--rouge); }
+:root.theme-dark .vl-alertes-prevenir { background: rgba(255,255,255,0.06); }
 :root.theme-dark .vl-src:hover { background: rgba(255,255,255,0.06); }
 :root.theme-dark .vl-etat.ok { color: #6CC784; } :root.theme-dark .vl-etat.erreur { color: #F09595; }
 @media (max-width: 768px) {
