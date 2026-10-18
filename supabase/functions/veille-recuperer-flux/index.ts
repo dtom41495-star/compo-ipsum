@@ -101,8 +101,14 @@ function parserAtom(xml: string): ArticleExtrait[] {
   const entrees = xml.match(/<entry[\s>][\s\S]*?<\/entry>/g) || [];
   return entrees.map((e) => {
     const titre = stripHtml(matchTag(e, "title") || "");
-    const alt = e.match(/<link[^>]+rel="alternate"[^>]*href="([^"]+)"/i) || e.match(/<link[^>]+href="([^"]+)"/i);
-    const lien = alt ? decodeEntities(alt[1]) : "";
+    // Le lien de l'article : rel="alternate" (ou pas de rel), jamais rel="self" (l'adresse du flux) ;
+    // les attributs peuvent venir dans n'importe quel ordre
+    const liensAtom = [...e.matchAll(/<link\b[^>]*>/gi)].map((l) => ({
+      rel: (l[0].match(/\brel="([^"]*)"/i) || [])[1] || "alternate",
+      href: (l[0].match(/\bhref="([^"]*)"/i) || [])[1] || "",
+    })).filter((l) => l.href);
+    const alt = liensAtom.find((l) => l.rel === "alternate");
+    const lien = alt ? decodeEntities(alt.href) : "";
     const date = matchTag(e, "published") || matchTag(e, "updated") || "";
     const extrait = stripHtml(matchTag(e, "summary") || matchTag(e, "content") || "").slice(0, 220);
     return { titre, lien, date, extrait, image: extraireImage(e) };

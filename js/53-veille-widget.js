@@ -62,7 +62,8 @@ function osVeilleWidgetRendre(){
     });
   }
   var h = '<div class="os-w-veille-tete"><i class="ti ti-rss"></i><span>Veille</span>'
-    +(nonLus ? '<span class="os-w-veille-nb">'+(nonLus > 29 ? '30+' : nonLus)+' nouveau'+(nonLus > 1 ? 'x' : '')+'</span>' : '')
+    // On ne charge que les 30 derniers : s'ils sont tous non lus, il y en a peut-être plus
+    +(nonLus ? '<span class="os-w-veille-nb">'+(nonLus === liste.length && liste.length >= 30 ? '30+' : nonLus)+' nouveau'+(nonLus > 1 ? 'x' : '')+'</span>' : '')
     +'<button type="button" data-action="ouvrir-appli" title="Ouvrir la Veille"><i class="ti ti-arrow-up-right"></i></button></div><ul>';
   liste.slice(0, VEILLE_WIDGET_NB).forEach(function(a){
     var f = _veilleWidget.flux[a.flux_id];
