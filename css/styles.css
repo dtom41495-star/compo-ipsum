@@ -6008,3 +6008,19 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .maint-admin-acces > span { width: 100%; font: .6rem/1.2 'Space Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #8A8580; }
 .maint-boite .maint-admin-acces button { margin-top: 0; font-size: 0.76rem; padding: 6px 12px; }
 :root.theme-dark .maint-admin-acces { border-top-color: rgba(255,255,255,.12); }
+
+/* ===== INSTALLER COMPO SUR L'ORDINATEUR (js/52-installer-pc.js) : carte sous l'horloge du bureau ===== */
+.os-w-installer { clear: both; margin-top: 10px; display: flex; gap: 12px; align-items: flex-start; padding: 0.9rem 1rem; pointer-events: auto; user-select: text; }
+.os-w-installer img { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+.os-w-installer-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-family: 'DM Sans', sans-serif; }
+.os-w-installer-txt strong { font-family: 'Poppins', sans-serif; font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+.os-w-installer-txt span { font-size: 0.72rem; line-height: 1.45; color: rgba(255,255,255,0.7); }
+.os-w-installer-btns { display: flex; gap: 6px; margin-top: 6px; }
+.os-w-installer-btns button { font: 600 0.72rem 'DM Sans', sans-serif; padding: 5px 12px; border-radius: 999px; border: none; cursor: pointer; }
+.os-w-installer-ok { background: #E8461E; color: #fff; }
+.os-w-installer-ok:hover { background: #C73A18; }
+.os-w-installer-non { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85); }
+.os-w-installer-non:hover { background: rgba(255,255,255,0.18); }
+.inst-etape { display: flex; align-items: flex-start; gap: 10px; font-size: 0.86rem; line-height: 1.5; }
+.inst-etape > i { font-size: 1.15rem; color: var(--rouge); margin-top: 1px; flex-shrink: 0; }
+.inst-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--gris-clair); font-size: 0.72rem; font-weight: 700; color: var(--encre); }

@@ -1314,6 +1314,10 @@ function osParamsRenderSection(section, container){
     rowCache.appendChild(btnCache);
     container.appendChild(rowCache);
 
+    // Installer Compo comme une appli (js/52-installer-pc.js) : absent si déjà installé ou si le navigateur ne sait pas faire
+    var rowInstall = typeof osInstallerParamsLigne === 'function' ? osInstallerParamsLigne() : null;
+    if(rowInstall) container.appendChild(rowInstall);
+
     var rowDeconnect = document.createElement('div');
     rowDeconnect.className = 'params-row';
     rowDeconnect.innerHTML = '<div><div class="params-label">Se déconnecter</div><div class="params-label-sub">Quitte Compo OS</div></div>';

@@ -1,7 +1,8 @@
 // Reçoit les réponses au formulaire Tally de recrutement et les range dans la table candidats
 // (docs/sql/vie-asso-candidats.sql), où la vie associative les retrouve : Bénévoles > Candidats.
 // Remplit tout seul prénom, nom, email, téléphone et rédaction ; les réponses restent aussi telles quelles dans la fiche.
-// Prévient les admins, la vie associative et les rédac chefs, chacun par Chat ou par email selon son réglage.
+// Envoie un accusé de réception à la personne, et prévient les admins, la vie associative et les rédac chefs,
+// chacun par Chat ou par email selon son réglage.
 //
 // Le webhook se règle dans Tally, sur le seul formulaire de recrutement (onglet Intégrations > Webhooks) :
 //   URL : https://ctmekufqaxdelgfyjwly.supabase.co/functions/v1/tally-candidature
@@ -101,6 +102,37 @@ function chatCandidature(c: { nom: string; email: string; telephone: string; red
   let corps = reponses.map((r) => `_${r.question.replace(/[_*]/g, "").slice(0, 160)}_\n${(r.reponse || "—").replace(/[_*]/g, "").slice(0, 400)}`).join("\n\n")
   if (corps.length > 3000) corps = corps.slice(0, 3000).replace(/\s+\S*$/, "") + " […]"
   return `${tete}\n\n${corps}\n\nLa fiche est dans Compo : Bénévoles > Candidats  <https://compo.ipsummedia.fr|Ouvrir Compo>`
+}
+
+// L'accusé de réception envoyé à la personne qui s'inscrit (texte validé par Tom, 2026-10-18)
+function emailBienvenue(prenom: string, redaction: string): string {
+  const P = "'DM Sans', Arial, Helvetica, sans-serif", ENCRE = "#1A1A2E", GRIS = "#6B7280", BORD = "#E7E5E4"
+  const lien = `<a href="mailto:contact@ipsummedia.fr" style="color:#E8461E;font-weight:600;text-decoration:none;">contact@ipsummedia.fr</a>`
+  const etapes = [
+    "Nous vous créons votre adresse @ipsummedia.fr et vous envoyons vos identifiants.",
+    "Vous découvrez Compo, l'outil où toute la rédaction écrit, relit et prépare ses sujets.",
+    "Vous profitez de deux semaines d'essai pour rencontrer l'équipe, prendre vos marques et proposer vos premiers sujets, à votre rythme.",
+    "Si l'aventure vous plaît, vous nous rejoignez pour de bon en réglant l'adhésion annuelle de 17 €.",
+  ].map((t) => `<li style="margin:0 0 6px;">${enHtml(t)}</li>`).join("")
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F2EF;"><tr><td align="center" style="padding:24px 12px;">`
+    + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid ${BORD};">`
+    + `<tr><td align="center" style="padding:22px 24px 16px;border-bottom:1px solid ${BORD};"><img src="https://ipsummedia.fr/assets/logo.png" alt="Ipsum Média" height="56" style="height:56px;display:block;"></td></tr>`
+    + `<tr><td style="padding:24px 28px 8px;"><span style="display:inline-block;padding:4px 11px;border-radius:999px;background:#E3F6EA;color:#1E7A45;font:700 11px/1.3 ${P};letter-spacing:0.04em;">Candidature reçue</span>`
+    + (redaction ? `<span style="display:inline-block;margin-left:6px;padding:4px 11px;border-radius:999px;background:${BORD};color:${GRIS};font:700 11px/1.3 ${P};">${enHtml(redaction)}</span>` : "")
+    + `<h1 style="margin:12px 0 0;font:700 22px/1.3 Arial, Helvetica, sans-serif;color:${ENCRE};">Merci${prenom ? " " + enHtml(prenom) : ""}, et bienvenue !</h1></td></tr>`
+    + `<tr><td style="padding:10px 28px 4px;font:400 15px/1.6 ${P};color:${ENCRE};">`
+    + `<p style="margin:0 0 10px;">Votre formulaire d'inscription est bien arrivé, et ça nous fait très plaisir : Ipsum Média vit grâce aux personnes qui, comme vous, ont envie de raconter ce qui se passe près de chez elles.</p>`
+    + `<p style="margin:0;">La vie associative va lire vos réponses avec attention et revient vers vous dans les prochains jours pour la suite.</p></td></tr>`
+    + `<tr><td style="padding:16px 28px 0;font:400 14px/1.6 ${P};color:${ENCRE};"><p style="margin:0 0 8px;font-weight:700;">Comment ça se passe ensuite ?</p><ol style="margin:0;padding-left:20px;">${etapes}</ol></td></tr>`
+    + `<tr><td style="padding:14px 28px 0;font:400 14px/1.6 ${P};color:${ENCRE};"><p style="margin:0 0 14px;">D'ici là, si une question vous trotte dans la tête, écrivez-nous à ${lien} : on vous répondra avec plaisir.</p><p style="margin:0;">À très vite,<br>L'équipe d'Ipsum Média</p></td></tr>`
+    + `<tr><td style="padding:26px 28px 24px;"><div style="border-top:1px solid ${BORD};padding-top:14px;font:400 12px/1.55 ${P};color:${GRIS};">Vous recevez cet email parce que vous avez rempli le formulaire d'inscription d'Ipsum Média.<br>Cet email est envoyé automatiquement, merci de ne pas y répondre.<br>Ipsum Média · association de médias locaux du Tarn</div></td></tr>`
+    + `</table></td></tr></table>`
+}
+
+async function accuserReception(email: string, prenom: string, redaction: string) {
+  if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email)) return
+  await appelerFonction("envoyer-email", { to: email, subject: "Bienvenue chez Ipsum Média, votre candidature est bien arrivée", html: emailBienvenue(prenom, redaction) })
+  await pause(600)
 }
 
 // deno-lint-ignore no-explicit-any
@@ -236,9 +268,12 @@ Deno.serve(async (req) => {
     const { error } = await sb.from("candidats").update(maj).eq("id", existant.id)
     if (error) return json({ error: error.message }, 500)
     const redac = (maj.redaction_id as string | null) || null
-    await enArrierePlan(nomRedaction(redac).then((r) => prevenirEquipe(sb, {
-      nom: `${maj.prenom || ""} ${maj.nom || ""}`.trim() || email || "Quelqu'un", email, telephone: (maj.telephone as string) || "", redaction: r,
-    }, redac, reponses)))
+    await enArrierePlan(nomRedaction(redac).then(async (r) => {
+      await accuserReception(email, (maj.prenom as string) || "", r)
+      await prevenirEquipe(sb, {
+        nom: `${maj.prenom || ""} ${maj.nom || ""}`.trim() || email || "Quelqu'un", email, telephone: (maj.telephone as string) || "", redaction: r,
+      }, redac, reponses)
+    }))
     return json({ ok: true, candidat: existant.id })
   }
 
@@ -255,8 +290,11 @@ Deno.serve(async (req) => {
     cree_par: null,
   }).select("id").single()
   if (error) return json({ error: error.message }, 500)
-  await enArrierePlan(nomRedaction(redactionId).then((r) => prevenirEquipe(sb, {
-    nom: `${prenom} ${nom}`.trim() || email || "Quelqu'un", email, telephone, redaction: r,
-  }, redactionId, reponses)))
+  await enArrierePlan(nomRedaction(redactionId).then(async (r) => {
+    await accuserReception(email, prenom, r)
+    await prevenirEquipe(sb, {
+      nom: `${prenom} ${nom}`.trim() || email || "Quelqu'un", email, telephone, redaction: r,
+    }, redactionId, reponses)
+  }))
   return json({ ok: true, candidat: cree.id })
 })
