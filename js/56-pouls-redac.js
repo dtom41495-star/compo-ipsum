@@ -69,7 +69,7 @@ function osPoulsCalculer(d){
   var a = Math.min(1, d.articlesEnCours / 8);
   var s = Math.min(1, d.sujetsLibres / 8);
   var score = Math.round(100 * (POULS_PAS.newsletter * n + POULS_PAS.correction * c + POULS_PAS.articles * a + POULS_PAS.sujets * s));
-  return { score:Math.max(0, Math.min(100, score)), parCorr:parCorr, jours:jours };
+  return { score:Math.max(0, Math.min(100, score)), parCorr:parCorr, jours:jours, parts:{ newsletter:n, correction:c, articles:a, sujets:s }, totalBreves:totalBreves };
 }
 
 function osPoulsEtat(score){
@@ -90,9 +90,10 @@ function osPoulsCharger(){
     return Promise.all([
       lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut'+filtre),
       lire('articles?type=eq.breve&statut=eq.publie&select=id'+depuis+filtre),
-      lire('briefing?statut=eq.ouvert&select=id'+filtre)
+      lire('briefing?statut=eq.ouvert&select=id'+filtre),
+      lire('briefing?statut=eq.en_cours&select=id'+filtre)
     ]).then(function(res){
-      if(!res[0] || !res[1] || !res[2]) return;
+      if(!res[0] || !res[1] || !res[2] || !res[3]) return;
       var cours = res[0];
       var compte = function(type, statuts){ return cours.filter(function(x){ return x.type === type && statuts.indexOf(x.statut) !== -1; }).length; };
       var d = {
@@ -101,11 +102,12 @@ function osPoulsCharger(){
         enRelecture: cours.filter(function(x){ return x.statut === 'en-relecture'; }).length,
         articlesEnCours: compte('article', ['brouillon', 'en-relecture']),
         sujetsLibres: res[2].length,
+        sujetsEnCours: res[3].length,
         correcteurs: _poulsNbCorrecteurs(r),
         prochaine: _poulsProchaineNewsletter(nl.map(function(x){ return x.date_envoi; }))
       };
       var res2 = osPoulsCalculer(d);
-      _pouls.dernier = { donnees:d, score:res2.score, parCorr:res2.parCorr };
+      _pouls.dernier = { donnees:d, score:res2.score, parCorr:res2.parCorr, parts:res2.parts, totalBreves:res2.totalBreves, maj:Date.now() };
       osPoulsRendre();
     });
   }).catch(function(){});
@@ -128,15 +130,81 @@ function osPoulsRendre(){
     // Sous la pastille « en ligne », avant la carte d'installation
     var installer = document.getElementById('os-w-installer');
     if(installer) widget.insertBefore(carte, installer); else widget.appendChild(carte);
+    carte.addEventListener('click', osPoulsDetailBasculer);
+    carte.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); osPoulsDetailBasculer(e); } });
   }
   carte.style.setProperty('--c', etat.couleur);
-  var parCorr = Math.round(m.parCorr * 10) / 10;
-  carte.title = 'Newsletter '+(typeof osHorairesQuandTexte === 'function' ? osHorairesQuandTexte(d.prochaine) : '')
-    +' · '+d.brevesPretes+' brève'+(d.brevesPretes > 1 ? 's' : '')+' prête'+(d.brevesPretes > 1 ? 's' : '')+', '+d.brevesPendantes+' en cours'
-    +'\n'+d.enRelecture+' en relecture pour '+d.correcteurs+' correcteur'+(d.correcteurs > 1 ? 's' : '')+' ('+String(parCorr).replace('.', ',')+' par personne)'
-    +'\n'+d.articlesEnCours+' article'+(d.articlesEnCours > 1 ? 's' : '')+' en cours · '+d.sujetsLibres+' sujet'+(d.sujetsLibres > 1 ? 's' : '')+' à prendre';
-  carte.setAttribute('aria-label', 'La rédac : '+etat.mot);
+  carte.title = 'Voir le détail';
+  carte.setAttribute('aria-label', 'La rédac : '+etat.mot+'. Voir le détail');
+  carte.setAttribute('role', 'button');
+  carte.tabIndex = 0;
   carte.innerHTML = '<small>La rédac</small><b>'+etat.mot+'</b><div class="os-w-pouls-regle"><i style="left:'+m.score+'%"></i></div>';
+  if(document.getElementById('os-pouls-pop')) _poulsDetailRemplir();  // détail ouvert : il se met à jour
+}
+
+// ---- Le détail, au clic sur le widget ----
+function _poulsDetailHtml(m){
+  var d = m.donnees, etat = osPoulsEtat(m.score);
+  var niveau = function(p){ return p < 0.4 ? 'ok' : p < 0.75 ? 'moy' : 'mal'; };
+  var pl = function(n, mot){ return n+' '+mot+(n > 1 ? 's' : ''); };
+  var parCorr = String(Math.round(m.parCorr * 10) / 10).replace('.', ',');
+  var jours = Math.max(0, Math.ceil((d.prochaine - Date.now()) / 86400000));
+  var quand = typeof osHorairesQuandTexte === 'function' ? osHorairesQuandTexte(d.prochaine) : '';
+  var ligne = function(icone, titre, sous, valeur, part){
+    return '<div class="pr-pop-l"><i class="ti ti-'+icone+'"></i><div><div>'+titre+'</div><small>'+sous+'</small><div class="pr-pop-barre pr-'+niveau(part)+'"><i style="width:'+Math.max(5, Math.round(part * 100))+'%"></i></div></div><b>'+valeur+'</b></div>';
+  };
+  var redac = (window._redactionsData || []).find(function(x){ return x.id === window._redacActiveId; });
+  var maj = new Date(m.maj || Date.now()).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ');
+  return '<div class="pr-pop-tete"><span style="color:'+etat.couleur+'">'+etat.mot+'</span><em>'+m.score+'<small> / 100</small></em></div>'
+    +ligne('mail-forward', 'Newsletter', quand+' · '+pl(d.brevesPretes, 'brève')+' prête'+(d.brevesPretes > 1 ? 's' : '')+' sur '+m.totalBreves, 'J-'+jours, m.parts.newsletter)
+    +ligne('stethoscope', 'Correction', d.enRelecture+' en relecture pour '+pl(d.correcteurs, 'correcteur'), parCorr+' / pers.', m.parts.correction)
+    +ligne('pencil', 'Articles en cours', 'brouillons et relectures', d.articlesEnCours, m.parts.articles)
+    +ligne('bulb', 'Sujets à prendre', d.sujetsEnCours+' déjà en cours', d.sujetsLibres, m.parts.sujets)
+    +'<div class="pr-pop-pied">'+(redac ? esc(redac.nom) : 'Toutes les rédactions')+' · mis à jour à '+maj+'</div>';
+}
+
+function _poulsDetailRemplir(){
+  var pop = document.getElementById('os-pouls-pop');
+  if(pop && _pouls.dernier) pop.innerHTML = _poulsDetailHtml(_pouls.dernier);
+}
+
+function osPoulsDetailFermer(){
+  var pop = document.getElementById('os-pouls-pop');
+  if(pop) pop.remove();
+  var carte = document.getElementById('os-w-pouls');
+  if(carte) carte.removeAttribute('aria-expanded');
+  document.removeEventListener('click', osPoulsDetailFermer);
+  document.removeEventListener('keydown', _poulsDetailEchap);
+}
+function _poulsDetailEchap(e){ if(e.key === 'Escape') osPoulsDetailFermer(); }
+
+function osPoulsDetailBasculer(e){
+  if(e) e.stopPropagation();
+  if(document.getElementById('os-pouls-pop')){ osPoulsDetailFermer(); return; }
+  var carte = document.getElementById('os-w-pouls');
+  if(!carte || !_pouls.dernier) return;
+  var pop = document.createElement('div');
+  pop.id = 'os-pouls-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Détail de la rédac');
+  pop.style.visibility = 'hidden';
+  pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
+  document.body.appendChild(pop);
+  carte.setAttribute('aria-expanded', 'true');
+  _poulsDetailRemplir();
+  // À gauche du widget (il est contre le bord droit), sinon dessous ; toujours dans l'écran
+  var r = carte.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight, pw = pop.offsetWidth || 310, ph = pop.offsetHeight || 300;
+  var left = r.left - pw - 12;
+  var top = r.top;
+  if(left < 8){ left = Math.max(8, Math.min(r.right - pw, W - pw - 8)); top = r.bottom + 8; }
+  top = Math.max(8, Math.min(top, H - ph - 8));
+  pop.style.left = left+'px';
+  pop.style.top = top+'px';
+  pop.style.visibility = '';
+  setTimeout(function(){
+    document.addEventListener('click', osPoulsDetailFermer);
+    document.addEventListener('keydown', _poulsDetailEchap);
+  }, 0);
 }
 
 (function(){

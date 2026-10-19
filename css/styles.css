@@ -6183,6 +6183,22 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .os-w-pouls-regle { position: relative; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #5BD39A 0 30%, #FFB43C 30% 65%, #FF6A55 65% 100%); opacity: 0.9; }
 .os-w-pouls-regle i { position: absolute; top: -7px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid #fff; transform: translateX(-6px); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); transition: left 0.6s cubic-bezier(.2,.9,.3,1); }
 @media (max-height: 640px) { .os-w-pouls { display: none; } }
+.os-w-pouls { cursor: pointer; transition: background 0.2s; }
+.os-w-pouls:hover { background: rgba(20,20,42,0.7); }
+.os-w-pouls:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#os-pouls-pop { position: fixed; z-index: 9000; width: 310px; box-sizing: border-box; padding: 0.9rem 1rem 0.8rem; border-radius: 16px; background: rgba(28,28,40,0.9); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 12px 40px rgba(0,0,0,0.35); color: #fff; font-family: 'DM Sans', sans-serif; }
+.pr-pop-tete { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.pr-pop-tete > span { font: 800 1.5rem 'Poppins', sans-serif; letter-spacing: -0.01em; }
+.pr-pop-tete em { font: 700 1.1rem 'Poppins', sans-serif; font-style: normal; } .pr-pop-tete small { font: 400 0.62rem 'Space Mono', monospace; color: rgba(255,255,255,0.5); }
+.pr-pop-l { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid rgba(255,255,255,0.09); font-size: 0.78rem; }
+.pr-pop-l:first-of-type { margin-top: 6px; }
+.pr-pop-l > i { font-size: 1.05rem; color: rgba(255,255,255,0.55); }
+.pr-pop-l small { display: block; margin-top: 1px; font-size: 0.64rem; color: rgba(255,255,255,0.55); }
+.pr-pop-l > b { font: 700 0.86rem 'Poppins', sans-serif; text-align: right; white-space: nowrap; }
+.pr-pop-barre { height: 3px; border-radius: 2px; margin-top: 5px; background: rgba(255,255,255,0.12); overflow: hidden; }
+.pr-pop-barre i { display: block; height: 100%; border-radius: 2px; }
+.pr-pop-barre.pr-ok i { background: #5BD39A; } .pr-pop-barre.pr-moy i { background: #FFB43C; } .pr-pop-barre.pr-mal i { background: #FF6A55; }
+.pr-pop-pied { margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.09); font: 400 0.6rem 'Space Mono', monospace; color: rgba(255,255,255,0.45); letter-spacing: 0.03em; }
 
 /* Veille × carnet de sources (js/55-veille-contacts.js) */
 .vl-contact { display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 1px 8px; border: none; border-radius: 999px; background: rgba(46,134,193,0.14); color: #2E86C1; font: 700 0.6rem 'DM Sans', sans-serif; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
