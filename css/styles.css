@@ -5738,6 +5738,14 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 #ecr-date { text-transform:uppercase; letter-spacing:.12em; }
 .ecr-compteur { border-radius:8px; border-top:0; border-bottom:4px solid var(--ecr-c,var(--ecr-gris)); text-align:center; }
 .ecr-compteur-l { text-transform:uppercase; letter-spacing:.12em; font-size:clamp(.62rem,1.35vh,.92rem); }
+/* La rédac en ce moment : une tuile par rédaction, sous les compteurs (js/36-ecran-redac.js) */
+.ecr-pouls { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 14vw, 260px), 1fr)); gap: clamp(8px, 1.2vw, 18px); }
+.ecr-pouls:empty { display: none; }
+.ecr-pouls-t { background: var(--ecr-carte); border: 1px solid var(--ecr-bord); border-bottom: 4px solid var(--ecr-c); border-radius: 8px; padding: clamp(6px, 1.2vh, 14px) clamp(10px, 1.2vw, 20px) clamp(8px, 1.5vh, 18px); min-width: 0; }
+.ecr-pouls-nom { text-transform: uppercase; letter-spacing: .12em; color: var(--ecr-doux); font-size: clamp(.62rem, 1.35vh, .92rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ecr-pouls-mot { font-family: Poppins, sans-serif; font-weight: 800; font-size: clamp(1.2rem, 3.6vh, 2.6rem); line-height: 1.15; color: var(--ecr-c); }
+.ecr-pouls-regle { position: relative; height: clamp(4px, .7vh, 7px); margin-top: clamp(6px, 1.2vh, 14px); border-radius: 3px; background: linear-gradient(90deg, #5BD39A 0 30%, #FFB43C 30% 65%, #FF6A55 65% 100%); }
+.ecr-pouls-regle i { position: absolute; top: calc(-1 * clamp(7px, 1.3vh, 14px)); width: 0; height: 0; border-left: clamp(5px, .9vh, 9px) solid transparent; border-right: clamp(5px, .9vh, 9px) solid transparent; border-top: clamp(7px, 1.3vh, 13px) solid var(--ecr-texte); transform: translateX(-50%); }
 .ecr-col { padding-left:0; padding-right:0; border-radius:12px; }
 .ecr-col h2 { text-transform:uppercase; letter-spacing:.14em; font-size:clamp(.85rem,1.9vh,1.25rem); margin:0 0 6px; padding:0 clamp(12px,1.6vh,22px) 10px; border-bottom:1px solid var(--ecr-bord); }
 .ecr-liste { gap:0; }

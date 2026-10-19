@@ -59,6 +59,7 @@ function osEcranLancer(){
         +'<div class="ecr-heure-bloc"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
+    +'<div class="ecr-pouls" id="ecr-pouls"></div>'
     +'<main class="ecr-grille">'
       +'<section class="ecr-col"><h2 id="ecr-titre-circuit"></h2><div id="ecr-circuit" class="ecr-liste"></div>'
         +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-nl-compte"></div><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
@@ -209,6 +210,7 @@ function _ecranRendre(res){
   var bloques = _ecranBloques(res[0], res[1], res[3]);
   _ecran.bloques = bloques;
   _ecranCompteurs(res[0], bloques.length);
+  _ecranPouls(res);
   _ecranPresence(_ecranNbConnectes(res[4]));
   _ecranNewsletter(res[1], res[5]);   // avant le circuit : sa hauteur décide de la place qui reste au-dessus
   _ecranVueCircuit();
@@ -265,6 +267,24 @@ function _ecranCompteurs(arts, nbBloques){
   if(z) z.innerHTML = cases.map(function(k){
     return '<div class="ecr-compteur ecr-c-'+k.c+'"><div class="ecr-compteur-v">'+k.v+'</div><div class="ecr-compteur-l">'+k.l+(k.live ? ' <span class="ecr-live ecr-live-tuile"><i></i><i></i><i></i><em>'+k.live+' en direct</em></span>' : '')+'</div></div>';
   }).join('');
+}
+
+// La rédac en ce moment : le compteur de tension de chaque rédaction (règles et calcul : js/56-pouls-redac.js),
+// à partir des listes déjà lues pour l'écran
+function _ecranPouls(res){
+  var z = document.getElementById('ecr-pouls');
+  if(!z) return;
+  if(typeof _poulsToutesCalculer !== 'function'){ z.innerHTML = ''; return; }
+  var enCours = (res[0] || []).filter(function(a){ return ['brouillon', 'en-relecture', 'valide'].indexOf(a.statut) !== -1; });
+  var publiees = (res[1] || []).filter(function(a){ return a.type === 'breve' && a.statut === 'publie'; })
+    .map(function(a){ return { redaction_id:a.redaction_id, publie_le:a.publie_le || a.updated_at }; });
+  var toutes = _poulsToutesCalculer(window._redactionsData || [], res[5] || [], enCours, publiees, res[3] || []);
+  var html = (window._redactionsData || []).filter(function(r){ return toutes[r.id]; }).map(function(r){
+    var m = toutes[r.id], etat = osPoulsEtat(m.score);
+    return '<div class="ecr-pouls-t" style="--ecr-c:'+etat.couleur+'"><div class="ecr-pouls-nom">'+esc(r.nom)+'</div><div class="ecr-pouls-mot">'+etat.mot+'</div>'
+      +'<div class="ecr-pouls-regle"><i style="left:'+m.score+'%"></i></div></div>';
+  }).join('');
+  if(z.dataset.sig !== html){ z.dataset.sig = html; z.innerHTML = html; }
 }
 
 // ── Bloqués : ce qui dort trop longtemps, avec la cause ──

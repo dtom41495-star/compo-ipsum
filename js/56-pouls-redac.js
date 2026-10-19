@@ -118,6 +118,28 @@ function osPoulsCharger(){
   }).catch(function(){});
 }
 
+// Le compteur de chaque rédaction lancée, à partir de listes déjà lues :
+//  newsletters  [{ redaction_id, date_envoi }], les plus récentes d'abord
+//  cours        [{ type, statut, redaction_id }] : articles et brèves en brouillon, en relecture ou validés
+//  brevesPubliees [{ redaction_id, publie_le }] : brèves publiées (celles d'après la dernière newsletter comptent comme prêtes)
+//  sujets       [{ statut, redaction_id }] : sujets « ouvert » ou « en_cours »
+// Sert à la gestion des rédactions (ci-dessous) et à l'écran rédac (js/36-ecran-redac.js).
+function _poulsToutesCalculer(redactions, newsletters, cours, brevesPubliees, sujets){
+  var toutes = {};
+  redactions.forEach(function(r){
+    if(r.pas_lancee) return;
+    var dates = (newsletters || []).filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
+    var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
+    var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le).getTime() >= depuis; }).length;
+    var siens = (sujets || []).filter(function(x){ return x.redaction_id === r.id; });
+    var d = _poulsDonnees(r.id, (cours || []).filter(function(x){ return x.redaction_id === r.id; }), publiees,
+      siens.filter(function(x){ return x.statut === 'ouvert'; }).length, siens.filter(function(x){ return x.statut === 'en_cours'; }).length, dates);
+    var c = osPoulsCalculer(d);
+    toutes[r.id] = { donnees:d, score:c.score, parCorr:c.parCorr, parts:c.parts, totalBreves:c.totalBreves, maj:Date.now() };
+  });
+  return toutes;
+}
+
 // ---- Gestion des rédactions (admin) : le compteur de chaque rédaction ----
 // Mêmes règles que le widget, calculées pour toutes les rédactions d'un coup (quatre lectures sans filtre, regroupées ici par rédaction).
 function osPoulsToutesCharger(){
@@ -132,18 +154,7 @@ function osPoulsToutesCharger(){
     lire('briefing?statut=in.(ouvert,en_cours)&select=statut,redaction_id')
   ]).then(function(res){
     if(!res[0] || !res[1] || !res[2] || !res[3]) return _pouls.toutes || {};
-    var toutes = {};
-    (window._redactionsData || []).forEach(function(r){
-      if(r.pas_lancee) return;
-      var dates = res[0].filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
-      var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
-      var publiees = res[2].filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le).getTime() >= depuis; }).length;
-      var sujets = res[3].filter(function(x){ return x.redaction_id === r.id; });
-      var d = _poulsDonnees(r.id, res[1].filter(function(x){ return x.redaction_id === r.id; }), publiees,
-        sujets.filter(function(x){ return x.statut === 'ouvert'; }).length, sujets.filter(function(x){ return x.statut === 'en_cours'; }).length, dates);
-      var c = osPoulsCalculer(d);
-      toutes[r.id] = { donnees:d, score:c.score, parCorr:c.parCorr, parts:c.parts, totalBreves:c.totalBreves, maj:Date.now() };
-    });
+    var toutes = _poulsToutesCalculer(window._redactionsData || [], res[0], res[1], res[2], res[3]);
     _pouls.toutes = toutes; _pouls.toutesQuand = Date.now();
     return toutes;
   }).catch(function(){ return _pouls.toutes || {}; });
