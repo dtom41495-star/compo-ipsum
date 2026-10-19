@@ -12,5 +12,11 @@
     { "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/compo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/compo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Rédiger un article", "short_name": "Rédiger", "url": "./index.html?ouvrir=redaction", "icons": [{ "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Sujets de la rédaction", "short_name": "Sujets", "url": "./index.html?ouvrir=sujets", "icons": [{ "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Veille", "short_name": "Veille", "url": "./index.html?ouvrir=veille", "icons": [{ "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Mes articles", "short_name": "Mes articles", "url": "./index.html?ouvrir=mes-articles", "icons": [{ "src": "icons/compo-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }
