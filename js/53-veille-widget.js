@@ -24,13 +24,15 @@ function osVeilleWidgetCharger(){
   if(osEstMobile() || !_veilleWidgetPermis() || !document.getElementById('os-clock-widget')){ _veilleWidgetRetirer(); return Promise.resolve(); }
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
   return Promise.all([
-    fetch(SB_URL+'/rest/v1/veille_flux?select=id,nom&actif=eq.true', { headers:authH }).then(function(r){ return r.json(); }),
+    fetch(SB_URL+'/rest/v1/veille_flux?select=id,nom,url&actif=eq.true', { headers:authH }).then(function(r){ return r.json(); }),
     fetch(SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,resume,date_publication&order=date_publication.desc.nullslast&limit=30', { headers:authH }).then(function(r){ return r.json(); })
   ]).then(function(res){
     if(!Array.isArray(res[0]) || !Array.isArray(res[1])) return;
     _veilleWidget.flux = {};
     res[0].forEach(function(f){ _veilleWidget.flux[f.id] = f; });
-    _veilleWidget.articles = res[1];
+    // Doublons entre flux d'un même journal : il faut les sources pour les reconnaître (_veilleMedia)
+    if(!(window._veilleFlux || []).length) window._veilleFlux = res[0];
+    _veilleWidget.articles = typeof osVeilleSansDoublons === 'function' ? osVeilleSansDoublons(res[1]) : res[1];
     window._veilleWidgetArticles = res[1];  // pour osVeilleCreerSujet
     osVeilleWidgetRendre();
   }).catch(function(){});

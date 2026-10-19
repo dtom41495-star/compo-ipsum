@@ -969,7 +969,8 @@ function osSujetValiderProposition(sujetId, accepte){
 window._veilleFlux = [];
 window._veilleArticles = [];
 var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
-var _veilleSourceActive = null;  // id d'une source, 'alertes' (mes alertes, js/54-veille-alertes.js), ou null pour toutes
+var _veilleSourceActive = null;  // id d'une source, 'media:<site>' (toutes les communes d'un journal), 'alertes' (mes alertes, js/54-veille-alertes.js), ou null pour toutes
+var _veilleMediasOuverts = {};    // journaux à plusieurs flux dépliés dans le rail
 
 function osVeilleRender(){
   var wc = document.getElementById('wincontent-veille');
@@ -981,7 +982,7 @@ function osVeilleRender(){
     fetch(SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,resume,image,date_publication&order=date_publication.desc.nullslast&limit=200',{headers:authH}).then(function(r){return r.json();})
   ]).then(function(res){
     window._veilleFlux = (!res[0]||res[0].code)?[]:res[0];
-    window._veilleArticles = (!res[1]||res[1].code)?[]:res[1];
+    window._veilleArticles = osVeilleSansDoublons((!res[1]||res[1].code)?[]:res[1]);
     osVeilleRendreListe(wc);
   }).catch(function(){ wc.innerHTML = osErreurHtml(); });
 }
@@ -1063,8 +1064,11 @@ function osVeilleCreerSujet(articleId){
 var _veilleRecherche = '';
 // Une couleur par source, dans l'ordre des sources (toutes différentes jusqu'à 8), lisibles en clair comme en sombre
 var VEILLE_COULEURS = ['#E8461E', '#2E86C1', '#17A589', '#8E44AD', '#D68910', '#C2185B', '#5D8AA8', '#7CB342'];
+// Une couleur par média (toutes les communes de La Dépêche ont la même)
 function _veilleCouleur(fluxId){
-  var i = (window._veilleFlux || []).findIndex(function(f){ return f.id === fluxId; });
+  var medias = [];
+  (window._veilleFlux || []).forEach(function(f){ var m = _veilleMedia(f.id); if(medias.indexOf(m) === -1) medias.push(m); });
+  var i = medias.indexOf(_veilleMedia(fluxId));
   return VEILLE_COULEURS[(i < 0 ? 0 : i) % VEILLE_COULEURS.length];
 }
 function _veilleNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -1080,43 +1084,66 @@ function _veilleJour(d){
 }
 function _veilleHeure(d){ return d ? new Date(d).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ') : ''; }
 
-// Sujets du moment : des articles d'au moins deux sources différentes, sur trois jours, qui partagent
-// au moins deux mots importants de leur titre (noms de lieux et de personnes compris).
+// Sujets du moment : un même sujet repris par au moins deux médias différents sur trois jours.
+// Un article rejoint le sujet s'il partage au moins deux mots importants avec l'article qui l'a ouvert
+// (pas de proche en proche : sinon un article à cheval reliait des sujets sans rapport).
+// « Média » = le site : les flux de La Dépêche par commune comptent pour un seul média, et un même
+// article publié dans plusieurs de ces flux n'est compté qu'une fois.
 var VEILLE_MOTS_VIDES = ('tarn tarnais tarnaise avec dans pour plus sans sous leur leurs cette ces des les une aux sur par est sont ont fait faire '
   +'entre apres avant comme mais tout tous toute toutes elle elles ils nous vous selon deux trois encore depuis vers chez quoi quel quelle quels '
   +'quelles alors aussi bien tres sera seront etre avoir face pres ainsi dont lors veut peut doit cela ceux celle article abonnes reserve '
-  +'aujourd hier demain soir matin semaine jour jours annee mois nouveau nouvelle nouvelles premier premiere grand grande petit petite').split(' ');
+  +'aujourd hier demain soir matin semaine jour jours annee annees mois nouveau nouvelle nouvelles premier premiere grand grande petit petite '
+  +'janvier fevrier mars avril juin juillet aout septembre octobre novembre decembre lundi mardi mercredi jeudi vendredi samedi dimanche '
+  +'saint sainte comment pourquoi quand votre notre leurs apres-midi week-end weekend nationale national ville commune village habitants '
+  +'retour suite enfin plein toujours jamais rien autre autres ceux celles fois heure heures minutes ans environ voici devant contre').split(' ');
+// Un nom composé (Blaye-les-Mines, Saint-Sulpice-la-Pointe) reste un seul mot : sinon une commune
+// comptait pour deux et suffisait à rapprocher deux articles sans rapport
 function _veilleMots(titre){
-  return _veilleNorm(titre).replace(/[^a-z0-9\s-]/g, ' ').split(/[\s-]+/).filter(function(m){
-    return m.length >= 4 && VEILLE_MOTS_VIDES.indexOf(m) === -1 && !/^\d+$/.test(m);
+  return _veilleNorm(titre).replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).map(function(m){ return m.replace(/^-+|-+$/g, ''); }).filter(function(m){
+    return m.length >= 4 && VEILLE_MOTS_VIDES.indexOf(m) === -1 && !/^[\d-]+$/.test(m);
   });
 }
+// La Dépêche publie souvent le même article dans plusieurs flux de communes : on n'en garde qu'un
+function osVeilleSansDoublons(articles){
+  var vus = {};
+  return articles.filter(function(a){
+    var cle = _veilleMedia(a.flux_id)+'|'+_veilleNorm(a.titre).replace(/[^a-z0-9]+/g, ' ').trim();
+    if(vus[cle]) return false;
+    vus[cle] = true;
+    return true;
+  });
+}
+function _veilleMedia(fluxId){
+  var f = (window._veilleFlux || []).find(function(x){ return x.id === fluxId; });
+  try{ return new URL(f.url).hostname.replace(/^www\./, ''); }catch(e){ return fluxId; }
+}
 function osVeilleSujetsDuMoment(articles){
-  var limite = Date.now() - 3 * 86400000;
-  var recents = articles.filter(function(a){ return a.date_publication && new Date(a.date_publication) > limite; })
-    .map(function(a){ return { a:a, mots:_veilleMots(a.titre) }; });
+  var limite = Date.now() - 3 * 86400000, titresVus = {};
+  var recents = articles.filter(function(a){
+    if(!a.date_publication || new Date(a.date_publication) <= limite) return false;
+    var cle = _veilleNorm(a.titre).replace(/[^a-z0-9]+/g, ' ').trim();
+    if(titresVus[cle]) return false;  // même article dans plusieurs flux du même journal
+    titresVus[cle] = true;
+    return true;
+  }).map(function(a){ return { a:a, mots:_veilleMots(a.titre), media:_veilleMedia(a.flux_id) }; });
+  var communs = function(x, y){ return x.mots.filter(function(m, i){ return x.mots.indexOf(m) === i && y.mots.indexOf(m) !== -1; }).length; };
   var groupes = [];
   recents.forEach(function(r){
-    // Tous les groupes proches de cet article : il les relie, on les fusionne
-    var proches = groupes.filter(function(g){
-      return g.items.some(function(x){
-        return r.mots.filter(function(m){ return x.mots.indexOf(m) !== -1; }).length >= 2;
-      });
-    });
-    if(!proches.length){ groupes.push({ items:[r] }); return; }
-    var g = proches[0];
-    proches.slice(1).forEach(function(autre){ g.items = g.items.concat(autre.items); groupes.splice(groupes.indexOf(autre), 1); });
-    g.items.push(r);
+    var meilleur = null, score = 1;
+    groupes.forEach(function(g){ var n = communs(r, g.items[0]); if(n > score){ score = n; meilleur = g; } });
+    if(meilleur) meilleur.items.push(r); else groupes.push({ items:[r] });
   });
   return groupes.map(function(g){
-    var sources = {};
-    g.items.forEach(function(x){ sources[x.a.flux_id] = true; });
+    var medias = {};
+    g.items.forEach(function(x){ if(!medias[x.media]) medias[x.media] = x.a; });
     var compte = {};
-    g.items.forEach(function(x){ x.mots.forEach(function(m){ compte[m] = (compte[m] || 0) + 1; }); });
+    g.items.forEach(function(x){ x.mots.filter(function(m, i){ return x.mots.indexOf(m) === i; }).forEach(function(m){ compte[m] = (compte[m] || 0) + 1; }); });
     var cles = Object.keys(compte).filter(function(m){ return compte[m] >= 2; }).sort(function(a, b){ return compte[b] - compte[a]; }).slice(0, 3);
-    return { articles:g.items.map(function(x){ return x.a; }), nbSources:Object.keys(sources).length, cles:cles };
+    // Un article par média, celui qui ouvre le sujet en premier
+    var parMedia = Object.keys(medias).map(function(k){ return medias[k]; });
+    return { articles:parMedia, nbSources:parMedia.length, nbArticles:g.items.length, cles:cles };
   }).filter(function(g){ return g.nbSources >= 2; })
-    .sort(function(a, b){ return b.nbSources - a.nbSources || b.articles.length - a.articles.length; })
+    .sort(function(a, b){ return b.nbSources - a.nbSources || b.nbArticles - a.nbArticles; })
     .slice(0, 4);
 }
 
@@ -1126,14 +1153,15 @@ function osVeilleRendreListe(wc){
   var flux = window._veilleFlux || [];
   var tous = window._veilleArticles || [];
   var vueAlertes = _veilleSourceActive === 'alertes' && typeof osVeilleAlerteMot === 'function';
-  if(_veilleSourceActive && !vueAlertes && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
+  var mediaActif = /^media:/.test(_veilleSourceActive || '') ? _veilleSourceActive.slice(6) : null;
+  if(_veilleSourceActive && !vueAlertes && !mediaActif && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
   var fluxParId = {};
   flux.forEach(function(f){ fluxParId[f.id] = f; });
   var nonLu = function(a){ return vus.indexOf(a.id) === -1; };
   var q = _veilleNorm(_veilleRecherche.trim());
   var articles = tous.filter(function(a){
     return (_veilleFiltreActif !== 'non_lus' || nonLu(a))
-      && (!_veilleSourceActive || (vueAlertes ? osVeilleAlerteMot(a) : a.flux_id === _veilleSourceActive))
+      && (!_veilleSourceActive || (vueAlertes ? osVeilleAlerteMot(a) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
       && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
   });
   var nonLusTotal = tous.filter(nonLu).length;
@@ -1147,11 +1175,31 @@ function osVeilleRendreListe(wc){
     var nbAlertes = tous.filter(function(a){ return nonLu(a) && osVeilleAlerteMot(a); }).length;
     r += '<button type="button" class="vl-src vl-src-alertes'+(vueAlertes ? ' active' : '')+'" data-action="alertes"><i class="ti ti-bell-ringing"></i><span class="vl-src-nom">Mes alertes</span>'+(nbAlertes ? '<span class="vl-src-nb">'+nbAlertes+'</span>' : '')+'</button>';
   }
-  flux.forEach(function(f){
+  // Un journal à plusieurs flux (La Dépêche par commune) : une seule entrée, dépliable
+  var boutonSource = function(f, nom, sous){
     var nb = tous.filter(function(a){ return a.flux_id === f.id && nonLu(a); }).length;
-    r += '<button type="button" class="vl-src'+(_veilleSourceActive === f.id ? ' active' : '')+'" data-action="source" data-id="'+esc(f.id)+'" title="'+esc(f.derniere_erreur ? 'Problème : '+String(f.derniere_erreur).replace(/^Error:\s*/, '') : f.nom)+'">'
-      +'<span class="vl-pastille" style="--c:'+_veilleCouleur(f.id)+'"></span><span class="vl-src-nom">'+esc(f.nom)+'</span>'
+    return '<button type="button" class="vl-src'+(sous ? ' vl-src-sous' : '')+(_veilleSourceActive === f.id ? ' active' : '')+'" data-action="source" data-id="'+esc(f.id)+'" title="'+esc(f.derniere_erreur ? 'Problème : '+String(f.derniere_erreur).replace(/^Error:\s*/, '') : f.nom)+'">'
+      +'<span class="vl-pastille" style="--c:'+_veilleCouleur(f.id)+'"></span><span class="vl-src-nom">'+esc(nom)+'</span>'
       +(f.derniere_erreur ? '<i class="ti ti-alert-triangle vl-src-alerte"></i>' : (nb ? '<span class="vl-src-nb">'+nb+'</span>' : ''))+'</button>';
+  };
+  var parMedia = {}, ordre = [];
+  flux.forEach(function(f){ var m = _veilleMedia(f.id); if(!parMedia[m]){ parMedia[m] = []; ordre.push(m); } parMedia[m].push(f); });
+  ordre.forEach(function(m){
+    var liste = parMedia[m];
+    if(liste.length < 3){ liste.forEach(function(f){ r += boutonSource(f, f.nom); }); return; }
+    // Nom commun aux flux (« La Dépêche Albi », « La Dépêche Castres »… → « La Dépêche »)
+    var mots = liste[0].nom.split(' '), n = mots.length;
+    liste.forEach(function(f){ var w = f.nom.split(' '), k = 0; while(k < n && w[k] === mots[k]) k++; n = k; });
+    var nomMedia = mots.slice(0, Math.max(n, 1)).join(' ');
+    var ids = liste.map(function(f){ return f.id; });
+    var nbM = tous.filter(function(a){ return ids.indexOf(a.flux_id) !== -1 && nonLu(a); }).length;
+    var ouvert = _veilleMediasOuverts[m] || ids.indexOf(_veilleSourceActive) !== -1;
+    var erreur = liste.some(function(f){ return f.derniere_erreur; });
+    r += '<button type="button" class="vl-src vl-src-media'+(mediaActif === m ? ' active' : '')+'" data-action="media" data-id="'+esc(m)+'" title="'+esc(nomMedia+' · '+liste.length+' communes')+'">'
+      +'<span class="vl-pastille" style="--c:'+_veilleCouleur(liste[0].id)+'"></span><span class="vl-src-nom">'+esc(nomMedia)+' <small>· '+liste.length+'</small></span>'
+      +(erreur ? '<i class="ti ti-alert-triangle vl-src-alerte"></i>' : '')+(nbM ? '<span class="vl-src-nb">'+nbM+'</span>' : '')
+      +'<i class="ti ti-chevron-'+(ouvert ? 'up' : 'down')+' vl-src-chevron"></i></button>';
+    if(ouvert) liste.forEach(function(f){ r += boutonSource(f, f.nom.split(' ').slice(n).join(' ') || f.nom, true); });
   });
   if(gestion) r += '<button type="button" class="vl-src vl-gerer" data-action="gerer"><i class="ti ti-settings"></i><span class="vl-src-nom">Gérer les sources</span></button>';
   r += '</nav>';
@@ -1241,6 +1289,12 @@ function osVeilleRendreListe(wc){
         osVeilleRendreListe(wc); var ca = wc.querySelector('.vl-corps'); if(ca) ca.scrollTop = 0;
       }
       else if(act === 'alertes-regler') osVeilleAlertesOuvrir();
+      else if(act === 'media'){
+        // Premier clic : tout le journal ; nouveau clic sur le journal déjà choisi : replier / déplier les communes
+        if(_veilleSourceActive === 'media:'+id) _veilleMediasOuverts[id] = !_veilleMediasOuverts[id];
+        else { _veilleSourceActive = 'media:'+id; _veilleMediasOuverts[id] = true; }
+        osVeilleRendreListe(wc); var cm = wc.querySelector('.vl-corps'); if(cm) cm.scrollTop = 0;
+      }
       else if(act === 'source'){ _veilleSourceActive = id || null; osVeilleRendreListe(wc); var cp = wc.querySelector('.vl-corps'); if(cp) cp.scrollTop = 0; }
       else if(act === 'filtre'){ _veilleFiltreActif = id; osVeilleRendreListe(wc); }
       else if(act === 'tout-lu') osVeilleToutMarquerLu();
