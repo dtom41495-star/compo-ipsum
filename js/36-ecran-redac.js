@@ -55,11 +55,10 @@ function osEcranLancer(){
   el.innerHTML =
     '<header class="ecr-entete">'
       +'<div class="ecr-marque"><img src="https://ipsummedia.fr/assets/logo.png" alt=""><span>La rédaction en direct</span></div>'
-      +'<div class="ecr-heure"><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div>'
+      +'<div class="ecr-heure"><div class="ecr-pouls" id="ecr-pouls"></div><div class="ecr-enligne"><span class="os-online-point"></span><span id="ecr-enligne-n">0 en ligne</span></div>'
         +'<div class="ecr-heure-bloc"><div id="ecr-horloge"><span id="ecr-hh">--</span><span id="ecr-deux-points">:</span><span id="ecr-mm">--</span></div><div id="ecr-date"></div></div></div>'
     +'</header>'
     +'<div class="ecr-compteurs" id="ecr-compteurs"></div>'
-    +'<div class="ecr-pouls" id="ecr-pouls"></div>'
     +'<main class="ecr-grille">'
       +'<section class="ecr-col"><h2 id="ecr-titre-circuit"></h2><div id="ecr-circuit" class="ecr-liste"></div>'
         +'<h2 class="ecr-h2-bas"><i class="ti ti-mail-forward"></i> Prêts pour la newsletter</h2><div id="ecr-nl-compte"></div><div id="ecr-en-ligne" class="ecr-liste"></div></section>'
