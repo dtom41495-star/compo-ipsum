@@ -1103,9 +1103,27 @@ function seDeconnecter(){
 // tombent en place une à une, l'horloge glisse depuis la droite et la barre du bas monte, ses applis l'une après
 // l'autre. Une seule fois par lancement : la classe est retirée ensuite, pour que les barres reconstruites plus tard
 // n'animent pas. Styles : « ARRIVÉE DU BUREAU », css/styles.css (rien en mouvements réduits, mode léger, malvoyant).
-function osArriveeBureau(){
+// Plusieurs rédactions : la personne choisit d'abord (sélecteur par-dessus le fond d'écran), et le bureau arrive après son choix.
+// window._osChoixRedacInitial : 'attendu' (lancerCompo sait qu'il faut choisir) → 'fait' (osChoixRedacInitialFait, appelé par le sélecteur).
+// Le bureau reste vide en attendant (classe os-attente) ; si le sélecteur n'apparaît jamais, on ne laisse pas un bureau vide.
+function osArriveeBureau(forcer){
   var bureau = document.getElementById('os-desktop');
   if(!bureau || (typeof osEstMobile === 'function' && osEstMobile())) return;
+  if(!forcer && window._osChoixRedacInitial === 'attendu'){
+    bureau.classList.add('os-attente');
+    clearInterval(bureau._osAttenteVeille);
+    var sansSelecteur = 0;
+    bureau._osAttenteVeille = setInterval(function(){
+      if(window._osChoixRedacInitial !== 'attendu'){ clearInterval(bureau._osAttenteVeille); return; }
+      sansSelecteur = document.getElementById('redac-select-overlay') ? 0 : sansSelecteur + 1;
+      if(sansSelecteur >= 3){ clearInterval(bureau._osAttenteVeille); osChoixRedacInitialFait(); }
+    }, 2000);
+    return;
+  }
+  var apresAttente = bureau.classList.contains('os-attente');
+  bureau.classList.remove('os-attente');
+  // Après le choix, le fond d'écran est déjà là (visible derrière le sélecteur) : seuls icônes, horloge et barre arrivent
+  bureau.classList.toggle('os-sans-fond', apresAttente);
   var numeroter = function(sel){ bureau.querySelectorAll(sel).forEach(function(el, i){ el.style.setProperty('--osa-i', i); }); };
   numeroter('#os-desktop-icons .desktop-icon');
   numeroter('#os-dock-inner > *');
@@ -1113,7 +1131,16 @@ function osArriveeBureau(){
   void bureau.offsetWidth;   // relance l'animation si elle avait déjà eu lieu
   bureau.classList.add('os-arrivee');
   clearTimeout(bureau._osArriveeFin);
-  bureau._osArriveeFin = setTimeout(function(){ bureau.classList.remove('os-arrivee'); }, 2200);
+  bureau._osArriveeFin = setTimeout(function(){ bureau.classList.remove('os-arrivee', 'os-sans-fond'); }, 2200);
+}
+
+// Appelé quand la rédaction de départ est choisie : le bureau arrive
+function osChoixRedacInitialFait(){
+  if(window._osChoixRedacInitial !== 'attendu') return;
+  window._osChoixRedacInitial = 'fait';
+  var bureau = document.getElementById('os-desktop');
+  if(bureau) clearInterval(bureau._osAttenteVeille);
+  osArriveeBureau(true);
 }
 
 function lancerCompo(){
@@ -1217,6 +1244,15 @@ function lancerCompo(){
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
 
     if(typeof osCosmetiquesCharger === 'function') osCosmetiquesCharger();
+
+    // Plusieurs rédactions : le bureau n'apparaît qu'après le choix (osArriveeBureau). Pas de sélecteur sur téléphone avant l'accueil : l'accueil mobile le gère.
+    if(uid && window._membresRedactionsData && window._osChoixRedacInitial !== 'fait'
+       && window._membresRedactionsData.filter(function(mr){ return mr.membre_id === uid; }).length > 1
+       && !(typeof osEstMobile === 'function' && osEstMobile())){
+      window._osChoixRedacInitial = 'attendu';
+      var bureauAttente = document.getElementById('os-desktop');
+      if(bureauAttente) bureauAttente.classList.add('os-attente');
+    }
 
     // Définir la rédaction active si une seule
     if(!window._redacActiveId && window._membresRedactionsData && uid){

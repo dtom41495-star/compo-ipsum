@@ -1356,6 +1356,8 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
       if(ov) ov.remove();
       osRedactionsChoisirRedac(redacId);
       if(typeof osAccueilMobileRendre === 'function') osAccueilMobileRendre();
+      // Premier choix de la session : le bureau arrive maintenant (js/02, osArriveeBureau)
+      if(typeof osChoixRedacInitialFait === 'function') osChoixRedacInitialFait();
     }
     if(typeof osEstMobile === 'function' && osEstMobile()){
       _osSelecteurRedactionMobile(redactions, liens, effectifsParRedac, choisir);

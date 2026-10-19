@@ -5864,6 +5864,9 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 /* ===== ARRIVÉE DU BUREAU (osArriveeBureau, js/02-auth-articles.js), sur PC =====
    Les propriétés translate / scale (et non transform) laissent intacts les placements déjà faits par transform. */
 #os-desktop.os-arrivee #os-bg { animation: osa-fond .9s cubic-bezier(.2,.7,.2,1) both; }
+#os-desktop.os-arrivee.os-sans-fond #os-bg { animation: none; }
+/* En attendant le choix de la rédaction (plusieurs rédactions) : le fond d'écran seul, le reste arrive après */
+#os-desktop.os-attente #os-workspace, #os-desktop.os-attente #os-dock { opacity: 0; visibility: hidden; }
 #os-desktop.os-arrivee #os-desktop-icons .desktop-icon { animation: osa-icone .5s cubic-bezier(.25,1.35,.5,1) calc(320ms + var(--osa-i, 0) * 45ms) both; }
 #os-desktop.os-arrivee #os-clock-widget { animation: osa-droite .65s cubic-bezier(.2,.9,.3,1) 380ms both; }
 #os-desktop.os-arrivee #os-dock { animation: osa-dock .6s cubic-bezier(.2,.9,.3,1.15) 260ms both; }
