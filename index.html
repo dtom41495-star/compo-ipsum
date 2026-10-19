@@ -171,30 +171,26 @@
   <button class="offline-banner-btn" onclick="document.getElementById('os-offline-banner').classList.remove('visible')">Compris ×</button>
 </div>
 
-<!-- SCREENSAVER -->
-<div id="screensaver" style="position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;cursor:none;overflow:hidden;flex-direction:column;gap:2.5rem;">
-  <!-- Logo -->
-  <img id="ss-logo" src="" alt="Ipsum Média" style="height:34px;opacity:.5;">
-
-  <!-- Qui écrit en ce moment (effet de roulement à chaque changement) -->
-  <div id="ss-writer" style="text-align:center;max-width:640px;padding:0 2rem;box-sizing:border-box;display:none;transition:transform .7s cubic-bezier(.22,1,.36,1), opacity .7s ease;">
-    <div style="font-family:'Montserrat',sans-serif;font-weight:500;font-size:1.05rem;color:rgba(255,255,255,.6);margin-bottom:.7rem;">
-      <span id="ss-writer-prenom"></span> est en train d'écrire…
+<!-- SCREENSAVER — mise en page « la une » (css #screensaver, js/03 ssAfficher) -->
+<div id="screensaver" style="display:none;">
+  <div class="ss-entete">
+    <div class="ss-marque">Compo<span>.</span></div>
+    <div id="ss-date" class="ss-date"></div>
+    <div id="ss-clock" class="ss-heure">00:00</div>
+  </div>
+  <div class="ss-milieu">
+    <div id="ss-writer" style="display:none;transition:transform .7s cubic-bezier(.22,1,.36,1), opacity .7s ease;">
+      <div class="ss-kicker"><span class="ss-point"></span><span id="ss-kicker">En cours d’écriture</span></div>
+      <div id="ss-writer-titre" class="ss-titre"></div>
+      <div id="ss-writer-snippet" class="ss-chapo"></div>
+      <div id="ss-writer-sign" class="ss-sign"></div>
     </div>
-    <div id="ss-writer-titre" style="font-family:'Montserrat',sans-serif;font-size:clamp(1.5rem,3.2vw,2.3rem);font-weight:700;color:#fff;line-height:1.3;margin-bottom:.9rem;"></div>
-    <div id="ss-writer-snippet" style="font-family:'Montserrat',sans-serif;font-weight:400;font-size:.92rem;line-height:1.7;color:rgba(255,255,255,.45);"></div>
   </div>
-
-  <!-- Horloge -->
-  <div style="display:flex;align-items:baseline;gap:1rem;">
-    <div id="ss-clock" style="font-family:'Montserrat',sans-serif;font-size:clamp(2.2rem,5vw,3.4rem);font-weight:300;color:rgba(255,255,255,.85);letter-spacing:-.02em;">00:00</div>
-    <div id="ss-date" style="font-family:'Montserrat',sans-serif;font-size:.7rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.15em;"></div>
+  <div id="ss-bandeau" class="ss-bandeau" style="display:none;">
+    <b>Veille</b>
+    <div class="ss-bandeau-fenetre"><div id="ss-bandeau-piste" class="ss-bandeau-piste"></div></div>
   </div>
-
-  <!-- Bas -->
-  <div style="position:absolute;bottom:2rem;left:0;right:0;text-align:center;font-family:'Montserrat',sans-serif;font-size:.68rem;color:rgba(255,255,255,.3);letter-spacing:.08em;">
-    Mode veille activé — appuie n'importe où pour en sortir
-  </div>
+  <div id="ss-aide" class="ss-aide">Mode veille activé — appuie n'importe où pour en sortir</div>
 </div>
 
 

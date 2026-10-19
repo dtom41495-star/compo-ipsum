@@ -1899,12 +1899,29 @@ var _ssSlideTimer = null;
 var _ssClockInterval = null;
 var _SS_DELAY = 5 * 60 * 1000;
 var _SS_SLIDE = 8000;
+// Protection OLED (voir css, #screensaver) : déplacement toutes les minutes, phrase du bas effacée
+// après 15 s, luminosité baissée après 20 min
+var _SS_DERIVE = 60 * 1000;
+var _SS_TAMISE = 20 * 60 * 1000;
+var _ssDeriveInterval = null;
+var _ssAideTimer = null;
+var _ssTamiseTimer = null;
 
-// Montre qui écrit en ce moment plutôt que les articles déjà publiés — la rédaction
-// vivante plutôt qu'une vitrine. _ssExtrait() préfère le chapô (déjà écrit avec soin) et
-// ne retombe sur le début du corps que s'il n'y a pas encore de chapô.
+function ssDeriver(){
+  var el = document.getElementById('screensaver');
+  if(!el) return;
+  // Petit écart aléatoire autour du centre, assez pour décaler chaque pixel allumé
+  el.style.setProperty('--ss-dx', Math.round((Math.random() * 2 - 1) * Math.min(60, window.innerWidth * 0.05))+'px');
+  el.style.setProperty('--ss-dy', Math.round((Math.random() * 2 - 1) * Math.min(40, window.innerHeight * 0.05))+'px');
+}
+
+// Mise en page « la une » : le sujet en train d'être écrit en gros titre, et en bas un bandeau qui fait
+// défiler les derniers titres de la Veille. On montre qui écrit en ce moment plutôt que les articles
+// déjà publiés — la rédaction vivante plutôt qu'une vitrine. _ssExtrait() préfère le chapô (déjà écrit
+// avec soin) et ne retombe sur le début du corps que s'il n'y a pas encore de chapô.
 var _ssBrouillons = [];
-var _ssBrouillonsCharges = false;
+var _ssVeille = [];
+var _ssChargeLe = 0;
 
 // "En train d'écrire" doit vouloir dire là, maintenant — pas un brouillon laissé de
 // côté depuis des jours (ex. en attente du prochain envoi de newsletter, un jeudi sur
@@ -1914,30 +1931,63 @@ var _ssBrouillonsCharges = false;
 // oublié. On va ensuite chercher le brouillon correspondant (même titre, même auteur —
 // _reserverSujetCreerBrouillonEtOuvrir crée l'article avec exactement le titre du sujet)
 // juste pour le chapô/corps ; s'il n'est pas encore là, le sujet s'affiche quand même,
-// juste sans extrait.
+// juste sans extrait. Rechargé au plus toutes les 10 minutes.
 function ssChargerBrouillons(){
-  if(_ssBrouillonsCharges) return;
-  _ssBrouillonsCharges = true;
+  if(_ssChargeLe && Date.now() - _ssChargeLe < 600000) return;
+  _ssChargeLe = Date.now();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   Promise.all([
-    fetch(SB_URL+'/rest/v1/briefing?statut=eq.en_cours&select=titre,responsable&order=id.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?statut=eq.brouillon&select=titre,auteur,chapeau,corps&order=updated_at.desc&limit=50',{headers:authH}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/briefing?statut=eq.en_cours&select=titre,responsable,reserve_le&order=id.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?statut=eq.brouillon&select=titre,auteur,chapeau,corps&order=updated_at.desc&limit=50',{headers:authH}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,date_publication&order=date_publication.desc&limit=40',{headers:authH}).then(function(r){return r.json();}).catch(function(){ return []; })
   ]).then(function(res){
     var sujets = (res[0]&&!res[0].code) ? res[0].filter(function(s){return s.titre&&s.responsable;}) : [];
     var arts = (res[1]&&!res[1].code) ? res[1] : [];
     _ssBrouillons = sujets.map(function(s){
       var art = arts.find(function(a){ return a.titre===s.titre && a.auteur===s.responsable; });
-      return { titre:s.titre, auteur:s.responsable, chapeau:art?(art.chapeau||''):'', corps:art?(art.corps||''):'' };
+      return { titre:s.titre, auteur:s.responsable, reserveLe:s.reserve_le||null, chapeau:art?(art.chapeau||''):'', corps:art?(art.corps||''):'' };
     });
+    var veille = Array.isArray(res[2]) ? res[2] : [];
+    if(typeof osVeilleSansDoublons === 'function'){ try{ veille = osVeilleSansDoublons(veille); }catch(e){} }
+    _ssVeille = veille.filter(function(a){ return a.titre && a.titre.length >= 20; }).slice(0, 10).map(function(a){ return a.titre.trim(); });
+    _ssBandeauRendre();
   }).catch(function(){});
 }
 
 function _ssExtrait(art){
-  if(art.chapeau && art.chapeau.trim()) return art.chapeau.trim();
-  var corps = (art.corps||'').trim();
-  if(!corps) return '';
-  var lignes = corps.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
-  return lignes.slice(0,5).join(' ').slice(0,320);
+  var t = '';
+  if(art.chapeau && art.chapeau.trim()) t = art.chapeau.trim();
+  else {
+    var corps = (art.corps||'').trim();
+    if(!corps) return '';
+    t = corps.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;}).slice(0,3).join(' ');
+  }
+  return t.length > 220 ? t.slice(0, 217).replace(/\s+\S*$/, '')+'…' : t;
+}
+
+function _ssDepuis(d){
+  if(!d) return '';
+  var j = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if(isNaN(j) || j < 0) return '';
+  return j === 0 ? 'sujet pris aujourd’hui' : (j === 1 ? 'sujet pris hier' : 'sujet pris il y a '+j+' jours');
+}
+
+// Bandeau du bas : les derniers titres de la Veille, qui défilent en continu (contenu doublé pour boucler sans saut)
+function _ssBandeauRendre(){
+  var bandeau = document.getElementById('ss-bandeau');
+  var piste = document.getElementById('ss-bandeau-piste');
+  if(!bandeau || !piste) return;
+  if(!_ssVeille.length){ bandeau.style.display = 'none'; return; }
+  var morceau = _ssVeille.map(function(t){ return '<span>'+esc(t)+'</span><i>/</i>'; }).join('');
+  piste.innerHTML = morceau + morceau;
+  bandeau.style.display = 'flex';
+  // Vitesse constante, quelle que soit la longueur : environ 50 pixels par seconde
+  requestAnimationFrame(function(){ piste.style.animationDuration = Math.max(30, Math.round(piste.scrollWidth / 2 / 50))+'s'; });
+}
+
+function _ssRedacNom(){
+  var r = (window._redactionsData || []).find(function(x){ return x.id === window._redacActiveId; });
+  return r && r.nom ? 'Rédaction '+r.nom : '';
 }
 
 function ssAfficherSlide(){
@@ -1952,27 +2002,36 @@ function ssAfficherSlide(){
   setTimeout(function(){
     if(!_ssActive) return;
 
-    // Toujours mettre à jour l'horloge
+    // Toujours mettre à jour l'horloge et la date
     var now = new Date();
-    var hh = String(now.getHours()).padStart(2,'0');
-    var mm = String(now.getMinutes()).padStart(2,'0');
     var clockEl = document.getElementById('ss-clock');
     var dateEl  = document.getElementById('ss-date');
     var jours=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
     var mois=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-    if(clockEl) clockEl.textContent = hh+':'+mm;
-    if(dateEl)  dateEl.textContent = jours[now.getDay()]+' '+now.getDate()+' '+mois[now.getMonth()];
+    if(clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    if(dateEl)  dateEl.textContent = [jours[now.getDay()]+' '+now.getDate()+' '+mois[now.getMonth()], _ssRedacNom()].filter(Boolean).join(' · ');
 
-    var art = _ssBrouillons.length ? _ssBrouillons[_ssSlide % _ssBrouillons.length] : null;
-    var prenomEl = document.getElementById('ss-writer-prenom');
+    var kickerEl = document.getElementById('ss-kicker');
     var titreEl  = document.getElementById('ss-writer-titre');
     var snipEl   = document.getElementById('ss-writer-snippet');
+    var signEl   = document.getElementById('ss-writer-sign');
+    var art = _ssBrouillons.length ? _ssBrouillons[_ssSlide % _ssBrouillons.length] : null;
 
     if(art){
       writer.style.display = 'block';
-      if(prenomEl) prenomEl.textContent = (art.auteur||'').trim().split(' ')[0] || 'Quelqu\'un';
+      var prenom = (art.auteur||'').trim().split(' ')[0] || 'Quelqu\'un';
+      if(kickerEl) kickerEl.textContent = 'En cours d’écriture';
       if(titreEl)  titreEl.textContent = art.titre||'';
       if(snipEl)   snipEl.textContent = _ssExtrait(art);
+      if(signEl)   signEl.textContent = ['par '+prenom, _ssDepuis(art.reserveLe)].filter(Boolean).join(' · ');
+      _ssSlide++;
+    } else if(_ssVeille.length){
+      // Personne n'écrit : la une reprend un titre de la Veille
+      writer.style.display = 'block';
+      if(kickerEl) kickerEl.textContent = 'Vu dans la Veille';
+      if(titreEl)  titreEl.textContent = _ssVeille[_ssSlide % _ssVeille.length];
+      if(snipEl)   snipEl.textContent = '';
+      if(signEl)   signEl.textContent = 'Un sujet pour la rédaction ?';
       _ssSlide++;
     } else {
       writer.style.display = 'none';
@@ -1993,10 +2052,15 @@ function ssAfficher(){
   _ssActive = true;
   _ssSlide = 0;
   ssChargerBrouillons();
-  var logoEl = document.getElementById('ss-logo');
-  if(logoEl && !logoEl.getAttribute('src')){ logoEl.src = (typeof _osLogoIpsum==='function' && _osLogoIpsum())||''; }
+  _ssBandeauRendre();
   var el = document.getElementById('screensaver');
-  if(el){ el.style.display='flex'; }
+  if(el){ el.style.display='flex'; el.classList.remove('ss-tamise'); }
+  var aide = document.getElementById('ss-aide');
+  if(aide) aide.classList.remove('ss-cache');
+  ssDeriver();
+  _ssDeriveInterval = setInterval(ssDeriver, _SS_DERIVE);
+  _ssAideTimer = setTimeout(function(){ if(aide) aide.classList.add('ss-cache'); }, 15000);
+  _ssTamiseTimer = setTimeout(function(){ if(el) el.classList.add('ss-tamise'); }, _SS_TAMISE);
   // Mettre à jour l'horloge toutes les secondes pendant la veille
   _ssClockInterval = setInterval(function(){
     if(!_ssActive){ clearInterval(_ssClockInterval); return; }
@@ -2012,6 +2076,9 @@ function ssMasquer(){
   _ssActive = false;
   clearTimeout(_ssSlideTimer);
   clearInterval(_ssClockInterval);
+  clearInterval(_ssDeriveInterval);
+  clearTimeout(_ssAideTimer);
+  clearTimeout(_ssTamiseTimer);
   var el = document.getElementById('screensaver');
   if(el) el.style.display = 'none';
   ssResetTimer();
