@@ -12,13 +12,13 @@
 
 var POULS_PAS = { newsletter:0.35, correction:0.30, articles:0.20, sujets:0.15 };
 var POULS_ETATS = [
-  { max:30, mot:'Calme', couleur:'#5BD39A' },
-  { max:65, mot:'Soutenue', couleur:'#FFB43C' },
-  { max:101, mot:'Tendue', couleur:'#FF6A55' }
+  { max:30, mot:'Calme', couleur:'#5BD39A', fonce:'#1E9E66' },
+  { max:65, mot:'Soutenue', couleur:'#FFB43C', fonce:'#C77D00' },
+  { max:101, mot:'Tendue', couleur:'#FF6A55', fonce:'#D93A25' }
 ];
 // Articles en relecture par correcteur à partir duquel la correction pèse au maximum
 var POULS_MAX_PAR_CORRECTEUR = 3;
-var _pouls = { minuteur:null, dernier:null };
+var _pouls = { minuteur:null, dernier:null, toutes:null, toutesQuand:0 };
 
 function _poulsRedacActive(){ return window._redacActiveId || null; }
 
@@ -76,6 +76,22 @@ function osPoulsEtat(score){
   return POULS_ETATS.find(function(e){ return score < e.max; }) || POULS_ETATS[POULS_ETATS.length - 1];
 }
 
+// Les chiffres d'une rédaction à partir des listes déjà lues (articles en cours, nombre de brèves publiées depuis la dernière newsletter,
+// sujets ouverts et en cours, dates des newsletters)
+function _poulsDonnees(redacId, cours, nbPubliees, nbOuverts, nbEnCours, datesNewsletters){
+  var compte = function(type, statuts){ return cours.filter(function(x){ return x.type === type && statuts.indexOf(x.statut) !== -1; }).length; };
+  return {
+    brevesPendantes: compte('breve', ['brouillon', 'en-relecture']),
+    brevesPretes: compte('breve', ['valide']) + nbPubliees,
+    enRelecture: cours.filter(function(x){ return x.statut === 'en-relecture'; }).length,
+    articlesEnCours: compte('article', ['brouillon', 'en-relecture']),
+    sujetsLibres: nbOuverts,
+    sujetsEnCours: nbEnCours,
+    correcteurs: _poulsNbCorrecteurs(redacId),
+    prochaine: _poulsProchaineNewsletter(datesNewsletters)
+  };
+}
+
 function osPoulsCharger(){
   var widget = document.getElementById('os-clock-widget');
   if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
@@ -94,23 +110,62 @@ function osPoulsCharger(){
       lire('briefing?statut=eq.en_cours&select=id'+filtre)
     ]).then(function(res){
       if(!res[0] || !res[1] || !res[2] || !res[3]) return;
-      var cours = res[0];
-      var compte = function(type, statuts){ return cours.filter(function(x){ return x.type === type && statuts.indexOf(x.statut) !== -1; }).length; };
-      var d = {
-        brevesPendantes: compte('breve', ['brouillon', 'en-relecture']),
-        brevesPretes: compte('breve', ['valide']) + res[1].length,
-        enRelecture: cours.filter(function(x){ return x.statut === 'en-relecture'; }).length,
-        articlesEnCours: compte('article', ['brouillon', 'en-relecture']),
-        sujetsLibres: res[2].length,
-        sujetsEnCours: res[3].length,
-        correcteurs: _poulsNbCorrecteurs(r),
-        prochaine: _poulsProchaineNewsletter(nl.map(function(x){ return x.date_envoi; }))
-      };
+      var d = _poulsDonnees(r, res[0], res[1].length, res[2].length, res[3].length, nl.map(function(x){ return x.date_envoi; }));
       var res2 = osPoulsCalculer(d);
       _pouls.dernier = { donnees:d, score:res2.score, parCorr:res2.parCorr, parts:res2.parts, totalBreves:res2.totalBreves, maj:Date.now() };
       osPoulsRendre();
     });
   }).catch(function(){});
+}
+
+// ---- Gestion des rédactions (admin) : le compteur de chaque rédaction ----
+// Mêmes règles que le widget, calculées pour toutes les rédactions d'un coup (quatre lectures sans filtre, regroupées ici par rédaction).
+function osPoulsToutesCharger(){
+  if(_pouls.toutes && Date.now() - _pouls.toutesQuand < 120000) return Promise.resolve(_pouls.toutes);
+  var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
+  var lire = function(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, { headers:authH }).then(function(x){ return x.json(); }).then(function(j){ return Array.isArray(j) ? j : null; }); };
+  var il30 = encodeURIComponent(new Date(Date.now() - 30 * 86400000).toISOString());
+  return Promise.all([
+    lire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=300'),
+    lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut,redaction_id'),
+    lire('articles?type=eq.breve&statut=eq.publie&publie_le=gte.'+il30+'&select=redaction_id,publie_le'),
+    lire('briefing?statut=in.(ouvert,en_cours)&select=statut,redaction_id')
+  ]).then(function(res){
+    if(!res[0] || !res[1] || !res[2] || !res[3]) return _pouls.toutes || {};
+    var toutes = {};
+    (window._redactionsData || []).forEach(function(r){
+      if(r.pas_lancee) return;
+      var dates = res[0].filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
+      var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
+      var publiees = res[2].filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le).getTime() >= depuis; }).length;
+      var sujets = res[3].filter(function(x){ return x.redaction_id === r.id; });
+      var d = _poulsDonnees(r.id, res[1].filter(function(x){ return x.redaction_id === r.id; }), publiees,
+        sujets.filter(function(x){ return x.statut === 'ouvert'; }).length, sujets.filter(function(x){ return x.statut === 'en_cours'; }).length, dates);
+      var c = osPoulsCalculer(d);
+      toutes[r.id] = { donnees:d, score:c.score, parCorr:c.parCorr, parts:c.parts, totalBreves:c.totalBreves, maj:Date.now() };
+    });
+    _pouls.toutes = toutes; _pouls.toutesQuand = Date.now();
+    return toutes;
+  }).catch(function(){ return _pouls.toutes || {}; });
+}
+
+// Une rangée de mini-compteurs, un par rédaction ; toucher une rédaction l'ouvre dans la gestion
+function osPoulsAdminRendre(zone){
+  if(!zone) return;
+  osPoulsToutesCharger().then(function(toutes){
+    if(!document.body.contains(zone)) return;
+    var redacs = (window._redactionsData || []).filter(function(r){ return toutes[r.id]; });
+    if(!redacs.length){ zone.innerHTML = ''; return; }
+    zone.innerHTML = '<div class="pr-admin-titre"><i class="ti ti-activity-heartbeat"></i> La rédac en ce moment</div><div class="pr-admin-grille">'
+      + redacs.map(function(r){
+        var m = toutes[r.id], etat = osPoulsEtat(m.score), d = m.donnees;
+        var jours = Math.max(0, Math.ceil((d.prochaine - Date.now()) / 86400000));
+        var detail = 'Newsletter J-'+jours+' · '+d.enRelecture+' en relecture pour '+d.correcteurs+' correcteur'+(d.correcteurs > 1 ? 's' : '')
+          +' · '+d.articlesEnCours+' article'+(d.articlesEnCours > 1 ? 's' : '')+' en cours · '+d.sujetsLibres+' sujet'+(d.sujetsLibres > 1 ? 's' : '')+' à prendre';
+        return '<button type="button" class="pr-mini" data-rid="'+esc(r.id)+'" title="'+esc(detail)+'" style="--c:'+etat.fonce+';--rc:'+esc(r.couleur || '#EA5B1C')+'" onclick="osAdminSelectRedac(this.dataset.rid)">'
+          +'<span class="pr-mini-nom"><i></i>'+esc(r.nom)+'</span><b>'+etat.mot+'</b><span class="pr-mini-regle"><i style="left:'+m.score+'%"></i></span></button>';
+      }).join('')+'</div>';
+  });
 }
 
 function _poulsRetirer(){

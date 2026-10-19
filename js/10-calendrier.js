@@ -2227,6 +2227,7 @@ function _osRedactionsAdminMobile(wc, tousArts){
     +tuile(artsPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; }).length, 'Publiés ce mois', '#E8461E')
     +tuile(artsPublies.length, 'Publiés au total', '#047857')
     +'</div>';
+  h += '<div id="admin-pouls-zone"></div>';
   h += '<div class="ga-redacs">';
   _redactionsData.forEach(function(r){
     var sel = r.id === _adminRedacSelectId;
@@ -2270,6 +2271,7 @@ function _osRedactionsAdminMobile(wc, tousArts){
   }
   h += '</div>';
   wc.innerHTML = h;
+  if(typeof osPoulsAdminRendre === 'function') osPoulsAdminRendre(document.getElementById('admin-pouls-zone'));
   osChargerHeuresMembres(_adminRedacSelectId);
   if(typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
 }
@@ -2301,6 +2303,7 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
   h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Rédactions</div>';
   h += '<button onclick="osRedactionCreerModal()" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Créer</button>';
   h += '</div>';
+  h += '<div id="admin-pouls-zone"></div>';
 
   if(!_redactionsData.length){
     h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune rédaction — crée la première !</div>';
@@ -2398,6 +2401,8 @@ function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, de
   h += '</div>';
   wc.innerHTML = h;
 
+  // Le compteur de chaque rédaction (js/56-pouls-redac.js)
+  if(typeof osPoulsAdminRendre === 'function') osPoulsAdminRendre(document.getElementById('admin-pouls-zone'));
   // Charger les heures de bénévolat pour les membres affichés
   osChargerHeuresMembres(_adminRedacSelectId);
 }

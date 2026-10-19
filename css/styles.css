@@ -6183,6 +6183,16 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .os-w-pouls-regle { position: relative; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #5BD39A 0 30%, #FFB43C 30% 65%, #FF6A55 65% 100%); opacity: 0.9; }
 .os-w-pouls-regle i { position: absolute; top: -7px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid #fff; transform: translateX(-6px); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); transition: left 0.6s cubic-bezier(.2,.9,.3,1); }
 @media (max-height: 640px) { .os-w-pouls { display: none; } }
+/* Gestion des rédactions : le compteur de chaque rédaction */
+.pr-admin-titre { margin-bottom: 0.5rem; font: 700 0.7rem 'Space Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gris); display: flex; align-items: center; gap: 6px; }
+.pr-admin-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 0.2rem; }
+.pr-mini { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 0.65rem 0.8rem 0.7rem; border: 1px solid var(--gris-bord); border-radius: 12px; background: var(--blanc, #fff); color: var(--encre); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.pr-mini:hover { border-color: var(--rc); }
+.pr-mini-nom { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; color: var(--gris); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pr-mini-nom i { width: 8px; height: 8px; border-radius: 50%; background: var(--rc); flex-shrink: 0; }
+.pr-mini b { font: 800 1.25rem/1.15 'Poppins', sans-serif; color: var(--c); letter-spacing: -0.01em; }
+.pr-mini-regle { position: relative; display: block; height: 4px; margin-top: 8px; border-radius: 2px; background: linear-gradient(90deg, #5BD39A 0 30%, #FFB43C 30% 65%, #FF6A55 65% 100%); }
+.pr-mini-regle i { position: absolute; top: -6px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--encre); transform: translateX(-5px); }
 .os-w-pouls { cursor: pointer; transition: background 0.2s; }
 .os-w-pouls:hover { background: rgba(20,20,42,0.7); }
 .os-w-pouls:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
@@ -6225,3 +6235,4 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .vl-vignette { width: 72px; height: 56px; }
   .vl-moment-grille { grid-template-columns: 1fr; }
 }
+.ga-mobile #admin-pouls-zone { margin: 0.8rem 0; }
