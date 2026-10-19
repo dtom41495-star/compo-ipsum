@@ -1080,43 +1080,56 @@ function _veilleJour(d){
 }
 function _veilleHeure(d){ return d ? new Date(d).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ') : ''; }
 
-// Sujets du moment : des articles d'au moins deux sources différentes, sur trois jours, qui partagent
-// au moins deux mots importants de leur titre (noms de lieux et de personnes compris).
+// Sujets du moment : un même sujet repris par au moins deux médias différents sur trois jours.
+// Un article rejoint le sujet s'il partage au moins deux mots importants avec l'article qui l'a ouvert
+// (pas de proche en proche : sinon un article à cheval reliait des sujets sans rapport).
+// « Média » = le site : les flux de La Dépêche par commune comptent pour un seul média, et un même
+// article publié dans plusieurs de ces flux n'est compté qu'une fois.
 var VEILLE_MOTS_VIDES = ('tarn tarnais tarnaise avec dans pour plus sans sous leur leurs cette ces des les une aux sur par est sont ont fait faire '
   +'entre apres avant comme mais tout tous toute toutes elle elles ils nous vous selon deux trois encore depuis vers chez quoi quel quelle quels '
   +'quelles alors aussi bien tres sera seront etre avoir face pres ainsi dont lors veut peut doit cela ceux celle article abonnes reserve '
-  +'aujourd hier demain soir matin semaine jour jours annee mois nouveau nouvelle nouvelles premier premiere grand grande petit petite').split(' ');
+  +'aujourd hier demain soir matin semaine jour jours annee annees mois nouveau nouvelle nouvelles premier premiere grand grande petit petite '
+  +'janvier fevrier mars avril juin juillet aout septembre octobre novembre decembre lundi mardi mercredi jeudi vendredi samedi dimanche '
+  +'saint sainte comment pourquoi quand votre notre leurs apres-midi week-end weekend nationale national ville commune village habitants '
+  +'retour suite enfin plein toujours jamais rien autre autres ceux celles fois heure heures minutes ans environ voici devant contre').split(' ');
+// Un nom composé (Blaye-les-Mines, Saint-Sulpice-la-Pointe) reste un seul mot : sinon une commune
+// comptait pour deux et suffisait à rapprocher deux articles sans rapport
 function _veilleMots(titre){
-  return _veilleNorm(titre).replace(/[^a-z0-9\s-]/g, ' ').split(/[\s-]+/).filter(function(m){
-    return m.length >= 4 && VEILLE_MOTS_VIDES.indexOf(m) === -1 && !/^\d+$/.test(m);
+  return _veilleNorm(titre).replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).map(function(m){ return m.replace(/^-+|-+$/g, ''); }).filter(function(m){
+    return m.length >= 4 && VEILLE_MOTS_VIDES.indexOf(m) === -1 && !/^[\d-]+$/.test(m);
   });
 }
+function _veilleMedia(fluxId){
+  var f = (window._veilleFlux || []).find(function(x){ return x.id === fluxId; });
+  try{ return new URL(f.url).hostname.replace(/^www\./, ''); }catch(e){ return fluxId; }
+}
 function osVeilleSujetsDuMoment(articles){
-  var limite = Date.now() - 3 * 86400000;
-  var recents = articles.filter(function(a){ return a.date_publication && new Date(a.date_publication) > limite; })
-    .map(function(a){ return { a:a, mots:_veilleMots(a.titre) }; });
+  var limite = Date.now() - 3 * 86400000, titresVus = {};
+  var recents = articles.filter(function(a){
+    if(!a.date_publication || new Date(a.date_publication) <= limite) return false;
+    var cle = _veilleNorm(a.titre).replace(/[^a-z0-9]+/g, ' ').trim();
+    if(titresVus[cle]) return false;  // même article dans plusieurs flux du même journal
+    titresVus[cle] = true;
+    return true;
+  }).map(function(a){ return { a:a, mots:_veilleMots(a.titre), media:_veilleMedia(a.flux_id) }; });
+  var communs = function(x, y){ return x.mots.filter(function(m, i){ return x.mots.indexOf(m) === i && y.mots.indexOf(m) !== -1; }).length; };
   var groupes = [];
   recents.forEach(function(r){
-    // Tous les groupes proches de cet article : il les relie, on les fusionne
-    var proches = groupes.filter(function(g){
-      return g.items.some(function(x){
-        return r.mots.filter(function(m){ return x.mots.indexOf(m) !== -1; }).length >= 2;
-      });
-    });
-    if(!proches.length){ groupes.push({ items:[r] }); return; }
-    var g = proches[0];
-    proches.slice(1).forEach(function(autre){ g.items = g.items.concat(autre.items); groupes.splice(groupes.indexOf(autre), 1); });
-    g.items.push(r);
+    var meilleur = null, score = 1;
+    groupes.forEach(function(g){ var n = communs(r, g.items[0]); if(n > score){ score = n; meilleur = g; } });
+    if(meilleur) meilleur.items.push(r); else groupes.push({ items:[r] });
   });
   return groupes.map(function(g){
-    var sources = {};
-    g.items.forEach(function(x){ sources[x.a.flux_id] = true; });
+    var medias = {};
+    g.items.forEach(function(x){ if(!medias[x.media]) medias[x.media] = x.a; });
     var compte = {};
-    g.items.forEach(function(x){ x.mots.forEach(function(m){ compte[m] = (compte[m] || 0) + 1; }); });
+    g.items.forEach(function(x){ x.mots.filter(function(m, i){ return x.mots.indexOf(m) === i; }).forEach(function(m){ compte[m] = (compte[m] || 0) + 1; }); });
     var cles = Object.keys(compte).filter(function(m){ return compte[m] >= 2; }).sort(function(a, b){ return compte[b] - compte[a]; }).slice(0, 3);
-    return { articles:g.items.map(function(x){ return x.a; }), nbSources:Object.keys(sources).length, cles:cles };
+    // Un article par média, celui qui ouvre le sujet en premier
+    var parMedia = Object.keys(medias).map(function(k){ return medias[k]; });
+    return { articles:parMedia, nbSources:parMedia.length, nbArticles:g.items.length, cles:cles };
   }).filter(function(g){ return g.nbSources >= 2; })
-    .sort(function(a, b){ return b.nbSources - a.nbSources || b.articles.length - a.articles.length; })
+    .sort(function(a, b){ return b.nbSources - a.nbSources || b.nbArticles - a.nbArticles; })
     .slice(0, 4);
 }
 
