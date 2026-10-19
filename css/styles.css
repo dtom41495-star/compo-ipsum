@@ -3351,7 +3351,10 @@ input:focus,select:focus,textarea:focus{
 .ticket-reponse-label { font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;text-transform:uppercase;margin-bottom:0.3rem; }
 
 
-/* SCREENSAVER — dégradé sombre neutre always-on, montre qui écrit en ce moment */
+/* SCREENSAVER — montre qui écrit en ce moment. Protégé pour les écrans OLED (js/03, ssDeriver) :
+   fond noir pur (pixels éteints), tout le contenu glisse doucement de quelques dizaines de pixels
+   chaque minute pour qu'aucun pixel n'affiche longtemps la même chose, la phrase du bas s'efface,
+   et au bout de 20 minutes l'ensemble baisse encore en luminosité. */
 #screensaver {
   position: fixed; inset: 0; z-index: 99999;
   display: none;
@@ -3359,16 +3362,14 @@ input:focus,select:focus,textarea:focus{
   cursor: none;
   flex-direction: column;
   gap: 2.5rem;
-  background: linear-gradient(135deg, #08090d, #14161d, #1c1f28, #101218, #060709);
-  background-size: 300% 300%;
-  animation: ss-gradient-move 26s ease-in-out infinite;
+  background: #000;
+  transition: filter 3s ease;
 }
 #screensaver.visible { display: flex; }
-@keyframes ss-gradient-move {
-  0%   { background-position: 0% 30%; }
-  50%  { background-position: 100% 70%; }
-  100% { background-position: 0% 30%; }
-}
+#screensaver.ss-tamise { filter: brightness(.55); }
+#screensaver > *:not(#ss-aide) { translate: var(--ss-dx, 0) var(--ss-dy, 0); transition: translate 4s ease-in-out; }
+#ss-aide { transition: opacity 3s ease; }   /* ne glisse pas (sortirait par le bas) : elle s'efface */
+#ss-aide.ss-cache { opacity: 0; }
 
 /* ===== ACCUEIL MOBILE =====
    Sur téléphone, écran d'accueil à la place du bureau (js/15-accueil-mobile.js).

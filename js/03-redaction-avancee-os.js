@@ -1899,6 +1899,21 @@ var _ssSlideTimer = null;
 var _ssClockInterval = null;
 var _SS_DELAY = 5 * 60 * 1000;
 var _SS_SLIDE = 8000;
+// Protection OLED (voir css, #screensaver) : déplacement toutes les minutes, phrase du bas effacée
+// après 15 s, luminosité baissée après 20 min
+var _SS_DERIVE = 60 * 1000;
+var _SS_TAMISE = 20 * 60 * 1000;
+var _ssDeriveInterval = null;
+var _ssAideTimer = null;
+var _ssTamiseTimer = null;
+
+function ssDeriver(){
+  var el = document.getElementById('screensaver');
+  if(!el) return;
+  // Petit écart aléatoire autour du centre, assez pour décaler chaque pixel allumé
+  el.style.setProperty('--ss-dx', Math.round((Math.random() * 2 - 1) * Math.min(60, window.innerWidth * 0.05))+'px');
+  el.style.setProperty('--ss-dy', Math.round((Math.random() * 2 - 1) * Math.min(40, window.innerHeight * 0.05))+'px');
+}
 
 // Montre qui écrit en ce moment plutôt que les articles déjà publiés — la rédaction
 // vivante plutôt qu'une vitrine. _ssExtrait() préfère le chapô (déjà écrit avec soin) et
@@ -1996,7 +2011,13 @@ function ssAfficher(){
   var logoEl = document.getElementById('ss-logo');
   if(logoEl && !logoEl.getAttribute('src')){ logoEl.src = (typeof _osLogoIpsum==='function' && _osLogoIpsum())||''; }
   var el = document.getElementById('screensaver');
-  if(el){ el.style.display='flex'; }
+  if(el){ el.style.display='flex'; el.classList.remove('ss-tamise'); }
+  var aide = document.getElementById('ss-aide');
+  if(aide) aide.classList.remove('ss-cache');
+  ssDeriver();
+  _ssDeriveInterval = setInterval(ssDeriver, _SS_DERIVE);
+  _ssAideTimer = setTimeout(function(){ if(aide) aide.classList.add('ss-cache'); }, 15000);
+  _ssTamiseTimer = setTimeout(function(){ if(el) el.classList.add('ss-tamise'); }, _SS_TAMISE);
   // Mettre à jour l'horloge toutes les secondes pendant la veille
   _ssClockInterval = setInterval(function(){
     if(!_ssActive){ clearInterval(_ssClockInterval); return; }
@@ -2012,6 +2033,9 @@ function ssMasquer(){
   _ssActive = false;
   clearTimeout(_ssSlideTimer);
   clearInterval(_ssClockInterval);
+  clearInterval(_ssDeriveInterval);
+  clearTimeout(_ssAideTimer);
+  clearTimeout(_ssTamiseTimer);
   var el = document.getElementById('screensaver');
   if(el) el.style.display = 'none';
   ssResetTimer();
