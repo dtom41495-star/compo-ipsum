@@ -6152,6 +6152,22 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .vl-alertes-prevenir small { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--gris); }
 .vl-src-alertes:not(.active) i { color: var(--rouge); }
 :root.theme-dark .vl-alertes-prevenir { background: rgba(255,255,255,0.06); }
+/* Veille × carnet de sources (js/55-veille-contacts.js) */
+.vl-contact { display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 1px 8px; border: none; border-radius: 999px; background: rgba(46,134,193,0.14); color: #2E86C1; font: 700 0.6rem 'DM Sans', sans-serif; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-contact:hover { background: rgba(46,134,193,0.26); }
+.vl-moment-contact { margin: 0 0 8px; }
+.vl-src-contacts i { color: #2E86C1; }
+.vl-src-contacts.active i { color: #fff; }
+.os-w-veille-contact { color: #7DB8E0; font-size: 0.7rem; vertical-align: -1px; }
+.vc-boite { width: 520px; }
+.vc-orga { font: 700 0.64rem 'Space Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); margin-top: 4px; }
+.vc-ligne { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid var(--gris-bord); }
+.vc-qui { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 0.84rem; }
+.vc-qui span { font-size: 0.7rem; color: var(--gris); }
+.vc-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.vc-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 11px; border: 1.5px solid var(--gris-bord); border-radius: 8px; background: transparent; color: var(--encre); font: 600 0.72rem 'DM Sans', sans-serif; text-decoration: none; cursor: pointer; }
+.vc-btn:hover { border-color: #2E86C1; color: #2E86C1; }
+.vc-aucun { font-size: 0.68rem; color: var(--gris); font-style: italic; }
 :root.theme-dark .vl-src:hover { background: rgba(255,255,255,0.06); }
 :root.theme-dark .vl-etat.ok { color: #6CC784; } :root.theme-dark .vl-etat.erreur { color: #F09595; }
 @media (max-width: 768px) {
