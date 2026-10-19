@@ -2008,8 +2008,6 @@ function ssAfficher(){
   _ssActive = true;
   _ssSlide = 0;
   ssChargerBrouillons();
-  var logoEl = document.getElementById('ss-logo');
-  if(logoEl && !logoEl.getAttribute('src')){ logoEl.src = (typeof _osLogoIpsum==='function' && _osLogoIpsum())||''; }
   var el = document.getElementById('screensaver');
   if(el){ el.style.display='flex'; el.classList.remove('ss-tamise'); }
   var aide = document.getElementById('ss-aide');
