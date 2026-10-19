@@ -6168,23 +6168,6 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .vl-alertes-prevenir small { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--gris); }
 .vl-src-alertes:not(.active) i { color: var(--rouge); }
 :root.theme-dark .vl-alertes-prevenir { background: rgba(255,255,255,0.06); }
-/* Widget « Pour toi » (js/58-pour-toi.js) */
-.os-w-pourtoi { clear: both; margin-top: 12px; box-sizing: border-box; padding: 0.8rem 0.95rem 0.5rem; pointer-events: auto; user-select: none; color: #fff; font-family: 'DM Sans', sans-serif; }
-.pt-tete { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.pt-tete > span:first-child { font: 600 0.82rem 'Poppins', sans-serif; }
-.pt-tete small { font: 400 0.58rem 'Space Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
-.pt-nb { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 999px; background: #E8461E; font: 700 0.7rem/22px 'DM Sans', sans-serif; text-align: center; }
-.pt-l { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; padding: 8px 4px; border: none; border-top: 1px solid rgba(255,255,255,0.08); background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; border-radius: 0; }
-.pt-l:hover { background: rgba(255,255,255,0.06); }
-.pt-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 0.95rem; background: color-mix(in srgb, var(--c) 28%, transparent); color: var(--cl); }
-.pt-txt { display: flex; flex-direction: column; min-width: 0; }
-.pt-titre { font: 600 0.76rem/1.3 'DM Sans', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pt-sous { margin-top: 1px; font-size: 0.62rem; color: rgba(255,255,255,0.55); }
-.pt-sous.urgent { color: #FF9D82; font-weight: 600; }
-.pt-plus { display: block; width: 100%; padding: 7px 4px 6px; border: none; border-top: 1px solid rgba(255,255,255,0.08); background: transparent; color: rgba(255,255,255,0.6); font: inherit; font-size: 0.66rem; text-align: left; cursor: pointer; }
-.pt-plus:hover { color: #fff; }
-@media (max-height: 640px) { .os-w-pourtoi { display: none; } }
-
 /* Idées de la Veille dans l'onglet Sujets (js/57-veille-idees.js) */
 .vid { margin-bottom: 0.9rem; }
 .vid-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 0.5rem; font-family: 'DM Sans', sans-serif; }

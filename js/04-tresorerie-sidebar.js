@@ -1565,6 +1565,8 @@ function osWidgetPastilles(){
       var nRet = taches.filter(function(t){ return String(t.date_limite).slice(0,10) < aujIso; }).length;
       ajouter('ti-checkbox', nRet ? 'Projets · '+nRet+' en retard' : 'Projets', taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui', "osOpenWindow('projets')", nRet > 0);
     }
+    // Ce qui attend la personne : ses articles à corriger ou renvoyés, ses sujets réservés (js/58-pour-toi.js)
+    (window._pourToiItems || []).forEach(function(x){ ajouter(x.ico, x.etiquette, x.texte, x.action, x.chaud); });
     if(file.length) ajouter('ti-eye-check', 'File du SR', file.length+' article'+(file.length>1?'s':'')+' à relire', "_maOnglet='corriger';osOpenWindow('mes-articles')", true);
     if(evt && evt.date_debut){
       var dt = new Date(evt.date_debut), demain = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
