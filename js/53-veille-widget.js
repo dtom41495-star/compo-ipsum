@@ -78,7 +78,8 @@ function osVeilleWidgetRendre(){
     h += '<li class="'+(vus.indexOf(a.id) === -1 ? 'nonlu' : '')+'">'
       +'<button type="button" class="os-w-veille-titre" data-action="lire" data-id="'+esc(a.id)+'" title="Lire l’article">'+esc(a.titre)+'</button>'
       +'<div class="os-w-veille-meta">'+esc(f ? f.nom : 'Veille')+' · '+esc(_veilleWidgetQuand(a.date_publication))+(abonnes ? ' · <i class="ti ti-lock" title="Réservé aux abonnés"></i>' : '')
-        +(typeof osVeilleAlerteBadge === 'function' ? ' '+osVeilleAlerteBadge(a) : '')+'</div>'
+        +(typeof osVeilleAlerteBadge === 'function' ? ' '+osVeilleAlerteBadge(a) : '')
+        +(typeof osVeilleContactsPour === 'function' && osVeilleContactsPour(a).length ? ' <i class="ti ti-address-book os-w-veille-contact" title="Un contact du carnet est concerné"></i>' : '')+'</div>'
       +'<button type="button" class="os-w-veille-sujet" data-action="sujet" data-id="'+esc(a.id)+'" title="En faire un sujet"><i class="ti ti-bulb"></i></button>'
       +'</li>';
   });

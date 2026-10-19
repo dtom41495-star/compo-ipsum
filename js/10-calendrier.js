@@ -969,7 +969,7 @@ function osSujetValiderProposition(sujetId, accepte){
 window._veilleFlux = [];
 window._veilleArticles = [];
 var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
-var _veilleSourceActive = null;  // id d'une source, 'media:<site>' (toutes les communes d'un journal), 'alertes' (mes alertes, js/54-veille-alertes.js), ou null pour toutes
+var _veilleSourceActive = null;  // id d'une source, 'media:<site>' (toutes les communes d'un journal), 'alertes' (mes alertes, js/54-veille-alertes.js), 'contacts' (articles qui citent le carnet, js/55-veille-contacts.js), ou null pour toutes
 var _veilleMediasOuverts = {};    // journaux à plusieurs flux dépliés dans le rail
 
 function osVeilleRender(){
@@ -1053,7 +1053,8 @@ function osVeilleCreerSujet(articleId){
       if(t) t.value = article.titre||'';
       // Les pages sans flux (ex. le Tarn Libre) ne donnent pas de résumé, seulement la mention « abonnés »
       var abonnes = article.resume === 'Article réservé aux abonnés';
-      if(n) n.value = (article.resume && !abonnes ? article.resume+'\n\n' : '')+'Source'+(abonnes ? ' (article réservé aux abonnés)' : '')+' : '+article.lien;
+      if(n) n.value = (article.resume && !abonnes ? article.resume+'\n\n' : '')+'Source'+(abonnes ? ' (article réservé aux abonnés)' : '')+' : '+article.lien
+        +(typeof osVeilleContactsTexte === 'function' ? osVeilleContactsTexte(article) : '');
     }, 60);
   });
 }
@@ -1154,14 +1155,15 @@ function osVeilleRendreListe(wc){
   var tous = window._veilleArticles || [];
   var vueAlertes = _veilleSourceActive === 'alertes' && typeof osVeilleAlerteMot === 'function';
   var mediaActif = /^media:/.test(_veilleSourceActive || '') ? _veilleSourceActive.slice(6) : null;
-  if(_veilleSourceActive && !vueAlertes && !mediaActif && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
+  var vueContacts = _veilleSourceActive === 'contacts' && typeof osVeilleContactsPour === 'function';
+  if(_veilleSourceActive && !vueAlertes && !vueContacts && !mediaActif && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
   var fluxParId = {};
   flux.forEach(function(f){ fluxParId[f.id] = f; });
   var nonLu = function(a){ return vus.indexOf(a.id) === -1; };
   var q = _veilleNorm(_veilleRecherche.trim());
   var articles = tous.filter(function(a){
     return (_veilleFiltreActif !== 'non_lus' || nonLu(a))
-      && (!_veilleSourceActive || (vueAlertes ? osVeilleAlerteMot(a) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
+      && (!_veilleSourceActive || (vueContacts ? osVeilleContactsPour(a).length : vueAlertes ? osVeilleAlerteMot(a) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
       && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
   });
   var nonLusTotal = tous.filter(nonLu).length;
@@ -1176,6 +1178,10 @@ function osVeilleRendreListe(wc){
     r += '<button type="button" class="vl-src vl-src-alertes'+(vueAlertes ? ' active' : '')+'" data-action="alertes"><i class="ti ti-bell-ringing"></i><span class="vl-src-nom">Mes alertes</span>'+(nbAlertes ? '<span class="vl-src-nb">'+nbAlertes+'</span>' : '')+'</button>';
   }
   // Un journal à plusieurs flux (La Dépêche par commune) : une seule entrée, dépliable
+  if(typeof osVeilleContactsPour === 'function'){
+    var nbContacts = tous.filter(function(a){ return nonLu(a) && osVeilleContactsPour(a).length; }).length;
+    r += '<button type="button" class="vl-src vl-src-contacts'+(vueContacts ? ' active' : '')+'" data-action="contacts" title="Articles qui parlent d’une organisation ou d’une personne du carnet de sources"><i class="ti ti-address-book"></i><span class="vl-src-nom">Avec un contact</span>'+(nbContacts ? '<span class="vl-src-nb">'+nbContacts+'</span>' : '')+'</button>';
+  }
   var boutonSource = function(f, nom, sous){
     var nb = tous.filter(function(a){ return a.flux_id === f.id && nonLu(a); }).length;
     return '<button type="button" class="vl-src'+(sous ? ' vl-src-sous' : '')+(_veilleSourceActive === f.id ? ' active' : '')+'" data-action="source" data-id="'+esc(f.id)+'" title="'+esc(f.derniere_erreur ? 'Problème : '+String(f.derniere_erreur).replace(/^Error:\s*/, '') : f.nom)+'">'
@@ -1220,6 +1226,10 @@ function osVeilleRendreListe(wc){
       +'<button type="button" class="vl-btn" data-action="alertes-regler"><i class="ti ti-adjustments"></i> '+(mesMots.length ? 'Modifier' : 'Choisir mes mots-clés')+'</button></div>';
   }
 
+  if(vueContacts){
+    c += '<div class="vl-alertes-tete"><div><strong><i class="ti ti-address-book"></i> Avec un contact</strong><span>Les articles qui citent une organisation ou une personne du carnet de sources : on a quelqu’un à appeler.</span></div></div>';
+  }
+
   // Sujets du moment (vue d'ensemble seulement)
   if(!_veilleSourceActive && !q && _veilleFiltreActif !== 'non_lus'){
     var sujets = osVeilleSujetsDuMoment(tous);
@@ -1230,6 +1240,7 @@ function osVeilleRendreListe(wc){
         c += '<div class="vl-moment-carte"><div class="vl-moment-cles">'+s.cles.map(function(k){ return '<span>'+esc(k)+'</span>'; }).join('')+'</div>'
           +'<div class="vl-moment-une">'+esc(a0.titre)+'</div>'
           +'<div class="vl-moment-sources">'+s.articles.slice(0, 4).map(function(a){ var f = fluxParId[a.flux_id]; return '<button type="button" data-action="lire" data-id="'+esc(a.id)+'" title="'+esc(a.titre)+'"><span class="vl-pastille" style="--c:'+_veilleCouleur(a.flux_id)+'"></span>'+esc(f ? f.nom : 'Source')+'</button>'; }).join('')+'</div>'
+          +(typeof osVeilleContactBadge === 'function' ? (function(){ var av = s.articles.find(function(x){ return osVeilleContactsPour(x).length; }); return av ? '<div class="vl-moment-contact">'+osVeilleContactBadge(av)+'</div>' : ''; })() : '')
           +'<button type="button" class="vl-btn-sujet" data-action="sujet" data-id="'+esc(a0.id)+'"><i class="ti ti-bulb"></i> En faire un sujet</button></div>';
       });
       c += '</div></section>';
@@ -1256,7 +1267,8 @@ function osVeilleRendreListe(wc){
         +(a.date_publication ? '<span>'+esc(_veilleHeure(a.date_publication))+'</span>' : '')
         +(abonnes ? '<span class="vl-abonnes"><i class="ti ti-lock"></i> abonnés</span>' : '')
         +(neuf ? '<span class="vl-nouveau">nouveau</span>' : '')
-        +(typeof osVeilleAlerteBadge === 'function' ? osVeilleAlerteBadge(a) : '')+'</div>'
+        +(typeof osVeilleAlerteBadge === 'function' ? osVeilleAlerteBadge(a) : '')
+        +(typeof osVeilleContactBadge === 'function' ? osVeilleContactBadge(a) : '')+'</div>'
         +'<h3><button type="button" data-action="lire" data-id="'+esc(a.id)+'">'+esc(a.titre)+'</button></h3>'
         +(a.resume && !abonnes ? '<p>'+esc(a.resume)+'</p>' : '')
         +'<div class="vl-actions">'
@@ -1289,6 +1301,13 @@ function osVeilleRendreListe(wc){
         osVeilleRendreListe(wc); var ca = wc.querySelector('.vl-corps'); if(ca) ca.scrollTop = 0;
       }
       else if(act === 'alertes-regler') osVeilleAlertesOuvrir();
+      else if(act === 'contacts'){
+        _veilleSourceActive = 'contacts'; osVeilleRendreListe(wc); var cc = wc.querySelector('.vl-corps'); if(cc) cc.scrollTop = 0;
+      }
+      else if(act === 'contacts-voir'){
+        var arCt = (window._veilleArticles || []).find(function(a){ return a.id === id; });
+        if(arCt) osVeilleContactsOuvrir(arCt);
+      }
       else if(act === 'media'){
         // Premier clic : tout le journal ; nouveau clic sur le journal déjà choisi : replier / déplier les communes
         if(_veilleSourceActive === 'media:'+id) _veilleMediasOuverts[id] = !_veilleMediasOuverts[id];
