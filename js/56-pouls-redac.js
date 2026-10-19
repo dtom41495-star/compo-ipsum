@@ -194,8 +194,9 @@ function osPoulsRendre(){
     carte.id = 'os-w-pouls';
     carte.className = 'os-w-carte os-w-pouls';
     // Sous la pastille « en ligne », avant la carte d'installation
-    var installer = document.getElementById('os-w-installer');
-    if(installer) widget.insertBefore(carte, installer); else widget.appendChild(carte);
+    // « Pour toi » (js/58) vient après, s'il est déjà là
+    var suivant = document.getElementById('os-w-pourtoi') || document.getElementById('os-w-installer');
+    if(suivant) widget.insertBefore(carte, suivant); else widget.appendChild(carte);
     carte.addEventListener('click', osPoulsDetailBasculer);
     carte.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); osPoulsDetailBasculer(e); } });
   }
