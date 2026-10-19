@@ -322,14 +322,14 @@
     <div id="os-clock-widget">
       <div class="os-w-carte">
         <div class="os-w-heure" id="os-clock-time">00:00</div>
+        <!-- Personnes en ligne : badge discret en haut à droite de la carte, la liste s'ouvre au clic -->
+        <button type="button" id="os-online-pill" onclick="osEnLigneBasculer(event)" aria-haspopup="dialog" aria-expanded="false" title="Voir qui est en ligne">
+          <span class="os-online-point" aria-hidden="true"></span><span id="os-online-texte">En ligne</span>
+        </button>
         <div class="os-w-date" id="os-clock-date"></div>
         <div class="os-w-salut" id="os-clock-salut"></div>
         <div class="os-w-chips" id="os-clock-chips"></div>
       </div>
-      <!-- Personnes en ligne : badge discret, la liste s'ouvre au clic -->
-      <button type="button" id="os-online-pill" onclick="osEnLigneBasculer(event)" aria-haspopup="dialog" aria-expanded="false" title="Voir qui est en ligne">
-        <span class="os-online-point" aria-hidden="true"></span><span id="os-online-texte">En ligne</span>
-      </button>
     </div>
 
     <div id="os-redaction-label" style="position:absolute;bottom:72px;left:20px;pointer-events:none;user-select:none;display:none;">
