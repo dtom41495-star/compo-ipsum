@@ -1,5 +1,5 @@
 // ===== WIDGET « LA RÉDAC » : LE COMPTEUR DE TENSION =====
-// Sous l'horloge du bureau (PC), pour les SR, les rédac chefs et les admins : un mot (Calme, Soutenue, Tendue) et une réglette
+// Sous l'horloge du bureau (PC), pour tout le monde : un mot (Calme, Soutenue, Tendue) et une réglette
 // qui dit si la rédaction active est sous tension. Pas d'explication à l'écran ; le détail est dans l'infobulle.
 // Quatre mesures, sur la rédaction active (toutes si aucune) :
 //  - la newsletter : plus l'envoi approche et plus il reste de brèves pas prêtes (brouillons et relectures, contre brèves validées
@@ -22,17 +22,8 @@ var _pouls = { minuteur:null, dernier:null };
 
 function _poulsRedacActive(){ return window._redacActiveId || null; }
 
-function _poulsChefDe(redacId){
-  var uid = getUserId();
-  return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef' && (!redacId || l.redaction_id === redacId); });
-}
-
-// SR, rédac chef ou admin (de la rédaction active quand il y en a une)
-function _poulsPermis(){
-  if(getUserRole() === 'admin') return true;
-  var r = _poulsRedacActive();
-  return (typeof osEstSR === 'function' && osEstSR(r)) || _poulsChefDe(r);
-}
+// Visible par tout le monde (il fut un temps réservé aux SR, rédac chefs et admins : voir l'historique git)
+function _poulsPermis(){ return !!getUserId(); }
 
 function _poulsNbCorrecteurs(redacId){
   var liens = window._membresRedactionsData || [];
