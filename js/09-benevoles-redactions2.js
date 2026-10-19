@@ -1936,6 +1936,7 @@ function osRedactionsMembre_OngletSujets(uid, roleRedac){
   h += '</div>';
   h += '<button class="sj-btn" style="display:none;" id="btn-sujets-tout-lu" onclick="_osRedacMarquerSujetsLus();document.getElementById(\'btn-sujets-tout-lu\').style.display=\'none\';"><i class="ti ti-checks"></i>Tout marquer comme lu</button>';
   h += '<div id="sujets-propositions-zone"></div>';
+  h += '<div id="sujets-idees-veille-zone"></div>';
   h += '<div id="redac-sujets-zone" style="min-height:100px;flex-shrink:0;"><div style="padding:1.5rem;text-align:center;font-family:DM Sans,sans-serif;font-size:0.72rem;color:var(--gris);"></div></div>';
   // Plus de liste « articles hors sujets » : un article écrit directement crée
   // désormais son propre sujet, il apparaît donc dans la liste ci-dessus.

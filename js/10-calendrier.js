@@ -1038,8 +1038,8 @@ function osVeilleOuvrirArticle(articleId, lien){
 // avoir vérifié qu'un sujet très proche n'existe pas déjà (même détection que pour la
 // rédaction normale — non bloquant, juste un avertissement).
 function osVeilleCreerSujet(articleId){
-  // Depuis l'appli, ou depuis le widget du bureau (js/53-veille-widget.js)
-  var article = (window._veilleArticles||[]).concat(window._veilleWidgetArticles||[]).find(function(a){ return a.id===articleId; });
+  // Depuis l'appli, depuis le widget du bureau (js/53-veille-widget.js) ou depuis les idées de l'onglet Sujets (js/57-veille-idees.js)
+  var article = (window._veilleArticles||[]).concat(window._veilleWidgetArticles||[], window._veilleIdeesArticles||[]).find(function(a){ return a.id===articleId; });
   if(!article) return;
   _doublonsCharger().then(function(cache){
     var proches = _doublonsChercher(article.titre, cache);
@@ -2155,6 +2155,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     var finSujetsTab = function(){ _osForcerRepaint(document.getElementById('win-redactions')); };
     if(zoneSujets) osRedacChargerSujets(zoneSujets, roleRedac, finSujetsTab);
     osSujetsChargerPropositions(document.getElementById('sujets-propositions-zone'));
+    if(typeof osVeilleIdeesRendre === 'function') osVeilleIdeesRendre(document.getElementById('sujets-idees-veille-zone'));
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac') osMaRedacDemarrer(uid, redacId, roleRedac);

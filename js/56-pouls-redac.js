@@ -1,5 +1,5 @@
 // ===== WIDGET « LA RÉDAC » : LE COMPTEUR DE TENSION =====
-// Sous l'horloge du bureau (PC), pour les SR, les rédac chefs et les admins : un mot (Calme, Soutenue, Tendue) et une réglette
+// Sous l'horloge du bureau (PC), pour tout le monde : un mot (Calme, Soutenue, Tendue) et une réglette
 // qui dit si la rédaction active est sous tension. Pas d'explication à l'écran ; le détail est dans l'infobulle.
 // Quatre mesures, sur la rédaction active (toutes si aucune) :
 //  - la newsletter : plus l'envoi approche et plus il reste de brèves pas prêtes (brouillons et relectures, contre brèves validées
@@ -16,21 +16,14 @@ var POULS_ETATS = [
   { max:65, mot:'Soutenue', couleur:'#FFB43C' },
   { max:101, mot:'Tendue', couleur:'#FF6A55' }
 ];
+// Articles en relecture par correcteur à partir duquel la correction pèse au maximum
+var POULS_MAX_PAR_CORRECTEUR = 3;
 var _pouls = { minuteur:null, dernier:null };
 
 function _poulsRedacActive(){ return window._redacActiveId || null; }
 
-function _poulsChefDe(redacId){
-  var uid = getUserId();
-  return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef' && (!redacId || l.redaction_id === redacId); });
-}
-
-// SR, rédac chef ou admin (de la rédaction active quand il y en a une)
-function _poulsPermis(){
-  if(getUserRole() === 'admin') return true;
-  var r = _poulsRedacActive();
-  return (typeof osEstSR === 'function' && osEstSR(r)) || _poulsChefDe(r);
-}
+// Visible par tout le monde (il fut un temps réservé aux SR, rédac chefs et admins : voir l'historique git)
+function _poulsPermis(){ return !!getUserId(); }
 
 function _poulsNbCorrecteurs(redacId){
   var liens = window._membresRedactionsData || [];
@@ -72,7 +65,7 @@ function osPoulsCalculer(d){
   var jours = (d.prochaine - Date.now()) / 86400000;
   var n = _poulsUrgence(jours) * partPasPretes;
   var parCorr = d.enRelecture / d.correcteurs;
-  var c = Math.min(1, parCorr / 4);
+  var c = Math.min(1, parCorr / POULS_MAX_PAR_CORRECTEUR);
   var a = Math.min(1, d.articlesEnCours / 8);
   var s = Math.min(1, d.sujetsLibres / 8);
   var score = Math.round(100 * (POULS_PAS.newsletter * n + POULS_PAS.correction * c + POULS_PAS.articles * a + POULS_PAS.sujets * s));

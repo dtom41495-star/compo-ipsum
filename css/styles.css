@@ -6160,6 +6160,22 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .vl-alertes-prevenir small { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--gris); }
 .vl-src-alertes:not(.active) i { color: var(--rouge); }
 :root.theme-dark .vl-alertes-prevenir { background: rgba(255,255,255,0.06); }
+/* Idées de la Veille dans l'onglet Sujets (js/57-veille-idees.js) */
+.vid { margin-bottom: 0.9rem; }
+.vid-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 0.5rem; font-family: 'DM Sans', sans-serif; }
+.vid-tete > span { font-family: Poppins, sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--encre); }
+.vid-tete > span i { color: var(--rouge); }
+.vid-tete em { font-size: 0.68rem; font-style: normal; color: var(--gris); }
+.vid-autres { margin-left: auto; border: none; background: none; color: var(--gris); font: 600 0.72rem 'DM Sans', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.vid-autres:hover { color: var(--rouge); }
+.vid-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+.vid-carte { display: flex; flex-direction: column; gap: 6px; padding: 0.8rem 0.95rem; border: 1.5px dashed var(--gris-bord); border-radius: 10px; background: transparent; }
+.vid-meta { font-size: 0.66rem; color: var(--gris); font-family: 'DM Sans', sans-serif; }
+.vid-meta b { color: var(--rouge); font-weight: 700; }
+.vid-titre { font-weight: 600; font-size: 0.84rem; line-height: 1.35; color: var(--encre); flex: 1; }
+.vid-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 2px; }
+@media (max-width: 768px) { .vid-grille { grid-template-columns: 1fr; } }
+
 /* Widget « La rédac » : compteur de tension (js/56-pouls-redac.js) */
 .os-w-pouls { clear: both; margin-top: 12px; box-sizing: border-box; padding: 0.8rem 1.1rem 0.95rem; pointer-events: auto; user-select: none; color: #fff; font-family: 'DM Sans', sans-serif; }
 .os-w-pouls small { display: block; font: 400 0.6rem 'Space Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
