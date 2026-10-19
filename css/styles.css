@@ -5864,6 +5864,9 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 /* ===== ARRIVÉE DU BUREAU (osArriveeBureau, js/02-auth-articles.js), sur PC =====
    Les propriétés translate / scale (et non transform) laissent intacts les placements déjà faits par transform. */
 #os-desktop.os-arrivee #os-bg { animation: osa-fond .9s cubic-bezier(.2,.7,.2,1) both; }
+#os-desktop.os-arrivee.os-sans-fond #os-bg { animation: none; }
+/* En attendant le choix de la rédaction (plusieurs rédactions) : le fond d'écran seul, le reste arrive après */
+#os-desktop.os-attente #os-workspace, #os-desktop.os-attente #os-dock { opacity: 0; visibility: hidden; }
 #os-desktop.os-arrivee #os-desktop-icons .desktop-icon { animation: osa-icone .5s cubic-bezier(.25,1.35,.5,1) calc(320ms + var(--osa-i, 0) * 45ms) both; }
 #os-desktop.os-arrivee #os-clock-widget { animation: osa-droite .65s cubic-bezier(.2,.9,.3,1) 380ms both; }
 #os-desktop.os-arrivee #os-dock { animation: osa-dock .6s cubic-bezier(.2,.9,.3,1.15) 260ms both; }
@@ -6036,6 +6039,11 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .os-w-veille-nb { font-family: 'DM Sans', sans-serif; font-size: 0.64rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(234,91,28,0.35); color: #FFD3BD; }
 .os-w-veille-tete button { margin-left: auto; width: 26px; height: 26px; border-radius: 8px; border: none; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); cursor: pointer; display: grid; place-items: center; }
 .os-w-veille-tete button:hover { background: rgba(255,255,255,0.18); }
+.os-w-veille-tete button + button { margin-left: 0; }
+.os-w-veille-nom { cursor: pointer; }
+.os-w-veille.replie { padding-bottom: 0.85rem; }
+.os-w-veille.replie .os-w-veille-tete { margin-bottom: 0; }
+.os-w-veille.replie ul { display: none; }
 .os-w-veille ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .os-w-veille li { position: relative; padding: 7px 30px 7px 10px; border-top: 1px solid rgba(255,255,255,0.08); border-radius: 8px; }
 .os-w-veille li:first-child { border-top: none; }

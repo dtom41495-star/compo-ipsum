@@ -2,9 +2,15 @@
 // À droite de l'horloge du bureau (PC), en haut, pour laisser le fond d'écran dégagé : les derniers articles de la Veille (js/10-calendrier.js, osVeille*),
 // un clic pour lire, l'ampoule pour en faire un sujet. Mêmes « lus » que l'appli Veille (ipsum_veille_vus).
 // Pour qui a l'appli Veille (rédacteurs, SR, admins). Rafraîchi toutes les 10 minutes et au retour sur l'onglet.
+// Peut se replier (chevron dans l'en-tête, ou clic sur le titre) : il ne reste que l'en-tête et le nombre de nouveaux.
+// Le choix est mémorisé sur cet ordinateur (localStorage « compo_veille_widget_replie »).
 
 var VEILLE_WIDGET_NB = 5;
 var _veilleWidget = { articles:null, flux:{}, minuteur:null };
+
+function _veilleWidgetReplie(){
+  try{ return localStorage.getItem('compo_veille_widget_replie') === '1'; }catch(e){ return false; }
+}
 
 function _veilleWidgetPermis(){
   return ['admin', 'redacteur', 'correcteur'].indexOf(getUserRole()) !== -1;
@@ -63,14 +69,22 @@ function osVeilleWidgetRendre(){
       var a = (_veilleWidget.articles || []).find(function(x){ return x.id === b.getAttribute('data-id'); });
       var action = b.getAttribute('data-action');
       if(action === 'ouvrir-appli'){ osOpenWindow('veille'); return; }
+      if(action === 'replier'){
+        try{ localStorage.setItem('compo_veille_widget_replie', _veilleWidgetReplie() ? '0' : '1'); }catch(err){}
+        osVeilleWidgetRendre();
+        return;
+      }
       if(!a) return;
       if(action === 'lire') osVeilleOuvrirArticle(a.id, a.lien);
       if(action === 'sujet'){ osVeilleMarquerVu(a.id); osVeilleCreerSujet(a.id); }
     });
   }
-  var h = '<div class="os-w-veille-tete"><i class="ti ti-rss"></i><span>Veille</span>'
+  var replie = _veilleWidgetReplie();
+  carte.classList.toggle('replie', replie);
+  var h = '<div class="os-w-veille-tete"><i class="ti ti-rss"></i><span class="os-w-veille-nom" data-action="replier" title="'+(replie ? 'Déplier' : 'Replier')+'">Veille</span>'
     // On ne charge que les 30 derniers : s'ils sont tous non lus, il y en a peut-être plus
     +(nonLus ? '<span class="os-w-veille-nb">'+(nonLus === liste.length && liste.length >= 30 ? '30+' : nonLus)+' nouveau'+(nonLus > 1 ? 'x' : '')+'</span>' : '')
+    +'<button type="button" data-action="replier" aria-expanded="'+(replie ? 'false' : 'true')+'" title="'+(replie ? 'Déplier le widget' : 'Replier le widget')+'"><i class="ti ti-chevron-'+(replie ? 'down' : 'up')+'"></i></button>'
     +'<button type="button" data-action="ouvrir-appli" title="Ouvrir la Veille"><i class="ti ti-arrow-up-right"></i></button></div><ul>';
   liste.slice(0, VEILLE_WIDGET_NB).forEach(function(a){
     var f = _veilleWidget.flux[a.flux_id];
