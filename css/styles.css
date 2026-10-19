@@ -3358,17 +3358,44 @@ input:focus,select:focus,textarea:focus{
 #screensaver {
   position: fixed; inset: 0; z-index: 99999;
   display: none;
-  align-items: center; justify-content: center;
   cursor: none;
   flex-direction: column;
-  gap: 2.5rem;
-  background: #000;
+  overflow: hidden;
+  padding: 6vh 8vw 5vh;
+  background: #000; color: #fff;
   transition: filter 3s ease;
+}
+/* Mise en page « la une » : en-tête de journal, gros titre, bandeau Veille */
+#screensaver .ss-entete { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgba(255,255,255,.16); }
+#screensaver .ss-marque { font: 800 1.6rem/1 Poppins, sans-serif; }
+#screensaver .ss-marque span { color: #E8461E; }
+#screensaver .ss-date { flex: 1; text-align: center; font: 400 .75rem 'Space Mono', monospace; letter-spacing: .15em; text-transform: uppercase; color: rgba(255,255,255,.5); padding-bottom: .2rem; }
+#screensaver .ss-heure { font: 200 clamp(3rem, 6.5vw, 5.5rem)/.85 Poppins, sans-serif; letter-spacing: -.03em; color: rgba(255,255,255,.85); }
+#screensaver .ss-milieu { flex: 1; display: flex; align-items: center; min-height: 0; }
+#screensaver #ss-writer { max-width: 920px; }
+#screensaver .ss-kicker { display: flex; align-items: center; gap: .6rem; font: 700 .75rem 'Space Mono', monospace; letter-spacing: .25em; text-transform: uppercase; color: #E8461E; margin-bottom: 1.1rem; }
+#screensaver .ss-point { width: 8px; height: 8px; border-radius: 50%; background: #E8461E; animation: ss-pouls 2.4s ease-out infinite; }
+@keyframes ss-pouls { 0% { box-shadow: 0 0 0 0 rgba(232,70,30,.55); } 70%, 100% { box-shadow: 0 0 0 12px rgba(232,70,30,0); } }
+#screensaver .ss-titre { font: 700 clamp(2rem, 4.4vw, 3.6rem)/1.15 Poppins, sans-serif; margin-bottom: 1.1rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+#screensaver .ss-chapo { font: 400 1.05rem/1.6 Montserrat, sans-serif; color: rgba(255,255,255,.55); max-width: 720px; }
+#screensaver .ss-chapo:empty { display: none; }
+#screensaver .ss-sign { margin-top: 1.2rem; font: 500 .85rem Montserrat, sans-serif; color: rgba(255,255,255,.7); }
+#screensaver .ss-bandeau { align-items: center; gap: 1.2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.16); }
+#screensaver .ss-bandeau b { flex-shrink: 0; font: 700 .7rem 'Space Mono', monospace; letter-spacing: .2em; text-transform: uppercase; color: #000; background: #E8461E; padding: .3rem .6rem; }
+#screensaver .ss-bandeau-fenetre { flex: 1; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+#screensaver .ss-bandeau-piste { display: inline-flex; white-space: nowrap; animation: ss-defile 60s linear infinite; }
+#screensaver .ss-bandeau-piste span { font: 400 .9rem Montserrat, sans-serif; color: rgba(255,255,255,.6); }
+#screensaver .ss-bandeau-piste i { font-style: normal; color: #E8461E; padding: 0 .9rem; }
+@keyframes ss-defile { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+#screensaver .ss-aide { position: absolute; top: 1.2rem; left: 0; right: 0; text-align: center; font: 400 .68rem Montserrat, sans-serif; letter-spacing: .08em; color: rgba(255,255,255,.3); }
+@media (max-width: 700px) {
+  #screensaver { padding: 5vh 6vw 4vh; }
+  #screensaver .ss-date { display: none; }
 }
 #screensaver.visible { display: flex; }
 #screensaver.ss-tamise { filter: brightness(.55); }
 #screensaver > *:not(#ss-aide) { translate: var(--ss-dx, 0) var(--ss-dy, 0); transition: translate 4s ease-in-out; }
-#ss-aide { transition: opacity 3s ease; }   /* ne glisse pas (sortirait par le bas) : elle s'efface */
+#ss-aide { transition: opacity 3s ease; }   /* ne glisse pas (sortirait de l'écran) : elle s'efface */
 #ss-aide.ss-cache { opacity: 0; }
 
 /* ===== ACCUEIL MOBILE =====
