@@ -3163,9 +3163,9 @@ function osShowToast(msg, type, opts){
   // opts = { persistent: bool, action: {label, fn}, icon: emoji }
   opts = opts || {};
 
-  // Sur téléphone, plus de bulles à l'écran (« Enregistré », « Publié »…) : seules les erreurs restent, sans elles
-  // une action qui échoue ne dirait rien. Les notifications persistantes (avec un bouton d'action) restent aussi.
-  if(typeof osEstMobile === 'function' && osEstMobile() && !opts.persistent && (type || 'info') !== 'erreur') return;
+  // Sur téléphone, plus de bulles à l'écran (« Enregistré », « Publié »…), y compris les notifications persistantes
+  // (« Nouveau CP »…) : seules les erreurs restent, sans elles une action qui échoue ne dirait rien.
+  if(typeof osEstMobile === 'function' && osEstMobile() && (type || 'info') !== 'erreur') return;
 
   var stack = document.getElementById('os-toast-stack');
   if(!stack) return;
