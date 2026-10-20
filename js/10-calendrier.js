@@ -183,20 +183,6 @@ function osRedacChargerAlertes(zone){
     })
   );
 
-  // Alerte tickets
-  promesses.push(
-    fetch(SB_URL+'/rest/v1/tickets?statut=neq.ferme&select=id,titre,reponse&order=created_at.desc',{headers:authH})
-    .then(function(r){return r.json();})
-    .then(function(tickets){
-      if(!tickets||tickets.code||!tickets.length) return '';
-      // Pour les non-admins, seulement ses propres tickets avec réponse
-      if(role !== 'admin') tickets = tickets.filter(function(t){ return t.reponse; });
-      if(!tickets.length) return '';
-      return _osAlerteCarteHTML('#856404','#FFF3CD','ti-ticket',"osOpenWindow('tickets')",
-        (role==='admin'?tickets.length+' ticket'+(tickets.length>1?'s':'')+' en attente':'Réponse disponible sur ton ticket'),
-        'Voir dans Assistance');
-    })
-  );
 
   Promise.all(promesses).then(function(blocs){
     var content = blocs.filter(Boolean).join('');

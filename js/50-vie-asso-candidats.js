@@ -153,6 +153,9 @@ function _candAfficher(){
 
   var satBtn = div.querySelector('#cand-sat-bascule');
   if(satBtn) satBtn.onclick = function(){ _cand.satOuvert = !_cand.satOuvert; _candAfficher(); };
+  div.querySelectorAll('[data-sat-suppr]').forEach(function(b){
+    b.onclick = function(){ osSatisfactionSupprimer(b.getAttribute('data-sat-suppr')); };
+  });
   div.querySelector('#cand-nouveau').onclick = function(){ osCandidatOuvrir(null); };
   var ss = div.querySelector('#cand-voir-ss');
   if(ss) ss.onclick = function(){ _cand.voirSansSuite = !_cand.voirSansSuite; _candAfficher(); };
@@ -211,9 +214,25 @@ function _candSatDetailHtml(reps){
       var q = (r.question || '').trim() || (r.type === 'INPUT_EMAIL' ? 'Adresse email' : 'Question sans titre');
       h += '<div class="cand-sat-rep-ligne"><span>'+esc(q)+'</span><div>'+(r.reponse ? esc(r.reponse) : '<i>pas de réponse</i>')+'</div></div>';
     });
+    h += '<button type="button" class="cand-sat-suppr" data-sat-suppr="'+esc(s.id)+'"><i class="ti ti-trash"></i> Supprimer cette réponse</button>';
     h += '</div></details>';
   });
   return h+'</div>';
+}
+
+// Suppression d'une réponse (un test, une réponse qui n'a pas lieu d'être) : définitive, après confirmation.
+// On demande à la base de renvoyer la ligne supprimée : si rien ne revient, rien n'a été effacé.
+function osSatisfactionSupprimer(id){
+  osConfirmer('Supprimer cette réponse au sondage ?\nElle disparaît aussi des moyennes, pour de bon.', { oui:'Supprimer', danger:true }).then(function(ok){
+    if(!ok) return;
+    fetch(SB_URL+'/rest/v1/satisfaction_recrutement?id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:_candAuth({ Prefer:'return=representation' }) })
+      .then(function(r){ return r.json().then(function(d){ if(!r.ok || !Array.isArray(d) || !d.length) throw new Error('Suppression impossible'); }); })
+      .then(function(){
+        _cand.satisfaction = (_cand.satisfaction || []).filter(function(x){ return x.id !== id; });
+        _candAfficher(); notif('Réponse supprimée');
+      })
+      .catch(function(err){ notif(err.message, 'erreur'); });
+  });
 }
 
 function _candSatisfactionHtml(){

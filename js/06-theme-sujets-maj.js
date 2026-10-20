@@ -310,100 +310,9 @@ function osChargerNotifsDemarrage(){
   setTimeout(osAgendaCreditHeuresAuto, 3500);
   // Présence en ligne
   setTimeout(osPresenceInit, 1000);
-  var allNotifs = [];
-  var pending = 0;
-  
-  function tryFlush(){
-    pending--;
-    if(pending <= 0){
-      // Ajouter toutes les notifs en silence dans le centre
-      allNotifs.forEach(function(n){
-        osAddNotif(n.msg, n.type, n.action, true); // silent=true
-      });
-      // Puis jouer la file séquentiellement avec délai
-      setTimeout(function(){
-        allNotifs.forEach(function(n){
-          _notifQueue2.push({ msg:n.msg, action:n.action });
-        });
-        if(!_notifPlaying) osPlayNextNotif();
-      }, 1000);
-    }
-  }
-  
-  // Tickets ouverts
-  if(role === 'admin' || role === 'correcteur'){
-    pending++;
-    fetch(SB_URL+'/rest/v1/tickets?statut=eq.ouvert&select=id,titre,auteur&order=created_at.desc&limit=5', {headers:SB_HEADERS})
-    .then(function(r){ return r.json(); })
-    .then(function(tickets){
-      if(tickets && !tickets.code){
-        tickets.forEach(function(t){
-          allNotifs.push({msg:'Assistance : '+t.auteur+' — '+t.titre, type:'ticket', action:function(){ osOpenWindow('tickets'); }});
-        });
-      }
-      tryFlush();
-    }).catch(function(){ tryFlush(); });
-  }
-  
-  // Articles à corriger
-  if(role === 'correcteur' || role === 'admin'){
-    pending++;
-    var nom = getUserNomComplet();
-    var userId = getUserId();
-    var q = userId
-      ? SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&or=(correcteur_id.eq.'+userId+',correcteur.eq.'+encodeURIComponent(nom)+')&select=titre&limit=5'
-      : SB_URL+'/rest/v1/articles?statut=in.(en-relecture,corrige)&correcteur=eq.'+encodeURIComponent(nom)+'&select=titre&limit=5';
-    fetch(q, {headers:SB_HEADERS})
-    .then(function(r){ return r.json(); })
-    .then(function(arts){
-      if(arts && !arts.code){
-        arts.forEach(function(a){
-          allNotifs.push({msg:'À relire (SR) : '+a.titre, type:'correction', action:function(){ osOpenWindow('app-correction'); }});
-        });
-      }
-      tryFlush();
-    }).catch(function(){ tryFlush(); });
-  }
-  
-  // Articles à publier
-  if(role === 'admin'){
-    pending++;
-    fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&select=titre&limit=5', {headers:SB_HEADERS})
-    .then(function(r){ return r.json(); })
-    .then(function(arts){
-      if(arts && !arts.code){
-        arts.forEach(function(a){
-          allNotifs.push({msg:'Pret a publier : '+a.titre, type:'publication', action:function(){ _redacOnglet='redac'; osOpenWindow('redactions'); }});
-        });
-      }
-      tryFlush();
-    }).catch(function(){ tryFlush(); });
-  }
-  
-  // Demandes de suppression (annonces de type alerte avec DEMANDE DE SUPPRESSION)
-  if(role === 'admin'){
-    pending++;
-    fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&type=eq.alerte&order=created_at.desc&select=*&limit=10', {headers:SB_HEADERS})
-    .then(function(r){ return r.json(); })
-    .then(function(annonces){
-      if(annonces && !annonces.code){
-        annonces.forEach(function(a){
-          if(a.message && a.message.indexOf('DEMANDE DE SUPPRESSION') === 0){
-            allNotifs.push({
-              msg: a.message.replace('DEMANDE DE SUPPRESSION - ',''),
-              type: 'suppression',
-              action: function(){ osOpenWindow('benevoles'); }
-            });
-          }
-        });
-      }
-      tryFlush();
-    }).catch(function(){ tryFlush(); });
-  }
-
-  if(pending === 0){
-    if(!_notifPlaying) osPlayNextNotif();
-  }
+  // Les tâches (articles à relire, à publier, demandes de suppression…) ne sont plus des bulles :
+  // elles vivent dans « À traiter » (js/59-a-traiter.js), avec un seul message de résumé à la connexion.
+  setTimeout(function(){ if(typeof osATraiterInit === 'function') osATraiterInit(); }, 3500);
 }
 
 
@@ -980,19 +889,17 @@ function osParamsRenderSection(section, container){
     askRoleBtn.onclick = function(){
       var newRole = roleSelect.value;
       if(newRole === getUserRole()){ notif('Tu as déjà ce rôle'); return; }
-      // Créer un ticket de demande
-      fetch(SB_URL+'/rest/v1/tickets', {
-        method:'POST',
-        headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
-        body: JSON.stringify({
-          titre: 'Demande de changement de rôle : '+newRole,
-          description: getUserNomComplet()+' demande à passer de '+getUserRole()+' à '+newRole+'.',
-          priorite:'normale', statut:'ouvert',
-          auteur:getUserNomComplet(), auteur_id:getUserId(), auteur_email:getUserEmail()
-        })
-      }).then(function(r){
-        if(r.ok) notif('Demande envoyée à l\'admin !');
-      }).catch(function(){});
+      // Plus de système d'assistance : la demande part par email à l'admin
+      var qui = getUserNomComplet();
+      var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'+
+        osEnteteEmailLogo('Demande de changement de rôle')+
+        '<div style="padding:1.2rem 1.5rem;">'+
+        '<p><strong>'+esc(qui)+'</strong> demande à passer de <strong>'+esc(getUserRole())+'</strong> à <strong>'+esc(newRole)+'</strong>.</p>'+
+        '<p style="color:#6B7280;">Réponse à donner à '+esc(getUserEmail()||qui)+'. Le rôle se change dans Compo, appli Bénévoles.</p>'+
+        '</div></div>';
+      envoyerEmailResend(ADMIN_EMAIL, '[Compo] Demande de changement de rôle : '+qui, html, 'role_demande')
+        .then(function(r){ if(r && r.ok) notif('Demande envoyée à l\'admin !'); else notif('Demande non envoyée', 'erreur'); })
+        .catch(function(){ notif('Demande non envoyée', 'erreur'); });
     };
     var roleActions = document.createElement('div');
     roleActions.className = 'params-action';

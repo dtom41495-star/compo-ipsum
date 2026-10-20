@@ -335,7 +335,6 @@ function osAssurerSession(marge){
   };
 })();
 
-var _ticketFiltre = 'tous';
 var currentDoc = null;
 var currentType = 'article';
 var currentUrg = 'normal';
@@ -1978,7 +1977,6 @@ function bvnValider(){
   document.getElementById('bienvenue').classList.remove('visible');
   // Si le rôle a changé, reconstruire nav
   if(role !== ancienRole){
-    chargerAlertTickets();
     notif('Profil mis a jour - interface actualisee');
   } else {
     notif('Profil mis a jour');

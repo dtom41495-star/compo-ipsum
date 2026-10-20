@@ -1095,44 +1095,6 @@
   <div id="mes-articles-list" style="flex:1;overflow-y:auto;padding:0.8rem 1rem;"></div>
 </div>
 
-<div class="page" id="page-tickets">
-  <div class="panel-title">Assistance <i class="ti ti-urgent"></i></div>
-  <div class="panel-subtitle">Besoin d aide ? Ouvre une demande d assistance.</div>
-  <div style="background:white;border:1.5px solid var(--gris-bord);padding:1.2rem;margin-bottom:1.5rem;">
-    <div style="font-family:Space Mono,monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.8rem;">Nouveau ticket</div>
-    <div class="form-group" style="margin-bottom:0.7rem;">
-      <label>Titre *</label>
-      <input type="text" id="ticket-titre" placeholder="Decris brievement le probleme ou la demande">
-    </div>
-    <div class="form-group" style="margin-bottom:0.7rem;">
-      <label>Description</label>
-      <textarea id="ticket-desc" rows="3" placeholder="Donne le maximum de details..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
-    </div>
-    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.6rem;">
-      <select id="ticket-destinataire" onchange="ticketToggleCorrecteur(this.value)" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
-        <option value="admin">Admin</option>
-        <option value="correcteur">Secrétaire de rédaction</option>
-      </select>
-      <select id="ticket-priorite" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);">
-        <option value="normale">Normale</option>
-        <option value="urgente">Urgente</option>
-        <option value="faible">Faible</option>
-      </select>
-    </div>
-    <div id="ticket-correcteur-select" style="display:none;margin-bottom:0.6rem;">
-      <select id="ticket-correcteur-id" style="font-family:Space Mono,monospace;font-size:0.72rem;padding:0.35rem 0.5rem;border:1.5px solid var(--gris-bord);width:100%;">
-        <option value="">Choisir un SR...</option>
-      </select>
-    </div>
-    <button class="btn" onclick="ticketCreer()">Envoyer</button>
-  </div>
-  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-    <button class="statut-filtre active" onclick="ticketFiltrer('tous',this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Tous</button>
-    <button class="statut-filtre" onclick="ticketFiltrer('ouvert',this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Ouverts</button>
-    <button class="statut-filtre" onclick="ticketFiltrer('ferme',this)" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:4px 10px;border:1px solid var(--gris-bord);background:white;cursor:pointer;">Fermes</button>
-  </div>
-  <div id="tickets-list"></div>
-</div>
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
@@ -1375,6 +1337,7 @@
 <script src="js/56-pouls-redac.js"></script>
 <script src="js/57-veille-idees.js"></script>
 <script src="js/58-appli-windows.js"></script>
+<script src="js/59-a-traiter.js"></script>
 <script src="js/26-video-tuto.js"></script>
 <script src="js/27-patchnotes.js"></script>
 <script src="js/23-flouter.js"></script>
