@@ -6304,3 +6304,5 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .cand-sat-rep-ligne span { display: block; font-size: 0.68rem; font-weight: 600; color: var(--gris); }
 .cand-sat-rep-ligne div { font-size: 0.78rem; line-height: 1.45; color: var(--encre); white-space: pre-wrap; }
 .cand-sat-rep-ligne i { color: var(--gris); }
+.cand-sat-suppr { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; padding: 4px 10px; border: 1px solid var(--gris-bord); border-radius: 6px; background: var(--blanc); color: #A32D2D; font: inherit; font-size: 0.7rem; cursor: pointer; }
+.cand-sat-suppr:hover { background: #FCEBEB; border-color: #A32D2D; }
