@@ -192,6 +192,30 @@ function _candSatBarres(compte, ordreCles, total){
   }).join('');
 }
 
+// Chaque réponse en entier : toutes les questions, y compris celles laissées vides, et l'adresse de la personne
+function _candSatQuand(d){
+  return d ? new Date(d).toLocaleString('fr-FR', { day:'numeric', month:'long', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Paris' }) : '';
+}
+function _candSatDetailHtml(reps){
+  var h = '<div class="cand-sat-q"><div class="cand-sat-qtitre">Réponses une par une</div>';
+  reps.forEach(function(s){
+    var rs = s.reponses || [];
+    var notes = rs.filter(function(r){ return typeof r.valeur === 'number'; }).map(function(r){ return r.valeur; });
+    var moy = notes.length ? (Math.round(notes.reduce(function(a, b){ return a + b; }, 0) / notes.length * 10) / 10).toString().replace('.', ',') : '';
+    var mail = (rs.find(function(r){ return r.type === 'INPUT_EMAIL'; }) || {}).reponse || '';
+    var cand = s.candidat_id ? (_cand.liste || []).find(function(c){ return c.id === s.candidat_id; }) : null;
+    h += '<details class="cand-sat-rep"><summary><strong>'+esc(_candSatQuand(s.recu_le))+'</strong>'
+      +(cand ? '<span>'+esc(_candNom(cand))+'</span>' : (mail ? '<span>'+esc(mail)+'</span>' : ''))
+      +(moy ? '<em>moyenne '+moy+'</em>' : '')+'</summary><div class="cand-sat-rep-corps">';
+    rs.forEach(function(r){
+      var q = (r.question || '').trim() || (r.type === 'INPUT_EMAIL' ? 'Adresse email' : 'Question sans titre');
+      h += '<div class="cand-sat-rep-ligne"><span>'+esc(q)+'</span><div>'+(r.reponse ? esc(r.reponse) : '<i>pas de réponse</i>')+'</div></div>';
+    });
+    h += '</div></details>';
+  });
+  return h+'</div>';
+}
+
 function _candSatisfactionHtml(){
   var reps = _cand.satisfaction || [];
   var h = '<div class="cand-sat"><button type="button" class="cand-sat-tete" id="cand-sat-bascule" aria-expanded="'+(_cand.satOuvert ? 'true' : 'false')+'">'
@@ -218,12 +242,14 @@ function _candSatisfactionHtml(){
           h += _candSatBarres(g.choix, Object.keys(g.choix).sort(function(a, b){ return g.choix[b] - g.choix[a]; }), total);
         }
         if(g.textes.length){
-          h += '<div class="cand-sat-textes">'+g.textes.slice(0, 8).map(function(t){
+          h += '<div class="cand-sat-textes">'+g.textes.map(function(t){
             return '<blockquote>'+esc(t.texte)+'<span>'+esc(_candDate(t.quand))+'</span></blockquote>';
-          }).join('')+(g.textes.length > 8 ? '<div class="cand-sat-reste">… et '+(g.textes.length - 8)+' autres réponses</div>' : '')+'</div>';
+          }).join('')+'</div>';
         }
+        if(!g.notes.length && !Object.keys(g.choix).length && !g.textes.length) h += '<div class="cand-sat-reste">Pas de réponse pour l’instant</div>';
         h += '</div>';
       });
+      h += _candSatDetailHtml(reps);
     }
   }
   return h+'</div>';

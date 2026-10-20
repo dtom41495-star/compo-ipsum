@@ -6293,3 +6293,14 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .cand-sat-textes blockquote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--gris-bord); background: var(--gris-clair); border-radius: 0 6px 6px 0; font-size: 0.78rem; line-height: 1.5; color: var(--encre); white-space: pre-wrap; }
 .cand-sat-textes blockquote span { display: block; margin-top: 2px; font-size: 0.64rem; color: var(--gris); }
 .cand-sat-reste { font-size: 0.7rem; color: var(--gris); }
+
+.cand-sat-rep { border: 1px solid var(--gris-bord); border-radius: 8px; background: var(--gris-clair); }
+.cand-sat-rep summary { display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 0.76rem; cursor: pointer; color: var(--encre); list-style: none; }
+.cand-sat-rep summary::-webkit-details-marker { display: none; }
+.cand-sat-rep summary span { color: var(--gris); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cand-sat-rep summary em { margin-left: auto; font-style: normal; font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--gris); flex-shrink: 0; }
+.cand-sat-rep[open] summary { border-bottom: 1px solid var(--gris-bord); }
+.cand-sat-rep-corps { padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+.cand-sat-rep-ligne span { display: block; font-size: 0.68rem; font-weight: 600; color: var(--gris); }
+.cand-sat-rep-ligne div { font-size: 0.78rem; line-height: 1.45; color: var(--encre); white-space: pre-wrap; }
+.cand-sat-rep-ligne i { color: var(--gris); }
