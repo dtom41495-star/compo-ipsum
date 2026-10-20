@@ -6272,3 +6272,24 @@ body.ecr-actif #os-toast-stack { display: none !important; }
   .vl-moment-grille { grid-template-columns: 1fr; }
 }
 .ga-mobile #admin-pouls-zone { margin: 0.8rem 0; }
+
+/* Satisfaction du recrutement (Bénévoles > Candidats, js/50-vie-asso-candidats.js) */
+.cand-sat { border: 1px solid var(--gris-bord); border-radius: 12px; background: var(--blanc); overflow: hidden; }
+.cand-sat-tete { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: none; background: none; color: var(--encre); font: inherit; font-size: 0.8rem; font-weight: 700; text-align: left; cursor: pointer; }
+.cand-sat-tete span { display: flex; align-items: center; gap: 6px; }
+.cand-sat-tete em { margin-left: auto; font-style: normal; font-weight: 400; font-size: 0.72rem; color: var(--gris); }
+.cand-sat-vide { padding: 4px 14px 14px; font-size: 0.78rem; color: var(--gris); line-height: 1.5; }
+.cand-sat-q { padding: 10px 14px 12px; border-top: 1px solid var(--gris-bord); display: flex; flex-direction: column; gap: 5px; }
+.cand-sat-qtitre { font-size: 0.78rem; font-weight: 700; color: var(--encre); }
+.cand-sat-moy { font-size: 0.78rem; color: var(--gris); }
+.cand-sat-moy strong { font: 800 1.35rem Poppins, sans-serif; color: var(--encre); }
+.cand-sat-moy span { margin-left: 4px; }
+.cand-sat-ligne { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; }
+.cand-sat-lib { flex: 0 0 38%; max-width: 220px; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cand-sat-barre { flex: 1; height: 8px; border-radius: 4px; background: var(--gris-clair); overflow: hidden; }
+.cand-sat-barre i { display: block; height: 100%; border-radius: 4px; background: var(--rouge); }
+.cand-sat-n { flex: 0 0 24px; text-align: right; font-family: 'Space Mono', monospace; color: var(--gris); }
+.cand-sat-textes { display: flex; flex-direction: column; gap: 6px; }
+.cand-sat-textes blockquote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--gris-bord); background: var(--gris-clair); border-radius: 0 6px 6px 0; font-size: 0.78rem; line-height: 1.5; color: var(--encre); white-space: pre-wrap; }
+.cand-sat-textes blockquote span { display: block; margin-top: 2px; font-size: 0.64rem; color: var(--gris); }
+.cand-sat-reste { font-size: 0.7rem; color: var(--gris); }
