@@ -1979,7 +1979,8 @@ function osBuildDock(){
   var tray = document.createElement('div');
   tray.id = 'os-taskbar-tray';
   tray.innerHTML =
-    '<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
+    '<button id="os-atraiter-btn" class="tray-btn" onclick="osATraiterBasculer()" title="À traiter"><i class="ti ti-bell"></i><span id="atr-badge" class="atr-badge"></span></button>'
+    +'<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
     +'<div id="os-dnd-btn" onclick="osToggleDND()" class="tray-btn dnd-toggle-btn" style="width:auto;padding:0 10px;gap:5px;font-family:Arial,sans-serif;font-size:0.62rem;color:rgba(255,255,255,0.9);" title="Mode Ne pas déranger">'
     +'<span id="os-dnd-dot" class="dnd-toggle-dot" style="width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;flex-shrink:0;"></span>'
     +'<span id="os-dnd-label" class="dnd-toggle-label">Disponible</span>'
@@ -2083,7 +2084,7 @@ function _creerIconeDock(app, isPinned){
   icon.appendChild(label);
 
   // Badge notifications
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','projets','veille'];
+  var BADGE_APPS = ['tableau','app-correction','cps-admin','projets','veille'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var badge = document.createElement('span');
     badge.className = 'desktop-icon-badge';

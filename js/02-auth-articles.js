@@ -1272,7 +1272,6 @@ function lancerCompo(){
     setTimeout(function(){
       _loadDone();
       // Déclencher les chargements secondaires apres affichage
-      chargerAlertTickets();
       chargerDepuisURL();
       ssInit();
       osVerifierPromptCP();

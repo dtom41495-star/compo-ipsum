@@ -68,8 +68,7 @@ function osConstruireRattrapage(callback){
     fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&created_at=gt.'+encodeURIComponent(depuis)+'&select=id,message,lien,roles_cibles,created_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
     // 12: Communicant — articles validés en attente de visuels
     isCommunicant ? fetch(SB_URL+'/rest/v1/articles?statut=eq.valide&type=neq.breve&updated_at=gt.'+encodeURIComponent(depuis)+'&select=id,titre,updated_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide,
-    // 13-14: Admin — tickets, commandes boutique
-    isAdmin ? fetch(SB_URL+'/rest/v1/tickets?statut=eq.ouvert&created_at=gt.'+encodeURIComponent(depuis)+'&select=id,sujet,auteur,created_at',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide,
+    // 13: Admin — commandes boutique
     isAdmin ? fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.en_attente&select=id,cout_heures,membres(prenom,nom),boutique_articles(nom)',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}) : reqVide
   ]).then(function(res){
     var arr = function(i){ return Array.isArray(res[i]) ? res[i] : []; };
@@ -129,10 +128,7 @@ function osConstruireRattrapage(callback){
     arr(12).forEach(function(a){
       items.push({cle:'visuels:'+a.id, section:'Communication', titre:'Article à illustrer', desc:a.titre||'Sans titre', priorite:2});
     });
-    arr(13).forEach(function(t){
-      items.push({cle:'ticket:'+t.id, section:'Administration', titre:'Nouveau ticket support', desc:(t.sujet||'')+(t.auteur?' — '+t.auteur:''), priorite:3});
-    });
-    arr(14).forEach(function(c){
+    arr(13).forEach(function(c){
       var m = c.membres||{}; var art = c.boutique_articles||{};
       items.push({cle:'boutique:'+c.id, section:'Administration', titre:'Commande boutique à valider', desc:(art.nom||'')+' — '+(m.prenom||'')+' '+(m.nom||''), priorite:3});
     });
@@ -701,7 +697,6 @@ function osLoadPageContent(pageId, winEl){
   // Déclencher les chargements spécifiques à la page
   setTimeout(function(){
     if(pageId === 'mes-articles') osMesArticlesRender();
-    if(pageId === 'tickets') chargerTickets();
     if(pageId === 'cps-admin') cpsAdminCharger();
     if(pageId === 'boutique') osBoutiqueRender();
     if(pageId === 'tresorerie') osTresorerieRender();
@@ -1476,7 +1471,7 @@ function osBuildDesktopIcons(){
     }
     
     // Badge notifications (ex: CPs non lus)
-    var BADGE_DESKTOP = ['cps-admin','tickets'];
+    var BADGE_DESKTOP = ['cps-admin'];
     if(BADGE_DESKTOP.indexOf(app.id) !== -1){
       var notifBadge = document.createElement('span');
       notifBadge.className = 'desktop-icon-badge';
@@ -1875,7 +1870,7 @@ function _creerAppTuile(app, epingle){
     icon.appendChild(badgePin);
   }
 
-  var BADGE_APPS = ['tickets','tableau','app-correction','cps-admin','projets','veille'];
+  var BADGE_APPS = ['tableau','app-correction','cps-admin','projets','veille'];
   if(BADGE_APPS.indexOf(app.id) !== -1){
     var smBadge = document.createElement('span');
     smBadge.style.cssText = 'position:absolute;top:-3px;left:2px;background:#FF5F57;color:white;border-radius:9px;font-size:0.5rem;font-weight:700;font-family:Space Mono,monospace;padding:1px 4px;min-width:14px;text-align:center;border:1.5px solid rgba(0,0,0,0.3);display:none;z-index:2;';
