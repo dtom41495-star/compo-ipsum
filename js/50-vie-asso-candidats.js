@@ -19,7 +19,7 @@ var CAND_DOMAINE = 'ipsummedia.fr';  // Google Workspace de l'asso
 // Au-delà de ces délais (en jours) sur une étape, la carte passe dans « À faire »
 var CAND_DELAIS = { contact:3, appel:2, formulaire_envoye:5, formulaire_recu:0, compte_cree:1 };
 
-var _cand = { liste:null, div:null, voirSansSuite:false, erreur:null };
+var _cand = { liste:null, div:null, voirSansSuite:false, erreur:null, satisfaction:[], satOuvert:false };
 
 function _candAuth(extra){
   return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || ''), 'Content-Type':'application/json' }, extra || {});
@@ -70,6 +70,15 @@ function osCandidatsCharger(){
     });
 }
 
+// Les réponses au sondage de satisfaction (table satisfaction_recrutement, fonction tally-satisfaction).
+// Si la table n'existe pas encore, la section est simplement vide : ça ne bloque pas les candidats.
+function osCandidatsSatisfactionCharger(){
+  return fetch(SB_URL+'/rest/v1/satisfaction_recrutement?select=id,recu_le,reponses,candidat_id&order=recu_le.desc&limit=500', { headers:_candAuth() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _cand.satisfaction = Array.isArray(d) ? d : []; })
+    .catch(function(){ _cand.satisfaction = []; });
+}
+
 function osCandidatsRendre(div){
   if(div) _cand.div = div;
   if(!_cand.div) return;
@@ -77,7 +86,7 @@ function osCandidatsRendre(div){
   // L'onglet Commissions charge sa liste en même temps : on ne l'attend pas, on la demande aussi
   var comms = window._benvCommissions ? Promise.resolve() : fetch(SB_URL+'/rest/v1/commissions?order=ordre.asc&select=id,nom,couleur', { headers:_candAuth() })
     .then(function(r){ return r.json(); }).then(function(d){ if(Array.isArray(d) && !window._benvCommissions) window._benvCommissions = d; }).catch(function(){});
-  Promise.all([osCandidatsCharger(), comms]).then(_candAfficher).catch(function(err){
+  Promise.all([osCandidatsCharger(), comms, osCandidatsSatisfactionCharger()]).then(_candAfficher).catch(function(err){
     _cand.erreur = err.message;
     _candAfficher();
   });
@@ -139,14 +148,85 @@ function _candAfficher(){
       h += '<div class="cand-rgpd"><i class="ti ti-shield-lock"></i> Les fiches sans suite ou restées en route s’effacent toutes seules après six mois sans mouvement.</div>';
     }
   }
+  h += _candSatisfactionHtml();
   div.innerHTML = '<div class="cand-page">'+h+'</div>';
 
+  var satBtn = div.querySelector('#cand-sat-bascule');
+  if(satBtn) satBtn.onclick = function(){ _cand.satOuvert = !_cand.satOuvert; _candAfficher(); };
   div.querySelector('#cand-nouveau').onclick = function(){ osCandidatOuvrir(null); };
   var ss = div.querySelector('#cand-voir-ss');
   if(ss) ss.onclick = function(){ _cand.voirSansSuite = !_cand.voirSansSuite; _candAfficher(); };
   div.querySelectorAll('[data-id]').forEach(function(b){
     b.onclick = function(){ osCandidatOuvrir(b.getAttribute('data-id')); };
   });
+}
+
+// ---- Satisfaction du recrutement (sondage Tally) ----
+// Regroupe les réponses par question : notes et échelles en moyenne et répartition, choix en répartition,
+// textes libres en liste. Ne suppose rien sur les questions : tout vient du sondage.
+var CAND_SAT_TEXTES = ['INPUT_TEXT', 'TEXTAREA', 'INPUT_LINK', 'INPUT_EMAIL', 'INPUT_PHONE_NUMBER'];
+
+function _candSatQuestions(){
+  var ordre = [], par = {};
+  (_cand.satisfaction || []).forEach(function(s){
+    (s.reponses || []).forEach(function(r){
+      var q = (r.question || '').trim();
+      if(!q || /e-?mail|courriel|t[ée]l[ée]phone/i.test(q) || r.type === 'INPUT_EMAIL' || r.type === 'INPUT_PHONE_NUMBER') return;
+      if(!par[q]){ par[q] = { question:q, type:r.type || '', notes:[], choix:{}, textes:[] }; ordre.push(q); }
+      var g = par[q];
+      if(typeof r.valeur === 'number') g.notes.push(r.valeur);
+      else if(r.reponse){
+        if(CAND_SAT_TEXTES.indexOf(r.type) !== -1 || (r.reponse.length > 40)) g.textes.push({ texte:r.reponse, quand:s.recu_le });
+        else r.reponse.split(', ').forEach(function(c){ g.choix[c] = (g.choix[c] || 0) + 1; });
+      }
+    });
+  });
+  return ordre.map(function(q){ return par[q]; });
+}
+
+function _candSatBarres(compte, ordreCles, total){
+  return ordreCles.map(function(cle){
+    var n = compte[cle] || 0, pct = total ? Math.round(n * 100 / total) : 0;
+    return '<div class="cand-sat-ligne"><span class="cand-sat-lib">'+esc(String(cle))+'</span>'
+      +'<span class="cand-sat-barre"><i style="width:'+pct+'%"></i></span><span class="cand-sat-n">'+n+'</span></div>';
+  }).join('');
+}
+
+function _candSatisfactionHtml(){
+  var reps = _cand.satisfaction || [];
+  var h = '<div class="cand-sat"><button type="button" class="cand-sat-tete" id="cand-sat-bascule" aria-expanded="'+(_cand.satOuvert ? 'true' : 'false')+'">'
+    +'<span><i class="ti ti-mood-smile"></i> Satisfaction du recrutement</span>'
+    +'<em>'+(reps.length ? reps.length+' réponse'+(reps.length > 1 ? 's' : '') : 'aucune réponse pour l’instant')+'</em>'
+    +'<i class="ti ti-chevron-'+(_cand.satOuvert ? 'up' : 'down')+'"></i></button>';
+  if(_cand.satOuvert){
+    if(!reps.length){
+      h += '<div class="cand-sat-vide">Les réponses au sondage arrivent toutes seules, dès que le sondage Tally est relié à Compo.</div>';
+    } else {
+      _candSatQuestions().forEach(function(g){
+        h += '<div class="cand-sat-q"><div class="cand-sat-qtitre">'+esc(g.question)+'</div>';
+        if(g.notes.length){
+          var somme = g.notes.reduce(function(a, b){ return a + b; }, 0);
+          var max = Math.max.apply(null, g.notes.concat(g.type === 'RATING' ? [5] : []));
+          var min = Math.min.apply(null, g.notes.concat(g.type === 'RATING' ? [1] : []));
+          var compte = {}, cles = [];
+          for(var v = min; v <= max && cles.length < 12; v++){ cles.push(v); compte[v] = 0; }
+          g.notes.forEach(function(n){ if(compte[n] !== undefined) compte[n]++; });
+          h += '<div class="cand-sat-moy"><strong>'+(Math.round(somme / g.notes.length * 10) / 10).toString().replace('.', ',')+'</strong> / '+max
+            +' <span>moyenne sur '+g.notes.length+' réponse'+(g.notes.length > 1 ? 's' : '')+'</span></div>'+_candSatBarres(compte, cles, g.notes.length);
+        } else if(Object.keys(g.choix).length){
+          var total = Object.keys(g.choix).reduce(function(a, k){ return a + g.choix[k]; }, 0);
+          h += _candSatBarres(g.choix, Object.keys(g.choix).sort(function(a, b){ return g.choix[b] - g.choix[a]; }), total);
+        }
+        if(g.textes.length){
+          h += '<div class="cand-sat-textes">'+g.textes.slice(0, 8).map(function(t){
+            return '<blockquote>'+esc(t.texte)+'<span>'+esc(_candDate(t.quand))+'</span></blockquote>';
+          }).join('')+(g.textes.length > 8 ? '<div class="cand-sat-reste">… et '+(g.textes.length - 8)+' autres réponses</div>' : '')+'</div>';
+        }
+        h += '</div>';
+      });
+    }
+  }
+  return h+'</div>';
 }
 
 function _candCarteHtml(c){
