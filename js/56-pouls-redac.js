@@ -92,6 +92,12 @@ function _poulsDonnees(redacId, cours, nbPubliees, nbOuverts, nbEnCours, datesNe
   };
 }
 
+// Filtre PostgREST « mis en ligne depuis telle date » : publie_le, ou à défaut la dernière modification
+function _poulsDepuis(iso){
+  var d = encodeURIComponent(iso);
+  return 'or=(publie_le.gte.'+d+',and(publie_le.is.null,updated_at.gte.'+d+'))';
+}
+
 function osPoulsCharger(){
   var widget = document.getElementById('os-clock-widget');
   if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
@@ -102,7 +108,9 @@ function osPoulsCharger(){
   return lire('newsletters?select=date_envoi&order=date_envoi.desc&limit=6'+filtre).then(function(nl){
     if(!nl) return;
     var derniere = nl.length ? nl[0].date_envoi : null;
-    var depuis = derniere ? '&publie_le=gte.'+encodeURIComponent(derniere) : '&publie_le=gte.'+encodeURIComponent(new Date(Date.now() - 7 * 86400000).toISOString());
+    var depuisIso = derniere ? derniere : new Date(Date.now() - 7 * 86400000).toISOString();
+    // Une brève publiée sans date de mise en ligne (publie_le vide) compte avec sa dernière modification
+    var depuis = '&'+_poulsDepuis(depuisIso);
     return Promise.all([
       lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut'+filtre),
       lire('articles?type=eq.breve&statut=eq.publie&select=id'+depuis+filtre),
@@ -130,7 +138,7 @@ function _poulsToutesCalculer(redactions, newsletters, cours, brevesPubliees, su
     if(r.pas_lancee) return;
     var dates = (newsletters || []).filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
     var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
-    var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le).getTime() >= depuis; }).length;
+    var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le || x.updated_at).getTime() >= depuis; }).length;
     var siens = (sujets || []).filter(function(x){ return x.redaction_id === r.id; });
     var d = _poulsDonnees(r.id, (cours || []).filter(function(x){ return x.redaction_id === r.id; }), publiees,
       siens.filter(function(x){ return x.statut === 'ouvert'; }).length, siens.filter(function(x){ return x.statut === 'en_cours'; }).length, dates);
@@ -146,11 +154,11 @@ function osPoulsToutesCharger(){
   if(_pouls.toutes && Date.now() - _pouls.toutesQuand < 120000) return Promise.resolve(_pouls.toutes);
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
   var lire = function(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, { headers:authH }).then(function(x){ return x.json(); }).then(function(j){ return Array.isArray(j) ? j : null; }); };
-  var il30 = encodeURIComponent(new Date(Date.now() - 30 * 86400000).toISOString());
+  var il30Iso = new Date(Date.now() - 30 * 86400000).toISOString();
   return Promise.all([
     lire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=300'),
     lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut,redaction_id'),
-    lire('articles?type=eq.breve&statut=eq.publie&publie_le=gte.'+il30+'&select=redaction_id,publie_le'),
+    lire('articles?type=eq.breve&statut=eq.publie&'+_poulsDepuis(il30Iso)+'&select=redaction_id,publie_le,updated_at'),
     lire('briefing?statut=in.(ouvert,en_cours)&select=statut,redaction_id')
   ]).then(function(res){
     if(!res[0] || !res[1] || !res[2] || !res[3]) return _pouls.toutes || {};

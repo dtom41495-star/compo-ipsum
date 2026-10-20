@@ -45,6 +45,10 @@ var db = {
       updated_at: new Date().toISOString()
     };
 
+    // Date de mise en ligne : posée une seule fois, au passage en « publié » (rWorkflowAvancer) ; sans elle le compteur
+    // « La rédac » ne comptait pas la brève publiée comme prête pour la newsletter (js/56-pouls-redac.js)
+    if(doc.publie_le) payload.publie_le = doc.publie_le;
+
     // besoin_visuel n'est posé qu'au moment de « Valider » (voir rWorkflowAvancer) — tout
     // le reste du temps (autosave, autres transitions de statut) doc.besoin_visuel est
     // undefined. Sans ce garde, chacun de ces enregistrements écraserait silencieusement
@@ -2075,6 +2079,8 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   // c'est le rédac chef ou l'admin qui tranche au cas par cas, plus une règle automatique
   // qui ratait aussi bien des brèves à illustrer que des articles qui n'en avaient pas besoin.
   if(nouveauStatut==='valide' && typeof besoinVisuel === 'boolean') doc.besoin_visuel = besoinVisuel;
+  // Mise en ligne : on note la date, comme publierArticle() (js/03) le fait déjà depuis une liste
+  if(nouveauStatut==='publie' && currentDoc.statut !== 'publie') doc.publie_le = new Date().toISOString();
   if(currentDoc.auteur_id){ doc.auteur=currentDoc.auteur; doc.auteur_id=currentDoc.auteur_id; }
   // Fin de relecture : on note l'heure (sert à estimer le délai habituel de relecture)
   if(window._srColsDispo === true && currentDoc.statut === 'en-relecture' && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) doc.relu_le = new Date().toISOString();
