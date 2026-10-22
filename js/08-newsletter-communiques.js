@@ -1831,6 +1831,7 @@ function cpsChargerContactsSelect(apres){
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(!data || data.code){ notif('Erreur de chargement des contacts','erreur'); return; }
+    window._cpsContactsListe = data.slice();   // sert à reconnaître la source d'un PDF (js/60-cp-source-auto.js)
     data.forEach(function(c){
       var opt = document.createElement('option');
       opt.value = c.id;
@@ -1845,6 +1846,7 @@ function cpsChargerContactsSelect(apres){
 // Ajoute un contact (créé dans le carnet) à toutes les listes « Contact lié » ouvertes, sans les recharger
 function cpsContactAjouterAuxListes(c){
   if(!c || !c.id) return;
+  window._cpsContactsListe = (window._cpsContactsListe || []).filter(function(x){ return x.id !== c.id; }).concat([c]);
   document.querySelectorAll('select#cps-contact-id').forEach(function(sel){
     if(!sel.querySelector('option[value="'+c.id+'"]')){
       var opt = document.createElement('option');
@@ -1882,6 +1884,7 @@ function cpsAdminNouveauForm(){
   var label = osGetEl('cps-form-titre-label') || document.getElementById('cps-form-titre-label');
   if(!form) return;
   if(label) label.textContent = 'Nouveau communiqué';
+  if(typeof _cpSrcAide === 'function') _cpSrcAide('');   // plus d'indication de source détectée
   ['cps-titre','cps-source','cps-corps'].forEach(function(id){
     var el = document.getElementById(id); if(el) el.value = '';
   });
