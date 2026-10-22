@@ -583,10 +583,13 @@
             </div>
             <div>
               <label class="cpf-label" for="cps-contact-id">Contact lié (carnet de sources)</label>
-              <select id="cps-contact-id" class="cpf-champ">
-                <option value="">Aucun contact lié</option>
-              </select>
-              <div class="cpf-aide">Les personnes abonnées à cette source le recevront aussi.</div>
+              <div class="cpf-contact-ligne">
+                <select id="cps-contact-id" class="cpf-champ">
+                  <option value="">Aucun contact lié</option>
+                </select>
+                <button type="button" class="cpf-contact-nouveau" onclick="cpsNouveauContact(this)" title="Créer le contact dans le carnet de sources et le lier à ce communiqué"><i class="ti ti-user-plus"></i> Nouveau contact</button>
+              </div>
+              <div class="cpf-aide">Les personnes abonnées à cette source le recevront aussi. Pas dans la liste ? Crée le contact ici, il sera lié tout de suite.</div>
             </div>
           </div>
 

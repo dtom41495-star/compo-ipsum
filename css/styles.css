@@ -6367,3 +6367,9 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .atr-t-x:hover { color: #fff; }
 .atr-toast .atr-t-act { padding: 3px 10px; }
 body.atr-ouvert #os-toast-stack { right: 384px; }
+
+/* Formulaire des communiqués : bouton « Nouveau contact » à côté de la liste du carnet (js/08 cpsNouveauContact) */
+.cpf-contact-ligne { display: flex; gap: 8px; align-items: stretch; }
+.cpf-contact-ligne .cpf-champ { flex: 1; min-width: 0; }
+.cpf-contact-nouveau { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; border: 1.5px solid var(--gris-bord); border-radius: 8px; background: var(--blanc); color: var(--encre); font: inherit; font-size: 0.74rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.cpf-contact-nouveau:hover { border-color: var(--rouge); color: var(--rouge); }

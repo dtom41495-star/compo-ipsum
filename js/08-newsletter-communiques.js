@@ -1842,6 +1842,36 @@ function cpsChargerContactsSelect(apres){
   }).catch(function(){ notif('Erreur réseau — contacts non chargés','erreur'); });
 }
 
+// Ajoute un contact (créé dans le carnet) à toutes les listes « Contact lié » ouvertes, sans les recharger
+function cpsContactAjouterAuxListes(c){
+  if(!c || !c.id) return;
+  document.querySelectorAll('select#cps-contact-id').forEach(function(sel){
+    if(!sel.querySelector('option[value="'+c.id+'"]')){
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nom + (c.organisation ? ' — '+c.organisation : '');
+      sel.appendChild(opt);
+    }
+  });
+}
+
+// Bouton « Nouveau contact » du formulaire : la fiche du carnet s'ouvre par-dessus, l'organisation du communiqué est proposée,
+// et une fois le contact créé il est choisi tout de suite dans la liste.
+function cpsNouveauContact(btn){
+  var form = btn && btn.closest ? (btn.closest('#cps-form') || document) : document;
+  var sel = form.querySelector('#cps-contact-id') || document.getElementById('cps-contact-id');
+  var srcEl = form.querySelector('#cps-source') || document.getElementById('cps-source');
+  var organisation = srcEl ? srcEl.value.trim() : '';
+  if(typeof osCarnetNouveauForm !== 'function'){ notif('Le carnet de sources n\'est pas disponible', 'erreur'); return; }
+  osCarnetNouveauForm({
+    prefill: { organisation: organisation },
+    apres: function(contact){
+      cpsContactAjouterAuxListes(contact);
+      if(sel){ sel.value = contact.id; sel.dispatchEvent(new Event('change', { bubbles:true })); }   // le carnet a déjà annoncé « Contact créé »
+    }
+  });
+}
+
 // ---- ADMIN : Nouveau formulaire ----
 function cpsAdminNouveauForm(){
   _cpEditId = null;
