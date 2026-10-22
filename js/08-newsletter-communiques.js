@@ -1784,38 +1784,44 @@ function _cpsSupprimerFichierExistant(id){
 // <Titre du CP>. La fonction résout elle-même la source à partir du CP en base (cpId
 // suffit, le CP existe déjà à ce stade de la sauvegarde). Renvoie un tableau d'objets
 // prêts à poster dans communique_fichiers.
+// Contenu d'un fichier en base64, lu par morceaux : l'ancienne lecture (FileReader en « data URL », puis découpe, puis JSON)
+// gardait trois à quatre copies de chaque fichier en mémoire en même temps ; avec plusieurs PDF l'onglet pouvait planter (« Out of Memory »).
+function _cpsBase64(file){
+  return file.arrayBuffer().then(function(buf){
+    var octets = new Uint8Array(buf), PAS = 24576, morceaux = [];   // multiple de 3 : chaque morceau se code seul
+    for(var i = 0; i < octets.length; i += PAS) morceaux.push(btoa(String.fromCharCode.apply(null, octets.subarray(i, i + PAS))));
+    return morceaux.join('');
+  });
+}
+
+// Les fichiers partent un par un (et non tous à la fois) pour que seul l'un d'eux occupe la mémoire à un instant donné.
 function _cpsUploaderFichiers(fichiers, cpId){
   if(!fichiers || !fichiers.length) return Promise.resolve([]);
-  var uploads = fichiers.map(function(file, i){
-    return new Promise(function(resolve, reject){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var base64 = e.target.result.split(',')[1];
-        fetch(SB_URL+'/functions/v1/communique-fichier-vers-drive', {
+  var resultats = [];
+  return fichiers.reduce(function(chaine, file, i){
+    return chaine.then(function(){
+      return _cpsBase64(file).then(function(base64){
+        // base64 ne contient aucun caractère à échapper : le corps est assemblé à la main, sans recopier le contenu dans JSON.stringify
+        var corps = '{"cpId":'+JSON.stringify(cpId)+',"mimeType":'+JSON.stringify(file.type || 'application/octet-stream')
+          +',"nomFichier":'+JSON.stringify(file.name)+',"contenuBase64":"'+base64+'"}';
+        base64 = null;
+        return fetch(SB_URL+'/functions/v1/communique-fichier-vers-drive', {
           method:'POST',
           headers: {'Content-Type':'application/json','Authorization':'Bearer '+(_session&&_session.access_token||'')},
-          body: JSON.stringify({
-            cpId: cpId,
-            contenuBase64: base64,
-            mimeType: file.type || 'application/octet-stream',
-            nomFichier: file.name
-          })
-        }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
-        .then(function(res){
-          if(!res.ok || !res.data || !res.data.lien){ reject(new Error((res.data&&res.data.error)||'Échec upload Drive')); return; }
-          resolve({
-            url: res.data.lien,
-            nom: file.name,
-            type: file.type && file.type.indexOf('image/')===0 ? 'image' : (file.type==='application/pdf' ? 'pdf' : 'autre'),
-            ordre: i
-          });
-        }).catch(reject);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+          body: corps
+        });
+      }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
+      .then(function(res){
+        if(!res.ok || !res.data || !res.data.lien) throw new Error((res.data&&res.data.error)||'Échec upload Drive');
+        resultats.push({
+          url: res.data.lien,
+          nom: file.name,
+          type: file.type && file.type.indexOf('image/')===0 ? 'image' : (file.type==='application/pdf' ? 'pdf' : 'autre'),
+          ordre: i
+        });
+      });
     });
-  });
-  return Promise.all(uploads);
+  }, Promise.resolve()).then(function(){ return resultats; });
 }
 
 // ---- ADMIN : charger la liste des contacts dans le select ----
