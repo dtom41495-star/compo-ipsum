@@ -45,11 +45,15 @@ function _poulsProchaineNewsletter(dates){
   var score = 0;
   Object.keys(jours).forEach(function(j){ if(jours[j] > score){ score = jours[j]; meilleur = +j; } });
   var maintenant = new Date();
-  for(var k = 0; k < 8; k++){
-    var p2 = _horairesPartiesParis(new Date(maintenant.getTime() + k * 86400000));
+  // Une newsletter reste « à envoyer » tant qu'elle n'est pas validée dans l'appli (elle n'apparaît dans la table qu'à ce moment) :
+  // une fois l'heure prévue passée, on ne saute pas à la semaine suivante, le compteur reste sous tension.
+  // On cherche le premier créneau (même jour, même heure) au moins trois jours après le dernier envoi enregistré.
+  var depart = recents.length ? new Date(Math.max(recents[0].getTime() + 3 * 86400000, maintenant.getTime() - 21 * 86400000)) : maintenant;
+  for(var k = 0; k < 30; k++){
+    var p2 = _horairesPartiesParis(new Date(depart.getTime() + k * 86400000));
     if(new Date(Date.UTC(p2.a, p2.m - 1, p2.j)).getUTCDay() !== meilleur) continue;
     var cible = _horairesDateParis(p2.a, p2.m, p2.j, hh, mn);
-    if(cible > maintenant) return cible;
+    if(cible > depart) return cible;   // peut être dans le passé : newsletter en retard
   }
   return new Date(maintenant.getTime() + 7 * 86400000);
 }
@@ -179,7 +183,7 @@ function osPoulsAdminRendre(zone){
       + redacs.map(function(r){
         var m = toutes[r.id], etat = osPoulsEtat(m.score), d = m.donnees;
         var jours = Math.max(0, Math.ceil((d.prochaine - Date.now()) / 86400000));
-        var detail = 'Newsletter J-'+jours+' · '+d.enRelecture+' en relecture pour '+d.correcteurs+' correcteur'+(d.correcteurs > 1 ? 's' : '')
+        var detail = 'Newsletter '+(d.prochaine <= Date.now() ? 'en retard' : 'J-'+jours)+' · '+d.enRelecture+' en relecture pour '+d.correcteurs+' correcteur'+(d.correcteurs > 1 ? 's' : '')
           +' · '+d.articlesEnCours+' article'+(d.articlesEnCours > 1 ? 's' : '')+' en cours · '+d.sujetsLibres+' sujet'+(d.sujetsLibres > 1 ? 's' : '')+' à prendre';
         return '<button type="button" class="pr-mini" data-rid="'+esc(r.id)+'" title="'+esc(detail)+'" style="--c:'+etat.fonce+';--rc:'+esc(r.couleur || '#EA5B1C')+'" onclick="osAdminSelectRedac(this.dataset.rid)">'
           +'<span class="pr-mini-nom"><i></i>'+esc(r.nom)+'</span><b>'+etat.mot+'</b><span class="pr-mini-regle"><i style="left:'+m.score+'%"></i></span></button>';
@@ -222,15 +226,17 @@ function _poulsDetailHtml(m){
   var niveau = function(p){ return p < 0.4 ? 'ok' : p < 0.75 ? 'moy' : 'mal'; };
   var pl = function(n, mot){ return n+' '+mot+(n > 1 ? 's' : ''); };
   var parCorr = String(Math.round(m.parCorr * 10) / 10).replace('.', ',');
+  var enRetard = d.prochaine <= Date.now();
   var jours = Math.max(0, Math.ceil((d.prochaine - Date.now()) / 86400000));
   var quand = typeof osHorairesQuandTexte === 'function' ? osHorairesQuandTexte(d.prochaine) : '';
+  if(enRetard) quand = 'à envoyer (prévue '+quand+')';
   var ligne = function(icone, titre, sous, valeur, part){
     return '<div class="pr-pop-l"><i class="ti ti-'+icone+'"></i><div><div>'+titre+'</div><small>'+sous+'</small><div class="pr-pop-barre pr-'+niveau(part)+'"><i style="width:'+Math.max(5, Math.round(part * 100))+'%"></i></div></div><b>'+valeur+'</b></div>';
   };
   var redac = (window._redactionsData || []).find(function(x){ return x.id === window._redacActiveId; });
   var maj = new Date(m.maj || Date.now()).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ');
   return '<div class="pr-pop-tete"><span style="color:'+etat.couleur+'">'+etat.mot+'</span><em>'+m.score+'<small> / 100</small></em></div>'
-    +ligne('mail-forward', 'Newsletter', quand+' · '+pl(d.brevesPretes, 'brève')+' prête'+(d.brevesPretes > 1 ? 's' : '')+' sur '+m.totalBreves, 'J-'+jours, m.parts.newsletter)
+    +ligne('mail-forward', 'Newsletter', quand+' · '+pl(d.brevesPretes, 'brève')+' prête'+(d.brevesPretes > 1 ? 's' : '')+' sur '+m.totalBreves, enRetard ? 'En retard' : 'J-'+jours, m.parts.newsletter)
     +ligne('stethoscope', 'Correction', d.enRelecture+' en relecture pour '+pl(d.correcteurs, 'correcteur'), parCorr+' / pers.', m.parts.correction)
     +ligne('pencil', 'Articles en cours', 'brouillons et relectures', d.articlesEnCours, m.parts.articles)
     +ligne('bulb', 'Sujets à prendre', d.sujetsEnCours+' déjà en cours', d.sujetsLibres, m.parts.sujets)
