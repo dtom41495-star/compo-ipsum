@@ -1,5 +1,5 @@
 // ===== COMMUNIQUÉS : LA SOURCE SE DEVINE À PARTIR DU PDF =====
-// Quand on dépose un PDF dans le formulaire d'un communiqué (js/08, cpsFichiersSelectionnes), Compo lit le texte des deux premières pages
+// Quand on dépose un PDF dans le formulaire d'un communiqué (js/08, cpsFichiersSelectionnes), Compo lit le texte des deux premières pages et de la dernière (c'est souvent là que l'organisation signe et donne ses contacts)
 // et cherche l'organisation émettrice (« Mairie de Gaillac », « Préfecture du Tarn »…) :
 //  1. d'abord parmi les organisations déjà connues : celles du carnet de sources et celles des communiqués précédents ;
 //  2. sinon avec quelques formes courantes (mairie, préfecture, conseil départemental, communauté de communes, office de tourisme…).
@@ -20,9 +20,12 @@ function _cpSrcLignes(file){
     _sigChargerPdfJs(function(){
       file.arrayBuffer().then(function(buf){ return pdfjsLib.getDocument({ data:new Uint8Array(buf) }).promise; })
         .then(function(pdf){
-          var lignes = [], p = 1;
+          var lignes = [], k = 0;
+          // Les deux premières pages (l'en-tête) puis la dernière : c'est souvent là que l'organisation signe et donne ses contacts
+          var pages = [1, 2, pdf.numPages].filter(function(n, i, a){ return n >= 1 && n <= pdf.numPages && a.indexOf(n) === i; });
           var suite = function(){
-            if(p > Math.min(2, pdf.numPages)) return resolve(lignes);
+            if(k >= pages.length) return resolve(lignes);
+            var p = pages[k];
             pdf.getPage(p).then(function(page){ return page.getTextContent(); }).then(function(tc){
               var courante = '', y = null;
               tc.items.forEach(function(it){
@@ -32,7 +35,7 @@ function _cpSrcLignes(file){
                 y = yi;
               });
               if(courante.trim()) lignes.push(courante.trim());
-              p++; suite();
+              k++; suite();
             }).catch(function(){ resolve(lignes); });
           };
           suite();
@@ -66,7 +69,9 @@ function _cpSrcTitre(l){
 
 // Renvoie { source, connue } ou null. `connues` : [{ organisation }]
 function osCpDetecterSource(lignes, connues){
-  var haut = (lignes || []).slice(0, 40);
+  // L'en-tête (les 40 premières lignes) et la fin du document (les 40 dernières) : la signature et les contacts sont souvent en dernière page
+  var toutes = lignes || [];
+  var haut = toutes.length > 80 ? toutes.slice(0, 40).concat(toutes.slice(-40)) : toutes;
   if(!haut.length) return null;
   var texte = _cpSrcNorm(haut.join(' \n '));
   // 1. une organisation déjà connue (la plus longue d'abord : « Mairie de Castres » avant « Castres »)
@@ -77,7 +82,7 @@ function osCpDetecterSource(lignes, connues){
     if(texte.indexOf(no) !== -1 && (!meilleure || no.length > meilleure.no.length)) meilleure = { o:o, no:no };
   });
   if(meilleure) return { source:meilleure.o, connue:true };
-  // 2. une forme courante, la première rencontrée en partant du haut
+  // 2. une forme courante, la première rencontrée en partant du haut (l'en-tête avant la fin du document)
   for(var i = 0; i < haut.length; i++){
     var ligne = haut[i];
     if(ligne === ligne.toUpperCase() && /\p{L}/u.test(ligne)) ligne = _cpSrcTitre(ligne);
