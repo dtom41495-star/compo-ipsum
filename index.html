@@ -395,7 +395,7 @@
         <div class="start-menu-role" id="start-menu-role">...</div>
       </div>
       <div class="sm-pied-sp"></div>
-      <button type="button" class="sm-dispo dnd-toggle-btn" data-style="menu" onclick="osToggleDND()" title="Ta disponibilité"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>
+      <button type="button" class="dnd-switch dnd-v-menu" role="switch" aria-checked="true" aria-label="Ma disponibilité" title="Disponible : touche pour te mettre en pause" onclick="osToggleDND()"><span class="dnd-switch-txt">Disponible</span><span class="dnd-switch-piste" aria-hidden="true"><i></i></span></button>
       <button class="sm-icon-btn" onclick="osStartAction('params')" title="Paramètres"><i class="ti ti-settings"></i></button>
       <button class="sm-icon-btn danger" onclick="osStartAction('deconnecter')" title="Se déconnecter"><i class="ti ti-power"></i></button>
     </div>

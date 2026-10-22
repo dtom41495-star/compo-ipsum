@@ -1913,7 +1913,7 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
     +'box-shadow:inset 1px 0 0 rgba(255,255,255,0.6);'
     +'display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;">';
   // Bouton dispo/indispo — accessible ici en plus de la barre des tâches, plus pratique sur mobile
-  h += '<button class="dnd-toggle-btn" data-style="rail" onclick="osToggleDND()" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--gris-bord);background:transparent;color:var(--encre);font-size:0.76rem;font-family:DM Sans,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box;margin-bottom:6px;"><span class="dnd-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#4CAF50;flex-shrink:0;"></span><span class="dnd-toggle-label">Disponible</span></button>';
+  h += osDndSwitchHtml('rail');
   var onglets = _osRedacOngletsListe();
   function boutonOnglet(o){
     var actif = _redacOnglet === o.id;

@@ -177,6 +177,33 @@ function _accueilSalutation(prenom){
   return p ? texte.replace('{p}', p) : texte.replace(/,? ?\{p\}/, '').replace(/ \?$/, ' ?');
 }
 
+// Deux lignes distinctes, chacune avec son rôle, dans une seule carte :
+//  - « Ma disponibilité » : un interrupteur (allumé = disponible), à éteindre pour se mettre en pause ;
+//  - la rédaction active : son nom, si elle est ouverte ou fermée (et jusqu'à quand), et « Changer » seulement s'il y en a plusieurs.
+function _accueilSituationHtml(redac, etat, plusieurs, jour){
+  var h = '<div class="acc-situation">'
+    +'<div class="acc-sit-ligne acc-sit-dispo">'
+    +'<span class="acc-sit-ic acc-sit-ic-dispo"><i class="ti ti-user-check"></i></span>'
+    +'<span class="acc-sit-txt"><strong>Ma disponibilité</strong><small class="dnd-sous">'+(_dndActif ? 'Indisponible : en pause, plus de notifications' : 'Disponible : tu reçois les sujets et les notifications')+'</small></span>'
+    +osDndSwitchHtml('carte')
+    +'</div>';
+  if(redac){
+    var ouvert = etat ? etat.ouvert : null;
+    h += '<div class="acc-sit-ligne acc-sit-redac">'
+      +'<span class="acc-sit-ic" style="background:'+esc(redac.couleur || '#E8461E')+'"><i class="ti ti-news"></i></span>'
+      +'<span class="acc-sit-txt"><span class="acc-sit-etiquette">Rédaction active</span><strong>'+esc(redac.nom)+'</strong>'
+      +(etat ? '<small class="acc-sit-etat'+(ouvert ? ' ouverte' : ' fermee')+'"><span class="acc-sit-point"></span>'+esc(etat.texte)+'</small>' : '')
+      +'</span>'
+      +(plusieurs ? '<button type="button" class="acc-sit-changer">Changer<i class="ti ti-chevron-right"></i></button>' : '')
+      +'</div>';
+    if(ouvert === false){
+      h += '<div class="acc-sit-note"><i class="ti ti-'+(redac.pas_lancee ? 'hourglass' : 'clock-pause')+'"></i>'
+        +(redac.pas_lancee ? 'Tu pourras y écrire et prendre des sujets dès son ouverture.' : 'Les notifications sur les articles et les sujets attendent la réouverture.')+'</div>';
+    }
+  }
+  return h+'</div>';
+}
+
 function osAccueilMobileRendre(){
   var zone = document.getElementById('os-accueil-mobile');
   if(!zone){
@@ -187,9 +214,7 @@ function osAccueilMobileRendre(){
     zone.addEventListener('click', function(e){
       var t = e.target.closest('[data-app]');
       if(t){ _accueilOuvrir(t.dataset.app); return; }
-      if(e.target.closest('.acc-pill-redac[data-changer]')){ rChangerRedaction(); return; }
-      var dnd = e.target.closest('.acc-statut');
-      if(dnd){ osToggleDND(); return; }
+      if(e.target.closest('.acc-sit-changer')){ rChangerRedaction(); return; }
       if(e.target.closest('.acc-quitter')) osConfirmer('Te déconnecter de Compo ?', {oui:'Me déconnecter'}).then(function(ok){ if(ok) seDeconnecter(); });
       if(e.target.closest('.acc-installer-ok')){ osInstallerCompo(); return; }
       if(e.target.closest('.acc-installer-non')){ _accueilInstallPlusTard(); return; }
@@ -235,15 +260,9 @@ function osAccueilMobileRendre(){
     +'<span class="acc-sous-salut">'+(aMaRedac ? 'Voir mon profil et ma carte' : esc(jour))+'</span></span>'
     +(aMaRedac ? '<i class="ti ti-chevron-right acc-chevron"></i>' : '')
     +'</button>'
-    +'<div class="acc-ligne-statut">'
-    +'<button type="button" class="acc-statut dnd-toggle-btn" data-style="rail"><span class="dnd-toggle-dot"></span><span class="dnd-toggle-label">Disponible</span></button>'
-    +(redac ? '<button type="button" class="acc-pill-redac"'+(plusieursRedacs?' data-changer="1"':'')+'><i class="ti ti-news" style="color:'+esc(redac.couleur||'#E8461E')+';"></i>'+esc(redac.nom)+(plusieursRedacs?'<span class="acc-changer"> · changer</span>':'')+'</button>' : '')
-    +(etatRedac && etatRedac.ouvert ? osRedacEtatHtml(redac, 'acc-pill-etat') : '')
-    +'</div>';
+    +_accueilSituationHtml(redac, etatRedac, plusieursRedacs, jour);
   // Série : la carte « Ma série » complète, comme dans Ma rédac' (remplie après le rendu, js/33-serie.js)
   if(aMaRedac) h += '<div class="rp-serie acc-serie-carte" id="acc-serie-carte" style="display:none;"></div>';
-  // Rédaction fermée : un bandeau bien visible, pas une pastille qu'on confond avec « Disponible »
-  h += osRedacBandeauFermeeHtml(redac);
   if(_accueilProposerInstall()){
     h += '<div class="acc-installer"><img src="icons/compo-192.png" alt="">'
       +'<div class="acc-installer-txt"><strong>Installe Compo sur ton téléphone</strong><span>Une icône sur ton écran d\'accueil, comme une vraie appli.</span>'
