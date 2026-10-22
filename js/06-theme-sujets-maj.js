@@ -369,7 +369,7 @@ var TOUR_ETAPES = [
     // Sur mobile, le bouton n'est plus dans la barre des tâches (retiré, source de bugs
     // d'affichage) — il vit désormais dans le rail de Ma Rédac', donc on ouvre cette page-là.
     pageId: function(){ return window.innerWidth <= 768 ? 'redactions' : null; },
-    cible: function(){ return window.innerWidth <= 768 ? '.dnd-toggle-btn[data-style="rail"]' : '#os-dnd-btn'; },
+    cible: function(){ return window.innerWidth <= 768 ? '.acc-situation .dnd-switch' : '#os-dnd-btn'; },
     titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
     texte: function(){
       var estCommunicant = _osComMembreIds([{id:'moi', fonction:getUserFonction()}]).length > 0;

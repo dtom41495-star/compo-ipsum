@@ -2896,8 +2896,30 @@ function osToggleDND(){
   });
 }
 
+// Interrupteur « Disponible / Indisponible » : le même partout (barre des tâches, menu Démarrer, rail de Ma rédac', accueil mobile).
+// Allumé = disponible. variante : 'barre' | 'menu' | 'rail' | 'carte' (voir css, .dnd-switch).
+function osDndSwitchHtml(variante, id){
+  var dispo = !_dndActif;
+  return '<button type="button"'+(id ? ' id="'+id+'"' : '')+' class="dnd-switch dnd-v-'+variante+'" role="switch" aria-checked="'+(dispo ? 'true' : 'false')+'" '
+    +'aria-label="Ma disponibilité" title="'+(dispo ? 'Disponible : touche pour te mettre en pause' : 'Indisponible : touche pour redevenir disponible')+'" onclick="osToggleDND()">'
+    +'<span class="dnd-switch-txt">'+(dispo ? 'Disponible' : 'Indisponible')+'</span>'
+    +'<span class="dnd-switch-piste" aria-hidden="true"><i></i></span></button>';
+}
+
 // Met à jour TOUTES les instances du bouton dispo/indispo (barre des tâches, rail Ma Rédac'...)
 function osDNDMajUI(){
+  document.querySelectorAll('.dnd-switch').forEach(function(sw){
+    sw.setAttribute('aria-checked', _dndActif ? 'false' : 'true');
+    sw.title = _dndActif ? 'Indisponible : touche pour redevenir disponible' : 'Disponible : touche pour te mettre en pause';
+    var t = sw.querySelector('.dnd-switch-txt'); if(t) t.textContent = _dndActif ? 'Indisponible' : 'Disponible';
+  });
+  document.querySelectorAll('.acc-sit-ic-dispo').forEach(function(ic){
+    ic.classList.toggle('off', !!_dndActif);
+    ic.innerHTML = '<i class="ti ti-user-'+(_dndActif ? 'minus' : 'check')+'"></i>';
+  });
+  document.querySelectorAll('.dnd-sous').forEach(function(el){
+    el.textContent = _dndActif ? 'Indisponible : en pause, plus de notifications' : 'Disponible : tu reçois les sujets et les notifications';
+  });
   document.querySelectorAll('#rp-dnd button').forEach(function(b){ b.classList.toggle('actif', (b.dataset.v === '1') === !!_dndActif); });
   document.querySelectorAll('.dnd-toggle-dot').forEach(function(dot){
     dot.style.background = _dndActif ? '#E8461E' : '#4CAF50';
