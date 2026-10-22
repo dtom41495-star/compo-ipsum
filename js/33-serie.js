@@ -20,8 +20,8 @@ function _serieCle(d){
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
 
-// `gels` : Set des débuts de semaine, des mercredis (AAAA-MM-JJ), des semaines gelées. Une semaine gelée compte comme en règle
-// (série protégée, ni relance ni alerte) et rattrape aussi la semaine vide qui la précède.
+// `gels` : Set des débuts de semaine, des mercredis (AAAA-MM-JJ), des semaines gelées. Une semaine gelée ne protège qu'elle-même
+// (ni relance ni alerte) : la série reste en vie, sans gagner +1, et la semaine vide d'avant n'est pas rattrapée (seules 2 brèves la semaine suivante la compensent).
 function osSerieCalculer(items, arrivee, ignorerId, gels){
   var debutSem = _regDebutSemaine(new Date());
   var breves = items.filter(function(i){ return i.type === 'breve' && i.id !== ignorerId; });
@@ -33,14 +33,15 @@ function osSerieCalculer(items, arrivee, ignorerId, gels){
     avant[k] = !!(arrivee && fin <= arrivee);
     gel[k] = !!(gels && gels.has(_serieCle(debut)));
   }
-  for(k = 0; k <= SERIE_SEMAINES; k++) comp[k] = k >= 1 && !avant[k] && !gel[k] && n[k] === 0 && (n[k-1] >= 2 || gel[k-1]);
+  for(k = 0; k <= SERIE_SEMAINES; k++) comp[k] = k >= 1 && !avant[k] && !gel[k] && n[k] === 0 && n[k-1] >= 2;
   // Semaine d'avant vide : celle-ci doit compter 2 brèves pour la rattraper
   var besoin = (!avant[1] && n[1] === 0 && !gel[1]) ? 2 : 1;
   var faite = n[0] >= besoin || gel[0];
   var serie = 0;
   for(k = faite ? 0 : 1; k <= SERIE_SEMAINES; k++){
     if(avant[k]) break;
-    if(k === 0 || n[k] >= 1 || comp[k] || gel[k]) serie++; else break;
+    if(gel[k] && n[k] === 0) continue;   // semaine gelée : la série tient, sans +1
+    if(k === 0 || n[k] >= 1 || comp[k]) serie++; else break;
   }
   var limite = Date.now() - SERIE_JOURS_ARTICLE*86400000;
   var articles = items.filter(function(i){ return i.type !== 'breve' && i.id !== ignorerId; });

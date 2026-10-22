@@ -32,8 +32,8 @@ function _regCle(d){
 }
 
 // Calcule la régularité d'un membre à partir de ses articles (déjà rattachés à lui).
-// Les semaines gelées (window._gelsSerie, chargé avec la liste des bénévoles) comptent comme en règle,
-// sans alerte, et rattrapent la semaine vide qui les précède.
+// Les semaines gelées (window._gelsSerie, chargé avec la liste des bénévoles) sont sans alerte et ne protègent
+// qu'elles-mêmes : elles ne rattrapent pas la semaine vide qui les précède.
 function osRegulariteCalculer(membre, arts){
   var gels = membre && window._gelsSerie ? window._gelsSerie[membre.id] : null;
   var debutCourant = _regDebutSemaine(new Date());
@@ -57,7 +57,7 @@ function osRegulariteCalculer(membre, arts){
   }
   // Une semaine vide est compensée si la suivante (même en cours) compte au moins 2 brèves
   semaines.forEach(function(w, i){
-    w.comp = !w.avant && !w.courante && !w.gel && w.breves === 0 && !!semaines[i+1] && (semaines[i+1].breves >= 2 || semaines[i+1].gel);
+    w.comp = !w.avant && !w.courante && !w.gel && w.breves === 0 && !!semaines[i+1] && semaines[i+1].breves >= 2;
   });
   var terminees = semaines.filter(function(s){ return !s.courante && !s.avant; });
   var quatre = terminees.slice(-4);

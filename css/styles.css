@@ -6409,3 +6409,17 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
   .acc-sit-note i { font-size: 17px; color: #C2410C; flex-shrink: 0; }
 }
 @media (max-width: 768px) { .acc-sit-ic-dispo.off { background: #8E8A83; } }
+
+/* ===== BARRE DES TÂCHES (PC) : icônes alignées sur la zone de droite, survol qui ne sort plus de la barre ===== */
+/* Chaque icône occupe toute la hauteur de la barre et se centre dedans : le point « appli ouverte » ne pousse plus l'icône vers le haut
+   (il est posé sous elle, hors de la mise en page), donc les icônes sont sur la même ligne que le bouton d'applis, l'interrupteur et l'horloge. */
+#os-dock-inner > .dock-icon { align-self: stretch; justify-content: center; gap: 0; }
+#os-dock-inner > .dock-icon > .dock-dot { position: absolute; bottom: 3px; left: 50%; margin: 0 0 0 -2px; }
+#os-dock-inner > .dock-icon.active-app::after { bottom: 3px; }
+/* Le survol grossit l'icône sur place : avant, elle montait de 6 px, et la barre (qui défile en horizontal) coupait le haut */
+.dock-icon:hover .dock-icon-img { transform: scale(1.12); }
+@keyframes dock-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px) scale(1.12); }
+  70% { transform: translateY(-2px) scale(1.06); }
+}
