@@ -2980,9 +2980,11 @@ function osCarnetSauverEchange(contactId){
 }
 
 // ---- FORMULAIRE CRÉATION / ÉDITION ----
-function osCarnetNouveauForm(){
+// opts (facultatif) : { prefill:{nom, organisation…}, apres:function(contact) } — sert au formulaire des communiqués (js/08) :
+// le contact créé est lié au communiqué en cours sans passer par l'appli Sources.
+function osCarnetNouveauForm(opts){
   _carnetEditId = null;
-  osCarnetOuvrirForm(null);
+  osCarnetOuvrirForm(null, opts);
 }
 
 function osCarnetEditerDepuisFiche(id){
@@ -2991,17 +2993,20 @@ function osCarnetEditerDepuisFiche(id){
   osCarnetOuvrirForm(c);
 }
 
-function osCarnetOuvrirForm(c){
+var _carnetApresCreation = null;   // rappel à appeler une fois le contact créé (voir osCarnetNouveauForm)
+function osCarnetOuvrirForm(c, opts){
+  _carnetApresCreation = (!c && opts && typeof opts.apres === 'function') ? opts.apres : null;
+  var depart = c || (opts && opts.prefill) || null;   // valeurs affichées : le contact modifié, ou celles proposées pour un nouveau
   function champ(id, label, placeholder, val, type){
     return '<div><label class="nlx-label" for="cf-'+id+'">'+label+'</label>'
       +'<input type="'+(type||'text')+'" id="cf-'+id+'" class="nlx-champ" placeholder="'+esc(placeholder)+'" value="'+esc(val||'')+'"></div>';
   }
-  var corps = champ('nom', 'Nom <span>(obligatoire)</span>', 'Prénom Nom', c&&c.nom)
+  var corps = champ('nom', 'Nom <span>(obligatoire)</span>', 'Prénom Nom', depart&&depart.nom)
     +'<div class="cx-deux">'
-    +champ('organisation', 'Organisation', 'Mairie de Castres…', c&&c.organisation)
-    +champ('poste', 'Poste', 'Directeur·rice, président·e…', c&&c.poste)
-    +champ('email', 'Email', 'contact@exemple.fr', c&&c.email, 'email')
-    +champ('telephone', 'Téléphone', '06 12 34 56 78', c&&c.telephone, 'tel')
+    +champ('organisation', 'Organisation', 'Mairie de Castres…', depart&&depart.organisation)
+    +champ('poste', 'Poste', 'Directeur·rice, président·e…', depart&&depart.poste)
+    +champ('email', 'Email', 'contact@exemple.fr', depart&&depart.email, 'email')
+    +champ('telephone', 'Téléphone', '06 12 34 56 78', depart&&depart.telephone, 'tel')
     +'<div><label class="nlx-label" for="cf-categorie">Catégorie</label><select id="cf-categorie" class="nlx-champ">'
     +CARNET_CATS.map(function(cat){ return '<option'+(c&&c.categorie===cat?' selected':'')+'>'+esc(cat)+'</option>'; }).join('')+'</select></div>'
     +'<div><label class="nlx-label" for="cf-fiabilite">Fiabilité</label><select id="cf-fiabilite" class="nlx-champ">'
@@ -3068,6 +3073,12 @@ function osCarnetSauver(){
       if(idx>=0) _carnetContacts[idx] = Object.assign(_carnetContacts[idx], payload);
     }
     _rafraichirListeCarnet();
+    if(isNew && contact){
+      // Les formulaires de communiqué déjà ouverts voient le nouveau contact sans qu'on ferme et rouvre la fenêtre
+      if(typeof cpsContactAjouterAuxListes === 'function') cpsContactAjouterAuxListes(contact);
+      var apres = _carnetApresCreation; _carnetApresCreation = null;
+      if(apres) try{ apres(contact); }catch(e){ console.warn('[carnet] rappel après création', e); }
+    }
     // Si on modifiait un contact déjà affiché dans la fiche, la rafraîchir avec les nouvelles infos
     if(!isNew && idEdite) osCarnetOuvrirFiche(idEdite);
   }).catch(function(){ notif('Erreur réseau'); });
