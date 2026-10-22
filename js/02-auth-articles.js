@@ -2087,6 +2087,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   // Relu (ou validé directement) par quelqu'un d'autre que le SR désigné : on le préviendra
   var srDessaisi = (currentDoc.statut === 'en-relecture' && currentDoc.correcteur_id && currentDoc.correcteur_id !== getUserId()
     && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) ? currentDoc.correcteur_id : null;
+  var statutAvant = currentDoc.statut;
   db.sauvegarderArticle(doc).then(function(){
     if(srDessaisi) _osPrevenirSRDessaisi(srDessaisi, doc, nouveauStatut);
     currentDoc = doc;
@@ -2097,6 +2098,12 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     if(nouveauStatut==='valide' && doc.besoin_visuel) osNotifierComArticleValide(currentDoc);
     if(nouveauStatut==='corrige' && typeof osNotifierChefsArticleRelu === 'function') osNotifierChefsArticleRelu(currentDoc);
     if(nouveauStatut==='valide') osNotifierValidateursCentraux(currentDoc);
+    // Série : un auteur qui valide ou publie lui-même son texte, sans passer par « Envoyer au SR », a aussi droit à la carte
+    // de félicitations (osSerieApresEnvoi ignore les textes d'autrui et ceux déjà fêtés à l'envoi au SR)
+    if((nouveauStatut==='publie' || nouveauStatut==='valide') && (!statutAvant || statutAvant === 'brouillon') && typeof osSerieApresEnvoi === 'function'){
+      var docSerie = Object.assign({}, currentDoc);
+      setTimeout(function(){ osSerieApresEnvoi(docSerie); }, 1200);
+    }
     if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
     // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").
