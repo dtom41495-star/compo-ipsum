@@ -17,14 +17,17 @@ function _cpSrcNorm(s){
 function _cpSrcLignes(file){
   return new Promise(function(resolve){
     if(typeof _sigChargerPdfJs !== 'function'){ resolve([]); return; }
+    // Un très gros PDF (scan de plusieurs dizaines de Mo) n'est pas lu : la détection ne vaut pas de saturer la mémoire du navigateur
+    if(file.size > 30 * 1024 * 1024){ resolve([]); return; }
     _sigChargerPdfJs(function(){
       file.arrayBuffer().then(function(buf){ return pdfjsLib.getDocument({ data:new Uint8Array(buf) }).promise; })
         .then(function(pdf){
           var lignes = [], k = 0;
+          var fin = function(){ try{ pdf.destroy(); }catch(e){} resolve(lignes); };   // libère le document dès que le texte est lu
           // Les deux premières pages (l'en-tête) puis la dernière : c'est souvent là que l'organisation signe et donne ses contacts
           var pages = [1, 2, pdf.numPages].filter(function(n, i, a){ return n >= 1 && n <= pdf.numPages && a.indexOf(n) === i; });
           var suite = function(){
-            if(k >= pages.length) return resolve(lignes);
+            if(k >= pages.length) return fin();
             var p = pages[k];
             pdf.getPage(p).then(function(page){ return page.getTextContent(); }).then(function(tc){
               var courante = '', y = null;
@@ -36,7 +39,7 @@ function _cpSrcLignes(file){
               });
               if(courante.trim()) lignes.push(courante.trim());
               k++; suite();
-            }).catch(function(){ resolve(lignes); });
+            }).catch(function(){ fin(); });
           };
           suite();
         }).catch(function(){ resolve([]); });
