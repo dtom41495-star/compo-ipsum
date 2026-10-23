@@ -196,3 +196,49 @@ create policy tres_pieces_ajout on storage.objects for insert to authenticated
   with check (bucket_id = 'tresorerie-pieces' and (public.peut_gerer_tresorerie() or (storage.foldername(name))[1] = (select auth.uid())::text));
 create policy tres_pieces_suppression on storage.objects for delete to authenticated
   using (bucket_id = 'tresorerie-pieces' and (public.peut_gerer_tresorerie() or (storage.foldername(name))[1] = (select auth.uid())::text));
+
+-- ===== Exercices et comptes (l'exercice va de juin à juin, pas de janvier à décembre) =====
+create table if not exists public.tres_exercices (
+  id uuid primary key default gen_random_uuid(), nom text not null, debut date not null, fin date not null,
+  cloture boolean not null default false, solde_ouverture numeric(12,2) not null default 0, created_at timestamptz not null default now(),
+  constraint tres_exercices_dates check (fin > debut), unique (debut));
+create table if not exists public.tres_comptes (
+  id uuid primary key default gen_random_uuid(), nom text not null unique,
+  type text not null default 'courant' check (type in ('courant', 'epargne', 'caisse')),
+  solde_ouverture numeric(12,2) not null default 0, ordre int not null default 0, actif boolean not null default true);
+alter table public.tres_ecritures add column if not exists compte_id uuid references public.tres_comptes(id);
+alter table public.tres_ecritures add column if not exists virement_ref uuid;     -- relie les deux côtés d'un virement interne
+alter table public.tres_budget add column if not exists exercice_id uuid references public.tres_exercices(id);
+alter table public.tres_categories drop constraint if exists tres_categories_sens_check;
+alter table public.tres_categories add constraint tres_categories_sens_check check (sens in ('recette', 'depense', 'neutre'));
+alter table public.tres_exercices enable row level security;
+alter table public.tres_comptes enable row level security;
+revoke all on public.tres_exercices, public.tres_comptes from anon;
+grant select, insert, update, delete on public.tres_exercices, public.tres_comptes to authenticated;
+grant all on public.tres_exercices, public.tres_comptes to service_role;
+create policy tres_exo_lecture on public.tres_exercices for select to authenticated using (public.peut_gerer_tresorerie());
+create policy tres_exo_gestion on public.tres_exercices for all to authenticated using (public.peut_gerer_tresorerie()) with check (public.peut_gerer_tresorerie());
+create policy tres_cpt_lecture on public.tres_comptes for select to authenticated using (public.peut_gerer_tresorerie());
+create policy tres_cpt_gestion on public.tres_comptes for all to authenticated using (public.peut_gerer_tresorerie()) with check (public.peut_gerer_tresorerie());
+insert into public.tres_comptes (nom, type, ordre) values ('Compte courant Crédit Mutuel', 'courant', 1), ('Livret A', 'epargne', 2) on conflict (nom) do nothing;
+insert into public.tres_exercices (nom, debut, fin, cloture, solde_ouverture) values
+  ('Exercice février – juin 2026', '2026-02-21', '2026-06-17', true, 0),
+  ('Exercice juin 2026 – juin 2027', '2026-06-18', '2027-06-17', false, 234.61) on conflict (debut) do nothing;
+insert into public.tres_categories (nom, sens, ordre, systeme) values ('Virement interne', 'neutre', 20, 'transfert') on conflict (nom) do nothing;
+
+-- Le journal lit les champs par to_jsonb : une même fonction sert les trois tables
+create or replace function public.tres_journaliser() returns trigger
+language plpgsql security definer set search_path to 'public' as $$
+declare r record; j jsonb;
+begin
+  r := case when tg_op = 'DELETE' then old else new end;
+  j := to_jsonb(r);
+  insert into public.tres_journal (objet, objet_id, action, details)
+  values (tg_table_name, (j->>'id')::uuid, lower(tg_op),
+    jsonb_strip_nulls(jsonb_build_object('libelle', j->'libelle', 'objet', j->'objet', 'poste', j->'poste', 'montant', j->'montant', 'date', j->'date',
+      'statut', j->'statut', 'avant', case when tg_op = 'UPDATE' then to_jsonb(old)->'statut' else null end)));
+  return r;
+end $$;
+
+-- Reprise de l'historique : tableurs « exercice février – juin 2026 » (clôturé, solde 234,61 €) et « exercice juin 2026 – 2027 » (solde au 5 octobre : 450,35 € + Livret A 30 €).
+-- 54 écritures, source 'import_excel', import_ref 'excel:ex1:n' / 'excel:ex2:n' (déjà appliquées : ne pas relancer).
