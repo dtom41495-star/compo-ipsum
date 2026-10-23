@@ -139,7 +139,7 @@ function osPoulsCharger(){
 function _poulsToutesCalculer(redactions, newsletters, cours, brevesPubliees, sujets){
   var toutes = {};
   redactions.forEach(function(r){
-    if(r.pas_lancee) return;
+    if(r.pas_lancee || (typeof osPauseRedacEnCours === 'function' && osPauseRedacEnCours(r.id))) return;   // en préparation ou en pause : pas de rythme à tenir
     var dates = (newsletters || []).filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
     var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
     var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le || x.updated_at).getTime() >= depuis; }).length;

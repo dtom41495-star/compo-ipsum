@@ -6423,3 +6423,10 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
   40% { transform: translateY(-6px) scale(1.12); }
   70% { transform: translateY(-2px) scale(1.06); }
 }
+
+/* Pause des rédactions */
+.acc-fermee.acc-pause { background: #EEEBFA; border-color: #CFC8F0; color: #43398C; }
+.acc-fermee.acc-pause > i { color: #5B4FB5; }
+.acc-fermee.acc-pause strong { color: #342B76; }
+.serie-past.pause .serie-rond { background: #E7E4F7; color: #5B4FB5; }
+.serie-past.pause.courante .serie-rond { box-shadow: 0 0 0 4px rgba(91,79,181,.18); }

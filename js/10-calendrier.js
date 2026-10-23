@@ -1649,6 +1649,7 @@ function osRedacReglagesForm(redac){
   }
 
   if('horaires' in redac) h += osRedacHorairesFormHtml(redac);
+  if(typeof osRedacPauseFormHtml === 'function') h += osRedacPauseFormHtml(redac);
 
   if('relance_articles' in redac){
   h += '<div class="rh-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
