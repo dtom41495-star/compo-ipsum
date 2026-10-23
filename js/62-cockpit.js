@@ -171,7 +171,7 @@ function _ckCalculer(D, P){
     // Adhésions de l'exercice en cours : un paiement rattaché au membre
     var jour = new Date().toISOString().substring(0, 10), ex = D.exercices.filter(function(e){ return e.debut <= jour && e.fin >= jour; })[0] || D.exercices[D.exercices.length - 1];
     var payeurs = {};
-    tx.forEach(function(t){ var c = catParId[t.categorie_id]; if(c && c.systeme === 'adhesions' && t.membre_id && t.montant > 0 && t.date <= jour && _trPlusMois(t.date, 12) > jour) payeurs[t.membre_id] = true; });
+    tx.forEach(function(t){ var c = catParId[t.categorie_id]; if(c && c.systeme === 'adhesions' && t.membre_id && t.montant > 0 && (!ex || (t.date >= ex.debut && t.date <= ex.fin))) payeurs[t.membre_id] = true; });
     var courants = {}; D.comptes.forEach(function(c){ if(c.type === 'courant') courants[c.id] = true; });
     var echues = membres.filter(function(m){ return m.adhesion_echeance && m.adhesion_echeance < jour; });
     C.tres = { solde:solde, rec:rec, dep:dep, spark:cles.map(function(k){ return parMois[k]; }), nonPointes:tx.filter(function(t){ return !t.rapproche && courants[t.compte_id]; }).length,
@@ -404,7 +404,7 @@ function _ckFinancesHtml(C){
   var pct = t.coti.total ? Math.round(t.coti.ok / t.coti.total * 100) : 0;
   return '<div class="ck-trois"><div><div class="ck-mono ck-vert">+'+_ckEuro(t.rec).replace('+', '')+'</div><small>Recettes (mois)</small></div><div><div class="ck-mono ck-rouge">'+(t.dep > 0 ? '−' : '')+_ckEuro(t.dep)+'</div><small>Dépenses (mois)</small></div>'
     +'<div><div class="ck-mono">'+_ckEuro(t.solde)+'</div><small>Solde</small></div></div>'
-    +'<h2 class="ck-sous">Adhésions en cours de validité</h2><div class="ck-barre"><i style="width:'+pct+'%;background:'+(pct >= 80 ? CK_COUL.vert : pct >= 50 ? CK_COUL.ambre : CK_COUL.rouge)+'"></i></div>'
+    +'<h2 class="ck-sous">Adhésions de l’exercice</h2><div class="ck-barre"><i style="width:'+pct+'%;background:'+(pct >= 80 ? CK_COUL.vert : pct >= 50 ? CK_COUL.ambre : CK_COUL.rouge)+'"></i></div>'
     +'<div class="ck-legende"><span>'+t.coti.ok+' membre'+(t.coti.ok > 1 ? 's' : '')+' sur '+t.coti.total+' à jour</span><span>'+t.nonPointes+' mouvement'+(t.nonPointes > 1 ? 's' : '')+' non pointé'+(t.nonPointes > 1 ? 's' : '')+'</span></div>';
 }
 
