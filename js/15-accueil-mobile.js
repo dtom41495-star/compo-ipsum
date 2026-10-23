@@ -11,7 +11,7 @@ var ACCUEIL_RUBRIQUES = [
   { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
-  { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
+  { titre:'Association',    ids:['benevoles','tresorerie','notes-frais','boutique','newsletter','signatures','projets','tableau'] },
   { titre:'Administration', ids:['cockpit','gestion-apps','redac:admin','cps-admin','bugs','nettoyage'] }
 ];
 

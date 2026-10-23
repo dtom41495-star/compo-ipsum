@@ -1599,6 +1599,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
   { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Tes tâches du jour, tes projets et leur avancement — ajout rapide, kanban, échéances.' },
+  { id:'notes-frais',    icon:'<i class="ti ti-receipt-2"></i>', label:'Notes de frais',  color:'#0F6E56', desc:'Dépose une dépense avec la photo du ticket : le trésorier la valide puis te rembourse.' },
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
 
@@ -1816,6 +1817,19 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'projets' })
+        }).catch(function(){});
+      }
+
+      // Notes de frais : pour tout le monde (le trésorier valide, les admins gardent un regard dessus)
+      if(!allIds.includes('notes-frais')){
+        allIds.push('notes-frais');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'notes-frais' })
         }).catch(function(){});
       }
 

@@ -38,7 +38,7 @@ function osCockpitCharger(){
   var dans8j = new Date(debutJour.getTime() + 8 * CK_JOUR);
   var pr = function(p){ return p.catch(function(){ return []; }); };
   return Promise.all([
-    _ckLire('membres?actif=eq.true&select=id,prenom,nom,role,created_at,dnd,marque_inactif,fonction,derniere_connexion'),                                                          // 0
+    _ckLire('membres?actif=eq.true&select=id,prenom,nom,role,created_at,dnd,marque_inactif,fonction,derniere_connexion,adhesion_echeance,adhesion_exemptee'),                                                          // 0
     _ckLire('articles?select=id,titre,type,statut,auteur,auteur_id,redaction_id,correcteur,correcteur_id,created_at,updated_at,publie_le,envoye_sr_le,relu_le,sujet_id,cp_id,note_interne'), // 1
     _ckLire('heures_benevolat?select=membre_id,type,duree_minutes,created_at'),                                                                                                         // 2
     _ckLire('communiques?select=id,titre,type,statut,created_at,date_evenement,redaction_id'),                                                                                          // 3
@@ -47,7 +47,7 @@ function osCockpitCharger(){
     _ckLire('agenda_evenements?statut=neq.supprime&date_debut=gte.'+encodeURIComponent(debutJour.toISOString())+'&date_debut=lt.'+encodeURIComponent(dans8j.toISOString())+'&select=id,titre,date_debut,lieu&order=date_debut.asc'), // 6
     _ckLire('agenda_inscriptions?select=evenement_id,statut'),                                                                                                                          // 7
     _ckLire('stats_mensuelles?select=*&order=created_at.asc'),                                                                                                                          // 8
-    _ckLire('tresorerie_transactions?select=date,type,debit,credit,pointe,description'),                                                                                                // 9
+    _ckLire('tres_ecritures?select=date,montant,categorie_id,compte_id,rapproche,membre_id'),                                                                                                // 9
     _ckLire('candidats?select=id,etape,etape_changee_le,created_at'),                                                                                                                   // 10
     _ckLire('satisfaction_recrutement?select=id'),                                                                                                                                      // 11
     _ckLire('briefing?select=id,statut,created_at,responsable,redaction_id,titre,cp_id'),                                                                                               // 12
@@ -58,11 +58,15 @@ function osCockpitCharger(){
     _ckLire('membres_redactions?select=membre_id,redaction_id,role_redac,rattache_le'),                                                                                                 // 17
     _ckLire('redactions?select=*&order=nom.asc'),                                                                                                                                       // 18
     _ckLire('briefing_communiques?select=briefing_id,communique_id'),                                                                                                                   // 19
-    typeof osPoulsToutesCharger === 'function' ? pr(osPoulsToutesCharger()) : Promise.resolve({})                                                                                      // 20
+    typeof osPoulsToutesCharger === 'function' ? pr(osPoulsToutesCharger()) : Promise.resolve({}),                                                                                     // 20
+    _ckLire('tres_categories?select=id,nom,sens,systeme'),                                                                                                                              // 21
+    _ckLire('tres_exercices?select=id,nom,debut,fin&order=debut.asc'),                                                                                                                  // 22
+    _ckLire('tres_notes_frais?select=statut,montant'),                                                                                                                                  // 23
+    _ckLire('tres_comptes?select=id,type,solde_ouverture')                                                                                                                              // 24
   ]).then(function(r){
     return { membres:r[0], articles:r[1], heures:r[2], cps:r[3], dispos:r[4], newsletters:r[5], evenements:r[6], inscriptions:r[7], stats:r[8],
       tres:r[9], candidats:r[10], satisfaction:r[11], sujets:r[12], plumes:r[13], commandes:r[14], gels:r[15], presence:r[16], liens:r[17],
-      redacs:r[18], liensCp:r[19], pouls:r[20] || {}, maj:Date.now() };
+      redacs:r[18], liensCp:r[19], pouls:r[20] || {}, cats:r[21], exercices:r[22], notesFrais:r[23], comptes:r[24], maj:Date.now() };
   });
 }
 
@@ -153,22 +157,26 @@ function _ckCalculer(D, P){
   C.audience = der ? { mois:der.mois || der.periode || '', total:tot(der), prev:tot(avt), spark:st.slice(-8).map(tot),
     canaux:canaux.map(function(c){ return { l:c[0], v:+der[c[1]] || 0, p:avt ? (+avt[c[1]] || 0) : 0, c:c[2] }; }).filter(function(c){ return c.v || c.p; }).sort(function(a, b){ return b.v - a.v; }) } : null;
 
-  // Trésorerie
+  // Trésorerie (tables tres_*, voir docs/sql/tresorerie-v2.sql) : solde de tous les comptes, mois en cours, adhésions de l'exercice
   var tx = D.tres.filter(function(t){ return t.date; }).sort(function(a, b){ return a.date < b.date ? -1 : 1; });
   if(tx.length){
-    var solde = 0, parMois = {};
-    tx.forEach(function(t){ solde += (+t.credit || 0) - (+t.debit || 0); parMois[t.date.substring(0, 7)] = solde; });
-    var cleMois = new Date().toISOString().substring(0, 7), duMois = tx.filter(function(t){ return t.date.substring(0, 7) === cleMois; });
-    var rec = duMois.reduce(function(s, t){ return s + (+t.credit || 0); }, 0), dep = duMois.reduce(function(s, t){ return s + (+t.debit || 0); }, 0);
+    var catParId = {}; D.cats.forEach(function(c){ catParId[c.id] = c; });
+    var neutre = function(t){ var c = catParId[t.categorie_id]; return c && c.sens === 'neutre'; };
+    var ouverture = D.comptes.reduce(function(s, c){ return s + (+c.solde_ouverture || 0); }, 0);
+    var solde = ouverture, parMois = {};
+    tx.forEach(function(t){ solde += +t.montant; parMois[t.date.substring(0, 7)] = solde; });
+    var cleMois = new Date().toISOString().substring(0, 7), duMois = tx.filter(function(t){ return t.date.substring(0, 7) === cleMois && !neutre(t); });
+    var rec = duMois.filter(function(t){ return t.montant > 0; }).reduce(function(s, t){ return s + +t.montant; }, 0), dep = -duMois.filter(function(t){ return t.montant < 0; }).reduce(function(s, t){ return s + +t.montant; }, 0);
     var cles = Object.keys(parMois).sort().slice(-8);
-    // Cotisations de l'année : même repérage par le nom que dans la Trésorerie
-    var annee = String(new Date().getFullYear()), payeurs = {};
-    tx.filter(function(t){ return t.type === 'Cotisations' && t.date.substring(0, 4) === annee; }).forEach(function(t){
-      var desc = (t.description || '').toLowerCase();
-      membres.forEach(function(m){ if(desc.indexOf((m.prenom || '').toLowerCase()) !== -1 || desc.indexOf((m.nom || '').toLowerCase()) !== -1) payeurs[m.id] = true; });
-    });
-    C.tres = { solde:solde, rec:rec, dep:dep, spark:cles.map(function(k){ return parMois[k]; }), nonPointes:tx.filter(function(t){ return !t.pointe; }).length,
-      coti:{ ok:Object.keys(payeurs).length, total:membres.length } };
+    // Adhésions de l'exercice en cours : un paiement rattaché au membre
+    var jour = new Date().toISOString().substring(0, 10), ex = D.exercices.filter(function(e){ return e.debut <= jour && e.fin >= jour; })[0] || D.exercices[D.exercices.length - 1];
+    var payeurs = {};
+    tx.forEach(function(t){ var c = catParId[t.categorie_id]; if(c && c.systeme === 'adhesions' && t.membre_id && t.montant > 0 && (!ex || (t.date >= ex.debut && t.date <= ex.fin))) payeurs[t.membre_id] = true; });
+    var courants = {}; D.comptes.forEach(function(c){ if(c.type === 'courant') courants[c.id] = true; });
+    var echues = membres.filter(function(m){ return m.adhesion_echeance && m.adhesion_echeance < jour; });
+    C.tres = { solde:solde, rec:rec, dep:dep, spark:cles.map(function(k){ return parMois[k]; }), nonPointes:tx.filter(function(t){ return !t.rapproche && courants[t.compte_id]; }).length,
+      coti:{ ok:Object.keys(payeurs).length, total:membres.length }, echues:echues,
+      nfAValider:D.notesFrais.filter(function(n){ return n.statut === 'soumise'; }).length, nfARembourser:D.notesFrais.filter(function(n){ return n.statut === 'validee'; }) };
   } else C.tres = null;
 
   // Circuit de la rédaction
@@ -262,7 +270,10 @@ function _ckAlertes(C, D){
   var S = C.circuit.sujetsSansArticle;
   if(S.length) A.push({ c:CK_COUL.bleu, t:_ckPlur(S.length, 'sujet')+' réservé'+(S.length > 1 ? 's' : '')+' sans article', s:'« '+(S[0].a.titre || 'Sans titre')+' » depuis '+S[0].j+' jours', b:'Voir', o:'redactions' });
   if(C.vieAsso.sansNouvelles) A.push({ c:CK_COUL.bleu, t:_ckPlur(C.vieAsso.sansNouvelles, 'membre')+' sans connexion depuis 30 jours', s:'À recontacter par un message', b:'Voir', o:'benevoles' });
-  if(C.tres && C.tres.nonPointes > 20) A.push({ c:CK_COUL.violet, t:C.tres.nonPointes+' mouvements non pointés', s:'Rapprochement bancaire en attente', b:'Ouvrir', o:'tresorerie' });
+  if(C.tres && C.tres.echues.length) A.push({ c:CK_COUL.violet, t:_ckPlur(C.tres.echues.length, 'adhésion')+' échue'+(C.tres.echues.length > 1 ? 's' : '')+' sans paiement', s:C.tres.echues.slice(0, 3).map(function(m){ return ((m.prenom || '')+' '+(m.nom || '').charAt(0)+'.').trim(); }).join(', ')+(C.tres.echues.length > 3 ? '…' : ''), b:'Voir', o:'tresorerie' });
+  if(C.tres && C.tres.nfAValider) A.push({ c:CK_COUL.violet, t:_ckPlur(C.tres.nfAValider, 'note')+' de frais à valider', s:'Déposée'+(C.tres.nfAValider > 1 ? 's' : '')+' par des bénévoles', b:'Valider', o:'tresorerie' });
+  if(C.tres && C.tres.nfARembourser.length) A.push({ c:CK_COUL.violet, t:_ckPlur(C.tres.nfARembourser.length, 'remboursement')+' à effectuer', s:'Total '+_ckEuro(C.tres.nfARembourser.reduce(function(s, n){ return s + +n.montant; }, 0)), b:'Voir', o:'tresorerie' });
+  if(C.tres && C.tres.nonPointes > 10) A.push({ c:CK_COUL.violet, t:C.tres.nonPointes+' écritures non pointées', s:'Rapprochement bancaire en attente', b:'Ouvrir', o:'tresorerie' });
   C.redacs.filter(function(r){ return r.pause; }).forEach(function(r){ A.push({ c:CK_COUL.gris, t:'Rédaction '+r.nom+' en pause', s:'Séries et relances en veille jusqu\'au '+_pauseDateCourte(r.pause.fin), b:'', o:'' }); });
   return A;
 }
@@ -393,7 +404,7 @@ function _ckFinancesHtml(C){
   var pct = t.coti.total ? Math.round(t.coti.ok / t.coti.total * 100) : 0;
   return '<div class="ck-trois"><div><div class="ck-mono ck-vert">+'+_ckEuro(t.rec).replace('+', '')+'</div><small>Recettes (mois)</small></div><div><div class="ck-mono ck-rouge">'+(t.dep > 0 ? '−' : '')+_ckEuro(t.dep)+'</div><small>Dépenses (mois)</small></div>'
     +'<div><div class="ck-mono">'+_ckEuro(t.solde)+'</div><small>Solde</small></div></div>'
-    +'<h2 class="ck-sous">Cotisations '+new Date().getFullYear()+'</h2><div class="ck-barre"><i style="width:'+pct+'%;background:'+(pct >= 80 ? CK_COUL.vert : pct >= 50 ? CK_COUL.ambre : CK_COUL.rouge)+'"></i></div>'
+    +'<h2 class="ck-sous">Adhésions de l’exercice</h2><div class="ck-barre"><i style="width:'+pct+'%;background:'+(pct >= 80 ? CK_COUL.vert : pct >= 50 ? CK_COUL.ambre : CK_COUL.rouge)+'"></i></div>'
     +'<div class="ck-legende"><span>'+t.coti.ok+' membre'+(t.coti.ok > 1 ? 's' : '')+' sur '+t.coti.total+' à jour</span><span>'+t.nonPointes+' mouvement'+(t.nonPointes > 1 ? 's' : '')+' non pointé'+(t.nonPointes > 1 ? 's' : '')+'</span></div>';
 }
 
