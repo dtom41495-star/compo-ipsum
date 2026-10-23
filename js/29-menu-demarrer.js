@@ -15,7 +15,7 @@ var SM_CAT_APPS = {
   equipe: ['redactions','benevoles','agenda','projets','tableau','boutique','ecran-redac','tutos'],
   com:    ['app-com','cps-admin','communique','newsletter','app-courrier','signatures','substack'],
   outils: ['upload-medias','magneto','flouter','visuels-pro','app-dub','mail','compo-store','minuteur'],
-  admin:  ['stats-dashboard','tresorerie','gestion-apps','nettoyage','params','bugs','log']
+  admin:  ['cockpit','stats-dashboard','tresorerie','gestion-apps','nettoyage','params','bugs','log']
 };
 var _smCategorie = 'tout';
 var _smRechercheJeton = 0;

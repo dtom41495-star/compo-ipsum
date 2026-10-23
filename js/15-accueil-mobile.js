@@ -12,7 +12,7 @@ var ACCUEIL_RUBRIQUES = [
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','boutique','newsletter','signatures','projets','tableau'] },
-  { titre:'Administration', ids:['gestion-apps','redac:admin','cps-admin','bugs','nettoyage'] }
+  { titre:'Administration', ids:['cockpit','gestion-apps','redac:admin','cps-admin','bugs','nettoyage'] }
 ];
 
 // Sur téléphone, Ma rédac' est découpée : chaque onglet a sa tuile et s'ouvre seul, en

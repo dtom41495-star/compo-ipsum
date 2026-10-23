@@ -1592,6 +1592,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'ecran-redac',    icon:'<i class="ti ti-device-tv"></i>', label:'Écran rédac',    color:'#1A1A2E', roles:['admin','redac_chef'], desc:'Tableau de bord en direct pour un écran d\'affichage : circuit des articles, agenda et sujets ouverts, toutes rédactions. Aucune notification.' },
+  { id:'cockpit',        icon:'<i class="ti ti-gauge"></i>', label:'Cockpit',        color:'#1A1A2E', roles:['admin'], desc:'Tableau de bord en direct de toute l\'association : chiffres clés, alertes, circuit de la rédaction, régularité, audience, finances, vie asso.' },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   // Apps Store
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
@@ -1608,7 +1609,7 @@ var PROFILS_PREDEFINIS = {
   redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','flouter','notes','compo-store'],
   correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
   redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
-  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
+  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','cockpit','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
   communicant: ['app-com','redactions','notes','compo-store','boutique','mail','signatures'],
@@ -1789,6 +1790,19 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'ecran-redac' })
+        }).catch(function(){});
+      }
+
+      // Cockpit : réservé aux admins (même mécanisme que l'écran rédac)
+      if(roleEffectif === 'admin' && !allIds.includes('cockpit')){
+        allIds.push('cockpit');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'cockpit' })
         }).catch(function(){});
       }
 
