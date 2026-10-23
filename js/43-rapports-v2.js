@@ -128,24 +128,37 @@ function _rapSectionRegularite(redacId){
 }
 
 // ── Parcours des sujets (rapport annuel) ────────────────────────
+// Un sujet disparaît de la table briefing une fois l'article publié et nettoyé : compter seulement les lignes de briefing
+// ignorerait presque tous les sujets menés à terme. On les retrouve donc par les articles de l'année qui y sont rattachés (articles.sujet_id),
+// en plus des sujets encore en base créés dans l'année.
 function _rapSectionSujets(annee){
+  var debut = annee+'-01-01', fin = (annee+1)+'-01-01';
   return Promise.all([
-    _rapLireTout('briefing?created_at=gte.'+annee+'-01-01&created_at=lt.'+(annee+1)+'-01-01&select=id,statut,created_at'),
-    _rapLireTout('articles?sujet_id=not.is.null&select=sujet_id,statut')
+    _rapLireTout('briefing?created_at=gte.'+debut+'&created_at=lt.'+fin+'&select=id,statut,responsable'),
+    _rapLireTout('articles?sujet_id=not.is.null&created_at=gte.'+debut+'&created_at=lt.'+fin+'&select=sujet_id,statut'),
+    _rapLireTout('articles?sujet_id=not.is.null&select=sujet_id')   // tous les articles rattachés : « réservé sans article » ne doit pas compter un sujet dont l'article date d'une autre année
   ]).then(function(r){
-    var sujets = r[0]; if(!sujets.length) return '';
-    var publie = {}, lie = {};
-    r[1].forEach(function(a){ lie[a.sujet_id] = true; if(a.statut === 'publie') publie[a.sujet_id] = true; });
-    var reserves = sujets.filter(function(s){ return s.statut !== 'ouvert' && s.statut !== 'propose'; }).length;
-    var abouti = sujets.filter(function(s){ return publie[s.id]; }).length;
-    var enAttente = sujets.filter(function(s){ return s.statut === 'en_cours' && !lie[s.id]; }).length;
-    var pct = function(n){ return sujets.length ? ' ('+Math.round(n / sujets.length * 100)+' %)' : ''; };
+    var enBase = r[0], arts = r[1], lies = {};
+    r[2].forEach(function(a){ lies[a.sujet_id] = true; });
+    var tous = {}, pris = {}, publies = {};   // identifiants distincts
+    enBase.forEach(function(s){
+      tous[s.id] = true;
+      if(s.statut !== 'ouvert' && s.statut !== 'propose') pris[s.id] = true;
+    });
+    arts.forEach(function(a){
+      tous[a.sujet_id] = true; pris[a.sujet_id] = true;   // un article y est rattaché : le sujet a forcément été pris
+      if(a.statut === 'publie') publies[a.sujet_id] = true;
+    });
+    var total = Object.keys(tous).length; if(!total) return '';
+    var nbPris = Object.keys(pris).length, nbPublies = Object.keys(publies).length;
+    var enAttente = enBase.filter(function(s){ return s.statut === 'en_cours' && !lies[s.id]; }).length;
+    var pct = function(n){ return ' ('+Math.round(n / total * 100)+' %)'; };
     return _rapSection('Parcours des sujets',
       '<table><tr><th>Étape</th><th class="num">Sujets</th></tr>'
-      +'<tr><td>Sujets créés dans l’année</td><td class="num">'+sujets.length+'</td></tr>'
-      +'<tr><td>Réservés par un bénévole</td><td class="num">'+reserves+pct(reserves)+'</td></tr>'
-      +'<tr><td>Menés jusqu’à la publication</td><td class="num">'+abouti+pct(abouti)+'</td></tr>'
-      +'<tr><td>Réservés sans aucun article commencé</td><td class="num">'+enAttente+'</td></tr></table>');
+      +'<tr><td>Sujets de l’année (en base ou rattachés à un article)</td><td class="num">'+total+'</td></tr>'
+      +'<tr><td>Pris par un bénévole</td><td class="num">'+nbPris+pct(nbPris)+'</td></tr>'
+      +'<tr><td>Menés jusqu’à la publication</td><td class="num">'+nbPublies+pct(nbPublies)+'</td></tr>'
+      +'<tr><td>Réservés, sans aucun article commencé (en ce moment)</td><td class="num">'+enAttente+'</td></tr></table>');
   }).catch(function(){ return ''; });
 }
 

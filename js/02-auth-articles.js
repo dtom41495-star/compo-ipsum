@@ -1215,6 +1215,7 @@ function lancerCompo(){
     mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
     annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
     cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
+    pauses:           fetch(SB_URL+'/rest/v1/pauses_redaction?select=id,redaction_id,debut,fin&fin=gte.'+new Date(Date.now()-280*86400000).toISOString().slice(0,10)+'&order=debut.asc',{headers:authH}).then(function(r){return r.json();}),
   };
 
   _loadStep('Rédactions...', 20);
@@ -1222,7 +1223,7 @@ function lancerCompo(){
   // Suivre la progression au fil des résolutions
   var done = 0;
   var total = Object.keys(fetches).length;
-  var labels = {redactions:'Rédactions',membresRedacs:'Équipe',membres:'Membres',mesArticles:'Articles',annonces:'Annonces',cps:'Communiqués'};
+  var labels = {redactions:'Rédactions',membresRedacs:'Équipe',membres:'Membres',mesArticles:'Articles',annonces:'Annonces',cps:'Communiqués',pauses:'Pauses'};
   var results = {};
 
   var promises = Object.keys(fetches).map(function(key){
@@ -1246,6 +1247,7 @@ function lancerCompo(){
     if(results.membres && !results.membres.code)               window._membresData = results.membres;
     if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
+    if(Array.isArray(results.pauses))                          window._pausesRedac = results.pauses;
 
     if(typeof osCosmetiquesCharger === 'function') osCosmetiquesCharger();
 

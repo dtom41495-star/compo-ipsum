@@ -1742,6 +1742,7 @@ var DOCK_APPS = {
     { id:'visuels-pro', icon:'<i class="ti ti-palette"></i>', label:'Visuels', color:'#155724' },
     { id:'newsletter', icon:'<i class="ti ti-mail-forward"></i>', label:'Newsletter', color:'#155724' },
     { id:'stats-dashboard', icon:'<i class="ti ti-chart-bar"></i>', label:'Stats', color:'#0D0D1A' },
+    { id:'cockpit', icon:'<i class="ti ti-gauge"></i>', label:'Cockpit', color:'#1A1A2E' },
     { id:'benevoles', icon:'<i class="ti ti-users"></i>', label:'Bénévoles', color:'#0F6E56' },
     { id:'gestion-apps', icon:'<i class="ti ti-settings"></i>', label:'Admin', color:'#2C3E50' },
     { id:'nettoyage', icon:'<i class="ti ti-eraser"></i>', label:'Nettoyage', color:'#721C24' },

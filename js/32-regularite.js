@@ -50,6 +50,7 @@ function osRegulariteCalculer(membre, arts){
     var dans = publis.filter(function(p){ return p.date >= debut && p.date < fin; });
     semaines.push({
       debut:debut, courante:k === 0, gel:!!(gels && gels.has(_regCle(debut))),
+      pause: !!(membre && typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(membre.id, debut)),   // toutes ses rédactions en pause (js/61)
       breves:dans.filter(function(p){ return p.breve; }).length,
       articles:dans.filter(function(p){ return !p.breve; }).length,
       avant: !!(arrivee && fin <= arrivee)           // semaine terminée avant l'arrivée du membre
@@ -57,14 +58,15 @@ function osRegulariteCalculer(membre, arts){
   }
   // Une semaine vide est compensée si la suivante (même en cours) compte au moins 2 brèves
   semaines.forEach(function(w, i){
-    w.comp = !w.avant && !w.courante && !w.gel && w.breves === 0 && !!semaines[i+1] && semaines[i+1].breves >= 2;
+    w.comp = !w.avant && !w.courante && !w.gel && !w.pause && w.breves === 0 && !!semaines[i+1] && semaines[i+1].breves >= 2;
   });
   var terminees = semaines.filter(function(s){ return !s.courante && !s.avant; });
   var quatre = terminees.slice(-4);
-  var manquesBreve = quatre.filter(function(s){ return s.breves === 0 && !s.comp && !s.gel; }).length;
+  var manquesBreve = quatre.filter(function(s){ return s.breves === 0 && !s.comp && !s.gel && !s.pause; }).length;
   var compensees = quatre.filter(function(s){ return s.comp; }).length;
   var serie = 0;
-  for(var i = terminees.length - 1; i >= 0 && terminees[i].breves === 0 && !terminees[i].comp && !terminees[i].gel; i--) serie++;
+  // Une semaine de pause est neutre : elle ne compte pas parmi les semaines vides, mais ne casse pas la suite non plus
+  for(var i = terminees.length - 1; i >= 0 && (terminees[i].pause || (terminees[i].breves === 0 && !terminees[i].comp && !terminees[i].gel)); i--) if(!terminees[i].pause) serie++;
 
   // Articles : blocs de 28 jours en remontant depuis aujourd'hui
   var blocs = [];
@@ -87,15 +89,16 @@ function osRegulariteCalculer(membre, arts){
 var _REG_COUL = {
   ok:     ['#D4EDDA', '#155724'],
   gel:    ['#CDE9FF', '#1B6FB5'],
+  pause:  ['#E7E4F7', '#5B4FB5'],
   orange: ['#FFE5CF', '#B45309'],
   rouge:  ['#FCEBEB', '#A32D2D'],
   neutre: ['#F1EDE8', '#9CA3AF']
 };
 function _regCellule(n, s){
-  var c = s.avant ? _REG_COUL.neutre : (s.gel ? _REG_COUL.gel : (n > 0 || s.comp ? _REG_COUL.ok : (s.courante ? _REG_COUL.neutre : _REG_COUL.orange)));
-  var txt = s.avant ? '·' : (s.gel ? '<i class="ti ti-snowflake"></i>'+(n > 0 ? ' '+n : '') : (s.comp ? n+' ✓' : n));
-  var titre = s.gel ? 'Semaine gelée avec des heures de bénévolat : pas de relance, pas d\'alerte' : (s.comp ? 'Semaine sans brève, compensée la semaine suivante' : '');
-  return '<span class="reg-cel'+(s.courante ? ' courante' : '')+(s.comp ? ' comp' : '')+(s.gel ? ' gel' : '')+'"'+(titre ? ' title="'+titre+'"' : '')+' style="background:'+c[0]+';color:'+c[1]+';">'+txt+'</span>';
+  var c = s.avant ? _REG_COUL.neutre : (s.pause ? _REG_COUL.pause : s.gel ? _REG_COUL.gel : (n > 0 || s.comp ? _REG_COUL.ok : (s.courante ? _REG_COUL.neutre : _REG_COUL.orange)));
+  var txt = s.avant ? '·' : (s.pause ? '<i class="ti ti-player-pause"></i>'+(n > 0 ? ' '+n : '') : s.gel ? '<i class="ti ti-snowflake"></i>'+(n > 0 ? ' '+n : '') : (s.comp ? n+' ✓' : n));
+  var titre = s.pause ? 'Rédaction en pause : semaine neutre, pas de relance, pas d\'alerte' : s.gel ? 'Semaine gelée avec des heures de bénévolat : pas de relance, pas d\'alerte' : (s.comp ? 'Semaine sans brève, compensée la semaine suivante' : '');
+  return '<span class="reg-cel'+(s.courante ? ' courante' : '')+(s.comp ? ' comp' : '')+(s.gel ? ' gel' : '')+(s.pause ? ' pause' : '')+'"'+(titre ? ' title="'+titre+'"' : '')+' style="background:'+c[0]+';color:'+c[1]+';">'+txt+'</span>';
 }
 function _regAlerteBadge(niveau, texte){
   if(!niveau) return '';
@@ -123,7 +126,7 @@ function osRegulariteFicheHtml(s){
   r.semaines.forEach(function(w){
     h += '<div class="reg-col-sem"><small>'+w.debut.getDate()+'/'+(w.debut.getMonth()+1)+'</small>'+_regCellule(w.breves, w)+'</div>';
   });
-  h += '</div><div class="reg-legende">Brèves publiées par semaine (la dernière colonne est la semaine en cours). ✓ : semaine vide compensée par la suivante, ❄ : semaine gelée</div>';
+  h += '</div><div class="reg-legende">Brèves publiées par semaine (la dernière colonne est la semaine en cours). ✓ : semaine vide compensée par la suivante, ❄ : semaine gelée, ⏸ : rédaction en pause</div>';
   var b = _regAlerteBadge(r.alerteBreve, _regTexteBreve(r)) + _regAlerteBadge(r.alerteArticle, _regTexteArticle(r));
   var enRegle = r.nbSemainesCompte - r.manquesBreve;
   var okBreve = r.nbSemainesCompte ? enRegle+' semaine'+(enRegle > 1 ? 's' : '')+' en règle sur les '+r.nbSemainesCompte+' dernières'+(r.compensees ? ' (dont '+r.compensees+' compensée'+(r.compensees > 1 ? 's' : '')+')' : '') : 'Arrivé·e il y a moins d\'une semaine';

@@ -348,7 +348,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'titres':'Générateur de titres', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
+    cockpit:'Cockpit', 'notes-frais':'Notes de frais', bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'titres':'Générateur de titres', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
     lecture:'Lecture',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 
@@ -630,6 +630,18 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'gestion-apps'){
     setTimeout(function(){ osGestionAppsRender(); }, 50);
+    return;
+  }
+
+  // Notes de frais (tous les membres)
+  if(pageId === 'notes-frais'){
+    setTimeout(function(){ osNotesFraisRender(); }, 50);
+    return;
+  }
+
+  // Cockpit du président (admins)
+  if(pageId === 'cockpit'){
+    setTimeout(function(){ osCockpitRender(); }, 50);
     return;
   }
 

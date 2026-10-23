@@ -474,6 +474,12 @@ function _candEnvoyer(methode, id, donnees){
     });
 }
 
+// L'échéance d'adhésion du membre suit la fin de l'essai (la Trésorerie l'affiche et alerte quand elle est dépassée sans paiement)
+function _candSyncEcheance(membreId, essaiFin){
+  if(!membreId || !essaiFin) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&adhesion_exemptee=eq.false', { method:'PATCH', headers:_candAuth({ 'Prefer':'return=minimal' }), body:JSON.stringify({ adhesion_echeance:essaiFin }) }).catch(function(){});
+}
+
 // Passe la personne à une autre étape (les champs du formulaire, modifiés ou non, partent avec)
 function osCandidatEtape(c, etape, champs){
   var maintenant = new Date().toISOString();
@@ -483,6 +489,7 @@ function osCandidatEtape(c, etape, champs){
   if(etape === 'essai' && !(champs && champs.essai_fin) && !c.essai_fin) maj.essai_fin = _candDansJours(CAND_ESSAI_JOURS);
   if(etape === 'adherent' && !(champs && champs.adhesion_payee_le)) maj.adhesion_payee_le = _candAujourdhui();
   return _candEnvoyer('PATCH', c.id, maj).then(function(l){
+    if(etape === 'essai') _candSyncEcheance(l.membre_id, l.essai_fin);
     notif(_candNom(l)+' : '+_candEtape(etape).label, 'succes');
     _candAfficher();
     if(etape === 'sans_suite' || etape === 'adherent') _candFermer();
@@ -518,6 +525,7 @@ function osCandidatCreerCompte(c, champs, btn){
       membre_id:d.membre_id, etape:'essai', etape_changee_le:maintenant, dates:dates, essai_fin:_candDansJours(CAND_ESSAI_JOURS)
     }));
   }).then(function(l){
+    _candSyncEcheance(l.membre_id, l.essai_fin);
     notif('Compte créé pour '+email+' : essai jusqu’au '+_candDate(l.essai_fin), 'succes');
     _candAfficher(); osCandidatOuvrir(l.id);
   }).catch(function(err){
