@@ -42,15 +42,22 @@ function osTresNoteFraisForm(opts){
     +_trChamp('Rédaction ou projet (facultatif)', '<input id="nf-contexte" class="tr-in" placeholder="Ex. Castres, festival…">');
   var m = _trModal(gestion ? 'Saisir une note de frais' : 'Nouvelle note de frais', corps,
     '<span class="tr-sp"></span><button type="button" class="tr-btn" id="nf-a">Annuler</button><button type="button" class="tr-btn tr-p" id="nf-ok">Envoyer au trésorier</button>');
-  var zone = document.getElementById('nf-piece-zone');
+  var zone = document.getElementById('nf-piece-zone'), vignette = null;
   var dessiner = function(){
-    zone.innerHTML = piece ? '<span class="tr-lien" id="nf-voir">📎 Justificatif joint</span> <button type="button" class="tr-btn" id="nf-ret">Retirer</button>'
-      : '<input type="file" id="nf-fic" accept="image/*,application/pdf" capture="environment" class="tr-in"><div class="tr-note-i">Prends le ticket en photo, ou choisis un fichier.</div>';
+    if(piece){
+      zone.innerHTML = '<div class="tr-depot tr-fait">'+(vignette ? '<img class="tr-vignette" src="'+vignette+'" alt="">' : '<i class="ti ti-file-check"></i>')
+        +'<div class="tr-depot-t"><b>Justificatif joint</b><span><button type="button" class="tr-lien" id="nf-voir">Voir</button> · <button type="button" class="tr-lien" id="nf-ret">Changer</button></span></div></div>';
+    } else {
+      zone.innerHTML = '<label class="tr-depot" for="nf-fic"><i class="ti ti-camera"></i><b>Photographier le ticket</b><small>ou choisir une photo ou un PDF</small></label>'
+        +'<input type="file" id="nf-fic" accept="image/*,application/pdf" capture="environment" hidden>';
+    }
     var v = document.getElementById('nf-voir'); if(v) v.onclick = function(){ osTresOuvrirPiece(piece); };
-    var r = document.getElementById('nf-ret'); if(r) r.onclick = function(){ piece = null; dessiner(); };
+    var r = document.getElementById('nf-ret'); if(r) r.onclick = function(){ piece = null; vignette = null; dessiner(); };
     var f = document.getElementById('nf-fic'); if(f) f.onchange = function(){
-      if(!f.files[0]) return; zone.innerHTML = 'Envoi du justificatif…';
-      osTresEnvoyerPiece(f.files[0]).then(function(c){ piece = c; dessiner(); }).catch(function(){ notif('Envoi du justificatif impossible', 'erreur'); piece = null; dessiner(); });
+      var fic = f.files[0]; if(!fic) return;
+      zone.innerHTML = '<div class="tr-depot"><i class="ti ti-loader-2 se-tourne"></i><b>Envoi du justificatif…</b></div>';
+      var apercu = /^image\//.test(fic.type) ? URL.createObjectURL(fic) : null;
+      osTresEnvoyerPiece(fic).then(function(c){ piece = c; vignette = apercu; dessiner(); }).catch(function(){ notif('Envoi du justificatif impossible, réessaie', 'erreur'); piece = null; vignette = null; dessiner(); });
     };
   };
   dessiner();
