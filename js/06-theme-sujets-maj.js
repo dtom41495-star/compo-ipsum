@@ -1039,11 +1039,12 @@ function osParamsRenderSection(section, container){
     wpGrid.className = 'wallpaper-grid';
     
     var WPS = [
-      { id:'default', url:"https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png", label:'Ipsum Original' },
+      { id:'role', url:osFondDuRole(), label:'Fond de mon rôle' },
+      { id:'default', url:'fonds/fond-redacteur.webp', label:'Ipsum Original' },
       { id:'dark', url:'', label:'Sombre uni', color:'linear-gradient(135deg,#0D0D1A,#1A1A2E)' },
       { id:'rouge', url:'', label:'Rouge Ipsum', color:'linear-gradient(135deg,#E8461E,#C73A18)' },
     ];
-    var currentWp = localStorage.getItem('compo_os_wallpaper') || 'default';
+    var currentWp = localStorage.getItem('compo_os_wallpaper') || 'role';
     
     WPS.forEach(function(wp){
       var opt = document.createElement('div');
@@ -1331,10 +1332,21 @@ function osAppliquerWallpaper(id, url, color){
   }
 }
 
+// Un fond par rôle (dossier fonds/ du site) : la flamme change de teinte, le logo reste le même.
+// Tant que la personne n'a rien choisi dans Paramètres, elle a le fond de son rôle ; « Ipsum Original », les fonds unis et une image importée restent possibles.
+function osRoleFond(){
+  var r = getUserRole(), uid = getUserId();
+  if(r === 'admin') return 'admin';
+  if((window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; })) return 'redac_chef';
+  return (r === 'correcteur' || r === 'communicant') ? r : 'redacteur';
+}
+function osFondDuRole(){ return 'fonds/fond-'+osRoleFond()+'.webp'; }
+
 function osAppliquerWallpaperAuDemarrage(){
-  var id = localStorage.getItem('compo_os_wallpaper') || 'default';
-  var DEFAULT_WP = "https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png";
-  if(id === 'custom'){
+  var id = localStorage.getItem('compo_os_wallpaper') || 'role';
+  if(id === 'role'){
+    osAppliquerWallpaper('role', osFondDuRole(), null);
+  } else if(id === 'custom'){
     var custom = localStorage.getItem('compo_os_wallpaper_custom');
     if(custom) osAppliquerWallpaper('custom', custom, null);
     // else garder le CSS par défaut

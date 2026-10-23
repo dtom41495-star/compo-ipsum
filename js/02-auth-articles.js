@@ -1245,6 +1245,7 @@ function lancerCompo(){
     if(results.redactions && !results.redactions.code)         window._redactionsData = results.redactions;
     if(results.membresRedacs && !results.membresRedacs.code)   window._membresRedactionsData = results.membresRedacs;
     if(results.membres && !results.membres.code)               window._membresData = results.membres;
+    if(typeof osAppliquerWallpaperAuDemarrage === 'function') osAppliquerWallpaperAuDemarrage();   // le fond du rôle (rédac chef compris) maintenant que les rédactions sont connues
     if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
     if(Array.isArray(results.pauses))                          window._pausesRedac = results.pauses;
