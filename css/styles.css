@@ -6571,3 +6571,14 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 .tr-barre #tr-q { flex: 1 1 180px; min-width: 140px; }
 .tr-modal .tr-in, .tr-corps .tr-in { background: var(--blanc); }
 .tr-modal .tr-champ span { text-transform: none; letter-spacing: 0; font-size: 12px; }
+
+/* Dépôt d'un justificatif (note de frais) */
+.tr-depot { display: flex; flex-direction: column; align-items: center; gap: 3px; border: 2px dashed var(--gris-bord); border-radius: 14px; padding: 20px 12px; text-align: center; color: var(--gris); background: var(--gris-clair); cursor: pointer; }
+.tr-depot i { font-size: 30px; color: #0F6E56; }
+.tr-depot b { color: var(--encre); font-size: 14px; } .tr-depot small { font-size: 11px; }
+.tr-depot:hover { border-color: #0F6E56; }
+.tr-depot.tr-fait { flex-direction: row; justify-content: flex-start; gap: 12px; border-style: solid; border-color: #A7F3D0; background: #F0FFF4; cursor: default; padding: 10px 12px; text-align: left; }
+.tr-depot.tr-fait i { font-size: 28px; }
+.tr-depot-t { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.tr-vignette { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--gris-bord); }
+.tr-nf-r .tr-lien, .tr-depot .tr-lien { font-size: 12px; text-decoration: underline; }
