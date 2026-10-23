@@ -1207,48 +1207,70 @@ function lancerCompo(){
 
   _loadStep('Connexion...', 5);
 
-  // Preload de toutes les données nécessaires en parallele
-  var fetches = {
-    redactions:       fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH}).then(function(r){return r.json();}),
-    membresRedacs:    fetch(SB_URL+'/rest/v1/membres_redactions?select=*',{headers:authH}).then(function(r){return r.json();}),
-    membres:          fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu,avatar_id&order=prenom.asc',{headers:authH}).then(function(r){return r.json();}),
-    mesArticles:      uid ? fetch(SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50',{headers:authH}).then(function(r){return r.json();}) : Promise.resolve([]),
-    annonces:         fetch(SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',{headers:authH}).then(function(r){return r.json();}),
-    cps:              fetch(SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',{headers:authH}).then(function(r){return r.json();}),
-    pauses:           fetch(SB_URL+'/rest/v1/pauses_redaction?select=id,redaction_id,debut,fin&fin=gte.'+new Date(Date.now()-280*86400000).toISOString().slice(0,10)+'&order=debut.asc',{headers:authH}).then(function(r){return r.json();}),
+  // Preload de toutes les données nécessaires en parallèle.
+  // Les rédactions et les membres sont indispensables ; le reste peut arriver après l'ouverture du bureau.
+  var urls = {
+    redactions:       SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',
+    membresRedacs:    SB_URL+'/rest/v1/membres_redactions?select=*',
+    membres:          SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu,avatar_id&order=prenom.asc',
+    mesArticles:      uid ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50' : null,
+    annonces:         SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',
+    cps:              SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',
+    pauses:           SB_URL+'/rest/v1/pauses_redaction?select=id,redaction_id,debut,fin&fin=gte.'+new Date(Date.now()-280*86400000).toISOString().slice(0,10)+'&order=debut.asc'
   };
+  var ESSENTIELS = ['redactions','membres'];
+  var DELAI_OUVERTURE = 12000;   // au-delà, on ouvre avec ce qui est déjà là (si l'essentiel est arrivé), sinon file d'attente
 
   _loadStep('Rédactions...', 20);
 
-  // Suivre la progression au fil des résolutions
-  var done = 0;
-  var total = Object.keys(fetches).length;
   var labels = {redactions:'Rédactions',membresRedacs:'Équipe',membres:'Membres',mesArticles:'Articles',annonces:'Annonces',cps:'Communiqués',pauses:'Pauses'};
   var results = {};
+  var reussi = {};
+  var done = 0;
+  var total = Object.keys(urls).length;
+  var ouvert = false;
+  var minuteur = null;
 
-  var promises = Object.keys(fetches).map(function(key){
-    return fetches[key].then(function(data){
-      results[key] = data;
-      done++;
-      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
-    }).catch(function(){
-      results[key] = [];
-      done++;
-      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
-    });
-  });
-
-  Promise.all(promises).then(function(){
-    _loadStep('Mise en place...', 88);
-
-    // Peupler les caches globaux
+  // Cache global ← résultats déjà arrivés (rappelé à chaque arrivée : une donnée tardive s'installe toute seule)
+  var peuplerCaches = function(){
     if(results.redactions && !results.redactions.code)         window._redactionsData = results.redactions;
     if(results.membresRedacs && !results.membresRedacs.code)   window._membresRedactionsData = results.membresRedacs;
     if(results.membres && !results.membres.code)               window._membresData = results.membres;
-    if(typeof osAppliquerWallpaperAuDemarrage === 'function') osAppliquerWallpaperAuDemarrage();   // le fond du rôle (rédac chef compris) maintenant que les rédactions sont connues
     if(results.annonces && !results.annonces.code)             window._annoncesCache = results.annonces;
     if(results.cps && !results.cps.code)                       window._cpsDataCache = results.cps;
     if(Array.isArray(results.pauses))                          window._pausesRedac = results.pauses;
+  };
+  var essentielOk = function(){ return ESSENTIELS.every(function(k){ return reussi[k]; }); };
+
+  var charger = function(key){
+    if(!urls[key]){ results[key] = []; reussi[key] = true; done++; return Promise.resolve(); }
+    return fetch(urls[key],{headers:authH}).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(data){
+      results[key] = data;
+      reussi[key] = true;
+      done++;
+      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
+      if(ouvert) peuplerCaches();
+    }).catch(function(){
+      if(!results[key]) results[key] = [];
+      done++;
+      _loadStep(labels[key] + '...', Math.round(20 + (done/total)*60));
+    });
+  };
+
+  var ouvrir = function(){
+    if(ouvert) return;
+    ouvert = true;
+    clearTimeout(minuteur);
+    var bouton = document.getElementById('compo-loading-retry');
+    if(bouton) bouton.remove();
+    _loadStep('Mise en place...', 88);
+
+    // Peupler les caches globaux
+    peuplerCaches();
+    if(typeof osAppliquerWallpaperAuDemarrage === 'function') osAppliquerWallpaperAuDemarrage();   // le fond du rôle (rédac chef compris) maintenant que les rédactions sont connues
 
     if(typeof osCosmetiquesCharger === 'function') osCosmetiquesCharger();
 
@@ -1290,14 +1312,71 @@ function lancerCompo(){
       // laissé intact.
       // setTimeout(osAfficherRattrapage, 1500);
     }, 300);
+  };
 
-  }).catch(function(){
-    // Fallback si le preload échoue - lancer quand même
-    _loadDone();
-    osBuildDock();
-    osBuildDesktopIcons();
-    chargerDepuisURL();
+  // File d'attente : le serveur ne répond pas (ou refuse). On ne bombarde pas : nouvel essai espacé, avec un délai
+  // aléatoire pour que tout le monde ne revienne pas à la même seconde, de plus en plus patient (8 s → 30 s).
+  var tentative = 0;
+  var enAttente = false;
+  var fileAttente = function(){
+    if(ouvert || enAttente) return;
+    enAttente = true;
+    var scene = document.querySelector('#compo-loading-screen .cl-scene');
+    var bouton = document.getElementById('compo-loading-retry');
+    if(!bouton && scene){
+      bouton = document.createElement('button');
+      bouton.id = 'compo-loading-retry';
+      bouton.type = 'button';
+      bouton.className = 'cl-retry';
+      bouton.textContent = 'Réessayer maintenant';
+      scene.appendChild(bouton);
+    }
+    var compte = null, reste = 0;
+    var essai = function(){
+      clearInterval(compte);
+      tentative++;
+      _loadStep('Nouvel essai...', 30);
+      Promise.all(ESSENTIELS.map(function(k){ reussi[k] = false; return charger(k); })).then(function(){
+        if(ouvert) return;
+        if(essentielOk()){
+          // Le reste se charge en arrière-plan : on ouvre dès que l'essentiel est là
+          Object.keys(urls).forEach(function(k){ if(!reussi[k] && ESSENTIELS.indexOf(k) < 0) charger(k); });
+          ouvrir();
+        } else { planifier(); }
+      });
+    };
+    var planifier = function(){
+      var base = Math.min(30000, 8000 + tentative * 4000);
+      reste = Math.round((base + Math.random() * 7000) / 1000);
+      var affiche = function(){
+        var hors = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        _loadStep((hors ? 'Pas de connexion — ' : 'Compo est très sollicité — tu es en file d\'attente · ') + 'nouvel essai dans ' + reste + ' s', 30);
+        var et = document.getElementById('compo-loading-step');
+        if(et) et.classList.add('cl-etape-attente');
+      };
+      affiche();
+      compte = setInterval(function(){
+        reste--;
+        if(reste <= 0){ essai(); return; }
+        affiche();
+      }, 1000);
+    };
+    if(bouton) bouton.onclick = function(){ clearInterval(compte); essai(); };
+    planifier();
+  };
+
+  var promesses = Object.keys(urls).map(charger);
+
+  Promise.all(promesses).then(function(){
+    if(ouvert) return;
+    if(essentielOk()) ouvrir(); else fileAttente();
   });
+
+  // Une donnée secondaire qui traîne ne bloque plus personne : au bout de 12 s on ouvre avec l'essentiel
+  minuteur = setTimeout(function(){
+    if(ouvert) return;
+    if(essentielOk()) ouvrir(); else fileAttente();
+  }, DELAI_OUVERTURE);
 }
 
 

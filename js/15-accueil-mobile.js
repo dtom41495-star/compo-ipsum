@@ -55,6 +55,7 @@ function _accueilApps(){
   try{ sources = osAppsAccessibles(); }catch(e){}
   sources.concat(_accueilAppsBureau()).forEach(function(a){
     if(!a || vues[a.id] || a.legacy) return;
+    if(a.id === 'tresorerie') return;   // la trésorerie est réservée à l'ordinateur (tableaux trop larges) ; les notes de frais restent sur téléphone
     vues[a.id] = true; liste.push(a);
   });
   // Ma rédac' remplacée par ses morceaux ; l'appli admin « Gestion des CPs » renommée pour

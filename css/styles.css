@@ -6582,3 +6582,10 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 .tr-depot-t { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .tr-vignette { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--gris-bord); }
 .tr-nf-r .tr-lien, .tr-depot .tr-lien { font-size: 12px; text-decoration: underline; }
+
+/* Écran de lancement : file d'attente quand le serveur ne répond pas */
+.cl-etape.cl-etape-attente { max-width: 320px; text-align: center; line-height: 1.5; }
+.cl-retry { margin-top: 4px; padding: 8px 16px; border: 1px solid #D1D5DB; border-radius: 8px; background: transparent; color: #1A1A2E; font: 600 .74rem 'Poppins', sans-serif; cursor: pointer; }
+.cl-retry:hover { border-color: #1A1A2E; }
+:root.theme-dark .cl-retry { color: #E8E6E1; border-color: #4B5563; }
+:root.theme-dark .cl-retry:hover { border-color: #E8E6E1; }
