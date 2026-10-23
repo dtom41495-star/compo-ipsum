@@ -71,6 +71,12 @@ function osTresorerieRender(){
   var wc = document.getElementById('wincontent-tresorerie');
   if(!wc) return;
   if(!osTresPeutGerer()){ wc.innerHTML = '<div class="tr-vide" style="padding:3rem;text-align:center;">Accès réservé au trésorier et aux admins.</div>'; return; }
+  if(typeof osEstMobile === 'function' && osEstMobile()){
+    wc.style.cssText = '';
+    wc.innerHTML = '<div class="tr-vide" style="padding:3rem 1.5rem;text-align:center;"><i class="ti ti-device-desktop" style="font-size:2rem;display:block;margin-bottom:.6rem;"></i>'
+      +'<strong>La trésorerie se consulte sur ordinateur.</strong><br><span style="font-size:.8rem;">Les tableaux sont trop larges pour un téléphone. Pour une dépense à rembourser, utilise l\'appli Notes de frais.</span></div>';
+    return;
+  }
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;min-height:0;';
   if(!_tr.d) wc.innerHTML = (typeof osLoadingHtml === 'function' ? osLoadingHtml() : 'Chargement…');
   var jeton = ++_tr.chargement;
