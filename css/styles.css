@@ -378,7 +378,7 @@ body {
 #os-bg {
   position: absolute;
   inset: 0;
-  background: url("https://ctmekufqaxdelgfyjwly.supabase.co/storage/v1/object/public/images-articles/articles/L'essentiel%20de%20l'actu%20(5).png") center/cover no-repeat;
+  background: url("../fonds/fond-redacteur.webp") center/cover no-repeat;
   z-index: 0;
 }
 #os-bg::before {
