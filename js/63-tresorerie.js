@@ -384,8 +384,15 @@ function osTresPosteForm(id, sens){
 // ── Adhésions ─────────────────────────────────────────────────────
 
 function _trCatAdhesions(){ return _tr.d.cats.filter(function(c){ return c.systeme === 'adhesions'; })[0]; }
+// Une adhésion est valable 12 mois à partir du paiement (règle à confirmer avec le bureau) : un paiement de mars compte encore en octobre,
+// même si l'exercice a changé entre-temps. Pour un exercice passé, on regarde la situation à sa fin.
+var TR_ADHESION_MOIS = 12;
+function _trPlusMois(iso, n){ var t = iso.split('-'), d = new Date(+t[0], +t[1]-1 + n, +t[2]); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2, '0')+'-'+String(d.getDate()).padStart(2, '0'); }
+function _trRefAdhesion(ex){ var a = _trAuj(); return ex && ex.fin < a ? ex.fin : a; }
+function _trAdhesionValide(e, ref){ return e.montant > 0 && e.date <= ref && _trPlusMois(e.date, TR_ADHESION_MOIS) > ref; }
 function _trAdhesionDe(m, ex){
-  var cat = _trCatAdhesions(), pay = cat ? _tr.d.ecr.filter(function(e){ return e.membre_id === m.id && e.categorie_id === cat.id && e.montant > 0 && _trDansExercice(e, ex); }) : [];
+  var cat = _trCatAdhesions(), ref = _trRefAdhesion(ex);
+  var pay = cat ? _tr.d.ecr.filter(function(e){ return e.membre_id === m.id && e.categorie_id === cat.id && _trAdhesionValide(e, ref); }) : [];
   return pay.length ? pay[pay.length - 1] : null;
 }
 function _trJoursAvant(iso){ var t = iso.split('-'); return Math.round((new Date(+t[0], +t[1]-1, +t[2]) - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())) / 86400000); }
@@ -403,21 +410,29 @@ function _trAdhesions(){
     else st = { c:'e', t:'Non payée (sans décompte)', k:'non' };
     return { m:m, p:p, st:st, j:j };
   });
+  // Les adhésions payées par des personnes sans compte Compo actif (ancien membre, compte désactivé, adhérent qui n'a jamais eu de compte)
+  // apparaissent aussi, d'après leur écriture : on ne les saisit pas à part
+  var cat = _trCatAdhesions(), listes = {}; membres.forEach(function(m){ listes[m.id] = true; });
+  if(cat) d.ecr.filter(function(e){ return e.categorie_id === cat.id && _trAdhesionValide(e, _trRefAdhesion(ex)) && !(e.membre_id && listes[e.membre_id]); }).forEach(function(e){
+    var m = d.membreParId[e.membre_id];
+    lignes.push({ m:{ prenom:m ? m.prenom : '', nom:m ? m.nom : '', id:null, _libelle:m ? '' : String(e.libelle || '').replace(/^Adh[ée]sion\s+(b[ée]n[ée]vole\s+)?/i, '').replace(/\s+Hello ?Asso$/i, '').replace(/\s*\(offert\)$/i, ''), _horsCompo:true }, p:e, st:{ c:'c', t:'Payée le '+_trDateCourte(e.date), k:'ok' }, j:null });
+  });
   var nb = function(k){ return lignes.filter(function(x){ return x.st.k === k; }).length; };
   var tot = lignes.reduce(function(s, x){ return s + (x.p ? +x.p.montant : 0); }, 0);
   var ordre = { echue:0, essai:1, non:2, ok:3 };
   lignes.sort(function(a, b){ return ordre[a.st.k] - ordre[b.st.k] || (a.m.prenom || '').localeCompare(b.m.prenom || ''); });
-  var h = '<div class="tr-barre"><div><b class="tr-titre">Adhésions — '+esc(ex ? ex.nom : '')+'</b><br><small class="tr-note-i">'+lignes.length+' membres · '+_trE(tot)+' perçus</small></div><span class="tr-sp"></span><button type="button" class="tr-btn tr-p" id="tra-paiement">+ Enregistrer un paiement</button></div>'
+  var h = '<div class="tr-barre"><div><b class="tr-titre">Adhésions — '+esc(ex ? ex.nom : '')+'</b><br><small class="tr-note-i">'+lignes.length+' adhérents et membres · '+_trE(tot)+' perçus</small></div><span class="tr-sp"></span><button type="button" class="tr-btn tr-p" id="tra-paiement">+ Enregistrer un paiement</button></div>'
     +'<div class="tr-pb tr-pb-grand"><i style="width:'+(lignes.length ? Math.round(nb('ok') / lignes.length * 100) : 0)+'%;background:#059669"></i></div>'
     +'<div class="tr-big3 tr-big4"><div class="tr-kb" style="background:#F0FFF4;border-color:#A7F3D0"><b class="tr-cr">'+nb('ok')+'</b><small>Payées</small></div><div class="tr-kb" style="background:#EFF6FF;border-color:#BFDBFE"><b style="color:#1D4ED8">'+nb('essai')+'</b><small>En essai</small></div>'
     +'<div class="tr-kb" style="background:#FFF5F5;border-color:#FECACA"><b class="tr-db">'+nb('echue')+'</b><small>Échues</small></div><div class="tr-kb"><b>'+nb('non')+'</b><small>Non payées, sans décompte</small></div></div>'
     +'<div class="tr-tableau"><table class="tr-t"><tr><th>Membre</th><th>Statut</th><th>Décompte</th><th class="n">Montant</th><th></th></tr>';
   lignes.forEach(function(x){
-    var depart = x.m.adhesion_exemptee ? 'compte existant' : (x.m.premiere_connexion ? '1re connexion '+_trDateCourte(x.m.premiere_connexion) : '—');
-    h += '<tr><td>'+esc(_trNomMembre(x.m))+'</td><td><span class="tr-stat tr-s-'+x.st.c+'">'+x.st.t+'</span></td><td>'+depart+(x.m.adhesion_echeance && !x.p ? ' · échéance '+_trDateCourte(x.m.adhesion_echeance) : '')+'</td>'
+    var depart = x.p ? 'valable jusqu’au '+_trDateCourte(_trPlusMois(x.p.date, TR_ADHESION_MOIS))+(x.m._horsCompo ? ' · pas de compte Compo actif' : '')
+      : (x.m.adhesion_exemptee ? 'compte existant, pas de décompte' : (x.m.premiere_connexion ? '1re connexion '+_trDateCourte(x.m.premiere_connexion) : '—'));
+    h += '<tr><td>'+esc(_trNomMembre(x.m) || x.m._libelle || '—')+'</td><td><span class="tr-stat tr-s-'+x.st.c+'">'+x.st.t+'</span></td><td>'+depart+(x.m.adhesion_echeance && !x.p ? ' · échéance '+_trDateCourte(x.m.adhesion_echeance) : '')+'</td>'
       +'<td class="n">'+(x.p ? _trE(x.p.montant) : '—')+'</td><td class="n">'+(x.p ? '' : '<button type="button" class="tr-btn" data-payer="'+x.m.id+'">Enregistrer</button>')+'</td></tr>';
   });
-  return h+'</table></div><div class="tr-note">Les comptes qui existaient avant la mise en place n’ont pas de décompte. À l’échéance, une alerte apparaît pour toi et la vie asso, sans message au membre. Enregistrer l’adhésion efface l’échéance.</div>';
+  return h+'</table></div><div class="tr-note">Une adhésion est valable 12 mois à partir du paiement. Les comptes qui existaient avant la mise en place n’ont pas de décompte. À l’échéance, une alerte apparaît pour toi et la vie asso, sans message au membre. Enregistrer l’adhésion efface l’échéance.</div>';
 }
 function _trBrancherAdhesions(z){
   var payer = function(mid){ var c = _trCatAdhesions(); osTresEcritureForm(null, { sens:'recette', categorie_id:c ? c.id : '', membre_id:mid || '', libelle:mid ? 'Adhésion '+_trNomMembre(_tr.d.membreParId[mid]) : 'Adhésion ', montant:17, moyen:'HelloAsso' }); };
