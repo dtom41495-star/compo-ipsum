@@ -6690,8 +6690,14 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
   .ag-chiffres { grid-template-columns: repeat(2, 1fr); }
   .ag-art { flex-direction: column; align-items: stretch; }
   .ag-art-droite { flex-wrap: wrap; }
-  .ag-filtres input { width: 100%; }
+  .ag-page .ag-filtres input { width: 100% !important; }
+  .ag-page .ag-filtres select { flex: 1; }
+  .ag-puces { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .ag-puce { flex-shrink: 0; }
   .ga-mobile > .ag-barre { margin-bottom: .6rem; }
+  .ga-mobile > .ag-barre .ag-creer { display: none; }   /* la liste mobile a déjà son bouton « Nouvelle » */
+  .sv-carte { width: 100%; transform: translateY(-140%) scale(.96); }
+  .sv-carte.sv-entree { transform: none; }
 }
 .ag-page .ag-filtres input, .ag-page .ag-filtres select { width: auto !important; min-height: 0; height: auto; background: #fff !important; }
 .ag-page .ag-filtres input { width: 220px !important; }

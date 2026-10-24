@@ -2640,7 +2640,7 @@ function osBenevolesExporterPDF(){
     var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
     var logo = _osLogoIpsum();
     var kpi = function(n, lib, couleur){ return '<div class="kpi" style="--c:'+couleur+';"><b>'+n+'</b><span>'+lib+'</span></div>'; };
-    var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>État de l\'équipe — Ipsum Média</title>'
+    var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>État de l\'équipe — Ipsum Média</title>'
       +'<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">'
       +'<style>'
       +'@page{size:A4;margin:14mm 13mm;}'
@@ -2680,6 +2680,7 @@ function osBenevolesExporterPDF(){
       +'.mail{font-size:10px;color:#57534E;word-break:break-all;}'
       +'footer{margin-top:26px;padding-top:10px;border-top:1px solid #E7E5E4;font-size:9.5px;color:#A8A29E;display:flex;justify-content:space-between;}'
       +'@media print{.barre{display:none;}body{padding:0;}}'
+      +'@media (max-width:640px){body{padding:16px;}header{flex-direction:column;align-items:flex-start;gap:12px;}h1{font-size:21px;}.kpis{grid-template-columns:repeat(2,1fr);}th:nth-child(4),td:nth-child(4){display:none;}th,td{padding:7px 8px;}.role{white-space:normal;}.il{display:block;}.mail{font-size:9px;}footer{flex-direction:column;gap:3px;}}'
       +'</style></head><body>'
       +'<div class="barre"><button onclick="window.print()">Imprimer / enregistrer en PDF</button></div>'
       +'<header>'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '')

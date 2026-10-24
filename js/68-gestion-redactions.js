@@ -156,6 +156,7 @@ function _agDetail(wc, tousArts){
 function osAdminEditoRendre(wc){
   wc.innerHTML = '<div class="ag-page">'+_agBarre()+'<div id="ag-edito">'+(typeof osLoadingHtml === 'function' ? osLoadingHtml() : 'Chargement…')+'</div></div>';
   var zone = document.getElementById('ag-edito');
+  if(typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();   // barre flottante du téléphone (pas de « Ajouter un membre » ici)
   var dessiner = function(){ if(document.body.contains(zone)) _agEditoDessiner(zone); };
   // Les articles de toutes les rédactions : relus si le dernier chargement date de plus de 2 minutes
   if(_agEdito.arts && Date.now() - _agEdito.charge < 120000){ dessiner(); return; }

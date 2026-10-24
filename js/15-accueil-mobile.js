@@ -559,6 +559,7 @@ function _accueilMenusMaRedac(onglet){
     ]};
   }
   if(onglet === 'admin' && admin){
+    if(typeof _adminVue !== 'undefined' && _adminVue === 'edito') return {};   // la vue éditoriale n'ajoute personne
     return { flottant:{icon:'user-plus', label:'Ajouter un membre', action:function(){ if(_adminRedacSelectId) osAdminAjouterMembreRedac(_adminRedacSelectId); }} };
   }
   if(onglet === 'redac' && chef && _redacSousOnglet === 'membres' && ctx.redacId){
