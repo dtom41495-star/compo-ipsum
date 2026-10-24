@@ -15,3 +15,12 @@ begin
     execute format('grant execute on function %s to authenticated, service_role', f.sig);
   end loop;
 end $$;
+
+-- Appliqué le 2026-10-24 (migration « securite_search_path_fonctions ») : search_path fixé sur les 7 fonctions signalées.
+alter function public.articles_raz_relances() set search_path = public, pg_temp;
+alter function public.briefing_suivi_reservation() set search_path = public, pg_temp;
+alter function public.membres_maj_inactif_depuis() set search_path = public, pg_temp;
+alter function public.signature_appli_restreinte() set search_path = public, pg_temp;
+alter function public.signature_documents_proteger() set search_path = public, pg_temp;
+alter function public.signature_signataires_proteger() set search_path = public, pg_temp;
+alter function public.tres_maj_date() set search_path = public, pg_temp;
