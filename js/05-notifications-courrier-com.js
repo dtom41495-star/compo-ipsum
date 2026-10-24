@@ -1260,21 +1260,29 @@ function osMakeResizable(win){
 }
 
 function osMakeDraggable(win, handle, pageId){
-  var dragging = false, startX, startY, startL, startT, zoneSnap = null;
+  // Pendant le déplacement, la fenêtre glisse par « transform » (sans recalcul de mise en page), au plus une fois par image,
+  // sans le flou d'arrière-plan (visuellement nul : le fond de fenêtre est opaque à 96 %) ; left/top ne sont fixés qu'à la fin.
+  var dragging = false, startX, startY, startL, startT, zoneSnap = null, dx = 0, dy = 0, image = 0, transformAvant = '';
+  var poser = function(){
+    image = 0;
+    win.style.transform = 'translate3d('+dx+'px,'+dy+'px,0)';
+  };
   handle.addEventListener('mousedown', function(e){
     if(e.target.classList.contains('os-btn-win')) return;
     dragging = true;
     startX = e.clientX; startY = e.clientY;
     startL = parseInt(win.style.left)||0;
     startT = parseInt(win.style.top)||0;
+    dx = 0; dy = 0;
+    transformAvant = win.style.transform;
+    win.classList.add('os-deplace');
     e.preventDefault();
   });
   document.addEventListener('mousemove', function(e){
     if(!dragging) return;
-    var dx = e.clientX - startX;
-    var dy = e.clientY - startY;
-    win.style.left = (startL + dx) + 'px';
-    win.style.top = Math.max(0, startT + dy) + 'px';
+    dx = e.clientX - startX;
+    dy = Math.max(-startT, e.clientY - startY);
+    if(!image) image = requestAnimationFrame(poser);
     if(pageId){
       var ws = document.getElementById('os-workspace');
       var wsRect = ws ? ws.getBoundingClientRect() : {left:0,top:0,width:window.innerWidth,height:window.innerHeight,right:window.innerWidth};
@@ -1287,6 +1295,17 @@ function osMakeDraggable(win, handle, pageId){
     }
   });
   document.addEventListener('mouseup', function(){
+    if(dragging){
+      if(image){ cancelAnimationFrame(image); image = 0; }
+      win.style.left = (startL + dx) + 'px';
+      win.style.top = Math.max(0, startT + dy) + 'px';
+      // Sans transition au retour : la fenêtre ne doit pas « glisser » de la position de transform à celle de left/top
+      win.style.transition = 'none';
+      win.style.transform = transformAvant;
+      win.classList.remove('os-deplace');
+      void win.offsetWidth;
+      requestAnimationFrame(function(){ win.style.transition = ''; });
+    }
     if(dragging && pageId){
       if(zoneSnap){
         osSnapWindow(pageId, zoneSnap);
