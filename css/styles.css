@@ -6596,3 +6596,29 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 
 /* Veille : la liste est dans un conteneur « transparent » (affichage par lots) — on garde l'espacement d'origine du premier jour */
 .vl-liste > .vl-jour:first-of-type { margin-top: 1rem; }
+
+/* ===== Carte « Ton sujet est validé » (js/67-sujet-valide.js) ===== */
+.sv-carte { position: relative; display: flex; gap: .9rem; align-items: flex-start; width: 340px; max-width: 100%; box-sizing: border-box; padding: .9rem 1rem; background: #fff; border-radius: 16px; border: 1px solid #BBE5C8; box-shadow: 0 14px 38px rgba(15,157,88,.22), 0 2px 6px rgba(0,0,0,.08); pointer-events: all; transform: translateX(120%) scale(.94); opacity: 0; transition: transform .45s cubic-bezier(.34,1.35,.64,1), opacity .3s ease; }
+.sv-carte.sv-entree { transform: none; opacity: 1; }
+.sv-rond { position: relative; flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: #0F9D58; display: flex; align-items: center; justify-content: center; transform: scale(.4); }
+.sv-entree .sv-rond { animation: sv-bond .5s cubic-bezier(.34,1.7,.64,1) .1s forwards; }
+.sv-rond svg { width: 24px; height: 24px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.sv-rond path { stroke-dasharray: 24; stroke-dashoffset: 24; }
+.sv-entree .sv-rond path { animation: sv-trait .35s ease .4s forwards; }
+.sv-confettis { position: absolute; inset: 0; pointer-events: none; }
+.sv-confettis i { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 1px; opacity: 0; }
+.sv-entree .sv-confettis i { animation: sv-confetti .9s ease-out forwards; }
+.sv-titre { font: 700 .92rem/1.2 Poppins, sans-serif; color: #0B6B3A; }
+.sv-sujet { margin-top: 3px; font: 600 .8rem/1.35 'DM Sans', sans-serif; color: #1A1A2E; }
+.sv-desc { margin-top: 2px; font: 400 .76rem/1.4 'DM Sans', sans-serif; color: #5B5B66; }
+.sv-voir { margin-top: .55rem; padding: .35rem .8rem; border: none; border-radius: 8px; background: #0F9D58; color: #fff; font: 600 .74rem 'DM Sans', sans-serif; cursor: pointer; }
+.sv-voir:hover { background: #0B7F46; }
+.sv-fermer { position: absolute; top: 4px; right: 8px; border: none; background: none; font-size: 1.1rem; line-height: 1; color: #9CA3AF; cursor: pointer; }
+@keyframes sv-bond { from { transform: scale(.4); } to { transform: scale(1); } }
+@keyframes sv-trait { to { stroke-dashoffset: 0; } }
+@keyframes sv-confetti { 0% { opacity: 1; transform: translate(0,0) rotate(0) scale(.6); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sv-carte, .sv-rond, .sv-rond path, .sv-confettis i { animation: none !important; transition: none !important; } .sv-rond { transform: none; } .sv-rond path { stroke-dashoffset: 0; } .sv-confettis { display: none; } }
+:root.theme-dark .sv-carte { background: #1B1B2B; border-color: #1E6B45; }
+:root.theme-dark .sv-sujet { color: #E8E6E1; }
+:root.theme-dark .sv-desc { color: #A8A8B3; }
+:root.theme-dark .sv-titre { color: #5FD79A; }

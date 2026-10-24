@@ -831,6 +831,9 @@ function _osSujetPrevenirChefs(sujet){
 }
 function _osSujetPrevenirAuteur(sujet, accepte){
   if(!sujet.created_by || sujet.created_by === getUserId()) return;
+  // Sujet validé et auteur·rice en ligne : la carte « Ton sujet est validé » s'affiche dans Compo (js/67-sujet-valide.js),
+  // inutile d'envoyer en plus un email ou un message Chat. Hors ligne : envoi comme avant.
+  if(accepte && typeof osEstEnLigne === 'function' && osEstEnLigne(sujet.created_by)) return;
   _cpInvitChargerMembres([sujet.created_by]).then(function(ms){
     var m = ms.find(function(x){ return x.id === sujet.created_by; }); if(!m || !m.email) return;
     var html = accepte
@@ -935,7 +938,7 @@ function osSujetValiderProposition(sujetId, accepte){
   if(accepte && s._doublons && s._doublons.length && !osConfirmerPuis('Publier quand même ?\n'+s._doublons.map(function(t){ return '« '+t.titre+' » : '+t.detail; }).join('\n'), { titre:'Ce sujet ressemble à autre chose', oui:'Publier quand même', non:'Annuler' }, osSujetValiderProposition, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var req = accepte
-    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert'})})
+    ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert', valide_le: new Date().toISOString()})})
     // Refus : le brouillon éventuel est gardé, mais détaché du sujet avant sa suppression
     : fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){})
         .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); });
