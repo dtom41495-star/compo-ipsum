@@ -465,8 +465,10 @@ function _osOpenWindowExecuter(pageId){
     win.style.left = '';
     win.style.top = '';
   } else {
-    var w = Math.min(860, wsW - 80);
-    var h = Math.min(600, wsH - 80);
+    // Fenêtres qui n'ont pas besoin d'être grandes : elles s'ouvrent à la taille minimale (celle du redimensionnement)
+    var petite = { 'notes-frais':[400, 300] }[pageId];
+    var w = petite ? petite[0] : Math.min(860, wsW - 80);
+    var h = petite ? petite[1] : Math.min(600, wsH - 80);
     var x = Math.random() * Math.max(0, wsW - w - 40) + 20;
     var y = Math.random() * Math.max(0, wsH - h - 60) + 10;
     win.style.width = w+'px';

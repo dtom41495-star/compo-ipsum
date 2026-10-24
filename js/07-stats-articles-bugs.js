@@ -1406,6 +1406,7 @@ function maOsFiltre(){
   // « Tous les articles » (admin) : regroupé par statut plutôt qu'en liste plate — sur
   // un volume qui couvre toutes les rédactions, savoir où en est chaque article compte
   // plus que l'ordre chronologique brut.
+  var pieces = [];   // dessinées par lots au défilement (osProgressif, js/66-liste-progressive.js)
   if(_maOnglet === 'tous'){
     MA_STATUTS_ORDRE.forEach(function(st){
       var groupe = arts.filter(function(a){ return (a.statut||'brouillon')===st; });
@@ -1413,9 +1414,10 @@ function maOsFiltre(){
       var titreGroupe = document.createElement('div');
       titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
       titreGroupe.textContent = (MA_STATUTS_LABELS[st]||st)+' · '+groupe.length;
-      list.appendChild(titreGroupe);
-      groupe.forEach(function(doc){ list.appendChild(maOsMakeCard(doc,uid,role)); });
+      pieces.push(function(){ return titreGroupe; });
+      groupe.forEach(function(doc){ pieces.push(function(){ return maOsMakeCard(doc,uid,role); }); });
     });
+    osProgressif(list, pieces);
     return;
   }
 
@@ -1430,18 +1432,19 @@ function maOsFiltre(){
       var titreGroupe = document.createElement('div');
       titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
       titreGroupe.textContent = doc.updated_at ? _maLabelMois(doc.updated_at) : 'Date inconnue';
-      list.appendChild(titreGroupe);
+      pieces.push(function(){ return titreGroupe; });
     }
-    list.appendChild(maOsMakeCard(doc,uid,role));
+    pieces.push(function(){ return maOsMakeCard(doc,uid,role); });
     // À relire (SR) : on peut rendre à la file un article qu'on ne peut pas finir
     if(_maOnglet === 'corriger' && doc.statut === 'en-relecture' && doc.correcteur_id === uid && typeof osSrRendre === 'function'){
       var rendre = document.createElement('button');
       rendre.className = 'nlx-lien sr-rendre';
       rendre.innerHTML = '<i class="ti ti-arrow-back-up"></i> Rendre à la file';
       rendre.onclick = function(){ osSrRendre(doc.id); };
-      list.appendChild(rendre);
+      pieces.push(function(){ return rendre; });
     }
   });
+  osProgressif(list, pieces);
 }
 
 function _maLabelMois(dateStr){

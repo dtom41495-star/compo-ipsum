@@ -954,6 +954,7 @@ function osSujetValiderProposition(sujetId, accepte){
 // s'ouvre pas en CORS. Ici, lecture seule des tables + gestion des flux (admin/chef).
 window._veilleFlux = [];
 window._veilleArticles = [];
+var _veilleSignature = '', _veilleAffiches = 0;   // lot de cartes déjà affiché (osProgressif) pour la vue en cours
 var _veilleFiltreActif = 'tous'; // 'tous' | 'non_lus'
 var _veilleSourceActive = null;  // id d'une source, 'media:<site>' (toutes les communes d'un journal), 'alertes' (mes alertes, js/54-veille-alertes.js), 'contacts' (articles qui citent le carnet, js/55-veille-contacts.js), ou null pour toutes
 var _veilleMediasOuverts = {};    // journaux à plusieurs flux dépliés dans le rail
@@ -1152,6 +1153,7 @@ function osVeilleRendreListe(wc){
       && (!_veilleSourceActive || (vueContacts ? osVeilleContactsPour(a).length : vueAlertes ? osVeilleAlerteMot(a) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
       && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
   });
+  var piecesVeille = [];
   var nonLusTotal = tous.filter(nonLu).length;
   var gestion = osVeilleEstGestionnaire();
   var focus = document.activeElement && document.activeElement.id === 'vl-recherche';
@@ -1240,14 +1242,19 @@ function osVeilleRendreListe(wc){
     if(vueAlertes) c += '<div class="vl-vide"><i class="ti ti-bell-off"></i><strong>'+(_veilleAlertes.mots.length ? 'Aucun article récent ne contient tes mots-clés.' : 'Choisis des mots-clés pour être prévenu·e quand un média en parle.')+'</strong></div>';
     else c += '<div class="vl-vide"><i class="ti ti-mood-empty"></i><strong>'+(q ? 'Rien ne correspond à « '+esc(_veilleRecherche.trim())+' ».' : 'Rien à lire ici pour l’instant.')+'</strong></div>';
   } else {
+    // Les cartes sont dessinées par lots au défilement (osProgressif) : tout afficher d'un coup alourdissait la fenêtre.
+    // Un changement de source, de filtre ou de recherche repart du premier lot ; marquer « lu » garde ce qui était déjà affiché.
+    var signature = [_veilleSourceActive, _veilleFiltreActif, q].join('|');
+    if(signature !== _veilleSignature){ _veilleSignature = signature; _veilleAffiches = 0; }
     var jourCourant = null;
     articles.forEach(function(a){
       var jour = _veilleJour(a.date_publication);
-      if(jour !== jourCourant){ c += '<div class="vl-jour">'+esc(jour)+'</div>'; jourCourant = jour; }
+      var enteteJour = '';
+      if(jour !== jourCourant){ enteteJour = '<div class="vl-jour">'+esc(jour)+'</div>'; jourCourant = jour; }
       var f = fluxParId[a.flux_id];
       var abonnes = a.resume === 'Article réservé aux abonnés';
       var neuf = nonLu(a);
-      c += '<article class="vl-carte'+(neuf ? ' nonlu' : '')+'">'
+      piecesVeille.push(function(){ return enteteJour + '<article class="vl-carte'+(neuf ? ' nonlu' : '')+'">'
         +'<div class="vl-carte-texte">'
         +'<div class="vl-carte-tete"><span class="vl-source" style="--c:'+_veilleCouleur(a.flux_id)+'">'+esc(f ? f.nom : 'Source inconnue')+'</span>'
         +(a.date_publication ? '<span>'+esc(_veilleHeure(a.date_publication))+'</span>' : '')
@@ -1263,14 +1270,17 @@ function osVeilleRendreListe(wc){
         +(neuf ? '<button type="button" class="vl-lien" data-action="lu" data-id="'+esc(a.id)+'"><i class="ti ti-check"></i> Marquer comme lu</button>' : '')
         +'</div></div>'
         +(a.image ? '<img class="vl-vignette" src="'+esc(a.image)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
-        +'</article>';
+        +'</article>'; });
     });
+    c += '<div class="vl-liste" style="display:contents;"></div>';
   }
 
   var defil = wc.querySelector('.vl-corps');
   var haut = defil ? defil.scrollTop : 0;
   wc.innerHTML = '<div class="vl mobile-onglets-page">'+r+'<section class="vl-corps">'+c+'</section></div>';
   var corps = wc.querySelector('.vl-corps');
+  var zoneListe = wc.querySelector('.vl-liste');
+  if(zoneListe && piecesVeille.length) osProgressif(zoneListe, piecesVeille, { depart:_veilleAffiches, surAffichage:function(n){ _veilleAffiches = n; } });
   if(corps) corps.scrollTop = haut;
   var champ = wc.querySelector('#vl-recherche');
   champ.oninput = function(){ _veilleRecherche = champ.value; osVeilleRendreListe(wc); };

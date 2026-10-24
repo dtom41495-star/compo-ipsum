@@ -6593,3 +6593,6 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 /* Déplacement d'une fenêtre : pas de flou d'arrière-plan ni de transition, et le contenu n'intercepte pas la souris */
 .os-window.os-deplace { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; transition: none !important; }
 .os-window.os-deplace .os-window-content { pointer-events: none; }
+
+/* Veille : la liste est dans un conteneur « transparent » (affichage par lots) — on garde l'espacement d'origine du premier jour */
+.vl-liste > .vl-jour:first-of-type { margin-top: 1rem; }
