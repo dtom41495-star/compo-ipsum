@@ -23,6 +23,7 @@ function nlChargerDepuisBase(redactionIdChoisi){
   }
 
   _nlRedactionActive = redactionId;
+  _nlSignatureEnregistree = null; if(typeof _nlBoutonEnvoyee === 'function') _nlBoutonEnvoyee('libre');   // nouvelle préparation : le bouton est de nouveau disponible
   // "Marquer comme envoyée" : réservé à l'admin et au rédac chef de CETTE rédaction,
   // masqué pour les autres.
   var monLienIci = mesLiens.find(function(mr){ return mr.redaction_id===redactionId; });
