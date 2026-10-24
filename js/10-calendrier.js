@@ -2689,84 +2689,136 @@ function osBenevolesExporterPDF(){
   var stats = window._benevolesStats || [];
   if(!stats.length){ notif('Aucun membre à exporter'); return; }
 
-  var declares = [], actifs = [];
-  stats.forEach(function(s){
-    if(_benvMotifsInactivite(s).length) declares.push(s);
-    else actifs.push(s);
-  });
-  function parNom(a,b){
-    return ((a.membre.prenom||'')+' '+(a.membre.nom||'')).localeCompare((b.membre.prenom||'')+' '+(b.membre.nom||''), 'fr');
-  }
-  declares.sort(parNom); actifs.sort(parNom);
-
-  var win = window.open('','_blank','width=860,height=1000');
+  // La fenêtre s'ouvre tout de suite (sinon le navigateur bloque le popup), le document s'écrit une fois les « à recontacter » connus
+  var win = window.open('','_blank','width=900,height=1000');
   if(!win){ notif('Autorise les popups pour générer le document'); return; }
+  win.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Génération du document…</p>');
 
-  var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction', admin:'Admin', redac_chef:'Rédac chef', communicant:'Communicant·e'};
-  function ligne(s, motifs){
-    var m = s.membre;
-    var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';
-    var connexion = s.derniereConnexion
-      ? new Date(s.derniereConnexion).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
-      : 'Jamais';
-    var dp = s.dernierPublie;
-    var publieTxt = dp
-      ? esc(new Date(dp.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}))
-      : '—';
-    return '<tr>'
-      +'<td><strong>'+esc(nom)+'</strong></td>'
-      +'<td>'+esc(ROLES[m.role]||m.role||'—')+'</td>'
-      +'<td>'+esc(fonctionShort(m.fonction)||'—')+'</td>'
-      +'<td>'+esc(connexion)+'</td>'
-      +'<td>'+publieTxt+'</td>'
-      +'<td>'+(motifs && motifs.length ? esc(motifs.join(' + ')) : '—')+'</td>'
-      +'</tr>';
-  }
-  function section(titre, sousTitre, liste, couleur, avecMotif){
-    if(!liste.length) return '';
-    var h = '<div class="sect">'
-      +'<div class="sect-t" style="border-left-color:'+couleur+';">'
-      +'<span style="color:'+couleur+';">'+esc(titre)+'</span> <span class="cnt">'+liste.length+'</span>'
-      +'<div class="sect-s">'+esc(sousTitre)+'</div></div>'
-      +'<table><tr><th>Membre</th><th>Rôle</th><th>Fonction</th><th>Dernière connexion</th><th>Dernier article/brève</th><th>Motif</th></tr>';
-    liste.forEach(function(s){ h += ligne(s, avecMotif ? _benvMotifsInactivite(s) : null); });
-    return h + '</table></div>';
-  }
+  var charger = typeof _recontactCharger === 'function' ? _recontactCharger() : Promise.resolve();
+  Promise.resolve(charger).catch(function(){}).then(function(){
+    var aRecontacter = typeof _recontactListe === 'function' ? _recontactListe(stats) : [];   // [{ s, signe }], le plus ancien d'abord
+    var recontactParId = {};
+    aRecontacter.forEach(function(o){ recontactParId[o.s.membre.id] = o; });
 
-  var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-  var logo = _osLogoIpsum();
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>État de l\'équipe — Ipsum Média</title><style>'
-    +'*{margin:0;padding:0;box-sizing:border-box;}'
-    +'body{font-family:Arial,sans-serif;padding:34px;color:#1A1A2E;}'
-    +'header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:2px solid #EA5B1C;margin-bottom:22px;}'
-    +'header img{height:72px;width:auto;flex-shrink:0;}'
-    +'h1{font-size:1.25rem;font-weight:800;margin-bottom:3px;}'
-    +'table{width:100%;border-collapse:collapse;margin-top:8px;}'
-    +'td,th{padding:6px 9px;font-size:.74rem;border-bottom:1px solid #E5E7EB;text-align:left;vertical-align:top;}'
-    +'th{background:#F3F4F6;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;}'
-    +'.sect{margin-bottom:26px;page-break-inside:avoid;}'
-    +'.sect-t{font-size:.92rem;font-weight:700;border-left:3px solid;padding-left:9px;margin-bottom:2px;}'
-    +'.sect-s{font-size:.66rem;color:#6B7280;font-weight:400;margin-top:2px;}'
-    +'.cnt{font-size:.68rem;color:#6B7280;font-weight:400;}'
-    +'@media print{button{display:none;}body{padding:14px;}}'
-    +'</style></head><body>'
-    +'<div style="text-align:right;margin-bottom:12px;"><button onclick="window.print()" style="background:#0F6E56;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:.8rem;cursor:pointer;">Imprimer / PDF</button></div>'
-    +'<header>'
-    +(logo?'<img src="'+logo+'" alt="Ipsum Média">':'')
-    +'<div><div style="font-size:.66rem;color:#6B7280;text-transform:uppercase;letter-spacing:.12em;">Association Ipsum Média</div>'
-    +'<h1>État de l\'équipe</h1>'
-    +'<div style="font-size:.72rem;color:#6B7280;margin-top:3px;">'
-      +stats.length+' membre(s) · '+declares.length+' inactif(s) · '+actifs.length+' actif(s)</div>'
-    +'<div style="font-size:.63rem;color:#9CA3AF;margin-top:2px;">Généré le '+today+' · '+esc(osPeriodeValiditeAssociative())+'</div>'
-    +'</div></header>';
+    var declares = [], actifs = [];
+    stats.forEach(function(s){
+      if(_benvMotifsInactivite(s).length) declares.push(s);
+      else actifs.push(s);
+    });
+    function parNom(a,b){
+      return ((a.membre.prenom||'')+' '+(a.membre.nom||'')).localeCompare((b.membre.prenom||'')+' '+(b.membre.nom||''), 'fr');
+    }
+    declares.sort(parNom); actifs.sort(parNom);
 
-  html += section('Membres inactifs', 'Inactivité déclarée — par le membre lui-même ou par la vie associative.', declares, '#A32D2D', true);
-  html += section('Membres actifs', 'Aucune inactivité déclarée.', actifs, '#0F6E56', false);
+    var ROLES = {redacteur:'Rédacteur·rice', correcteur:'Secrétaire de rédaction', admin:'Admin', redac_chef:'Rédac chef', communicant:'Communicant·e'};
+    var COUL_ROLE = {redacteur:'#E8461E', correcteur:'#0F6E56', admin:'#1A1A2E', redac_chef:'#7C3AED', communicant:'#1A6BC4'};
+    var dateCourte = function(d){ return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); };
+    var jours = function(d){ return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); };
+    var nomDe = function(m){ return ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—'; };
+    var initiales = function(m){ return esc(((m.prenom||'?').charAt(0)+(m.nom||'').charAt(0)).toUpperCase()); };
+    var pastille = function(m){ return '<span class="av" style="background:'+(COUL_ROLE[m.role]||'#6B7280')+';">'+initiales(m)+'</span>'; };
+    // Pastille de fraîcheur de la dernière connexion : verte (moins de 14 jours), ambre (moins de 30), rouge au-delà
+    var fraicheur = function(date){
+      if(!date) return '<span class="pt pt-r"></span>Jamais';
+      var j = jours(date);
+      return '<span class="pt '+(j < 14 ? 'pt-v' : j < 30 ? 'pt-a' : 'pt-r')+'"></span>'+esc(dateCourte(date))+'<span class="il"> · il y a '+j+' j</span>';
+    };
 
-  html += '<div style="margin-top:24px;padding-top:10px;border-top:1px solid #E5E7EB;font-size:.6rem;color:#9CA3AF;display:flex;justify-content:space-between;">'
-    +'<span>Ipsum Média · contact@ipsummedia.fr</span><span>Document interne</span></div>'
-    +'</body></html>';
+    function ligne(s, motifs){
+      var m = s.membre;
+      var dp = s.dernierPublie;
+      var rc = recontactParId[m.id];
+      return '<tr>'
+        +'<td><div class="qui">'+pastille(m)+'<div><strong>'+esc(nomDe(m))+'</strong>'
+          +(rc ? ' <span class="badge-rc">À recontacter</span>' : '')
+          +'<div class="sous">'+esc(fonctionShort(m.fonction)||'')+'</div></div></div></td>'
+        +'<td><span class="role" style="color:'+(COUL_ROLE[m.role]||'#6B7280')+';background:'+(COUL_ROLE[m.role]||'#6B7280')+'14;">'+esc(ROLES[m.role]||m.role||'—')+'</span></td>'
+        +'<td>'+fraicheur(s.derniereConnexion)+'</td>'
+        +'<td>'+(dp ? esc(dateCourte(dp.updated_at)) : '<span class="vide">—</span>')+'</td>'
+        +(motifs ? '<td>'+(motifs.length ? esc(motifs.join(' + ')) : '<span class="vide">—</span>')+'</td>' : '')
+        +'</tr>';
+    }
+    function section(titre, sousTitre, liste, couleur, avecMotif){
+      if(!liste.length) return '';
+      return '<section><div class="sect-t" style="--c:'+couleur+';"><h2>'+esc(titre)+'</h2><span class="cnt">'+liste.length+'</span></div>'
+        +'<p class="sect-s">'+esc(sousTitre)+'</p>'
+        +'<table><thead><tr><th>Membre</th><th>Rôle</th><th>Dernière connexion</th><th>Dernier article / brève</th>'+(avecMotif ? '<th>Motif</th>' : '')+'</tr></thead><tbody>'
+        +liste.map(function(s){ return ligne(s, avecMotif ? _benvMotifsInactivite(s) : null); }).join('')
+        +'</tbody></table></section>';
+    }
+    function sectionRecontact(){
+      if(!aRecontacter.length) return '';
+      return '<section><div class="sect-t" style="--c:#EA5B1C;"><h2>À recontacter</h2><span class="cnt">'+aRecontacter.length+'</span></div>'
+        +'<p class="sect-s">Sans nouvelles depuis plus de '+RECONTACT_JOURS+' jours (ni connexion, ni action, ni article). Un petit message suffit souvent.</p>'
+        +'<table><thead><tr><th>Membre</th><th>Rôle</th><th>Dernier signe de vie</th><th>Dernier article / brève</th><th>Contact</th></tr></thead><tbody>'
+        +aRecontacter.map(function(o){
+          var m = o.s.membre, dp = o.s.dernierPublie;
+          return '<tr><td><div class="qui">'+pastille(m)+'<div><strong>'+esc(nomDe(m))+'</strong><div class="sous">'+esc(fonctionShort(m.fonction)||'')+'</div></div></div></td>'
+            +'<td><span class="role" style="color:'+(COUL_ROLE[m.role]||'#6B7280')+';background:'+(COUL_ROLE[m.role]||'#6B7280')+'14;">'+esc(ROLES[m.role]||m.role||'—')+'</span></td>'
+            +'<td>'+(o.signe ? '<span class="pt pt-r"></span>'+esc(dateCourte(o.signe))+'<span class="il"> · il y a '+jours(o.signe)+' j</span>' : '<span class="pt pt-r"></span>Aucune activité')+'</td>'
+            +'<td>'+(dp ? esc(dateCourte(dp.updated_at)) : '<span class="vide">—</span>')+'</td>'
+            +'<td class="mail">'+esc(m.email||'—')+'</td></tr>';
+        }).join('')+'</tbody></table></section>';
+    }
 
-  win.document.write(html);
-  win.document.close();
+    var today = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    var logo = _osLogoIpsum();
+    var kpi = function(n, lib, couleur){ return '<div class="kpi" style="--c:'+couleur+';"><b>'+n+'</b><span>'+lib+'</span></div>'; };
+    var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>État de l\'équipe — Ipsum Média</title>'
+      +'<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">'
+      +'<style>'
+      +'@page{size:A4;margin:14mm 13mm;}'
+      +'*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+      +'body{font-family:"DM Sans","Segoe UI",Helvetica,Arial,sans-serif;color:#1A1A2E;padding:30px 34px;background:#fff;font-size:12px;line-height:1.45;}'
+      +'.barre{text-align:right;margin-bottom:14px;}'
+      +'.barre button{background:#EA5B1C;color:#fff;border:none;padding:8px 16px;border-radius:8px;font:600 12px "DM Sans",sans-serif;cursor:pointer;}'
+      +'header{display:flex;align-items:center;gap:20px;padding:20px 22px;border-radius:16px;background:linear-gradient(120deg,#FFF4EC 0%,#FFE9DC 100%);border:1px solid #FAD7C0;margin-bottom:18px;}'
+      +'header img{height:64px;width:auto;flex-shrink:0;mix-blend-mode:multiply;}'
+      +'.surtitre{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#C2410C;font-weight:600;}'
+      +'h1{font:800 26px/1.15 Poppins,"DM Sans",sans-serif;margin:3px 0 4px;letter-spacing:-.01em;}'
+      +'.date{font-size:10.5px;color:#7C6F66;}'
+      +'.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}'
+      +'.kpi{border:1px solid #ECEAE6;border-top:3px solid var(--c);border-radius:12px;padding:11px 14px;background:#FCFBFA;}'
+      +'.kpi b{display:block;font:800 24px/1.1 Poppins,"DM Sans",sans-serif;color:var(--c);}'
+      +'.kpi span{font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:.07em;font-weight:600;}'
+      +'section{margin-bottom:24px;}'
+      +'.sect-t{display:flex;align-items:center;gap:10px;padding-left:11px;border-left:4px solid var(--c);}'
+      +'h2{font:700 15px/1.2 Poppins,"DM Sans",sans-serif;}'
+      +'.cnt{font-size:10.5px;font-weight:700;color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);padding:2px 9px;border-radius:999px;}'
+      +'.sect-s{font-size:10.5px;color:#6B7280;margin:4px 0 9px 15px;}'
+      +'table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #E7E5E4;border-radius:12px;overflow:hidden;}'
+      +'thead{display:table-header-group;}'
+      +'th{background:#F5F4F2;font-size:8.5px;text-transform:uppercase;letter-spacing:.08em;color:#78716C;font-weight:700;text-align:left;padding:8px 11px;}'
+      +'td{padding:8px 11px;font-size:11px;vertical-align:middle;border-top:1px solid #F0EEEC;}'
+      +'tbody tr:nth-child(even) td{background:#FBFAF9;}'
+      +'tr{page-break-inside:avoid;}'
+      +'.qui{display:flex;align-items:center;gap:9px;}'
+      +'.av{flex-shrink:0;width:28px;height:28px;border-radius:50%;color:#fff;font:700 10px/28px Poppins,sans-serif;text-align:center;}'
+      +'.sous{font-size:9.5px;color:#9A938C;margin-top:1px;}'
+      +'.role{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;}'
+      +'.badge-rc{display:inline-block;font-size:8.5px;font-weight:700;color:#C2410C;background:#FFEDD5;border:1px solid #FDBA74;padding:1px 7px;border-radius:999px;margin-left:5px;vertical-align:1px;white-space:nowrap;}'
+      +'.pt{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0;}'
+      +'.pt-v{background:#16A34A;}.pt-a{background:#F59E0B;}.pt-r{background:#DC2626;}'
+      +'.il{color:#9A938C;font-size:10px;}'
+      +'.vide{color:#C4BFB9;}'
+      +'.mail{font-size:10px;color:#57534E;word-break:break-all;}'
+      +'footer{margin-top:26px;padding-top:10px;border-top:1px solid #E7E5E4;font-size:9.5px;color:#A8A29E;display:flex;justify-content:space-between;}'
+      +'@media print{.barre{display:none;}body{padding:0;}}'
+      +'</style></head><body>'
+      +'<div class="barre"><button onclick="window.print()">Imprimer / enregistrer en PDF</button></div>'
+      +'<header>'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '')
+      +'<div><div class="surtitre">Association Ipsum Média</div><h1>État de l\'équipe</h1>'
+      +'<div class="date">Généré le '+today+' · '+esc(osPeriodeValiditeAssociative())+'</div></div></header>'
+      +'<div class="kpis">'+kpi(stats.length,'Membres','#1A1A2E')+kpi(actifs.length,'Actifs','#0F6E56')+kpi(declares.length,'Inactifs','#A32D2D')+kpi(aRecontacter.length,'À recontacter','#EA5B1C')+'</div>';
+
+    html += sectionRecontact();
+    html += section('Membres inactifs', 'Inactivité déclarée — par le membre lui-même ou par la vie associative.', declares, '#A32D2D', true);
+    html += section('Membres actifs', 'Aucune inactivité déclarée.', actifs, '#0F6E56', false);
+
+    html += '<footer><span>Ipsum Média · contact@ipsummedia.fr</span><span>Document interne</span></footer></body></html>';
+
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  });
 }
