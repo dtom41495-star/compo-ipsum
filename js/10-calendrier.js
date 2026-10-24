@@ -957,14 +957,59 @@ function osSujetRenvoyerForm(sujetId){
   setTimeout(function(){ var c = ov.querySelector('.sren-prec'); if(c) c.focus(); }, 30);
 }
 
-// L'auteur·rice abandonne un de ses sujets refusés
+// L'auteur·rice abandonne un de ses sujets refusés. S'il y a un article relié, on demande ce qu'on en fait :
+// le garder (il reste dans Mes brouillons, sans sujet) ou le supprimer — comme dans l'autre sens (js/21-sujets-desengagement.js).
 function osSujetRetirer(sujetId){
-  if(!osConfirmerPuis('Retirer ce sujet ?\nIl sera supprimé définitivement.', { oui:'Retirer' }, osSujetRetirer, this, arguments)) return;
+  var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){})
-    .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); })
-    .then(function(r){ if(!r.ok){ notif('Erreur','erreur'); return; } notif('Sujet retiré'); osRedactionsChangerOnglet('sujets'); })
-    .catch(function(){ notif('Erreur réseau','erreur'); });
+  var supprimerSujet = function(articlesASupprimer){
+    var suppr = (articlesASupprimer || []).length
+      ? Promise.all(articlesASupprimer.map(function(id){ return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {method:'DELETE', headers:authH}); }))
+      : Promise.resolve();
+    return suppr
+      .then(function(){ return fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){}); })
+      .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); })
+      .then(function(r){ if(!r.ok){ notif('Erreur','erreur'); return; } notif('Sujet retiré'); osRedactionsChangerOnglet('sujets'); })
+      .catch(function(){ notif('Erreur réseau','erreur'); });
+  };
+  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut', {headers:authH})
+    .then(function(r){ return r.json(); }).then(function(l){ return Array.isArray(l) ? l : []; }).catch(function(){ return []; })
+    .then(function(arts){
+      if(!arts.length){
+        osConfirmer('Retirer ce sujet ?\nIl sera supprimé définitivement.', { oui:'Retirer' }).then(function(ok){ if(ok) supprimerSujet([]); });
+        return;
+      }
+      var ETAT = { 'en-relecture':'au SR', corrige:'relu par le SR', valide:'bon à publier', valide_central:'bon à publier', publie:'en ligne' };
+      var brouillons = arts.filter(function(a){ return a.statut === 'brouillon'; });
+      var avances = arts.filter(function(a){ return a.statut !== 'brouillon'; });
+      var ov = document.createElement('div');
+      ov.className = 'se-overlay';
+      var corps = '<div class="sd-sujet"><span>Sujet</span><strong>'+esc(s ? s.titre : arts[0].titre || '')+'</strong></div>'
+        +'<p class="se-texte">Le sujet sera supprimé définitivement. '+(arts.length > 1 ? 'Des articles y sont' : 'Un article y est')+' relié'+(arts.length > 1 ? 's' : '')+' : que veux-tu en faire ?</p>';
+      if(brouillons.length){
+        corps += '<div class="sd-choix"><div class="sd-choix-titre">'+(brouillons.length > 1 ? 'Tes brouillons' : 'Ton brouillon')+' : '+brouillons.map(function(a){ return '« '+esc(a.titre || 'Sans titre')+' »'; }).join(', ')+'</div>'
+          +'<label class="sd-option"><input type="radio" name="sret-brouillon" value="garder" checked><span><strong>Le garder</strong><small>Il reste dans Mes brouillons, sans lien avec un sujet.</small></span></label>'
+          +'<label class="sd-option"><input type="radio" name="sret-brouillon" value="supprimer"><span><strong>Le supprimer</strong><small>Définitivement, s\'il ne sert plus à rien.</small></span></label></div>';
+      }
+      avances.forEach(function(a){
+        corps += '<p class="se-aide"><i class="ti ti-info-circle"></i> L\'article « '+esc(a.titre || 'Sans titre')+' » est déjà <strong>'+esc(ETAT[a.statut] || a.statut)+'</strong> : il est gardé, simplement détaché du sujet.</p>';
+      });
+      corps += '<div class="se-actions"><button class="se-btn-principal sret-ok"><i class="ti ti-trash"></i> Retirer le sujet</button><button class="se-btn-lien sret-non">Annuler</button></div>';
+      ov.innerHTML = '<div class="se-boite" role="dialog" aria-modal="true" aria-labelledby="sret-titre"><div class="se-entete"><div id="sret-titre" class="se-titre">Retirer ce sujet ?</div>'
+        +'<button class="se-fermer sret-non" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="se-corps">'+corps+'</div></div>';
+      document.body.appendChild(ov);
+      var fermer = function(){ document.removeEventListener('keydown', clavier, true); ov.remove(); };
+      var clavier = function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fermer(); } };
+      document.addEventListener('keydown', clavier, true);
+      ov.addEventListener('click', function(ev){ if(ev.target === ov) fermer(); });
+      ov.querySelectorAll('.sret-non').forEach(function(b){ b.onclick = fermer; });
+      ov.querySelector('.sret-ok').onclick = function(){
+        var choix = ov.querySelector('input[name="sret-brouillon"]:checked');
+        var aSupprimer = (choix && choix.value === 'supprimer') ? brouillons.map(function(a){ return a.id; }) : [];
+        fermer();
+        supprimerSujet(aSupprimer);
+      };
+    });
 }
 
 // Pour le rédac chef qui valide : y a-t-il déjà un sujet, un article ou un communiqué commun qui ressemble à la
