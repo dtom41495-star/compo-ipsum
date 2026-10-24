@@ -747,23 +747,36 @@ function osOuvrirNouveauSujetModal(opts){
     +'<div class="form-grid" style="margin-bottom:1rem;">'
     +'<div class="form-group full"><label>Titre *</label><input type="text" id="ns-titre" oninput="osVerifierDoublonSujet()" placeholder="Ex : Interview du maire sur le budget 2026">'
     +'<div id="ns-doublon-alerte" style="display:none;margin-top:0.5rem;background:#FFFBEB;border:1px solid #F3DFA2;border-radius:10px;padding:0.6rem 0.8rem;"></div></div>'
-    +'<div class="form-group"><label>Type</label><select id="ns-type"><option value="article">Article</option><option value="breve">Brève</option><option value="reportage">Reportage</option><option value="interview">Interview</option></select></div>'
+    +'<div class="form-group"><label>Type</label><select id="ns-type" onchange="osNsMajEcrire()"><option value="article">Article</option><option value="breve">Brève</option><option value="reportage">Reportage</option><option value="interview">Interview</option></select></div>'
     +'<div class="form-group"><label>Priorité</label><select id="ns-priorite"><option value="normale" selected>Normale</option><option value="urgente">Urgente</option><option value="faible">Faible</option></select></div>'
     +'<div class="form-group full"><label>Rubrique</label><input type="text" id="ns-rubrique" placeholder="Ex : Municipales, Culture..."></div>'
     +'<div class="form-group full"><label>Angle / contexte</label><textarea id="ns-note" style="min-height:70px;" placeholder="De quoi ça parle, pourquoi c\'est intéressant..."></textarea></div>'
     +'</div>'
     +(droit==='proposer' ? '<div style="font-size:0.78rem;color:var(--gris);margin-bottom:0.8rem;">'+(opts && opts.apres ? 'Le sujet te sera réservé : tu peux écrire tout de suite. Il sera visible par l\'équipe une fois validé par le rédac chef.' : 'Ton sujet sera visible par l\'équipe une fois validé par le rédac chef.')+'</div>' : '')
+    +'<div id="ns-attente" style="display:none;font-size:0.78rem;color:#8A6400;background:#FFF6DB;border:1px solid #F3DFA2;border-radius:8px;padding:6px 10px;margin-bottom:0.8rem;"><i class="ti ti-clock"></i> Dans cette rédaction, un article attend la validation de son sujet : tu pourras l\'écrire une fois le sujet validé. Les brèves, elles, s\'écrivent tout de suite.</div>'
     +'<div class="btn-row">'
-    +'<button class="btn" onclick="osCreerNouveauSujet()">'+(opts && opts.apres ? (droit==='proposer'?'Proposer et écrire':'Créer et écrire') : (droit==='proposer'?'Envoyer la proposition':'Publier le sujet'))+'</button>'
+    +'<button class="btn" id="ns-envoyer" onclick="osCreerNouveauSujet()">'+(opts && opts.apres ? (droit==='proposer'?'Proposer et écrire':'Créer et écrire') : (droit==='proposer'?'Envoyer la proposition':'Publier le sujet'))+'</button>'
     +'</div>'
     +'</div>';
 
   overlay.appendChild(card);
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
-  setTimeout(function(){ var t=document.getElementById('ns-titre'); if(t){ if(opts && opts.titre) t.value = opts.titre; t.focus(); } }, 50);
+  setTimeout(function(){ var t=document.getElementById('ns-titre'); if(t){ if(opts && opts.titre) t.value = opts.titre; t.focus(); } osNsMajEcrire(); }, 50);
 }
 
+// Rédiger > nouveau sujet proposé : si la rédaction fait attendre la validation aux articles, on n'écrit pas tout de suite
+// (sauf pour une brève). Met à jour le bouton et l'avertissement quand on change le type.
+function _nsEcritureDiffereePourType(type){
+  var droit = osSujetsDroit();
+  return !!(window._nsOpts && window._nsOpts.apres && droit === 'proposer' && type !== 'breve' && osRedacArticleAttendSujet(window._redacActiveId));
+}
+function osNsMajEcrire(){
+  var type = (document.getElementById('ns-type')||{}).value || 'article';
+  var differe = _nsEcritureDiffereePourType(type);
+  var av = document.getElementById('ns-attente'); if(av) av.style.display = differe ? 'block' : 'none';
+  var b = document.getElementById('ns-envoyer'); if(b) b.textContent = differe ? 'Envoyer la proposition' : 'Proposer et écrire';
+}
 function osCreerNouveauSujet(){
   var titre = ((document.getElementById('ns-titre')||{}).value||'').trim();
   if(!titre){ notif('Le titre est obligatoire'); return; }
@@ -789,17 +802,18 @@ function osCreerNouveauSujet(){
   };
   // Depuis Rédiger : le sujet est réservé d'office à son auteur·rice (même en attente de validation)
   var apres = window._nsOpts && window._nsOpts.apres;
+  var ecritureDifferee = _nsEcritureDiffereePourType(type);   // article dont le sujet doit d'abord être validé
   if(apres){ payload.responsable = getUserNomComplet(); if(!aValider) payload.statut = 'en_cours'; }
   fetch(SB_URL+'/rest/v1/briefing',{method:'POST',headers:authH,body:JSON.stringify(payload)})
   .then(function(r){
     if(r.ok){
-      notif(aValider ? (apres ? 'Proposition envoyée au rédac chef : tu peux écrire' : 'Proposition envoyée au rédac chef') : (apres ? 'Sujet créé' : 'Sujet publié'),'succes');
+      notif(aValider ? (apres && !ecritureDifferee ? 'Proposition envoyée au rédac chef : tu peux écrire' : ecritureDifferee ? 'Proposition envoyée : tu pourras écrire ton article une fois le sujet validé' : 'Proposition envoyée au rédac chef') : (apres ? 'Sujet créé' : 'Sujet publié'),'succes');
       var overlay = document.getElementById('nouveau-sujet-overlay');
       if(overlay) overlay.remove();
       if(aValider) _osSujetPrevenirChefs(payload);
       window._nsOpts = null;
-      if(apres){ apres(payload); return; }
-      osRedactionsChangerOnglet('sujets');
+      if(apres && !ecritureDifferee){ apres(payload); return; }
+      if(!apres) osRedactionsChangerOnglet('sujets');
     } else notif(aValider ? 'Impossible d\'envoyer la proposition' : 'Erreur','erreur');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
@@ -920,19 +934,28 @@ function osSujetsChargerPropositions(zone){
 // Un article ne peut pas avancer (envoi au SR, bon à publier, mise en ligne) tant que son sujet proposé n'est pas validé.
 // La base le refuse aussi (article_statut_controler) ; ici, on le dit avant, avec un message clair.
 // Rend une promesse : null si rien ne bloque, sinon { statut:'propose'|'refuse', redaction_id }.
-function osSujetBloqueArticle(sujetId){
-  if(!sujetId) return Promise.resolve(null);
+// Réglage de la rédaction « un article attend la validation de son sujet » (les brèves ne sont jamais concernées)
+function osRedacArticleAttendSujet(redacId){
+  var r = (window._redactionsData || []).find(function(x){ return x.id === redacId; });
+  return !!(r && r.article_attend_sujet === true);
+}
+// Un sujet proposé et pas encore validé empêche-t-il d'écrire l'article ? (sujet : { statut, type, redaction_id })
+function osSujetEmpecheEcriture(s){
+  return !!(s && s.statut === 'propose' && s.type !== 'breve' && osRedacArticleAttendSujet(s.redaction_id));
+}
+function osSujetBloqueArticle(sujetId, typeArticle){
+  if(!sujetId || typeArticle === 'breve') return Promise.resolve(null);
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=statut,redaction_id', {headers:authH})
     .then(function(r){ return r.json(); })
-    .then(function(l){ var b = Array.isArray(l) && l[0]; return (b && (b.statut === 'propose' || b.statut === 'refuse')) ? b : null; })
+    .then(function(l){ var b = Array.isArray(l) && l[0]; return (b && (b.statut === 'propose' || b.statut === 'refuse') && osRedacArticleAttendSujet(b.redaction_id)) ? b : null; })
     .catch(function(){ return null; });   // en cas de doute, c'est la base qui tranche
 }
 function osSujetBloqueMessage(b){
   var refuse = b.statut === 'refuse';
   osConfirmer((refuse ? 'Le sujet de cet article n\'a pas été retenu' : 'Le sujet de cet article n\'est pas encore validé')+'\n'
     +(refuse ? 'L\'article ne peut pas avancer tant que le sujet n\'est pas validé : précise-le et renvoie-le au rédac chef (Ma rédac\' > Sujets).'
-             : 'Le rédac chef doit d\'abord valider ton sujet : tu pourras alors envoyer l\'article au SR. En attendant, tu peux continuer à écrire.'),
+             : 'Dans cette rédaction, un article attend la validation de son sujet par le rédac chef. Tu pourras alors l\'envoyer au SR. (Les brèves ne sont pas concernées.)'),
     { oui:'Voir mes sujets', non:'Fermer', icone:'lock', danger:false }).then(function(ok){
       if(!ok) return;
       if(b.redaction_id) window._redacActiveId = b.redaction_id;
@@ -1838,6 +1861,11 @@ function osRedacReglagesForm(redac){
   h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><input type="checkbox" id="redac-reg-sujets_validation" '+(redac.sujets_validation!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
     +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Validation du rédac chef avant publication</span>'
     +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">sinon, les sujets proposés sont visibles tout de suite</span></span></label>';
+  if('article_attend_sujet' in redac){
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:0.6rem;"><input type="checkbox" id="redac-reg-article_attend_sujet" '+(redac.article_attend_sujet?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+      +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Un article attend la validation de son sujet</span>'
+      +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">tant que le sujet proposé n\'est pas validé, on ne peut pas écrire l\'article ni l\'envoyer au SR. Les brèves ne sont jamais bloquées.</span></span></label>';
+  }
   h += '</div>';
   }
 
@@ -1932,14 +1960,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie'];
+  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','article_attend_sujet','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
     // en base, sinon tout l'enregistrement serait refusé
-    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee') && !(cle in redacAvant)) return;
+    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee' || cle === 'article_attend_sujet') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   if('mode_sr' in redacAvant){

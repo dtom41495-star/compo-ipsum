@@ -1399,7 +1399,7 @@ function ouvrirAssignation(){
 
   // Le sujet proposé doit être validé avant que l'article parte au SR
   if(!_sujetVerifiePourEnvoi){
-    osSujetBloqueArticle(currentDoc.sujet_id || currentDoc._sujet_id).then(function(b){
+    osSujetBloqueArticle(currentDoc.sujet_id || currentDoc._sujet_id, currentDoc.type).then(function(b){
       if(b){ osSujetBloqueMessage(b); return; }
       _sujetVerifiePourEnvoi = true;
       try{ ouvrirAssignation(); } finally { _sujetVerifiePourEnvoi = false; }
@@ -1612,7 +1612,7 @@ var imgFile = null;
 function ouvrirAssignationDepuisDoc(doc){
   if(!doc){ notif('Aucun article'); return; }
   if(!_sujetVerifiePourEnvoi){
-    osSujetBloqueArticle(doc.sujet_id || doc._sujet_id).then(function(b){
+    osSujetBloqueArticle(doc.sujet_id || doc._sujet_id, doc.type).then(function(b){
       if(b){ osSujetBloqueMessage(b); return; }
       _sujetVerifiePourEnvoi = true;
       try{ ouvrirAssignationDepuisDoc(doc); } finally { _sujetVerifiePourEnvoi = false; }
@@ -2175,7 +2175,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   // Pas d'avancée (SR, bon à publier, en ligne) tant que le sujet proposé n'est pas validé
   if(nouveauStatut !== 'brouillon' && !_sujetVerifiePourEnvoi){
-    osSujetBloqueArticle(currentDoc.sujet_id || currentDoc._sujet_id).then(function(b){
+    osSujetBloqueArticle(currentDoc.sujet_id || currentDoc._sujet_id, currentDoc.type).then(function(b){
       if(b){ osSujetBloqueMessage(b); return; }
       _sujetVerifiePourEnvoi = true;
       try{ rWorkflowAvancer(nouveauStatut, besoinVisuel); } finally { _sujetVerifiePourEnvoi = false; }

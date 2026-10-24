@@ -34,14 +34,15 @@ function _rsFermer(){
 }
 
 function _rsLigne(s, type){
+  var attend = type === 'moi' && typeof osSujetEmpecheEcriture === 'function' && osSujetEmpecheEcriture(s);   // article : on attend la validation
   var info = type === 'moi'
-    ? (s.statut === 'propose' ? '<span class="rs-attente"><i class="ti ti-clock"></i> Proposé, en attente du rédac chef</span>' : '<span><i class="ti ti-bookmark"></i> Réservé par toi</span>')
+    ? (s.statut === 'propose' ? '<span class="rs-attente"><i class="ti ti-clock"></i> Proposé, en attente du rédac chef'+(attend ? ' : tu pourras écrire une fois validé' : '')+'</span>' : '<span><i class="ti ti-bookmark"></i> Réservé par toi</span>')
     : '<span>'+esc(s.type === 'breve' ? 'Brève' : 'Article')+(s.priorite === 'urgente' ? ' · <strong class="rs-urgent">urgent</strong>' : '')+'</span>';
   return '<button type="button" class="rs-sujet" data-sid="'+esc(s.id)+'" data-type="'+type+'" onclick="_rsChoisir(this.dataset.sid, this.dataset.type)">'
     +'<span class="rs-sujet-titre">'+esc(s.titre||'Sans titre')+'</span>'
     +(s.note ? '<span class="rs-sujet-note">'+esc(s.note.length > 110 ? s.note.slice(0,110)+'…' : s.note)+'</span>' : '')
     +'<span class="rs-sujet-info">'+info+'</span>'
-    +'<span class="rs-sujet-action">'+(type === 'moi' ? 'Écrire' : 'Réserver et écrire')+' <i class="ti ti-arrow-right"></i></span>'
+    +(attend ? '' : '<span class="rs-sujet-action">'+(type === 'moi' ? 'Écrire' : 'Réserver et écrire')+' <i class="ti ti-arrow-right"></i></span>')
     +'</button>';
 }
 
@@ -67,7 +68,7 @@ function _rsAfficher(chargement){
     corps += '<div class="rs-nouveau">'
       +(droit
         ? '<button class="se-btn-principal" onclick="_rsProposer()"><i class="ti ti-plus"></i> '+(droit === 'proposer' ? 'Proposer un nouveau sujet' : 'Créer un nouveau sujet')+'</button>'
-          +(droit === 'proposer' ? '<p class="se-aide se-centre">Ton rédac chef le validera. Tu peux commencer à écrire en attendant.</p>' : '')
+          +(droit === 'proposer' ? '<p class="se-aide se-centre">Ton rédac chef le validera. Tu peux commencer à écrire en attendant (sauf un article, si ta rédaction attend la validation du sujet).</p>' : '')
         : '<p class="se-aide se-centre"><i class="ti ti-info-circle"></i> Dans ta rédaction, seul le rédac chef crée les sujets. Demande-lui si ton idée n\'est pas dans la liste.</p>')
       +'<button class="se-btn-lien" onclick="_rsFermer()">Annuler</button></div>';
   }
@@ -104,7 +105,11 @@ function _rsAfficherListes(){
 function _rsChoisir(id, type){
   var e = _rsEtat; if(!e) return;
   var s = e.sujets.find(function(x){ return x.id === id; }); if(!s) return;
-  if(type === 'moi'){ _rsOuvrir(s); return; }
+  if(type === 'moi'){
+    // Sujet proposé pas encore validé, dans une rédaction où un article doit l'attendre : on n'écrit pas (les brèves, si)
+    if(typeof osSujetEmpecheEcriture === 'function' && osSujetEmpecheEcriture(s)){ notif('Ton sujet n\'est pas encore validé : tu pourras écrire ton article une fois que le rédac chef l\'aura validé.', ''); return; }
+    _rsOuvrir(s); return;
+  }
   // Réserver le sujet libre, seulement s'il l'est toujours
   fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(id)+'&statut=eq.ouvert', {
     method:'PATCH', headers:_rsAuth({'Prefer':'return=representation'}),
