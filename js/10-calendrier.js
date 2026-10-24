@@ -829,7 +829,7 @@ function _osSujetPrevenirChefs(sujet){
     });
   }).catch(function(){});
 }
-function _osSujetPrevenirAuteur(sujet, accepte){
+function _osSujetPrevenirAuteur(sujet, accepte, raison){
   if(!sujet.created_by || sujet.created_by === getUserId()) return;
   // Sujet validé et auteur·rice en ligne : la carte « Ton sujet est validé » s'affiche dans Compo (js/67-sujet-valide.js),
   // inutile d'envoyer en plus un email ou un message Chat. Hors ligne : envoi comme avant.
@@ -841,11 +841,11 @@ function _osSujetPrevenirAuteur(sujet, accepte){
           texte: sujet.responsable ? 'Ton sujet a été validé : il te reste réservé, tu peux continuer ton article.' : 'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
           pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' })
       : _osSujetEmail({ accent:'ambre', etiquette:'SUJET NON RETENU', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
-          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition ! Tu peux en parler avec ton rédac chef pour en savoir plus.'+(sujet.responsable ? ' Si tu avais commencé à écrire, ton brouillon est gardé dans Mes brouillons.' : ''),
+          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition !'+(raison ? ' Voici ce qu\'a répondu '+esc(getUserPrenom()||'ton rédac chef')+' : « '+esc(raison)+' »' : ' Tu peux en parler avec ton rédac chef pour en savoir plus.')+(sujet.responsable ? ' Si tu avais commencé à écrire, ton brouillon est gardé dans Mes brouillons.' : ''),
           boutons:[], pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
     var chat = accepte
       ? '✅ *Ton sujet est validé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » '+(sujet.responsable ? 'te reste réservé, tu peux continuer ton article.' : 'est visible par l\'équipe, tu peux le réserver.')
-      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !';
+      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !'+(raison ? '\nRaison : '+_chatSansMiseEnForme(raison) : '');
     notifierPersonnel(m.id, m.canal_notif, chat, 'sujet', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] '+(accepte?'Sujet publié':'Sujet non retenu')+' · '+sujet.titre, html, 'sujet');
     });
@@ -930,10 +930,53 @@ function _osPropositionsDoublons(props, zone){
   }).catch(function(){});
 }
 
-function osSujetValiderProposition(sujetId, accepte){
+// Fenêtre de refus : une raison, facultative, que l'auteur·rice lira dans son email / message Chat.
+// Rend une promesse : le texte (vide si aucune raison) ou null si on annule.
+var SUJET_RAISONS_REFUS = ['Déjà traité', 'Hors de notre ligne éditoriale', 'Pas d\'actualité pour l\'instant', 'Trop vague : à préciser'];
+function osSujetRefusDemander(s){
+  return new Promise(function(resolve){
+    var ov = document.createElement('div');
+    ov.className = 'se-overlay dlg-overlay';
+    ov.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="sr-question"><div class="se-corps">'
+      +'<div class="dlg-tete"><span class="dlg-icone dlg-icone-danger"><i class="ti ti-x"></i></span><div>'
+      +'<div id="sr-question" class="dlg-question">Refuser ce sujet ?</div>'
+      +'<p class="se-texte">« '+esc(s.titre)+' »</p>'
+      +'<p class="se-aide dlg-details">Il sera supprimé et son auteur·rice prévenu·e. Tu peux lui dire pourquoi (facultatif).</p></div></div>'
+      +'<div class="sr-raisons">'+SUJET_RAISONS_REFUS.map(function(r){ return '<button type="button" class="sr-raison">'+esc(r)+'</button>'; }).join('')+'</div>'
+      +'<textarea class="dlg-champ" rows="3" maxlength="400" placeholder="Une raison pour l\'auteur·rice (facultatif)"></textarea>'
+      +'<div class="dlg-actions"><button type="button" class="se-btn-secondaire dlg-non">Annuler</button>'
+      +'<button type="button" class="se-btn-principal dlg-oui dlg-oui-danger">Refuser le sujet</button></div></div></div>';
+    document.body.appendChild(ov);
+    var champ = ov.querySelector('.dlg-champ'), fini = false;
+    var fermer = function(ok){
+      if(fini) return; fini = true;
+      document.removeEventListener('keydown', clavier, true);
+      ov.remove();
+      resolve(ok ? champ.value.trim() : null);
+    };
+    var clavier = function(ev){
+      if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fermer(false); }
+      else if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){ ev.preventDefault(); ev.stopPropagation(); fermer(true); }
+    };
+    document.addEventListener('keydown', clavier, true);
+    ov.addEventListener('click', function(ev){ if(ev.target === ov) fermer(false); });
+    ov.querySelectorAll('.sr-raison').forEach(function(b){
+      b.onclick = function(){ champ.value = b.textContent; champ.focus(); };
+    });
+    ov.querySelector('.dlg-non').onclick = function(){ fermer(false); };
+    ov.querySelector('.dlg-oui').onclick = function(){ fermer(true); };
+    setTimeout(function(){ champ.focus(); }, 30);
+  });
+}
+
+function osSujetValiderProposition(sujetId, accepte, raison){
   var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
   if(!s) return;
-  if(!accepte && !osConfirmerPuis('Refuser ce sujet ? Il sera supprimé et son auteur prévenu.', null, osSujetValiderProposition, this, arguments)) return;
+  // Refus : on demande d'abord la raison (3e argument absent), puis on rappelle la fonction avec
+  if(!accepte && raison === undefined){
+    osSujetRefusDemander(s).then(function(texte){ if(texte !== null) osSujetValiderProposition(sujetId, false, texte); });
+    return;
+  }
   // Un sujet ou un article très proche existe déjà : on demande confirmation avant de publier
   if(accepte && s._doublons && s._doublons.length && !osConfirmerPuis('Publier quand même ?\n'+s._doublons.map(function(t){ return '« '+t.titre+' » : '+t.detail; }).join('\n'), { titre:'Ce sujet ressemble à autre chose', oui:'Publier quand même', non:'Annuler' }, osSujetValiderProposition, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
@@ -945,7 +988,7 @@ function osSujetValiderProposition(sujetId, accepte){
   req.then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
     notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');
-    _osSujetPrevenirAuteur(s, accepte);
+    _osSujetPrevenirAuteur(s, accepte, raison);
     window._sujetsPropositionsAttente = (window._sujetsPropositionsAttente||[]).filter(function(x){ return x.id !== sujetId; });
     osRedactionsChangerOnglet('sujets');
   }).catch(function(){ notif('Erreur réseau','erreur'); });

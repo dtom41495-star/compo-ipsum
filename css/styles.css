@@ -6622,3 +6622,8 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 :root.theme-dark .sv-sujet { color: #E8E6E1; }
 :root.theme-dark .sv-desc { color: #A8A8B3; }
 :root.theme-dark .sv-titre { color: #5FD79A; }
+
+/* Refus d'un sujet : raisons toutes prêtes */
+.sr-raisons { display: flex; flex-wrap: wrap; gap: .4rem; }
+.sr-raison { padding: .3rem .7rem; border: 1px solid var(--gris-bord); border-radius: 999px; background: #fff; color: var(--encre); font: 500 .76rem 'DM Sans', sans-serif; cursor: pointer; }
+.sr-raison:hover { border-color: var(--rouge); color: var(--rouge); }
