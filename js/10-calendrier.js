@@ -917,6 +917,30 @@ function osSujetsChargerPropositions(zone){
   }).catch(function(){ zone.innerHTML = ''; });
 }
 
+// Un article ne peut pas avancer (envoi au SR, bon à publier, mise en ligne) tant que son sujet proposé n'est pas validé.
+// La base le refuse aussi (article_statut_controler) ; ici, on le dit avant, avec un message clair.
+// Rend une promesse : null si rien ne bloque, sinon { statut:'propose'|'refuse', redaction_id }.
+function osSujetBloqueArticle(sujetId){
+  if(!sujetId) return Promise.resolve(null);
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=statut,redaction_id', {headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(l){ var b = Array.isArray(l) && l[0]; return (b && (b.statut === 'propose' || b.statut === 'refuse')) ? b : null; })
+    .catch(function(){ return null; });   // en cas de doute, c'est la base qui tranche
+}
+function osSujetBloqueMessage(b){
+  var refuse = b.statut === 'refuse';
+  osConfirmer((refuse ? 'Le sujet de cet article n\'a pas été retenu' : 'Le sujet de cet article n\'est pas encore validé')+'\n'
+    +(refuse ? 'L\'article ne peut pas avancer tant que le sujet n\'est pas validé : précise-le et renvoie-le au rédac chef (Ma rédac\' > Sujets).'
+             : 'Le rédac chef doit d\'abord valider ton sujet : tu pourras alors envoyer l\'article au SR. En attendant, tu peux continuer à écrire.'),
+    { oui:'Voir mes sujets', non:'Fermer', icone:'lock', danger:false }).then(function(ok){
+      if(!ok) return;
+      if(b.redaction_id) window._redacActiveId = b.redaction_id;
+      osOpenWindow('redactions');
+      setTimeout(function(){ if(typeof osRedactionsChangerOnglet === 'function') osRedactionsChangerOnglet('sujets'); }, 450);
+    });
+}
+
 // L'auteur·rice précise un sujet refusé et le renvoie au rédac chef (il repasse « en attente de validation »)
 function osSujetRenvoyerForm(sujetId){
   var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });

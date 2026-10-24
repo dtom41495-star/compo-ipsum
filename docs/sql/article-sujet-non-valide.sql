@@ -1,0 +1,10 @@
+-- Appliqué le 2026-10-24 (migration « article_sujet_non_valide »).
+-- article_statut_controler : un article ne peut plus changer de statut (SR, bon à publier, mise en ligne…)
+-- tant que son sujet est « propose » (en attente de validation) ou « refuse ». Écrire (brouillon) reste possible.
+-- Le reste de la fonction est inchangé ; la règle s'applique aussi aux admins, pas aux appels sans utilisateur (tâches planifiées).
+-- Texte complet : voir la fonction dans la base (public.article_statut_controler).
+-- Ajout, juste après « if auth.uid() is null then return new; end if; » :
+--   if new.statut is distinct from v_ancien and new.statut <> 'brouillon' and new.sujet_id is not null
+--      and exists (select 1 from public.briefing b where b.id = new.sujet_id and b.statut in ('propose','refuse')) then
+--     raise exception 'sujet_non_valide: le sujet de cet article n''a pas encore été validé par le rédac chef';
+--   end if;
