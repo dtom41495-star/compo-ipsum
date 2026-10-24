@@ -138,14 +138,19 @@ function rArticleAfficherSujetLie(sujetId){
   var zone = document.getElementById('r-sujet-lie-zone');
   if(!zone) return;
   if(!sujetId){
+    window._rSujetLieId = null; window._rSujetLieAttente = false;
     zone.innerHTML = '<div class="import-zone" onclick="rArticleOuvrirChangerSujet()" style="padding:0.7rem;cursor:pointer;"><p style="margin:0;font-size:0.82rem;"><i class="ti ti-bulb"></i> Lier un sujet</p></div>';
     return;
   }
-  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre', {headers:SB_HEADERS})
+  window._rSujetLieId = sujetId;
+  var authHS = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId)+'&select=id,titre,statut,type,raison_refus,redaction_id', {headers:authHS})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var s = data && data[0];
-    zone.innerHTML = '<div style="display:flex;align-items:center;gap:0.7rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;">'
+    if(window._rSujetLieId !== sujetId) return;   // on a changé de sujet entre-temps
+    window._rSujetLieAttente = !!(s && (s.statut === 'propose' || s.statut === 'refuse'));
+    zone.innerHTML = _rSujetStatutBandeau(s)+'<div style="display:flex;align-items:center;gap:0.7rem;background:var(--gris-clair);border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.9rem;">'
       +'<span style="font-size:0.9rem;"><i class="ti ti-bulb"></i></span>'
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:2px;">Sujet lié</div>'
@@ -156,6 +161,35 @@ function rArticleAfficherSujetLie(sujetId){
       +'</div>';
   }).catch(function(){});
 }
+
+// En haut de l'éditeur : le sujet de l'article est-il validé ? Évite d'écrire pour rien si le sujet est en attente ou refusé.
+function _rSujetStatutBandeau(s){
+  if(!s || (s.statut !== 'propose' && s.statut !== 'refuse')) return '';
+  var estBreve = !!(currentDoc && currentDoc.type === 'breve');
+  var attendPourSR = !estBreve && typeof osRedacArticleAttendSujet === 'function' && osRedacArticleAttendSujet(s.redaction_id);
+  var refus = s.statut === 'refuse';
+  var coul = refus ? { bg:'#FDECEC', bord:'#F5C2C0', titre:'#A32D2D', txt:'#7A1F1F' } : { bg:'#FFF6DB', bord:'#F3DFA2', titre:'#8A6400', txt:'#6B5200' };
+  var detail = refus
+    ? (s.raison_refus ? '<b>Raison :</b> '+esc(s.raison_refus)+'. ' : 'Aucune raison donnée. ')+'Précise ton sujet et renvoie-le au rédac chef avant d\'aller plus loin : sans son accord, cet article ne sera pas publié.'
+    : (attendPourSR ? 'Le rédac chef doit le valider avant que tu puisses envoyer l\'article au SR. Tu peux continuer à écrire en attendant.'
+                    : 'Le rédac chef doit encore le valider. Si le sujet est refusé, l\'article ne sera pas publié : garde-le en tête en écrivant.');
+  return '<div class="r-sujet-statut" style="display:flex;align-items:flex-start;gap:0.7rem;background:'+coul.bg+';border:1px solid '+coul.bord+';border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.5rem;">'
+    +'<span style="font-size:1.05rem;color:'+coul.titre+';margin-top:1px;"><i class="ti '+(refus ? 'ti-alert-triangle' : 'ti-clock')+'"></i></span>'
+    +'<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.82rem;color:'+coul.titre+';">'+(refus ? 'Le sujet de cet article n\'a pas été retenu' : 'Le sujet de cet article n\'est pas encore validé')+'</div>'
+    +'<div style="font-size:0.76rem;color:'+coul.txt+';margin-top:2px;line-height:1.45;">'+detail+'</div></div>'
+    +(refus ? '<button type="button" data-sid="'+esc(s.id)+'" data-rid="'+esc(s.redaction_id||'')+'" onclick="_rSujetAllerPreciser(this.dataset.sid, this.dataset.rid)" style="flex-shrink:0;background:'+coul.titre+';color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.68rem;font-weight:600;padding:5px 10px;">Préciser et renvoyer</button>' : '')
+    +'</div>';
+}
+function _rSujetAllerPreciser(sujetId, redacId){
+  if(redacId) window._redacActiveId = redacId;
+  osOpenWindow('redactions');
+  setTimeout(function(){ if(typeof osRedactionsChangerOnglet === 'function') osRedactionsChangerOnglet('sujets'); }, 450);
+  setTimeout(function(){ if(typeof osSujetRenvoyerForm === 'function' && (window._sujetsPropositions || []).some(function(x){ return x.id === sujetId; })) osSujetRenvoyerForm(sujetId); }, 1500);
+}
+// Le rédac chef peut valider ou refuser pendant que l'article est ouvert : on relit le sujet toutes les 45 s tant qu'il n'est pas validé
+setInterval(function(){
+  if(window._rSujetLieAttente && window._rSujetLieId && document.getElementById('r-sujet-lie-zone') && document.visibilityState !== 'hidden') rArticleAfficherSujetLie(window._rSujetLieId);
+}, 45000);
 
 function rArticleOuvrirChangerSujet(){
   if(!currentDoc || !currentDoc.id){ notif('Enregistre d\'abord l\'article avant de changer son sujet'); return; }

@@ -1,0 +1,15 @@
+-- Appliqué le 2026-10-24 (migrations « article_sujet_non_valide » puis « redactions_article_attend_sujet »).
+-- Réglage par rédaction : redactions.article_attend_sujet (faux par défaut). S'il est coché :
+--  - un ARTICLE (pas une brève) ne peut pas être créé ni rattaché à un sujet « propose » (en attente) ou « refuse » ;
+--  - il ne peut pas non plus changer de statut (SR, bon à publier, mise en ligne) tant que le sujet n'est pas validé.
+-- Les brèves ne sont jamais bloquées ; réglage décoché : aucun blocage. Écrire un brouillon déjà commencé reste possible.
+alter table public.redactions add column if not exists article_attend_sujet boolean not null default false;
+-- Ajout dans public.article_statut_controler(), juste après « if auth.uid() is null then return new; end if; » :
+--   if new.sujet_id is not null and coalesce(new.type, 'article') <> 'breve'
+--      and (tg_op = 'INSERT' or new.sujet_id is distinct from old.sujet_id or new.statut is distinct from v_ancien)
+--      and (tg_op = 'INSERT' or new.sujet_id is distinct from old.sujet_id or new.statut <> 'brouillon')
+--      and exists (select 1 from public.briefing b join public.redactions r on r.id = b.redaction_id
+--                  where b.id = new.sujet_id and r.article_attend_sujet and b.statut in ('propose', 'refuse')) then
+--     raise exception 'sujet_non_valide: le sujet de cet article n''a pas encore été validé par le rédac chef';
+--   end if;
+-- (texte complet de la fonction : voir la base)

@@ -839,7 +839,7 @@ function _cpInvitRendreFiche(cp, conteneur){
   var gerer = _cpInvitPeutGerer(cp);
   Promise.all([
     _cpInvitChargerDispos(cp.id),
-    gerer ? fetch(SB_URL+'/rest/v1/briefing?cp_id=eq.'+encodeURIComponent(cp.id)+'&select=id,statut,responsable&limit=1',{headers:_cpInvitH()}).then(function(r){ return r.json(); }).catch(function(){ return []; }) : Promise.resolve([])
+    gerer ? fetch(SB_URL+'/rest/v1/briefing?cp_id=eq.'+encodeURIComponent(cp.id)+'&statut=neq.refuse&select=id,statut,responsable&limit=1',{headers:_cpInvitH()}).then(function(r){ return r.json(); }).catch(function(){ return []; }) : Promise.resolve([])
   ]).then(function(res){
     var dispos = res[0];
     var sujet = Array.isArray(res[1]) && res[1][0];
@@ -981,7 +981,7 @@ function _cpInvitCouvertureHTML(cp, dispos, membres, gerer, sujet){
 function _cpsChargerSujetsParCp(cpIds, callback){
   if(!cpIds || !cpIds.length){ window._cpsSujetsParCp = {}; if(callback) callback(); return; }
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/briefing?cp_id=in.('+cpIds.map(function(id){return encodeURIComponent(id);}).join(',')+')&select=id,cp_id,statut,responsable', {headers:authH})
+  fetch(SB_URL+'/rest/v1/briefing?cp_id=in.('+cpIds.map(function(id){return encodeURIComponent(id);}).join(',')+')&statut=neq.refuse&select=id,cp_id,statut,responsable', {headers:authH})
   .then(function(r){return r.json();})
   .then(function(rows){
     var map = {};

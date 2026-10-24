@@ -6690,9 +6690,26 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
   .ag-chiffres { grid-template-columns: repeat(2, 1fr); }
   .ag-art { flex-direction: column; align-items: stretch; }
   .ag-art-droite { flex-wrap: wrap; }
-  .ag-filtres input { width: 100%; }
+  .ag-page .ag-filtres input { width: 100% !important; }
+  .ag-page .ag-filtres select { flex: 1; }
+  .ag-puces { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .ag-puce { flex-shrink: 0; }
   .ga-mobile > .ag-barre { margin-bottom: .6rem; }
+  .ga-mobile > .ag-barre .ag-creer { display: none; }   /* la liste mobile a déjà son bouton « Nouvelle » */
+  .sv-carte { width: 100%; transform: translateY(-140%) scale(.96); }
+  .sv-carte.sv-entree { transform: none; }
 }
 .ag-page .ag-filtres input, .ag-page .ag-filtres select { width: auto !important; min-height: 0; height: auto; background: #fff !important; }
 .ag-page .ag-filtres input { width: 220px !important; }
 .ag-page .ag-saut { width: auto !important; min-height: 0; background: #fff !important; }
+
+/* Sujet non retenu : même carte, ton plus doux (js/67-sujet-valide.js) */
+.sv-carte.sv-refus { border-color: #F5C2C0; box-shadow: 0 14px 38px rgba(163,45,45,.18), 0 2px 6px rgba(0,0,0,.08); }
+.sv-refus .sv-rond { background: #D9534F; }
+.sv-refus .sv-rond path { stroke-dasharray: 80; stroke-dashoffset: 80; }
+.sv-refus .sv-titre { color: #A32D2D; }
+.sv-refus .sv-voir { background: #D9534F; }
+.sv-refus .sv-voir:hover { background: #B83F3B; }
+:root.theme-dark .sv-carte.sv-refus { border-color: #7A2D2B; }
+:root.theme-dark .sv-refus .sv-titre { color: #F08A86; }
+.sren-lbl { display: block; margin: .7rem 0 .25rem; font: 600 .74rem 'DM Sans', sans-serif; color: var(--encre); }

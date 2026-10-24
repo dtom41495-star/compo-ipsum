@@ -1530,7 +1530,7 @@ function osNettoyageRechercherSujets(){
     if(!zone) return;
     if(!q.trim()){ zone.innerHTML=''; return; }
     zone.innerHTML = '<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Recherche...</div>';
-    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:_nettAuthH()})
+    fetch(SB_URL+'/rest/v1/briefing?titre=ilike.*'+encodeURIComponent(q.trim())+'*&statut=neq.refuse&select=id,titre,statut,responsable,created_at&order=created_at.desc&limit=15', {headers:_nettAuthH()})
     .then(function(r){return r.json();})
     .then(function(sujets){
       if(!sujets||sujets.code||!sujets.length){ zone.innerHTML='<div style="font-size:0.72rem;color:var(--gris);padding:0.4rem 0;">Aucun résultat.</div>'; return; }
