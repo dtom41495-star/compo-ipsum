@@ -2263,7 +2263,7 @@ function _osRedactionsAdminMobile(wc, tousArts){
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var artsPublies = tousArts.filter(function(a){ return a.statut==='publie'; });
   function tuile(n, l, c){ return '<div class="ga-chiffre"><strong style="color:'+(c||'#1A1A2E')+';">'+n+'</strong><span>'+l+'</span></div>'; }
-  var h = '<div class="ga-mobile">';
+  var h = '<div class="ga-mobile">'+_agBarre();
   h += '<div class="ga-chiffres">'
     +tuile(_membresData.length, 'Bénévoles')
     +tuile((window._nouveauxMembres||[]).length, 'Nouveaux ce mois', '#C2410C')
@@ -2320,147 +2320,23 @@ function _osRedactionsAdminMobile(wc, tousArts){
 }
 
 function _osRedactionsRenderAdminSuite(wc, uid, tousArts, authH, depuis30ISO, debutMoisISO2){
+  // Vue éditoriale (articles de toutes les rédactions) : js/68-gestion-redactions.js
+  if(_adminVue === 'edito'){ osAdminEditoRendre(wc); return; }
   if(osEstMobile() && _redactionsData.length){
     if(!_adminRedacSelectId || !_redactionsData.some(function(r){ return r.id === _adminRedacSelectId; })) _adminRedacSelectId = _redactionsData[0].id;
     _osRedactionsAdminMobile(wc, tousArts);
     return;
   }
-  var h = '<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;">';
-  var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
-  var depuis30 = new Date(); depuis30.setDate(depuis30.getDate()-30);
-  var totalMembres = _membresData.length;
-  var nouveauxCeMois = (window._nouveauxMembres||[]).length;
-  var artsPublies = tousArts.filter(function(a){ return a.statut==='publie'; });
-  var artsMois = artsPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-
-  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;">';
-  function gCard(n,l,c){ return '<div style="background:var(--encre-fixe);border-radius:10px;padding:0.9rem;text-align:center;"><div style="font-family:Poppins,sans-serif;font-size:1.5rem;font-weight:800;color:'+(c||'white')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-top:3px;">'+l+'</div></div>'; }
-  h += gCard(totalMembres,'Bénévoles total');
-  h += gCard(nouveauxCeMois,'Nouveaux ce mois','#E67E22');
-  h += gCard(artsMois.length,'Publiés ce mois','#EA5B1C');
-  h += gCard(artsPublies.length,'Publiés total','#27AE60');
-  h += '</div>';
-
-  // Séparateur + header rédactions
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--gris-bord);padding-top:1rem;">';
-  h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);">Rédactions</div>';
-  h += '<button onclick="osRedactionCreerModal()" style="font-family:Space Mono,monospace;font-size:0.62rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Créer</button>';
-  h += '</div>';
-  h += '<div id="admin-pouls-zone"></div>';
-
-  if(!_redactionsData.length){
-    h += '<div style="text-align:center;padding:2rem;color:var(--gris);font-family:Space Mono,monospace;font-size:0.78rem;">Aucune rédaction — crée la première !</div>';
-    h += '</div>';
-    wc.innerHTML = h;
-    return;
-  }
-
-  // Tabs de sélection rédaction
-  if(!_adminRedacSelectId) _adminRedacSelectId = _redactionsData[0].id;
-  h += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
-  _redactionsData.forEach(function(r){
-    var sel = r.id === _adminRedacSelectId;
-    var coul = r.couleur||'#EA5B1C';
-    h += '<button onclick="osAdminSelectRedac(\''+r.id+'\')" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 14px;border-radius:20px;cursor:pointer;border:1.5px solid '+(sel?coul:'var(--gris-bord)')+';background:'+(sel?coul:'white')+';color:'+(sel?'white':'var(--gris)')+';font-weight:'+(sel?'700':'400')+';">'+esc(r.nom)+'</button>';
-  });
-  h += '</div>';
-
-  // Vue détaillée de la rédaction sélectionnée
-  var redac = _redactionsData.find(function(r){ return r.id === _adminRedacSelectId; });
-  if(redac){
-    var couleur = redac.couleur||'#EA5B1C';
-    var membresLiens = _membresRedactionsData.filter(function(mr){ return mr.redaction_id === redac.id; });
-    var idsRedac = membresLiens.map(function(mr){ return mr.membre_id; });
-    // Exclure les membres avec rôle interdit du comptage
-    var membresRedacActifs = _membresData.filter(function(m){ return idsRedac.indexOf(m.id) !== -1 && m.role !== 'interdit'; });
-    var membresLiensActifs = membresLiens.filter(function(mr){
-      var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
-      return mb && mb.role !== 'interdit';
-    });
-    var artsRedac = tousArts.filter(function(a){ return a.redaction_id === redac.id; });
-    var artsRedacPublies = artsRedac.filter(function(a){ return a.statut==='publie'; });
-    var artsRedacMois = artsRedacPublies.filter(function(a){ return new Date(a.updated_at)>=depuis30; });
-    var nouveauxRedac = (window._nouveauxMembres||[]).filter(function(m){ return idsRedac.indexOf(m.id) !== -1; });
-    var participationsRedac = (window._agendaInscriptions||[]).filter(function(i){ return idsRedac.indexOf(i.membre_id) !== -1 && new Date(i.created_at)>=debutMois; });
-
-    h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';
-    // Header rédac
-    h += '<div style="background:'+couleur+';padding:1rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">';
-    h += '<div><div style="display:flex;align-items:center;gap:6px;"><div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;color:white;">'+esc(redac.nom)+'</div>'
-      +(redac.est_centrale?'<span title="Valide les articles des autres rédactions avant publication" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.25);color:white;text-transform:uppercase;letter-spacing:.05em;"><i class="ti ti-star-filled"></i> Centrale</span>':'')+'</div>';
-    if(redac.departement) h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.65);margin-top:2px;">'+esc(redac.departement)+'</div>';
-    h += '</div>';
-    h += '<div style="display:flex;gap:0.4rem;">';
-    h += '<button onclick="osRedactionEditerModal(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;"><i class="ti ti-pencil"></i></button>';
-    h += '<button onclick="osRedactionSupprimerConfirm(\''+redac.id+'\',\''+esc(redac.nom)+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:3px 7px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:4px;cursor:pointer;"><i class="ti ti-trash"></i></button>';
-    h += '</div></div>';
-    // Stats rédac
-    h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);border-bottom:0.5px solid var(--gris-bord);">';
-    [['<i class="ti ti-users"></i>',membresRedacActifs.length,'membres'],['<i class="ti ti-circle-check"></i>',artsRedacPublies.length,'publiés'],['<i class="ti ti-notes"></i>',artsRedacMois.length,'ce mois'],['<i class="ti ti-confetti"></i>',participationsRedac.length,'activités'],['<i class="ti ti-user-plus"></i>',nouveauxRedac.length,'nouveaux']].forEach(function(s,i){
-      h += '<div style="padding:0.7rem;text-align:center;'+(i<4?'border-right:0.5px solid var(--gris-bord);':'')+'">';
-      h += '<div style="font-size:0.7rem;">'+s[0]+'</div>';
-      h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:'+(i===4&&s[1]>0?'#E67E22':'var(--encre)')+';">'+s[1]+'</div>';
-      h += '<div style="font-family:Space Mono,monospace;font-size:0.52rem;color:var(--gris);">'+s[2]+'</div>';
-      h += '</div>';
-    });
-    h += '</div>';
-    // Tableau membres
-    h += '<div style="padding:0.8rem 1rem 0.3rem;">';
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">';
-    h += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);letter-spacing:0.08em;">Membres</span>';
-    h += '<button onclick="osAdminAjouterMembreRedac(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:2px 8px;background:var(--rouge);color:white;border:none;border-radius:4px;cursor:pointer;">+ Ajouter</button>';
-    h += '</div>';
-    h += '<table style="width:100%;border-collapse:collapse;">';
-    h += '<thead><tr style="background:var(--gris-clair);"><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem 0.7rem;text-align:left;font-weight:500;">Membre</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:left;font-weight:500;">Rôle</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Articles</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Publiés</th><th style="font-family:Space Mono,monospace;font-size:0.52rem;text-transform:uppercase;color:var(--gris);padding:0.4rem;text-align:center;font-weight:500;">Heures</th><th></th></tr></thead><tbody>';
-    membresLiensActifs.forEach(function(mr){
-      var mb = _membresData.find(function(m){ return m.id === mr.membre_id; });
-      if(!mb) return; // Membre absent du cache — skip
-      // Compter les articles depuis tousArts (fetch direct déjà fait)
-      var arts = tousArts.filter(function(a){
-        return a.auteur_id === mb.id && a.redaction_id === redac.id;
-      });
-      var pub  = arts.filter(function(a){ return a.statut==='publie'; });
-      var ligne = document.createElement('tr');
-      ligne.style.cssText = 'border-bottom:1px solid var(--gris-bord);cursor:pointer;';
-      ligne.onmouseover = function(){ this.style.background='var(--gris-clair)'; };
-      ligne.onmouseout  = function(){ this.style.background=''; };
-      ligne.onclick = function(){ osRedacOuvrirFicheMembre(mb.id, redac.id); };
-      var heuresEl = '<span id="heures-'+mb.id+'" style="font-size:0.75rem;color:var(--gris);">—</span>';
-      h += '<tr style="border-bottom:0.5px solid var(--gris-bord);">';
-      h += '<td style="padding:0.5rem 0.7rem;"><div style="display:flex;align-items:center;gap:0.5rem;"><div style="position:relative;">'+renderAvatarHTML(mb, 26, {})+'<span data-presence-id="'+mb.id+'" style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:'+(osEstEnLigne(mb.id)?'#27AE60':'#888')+';border:1.5px solid white;"></span></div><span style="font-size:0.78rem;font-weight:600;color:var(--encre);">'+esc(mb.prenom||'')+' '+esc(mb.nom||'')+'</span></div></td>';
-      h += '<td style="padding:0.5rem 0.4rem;"><select data-mid="'+mb.id+'" data-rid="'+redac.id+'" data-avant="'+esc(mr.role_redac||'redacteur')+'" onclick="event.stopPropagation()" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 5px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;">'
-        +['redacteur','correcteur','redac_chef'].map(function(r){ return '<option value="'+r+'"'+(mr.role_redac===r?' selected':'')+'>'+({redacteur:'Rédacteur·rice',correcteur:'SR',redac_chef:'Rédac chef'}[r])+'</option>'; }).join('')
-        +'</select></td>';
-      h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:var(--gris);">'+arts.length+'</td>';
-      h += '<td style="padding:0.5rem;text-align:center;font-size:0.78rem;color:#27AE60;">'+pub.length+'</td>';
-      h += '<td style="padding:0.5rem;text-align:center;">'+heuresEl+'</td>';
-      h += '<td style="padding:0.4rem;"><button onclick="osAdminRetirerMembreRedac(\''+mb.id+'\',\''+redac.id+'\')" title="Retirer de la rédaction" style="font-family:Space Mono,monospace;font-size:0.52rem;padding:2px 5px;border:0.5px solid #A32D2D;border-radius:4px;background:white;color:#A32D2D;cursor:pointer;"><i class="ti ti-user-minus"></i></button></td>';
-      h += '</tr>';
-    });
-    if(!membresLiens.length) h += '<tr><td colspan="6" style="padding:1rem;text-align:center;font-family:Space Mono,monospace;font-size:0.72rem;color:var(--gris);">Aucun membre</td></tr>';
-    h += '</tbody></table></div></div>';
-  }
-
-  h += '</div>';
-  wc.innerHTML = h;
-
-  // Le compteur de chaque rédaction (js/56-pouls-redac.js)
-  if(typeof osPoulsAdminRendre === 'function') osPoulsAdminRendre(document.getElementById('admin-pouls-zone'));
-  // Charger les heures de bénévolat pour les membres affichés
-  osChargerHeuresMembres(_adminRedacSelectId);
+  osAdminGestionRendre(wc, tousArts);
 }
 
 function osAdminSelectRedac(redacId){
   _adminRedacSelectId = redacId;
+  _adminDetailOuvert = true;
+  _adminVue = 'redacs';
   // Utiliser le cache — pas de rechargement complet, et ne toucher que la zone admin
   // (pas #wincontent-redactions en entier, sinon ça efface le rail à gauche)
-  var wc = document.getElementById('redac-admin-zone');
-  if(!wc) return;
-  var uid = getUserId();
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var depuis30ISO = new Date(Date.now()-30*24*3600*1000).toISOString();
-  var debutMoisISO2 = new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString();
-  _osRedactionsRenderAdminSuite(wc, uid, window._tousArticles||[], authH, depuis30ISO, debutMoisISO2);
+  osAdminRerendre();
 }
 
 function osChargerHeuresMembre(uid){

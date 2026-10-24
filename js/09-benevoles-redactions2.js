@@ -257,11 +257,6 @@ function osBenevolesDashRender(){
       if(!recompensesParMembre[cmd.membre_id]) recompensesParMembre[cmd.membre_id]=[];
       recompensesParMembre[cmd.membre_id].push(art.nom);
     });
-    var artBloques=articles.filter(function(a){var age=(Date.now()-new Date(a.updated_at))/(1000*60*60*24);return(a.statut==='en-relecture'||a.statut==='corrige')&&age>5;});
-    var artValides=articles.filter(function(a){return a.statut==='valide';});
-    var artCorrection=articles.filter(function(a){return a.statut==='en-relecture'||a.statut==='corrige';});
-    var artPublies=articles.filter(function(a){return a.statut==='publie';});
-    var artDuMois=articles.filter(function(a){return new Date(a.updated_at)>=depuis;});
     var statsMembres=membres.map(function(m){
       var arts=articles.filter(function(a){return a.auteur_id===m.id||a.auteur===(m.prenom+' '+m.nom).trim();});
       var artsMois=arts.filter(function(a){return new Date(a.updated_at)>=depuis;});
@@ -295,7 +290,6 @@ function osBenevolesDashRender(){
     app.className='mobile-onglets-page';
     app.style.cssText='display:flex;height:100%;overflow:hidden;';
     var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'},{id:'organigramme',icon:'ti-sitemap',label:'Organigramme'}];
-    if(isAdmin) tabDefs.push({id:'edito',icon:'ti-clipboard-list',label:'Édito'});
     if(isVieAsso) tabDefs.push({id:'regularite',icon:'ti-calendar-stats',label:'Régularité'});
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
     // Futur·es bénévoles, du premier appel à l'adhésion (js/50-vie-asso-candidats.js)
@@ -335,12 +329,10 @@ function osBenevolesDashRender(){
     function statCard(n,label,color){return '<div style="background:var(--gris-clair);border-radius:8px;padding:0.7rem 0.8rem;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.4rem;color:'+(color||'var(--encre)')+';">'+n+'</div><div style="font-family:Space Mono,monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--gris);margin-top:2px;">'+label+'</div></div>';}
     var debutMoisBenv = new Date(); debutMoisBenv.setDate(1); debutMoisBenv.setHours(0,0,0,0);
     var nouveauxCeMois = membres.filter(function(m){ return m.created_at && new Date(m.created_at) >= debutMoisBenv; }).length;
-    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div class="benv-stats-grille" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;">';
+    // Deux chiffres seulement : ceux de la vie de l'équipe (la vue éditoriale est dans Ma rédac' > Gestion rédactions)
+    var sh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;"><div class="benv-stats-grille" style="display:grid;grid-template-columns:repeat(2,minmax(0,200px));gap:0.6rem;">';
     // Disponibles sur le total des membres actifs (« 12 / 24 »)
     sh+=statCard(actifCount+'<span style="font-size:0.95rem;font-weight:600;color:var(--gris);"> / '+statsMembres.length+'</span>','Disponibles','#0F6E56');
-    sh+=statCard(artDuMois.length,'Articles touchés','var(--encre)');
-    sh+=statCard(artCorrection.length,'Au SR','#1A5276');
-    sh+=statCard(artPublies.length,'En ligne au total','var(--rouge)');
     sh+=statCard(nouveauxCeMois,'Nouveaux','#E67E22');
     sh+='</div></div>';
     sh+='<div class="benv-filtres" style="padding:0.5rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;display:flex;gap:0.4rem;align-items:center;position:sticky;top:0;z-index:5;background:white;">';
@@ -422,52 +414,6 @@ function osBenevolesDashRender(){
       +_osBenvOrganigrammeAdminHTML(membres);
     tabContents['organigramme']=organigrammeDiv;
     contentWrap.appendChild(organigrammeDiv);
-    // ONGLET EDITO (admin uniquement — la version par rédaction est dans Ma Rédac')
-    if(isAdmin){
-    var editoDiv=document.createElement('div');
-    editoDiv.style.cssText='flex:1;overflow:hidden;flex-direction:column;display:none;';
-    tabContents['edito']=editoDiv;
-    var statDef={brouillon:{l:'En écriture',bg:'#FFF3CD',c:'#856404'},'en-relecture':{l:'Au SR',bg:'#D6EAF8',c:'#1A5276'},corrige:{l:'Relu par le SR',bg:'#D1ECF1',c:'#0C5460'},valide:{l:'Bon à publier',bg:'#D4EDDA',c:'#155724'},valide_central:{l:'Bon à publier (centrale)',bg:'#D4EDDA',c:'#0B3D91'},publie:{l:'En ligne',bg:'#E8E8F0',c:'#1A1A2E'}};
-    var urgBg={normal:'#D4EDDA',moyen:'#FFF3CD',urgent:'#FCEBEB'},urgC={normal:'#155724',moyen:'#856404',urgent:'#A32D2D'};
-    var eh='<div style="padding:0.8rem 1.4rem;border-bottom:1px solid var(--gris-bord);flex-shrink:0;">';
-    eh+='<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">';
-    eh+='<div style="flex:1;display:flex;gap:0.4rem;flex-wrap:wrap;">';
-    ['brouillon','en-relecture','corrige','valide','valide_central','publie'].forEach(function(s){var n=articles.filter(function(a){return a.statut===s;}).length;var sd=statDef[s];eh+='<div style="background:'+sd.bg+';color:'+sd.c+';font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\''+s+'\')">'+sd.l+' <strong>'+n+'</strong></div>';});
-    eh+='<div style="background:var(--gris-clair);color:var(--gris);font-family:Space Mono,monospace;font-size:0.62rem;padding:3px 10px;border-radius:4px;cursor:pointer;" onclick="osBenvEditoFiltre(\'tous\')">Tous <strong>'+articles.length+'</strong></div>';
-    eh+='</div>';
-    eh+='</div>';
-    if(artBloques.length) eh+='<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.4rem;font-size:0.78rem;color:#A32D2D;"><i class="ti ti-alert-triangle"></i> '+artBloques.length+' article(s) bloqué(s) au SR depuis plus de 5 jours</div>';
-    if(artValides.length) eh+='<div style="background:#D4EDDA;border:0.5px solid #C0DD97;border-radius:6px;padding:0.5rem 0.8rem;font-size:0.78rem;color:#155724;"><i class="ti ti-circle-check"></i> '+artValides.length+' article(s) bon(s) à publier, en attente de mise en ligne</div>';
-    eh+='</div>';
-    eh+='<div style="flex:1;overflow-y:auto;" id="benv-edito-table"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--gris-clair);">';
-    ['Titre','Auteur','Rédaction','Statut','Urgence','Fraîcheur',''].forEach(function(h){eh+='<th style="font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;color:var(--gris);padding:0.55rem 0.9rem;text-align:left;font-weight:500;white-space:nowrap;">'+h+'</th>';});
-    eh+='</tr></thead><tbody id="benv-edito-tbody">';
-    articles.slice(0,60).forEach(function(a){
-      var sd=statDef[a.statut]||{l:a.statut,bg:'#eee',c:'#333'};
-      var urg=a.urgence||'normal';
-      var age=Math.floor((Date.now()-new Date(a.updated_at))/(1000*60*60*24));
-      var ageLbl=age===0?'Auj.':age===1?'Hier':age<7?'Il y a '+age+'j':age<30?'Il y a '+Math.floor(age/7)+'sem.':new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-      var bloque=(a.statut==='en-relecture'||a.statut==='corrige')&&age>5;
-      // Badge rédaction
-      var redacArt = a.redaction_id ? (_redactionsData||[]).find(function(r){return r.id===a.redaction_id;}) : null;
-      var redacCouleur = redacArt ? (redacArt.couleur||'#EA5B1C') : '#888';
-      var redacNom = redacArt ? redacArt.nom : (a.redaction||'—');
-      eh+='<tr data-statut="'+esc(a.statut||'')+'" style="border-bottom:1px solid var(--gris-bord);'+(bloque?'background:#FFF8F8;':'')+'">';
-      eh+='<td style="padding:0.5rem 0.9rem;max-width:200px;"><div style="font-weight:600;font-size:0.82rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(bloque?'<i class="ti ti-alert-triangle"></i> ':'')+esc(a.titre||'Sans titre')+'</div></td>';
-      eh+='<td style="padding:0.5rem 0.9rem;font-size:0.78rem;color:var(--gris);white-space:nowrap;">'+esc(a.auteur||'—')+'</td>';
-      eh+='<td style="padding:0.5rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+redacCouleur+'22;color:'+redacCouleur+';border:1px solid '+redacCouleur+'44;border-radius:3px;white-space:nowrap;">'+esc(redacNom)+'</span></td>';
-      eh+='<td style="padding:0.5rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+sd.bg+';color:'+sd.c+';border-radius:3px;">'+sd.l+'</span></td>';
-      eh+='<td style="padding:0.5rem 0.9rem;"><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 6px;background:'+urgBg[urg]+';color:'+urgC[urg]+';border-radius:3px;">'+urg+'</span></td>';
-      eh+='<td style="padding:0.5rem 0.9rem;font-size:0.75rem;color:var(--gris);white-space:nowrap;">'+ageLbl+'</td>';
-      eh+='<td style="padding:0.5rem 0.9rem;white-space:nowrap;">';
-      eh+='<button onclick="benvOuvrirArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #185FA5;border-radius:4px;background:white;color:#185FA5;cursor:pointer;margin-right:3px;">Ouvrir</button>';
-      if((a.statut==='valide'||a.statut==='valide_central') && _osArticlePubliable(a)) eh+='<button onclick="publierArticle(\''+esc(a.id)+'\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border:0.5px solid #155724;border-radius:4px;background:#D4EDDA;color:#155724;cursor:pointer;">Mettre en ligne</button>';
-      eh+='</td></tr>';
-    });
-    eh+='</tbody></table></div>';
-    editoDiv.innerHTML=eh;
-    contentWrap.appendChild(editoDiv);
-    }
     // ONGLET RÉGULARITÉ (vie asso et admins) : semaine par semaine, sans compensation
     if(isVieAsso){
       var regDiv=document.createElement('div');
@@ -1159,13 +1105,6 @@ function osEnvoyerNotifsSujets(){
   }).catch(function(){
     notif('Erreur envoi');
     if(btn){ btn.disabled=false; btn.textContent='Notifier les abonnés'; }
-  });
-}
-
-function osBenvEditoFiltre(statut){
-  var rows = document.querySelectorAll('#benv-edito-tbody tr');
-  rows.forEach(function(row){
-    row.style.display = (statut === 'tous' || row.dataset.statut === statut) ? '' : 'none';
   });
 }
 
