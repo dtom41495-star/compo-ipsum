@@ -185,7 +185,7 @@ function _ecranCharger(){
     _ecranLire('briefing?statut=in.(ouvert,en_cours)&select=*&order=created_at.desc&limit=100'),
     // Personnes connectées à Compo en ce moment (même seuil que les pastilles vertes : 2 minutes)
     _ecranLire('presence?select=membre_id,last_seen').catch(function(){ return []; }),
-    _ecranLire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=50').catch(function(){ return []; }),
+    _ecranLire('newsletters?select=redaction_id,date_envoi,newsletter_articles(article_id)&order=date_envoi.desc&limit=50').catch(function(){ return []; }),
     // Sujets réservés dont l'article n'est pas encore commencé (js/42-pipeline-sujets.js)
     typeof osPipelineCharger === 'function' ? osPipelineCharger(null).catch(function(){ return []; }) : Promise.resolve([])
   ]).then(function(res){
@@ -383,14 +383,16 @@ function _ecranCircuit(arts){
 }
 
 // Ce qui partira dans la prochaine newsletter : bons à publier ou en ligne depuis le dernier envoi
-// de la rédaction (7 jours s'il n'y en a jamais eu), comme dans l'appli Newsletter.
+// de la rédaction (7 jours s'il n'y en a jamais eu), comme dans l'appli Newsletter, sans les contenus déjà passés dans une newsletter.
 function _ecranNewsletter(arts, envois){
   var z = document.getElementById('ecr-en-ligne');
   if(!z) return;
   var dernier = {};
   (envois || []).forEach(function(e){ if(e.redaction_id && !dernier[e.redaction_id]) dernier[e.redaction_id] = new Date(e.date_envoi); });
   var defaut = new Date(Date.now() - 7 * 86400000);
+  var dejaEnvoyes = typeof osIdsDansNewsletters === 'function' ? osIdsDansNewsletters(envois) : {};
   var prets = (arts || []).filter(function(a){
+    if(dejaEnvoyes[a.id]) return false;   // déjà passé dans une newsletter (même si mis en ligne après la date d'envoi)
     var depuis = dernier[a.redaction_id] || defaut;
     return new Date(a.publie_le || a.updated_at) >= depuis;
   });

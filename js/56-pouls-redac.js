@@ -20,6 +20,16 @@ var POULS_ETATS = [
 var POULS_MAX_PAR_CORRECTEUR = 3;
 var _pouls = { minuteur:null, dernier:null, toutes:null, toutesQuand:0 };
 
+// Les articles déjà passés dans une newsletter (table newsletter_articles, remplie par « Marquer comme envoyée »).
+// Une newsletter est datée de son jour d'envoi, mais enregistrée et ses contenus mis en ligne après coup : leur date de
+// mise en ligne dépasse alors celle de l'envoi, et ils passeraient pour « prêts pour la prochaine ». On les écarte par identifiant.
+// envois : [{ newsletter_articles:[{ article_id }] }] (lecture « newsletters?select=…,newsletter_articles(article_id) »)
+function osIdsDansNewsletters(envois){
+  var ids = {};
+  (envois || []).forEach(function(e){ (e.newsletter_articles || []).forEach(function(x){ ids[x.article_id] = true; }); });
+  return ids;
+}
+
 function _poulsRedacActive(){ return window._redacActiveId || null; }
 
 // Visible par tout le monde (il fut un temps réservé aux SR, rédac chefs et admins : voir l'historique git)
@@ -109,20 +119,21 @@ function osPoulsCharger(){
   var filtre = r ? '&redaction_id=eq.'+encodeURIComponent(r) : '';
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session.access_token || '') });
   var lire = function(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, { headers:authH }).then(function(x){ return x.json(); }).then(function(j){ return Array.isArray(j) ? j : null; }); };
-  return lire('newsletters?select=date_envoi&order=date_envoi.desc&limit=6'+filtre).then(function(nl){
+  return lire('newsletters?select=date_envoi,newsletter_articles(article_id)&order=date_envoi.desc&limit=6'+filtre).then(function(nl){
     if(!nl) return;
+    var dejaEnvoyes = osIdsDansNewsletters(nl);
     var derniere = nl.length ? nl[0].date_envoi : null;
     var depuisIso = derniere ? derniere : new Date(Date.now() - 7 * 86400000).toISOString();
     // Une brève publiée sans date de mise en ligne (publie_le vide) compte avec sa dernière modification
     var depuis = '&'+_poulsDepuis(depuisIso);
     return Promise.all([
-      lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut'+filtre),
+      lire('articles?statut=in.(brouillon,en-relecture,valide)&select=id,type,statut'+filtre),
       lire('articles?type=eq.breve&statut=eq.publie&select=id'+depuis+filtre),
       lire('briefing?statut=eq.ouvert&select=id'+filtre),
       lire('briefing?statut=eq.en_cours&select=id'+filtre)
     ]).then(function(res){
       if(!res[0] || !res[1] || !res[2] || !res[3]) return;
-      var d = _poulsDonnees(r, res[0], res[1].length, res[2].length, res[3].length, nl.map(function(x){ return x.date_envoi; }));
+      var d = _poulsDonnees(r, res[0].filter(function(x){ return !dejaEnvoyes[x.id]; }), res[1].filter(function(x){ return !dejaEnvoyes[x.id]; }).length, res[2].length, res[3].length, nl.map(function(x){ return x.date_envoi; }));
       var res2 = osPoulsCalculer(d);
       _pouls.dernier = { donnees:d, score:res2.score, parCorr:res2.parCorr, parts:res2.parts, totalBreves:res2.totalBreves, maj:Date.now() };
       osPoulsRendre();
@@ -138,13 +149,14 @@ function osPoulsCharger(){
 // Sert à la gestion des rédactions (ci-dessous) et à l'écran rédac (js/36-ecran-redac.js).
 function _poulsToutesCalculer(redactions, newsletters, cours, brevesPubliees, sujets){
   var toutes = {};
+  var dejaEnvoyes = osIdsDansNewsletters(newsletters);
   redactions.forEach(function(r){
     if(r.pas_lancee || (typeof osPauseRedacEnCours === 'function' && osPauseRedacEnCours(r.id))) return;   // en préparation ou en pause : pas de rythme à tenir
     var dates = (newsletters || []).filter(function(x){ return x.redaction_id === r.id; }).map(function(x){ return x.date_envoi; });
     var depuis = dates.length ? new Date(dates[0]).getTime() : Date.now() - 7 * 86400000;
-    var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && new Date(x.publie_le || x.updated_at).getTime() >= depuis; }).length;
+    var publiees = (brevesPubliees || []).filter(function(x){ return x.redaction_id === r.id && !dejaEnvoyes[x.id] && new Date(x.publie_le || x.updated_at).getTime() >= depuis; }).length;
     var siens = (sujets || []).filter(function(x){ return x.redaction_id === r.id; });
-    var d = _poulsDonnees(r.id, (cours || []).filter(function(x){ return x.redaction_id === r.id; }), publiees,
+    var d = _poulsDonnees(r.id, (cours || []).filter(function(x){ return x.redaction_id === r.id && !dejaEnvoyes[x.id]; }), publiees,
       siens.filter(function(x){ return x.statut === 'ouvert'; }).length, siens.filter(function(x){ return x.statut === 'en_cours'; }).length, dates);
     var c = osPoulsCalculer(d);
     toutes[r.id] = { donnees:d, score:c.score, parCorr:c.parCorr, parts:c.parts, totalBreves:c.totalBreves, maj:Date.now() };
@@ -160,9 +172,9 @@ function osPoulsToutesCharger(){
   var lire = function(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, { headers:authH }).then(function(x){ return x.json(); }).then(function(j){ return Array.isArray(j) ? j : null; }); };
   var il30Iso = new Date(Date.now() - 30 * 86400000).toISOString();
   return Promise.all([
-    lire('newsletters?select=redaction_id,date_envoi&order=date_envoi.desc&limit=300'),
-    lire('articles?statut=in.(brouillon,en-relecture,valide)&select=type,statut,redaction_id'),
-    lire('articles?type=eq.breve&statut=eq.publie&'+_poulsDepuis(il30Iso)+'&select=redaction_id,publie_le,updated_at'),
+    lire('newsletters?select=redaction_id,date_envoi,newsletter_articles(article_id)&order=date_envoi.desc&limit=300'),
+    lire('articles?statut=in.(brouillon,en-relecture,valide)&select=id,type,statut,redaction_id'),
+    lire('articles?type=eq.breve&statut=eq.publie&'+_poulsDepuis(il30Iso)+'&select=id,redaction_id,publie_le,updated_at'),
     lire('briefing?statut=in.(ouvert,en_cours)&select=statut,redaction_id')
   ]).then(function(res){
     if(!res[0] || !res[1] || !res[2] || !res[3]) return _pouls.toutes || {};
