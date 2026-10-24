@@ -1540,6 +1540,8 @@ function nlImporter(event){
   document.getElementById('input-nl').value = '';
 }
 function nlRenderList(){
+  // La sélection a changé depuis le dernier enregistrement : on peut de nouveau enregistrer
+  if(_nlSignatureEnregistree && _nlSignatureEnregistree !== _nlSignature()){ _nlSignatureEnregistree = null; _nlBoutonEnvoyee('libre'); }
   var el = document.getElementById('nl-articles-list');
   if(!nlArticles.length){
     el.innerHTML = '';
@@ -1578,6 +1580,7 @@ function nlDrop(i){
   nlDragIdx=null; nlRenderList();
 }
 function nlGenerer(){
+  if(_nlSignatureEnregistree && _nlSignatureEnregistree !== _nlSignature()){ _nlSignatureEnregistree = null; _nlBoutonEnvoyee('libre'); }
   if(!nlArticles.length){ notif('Aucun contenu à assembler'); return; }
   var titre = document.getElementById('nl-titre').value.trim();
   var edito = document.getElementById('nl-edito').value.trim();
@@ -1640,14 +1643,30 @@ function nlExporter(){
 // "cet article est passé dans quelle newsletter", et sert de point de départ pour le
 // prochain cycle (nlDernierEnvoi). Un clic déliberé, séparé de nlGenerer/nlCopier —
 // générer un aperçu ne veut pas dire que l'envoi a eu lieu.
+// Protection contre l'enregistrement en double (une newsletter « 22/10 » avait été enregistrée deux fois à 3 secondes d'écart) :
+//  - pas de second clic pendant l'enregistrement ;
+//  - une fois enregistrée, la même sélection ne peut plus l'être (le bouton le dit) tant qu'on ne génère pas un nouvel aperçu ;
+//  - et si une newsletter identique existe déjà à cette date pour cette rédaction, on demande confirmation.
+var _nlEnvoiEnCours = false;
+var _nlSignatureEnregistree = null;
+var NL_BOUTON_ENVOYEE = '<i class="ti ti-check"></i>Marquer comme envoyée';
+function _nlSignature(){ return (_nlRedactionActive||'')+'|'+nlArticles.map(function(a){ return a.id; }).sort().join(','); }
+function _nlBoutonEnvoyee(etat){
+  var btn = document.getElementById('nl-btn-envoyee'); if(!btn) return;
+  if(etat === 'cours'){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 se-tourne"></i>Enregistrement…'; }
+  else if(etat === 'fait'){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-circle-check"></i>Newsletter enregistrée'; }
+  else { btn.disabled = false; btn.innerHTML = NL_BOUTON_ENVOYEE; }
+}
 function nlMarquerEnvoyee(){
   var md = _nlMarkdown;
   if(!md){ notif('Génère d\'abord la newsletter'); return; }
   if(!_nlRedactionActive){ notif('Aucune rédaction active'); return; }
   if(!nlArticles.length){ notif('Aucun contenu à enregistrer'); return; }
+  if(_nlEnvoiEnCours) return;
+  if(_nlSignatureEnregistree === _nlSignature()){ notif('Cette newsletter est déjà enregistrée'); return; }
 
-  var btn = document.getElementById('nl-btn-envoyee');
-  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 se-tourne"></i>Enregistrement…'; }
+  _nlEnvoiEnCours = true;
+  _nlBoutonEnvoyee('cours');
 
   var titreEl = document.getElementById('nl-titre');
   var titre = (titreEl && titreEl.value.trim()) || ('Newsletter — '+new Date().toLocaleDateString('fr-FR'));
@@ -1655,35 +1674,57 @@ function nlMarquerEnvoyee(){
   // (à la main, avant que cette table existe) avec sa vraie date, pas la date du clic.
   var dateEl = document.getElementById('nl-date-envoi');
   var dateEnvoi = (dateEl && dateEl.value) ? new Date(dateEl.value+'T12:00:00').toISOString() : new Date().toISOString();
+  var signature = _nlSignature();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
+  var authGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var jour = dateEnvoi.slice(0,10);
+  var idsChoisis = nlArticles.map(function(a){ return a.id; }).sort().join(',');
+  var reussi = false;
 
-  fetch(SB_URL+'/rest/v1/newsletters', {
-    method:'POST', headers:authH,
-    body: JSON.stringify({ redaction_id:_nlRedactionActive, titre:titre, date_envoi:dateEnvoi, envoye_par:getUserId() })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(rows){
-    var newsletterId = rows && rows[0] && rows[0].id;
-    if(!newsletterId) throw new Error('creation_echouee');
-    var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    return fetch(SB_URL+'/rest/v1/newsletter_articles', {
-      method:'POST', headers:authHPost,
-      body: JSON.stringify(nlArticles.map(function(a,i){ return { newsletter_id:newsletterId, article_id:a.id, position:i }; }))
+  // Une newsletter identique (même rédaction, même jour, mêmes contenus) est-elle déjà enregistrée ?
+  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(_nlRedactionActive)+'&date_envoi=gte.'+encodeURIComponent(jour+'T00:00:00Z')+'&date_envoi=lt.'+encodeURIComponent(jour+'T23:59:59Z')+'&select=id,created_at,newsletter_articles(article_id)', {headers:authGet})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; })
+    .then(function(deja){
+      var identique = (Array.isArray(deja) ? deja : []).find(function(n){
+        return (n.newsletter_articles||[]).map(function(x){ return x.article_id; }).sort().join(',') === idsChoisis;
+      });
+      if(!identique) return true;
+      var heure = new Date(identique.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      return osConfirmer('Une newsletter identique est déjà enregistrée\nMême rédaction, même date, mêmes contenus (enregistrée à '+heure+'). L\'enregistrer une seconde fois créerait un doublon.', { oui:'Enregistrer quand même', non:'Annuler', danger:false });
+    })
+    .then(function(continuer){
+      if(!continuer) return null;
+      return fetch(SB_URL+'/rest/v1/newsletters', {
+        method:'POST', headers:authH,
+        body: JSON.stringify({ redaction_id:_nlRedactionActive, titre:titre, date_envoi:dateEnvoi, envoye_par:getUserId() })
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        var newsletterId = rows && rows[0] && rows[0].id;
+        if(!newsletterId) throw new Error('creation_echouee');
+        var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+        return fetch(SB_URL+'/rest/v1/newsletter_articles', {
+          method:'POST', headers:authHPost,
+          body: JSON.stringify(nlArticles.map(function(a,i){ return { newsletter_id:newsletterId, article_id:a.id, position:i }; }))
+        });
+      })
+      .then(function(){
+        reussi = true;
+        _nlSignatureEnregistree = signature;
+        notif('Newsletter marquée comme envoyée','succes');
+        nlPublierArticlesSelectionnes();
+        // Si l'historique est ouvert, le rafraîchir pour montrer l'envoi tout juste fait
+        var hist = document.getElementById('nl-historique');
+        if(hist && hist.style.display !== 'none') nlChargerHistorique();
+      });
+    })
+    .catch(function(){
+      notif('Erreur — la newsletter n\'a pas pu être enregistrée','erreur');
+    })
+    .finally(function(){
+      _nlEnvoiEnCours = false;
+      _nlBoutonEnvoyee(reussi ? 'fait' : 'libre');
     });
-  })
-  .then(function(){
-    notif('Newsletter marquée comme envoyée','succes');
-    nlPublierArticlesSelectionnes();
-    // Si l'historique est ouvert, le rafraîchir pour montrer l'envoi tout juste fait
-    var hist = document.getElementById('nl-historique');
-    if(hist && hist.style.display !== 'none') nlChargerHistorique();
-  })
-  .catch(function(){
-    notif('Erreur — la newsletter n\'a pas pu être enregistrée','erreur');
-  })
-  .finally(function(){
-    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>Marquer comme envoyée'; }
-  });
 }
 
 // Publie automatiquement tous les articles de la newsletter qui ne le sont pas déjà — pour
