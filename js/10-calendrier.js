@@ -811,20 +811,20 @@ function osCreerNouveauSujet(){
 function _osSujetEmail(o){
   return _emailCompo(Object.assign({ boutons:[{label:'Ouvrir les sujets', url:'https://compo.ipsummedia.fr'}] }, o));
 }
-function _osSujetPrevenirChefs(sujet){
+function _osSujetPrevenirChefs(sujet, renvoi){
   var auteur = getUserNomComplet() || 'Un membre';
   var redac = (window._redactionsData||[]).find(function(r){ return r.id === sujet.redaction_id; });
   _cpInvitGestionnaires({redaction_id: sujet.redaction_id}).then(function(chefs){
     chefs.forEach(function(c){
-      var html = _osSujetEmail({ accent:'bleu', etiquette:'SUJET PROPOSÉ', titre:esc(sujet.titre),
+      var html = _osSujetEmail({ accent:'bleu', etiquette:(renvoi ? 'SUJET RENVOYÉ' : 'SUJET PROPOSÉ'), titre:esc(sujet.titre),
         bonjour:'Bonjour '+esc(c.prenom||'')+',',
-        texte:esc(auteur)+' propose ce sujet'+(redac?' pour la rédaction '+esc(redac.nom):'')+'. Il attend ta validation avant d\'être visible par l\'équipe.',
+        texte:esc(auteur)+(renvoi ? ' renvoie ce sujet avec des précisions' : ' propose ce sujet')+(redac?' pour la rédaction '+esc(redac.nom):'')+'. Il attend ta validation avant d\'être visible par l\'équipe.'+(renvoi && sujet.precisions ? ' Sa réponse : « '+esc(sujet.precisions)+' »' : ''),
         description:sujet.note||'',
         boutons:[{label:'Valider ou refuser', url:'https://compo.ipsummedia.fr'}],
         pourquoi:'Tu reçois cet email car tu es rédac chef ou admin de cette rédaction.' });
-      var chat = '💡 *Nouveau sujet proposé*\n« '+_chatSansMiseEnForme(sujet.titre)+' »'+(redac?' · '+_chatSansMiseEnForme(redac.nom):'')+' par '+_chatSansMiseEnForme(auteur)+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
+      var chat = (renvoi ? '💡 *Sujet renvoyé avec des précisions*' : '💡 *Nouveau sujet proposé*')+'\n« '+_chatSansMiseEnForme(sujet.titre)+' »'+(redac?' · '+_chatSansMiseEnForme(redac.nom):'')+' par '+_chatSansMiseEnForme(auteur)+(renvoi && sujet.precisions ? '\nSa réponse : '+_chatSansMiseEnForme(sujet.precisions) : '')+'\n<https://compo.ipsummedia.fr|Valider ou refuser>';
       notifierPersonnel(c.id, c.canal_notif, chat, 'sujet', function(){
-        envoyerEmailResend(c.email, '[Ipsum Média] Sujet proposé · '+sujet.titre, html, 'sujet');
+        envoyerEmailResend(c.email, '[Ipsum Média] '+(renvoi ? 'Sujet renvoyé' : 'Sujet proposé')+' · '+sujet.titre, html, 'sujet');
       });
     });
   }).catch(function(){});
@@ -833,7 +833,7 @@ function _osSujetPrevenirAuteur(sujet, accepte, raison){
   if(!sujet.created_by || sujet.created_by === getUserId()) return;
   // Sujet validé et auteur·rice en ligne : la carte « Ton sujet est validé » s'affiche dans Compo (js/67-sujet-valide.js),
   // inutile d'envoyer en plus un email ou un message Chat. Hors ligne : envoi comme avant.
-  if(accepte && typeof osEstEnLigne === 'function' && osEstEnLigne(sujet.created_by)) return;
+  if(typeof osEstEnLigne === 'function' && osEstEnLigne(sujet.created_by)) return;
   _cpInvitChargerMembres([sujet.created_by]).then(function(ms){
     var m = ms.find(function(x){ return x.id === sujet.created_by; }); if(!m || !m.email) return;
     var html = accepte
@@ -841,11 +841,11 @@ function _osSujetPrevenirAuteur(sujet, accepte, raison){
           texte: sujet.responsable ? 'Ton sujet a été validé : il te reste réservé, tu peux continuer ton article.' : 'Ton sujet a été validé : il est maintenant visible par l\'équipe. Tu peux le réserver si tu veux l\'écrire.',
           pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' })
       : _osSujetEmail({ accent:'ambre', etiquette:'SUJET NON RETENU', titre:esc(sujet.titre), bonjour:'Bonjour '+esc(m.prenom||'')+',',
-          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition !'+(raison ? ' Voici ce qu\'a répondu '+esc(getUserPrenom()||'ton rédac chef')+' : « '+esc(raison)+' »' : ' Tu peux en parler avec ton rédac chef pour en savoir plus.')+(sujet.responsable ? ' Si tu avais commencé à écrire, ton brouillon est gardé dans Mes brouillons.' : ''),
-          boutons:[], pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
+          texte:'Ton sujet n\'a pas été retenu cette fois. Merci pour la proposition !'+(raison ? ' Voici ce qu\'a répondu '+esc(getUserPrenom()||'ton rédac chef')+' : « '+esc(raison)+' »' : ' Tu peux en parler avec ton rédac chef pour en savoir plus.')+' Ton sujet est gardé : tu peux le préciser et le renvoyer depuis l\'onglet Sujets de Ma rédac\'.'+(sujet.responsable ? ' Si tu avais commencé à écrire, ton brouillon est gardé dans Mes brouillons.' : ''),
+          pourquoi:'Tu reçois cet email car tu as proposé ce sujet.' });
     var chat = accepte
       ? '✅ *Ton sujet est validé*\n« '+_chatSansMiseEnForme(sujet.titre)+' » '+(sujet.responsable ? 'te reste réservé, tu peux continuer ton article.' : 'est visible par l\'équipe, tu peux le réserver.')
-      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !'+(raison ? '\nRaison : '+_chatSansMiseEnForme(raison) : '');
+      : 'ℹ️ *Ton sujet n\'a pas été retenu*\n« '+_chatSansMiseEnForme(sujet.titre)+' ». Merci pour la proposition !'+(raison ? '\nRaison : '+_chatSansMiseEnForme(raison) : '')+'\nTu peux le préciser et le renvoyer depuis l\'onglet Sujets de Ma rédac\'.';
     notifierPersonnel(m.id, m.canal_notif, chat, 'sujet', function(){
       envoyerEmailResend(m.email, '[Ipsum Média] '+(accepte?'Sujet publié':'Sujet non retenu')+' · '+sujet.titre, html, 'sujet');
     });
@@ -853,40 +853,118 @@ function _osSujetPrevenirAuteur(sujet, accepte, raison){
 }
 
 // Encart en haut de l'onglet Sujets : propositions à valider (rédac chef, admin) ou mes
-// propositions en attente (membre)
+// propositions (membre) : en attente de validation, et refusées — gardées pour être précisées puis renvoyées.
 function osSujetsChargerPropositions(zone){
   if(!zone || !window._redacActiveId) return;
   var chef = osSujetsDroit() === 'chef';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var url = SB_URL+'/rest/v1/briefing?statut=eq.propose&redaction_id=eq.'+encodeURIComponent(window._redacActiveId)
+  var url = SB_URL+'/rest/v1/briefing?statut=in.('+(chef ? 'propose' : 'propose,refuse')+')&redaction_id=eq.'+encodeURIComponent(window._redacActiveId)
     +(chef ? '' : '&created_by=eq.'+encodeURIComponent(getUserId()))+'&order=created_at.desc&select=*';
-  fetch(url,{headers:authH}).then(function(r){ return r.json(); }).then(function(props){
-    if(!Array.isArray(props) || !props.length){ zone.innerHTML = ''; return; }
-    window._sujetsPropositions = props;
+  fetch(url,{headers:authH}).then(function(r){ return r.json(); }).then(function(tous){
+    if(!Array.isArray(tous) || !tous.length){ zone.innerHTML = ''; return; }
+    window._sujetsPropositions = tous;
+    var props = tous.filter(function(s){ return s.statut === 'propose'; });
+    var refuses = tous.filter(function(s){ return s.statut === 'refuse'; });
     var auteurs = {};
     (window._membresData||[]).forEach(function(m){ auteurs[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
-    var h = '<div class="sujets-propositions" style="background:#FFF6DB;border:1px solid #F3DFA2;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
-      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#8A6400;margin-bottom:0.5rem;"><i class="ti ti-bulb"></i> '
-      +(chef ? 'Propositions à valider ('+props.length+')' : 'Mes propositions en attente ('+props.length+')')+'</div>';
-    props.forEach(function(s){
-      h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
-        +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>'
-        +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
-        +(chef ? '<div class="prop-doublon" data-pid="'+esc(s.id)+'"></div>' : '')
-        +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+new Date(s.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'
-        +(chef
-          ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
-            +'<button class="sj-btn sj-principal" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)"><i class="ti ti-check"></i> Publier</button>'
-            +'<button class="sj-btn" data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)"><i class="ti ti-pencil"></i> Modifier</button>'
-            +'<button class="sj-btn sj-danger" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)"><i class="ti ti-x"></i> Refuser</button>'
-            +'</div>'
-          : '<div style="font-size:0.7rem;color:#8A6400;margin-top:4px;"><i class="ti ti-clock"></i> En attente de validation</div>')
-        +'</div>';
-    });
-    h += '</div>';
+    var jour = function(d){ return new Date(d||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); };
+    var h = '';
+    if(props.length){
+      h += '<div class="sujets-propositions" style="background:#FFF6DB;border:1px solid #F3DFA2;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
+        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#8A6400;margin-bottom:0.5rem;"><i class="ti ti-bulb"></i> '
+        +(chef ? 'Propositions à valider ('+props.length+')' : 'Mes propositions en attente ('+props.length+')')+'</div>';
+      props.forEach(function(s){
+        h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
+          +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+(s.renvoye_le ? ' <span style="font:.56rem \'Space Mono\',monospace;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#E6F1FB;color:#0B3D91;vertical-align:1px;">Renvoyé</span>' : '')+'</div>'
+          +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
+          // Pour le rédac chef : ce qui avait été reproché, et la réponse de l'auteur·rice
+          +(chef && s.renvoye_le ? '<div style="margin-top:6px;font-size:0.74rem;background:#F3F4F6;border-radius:8px;padding:6px 9px;color:var(--encre);">'
+            +(s.raison_refus ? '<div><b>Refusé pour :</b> '+esc(s.raison_refus)+'</div>' : '<div><b>Déjà refusé une fois.</b></div>')
+            +(s.precisions ? '<div style="margin-top:3px;"><b>Réponse :</b> '+esc(s.precisions)+'</div>' : '')+'</div>' : '')
+          +(chef ? '<div class="prop-doublon" data-pid="'+esc(s.id)+'"></div>' : '')
+          +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">'+(chef && auteurs[s.created_by] ? 'Proposé par '+esc(auteurs[s.created_by])+' · ' : '')+jour(s.renvoye_le || s.created_at)+'</div>'
+          +(chef
+            ? '<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
+              +'<button class="sj-btn sj-principal" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, true)"><i class="ti ti-check"></i> Publier</button>'
+              +'<button class="sj-btn" data-sid="'+esc(s.id)+'" onclick="osSujetOuvrirModifier(this.dataset.sid)"><i class="ti ti-pencil"></i> Modifier</button>'
+              +'<button class="sj-btn sj-danger" data-sid="'+esc(s.id)+'" onclick="osSujetValiderProposition(this.dataset.sid, false)"><i class="ti ti-x"></i> Refuser</button>'
+              +'</div>'
+            : '<div style="font-size:0.7rem;color:#8A6400;margin-top:4px;"><i class="ti ti-clock"></i> En attente de validation</div>')
+          +'</div>';
+      });
+      h += '</div>';
+    }
+    // Mes sujets refusés : gardés, à préciser puis renvoyer
+    if(!chef && refuses.length){
+      h += '<div class="sujets-refuses" style="background:#FDECEC;border:1px solid #F5C2C0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
+        +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:#A32D2D;margin-bottom:0.2rem;"><i class="ti ti-arrow-back-up"></i> Sujets non retenus ('+refuses.length+')</div>'
+        +'<div style="font-size:0.72rem;color:#7A1F1F;opacity:.85;">Tu peux les préciser et les renvoyer au rédac chef.</div>';
+      refuses.forEach(function(s){
+        h += '<div style="background:white;border-radius:10px;padding:0.7rem 0.8rem;margin-top:0.5rem;">'
+          +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'')+'</div>'
+          +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:2px;">'+esc(s.note)+'</div>' : '')
+          +'<div style="margin-top:6px;font-size:0.76rem;background:#FFF1F0;border-radius:8px;padding:6px 9px;color:#7A1F1F;"><b>Raison :</b> '+(s.raison_refus ? esc(s.raison_refus) : 'aucune raison donnée')+'</div>'
+          +'<div style="font-size:0.7rem;color:var(--gris);margin-top:4px;">Refusé le '+jour(s.refuse_le)+'</div>'
+          +'<div class="sujet-actions" style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
+          +'<button class="sj-btn sj-principal" data-sid="'+esc(s.id)+'" onclick="osSujetRenvoyerForm(this.dataset.sid)"><i class="ti ti-send"></i> Préciser et renvoyer</button>'
+          +'<button class="sj-btn sj-danger" data-sid="'+esc(s.id)+'" onclick="osSujetRetirer(this.dataset.sid)"><i class="ti ti-trash"></i> Retirer</button>'
+          +'</div></div>';
+      });
+      h += '</div>';
+    }
     zone.innerHTML = h;
-    if(chef) _osPropositionsDoublons(props, zone);
+    if(chef && props.length) _osPropositionsDoublons(props, zone);
   }).catch(function(){ zone.innerHTML = ''; });
+}
+
+// L'auteur·rice précise un sujet refusé et le renvoie au rédac chef (il repasse « en attente de validation »)
+function osSujetRenvoyerForm(sujetId){
+  var s = (window._sujetsPropositions||[]).find(function(x){ return x.id === sujetId; });
+  if(!s) return;
+  var ov = document.createElement('div');
+  ov.className = 'se-overlay dlg-overlay';
+  ov.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="sren-question"><div class="se-corps">'
+    +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-send"></i></span><div>'
+    +'<div id="sren-question" class="dlg-question">Préciser et renvoyer ce sujet</div>'
+    +(s.raison_refus ? '<p class="se-aide dlg-details"><b>Raison du refus :</b> '+esc(s.raison_refus)+'</p>' : '<p class="se-aide dlg-details">Aucune raison n\'avait été donnée : tu peux en parler avec ton rédac chef.</p>')
+    +'</div></div>'
+    +'<label class="sren-lbl">Titre</label><input class="dlg-champ sren-titre" type="text" maxlength="160" value="'+esc(s.titre||'')+'">'
+    +'<label class="sren-lbl">Description du sujet</label><textarea class="dlg-champ sren-note" rows="3" maxlength="600" placeholder="L\'angle, les sources, pourquoi c\'est d\'actualité…">'+esc(s.note||'')+'</textarea>'
+    +'<label class="sren-lbl">Ta réponse au rédac chef (facultatif)</label><textarea class="dlg-champ sren-prec" rows="2" maxlength="400" placeholder="Ce que tu as changé, ce que tu veux ajouter…"></textarea>'
+    +'<div class="dlg-actions"><button type="button" class="se-btn-secondaire dlg-non">Annuler</button>'
+    +'<button type="button" class="se-btn-principal dlg-oui"><i class="ti ti-send"></i> Renvoyer</button></div></div></div>';
+  document.body.appendChild(ov);
+  var fermer = function(){ document.removeEventListener('keydown', clavier, true); ov.remove(); };
+  var clavier = function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fermer(); } };
+  document.addEventListener('keydown', clavier, true);
+  ov.addEventListener('click', function(ev){ if(ev.target === ov) fermer(); });
+  ov.querySelector('.dlg-non').onclick = fermer;
+  ov.querySelector('.dlg-oui').onclick = function(){
+    var titre = ov.querySelector('.sren-titre').value.trim();
+    if(!titre){ notif('Donne un titre à ton sujet','erreur'); return; }
+    var charge = { titre:titre, note:ov.querySelector('.sren-note').value.trim() || null, precisions:ov.querySelector('.sren-prec').value.trim() || null,
+      statut:'propose', renvoye_le:new Date().toISOString() };
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify(charge)})
+      .then(function(r){
+        if(!r.ok){ notif('Erreur','erreur'); return; }
+        fermer();
+        notif('Sujet renvoyé au rédac chef','succes');
+        _osSujetPrevenirChefs(Object.assign({}, s, charge), true);
+        osRedactionsChangerOnglet('sujets');
+      }).catch(function(){ notif('Erreur réseau','erreur'); });
+  };
+  setTimeout(function(){ var c = ov.querySelector('.sren-prec'); if(c) c.focus(); }, 30);
+}
+
+// L'auteur·rice abandonne un de ses sujets refusés
+function osSujetRetirer(sujetId){
+  if(!osConfirmerPuis('Retirer ce sujet ?\nIl sera supprimé définitivement.', { oui:'Retirer' }, osSujetRetirer, this, arguments)) return;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){})
+    .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); })
+    .then(function(r){ if(!r.ok){ notif('Erreur','erreur'); return; } notif('Sujet retiré'); osRedactionsChangerOnglet('sujets'); })
+    .catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 // Pour le rédac chef qui valide : y a-t-il déjà un sujet, un article ou un communiqué commun qui ressemble à la
@@ -898,7 +976,7 @@ function _osPropositionsDoublons(props, zone){
   _doublonsCache = null;
   Promise.all([
     _doublonsCharger(),
-    cps.length ? lire('/rest/v1/briefing?cp_id=in.('+cps.join(',')+')&select=id,titre,statut,responsable,cp_id') : Promise.resolve([]),
+    cps.length ? lire('/rest/v1/briefing?cp_id=in.('+cps.join(',')+')&statut=neq.refuse&select=id,titre,statut,responsable,cp_id') : Promise.resolve([]),
     cps.length ? lire('/rest/v1/articles?cp_id=in.('+cps.join(',')+')&select=id,titre,auteur,statut,cp_id,sujet_id') : Promise.resolve([])
   ]).then(function(res){
     var cache = res[0];
@@ -941,7 +1019,7 @@ function osSujetRefusDemander(s){
       +'<div class="dlg-tete"><span class="dlg-icone dlg-icone-danger"><i class="ti ti-x"></i></span><div>'
       +'<div id="sr-question" class="dlg-question">Refuser ce sujet ?</div>'
       +'<p class="se-texte">« '+esc(s.titre)+' »</p>'
-      +'<p class="se-aide dlg-details">Il sera supprimé et son auteur·rice prévenu·e. Tu peux lui dire pourquoi (facultatif).</p></div></div>'
+      +'<p class="se-aide dlg-details">Il est gardé : son auteur·rice est prévenu·e et pourra le préciser pour te le renvoyer. Tu peux lui dire pourquoi (facultatif).</p></div></div>'
       +'<div class="sr-raisons">'+SUJET_RAISONS_REFUS.map(function(r){ return '<button type="button" class="sr-raison">'+esc(r)+'</button>'; }).join('')+'</div>'
       +'<textarea class="dlg-champ" rows="3" maxlength="400" placeholder="Une raison pour l\'auteur·rice (facultatif)"></textarea>'
       +'<div class="dlg-actions"><button type="button" class="se-btn-secondaire dlg-non">Annuler</button>'
@@ -982,12 +1060,11 @@ function osSujetValiderProposition(sujetId, accepte, raison){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   var req = accepte
     ? fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut: s.responsable ? 'en_cours' : 'ouvert', valide_le: new Date().toISOString()})})
-    // Refus : le brouillon éventuel est gardé, mais détaché du sujet avant sa suppression
-    : fetch(SB_URL+'/rest/v1/articles?sujet_id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({sujet_id:null})}).catch(function(){})
-        .then(function(){ return fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'DELETE', headers:authH}); });
+    // Refus : le sujet est gardé (statut « refuse », invisible de l'équipe) avec la raison ; son auteur·rice peut le préciser et le renvoyer
+    : fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(sujetId), {method:'PATCH', headers:authH, body:JSON.stringify({statut:'refuse', raison_refus:raison || null, refuse_le:new Date().toISOString()})});
   req.then(function(r){
     if(!r.ok){ notif('Erreur','erreur'); return; }
-    notif(accepte ? 'Sujet publié' : 'Proposition refusée', accepte ? 'succes' : '');
+    notif(accepte ? 'Sujet publié' : 'Proposition refusée : son auteur·rice peut la préciser et la renvoyer', accepte ? 'succes' : '');
     _osSujetPrevenirAuteur(s, accepte, raison);
     window._sujetsPropositionsAttente = (window._sujetsPropositionsAttente||[]).filter(function(x){ return x.id !== sujetId; });
     osRedactionsChangerOnglet('sujets');

@@ -105,7 +105,7 @@ function osRapportActiviteAnnuel(annee){
     _osRapportGet('/rest/v1/agenda_evenements?date_debut=gte.'+d1+'&date_debut=lt.'+d2+'&select=id,titre,type,date_debut'),
     _osRapportGet('/rest/v1/redactions?select=id,nom'),
     _osRapportGet('/rest/v1/stats_mensuelles?select=*&order=created_at.asc'),
-    _osRapportGet('/rest/v1/briefing?select=id,titre,statut,redaction_id,created_at')
+    _osRapportGet('/rest/v1/briefing?statut=neq.refuse&select=id,titre,statut,redaction_id,created_at')
   ]).then(function(r){
     var articles=r[0], membres=r[1], heures=r[2], cps=r[3], events=r[4], redacs=r[5], stats=r[6], sujets=r[7];
 
@@ -199,7 +199,7 @@ function osRapportRedaction(redactionId, annee){
     _osRapportGet('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,type,rubrique,auteur_id,publie_le,created_at'),
     _osRapportGet('/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=membre_id,role_redac'),
     _osRapportGet('/rest/v1/membres?select=id,prenom,nom,role,fonction,marque_inactif,dnd'),
-    _osRapportGet('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,responsable,created_at')
+    _osRapportGet('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redactionId)+'&statut=neq.refuse&select=id,titre,statut,responsable,created_at')
   ]).then(function(r){
     var redac=r[0][0], articles=r[1], liens=r[2], membres=r[3], sujets=r[4];
     var nomRedac = redac ? redac.nom : 'Rédaction';
@@ -388,7 +388,7 @@ function osRapportCommuniques(annee){
     _osRapportGet('/rest/v1/communiques?select=id,titre,source,organisation,contact_id,statut,type,created_at'),
     _osRapportGet('/rest/v1/contacts_sources?select=id,nom,organisation'),
     _osRapportGet('/rest/v1/articles?select=id,cp_id,statut,sujet_id'),
-    _osRapportGet('/rest/v1/briefing?select=id,cp_id,statut'),
+    _osRapportGet('/rest/v1/briefing?statut=neq.refuse&select=id,cp_id,statut'),
     _osRapportGet('/rest/v1/briefing_communiques?select=briefing_id,communique_id')   // plusieurs communiqués par sujet
   ]).then(function(r){
     var cps=r[0], contacts=r[1], articles=r[2], sujets=r[3], liens=r[4];
@@ -1095,7 +1095,7 @@ function osGenererBilanAnnuel(membreId){
 
     // Fetch sujets maintenant qu'on a le nom du membre
     var nomComplet = (membre.prenom||'')+' '+(membre.nom||'');
-    fetch(SB_URL+'/rest/v1/briefing?responsable=eq.'+encodeURIComponent(nomComplet)+'&select=id,titre,statut,type&order=created_at.desc',{headers:authH})
+    fetch(SB_URL+'/rest/v1/briefing?responsable=eq.'+encodeURIComponent(nomComplet)+'&statut=neq.refuse&select=id,titre,statut,type&order=created_at.desc',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(sujets){
       sujets = (!sujets||sujets.code)?[]:sujets;

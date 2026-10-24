@@ -6702,3 +6702,14 @@ body.atr-ouvert #os-toast-stack { right: 384px; }
 .ag-page .ag-filtres input, .ag-page .ag-filtres select { width: auto !important; min-height: 0; height: auto; background: #fff !important; }
 .ag-page .ag-filtres input { width: 220px !important; }
 .ag-page .ag-saut { width: auto !important; min-height: 0; background: #fff !important; }
+
+/* Sujet non retenu : même carte, ton plus doux (js/67-sujet-valide.js) */
+.sv-carte.sv-refus { border-color: #F5C2C0; box-shadow: 0 14px 38px rgba(163,45,45,.18), 0 2px 6px rgba(0,0,0,.08); }
+.sv-refus .sv-rond { background: #D9534F; }
+.sv-refus .sv-rond path { stroke-dasharray: 80; stroke-dashoffset: 80; }
+.sv-refus .sv-titre { color: #A32D2D; }
+.sv-refus .sv-voir { background: #D9534F; }
+.sv-refus .sv-voir:hover { background: #B83F3B; }
+:root.theme-dark .sv-carte.sv-refus { border-color: #7A2D2B; }
+:root.theme-dark .sv-refus .sv-titre { color: #F08A86; }
+.sren-lbl { display: block; margin: .7rem 0 .25rem; font: 600 .74rem 'DM Sans', sans-serif; color: var(--encre); }
