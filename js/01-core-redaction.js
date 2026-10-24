@@ -1507,7 +1507,18 @@ function nlRecupererCandidats(redactionId){
       var candidats = arts.filter(function(a){
         return new Date(a.publie_le || a.updated_at) >= fenetre.since;
       });
-      return { candidats: candidats, isFallback: fenetre.isFallback };
+      if(!candidats.length) return { candidats: candidats, isFallback: fenetre.isFallback };
+      // Pas ceux qui sont déjà passés dans une newsletter : la date d'envoi précède souvent leur mise en ligne
+      // (la newsletter est enregistrée après coup), et ils reviendraient comme « à envoyer ».
+      var ids = candidats.map(function(a){ return '"'+String(a.id).replace(/"/g,'')+'"'; }).join(',');
+      return fetch(SB_URL+'/rest/v1/newsletter_articles?article_id=in.('+encodeURIComponent(ids)+')&select=article_id',{headers:authH})
+        .then(function(r){ return r.json(); })
+        .then(function(deja){
+          var dejaIds = {};
+          (Array.isArray(deja) ? deja : []).forEach(function(x){ dejaIds[x.article_id] = true; });
+          return { candidats: candidats.filter(function(a){ return !dejaIds[a.id]; }), isFallback: fenetre.isFallback };
+        })
+        .catch(function(){ return { candidats: candidats, isFallback: fenetre.isFallback }; });
     });
   }).catch(function(){ return { candidats: [], isFallback: true }; });
 }
