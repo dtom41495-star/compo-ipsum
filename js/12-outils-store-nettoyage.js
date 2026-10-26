@@ -1868,6 +1868,25 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
   }).catch(function(){ window._userApps = null; window._userAppsAll = null; callback(); });
 }
 
+// Écran plein page montré à une personne dont l'accès a été coupé (profil désactivé ou rôle « interdit »)
+// qui vient de se connecter. La session est déjà effacée : « Retour » recharge sur l'écran de connexion.
+function osAfficherAccesSuspendu(){
+  var loginEl = document.getElementById('os-login');
+  if(loginEl) loginEl.style.display = 'none';
+  var desktop = document.getElementById('os-desktop');
+  if(desktop) desktop.style.display = 'none';
+  if(document.getElementById('acces-suspendu')) return;
+  var screen = document.createElement('div');
+  screen.id = 'acces-suspendu';
+  screen.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;';
+  screen.innerHTML =
+    '<div style="font-size:3rem;color:white;"><i class="ti ti-ban"></i></div>'
+    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès suspendu</div>'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.72rem;color:rgba(255,255,255,0.45);text-align:center;max-width:360px;line-height:1.7;">Ton accès à Compo a été suspendu. Si tu penses que c\u2019est une erreur, contacte l\u2019administrateur\u00a0: contact@ipsummedia.fr</div>'
+    +'<button onclick="location.reload()" style="margin-top:0.8rem;font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);border-radius:8px;cursor:pointer;">Retour à la connexion</button>';
+  document.body.appendChild(screen);
+}
+
 function osAfficherSessionNonConfiguree(){
   var loginEl = document.getElementById('os-login');
   if(loginEl) loginEl.style.display = 'none';
@@ -2156,7 +2175,7 @@ function _osGestionMembresRender(zone, membres, redacs){
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osChangerEmailMembreModal(this.dataset.id,this.dataset.nom,this.dataset.email)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Modifier l\'email de connexion"><i class="ti ti-mail"></i></button>'
       +'<button data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" data-email="'+esc(m.email||'')+'" onclick="osRenvoyerInvitation(this.dataset.email,this.dataset.nom,this)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Renvoyer le rappel de connexion Google"><i class="ti ti-mail-forward"></i></button>'
       +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osResetMotDePasseMembreModal(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid var(--gris-bord);background:white;color:var(--gris);border-radius:6px;cursor:pointer;" title="Réinitialiser le mot de passe"><i class="ti ti-key"></i></button>'
-      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Désactiver"><i class="ti ti-x"></i></button>'
+      +'<button data-id="'+m.id+'" data-nom="'+esc((m.prenom||'')+' '+(m.nom||''))+'" onclick="osDesactiverMembre(this.dataset.id,this.dataset.nom)" style="font-size:.6rem;padding:2px 8px;border:1px solid #DC2626;background:white;color:#DC2626;border-radius:6px;cursor:pointer;" title="Bloquer l\'accès"><i class="ti ti-x"></i></button>'
       +'</div>';
   });
 
@@ -2285,13 +2304,24 @@ function osRenvoyerInvitation(email, nom, btn){
   });
 }
 
+// Bloque ou débloque un membre côté serveur (Edge Function membre-bloquer, réservée aux admins) :
+// profil désactivé + rôle « interdit » + compte de connexion banni, en un seul appel.
+// Résout { ok, erreur }. Une session déjà ouverte peut durer jusqu'à une heure.
+function osMembreBloquerServeur(id, action, role){
+  return fetch(SB_URL+'/functions/v1/membre-bloquer', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'}),
+    body: JSON.stringify({ membre_id:id, action:action, role:role })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){ return { ok:r.ok && d.success, erreur:d.error || ('Erreur '+r.status) }; });
+  }).catch(function(){ return { ok:false, erreur:'Erreur réseau' }; });
+}
+
 function osDesactiverMembre(id, nom){
-  if(!osConfirmerPuis('Désactiver '+nom+' ? Il ne pourra plus se connecter mais ses articles sont conservés.', null, osDesactiverMembre, this, arguments)) return;
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+id,{method:'PATCH',headers:authH,body:JSON.stringify({actif:false})})
-  .then(function(r){
-    if(r.ok){ notif(nom+' désactivé','succes'); osGestionAppsRafraichir(); }
-    else notif('Erreur','erreur');
+  if(!osConfirmerPuis('Bloquer '+nom+' ? Son accès à Compo est coupé et son compte de connexion est bloqué : il ne peut plus se connecter ni utiliser les services de Compo. Ses articles sont conservés.', {oui:'Bloquer'}, osDesactiverMembre, this, arguments)) return;
+  osMembreBloquerServeur(id, 'bloquer').then(function(r){
+    if(r.ok){ notif(nom+' bloqué','succes'); osGestionAppsRafraichir(); }
+    else notif('Blocage impossible : '+r.erreur,'erreur');
   });
 }
 
