@@ -461,7 +461,7 @@ function _ckEntete(){
 function osCockpitRender(){
   var wc = document.getElementById('wincontent-cockpit');
   if(!wc) return;
-  if(getUserRole() !== 'admin'){ wc.innerHTML = '<div class="ck-vide" style="padding:2rem">Le cockpit est réservé aux admins.</div>'; return; }
+  if(getUserRole() !== 'admin' && getUserFonction().indexOf('tresorier') === -1){ wc.innerHTML = '<div class="ck-vide" style="padding:2rem">Le cockpit est réservé aux admins et au trésorier.</div>'; return; }
   wc.innerHTML = '<div class="ck" id="ck-racine"><div id="ck-entete"></div><div id="ck-corps">'+(typeof osLoadingHtml === 'function' ? osLoadingHtml() : 'Chargement…')+'</div></div>';
   var racine = document.getElementById('ck-racine');
   racine.addEventListener('click', function(e){

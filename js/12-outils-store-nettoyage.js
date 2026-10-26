@@ -1592,7 +1592,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'ecran-redac',    icon:'<i class="ti ti-device-tv"></i>', label:'Écran rédac',    color:'#1A1A2E', roles:['admin','redac_chef'], desc:'Tableau de bord en direct pour un écran d\'affichage : circuit des articles, agenda et sujets ouverts, toutes rédactions. Aucune notification.' },
-  { id:'cockpit',        icon:'<i class="ti ti-gauge"></i>', label:'Cockpit',        color:'#1A1A2E', roles:['admin'], desc:'Tableau de bord en direct de toute l\'association : chiffres clés, alertes, circuit de la rédaction, régularité, audience, finances, vie asso.' },
+  { id:'cockpit',        icon:'<i class="ti ti-gauge"></i>', label:'Cockpit',        color:'#1A1A2E', roles:['admin','redacteur','correcteur'], fonctions_requises:['tresorier'], desc:'Tableau de bord en direct de toute l\'association : chiffres clés, alertes, circuit de la rédaction, régularité, audience, finances, vie asso.' },
   { id:'signatures',     icon:'<i class="ti ti-signature"></i>', label:'Signatures',     color:'#4A235A', roles:['admin','redac_chef','redacteur','correcteur'] },
   // Apps Store
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
