@@ -477,12 +477,13 @@ function _doublonsCharger(){
   });
 }
 
-function _doublonsChercher(titre, cache, idArticleCourant, avecPublies){
+function _doublonsChercher(titre, cache, idArticleCourant, avecPublies, idSujetCourant){
   var mots = _doublonsNormaliser(titre);
   if(mots.length < 2) return [];   // trop court pour conclure quoi que ce soit
   var trouves = [];
 
   cache.sujets.forEach(function(s){
+    if(idSujetCourant && s.id === idSujetCourant) return; // le sujet auquel cet article répond déjà
     var r = _doublonsScore(mots, _doublonsNormaliser(s.titre));
     if(r.communs >= 2 && r.score >= 0.5){
       trouves.push({
@@ -567,7 +568,8 @@ function osVerifierDoublonTitre(){
     var titre = champ.value.trim();
     if(titre.length < 10){ zone.style.display='none'; return; }
     _doublonsCharger().then(function(cache){
-      var trouves = _doublonsChercher(titre, cache, (typeof currentDoc!=='undefined' && currentDoc) ? currentDoc.id : null);
+      var doc = (typeof currentDoc!=='undefined') ? currentDoc : null;
+      var trouves = _doublonsChercher(titre, cache, doc ? doc.id : null, false, doc ? (doc.sujet_id || doc._sujet_id || null) : null);
       if(!trouves.length){ zone.style.display='none'; return; }
       var h = '<div style="display:flex;align-items:flex-start;gap:0.7rem;">';
       h += '<div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#FFF3CD;color:#856404;font-size:0.95rem;"><i class="ti ti-alert-triangle"></i></div>';
