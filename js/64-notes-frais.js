@@ -11,6 +11,8 @@ var TRNF_STATUTS = {
   remboursee:{ l:'Remboursée',   c:'c' },
   refusee:   { l:'Refusée',      c:'d' }
 };
+// Tarif de remboursement des frais kilométriques : 0,30 € par km (inférieur au barème fiscal, qui est un plafond).
+var TRNF_TAUX_KM = 0.30;
 var _trnf = { filtre:'soumise' };
 
 function _trnfStatut(n){
@@ -35,13 +37,36 @@ function osTresNoteFraisForm(opts){
   opts = opts || {};
   var gestion = !!opts.pourUnMembre, piece = null, membres = opts.membres || [];
   var corps = (gestion ? _trChamp('Pour le membre', '<select id="nf-membre" class="tr-in">'+_trOptions(membres.filter(function(m){ return m.actif !== false && m.role !== 'interdit'; }).map(function(m){ return [m.id, _trNomMembre(m)]; }), '', '— Choisir —')+'</select>') : '')
+    +'<div class="tr-barre" id="nf-mode"><button type="button" class="tr-btn tr-noir" data-mode="depense">Dépense</button><button type="button" class="tr-btn" data-mode="km">Frais kilométriques</button></div>'
+    +'<div id="nf-bloc-depense">'
     +'<div class="tr-champ"><span>Photo ou fichier du justificatif</span><div id="nf-piece-zone"></div></div>'
     +_trChamp('Objet de la dépense', '<input id="nf-objet" class="tr-in" placeholder="Ex. Café avec la source, billet de train…">')
-    +'<div class="tr-grille">'+_trChamp('Montant (€)', '<input type="number" step="0.01" min="0" inputmode="decimal" id="nf-montant" class="tr-in">')
-    +_trChamp('Date de la dépense', '<input type="date" id="nf-date" class="tr-in" value="'+_trAuj()+'">')+'</div>'
+    +_trChamp('Montant (€)', '<input type="number" step="0.01" min="0" inputmode="decimal" id="nf-montant" class="tr-in">')
+    +'</div><div id="nf-bloc-km" style="display:none">'
+    +'<div class="tr-grille" style="margin-bottom:10px">'+_trChamp('Départ', '<input id="nf-depart" class="tr-in" placeholder="Ex. Albi">')+_trChamp('Arrivée', '<input id="nf-arrivee" class="tr-in" placeholder="Ex. Castres">')+'</div>'
+    +_trChamp('Distance parcourue (km, aller-retour compris)', '<input type="number" step="1" min="1" max="2000" inputmode="numeric" id="nf-km" class="tr-in">')
+    +_trChamp('Motif du déplacement', '<input id="nf-motifkm" class="tr-in" placeholder="Ex. Reportage au festival, réunion de rédaction…">')
+    +'<div class="tr-note-i" id="nf-km-aide">'+(gestion ? '' : 'Le remboursement est calculé par l’association au tarif en vigueur. Tu verras le montant une fois la note validée.')+'</div>'
+    +'</div>'
+    +_trChamp('Date', '<input type="date" id="nf-date" class="tr-in" value="'+_trAuj()+'">')
     +_trChamp('Rédaction ou projet (facultatif)', '<input id="nf-contexte" class="tr-in" placeholder="Ex. Castres, festival…">');
   var m = _trModal(gestion ? 'Saisir une note de frais' : 'Nouvelle note de frais', corps,
     '<span class="tr-sp"></span><button type="button" class="tr-btn" id="nf-a">Annuler</button><button type="button" class="tr-btn tr-p" id="nf-ok">Envoyer au trésorier</button>');
+  var mode = 'depense';
+  var majAideKm = function(){
+    var aide = document.getElementById('nf-km-aide'), km = parseFloat(document.getElementById('nf-km').value);
+    if(gestion && aide) aide.textContent = km > 0 ? 'Remboursement calculé : '+_trE(Math.round(km * TRNF_TAUX_KM * 100) / 100)+' ('+String(TRNF_TAUX_KM).replace('.', ',')+' € / km)' : 'Le montant se calcule à partir de la distance ('+String(TRNF_TAUX_KM).replace('.', ',')+' € / km).';
+  };
+  document.getElementById('nf-mode').onclick = function(e){
+    var b = e.target.closest('[data-mode]'); if(!b) return;
+    mode = b.dataset.mode;
+    document.getElementById('nf-bloc-depense').style.display = mode === 'depense' ? '' : 'none';
+    document.getElementById('nf-bloc-km').style.display = mode === 'km' ? '' : 'none';
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('tr-noir', x === b); });
+    majAideKm();
+  };
+  document.getElementById('nf-km').oninput = majAideKm;
+  majAideKm();
   var zone = document.getElementById('nf-piece-zone'), vignette = null;
   var dessiner = function(){
     if(piece){
@@ -63,19 +88,31 @@ function osTresNoteFraisForm(opts){
   dessiner();
   document.getElementById('nf-a').onclick = function(){ m.remove(); };
   document.getElementById('nf-ok').onclick = function(){
-    var objet = document.getElementById('nf-objet').value.trim(), montant = parseFloat(document.getElementById('nf-montant').value);
     var membreId = gestion ? document.getElementById('nf-membre').value : getUserId();
     if(!membreId){ notif('Choisis le membre concerné', 'erreur'); return; }
-    if(!objet || !(montant > 0)){ notif('L’objet et le montant sont obligatoires', 'erreur'); return; }
-    if(!piece && !gestion){ notif('Joins le justificatif (photo du ticket ou facture)', 'erreur'); return; }
     var ctx = document.getElementById('nf-contexte').value.trim();
+    var date = document.getElementById('nf-date').value || _trAuj();
+    var charge;
+    if(mode === 'km'){
+      var depart = document.getElementById('nf-depart').value.trim(), arrivee = document.getElementById('nf-arrivee').value.trim();
+      var km = Math.round(parseFloat(document.getElementById('nf-km').value) * 10) / 10, motifKm = document.getElementById('nf-motifkm').value.trim();
+      if(!depart || !arrivee || !motifKm){ notif('Le départ, l’arrivée et le motif sont obligatoires', 'erreur'); return; }
+      if(!(km > 0) || km > 2000){ notif('Indique une distance valide (en km)', 'erreur'); return; }
+      var objetKm = 'Frais kilométriques — '+depart+' → '+arrivee+' ('+String(km).replace('.', ',')+' km) · '+motifKm;
+      charge = { membre_id:membreId, objet:ctx ? objetKm+' ('+ctx+')' : objetKm, montant:Math.round(km * TRNF_TAUX_KM * 100) / 100, date_depense:date,
+        km:km, trajet:depart+' → '+arrivee, taux_km:TRNF_TAUX_KM };
+    } else {
+      var objet = document.getElementById('nf-objet').value.trim(), montant = parseFloat(document.getElementById('nf-montant').value);
+      if(!objet || !(montant > 0)){ notif('L’objet et le montant sont obligatoires', 'erreur'); return; }
+      if(!piece && !gestion){ notif('Joins le justificatif (photo du ticket ou facture)', 'erreur'); return; }
+      charge = { membre_id:membreId, objet:ctx ? objet+' ('+ctx+')' : objet, montant:Math.round(montant * 100) / 100, date_depense:date, piece:piece };
+    }
     var btn = document.getElementById('nf-ok'); btn.disabled = true;
-    fetch(SB_URL+'/rest/v1/tres_notes_frais', { method:'POST', headers:_trH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }),
-      body:JSON.stringify({ membre_id:membreId, objet:ctx ? objet+' ('+ctx+')' : objet, montant:Math.round(montant * 100) / 100, date_depense:document.getElementById('nf-date').value || _trAuj(), piece:piece }) })
+    fetch(SB_URL+'/rest/v1/tres_notes_frais', { method:'POST', headers:_trH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify(charge) })
       .then(function(r){ if(!r.ok) throw 0; m.remove(); notif('Note de frais envoyée au trésorier', 'succes');
         var membresListe = opts.membres || window._membresData || [];
         var nom = (membresListe.filter(function(x){ return x.id === membreId; })[0] || {});
-        _trnfNotifier(_trnfGestionnaires(membresListe), '🧾 Nouvelle note de frais de '+_trNomMembre(nom)+' : '+objet+' ('+_trE(montant)+'). À valider dans Trésorerie > Notes de frais.');
+        _trnfNotifier(_trnfGestionnaires(membresListe), '🧾 Nouvelle note de frais de '+_trNomMembre(nom)+' : '+charge.objet+' ('+_trE(charge.montant)+'). À valider dans Trésorerie > Notes de frais.');
         if(typeof opts.apres === 'function') opts.apres(); })
       .catch(function(){ btn.disabled = false; notif('Envoi impossible', 'erreur'); });
   };
@@ -190,11 +227,13 @@ function osNotesFraisRender(){
     .then(function(r){ return r.json(); })
     .then(function(l){
       l = Array.isArray(l) ? l : [];
-      var attente = l.filter(function(x){ return x.statut === 'soumise' || x.statut === 'validee'; }).reduce(function(s, x){ return s + +x.montant; }, 0);
+      // Le montant d'une note kilométrique est calculé par l'association : le membre ne le voit qu'une fois la note validée
+      var montantVisible = function(x){ return x.km == null || x.statut === 'validee' || x.statut === 'remboursee'; };
+      var attente = l.filter(function(x){ return (x.statut === 'soumise' || x.statut === 'validee') && montantVisible(x); }).reduce(function(s, x){ return s + +x.montant; }, 0);
       var h = '<div class="tr-nf-haut"><div><b>Mes notes de frais</b><small>'+(attente ? _trE(attente)+' en attente de remboursement' : 'Rien en attente')+'</small></div><button type="button" class="tr-btn tr-p" id="nfm-nouvelle">+ Nouvelle note</button></div><div class="tr-nf-corps">';
       if(!l.length) h += '<div class="tr-vide">Tu n’as pas encore déposé de note de frais. Garde le ticket, prends-le en photo, et dépose ta note : le trésorier la valide puis te rembourse.</div>';
       l.forEach(function(x){
-        h += '<div class="tr-nf-carte"><div class="tr-nf-l"><b>'+esc(x.objet)+'</b><small>'+_trDateCourte(x.date_depense)+(x.motif ? ' · '+esc(x.motif) : '')+'</small></div><div class="tr-nf-r"><b>'+_trE(x.montant)+'</b>'+_trnfStatut(x)
+        h += '<div class="tr-nf-carte"><div class="tr-nf-l"><b>'+esc(x.objet)+'</b><small>'+_trDateCourte(x.date_depense)+(x.motif ? ' · '+esc(x.motif) : '')+'</small></div><div class="tr-nf-r"><b>'+(montantVisible(x) ? _trE(x.montant) : 'Montant après validation')+'</b>'+_trnfStatut(x)
           +(x.statut === 'soumise' ? '<button type="button" class="tr-lien" data-retirer="'+x.id+'">Retirer</button>' : '')+'</div></div>';
       });
       wc.innerHTML = h+'</div>';
