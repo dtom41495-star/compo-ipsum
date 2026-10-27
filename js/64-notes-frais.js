@@ -46,7 +46,7 @@ function osTresNoteFraisForm(opts){
     +'<div class="tr-grille" style="margin-bottom:10px">'+_trChamp('Départ', '<input id="nf-depart" class="tr-in" placeholder="Ex. Albi">')+_trChamp('Arrivée', '<input id="nf-arrivee" class="tr-in" placeholder="Ex. Castres">')+'</div>'
     +_trChamp('Distance parcourue (km, aller-retour compris)', '<input type="number" step="1" min="1" max="2000" inputmode="numeric" id="nf-km" class="tr-in">')
     +_trChamp('Motif du déplacement', '<input id="nf-motifkm" class="tr-in" placeholder="Ex. Reportage au festival, réunion de rédaction…">')
-    +'<div class="tr-note-i" id="nf-km-aide">'+(gestion ? '' : 'Le remboursement est calculé par l’association au tarif en vigueur. Tu verras le montant une fois la note validée.')+'</div>'
+    +'<div class="tr-note-i" id="nf-km-aide">'+(gestion ? '' : '<b>Tarif de l’association : '+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € par kilomètre.</b> Le remboursement est calculé par le trésorier : tu verras le montant une fois la note validée.')+'</div>'
     +'</div>'
     +_trChamp('Date', '<input type="date" id="nf-date" class="tr-in" value="'+_trAuj()+'">')
     +_trChamp('Rédaction ou projet (facultatif)', '<input id="nf-contexte" class="tr-in" placeholder="Ex. Castres, festival…">');
@@ -55,7 +55,7 @@ function osTresNoteFraisForm(opts){
   var mode = 'depense';
   var majAideKm = function(){
     var aide = document.getElementById('nf-km-aide'), km = parseFloat(document.getElementById('nf-km').value);
-    if(gestion && aide) aide.textContent = km > 0 ? 'Remboursement calculé : '+_trE(Math.round(km * TRNF_TAUX_KM * 100) / 100)+' ('+String(TRNF_TAUX_KM).replace('.', ',')+' € / km)' : 'Le montant se calcule à partir de la distance ('+String(TRNF_TAUX_KM).replace('.', ',')+' € / km).';
+    if(gestion && aide) aide.textContent = km > 0 ? 'Remboursement calculé : '+_trE(Math.round(km * TRNF_TAUX_KM * 100) / 100)+' ('+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € / km)' : 'Le montant se calcule à partir de la distance ('+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € / km).';
   };
   document.getElementById('nf-mode').onclick = function(e){
     var b = e.target.closest('[data-mode]'); if(!b) return;
@@ -137,7 +137,7 @@ function osTresNotesFraisHtml(){
     h += '<tr><td>'+esc(_trNomMembre(m) || '—')+'</td><td>'+esc(x.objet)+'<small>'+_trDateCourte(x.date_depense)+(x.piece ? ' · <button type="button" class="tr-lien" data-piece="'+esc(x.piece)+'">📎 justificatif</button>' : ' · sans justificatif')
       +(cat ? ' · '+esc(cat.nom) : '')+(x.motif ? ' · motif : '+esc(x.motif) : '')+'</small></td><td class="n">'+_trE(x.montant)+'</td><td>'+_trnfStatut(x)+'</td><td class="n">'+act+'</td></tr>';
   });
-  return h+'</table></div><div class="tr-note">'+liste.length+' note'+(liste.length > 1 ? 's' : '')+' · '+_trE(total)+'. Les admins sont prévenus de chaque validation et de chaque remboursement. Rembourser crée l’écriture de dépense dans le grand livre.</div>';
+  return h+'</table></div><div class="tr-note">'+liste.length+' note'+(liste.length > 1 ? 's' : '')+' · '+_trE(total)+'. Frais kilométriques : '+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € par km. Les admins sont prévenus de chaque validation et de chaque remboursement. Rembourser crée l’écriture de dépense dans le grand livre.</div>';
 }
 
 function osTresNotesFraisBrancher(){
