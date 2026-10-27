@@ -1277,7 +1277,8 @@ function _emailBouton(label, url, secondaire){
   return '<a href="'+esc(url)+'" style="display:inline-block;padding:12px 22px;border-radius:8px;font:600 14px/1 '+EMAIL_POLICE+';text-decoration:none;'
     +(secondaire ? 'background:#fff;color:'+EMAIL_COUL.encre+';border:1px solid '+EMAIL_COUL.bord+';' : 'background:'+EMAIL_COUL.rouge+';color:#fff;')+'">'+label+'</a>';
 }
-// o : { accent, etiquette, titre, bonjour, texte, avantCarte, contenu, description, apresCarte, boutons:[{label,url,secondaire}], pourquoi }
+// o : { accent, etiquette, titre, bonjour, texte, avantCarte, contenu, description, apresCarte, boutons:[{label,url,secondaire}], pourquoi, repondre }
+// repondre : true quand l'email invite à répondre (avec un replyTo à l'envoi) au lieu de dire « ne pas répondre ».
 // description : texte brut (échappé ici), affiché en citation sous la carte.
 // Les textes sont du HTML : échapper (esc) tout contenu variable avant de le passer.
 // Nom d'une rédaction à partir de son id, pour l'indiquer dans les notifs et emails —
@@ -1309,7 +1310,7 @@ function _emailCompo(o){
     +(o.boutons && o.boutons.length ? '<tr><td style="padding:22px 28px 4px;">'+o.boutons.map(function(b){ return _emailBouton(b.label, b.url, b.secondaire); }).join('<span style="display:inline-block;width:8px;"></span>')+'</td></tr>' : '')
     +'<tr><td style="padding:26px 28px 24px;"><div style="border-top:1px solid '+EMAIL_COUL.bord+';padding-top:14px;font:400 12px/1.55 '+EMAIL_POLICE+';color:'+EMAIL_COUL.gris+';">'
       +(o.pourquoi?o.pourquoi+'<br>':'')
-      +'Cet email est envoyé automatiquement, merci de ne pas y répondre. Pour nous écrire : <a href="mailto:contact@ipsummedia.fr" style="color:'+EMAIL_COUL.gris+';text-decoration:underline;">contact@ipsummedia.fr</a><br>'
+      +(o.repondre ? 'Tu peux répondre directement à cet email.<br>' : 'Cet email est envoyé automatiquement, merci de ne pas y répondre. Pour nous écrire : <a href="mailto:contact@ipsummedia.fr" style="color:'+EMAIL_COUL.gris+';text-decoration:underline;">contact@ipsummedia.fr</a><br>')
       +'Ipsum Média · association de médias locaux du Tarn'
     +'</div></td></tr>'
     +'</table></td></tr></table>';
@@ -1324,7 +1325,7 @@ function _emailCompo(o){
 // {ok:true, skipped:true} plutôt que ok:false pour ne pas faire croire à un échec
 // d'envoi aux appelants qui affichent une erreur sur !r.ok : ici il n'y a pas
 // d'échec, l'envoi a été volontairement retenu.
-function envoyerEmailResend(to, subject, html, type){
+function envoyerEmailResend(to, subject, html, type, replyTo){
   _notifMailsEnvoyes++;  // pour l'historique de l'article (voir notifierPersonnel)
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   return fetch(SB_URL+'/rest/v1/membres?email=eq.'+encodeURIComponent(to)+'&select=marque_inactif,dnd,role', {headers:authH})
@@ -1332,12 +1333,12 @@ function envoyerEmailResend(to, subject, html, type){
     .then(function(data){
       var m = data && !data.code && data[0];
       if(m && (m.marque_inactif || m.dnd || m.role==='interdit')) return { ok:true, skipped:true };
-      return _envoyerEmailResendReel(to, subject, html, type);
+      return _envoyerEmailResendReel(to, subject, html, type, replyTo);
     })
     // Si la vérification elle-même échoue (session pas encore prête, souci réseau
     // ponctuel), on envoie quand même : mieux vaut un email potentiellement superflu
     // qu'un vrai email jamais envoyé à cause d'un aléa sur cette seule vérification.
-    .catch(function(){ return _envoyerEmailResendReel(to, subject, html, type); });
+    .catch(function(){ return _envoyerEmailResendReel(to, subject, html, type, replyTo); });
 }
 
 // Notification personnelle par Google Chat DM — canal choisi par la personne
@@ -1419,7 +1420,7 @@ window.addEventListener('beforeunload', function(e){
   if(_emailEnAttente > 0){ e.preventDefault(); e.returnValue = ''; }
 });
 
-function _envoyerEmailResendReel(to, subject, html, type){
+function _envoyerEmailResendReel(to, subject, html, type, replyTo){
   fetch(SB_URL+'/rest/v1/emails_log', {
     method:'POST',
     headers: Object.assign({}, SB_HEADERS, {
@@ -1430,7 +1431,7 @@ function _envoyerEmailResendReel(to, subject, html, type){
   }).catch(function(){});
 
   _emailEnAttente++;
-  var envoi = _emailFile.then(function(){ return _emailEnvoyerAvecRetentes(to, subject, html, 0); });
+  var envoi = _emailFile.then(function(){ return _emailEnvoyerAvecRetentes(to, subject, html, 0, replyTo); });
   // La file continue même si cet envoi échoue
   _emailFile = envoi.then(function(){ _emailEnAttente--; }, function(){ _emailEnAttente--; });
   return envoi;
@@ -1438,7 +1439,7 @@ function _envoyerEmailResendReel(to, subject, html, type){
 
 function _emailAttendre(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 
-function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
+function _emailEnvoyerAvecRetentes(to, subject, html, tentative, replyTo){
   var attente = Math.max(0, _emailDernierEnvoi + EMAIL_ESPACEMENT_MS - Date.now());
   return _emailAttendre(attente).then(function(){
     _emailDernierEnvoi = Date.now();
@@ -1446,7 +1447,7 @@ function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
       method: 'POST',
       // envoyer-email n'accepte que les membres connectés : on présente le jeton de session
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_session&&_session.access_token||'') },
-      body: JSON.stringify({ to: to, subject: subject, html: html })
+      body: JSON.stringify({ to: to, subject: subject, html: html, reply_to: replyTo || undefined })
     });
   }).then(function(r){
     if(r.ok) return r;
@@ -1455,7 +1456,7 @@ function _emailEnvoyerAvecRetentes(to, subject, html, tentative){
       if(tropVite && tentative < 4){
         // 2 s, 4 s, 8 s, 16 s — l'email n'est pas parti, on peut le renvoyer sans doublon
         return _emailAttendre(2000 * Math.pow(2, tentative)).then(function(){
-          return _emailEnvoyerAvecRetentes(to, subject, html, tentative + 1);
+          return _emailEnvoyerAvecRetentes(to, subject, html, tentative + 1, replyTo);
         });
       }
       console.error('Email error ('+to+'):', txt);

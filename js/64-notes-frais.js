@@ -171,10 +171,32 @@ function _trnfValider(id){
       var nom = _trNomMembre(d.membreParId[n.membre_id]);
       _trnfNotifier([n.membre_id], '✅ Ta note de frais « '+n.objet+' » ('+_trE(n.montant)+') est validée. Elle sera remboursée prochainement.');
       _trnfNotifier(_trnfAdmins(d.membres), '🧾 Note de frais validée : '+nom+', '+n.objet+' ('+_trE(n.montant)+').');
+      _trnfDemanderRib(n, d);
       osTresRafraichir();
     }).catch(function(){ notif('Validation impossible', 'erreur'); });
   };
 }
+// Le RIB n'est jamais saisi ni stocké dans Compo : une fois la note validée, un email part de compo@ipsummedia.fr
+// au membre pour lui demander son RIB. « Répondre » écrit directement au trésorier (replyTo).
+function _trnfDemanderRib(n, d){
+  var membre = d.membreParId[n.membre_id];
+  if(!membre || !membre.email || typeof _emailCompo !== 'function' || typeof envoyerEmailResend !== 'function') return;
+  var actifs = (d.membres || []).filter(function(m){ return m.actif !== false && m.role !== 'interdit' && m.email; });
+  var estTresorier = function(m){ return (m.fonction || []).indexOf('tresorier') !== -1; };
+  var moi = actifs.filter(function(m){ return m.id === getUserId(); })[0];
+  var tresorier = (moi && estTresorier(moi)) ? moi : (actifs.filter(estTresorier)[0] || moi);
+  if(!tresorier) return;
+  var prenom = (membre.prenom || '').trim();
+  var html = _emailCompo({
+    accent:'vert', etiquette:'NOTE DE FRAIS', titre:'Ta note de frais est validée',
+    bonjour:'Bonjour'+(prenom ? ' '+esc(prenom) : '')+',',
+    texte:'Ta note de frais « '+esc(n.objet)+' » de <b>'+_trE(n.montant)+'</b> est validée. Pour te rembourser par virement, <b>réponds à cet email avec ton RIB</b> : ta réponse arrive directement chez '+esc(_trNomMembre(tresorier))+', notre trésorier.',
+    apresCarte:'Ton RIB n’est pas enregistré dans Compo et sera supprimé de la boîte du trésorier une fois le virement fait.',
+    repondre:true
+  });
+  envoyerEmailResend(membre.email, '[Ipsum Média] Ta note de frais est validée : envoie-nous ton RIB', html, 'note_frais_rib', tresorier.email);
+}
+
 function _trnfRefuser(id){
   var d = _tr.d, n = _trnfNote(id); if(!n) return;
   var m = _trModal('Refuser la note de frais', '<div class="tr-resume"><b>'+esc(n.objet)+'</b><br>'+esc(_trNomMembre(d.membreParId[n.membre_id]))+' · '+_trE(n.montant)+'</div>'
