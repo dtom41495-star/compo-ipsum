@@ -2283,34 +2283,26 @@ function _osGarantirFonctionCom(membreId){
 
 function osBenvSuspendre(membreId){
   if(!osConfirmerPuis('Suspendre ce membre ? Il ne pourra plus accéder à Compo.', null, osBenvSuspendre, this, arguments)) return;
-  var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
-    method:'PATCH', headers:headers,
-    body:JSON.stringify({role:'interdit'})
-  }).then(function(r){
+  osMembreBloquerServeur(membreId, 'bloquer').then(function(r){
     if(r.ok){
       notif('Membre suspendu', 'succes');
       osBenevolesDashRender();
       setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
-    } else { notif('Erreur suspension'); }
-  }).catch(function(){ notif('Erreur réseau'); });
+    } else { notif('Erreur suspension : '+r.erreur); }
+  });
 }
 
 function osBenevolesReactiver(membreId){
   var data = window._benvData;
   var s = data && data.find(function(d){ return d.membre.id === membreId; });
   var ancienRole = s && s.membre._ancienRole ? s.membre._ancienRole : 'redacteur';
-  var headers = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
-    method:'PATCH', headers:headers,
-    body:JSON.stringify({role:ancienRole})
-  }).then(function(r){
+  osMembreBloquerServeur(membreId, 'debloquer', ancienRole).then(function(r){
     if(r.ok){
       notif('Membre réactivé', 'succes');
       osBenevolesDashRender();
       setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
-    } else { notif('Erreur réactivation'); }
-  }).catch(function(){ notif('Erreur réseau'); });
+    } else { notif('Erreur réactivation : '+r.erreur); }
+  });
 }
 
 // Distincte de benvMajActivite() : celle-ci marque une action éditoriale (sauvegarde,

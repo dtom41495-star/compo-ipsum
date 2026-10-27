@@ -1050,10 +1050,10 @@ function osOpenWindow(pageId){
 setInterval(function(){
   var uid = getUserId();
   if(!uid || !_session) return;
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=role', {headers:SB_HEADERS})
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=role,actif', {headers:SB_HEADERS})
   .then(function(r){ return r.json(); })
   .then(function(data){
-    if(data && data[0] && data[0].role === 'interdit'){
+    if(data && data[0] && (data[0].role === 'interdit' || data[0].actif === false)){
       localStorage.setItem('ipsum_user_role', 'interdit');
       osAfficherInterdit();
     }

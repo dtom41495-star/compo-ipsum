@@ -841,19 +841,11 @@ function chargerProfilMembre(userId, contexte){
   .then(function(data){
     var membre = data && data[0] ? data[0] : null;
     if(membre){
-      // Vérifier si le compte est interdit
-      if(membre.role === 'interdit'){
+      // Vérifier si le compte est interdit ou désactivé
+      if(membre.role === 'interdit' || membre.actif === false){
         localStorage.removeItem('ipsum_session');
         _session = null;
-        var ls = document.getElementById('login-screen');
-        if(ls) ls.classList.add('visible');
-        var errEl = document.getElementById('login-error');
-        if(errEl){
-          errEl.textContent = 'Ton acces a Compo a ete suspendu. Contacte l administrateur.';
-          errEl.classList.add('visible');
-        }
-        var btn = document.getElementById('login-btn');
-        if(btn){ btn.disabled = false; btn.textContent = 'Se connecter'; }
+        osAfficherAccesSuspendu();
         return;
       }
       // Stocker dans localStorage
