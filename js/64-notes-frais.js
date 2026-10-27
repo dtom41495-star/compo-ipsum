@@ -11,8 +11,17 @@ var TRNF_STATUTS = {
   remboursee:{ l:'Remboursée',   c:'c' },
   refusee:   { l:'Refusée',      c:'d' }
 };
-// Tarif de remboursement des frais kilométriques : 0,30 € par km (inférieur au barème fiscal, qui est un plafond).
+// Tarif de remboursement des frais kilométriques, en € par km. 0,30 € par défaut ; le réglage vit dans la table
+// tres_reglages (clé taux_km), modifiable par le trésorier et les admins depuis l'onglet Notes de frais. Le barème fiscal est un plafond.
 var TRNF_TAUX_KM = 0.30;
+var TRNF_TAUX_PLAFOND_ALERTE = 0.60;   // au-delà, l'Urssaf peut requalifier le surplus en salaire : on demande confirmation
+function _trnfTauxTexte(){ return TRNF_TAUX_KM.toFixed(2).replace('.', ','); }
+function _trnfChargerTaux(){
+  return fetch(SB_URL+'/rest/v1/tres_reglages?cle=eq.taux_km&select=valeur', { headers:_trH() })
+    .then(function(r){ return r.json(); })
+    .then(function(l){ var v = parseFloat(l && l[0] && l[0].valeur); if(v > 0 && v <= 1) TRNF_TAUX_KM = v; })
+    .catch(function(){});
+}
 var _trnf = { filtre:'soumise' };
 
 function _trnfStatut(n){
@@ -34,6 +43,9 @@ function _trnfAdmins(membres){ return (membres || []).filter(function(m){ return
 // ── Formulaire de dépôt (membre ou trésorier) ─────────────────────
 
 function osTresNoteFraisForm(opts){
+  _trnfChargerTaux().then(function(){ _trnfFormOuvrir(opts); });
+}
+function _trnfFormOuvrir(opts){
   opts = opts || {};
   var gestion = !!opts.pourUnMembre, piece = null, membres = opts.membres || [];
   var corps = (gestion ? _trChamp('Pour le membre', '<select id="nf-membre" class="tr-in">'+_trOptions(membres.filter(function(m){ return m.actif !== false && m.role !== 'interdit'; }).map(function(m){ return [m.id, _trNomMembre(m)]; }), '', '— Choisir —')+'</select>') : '')
@@ -46,7 +58,7 @@ function osTresNoteFraisForm(opts){
     +'<div class="tr-grille" style="margin-bottom:10px">'+_trChamp('Départ', '<input id="nf-depart" class="tr-in" placeholder="Ex. Albi">')+_trChamp('Arrivée', '<input id="nf-arrivee" class="tr-in" placeholder="Ex. Castres">')+'</div>'
     +_trChamp('Distance parcourue (km, aller-retour compris)', '<input type="number" step="1" min="1" max="2000" inputmode="numeric" id="nf-km" class="tr-in">')
     +_trChamp('Motif du déplacement', '<input id="nf-motifkm" class="tr-in" placeholder="Ex. Reportage au festival, réunion de rédaction…">')
-    +'<div class="tr-note-i" id="nf-km-aide">'+(gestion ? '' : '<b>Tarif de l’association : '+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € par kilomètre.</b> Le remboursement est calculé par le trésorier : tu verras le montant une fois la note validée.')+'</div>'
+    +'<div class="tr-note-i" id="nf-km-aide">'+(gestion ? '' : '<b>Tarif de l’association : '+_trnfTauxTexte()+' € par kilomètre.</b> Le remboursement est calculé par le trésorier : tu verras le montant une fois la note validée.')+'</div>'
     +'</div>'
     +_trChamp('Date', '<input type="date" id="nf-date" class="tr-in" value="'+_trAuj()+'">')
     +_trChamp('Rédaction ou projet (facultatif)', '<input id="nf-contexte" class="tr-in" placeholder="Ex. Castres, festival…">');
@@ -55,7 +67,7 @@ function osTresNoteFraisForm(opts){
   var mode = 'depense';
   var majAideKm = function(){
     var aide = document.getElementById('nf-km-aide'), km = parseFloat(document.getElementById('nf-km').value);
-    if(gestion && aide) aide.textContent = km > 0 ? 'Remboursement calculé : '+_trE(Math.round(km * TRNF_TAUX_KM * 100) / 100)+' ('+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € / km)' : 'Le montant se calcule à partir de la distance ('+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € / km).';
+    if(gestion && aide) aide.textContent = km > 0 ? 'Remboursement calculé : '+_trE(Math.round(km * TRNF_TAUX_KM * 100) / 100)+' ('+_trnfTauxTexte()+' € / km)' : 'Le montant se calcule à partir de la distance ('+_trnfTauxTexte()+' € / km).';
   };
   document.getElementById('nf-mode').onclick = function(e){
     var b = e.target.closest('[data-mode]'); if(!b) return;
@@ -118,6 +130,30 @@ function osTresNoteFraisForm(opts){
   };
 }
 
+// Réglage du tarif kilométrique (trésorier et admins). Il s'applique aux notes déposées ensuite : chaque note garde le tarif de sa saisie.
+function _trnfTauxModifier(){
+  var m = _trModal('Tarif des frais kilométriques',
+    _trChamp('Tarif de remboursement (€ par km)', '<input type="number" step="0.01" min="0.01" max="1" inputmode="decimal" id="nft-taux" class="tr-in" value="'+TRNF_TAUX_KM.toFixed(2)+'">')
+    +'<div class="tr-note-i">S’applique aux notes déposées à partir de maintenant ; les notes déjà saisies gardent leur tarif. Le barème fiscal est un plafond (environ 0,53 à 0,61 € par km pour une voiture en 2026) : au-delà, le surplus peut être requalifié en salaire par l’Urssaf.</div>',
+    '<span class="tr-sp"></span><button type="button" class="tr-btn" id="nft-a">Annuler</button><button type="button" class="tr-btn tr-p" id="nft-ok">Enregistrer</button>');
+  document.getElementById('nft-a').onclick = function(){ m.remove(); };
+  document.getElementById('nft-ok').onclick = function(){
+    var v = Math.round(parseFloat(document.getElementById('nft-taux').value) * 100) / 100;
+    if(!(v > 0) || v > 1){ notif('Indique un tarif entre 0,01 € et 1 € par km', 'erreur'); return; }
+    var enregistrer = function(){
+      var btn = document.getElementById('nft-ok'); btn.disabled = true;
+      fetch(SB_URL+'/rest/v1/tres_reglages', { method:'POST', headers:_trH({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
+        body:JSON.stringify({ cle:'taux_km', valeur:v, modifie_par:getUserId(), modifie_le:new Date().toISOString() }) })
+        .then(function(r){ if(!r.ok) throw 0; TRNF_TAUX_KM = v; m.remove(); notif('Tarif enregistré : '+_trnfTauxTexte()+' € par km', 'succes');
+          var val = document.getElementById('trnf-taux-val'); if(val) val.textContent = _trnfTauxTexte(); })
+        .catch(function(){ btn.disabled = false; notif('Enregistrement impossible', 'erreur'); });
+    };
+    if(v > TRNF_TAUX_PLAFOND_ALERTE){
+      osConfirmer('Ce tarif ('+v.toFixed(2).replace('.', ',')+' € par km) dépasse le barème fiscal habituel : le surplus peut être requalifié en salaire. L’enregistrer quand même ?', { oui:'Enregistrer' }).then(function(ok){ if(ok) enregistrer(); });
+    } else enregistrer();
+  };
+}
+
 // ── Onglet du trésorier ───────────────────────────────────────────
 
 function osTresNotesFraisHtml(){
@@ -126,7 +162,7 @@ function osTresNotesFraisHtml(){
   var liste = d.notes.filter(function(x){ return x.statut === f; });
   var h = '<div class="tr-barre">'+[['soumise', 'À valider'], ['validee', 'À rembourser'], ['remboursee', 'Remboursées'], ['refusee', 'Refusées']].map(function(o){
     return '<button type="button" class="tr-btn'+(f === o[0] ? ' tr-noir' : '')+'" data-filtre="'+o[0]+'">'+o[1]+' ('+n(o[0])+')</button>'; }).join('')
-    +'<span class="tr-sp"></span><button type="button" class="tr-btn tr-p" id="trnf-nouvelle">+ Saisir une note</button></div>';
+    +'<span class="tr-sp"></span><button type="button" class="tr-btn" id="trnf-taux" title="Tarif de remboursement des frais kilométriques">Tarif km : <span id="trnf-taux-val">'+_trnfTauxTexte()+'</span> €</button><button type="button" class="tr-btn tr-p" id="trnf-nouvelle">+ Saisir une note</button></div>';
   if(!liste.length) return h+'<div class="tr-vide">Aucune note dans cette liste.</div>';
   var total = liste.reduce(function(s, x){ return s + +x.montant; }, 0);
   h += '<div class="tr-tableau"><table class="tr-t"><tr><th>Qui</th><th>Objet</th><th class="n">Montant</th><th>Statut</th><th></th></tr>';
@@ -137,11 +173,13 @@ function osTresNotesFraisHtml(){
     h += '<tr><td>'+esc(_trNomMembre(m) || '—')+'</td><td>'+esc(x.objet)+'<small>'+_trDateCourte(x.date_depense)+(x.piece ? ' · <button type="button" class="tr-lien" data-piece="'+esc(x.piece)+'">📎 justificatif</button>' : ' · sans justificatif')
       +(cat ? ' · '+esc(cat.nom) : '')+(x.motif ? ' · motif : '+esc(x.motif) : '')+'</small></td><td class="n">'+_trE(x.montant)+'</td><td>'+_trnfStatut(x)+'</td><td class="n">'+act+'</td></tr>';
   });
-  return h+'</table></div><div class="tr-note">'+liste.length+' note'+(liste.length > 1 ? 's' : '')+' · '+_trE(total)+'. Frais kilométriques : '+TRNF_TAUX_KM.toFixed(2).replace('.', ',')+' € par km. Les admins sont prévenus de chaque validation et de chaque remboursement. Rembourser crée l’écriture de dépense dans le grand livre.</div>';
+  return h+'</table></div><div class="tr-note">'+liste.length+' note'+(liste.length > 1 ? 's' : '')+' · '+_trE(total)+'. Frais kilométriques : '+_trnfTauxTexte()+' € par km. Les admins sont prévenus de chaque validation et de chaque remboursement. Rembourser crée l’écriture de dépense dans le grand livre.</div>';
 }
 
 function osTresNotesFraisBrancher(){
   var z = document.getElementById('tr-corps'); if(!z) return;
+  _trnfChargerTaux().then(function(){ var v = document.getElementById('trnf-taux-val'); if(v) v.textContent = _trnfTauxTexte(); });
+  var tx = document.getElementById('trnf-taux'); if(tx) tx.onclick = _trnfTauxModifier;
   var nv = document.getElementById('trnf-nouvelle'); if(nv) nv.onclick = function(){ osTresNoteFraisForm({ pourUnMembre:true, membres:_tr.d.membres, apres:osTresRafraichir }); };
   z.onclick = function(e){
     var p = e.target.closest('[data-piece]'); if(p){ osTresOuvrirPiece(p.getAttribute('data-piece')); return; }
