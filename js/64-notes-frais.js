@@ -232,7 +232,7 @@ function _trnfDemanderRib(n, d){
     apresCarte:'Ton RIB n’est pas enregistré dans Compo et sera supprimé de la boîte du trésorier une fois le virement fait.',
     repondre:true
   });
-  envoyerEmailResend(membre.email, '[Ipsum Média] Ta note de frais est validée : envoie-nous ton RIB', html, 'note_frais_rib', tresorier.email);
+  envoyerEmailResend(membre.email, '[Ipsum Média] Ta note de frais est validée', html, 'note_frais_rib', tresorier.email);
 }
 
 function _trnfRefuser(id){
