@@ -16,10 +16,11 @@ function osRouletteBandeau(nbLibres){
   // Toujours montré dans l'onglet Sujets : quand la roulette n'est pas utilisable (pas de rédaction choisie, moins de deux sujets libres),
   // le bandeau le dit au lieu de disparaître — sinon on ne sait pas qu'elle existe.
   if(!window._redacActiveId || nbLibres < 2){
-    var raison = !window._redacActiveId ? 'Choisis d’abord une rédaction pour utiliser la roulette.'
+    var raison = !window._redacActiveId ? 'Choisis ta rédaction : la roulette tire parmi les sujets libres de celle que tu sélectionnes.'
       : 'Il faut au moins deux sujets libres dans cette rédaction pour tirer au sort ('+(nbLibres === 1 ? 'il y en a un seul' : 'il n’y en a aucun')+' pour le moment).';
     return '<div class="rl-bandeau rl-bandeau-off"><span class="rl-de" aria-hidden="true">'+_rlDeSvg()+'</span>'
-      +'<div class="rl-bandeau-t"><b>Roulette des sujets</b><small>'+raison+'</small></div></div>';
+      +'<div class="rl-bandeau-t"><b>Roulette des sujets</b><small>'+raison+'</small></div>'
+      +(!window._redacActiveId ? '<button type="button" class="rl-bandeau-btn" onclick="osRouletteChoisirRedac()"><i class="ti ti-news"></i>Choisir</button>' : '')+'</div>';
   }
   return '<div class="rl-bandeau"><span class="rl-de" aria-hidden="true">'+_rlDeSvg()+'</span>'
     +'<div class="rl-bandeau-t"><b>Tu ne sais pas quoi choisir ?</b><small>Laisse la roulette tirer un sujet pour toi. Le premier tirage est gratuit.</small></div>'
@@ -28,6 +29,22 @@ function osRouletteBandeau(nbLibres){
 
 function _rlDeSvg(){
   return '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="#fff"/><circle cx="8" cy="8" r="1.7" fill="#E8461E"/><circle cx="16" cy="8" r="1.7" fill="#E8461E"/><circle cx="12" cy="12" r="1.7" fill="#E8461E"/><circle cx="8" cy="16" r="1.7" fill="#E8461E"/><circle cx="16" cy="16" r="1.7" fill="#E8461E"/></svg>';
+}
+
+// Aucune rédaction sélectionnée (la liste montre alors les sujets de toutes tes rédactions) : on ouvre le choix de rédaction,
+// puis on recharge l'onglet Sujets dès qu'une rédaction est choisie.
+function osRouletteChoisirRedac(){
+  var uid = getUserId();
+  var liens = (window._membresRedactionsData || []).filter(function(l){ return l.membre_id === uid; });
+  if(!liens.length){ if(typeof notif === 'function') notif('Tu n’as pas encore de rédaction', 'alerte'); return; }
+  if(liens.length === 1 && typeof osRedactionsChoisirRedac === 'function') osRedactionsChoisirRedac(liens[0].redaction_id);
+  else if(typeof _osAfficherSelecteurRedaction === 'function') _osAfficherSelecteurRedaction(liens, false);
+  var essais = 0;
+  var guet = setInterval(function(){
+    essais++;
+    if(window._redacActiveId){ clearInterval(guet); if(typeof osRedactionsChangerOnglet === 'function') osRedactionsChangerOnglet('sujets'); }
+    else if(essais > 60) clearInterval(guet);
+  }, 400);
 }
 
 // ── Sons (synthèse Web Audio : rien à télécharger) ──
