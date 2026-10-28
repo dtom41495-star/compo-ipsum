@@ -74,6 +74,10 @@ function formatDate(iso){
   return jours[d.getDay()]+' '+d.getDate()+' '+mois[d.getMonth()]+' à '+h+'h'+(m<10?'0'+m:m);
 }
 
+function afficherCarteLieu(ev){
+  if(ev.lieu && !ev.infos_reservees && window.osCarteLieuDepuisTexte) osCarteLieuDepuisTexte('insc-carte', ev.lieu);
+}
+
 function afficherFormulaire(ev){
   var html = '<div class="bandeau"><div class="marque">Ipsum Média</div><div class="titre-ev">'+escHtml(ev.titre)+'</div></div>';
   html += '<div class="corps">';
@@ -83,6 +87,8 @@ function afficherFormulaire(ev){
     html += '<div class="info-ligne"><span class="puce"><i class="ti ti-lock"></i></span><span>Le lieu'+(ev.visio ? ' et le lien de connexion' : '')+' vous seront communiqués par email après votre inscription</span></div>';
   } else {
     if(ev.lieu) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-map-pin"></i></span><span>'+escHtml(ev.lieu)+'</span></div>';
+    // Carte du lieu (cartes.gouv.fr, js/71-carte-lieu.js), placée une fois la fiche affichée
+    if(ev.lieu) html += '<div id="insc-carte" style="display:none;height:180px;margin:0.4rem 0 0.6rem;border-radius:10px;overflow:hidden;border:1px solid var(--gris-bord);position:relative;z-index:0;"></div>';
     if(ev.visio || ev.lien_visio) html += '<div class="info-ligne"><span class="puce"><i class="ti ti-link"></i></span><span>Rendez-vous en visio (le lien vous sera envoyé par email)</span></div>';
   }
 
@@ -90,6 +96,7 @@ function afficherFormulaire(ev){
     html += '<div class="etat" style="padding:1.5rem 0 0.5rem;"><div class="picto"><i class="ti ti-mood-sad"></i></div><div class="msg">Complet</div><div class="detail">Il n\'y a plus de place disponible pour cet événement.</div></div>';
     html += '</div>';
     carte.innerHTML = html;
+    afficherCarteLieu(ev);
     return;
   }
 
@@ -110,6 +117,7 @@ function afficherFormulaire(ev){
   html += '</div>';
   html += '<div class="pied">Ipsum Média · Rédaction associative</div>';
   carte.innerHTML = html;
+  afficherCarteLieu(ev);
 
   document.getElementById('form-inscription').addEventListener('submit', function(e){
     e.preventDefault();
@@ -166,5 +174,6 @@ if(!eventId){
   });
 }
 </script>
+<script src="js/71-carte-lieu.js"></script>
 </body>
 </html>

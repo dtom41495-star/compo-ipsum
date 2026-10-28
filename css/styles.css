@@ -6861,3 +6861,12 @@ a.gd-lien:hover { background: #F6F3EF; }
 a.gd-lien .gd-ouvrir { pointer-events: none; }
 .rl-bandeau-off { background: #F6F3EF; border-color: var(--gris-bord); }
 .rl-bandeau-off .rl-de { background: #B9B3AC; box-shadow: 0 3px 0 #8f8a84; animation: none; }
+
+/* Lieu des événements : suggestions d'adresses et carte IGN (js/71-carte-lieu.js) */
+.carte-sugg{position:absolute;left:0;right:0;top:100%;margin-top:3px;z-index:50;background:var(--md-surface);border:1.5px solid var(--md-outline);border-radius:var(--md-shape-sm);box-shadow:0 6px 18px rgba(0,0,0,0.12);overflow:hidden;}
+.carte-sugg-item{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.65rem;font-size:0.8rem;color:var(--md-on-surface);cursor:pointer;}
+.carte-sugg-item i{color:var(--gris);flex-shrink:0;}
+.carte-sugg-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.carte-sugg-item:hover,.carte-sugg-item.actif{background:rgba(0,0,0,0.05);}
+.carte-sugg-source{padding:0.3rem 0.65rem;font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);border-top:1px solid var(--gris-bord);}
+.carte-lieu{height:190px;margin-top:0.6rem;border-radius:var(--md-shape-sm);overflow:hidden;border:1px solid var(--gris-bord);z-index:0;position:relative;}
