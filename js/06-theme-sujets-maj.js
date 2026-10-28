@@ -624,8 +624,9 @@ function osInitSujets(){
 
 
 function osOuvrirTutos(){
-  // Guide : choisir entre la vidéo et la visite guidée
-  if(typeof osGuideChoisir === 'function') osGuideChoisir();
+  // Guide : le vrai guide de Compo (js/70-guide.js) ; la vidéo, la visite guidée et les nouveautés y restent accessibles
+  if(typeof osGuideOuvrir === 'function') osGuideOuvrir();
+  else if(typeof osGuideChoisir === 'function') osGuideChoisir();
   else osTourDemarrer();
 }
 
