@@ -1557,7 +1557,7 @@ function osAgendaOuvrirDetail(ev){
   html += ligneInfo('clock', heureStr+finStr);
   var evI = _agPourAffichage(ev);
   if(evI._infosMasquees) html += ligneInfo('lock', 'Lieu'+(ev.lien_visio ? ' et lien de connexion' : '')+' communiqué'+(ev.lien_visio ? 's' : '')+' aux inscrit·es');
-  else if(ev.lieu) html += ligneInfo('map-pin', esc(ev.lieu));
+  else if(ev.lieu) html += ligneInfo('map-pin', esc(ev.lieu)) + '<div id="ag-fiche-carte" class="carte-lieu" style="display:none;"></div>';
   if(evI.lien_visio) html += ligneInfo('video', '<a href="'+esc(ev.lien_visio)+'" target="_blank" rel="noopener" style="color:var(--bleu);">Rejoindre en visio</a>');
   if(ev.organisateur) html += ligneInfo('user', esc(ev.organisateur));
   if(ev.places_max) html += ligneInfo('armchair', ev.places_max+' places'+(ev.validation_admin?' · inscription soumise à validation':''));
@@ -1576,6 +1576,7 @@ function osAgendaOuvrirDetail(ev){
 
   overlay.innerHTML = html;
   body.appendChild(overlay);
+  if(ev.lieu && !evI._infosMasquees && typeof osCarteLieuDepuisTexte === 'function') osCarteLieuDepuisTexte('ag-fiche-carte', ev.lieu);
 
   // Charger les inscriptions
   Promise.all([
@@ -2888,9 +2889,11 @@ function osAgendaOuvrirFormulaire(ev){
     +champ('Fin', '<input id="ag-fin" type="datetime-local" value="'+(ev&&ev.date_fin?toDateInput(new Date(ev.date_fin)):'')+'" style="'+CHAMP+'">')
     +'</div>';
   html += '<div style="'+DEUX_COL+'">'
-    +champ('Lieu', '<input id="ag-lieu" type="text" value="'+esc(ev?ev.lieu||'':'')+'" placeholder="Adresse ou salle" style="'+CHAMP+'">')
+    +champ('Lieu', '<input id="ag-lieu" type="text" value="'+esc(ev?ev.lieu||'':'')+'" placeholder="Tape une adresse ou un lieu" style="'+CHAMP+'">')
     +champ('Lien visio', '<input id="ag-visio" type="url" value="'+esc(ev?ev.lien_visio||'':'')+'" placeholder="https://…" style="'+CHAMP+'">')
     +'</div>'
+    // Carte du lieu (cartes.gouv.fr), affichée dès qu'une adresse est reconnue
+    +'<div id="ag-lieu-carte" class="carte-lieu" style="display:none;"></div>'
     // Option : lieu et lien visibles seulement par les inscrit·es confirmé·es (et ceux qui gèrent l'événement)
     +interrupteur('ag-infos-reservees', 'Lieu et lien réservés aux inscrit·es', 'Les autres voient « Communiqué aux inscrit·es » dans Compo, les invitations et le lien public.', ev&&ev.infos_reservees, 'lock');
   html += '</div>';
@@ -2942,6 +2945,7 @@ function osAgendaOuvrirFormulaire(ev){
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
   if(!isEdit){ var t = document.getElementById('ag-titre'); if(t) t.focus(); }
   osAgendaInitApercuCibles(isEdit);
+  if(typeof osCarteLieuBrancher === 'function') osCarteLieuBrancher('ag-lieu', 'ag-lieu-carte');
 }
 
 // Quitter le formulaire sans enregistrer : retour à la fiche de l'événement si on le
