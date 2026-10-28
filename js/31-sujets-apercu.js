@@ -64,6 +64,19 @@ function osSujetApercuNaviguer(d){
   _sjApRendre();
 }
 
+// Source d'un sujet : le champ source_url, ou, pour les sujets créés avant ce champ, le lien « Source : https://… »
+// qui avait été écrit dans la description (on le sort alors de la description pour l'afficher à part, cliquable).
+function _sjApSource(s){
+  var note = s.note || '', url = s.source_url || '', nom = s.source_nom || '';
+  if(!url){
+    var m = /(?:^|\n)[ \t]*Source(?: \(([^)\n]*)\))? ?: ?(https?:\/\/\S+)[ \t]*/i.exec(note);
+    if(m){ url = m[2]; note = (note.slice(0, m.index) + note.slice(m.index + m[0].length)).trim(); if(m[1]) note = (note ? note + '\n' : '') + m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'; }
+  }
+  if(url && !/^https?:\/\//i.test(url)) url = '';
+  if(url && !nom){ try{ nom = new URL(url).hostname.replace(/^www\./, ''); }catch(e){} }
+  return { note:note, url:url, nom:nom };
+}
+
 function _sjApRendre(){
   var s = _sjApTrouver(_sjAp.ids[_sjAp.i]);
   if(!s) return;
@@ -87,6 +100,7 @@ function _sjApRendre(){
   var pris = s.statut === 'en_cours' && !!s.responsable;
   var moi = pris && String(s.responsable).trim() === String(getUserNomComplet()).trim();
   var redac = (window._redactionsData || []).filter(function(r){ return r.id === s.redaction_id; })[0];
+  var src = _sjApSource(s);
 
   var h = '<div class="sjap-boite" role="dialog" aria-label="Aperçu du sujet">'
     +'<div class="sjap-tete"><div class="sjap-nav">'
@@ -106,7 +120,11 @@ function _sjApRendre(){
           : '<span class="sjap-badge" style="background:#D4EDDA;color:#155724;">Libre</span>')
       +'</div>'
       +'<div class="sjap-section"><div class="sjap-sec-t">Angle et contexte</div>'
-        +(s.note ? '<div class="sjap-note">'+esc(s.note)+'</div>' : '<div class="sjap-vide">Aucun angle précisé pour ce sujet.</div>')+'</div>'
+        +(src.note ? '<div class="sjap-note">'+esc(src.note)+'</div>' : '<div class="sjap-vide">Aucun angle précisé pour ce sujet.</div>')+'</div>'
+      +(src.url ? '<div class="sjap-section"><div class="sjap-sec-t">Source</div>'
+        +'<a class="sjap-lien sjap-src" href="'+esc(src.url)+'" target="_blank" rel="noopener noreferrer"><i class="ti ti-link"></i>'
+        +'<div class="sjap-lien-t"><b>'+esc(src.nom || 'Ouvrir la source')+'</b><small>'+esc(src.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70))+'</small></div>'
+        +'<span class="sjap-btn">Ouvrir <i class="ti ti-external-link"></i></span></a></div>' : '')
       +'<div class="sjap-section" id="sjap-cp"><div class="sjap-sec-t">Communiqué lié</div>'
         +(s.cp_id ? '<div class="sjap-vide">Chargement…</div>' : '<div class="sjap-vide">Aucun communiqué lié.</div>')+'</div>'
       +'<div class="sjap-section" id="sjap-cp-plus"></div>'

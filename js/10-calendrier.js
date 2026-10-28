@@ -725,6 +725,7 @@ function osSujetsDroit(){
 
 function osOuvrirNouveauSujetModal(opts){
   window._nsOpts = opts || null; // depuis Rédiger : titre pré-rempli, et on écrit juste après
+  window._nsSource = null;       // source (lien) du sujet, posée par la Veille juste après l'ouverture
   if(osRedacBloqueePourMoi(window._redacActiveId)) return;
   var droit = osSujetsDroit();
   if(!droit){ notif('Seul le rédac chef peut créer des sujets dans cette rédaction'); return; }
@@ -800,6 +801,7 @@ function osCreerNouveauSujet(){
     redaction_id: window._redacActiveId||null,
     created_by: getUserId()
   };
+  if(window._nsSource && /^https?:\/\//i.test(window._nsSource.url)){ payload.source_url = window._nsSource.url; payload.source_nom = window._nsSource.nom || null; }
   // Depuis Rédiger : le sujet est réservé d'office à son auteur·rice (même en attente de validation)
   var apres = window._nsOpts && window._nsOpts.apres;
   var ecritureDifferee = _nsEcritureDiffereePourType(type);   // article dont le sujet doit d'abord être validé
@@ -1255,8 +1257,13 @@ function osVeilleCreerSujet(articleId){
       if(t) t.value = article.titre||'';
       // Les pages sans flux (ex. le Tarn Libre) ne donnent pas de résumé, seulement la mention « abonnés »
       var abonnes = article.resume === 'Article réservé aux abonnés';
-      if(n) n.value = (article.resume && !abonnes ? article.resume+'\n\n' : '')+'Source'+(abonnes ? ' (article réservé aux abonnés)' : '')+' : '+article.lien
-        +(typeof osVeilleContactsTexte === 'function' ? osVeilleContactsTexte(article) : '');
+      // Le lien va dans le champ « Source » du sujet (cliquable dans l'aperçu), pas dans la description
+      var flux = (window._veilleFlux || []).filter(function(f){ return f.id === article.flux_id; })[0];
+      var nomSource = flux && flux.nom ? flux.nom : '';
+      if(!nomSource){ try{ nomSource = new URL(article.lien).hostname.replace(/^www\./, ''); }catch(e){} }
+      window._nsSource = article.lien ? { url:article.lien, nom:nomSource } : null;
+      var contacts = typeof osVeilleContactsTexte === 'function' ? osVeilleContactsTexte(article) : '';
+      if(n) n.value = ((article.resume && !abonnes ? article.resume : '')+(abonnes ? 'Article réservé aux abonnés.' : '')+contacts).replace(/^\s+/, '');
     }, 60);
   });
 }

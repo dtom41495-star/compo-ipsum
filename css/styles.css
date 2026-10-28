@@ -4985,6 +4985,9 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 .sjap-vide { font-size: .82rem; color: var(--gris); }
 .sjap-lien { display: flex; align-items: center; gap: 12px; border: 1px solid var(--gris-bord); border-left: 4px solid var(--rouge); border-radius: 12px; padding: 10px 12px; }
 .sjap-lien > i { font-size: 1.2rem; color: var(--rouge); }
+a.sjap-src { text-decoration: none; color: inherit; cursor: pointer; }
+a.sjap-src:hover { background: #F6F3EF; }
+a.sjap-src .sjap-btn { pointer-events: none; }
 .sjap-lien-t { flex: 1; min-width: 0; font-size: .86rem; }
 .sjap-lien-t b { display: block; }
 .sjap-lien-t small { display: block; color: var(--gris); font-size: .74rem; margin-top: 2px; line-height: 1.4; }
