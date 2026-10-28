@@ -5,7 +5,8 @@
 //  - un premier tirage gratuit par jour ; un second tirage payant (ROULETTE_COUT plumes) dans les 30 minutes ; jamais plus de deux ;
 //  - le second tirage ne retombe pas sur le même sujet.
 // Le serveur choisit le sujet ; l'animation (défilement de cartes, sons synthétisés, confettis) s'arrête dessus.
-// « Je prends ce sujet » ouvre la réservation habituelle du sujet.
+// « Je prends ce sujet » ouvre la réservation habituelle du sujet. Bonus « zone de confort » : quelques plumes de plus (roulette_bonus(), 10 par défaut)
+// quand l'article de ce sujet est publié par la personne qui l'a tiré (versé par le serveur, une seule fois).
 
 var ROULETTE_COUT = 15;
 var _rl = { enCours:false, son:true, etat:null, gagnant:null, boucle:null, ctx:null };
@@ -109,7 +110,7 @@ function _rlAfficherEtat(){
   }
   document.getElementById('rl-e1').classList.add('on'); if(e.rang >= 2) document.getElementById('rl-e2').classList.add('on');
   if(e.sujet_id && e.libre){
-    _rl.gagnant = { sujet_id:e.sujet_id, titre:e.titre, rang:e.rang, relance_possible:!!e.relance_possible };
+    _rl.gagnant = { sujet_id:e.sujet_id, titre:e.titre, rang:e.rang, relance_possible:!!e.relance_possible, bonus:e.bonus };
     a.innerHTML = '<div class="rl-aide">Tu as déjà tiré un sujet aujourd’hui.</div>';
     _rlResultat(_rl.gagnant, false);
   } else {
@@ -147,6 +148,7 @@ function osRouletteLancer(relance){
   if(res){ res.className = 'rl-resultat'; res.innerHTML = ''; }
   _rlRpc('roulette_sujet', { p_redaction:window._redacActiveId, p_relance:!!relance }).then(function(g){
     _rl.gagnant = g; _rlPlumes(g.plumes);
+    if(_rl.etat) _rl.etat.bonus = g.bonus;
     var cible = _rlConstruire(g.sujet_id);
     var etape = document.getElementById('rl-e'+g.rang); if(etape) etape.classList.add('on');
     var arrivee = (cible < 0 ? 40 : cible) * RL_LARG + (Math.random() * 70 - 35);
@@ -179,6 +181,7 @@ function _rlResultat(g, anime){
   var plumes = parseInt((document.getElementById('rl-plumes') || {}).textContent, 10) || 0;
   res.className = 'rl-resultat vu'+(anime ? ' rl-anim' : '');
   res.innerHTML = '<div class="rl-tag">'+(dernier ? 'Dernier tirage · ton sujet' : 'Ton sujet')+'</div><h2>'+esc(g.titre || '')+'</h2>'
+    +'<div class="rl-bonus"><i class="ti ti-flame"></i> <b>Défi zone de confort</b> : +'+(g.bonus || (_rl.etat && _rl.etat.bonus) || 10)+' plumes quand l’article sera publié.</div>'
     +'<div class="rl-boutons"><button type="button" class="rl-gros rl-vert" id="rl-prendre">Je prends ce sujet</button>'
     +(dernier ? '<span class="rl-aide">C’était le dernier tirage : à toi de jouer !</span>'
       : '<button type="button" class="rl-second" id="rl-relancer"'+(plumes < ROULETTE_COUT ? ' disabled' : '')+'>Relancer · '+ROULETTE_COUT+' plumes'+(plumes < ROULETTE_COUT ? ' (pas assez)' : '')+'</button>')
