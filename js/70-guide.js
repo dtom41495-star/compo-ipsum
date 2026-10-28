@@ -5,7 +5,7 @@
 // Chaque appli citée a un bouton « Ouvrir » quand la personne y a accès.
 // La vidéo, la visite guidée et les nouveautés restent accessibles depuis « Pour commencer » (js/26-video-tuto.js).
 
-var _gd = { chapitre:'debut', cfg:null, boutique:null };
+var _gd = { chapitre:'debut', cfg:null, boutique:null, membres:null, chefs:null };
 var GD_PLUMES_DEFAUT = { plumes_par_heure:10, plumes_breve:5, plumes_article:20, plumes_semaine:3, palier_4:10, palier_8:25, palier_12:50, palier_26:100, cout_gel:30, jours_entre_gels:28 };
 var GD_COUT_ROULETTE = 15, GD_BONUS_ROULETTE = 10;
 
@@ -17,6 +17,8 @@ var GD_CHAPITRES = [
   { id:'serie',    icone:'ti-flame',          titre:'La régularité' },
   { id:'plumes',   icone:'ti-feather',        titre:'Les plumes' },
   { id:'frais',    icone:'ti-receipt-2',      titre:'Les notes de frais' },
+  { id:'contacts', icone:'ti-address-book',   titre:'Qui contacter ?' },
+  { id:'liens',    icone:'ti-world',          titre:'Nous retrouver' },
   { id:'aide',     icone:'ti-lifebuoy',       titre:'Besoin d’aide ?' }
 ];
 
@@ -54,7 +56,10 @@ function _gdCharger(){
   var h = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
   var cfg = fetch(SB_URL+'/rest/v1/serie_config?select=cle,valeur', { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
   var art = fetch(SB_URL+'/rest/v1/boutique_articles?actif=eq.true&select=nom,cout_plumes,categorie,type&order=cout_plumes.asc', { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
-  return Promise.all([cfg, art]).then(function(res){
+  var mem = fetch(SB_URL+'/rest/v1/membres?actif=eq.true&role=neq.interdit&select=id,prenom,nom,email,role,fonction&order=prenom.asc', { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
+  var chefs = fetch(SB_URL+'/rest/v1/membres_redactions?role_redac=eq.redac_chef&select=membre_id,redaction_id', { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
+  return Promise.all([cfg, art, mem, chefs]).then(function(res){
+    _gd.membres = Array.isArray(res[2]) ? res[2] : []; _gd.chefs = Array.isArray(res[3]) ? res[3] : [];
     var c = Object.assign({}, GD_PLUMES_DEFAUT);
     (Array.isArray(res[0]) ? res[0] : []).forEach(function(x){ if(x && x.cle && typeof x.valeur === 'number') c[x.cle] = x.valeur; });
     _gd.cfg = c; _gd.boutique = Array.isArray(res[1]) ? res[1] : [];
@@ -198,6 +203,9 @@ function _gdChapitreHtml(id){
     +_gdAstuce('Garde toujours le justificatif. Sans lui, la note risque d’être refusée.', 'ti-receipt')
     +_gdOuvrir('notes-frais', 'Ouvrir Notes de frais');
 
+  if(id === 'contacts') return _gdContactsHtml();
+  if(id === 'liens') return _gdLiensHtml();
+
   if(id === 'aide') return '<h1>Besoin d’aide ?</h1>'
     +'<p class="gd-chapo">Tu bloques ? Voici par où commencer.</p>'
     +'<div class="gd-liste">'
@@ -208,6 +216,82 @@ function _gdChapitreHtml(id){
     +'</div>'
     +'<button type="button" class="gd-ouvrir" onclick="osGuideChapitre(\'debut\')"><i class="ti ti-arrow-left"></i> Revenir au début</button>';
   return '';
+}
+
+// ── Qui contacter ? Liste construite à partir des fonctions des membres actifs (fiche membre > fonctions) ──
+var GD_ROLES_ASSO = [
+  { cle:['president'],      titre:'Président·e',          icone:'ti-crown',        aide:'Une question sur l’association, un désaccord, une décision importante.' },
+  { cle:['vice_president'], titre:'Vice-président·e',     icone:'ti-user-star',    aide:'Quand le ou la président·e n’est pas joignable.' },
+  { cle:['secretaire'],     titre:'Secrétaire',           icone:'ti-mail-opened',  aide:'Courriers, documents officiels et signatures.' },
+  { cle:['tresorier'],      titre:'Trésorier·ère',        icone:'ti-coin-euro',    aide:'Notes de frais, remboursements, adhésions et cotisations.' },
+  { cle:['vie_asso'],       titre:'Vie associative',      icone:'ti-heart-handshake', aide:'Arrivée ou départ de l’équipe, heures de bénévolat, pause, difficultés avec un membre.' },
+  { cle:['communication', 'responsable_com', 'com_externe', 'com_interne'], titre:'Communication', icone:'ti-speakerphone', aide:'Réseaux sociaux, visuels, communiqués et newsletter.' }
+];
+function _gdNom(m){ return ((m.prenom || '')+' '+(m.nom || '')).trim() || 'Membre'; }
+function _gdAFonction(m, cles){
+  var f = typeof fonctionArray === 'function' ? fonctionArray(m.fonction) : (Array.isArray(m.fonction) ? m.fonction : []);
+  return cles.some(function(c){ return f.indexOf(c) !== -1; });
+}
+function _gdPersonne(m){
+  var mail = m.email ? '<a class="gd-mail" href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a><button type="button" class="gd-copier" data-mail="'+esc(m.email)+'" onclick="osGuideCopier(this)" title="Copier l’adresse"><i class="ti ti-copy"></i></button>' : '<span class="gd-vide">pas d’adresse renseignée</span>';
+  return '<div class="gd-personne"><span class="gd-avatar">'+esc((m.prenom || '?').charAt(0).toUpperCase())+'</span><div class="gd-personne-t"><b>'+esc(_gdNom(m))+'</b>'+mail+'</div></div>';
+}
+function osGuideCopier(btn){
+  var mail = btn.getAttribute('data-mail');
+  try{ navigator.clipboard.writeText(mail).then(function(){ btn.innerHTML = '<i class="ti ti-check"></i>'; setTimeout(function(){ btn.innerHTML = '<i class="ti ti-copy"></i>'; }, 1400); }); }catch(e){}
+}
+function _gdContactsHtml(){
+  var membres = _gd.membres;
+  var h = '<h1>Qui contacter ?</h1><p class="gd-chapo">Selon ta question, voici qui peut t’aider. Cette liste se met à jour toute seule : elle suit les fonctions inscrites sur la fiche de chaque membre.</p>';
+  if(!membres){ return h+'<p class="gd-vide">Chargement de la liste…</p>'; }
+  var redacId = window._redacActiveId, chefs = [];
+  if(redacId){
+    var ids = (_gd.chefs || []).filter(function(c){ return c.redaction_id === redacId; }).map(function(c){ return c.membre_id; });
+    chefs = membres.filter(function(m){ return ids.indexOf(m.id) !== -1; });
+  }
+  if(chefs.length){
+    var redac = (window._redactionsData || []).filter(function(r){ return r.id === redacId; })[0];
+    h += '<h2><i class="ti ti-news"></i> Ton rédac chef'+(chefs.length > 1 ? 's' : '')+(redac ? ' · '+esc(redac.nom) : '')+'</h2>'
+      +'<p class="gd-aide-role">Un sujet, un article, une relecture, un souci avec ta rédaction : commence par là.</p>'+chefs.map(_gdPersonne).join('');
+  }
+  GD_ROLES_ASSO.forEach(function(r){
+    var gens = membres.filter(function(m){ return _gdAFonction(m, r.cle); });
+    h += '<h2><i class="ti '+r.icone+'"></i> '+r.titre+'</h2><p class="gd-aide-role">'+r.aide+'</p>'
+      +(gens.length ? gens.map(_gdPersonne).join('') : '<p class="gd-vide">Personne n’a encore cette fonction.</p>');
+  });
+  h += '<h2><i class="ti ti-tool"></i> Un problème technique avec Compo</h2><p class="gd-aide-role">Une erreur, une page qui ne s’ouvre pas, un accès qui manque.</p>'
+    +'<div class="gd-personne"><span class="gd-avatar"><i class="ti ti-mail"></i></span><div class="gd-personne-t"><b>L’équipe d’Ipsum Média</b><a class="gd-mail" href="mailto:contact@ipsummedia.fr">contact@ipsummedia.fr</a><button type="button" class="gd-copier" data-mail="contact@ipsummedia.fr" onclick="osGuideCopier(this)" title="Copier l’adresse"><i class="ti ti-copy"></i></button></div></div>';
+  return h;
+}
+
+// ── Nous retrouver : site, newsletters, réseaux ──
+var GD_LIENS = [
+  { groupe:'Chez nous', liens:[
+    { nom:'Le site', icone:'ti-world', couleur:'#E8461E', texte:'ipsummedia.fr : tous les articles.', url:'https://ipsummedia.fr' },
+    { nom:'La newsletter du Tarn', icone:'ti-mail-forward', couleur:'#FF6719', texte:'L’actualité du Tarn, chaque jeudi dans ta boîte mail. Gratuit.', url:'https://ipsummedia.substack.com/subscribe' },
+    { nom:'La newsletter de la Haute-Garonne', icone:'ti-mail-forward', couleur:'#FF6719', texte:'La même chose pour la Haute-Garonne.', url:'https://ipsummediahautegaronne.substack.com' }
+  ]},
+  { groupe:'Nos réseaux', liens:[
+    { nom:'Instagram', icone:'ti-brand-instagram', couleur:'#C13584', texte:'@ipsum_media_', url:'https://www.instagram.com/ipsum_media_' },
+    { nom:'Facebook', icone:'ti-brand-facebook', couleur:'#1877F2', texte:'La page d’Ipsum Média.', url:'https://www.facebook.com/profile.php?id=61591708070712' },
+    { nom:'TikTok', icone:'ti-brand-tiktok', couleur:'#111111', texte:'@ipsum.media', url:'https://www.tiktok.com/@ipsum.media' },
+    { nom:'YouTube', icone:'ti-brand-youtube', couleur:'#FF0000', texte:'Les vidéos et reportages.', url:'https://www.youtube.com/@ipsummedia-u2g' },
+    { nom:'Threads', icone:'ti-brand-threads', couleur:'#111111', texte:'@ipsum_media_', url:'https://www.threads.com/@ipsum_media_' },
+    { nom:'LinkedIn', icone:'ti-brand-linkedin', couleur:'#0A66C2', texte:'La page de l’association.', url:'https://www.linkedin.com/company/106848404/' }
+  ]},
+  { groupe:'Nous soutenir', liens:[
+    { nom:'Faire un don', icone:'ti-heart', couleur:'#2E9E5B', texte:'Via HelloAsso. Chaque don, même petit, nous aide à continuer.', url:'https://www.helloasso.com/associations/ipsum-media' }
+  ]}
+];
+function _gdLiensHtml(){
+  var h = '<h1>Nous retrouver</h1><p class="gd-chapo">Le site, les newsletters et les réseaux d’Ipsum Média. Partage-les : c’est la meilleure façon de faire lire ce que l’équipe écrit.</p>';
+  GD_LIENS.forEach(function(g){
+    h += '<h2>'+g.groupe+'</h2>'+g.liens.map(function(l){
+      return '<a class="gd-app gd-lien" href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer"><span class="gd-app-ico" style="background:'+l.couleur+'"><i class="ti '+l.icone+'"></i></span>'
+        +'<div class="gd-app-t"><b>'+esc(l.nom)+'</b><span>'+esc(l.texte)+'</span></div><span class="gd-ouvrir">Ouvrir <i class="ti ti-external-link"></i></span></a>';
+    }).join('');
+  });
+  return h;
 }
 
 function _gdPlumesHtml(){
