@@ -76,7 +76,9 @@ function _carteLocaliser(texte){
   if(_carteCache[q] !== undefined) return Promise.resolve(_carteCache[q]);
   return Promise.all([_carteChercher(q, 'address', 1), _carteChercher(q, 'poi', 1)]).then(function(res){
     var a = res[0][0], p = res[1][0];
-    var pt = (a && a.score >= 0.5) ? a : (p || a || null);
+    // Un nom seul (« ESJ Lille ») peut tomber sur un point au hasard : sans résultat assez
+    // sûr, pas de carte plutôt qu'une carte fausse
+    var pt = (a && a.score >= 0.5) ? a : ((p && p.score >= 0.4) ? p : null);
     _carteCache[q] = pt;
     return pt;
   });
