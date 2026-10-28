@@ -70,15 +70,23 @@ function _carteSuggestions(q){
 }
 
 // Retrouve le point d'un lieu déjà saisi (fiche, modification d'un événement)
-function _carteLocaliser(texte){
-  var q = (texte||'').trim();
-  if(q.length < 3) return Promise.resolve(null);
-  if(_carteCache[q] !== undefined) return Promise.resolve(_carteCache[q]);
+function _carteLocaliserTexte(q){
   return Promise.all([_carteChercher(q, 'address', 1), _carteChercher(q, 'poi', 1)]).then(function(res){
     var a = res[0][0], p = res[1][0];
     // Un nom seul (« ESJ Lille ») peut tomber sur un point au hasard : sans résultat assez
     // sûr, pas de carte plutôt qu'une carte fausse
-    var pt = (a && a.score >= 0.5) ? a : ((p && p.score >= 0.4) ? p : null);
+    return (a && a.score >= 0.5) ? a : ((p && p.score >= 0.4) ? p : null);
+  });
+}
+function _carteLocaliser(texte){
+  var q = (texte||'').trim();
+  if(q.length < 3) return Promise.resolve(null);
+  if(_carteCache[q] !== undefined) return Promise.resolve(_carteCache[q]);
+  // « Nom du lieu, 12 rue X, 81000 Albi » : si le tout n'est pas reconnu, on retente sans le nom
+  var sansNom = q.indexOf(',') > 0 ? q.slice(q.indexOf(',')+1).trim() : '';
+  return _carteLocaliserTexte(q).then(function(pt){
+    return (pt || sansNom.length < 3) ? pt : _carteLocaliserTexte(sansNom);
+  }).then(function(pt){
     _carteCache[q] = pt;
     return pt;
   });
