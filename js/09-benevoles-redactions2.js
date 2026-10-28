@@ -1935,6 +1935,8 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     // gardé quand la liste se recharge (réservation, modification…).
     var nbLibres = sujets.filter(function(s){ return !(s.statut==='en_cours' && s.responsable); }).length;
     var filtre = window._sujetsFiltre === 'pris' ? 'pris' : 'libres';
+    // Roulette : « Tu ne sais pas quoi choisir ? », tout en haut de la liste des sujets de la rédaction sélectionnée
+    if(typeof osRouletteBandeau === 'function') h += osRouletteBandeau(sujets.filter(function(s){ return s.statut==='ouvert' && !s.responsable; }).length);
     h += '<div class="sujets-onglets">'
       +'<button type="button" class="'+(filtre==='libres'?'actif':'')+'" data-f="libres" onclick="_osSujetsFiltrer(this)"><i class="ti ti-hand-stop"></i>À prendre <span class="sujets-onglets-nb">'+nbLibres+'</span></button>'
       +'<button type="button" class="'+(filtre==='pris'?'actif':'')+'" data-f="pris" onclick="_osSujetsFiltrer(this)"><i class="ti ti-pencil"></i>En cours <span class="sujets-onglets-nb">'+(sujets.length-nbLibres)+'</span></button></div>';
