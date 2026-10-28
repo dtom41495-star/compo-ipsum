@@ -1908,7 +1908,8 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     // bug repéré via Mathéo (Tarn + Haute-Garonne), badge "7" alors que le Tarn est vide.
     _osRedacMajBadgeRail('sujets', sujets.filter(function(s){ return seenSJ.indexOf(s.id)===-1; }).length);
     if(!sujets.length){
-      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-family:DM Sans,sans-serif;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
+      zone.innerHTML = (typeof osRouletteBandeau === 'function' ? osRouletteBandeau(0) : '')
+        +'<div style="text-align:center;padding:3rem;color:var(--gris);font-family:DM Sans,sans-serif;font-size:0.78rem;">Aucun sujet proposé pour le moment.</div>';
       if(callback) callback();
       return;
     }

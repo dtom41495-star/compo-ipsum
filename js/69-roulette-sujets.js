@@ -13,10 +13,21 @@ var _rl = { enCours:false, son:true, etat:null, gagnant:null, boucle:null, ctx:n
 try{ _rl.son = localStorage.getItem('compo_roulette_son') !== '0'; }catch(e){}
 
 function osRouletteBandeau(nbLibres){
-  if(!window._redacActiveId || nbLibres < 2) return '';
-  return '<div class="rl-bandeau"><span class="rl-de" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="#fff"/><circle cx="8" cy="8" r="1.7" fill="#E8461E"/><circle cx="16" cy="8" r="1.7" fill="#E8461E"/><circle cx="12" cy="12" r="1.7" fill="#E8461E"/><circle cx="8" cy="16" r="1.7" fill="#E8461E"/><circle cx="16" cy="16" r="1.7" fill="#E8461E"/></svg></span>'
+  // Toujours montré dans l'onglet Sujets : quand la roulette n'est pas utilisable (pas de rédaction choisie, moins de deux sujets libres),
+  // le bandeau le dit au lieu de disparaître — sinon on ne sait pas qu'elle existe.
+  if(!window._redacActiveId || nbLibres < 2){
+    var raison = !window._redacActiveId ? 'Choisis d’abord une rédaction pour utiliser la roulette.'
+      : 'Il faut au moins deux sujets libres dans cette rédaction pour tirer au sort ('+(nbLibres === 1 ? 'il y en a un seul' : 'il n’y en a aucun')+' pour le moment).';
+    return '<div class="rl-bandeau rl-bandeau-off"><span class="rl-de" aria-hidden="true">'+_rlDeSvg()+'</span>'
+      +'<div class="rl-bandeau-t"><b>Roulette des sujets</b><small>'+raison+'</small></div></div>';
+  }
+  return '<div class="rl-bandeau"><span class="rl-de" aria-hidden="true">'+_rlDeSvg()+'</span>'
     +'<div class="rl-bandeau-t"><b>Tu ne sais pas quoi choisir ?</b><small>Laisse la roulette tirer un sujet pour toi. Le premier tirage est gratuit.</small></div>'
     +'<button type="button" class="rl-bandeau-btn" onclick="osRouletteOuvrir()"><i class="ti ti-dice-3"></i>Tirer au sort</button></div>';
+}
+
+function _rlDeSvg(){
+  return '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="#fff"/><circle cx="8" cy="8" r="1.7" fill="#E8461E"/><circle cx="16" cy="8" r="1.7" fill="#E8461E"/><circle cx="12" cy="12" r="1.7" fill="#E8461E"/><circle cx="8" cy="16" r="1.7" fill="#E8461E"/><circle cx="16" cy="16" r="1.7" fill="#E8461E"/></svg>';
 }
 
 // ── Sons (synthèse Web Audio : rien à télécharger) ──
