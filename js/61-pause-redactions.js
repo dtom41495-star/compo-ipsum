@@ -349,3 +349,16 @@ if(typeof setInterval === 'function'){
   document.addEventListener('visibilitychange', function(){ if(!document.hidden && typeof _session !== 'undefined' && _session) osPausesCharger(); });
   setTimeout(osGelBandeauMaj, 4000);
 }
+
+// Pastille du menu « Dans quelle rédaction veux-tu travailler ? » : rien si la rédaction est ouverte
+function osRedacPastilleFermee(redacId, sombre){
+  var g = typeof osRedacsGelees === 'function' ? osRedacsGelees() : null;
+  var texte = '';
+  if(g) texte = 'Fermée · reprise '+_gelFinTexte(g);
+  else {
+    var pz = osPauseRedacEnCours(redacId);
+    if(pz) texte = 'En pause · reprise '+_gelFinTexte(pz);
+  }
+  if(!texte) return '';
+  return '<span style="font-size:0.56rem;padding:1px 6px;border-radius:3px;background:'+(g ? '#5B4FB5' : '#B45309')+';color:#fff;"><i class="ti ti-beach" style="vertical-align:-1px;"></i> '+esc(texte)+'</span>';
+}
