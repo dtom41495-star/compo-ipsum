@@ -75,6 +75,12 @@ function _rapExtrasSafe(type, ctx){
   catch(e){ return Promise.resolve(''); }
 }
 
+// Sujets « traités » : sujets distincts dont un article a été publié (liste d'articles déjà filtrée sur la période)
+function _osRapportSujetsTraites(artPublies){
+  var vus = {};
+  artPublies.forEach(function(a){ if(a.sujet_id) vus[a.sujet_id] = true; });
+  return Object.keys(vus).length;
+}
 function _osRapportHeures(minutes){
   var h = Math.floor(minutes/60), m = minutes%60;
   return h ? (h+' h'+(m?' '+String(m).padStart(2,'0'):'')) : (m+' min');
@@ -98,7 +104,7 @@ function osRapportActiviteAnnuel(annee){
   notif('Génération du rapport d\'activité…');
 
   Promise.all([
-    _osRapportGet('/rest/v1/articles?select=id,titre,statut,type,rubrique,redaction_id,auteur_id,publie_le,created_at,cp_id'),
+    _osRapportGet('/rest/v1/articles?select=id,titre,statut,type,rubrique,redaction_id,auteur_id,publie_le,created_at,cp_id,sujet_id'),
     _osRapportGet('/rest/v1/membres?select=id,prenom,nom,role,actif,marque_inactif,dnd'),
     _osRapportGet('/rest/v1/heures_benevolat?created_at=gte.'+d1+'&created_at=lt.'+d2+'&select=membre_id,type,duree_minutes'),
     _osRapportGet('/rest/v1/communiques?select=id,titre,statut,created_at,type'),
@@ -173,6 +179,7 @@ function osRapportActiviteAnnuel(annee){
     corps += '<section><h2>Activité éditoriale</h2><table>'
       +'<tr><th>Indicateur</th><th class="num">Valeur</th></tr>'
       +'<tr><td>Sujets ouverts dans l\'année</td><td class="num">'+sujetsAnnee.length+'</td></tr>'
+      +'<tr><td>Sujets traités (article publié)</td><td class="num">'+_osRapportSujetsTraites(artPublies)+'</td></tr>'
       +'<tr><td>Articles publiés</td><td class="num">'+artPublies.length+'</td></tr>'
       +'<tr><td>Articles encore en cours au 31/12</td><td class="num">'+(artAnnee.length-artPublies.length)+'</td></tr>'
       +'<tr><td>Invitations presse reçues</td><td class="num">'+cpAnnee.filter(function(c){return c.type==='invitation_presse';}).length+'</td></tr>'
@@ -196,7 +203,7 @@ function osRapportRedaction(redactionId, annee){
 
   Promise.all([
     _osRapportGet('/rest/v1/redactions?id=eq.'+encodeURIComponent(redactionId)+'&select=id,nom'),
-    _osRapportGet('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,type,rubrique,auteur_id,publie_le,created_at'),
+    _osRapportGet('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=id,titre,statut,type,rubrique,auteur_id,publie_le,created_at,sujet_id'),
     _osRapportGet('/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redactionId)+'&select=membre_id,role_redac'),
     _osRapportGet('/rest/v1/membres?select=id,prenom,nom,role,fonction,marque_inactif,dnd'),
     _osRapportGet('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redactionId)+'&statut=neq.refuse&select=id,titre,statut,responsable,created_at')
@@ -222,6 +229,7 @@ function osRapportRedaction(redactionId, annee){
       + _osRapportKpi(artPublies.length,'Publications')
       + _osRapportKpi(liens.length,'Membres rattachés')
       + _osRapportKpi(sujetsAnnee.length,'Sujets ouverts')
+      + _osRapportKpi(_osRapportSujetsTraites(artPublies),'Sujets traités')
       + '</div></section>';
 
     var ROLES={redac_chef:'Rédac chef',redacteur:'Rédacteur·rice',correcteur:'Secrétaire de rédaction'};
