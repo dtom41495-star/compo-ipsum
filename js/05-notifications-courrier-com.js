@@ -325,6 +325,8 @@ function osAfficherInterdit(){
 }
 
 function _osOpenWindowExecuter(pageId){
+  // Rédactions fermées (vacances avancées) : l'éditeur d'article ne s'ouvre pas, un message explique pourquoi
+  if(typeof osRedacsBloquees === 'function' && osRedacsBloquees(pageId)) return;
   // On ouvre une fenêtre : annuler le rechargement auto programmé pour cause d'inactivité
   _annulerMajBureauInactif();
 
