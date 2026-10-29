@@ -7,6 +7,8 @@
 // - pendant : écran « Compo est en maintenance » pour tout le monde ; un admin peut « Entrer quand même » (bandeau ensuite) ;
 // - à la réouverture : la page se recharge toute seule.
 // La base refuse de toute façon les écritures des non-admins pendant la maintenance.
+// Même mécanisme pour les VACANCES TOTALES (Gestion des rédactions, js/61) : motif 'vacances' et une date de fin (colonne fin),
+// la réouverture est automatique à cette date.
 
 var MAINT_INTERVALLE = 30000;
 var _maint = { etat:null, minuteur:null, compteur:null, sauveur:null, bloque:false, demarre:false };
@@ -16,9 +18,15 @@ function _maintAuth(extra){
 }
 function _maintEstAdmin(){ return getUserRole() === 'admin'; }
 function _maintHeure(d){ return new Date(d).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }); }
+function _maintVacances(m){ return !!m && m.motif === 'vacances'; }
+function _maintJour(d){ return new Date(d).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/Paris' }); }
+// Dernier jour de fermeture affiché : la fin est le lendemain matin
+function _maintDernierJour(m){ return _maintJour(new Date(new Date(m.fin).getTime() - 12 * 3600000)); }
+function _maintRepriseTexte(m){ return m && m.fin ? 'Reprise '+_maintJour(m.fin)+'.' : ''; }
 // 'ouvert' | 'preavis' | 'ferme'
 function _maintPhase(m){
   if(!m || !m.active) return 'ouvert';
+  if(m.fin && new Date(m.fin) <= new Date()) return 'ouvert';   // vacances terminées (la base fait pareil)
   return m.debut && new Date(m.debut) > new Date() ? 'preavis' : 'ferme';
 }
 
@@ -51,14 +59,24 @@ function _maintAppliquer(){
   }
   if(phase === 'preavis'){
     _maintRetirerEcran();
-    _maintBandeau(m, admin);
-    // Recontrôle pile à l'heure de fermeture, et enregistrement de l'article ouvert juste avant
+    // Recontrôle pile à l'heure de fermeture, et enregistrement de l'article ouvert juste avant.
+    // Un minuteur ne dépasse pas ~24 jours (au-delà, il se déclenche aussitôt) : vacances programmées longtemps à
+    // l'avance, on recontrôle au plus toutes les 10 minutes.
     var reste = new Date(m.debut) - new Date();
     clearTimeout(_maint.sauveur);
-    if(!admin) _maint.sauveur = setTimeout(_maintSauverEditeur, Math.max(0, reste - 15000));
+    if(!admin && reste < 3600000) _maint.sauveur = setTimeout(_maintSauverEditeur, Math.max(0, reste - 15000));
     clearTimeout(_maint.bascule);
-    _maint.bascule = setTimeout(osMaintenanceVerifier, reste + 500);
+    _maint.bascule = setTimeout(osMaintenanceVerifier, Math.min(reste + 500, 600000));
+    // Vacances : les membres ne voient le bandeau que la dernière semaine avant la fermeture
+    if(_maintVacances(m) && !admin && reste > 7 * 86400000) _maintRetirerBandeau();
+    else _maintBandeau(m, admin);
     return;
+  }
+  // Fermé : recontrôle pile à la date de fin (vacances), pour rouvrir sans attendre
+  clearTimeout(_maint.bascule);
+  if(m.fin){
+    var avantFin = new Date(m.fin) - new Date();
+    if(avantFin > 0) _maint.bascule = setTimeout(osMaintenanceVerifier, Math.min(avantFin + 500, 600000));
   }
   // Fermé : tout le monde voit l'écran, admins compris ; un admin peut passer outre (bandeau ensuite)
   if(admin && _maintContourne(m)){ _maintRetirerEcran(); _maintBandeau(m, true); return; }
@@ -113,10 +131,12 @@ function _maintBandeau(m, admin){
     var phase = _maintPhase(_maint.etat);
     if(phase === 'preavis'){
       var min = Math.max(0, Math.ceil((new Date(m.debut) - new Date()) / 60000));
+      if(_maintVacances(m)) return (admin ? 'Vacances programmées : Compo ferme ' : 'Compo ferme pour les vacances ')+_maintJour(m.debut)+' à '+_maintHeure(m.debut)+(admin ? '' : '. Ton article ouvert sera enregistré.');
       return admin
         ? 'Maintenance programmée à '+_maintHeure(m.debut)+' (dans '+min+' min)'
         : 'Compo ferme pour maintenance à '+_maintHeure(m.debut)+' (dans '+min+' min). Ton article ouvert sera enregistré.';
     }
+    if(_maintVacances(m)) return 'Vacances : Compo est fermé aux autres membres jusqu\'au '+_maintDernierJour(m)+' inclus';
     return 'Maintenance en cours : Compo est fermé aux autres membres';
   }
   b.className = 'maint-bandeau'+(_maintPhase(m) === 'ferme' ? ' ferme' : '');
@@ -153,7 +173,7 @@ function _maintTitre(m){
 
 function _maintEcran(m, admin){
   // Relu toutes les 30 s : on ne redessine que si quelque chose a changé (sinon l'animation repartait de zéro)
-  var signature = _maintCle(m)+'|'+(m.message || '')+'|'+(admin ? 1 : 0);
+  var signature = _maintCle(m)+'|'+(m.message || '')+'|'+(m.motif || '')+'|'+(m.fin || '')+'|'+(admin ? 1 : 0);
   var dejaLa = document.getElementById('maint-ecran');
   if(dejaLa && dejaLa.getAttribute('data-signature') === signature) return;
   var e = dejaLa;
@@ -163,17 +183,18 @@ function _maintEcran(m, admin){
     e.className = 'maint-ecran';
     e.setAttribute('role', 'alertdialog');
     e.setAttribute('aria-modal', 'true');
-    e.setAttribute('aria-label', 'Compo est en maintenance');
+    e.setAttribute('aria-label', _maintVacances(m) ? 'Compo est en vacances' : 'Compo est en maintenance');
     e.setAttribute('data-sombre-ignore', '');
     document.body.appendChild(e);
   }
   e.innerHTML = '<div class="maint-boite">'
     +_maintCasse(false)
-    +'<div class="maint-surtitre">Maintenance en cours</div>'
-    +'<h1>'+esc(_maintTitre(m))+'</h1>'
-    +'<p>'+(m && m.message ? esc(m.message) : 'Quelques réglages en cours. Ce que tu as écrit est enregistré.')+'</p>'
+    +'<div class="maint-surtitre">'+(_maintVacances(m) ? 'Vacances' : 'Maintenance en cours')+'</div>'
+    +'<h1>'+esc(_maintVacances(m) ? 'Compo est en vacances' : _maintTitre(m))+'</h1>'
+    +'<p>'+(m && m.message ? esc(m.message) : (_maintVacances(m) ? 'Toute l\'équipe fait une vraie pause. Ce que tu as écrit est enregistré.' : 'Quelques réglages en cours. Ce que tu as écrit est enregistré.'))+'</p>'
+    +(_maintVacances(m) && m.fin ? '<p class="maint-petit"><b>'+esc(_maintRepriseTexte(m))+'</b></p>' : '')
     +'<div class="maint-reglette"><span></span></div>'
-    +'<p class="maint-petit">Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date()))+' · la page se rechargera toute seule</p>'
+    +'<p class="maint-petit">'+(_maintVacances(m) && m.fin ? 'Fermé jusqu\'au '+esc(_maintDernierJour(m))+' inclus' : 'Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date())))+' · la page se rechargera toute seule</p>'
     +'<button type="button" id="maint-verifier"><i class="ti ti-refresh"></i> Vérifier maintenant</button>'
     +(admin ? '<div class="maint-admin-acces"><span>Admin</span>'
       +'<button type="button" id="maint-entrer"><i class="ti ti-door-enter"></i> Entrer quand même</button>'
@@ -208,8 +229,8 @@ function _maintRetirer(){
 function osMaintenanceRegler(active, preavisMin, message){
   var maintenant = new Date();
   var corps = active
-    ? { active:true, debut:new Date(maintenant.getTime() + (preavisMin || 0) * 60000).toISOString(), message:message || '', activee_par:getUserId(), activee_le:maintenant.toISOString() }
-    : { active:false, debut:null };
+    ? { active:true, debut:new Date(maintenant.getTime() + (preavisMin || 0) * 60000).toISOString(), fin:null, motif:'maintenance', message:message || '', activee_par:getUserId(), activee_le:maintenant.toISOString() }
+    : { active:false, debut:null, fin:null, motif:'maintenance' };
   return fetch(SB_URL+'/rest/v1/maintenance?id=eq.true', {
     method:'PATCH', headers:_maintAuth({ 'Content-Type':'application/json', 'Prefer':'return=representation' }), body:JSON.stringify(corps)
   }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
@@ -223,6 +244,26 @@ function osMaintenanceRegler(active, preavisMin, message){
       return _maint.etat;
     })
     .catch(function(err){ notif(err.message, 'erreur'); });
+}
+
+// Vacances totales (admin, Gestion des rédactions) : Compo fermé aux membres du jour de début (00 h, ou tout de suite si c'est
+// aujourd'hui) jusqu'au lendemain du dernier jour, 9 h (heure de Paris), avec réouverture automatique.
+function osVacancesFermer(debutCle, finCle, message){
+  var d = debutCle.split('-'), f = finCle.split('-');
+  var maintenant = new Date();
+  var debut = _horairesDateParis(+d[0], +d[1], +d[2], 0, 0);
+  if(debut < maintenant) debut = maintenant;
+  var fin = _horairesDateParis(+f[0], +f[1], +f[2] + 1, 9, 0);
+  var corps = { active:true, debut:debut.toISOString(), fin:fin.toISOString(), motif:'vacances', message:message || '', activee_par:getUserId(), activee_le:maintenant.toISOString() };
+  return fetch(SB_URL+'/rest/v1/maintenance?id=eq.true', {
+    method:'PATCH', headers:_maintAuth({ 'Content-Type':'application/json', 'Prefer':'return=representation' }), body:JSON.stringify(corps)
+  }).then(function(r){ return r.json().then(function(x){ return { ok:r.ok, d:x }; }); })
+    .then(function(res){
+      if(!res.ok || !Array.isArray(res.d) || !res.d[0]) throw new Error((res.d && res.d.message) || 'Fermeture impossible');
+      _maint.etat = res.d[0];
+      _maintAppliquer();
+      return _maint.etat;
+    });
 }
 
 // Onglet Maintenance de l'appli Admin
@@ -239,7 +280,8 @@ function osMaintenanceAdminRendre(conteneur){
     var phase = _maintPhase(m);
     var etat = phase === 'ouvert' ? '<span class="maint-etat ouvert"><i class="ti ti-circle-check"></i> Compo est ouvert</span>'
       : phase === 'preavis' ? '<span class="maint-etat preavis"><i class="ti ti-clock"></i> Fermeture programmée à '+esc(_maintHeure(m.debut))+'</span>'
-      : '<span class="maint-etat ferme"><i class="ti ti-lock"></i> Fermé aux membres depuis '+esc(_maintHeure(m.debut || m.activee_le))+'</span>';
+      : (_maintVacances(m) ? '<span class="maint-etat ferme"><i class="ti ti-beach"></i> Fermé pour les vacances'+(m.fin ? ' jusqu\'au '+esc(_maintDernierJour(m))+' inclus' : '')+'</span>'
+      : '<span class="maint-etat ferme"><i class="ti ti-lock"></i> Fermé aux membres depuis '+esc(_maintHeure(m.debut || m.activee_le))+'</span>');
     var h = '<div class="maint-admin">'
       +'<div class="maint-admin-titre">Mode maintenance</div>'
       +etat

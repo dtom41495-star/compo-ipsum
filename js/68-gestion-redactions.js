@@ -49,7 +49,8 @@ function osAdminGestionRendre(wc, tousArts){
     +'<div class="ag-chiffres">'
     +chiffre(_membresData.length, 'Bénévoles')+chiffre((window._nouveauxMembres || []).length, 'Nouveaux ce mois', '#E67E22')
     +chiffre(publies.filter(function(a){ return new Date(a.updated_at).getTime() >= depuis30; }).length, 'Publiés ce mois', '#EA5B1C')
-    +chiffre(publies.length, 'Publiés au total', '#27AE60')+'</div>';
+    +chiffre(publies.length, 'Publiés au total', '#27AE60')+'</div>'
+    +(typeof osAdminPauseHtml === 'function' ? osAdminPauseHtml() : '');
   if(!_redactionsData.length){
     h += '<div class="ag-vide">Aucune rédaction : crée la première !</div></div>';
     wc.innerHTML = h; return;

@@ -1208,7 +1208,7 @@ function lancerCompo(){
     mesArticles:      uid ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50' : null,
     annonces:         SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',
     cps:              SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',
-    pauses:           SB_URL+'/rest/v1/pauses_redaction?select=id,redaction_id,debut,fin&fin=gte.'+new Date(Date.now()-280*86400000).toISOString().slice(0,10)+'&order=debut.asc'
+    pauses:           SB_URL+'/rest/v1/pauses_redaction?select=id,redaction_id,debut,fin,gel&fin=gte.'+new Date(Date.now()-280*86400000).toISOString().slice(0,10)+'&order=debut.asc'
   };
   var ESSENTIELS = ['redactions','membres'];
   var DELAI_OUVERTURE = 12000;   // au-delà, on ouvre avec ce qui est déjà là (si l'essentiel est arrivé), sinon file d'attente

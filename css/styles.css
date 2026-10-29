@@ -6879,3 +6879,6 @@ a.gd-lien .gd-ouvrir { pointer-events: none; }
 #os-dock-poignee:hover span,#os-dock-poignee:focus-visible span{width:62px;height:6px;background:rgba(26,26,46,.88);}
 #os-dock-bord{position:fixed;left:0;right:0;bottom:0;height:6px;z-index:99002;display:none;}
 @media (max-width:768px){#os-dock-poignee,#os-dock-bord{display:none !important;}}
+
+/* Rédactions fermées (vacances avancées) : bandeau violet, comme celui de la maintenance */
+.maint-bandeau.gel { background: #5B4FB5; }
