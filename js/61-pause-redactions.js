@@ -166,6 +166,8 @@ function osPauseTerminer(id, redacId){
 // ---- Pause générale : toutes les rédactions (admin, Gestion des rédactions) ----
 function osAdminPauseHtml(){
   if(getUserRole() !== 'admin') return '';
+  // L'état de la fermeture (vacances totales) vient de la table maintenance : on le relit puis on redessine le bloc
+  if(typeof osMaintenanceVerifier === 'function') osMaintenanceVerifier().then(function(){ osAdminPauseRedessiner(); });
   return '<div id="ag-pause-bloc" style="background:#fff;border:1px solid var(--gris-bord);border-radius:12px;padding:0.9rem 1rem;margin-bottom:1rem;">'+_osAdminPauseInterieur()+'</div>';
 }
 function _osAdminPauseInterieur(){
@@ -192,6 +194,22 @@ function _osAdminPauseInterieur(){
     +'<button type="button" style="'+btn+'" onclick="osAdminPauseDuree(14)">2 semaines</button>'
     +'<button type="button" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:7px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;" onclick="osPauseGeneraleAjouter()"><i class="ti ti-player-pause"></i> Mettre toutes les rédactions en pause</button>'
     +'</div>';
+  // Vacances totales : en plus de la pause, Compo est fermé aux membres (même mécanisme que la maintenance)
+  var m = (typeof _maint !== 'undefined' && _maint.etat) || null;
+  var fermeture = m && m.active && m.motif === 'vacances' && typeof _maintPhase === 'function' && _maintPhase(m) !== 'ouvert' ? m : null;
+  h += '<div style="border-top:1px solid var(--gris-bord);margin-top:0.9rem;padding-top:0.8rem;">'
+    +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;"><i class="ti ti-beach"></i> Vacances totales · fermer Compo</div>'
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.6rem;">La pause laisse la possibilité d\'écrire. Pour de vraies vacances, ferme Compo : pendant les dates ci-dessus, personne (sauf les admins) ne peut l\'ouvrir ni modifier quoi que ce soit. Il rouvre tout seul le lendemain du dernier jour, à 9 h.</div>';
+  if(fermeture){
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #E8C9A8;background:#FFF7EC;border-radius:8px;font-size:0.78rem;">'
+      +'<i class="ti ti-lock" style="color:#B45309;"></i>'
+      +'<span style="flex:1;"><strong>'+(_maintPhase(fermeture) === 'preavis' ? 'Fermeture programmée' : 'Compo est fermé')+'</strong>'
+      +(fermeture.fin ? ' · jusqu\'au '+esc(_maintDernierJour(fermeture))+' inclus' : '')+'</span>'
+      +'<button type="button" style="'+btn+'" onclick="osVacancesTotalesRouvrir()">'+(_maintPhase(fermeture) === 'preavis' ? 'Annuler la fermeture' : 'Rouvrir maintenant')+'</button></div>';
+  } else {
+    h += '<button type="button" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:7px 14px;background:#1A1A2E;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;" onclick="osVacancesTotalesFermer()"><i class="ti ti-lock"></i> Fermer Compo pendant ces dates</button>';
+  }
+  h += '</div>';
   return h;
 }
 function osAdminPauseRedessiner(){
@@ -222,4 +240,32 @@ function osPauseGeneraleAjouter(){
         osPausesCharger(function(){ osAdminPauseRedessiner(); });
       }).catch(function(){ notif('Impossible d\'enregistrer la pause', 'erreur'); });
   });
+}
+
+// Vacances totales : pause générale sur les mêmes dates (séries et relances neutres) + Compo fermé aux membres
+function osVacancesTotalesFermer(){
+  if(getUserRole() !== 'admin' || typeof osVacancesFermer !== 'function') return;
+  var debut = (document.getElementById('ag-pause-debut') || {}).value, fin = (document.getElementById('ag-pause-fin') || {}).value;
+  if(!debut || !fin){ notif('Choisis le début et la fin des vacances', 'erreur'); return; }
+  if(fin < debut){ notif('La fin des vacances est avant leur début', 'erreur'); return; }
+  if(fin < _pauseCle(new Date())){ notif('Ces dates sont déjà passées', 'erreur'); return; }
+  var t = fin.split('-'), lendemain = _pauseCle(new Date(+t[0], +t[1]-1, +t[2]+1));
+  osConfirmer('Fermer Compo à tous les membres du '+_pauseDateCourte(debut)+' au '+_pauseDateCourte(fin)+' ?\nPersonne (sauf les admins) ne pourra ouvrir Compo ni modifier quoi que ce soit. Compo rouvrira tout seul le '+_pauseDateCourte(lendemain)+' à 9 h.', { oui:'Fermer Compo', danger:true }).then(function(ok){
+    if(!ok) return;
+    // La pause générale sur les mêmes dates, sauf si une pause générale les couvre déjà
+    var couverte = (window._pausesRedac || []).some(function(p){ return !p.redaction_id && p.debut <= debut && p.fin >= fin; });
+    var pause = couverte ? Promise.resolve({ ok:true }) : fetch(SB_URL+'/rest/v1/pauses_redaction', { method:'POST', headers:Object.assign({}, _pauseH(), { 'Content-Type':'application/json', 'Prefer':'return=minimal' }),
+      body:JSON.stringify({ redaction_id:null, debut:debut, fin:fin }) });
+    pause.then(function(r){
+      if(!r.ok) throw new Error('Impossible d\'enregistrer la pause');
+      return osVacancesFermer(debut, fin, '');
+    }).then(function(){
+      notif('Compo fermé pour les vacances', 'succes');
+      osPausesCharger(function(){ osAdminPauseRedessiner(); });
+    }).catch(function(e){ notif((e && e.message) || 'Fermeture impossible', 'erreur'); });
+  });
+}
+function osVacancesTotalesRouvrir(){
+  if(getUserRole() !== 'admin' || typeof osMaintenanceRegler !== 'function') return;
+  osMaintenanceRegler(false).then(function(){ osAdminPauseRedessiner(); });
 }
