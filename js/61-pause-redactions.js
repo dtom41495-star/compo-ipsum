@@ -7,7 +7,8 @@
 //  - indicateur de rythme (js/56) : la rédaction n'est pas notée en retard.
 // Une semaine (du mercredi au mardi) est neutre dès qu'une pause la touche. Pour quelqu'un qui est dans plusieurs rédactions,
 // elle ne l'est que si TOUTES ses rédactions (lancées) sont en pause : sinon la série suit la rédaction qui travaille.
-// Qui peut régler : les admins (pause générale comprise) et les rédac chefs pour leur rédaction (règles RLS de la table).
+// Qui peut régler : les rédac chefs et les admins pour une rédaction (Ma rédac' > Réglages) ; la PAUSE GÉNÉRALE (toutes les rédactions) est réservée aux admins
+// et se règle uniquement dans Gestion des rédactions (la base la refuse aux autres : règles RLS de la table).
 
 window._pausesRedac = window._pausesRedac || [];   // [{ id, redaction_id (null = toutes), debut:'AAAA-MM-JJ', fin:'AAAA-MM-JJ' }]
 
@@ -97,7 +98,6 @@ function osRedacPauseFormHtml(redac){
   return '<div id="redac-pause-bloc" style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">'+_osRedacPauseInterieur(redac.id)+'</div>';
 }
 function _osRedacPauseInterieur(redacId){
-  var admin = getUserRole() === 'admin';
   var auj = _pauseCle(new Date());
   var liste = (window._pausesRedac || []).filter(function(p){ return _pauseConcerne(p, redacId) && p.fin >= auj; });
   var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Pause (vacances)</div>'
@@ -105,7 +105,7 @@ function _osRedacPauseInterieur(redacId){
   if(liste.length){
     h += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:0.8rem;">';
     liste.forEach(function(p){
-      var enCours = p.debut <= auj, generale = !p.redaction_id, peut = admin || !generale;
+      var enCours = p.debut <= auj, generale = !p.redaction_id, peut = !generale;   // une pause générale se gère dans Gestion des rédactions
       h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;">'
         +'<i class="ti ti-player-pause" style="color:#5B4FB5;"></i>'
         +'<span style="flex:1;"><strong>Du '+_pauseDateCourte(p.debut)+' au '+_pauseDateCourte(p.fin)+'</strong>'+(generale ? ' · toutes les rédactions' : '')+(enCours ? ' · en cours' : '')+'</span>'
@@ -120,7 +120,6 @@ function _osRedacPauseInterieur(redacId){
     +'<button type="button" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 10px;background:#fff;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;" onclick="osPauseDuree(7)">1 semaine</button>'
     +'<button type="button" style="font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 10px;background:#fff;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;" onclick="osPauseDuree(14)">2 semaines</button>'
     +'</div>';
-  if(admin) h += '<label style="display:flex;align-items:center;gap:8px;margin-top:0.6rem;font-size:0.76rem;color:var(--encre);cursor:pointer;"><input type="checkbox" id="redac-pause-toutes"> Pause générale : toutes les rédactions</label>';
   h += '<div style="margin-top:0.7rem;"><button type="button" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;" onclick="osPauseAjouter(\''+redacId+'\')"><i class="ti ti-player-pause"></i> Mettre en pause</button></div>';
   return h;
 }
@@ -137,12 +136,11 @@ function osPauseDuree(jours){
 }
 function osPauseAjouter(redacId){
   var debut = (document.getElementById('redac-pause-debut') || {}).value, fin = (document.getElementById('redac-pause-fin') || {}).value;
-  var toutes = !!(document.getElementById('redac-pause-toutes') || {}).checked;
-  if(!debut || !fin){ notif('Choisis le début et la fin de la pause', 'erreur'); return; }
+    if(!debut || !fin){ notif('Choisis le début et la fin de la pause', 'erreur'); return; }
   if(fin < debut){ notif('La fin de la pause est avant son début', 'erreur'); return; }
   if(fin < _pauseCle(new Date())){ notif('Cette pause est déjà passée', 'erreur'); return; }
   fetch(SB_URL+'/rest/v1/pauses_redaction', { method:'POST', headers:Object.assign({}, _pauseH(), { 'Content-Type':'application/json', 'Prefer':'return=minimal' }),
-    body:JSON.stringify({ redaction_id: toutes ? null : redacId, debut:debut, fin:fin }) })
+    body:JSON.stringify({ redaction_id: redacId, debut:debut, fin:fin }) })
     .then(function(r){
       if(!r.ok){ notif('Impossible d\'enregistrer la pause', 'erreur'); return; }
       notif('Pause enregistrée', 'succes');
@@ -160,6 +158,68 @@ function osPauseTerminer(id, redacId){
   req.then(function(r){
     if(!r.ok){ notif('Impossible de modifier la pause', 'erreur'); return; }
     notif(p.debut >= auj ? 'Pause annulée' : 'Reprise : la pause est terminée', 'succes');
-    osPausesCharger(function(){ _osRedacPauseRedessiner(redacId); });
+    osPausesCharger(function(){ if(redacId) _osRedacPauseRedessiner(redacId); else osAdminPauseRedessiner(); });
   }).catch(function(){ notif('Impossible de modifier la pause', 'erreur'); });
+}
+
+
+// ---- Pause générale : toutes les rédactions (admin, Gestion des rédactions) ----
+function osAdminPauseHtml(){
+  if(getUserRole() !== 'admin') return '';
+  return '<div id="ag-pause-bloc" style="background:#fff;border:1px solid var(--gris-bord);border-radius:12px;padding:0.9rem 1rem;margin-bottom:1rem;">'+_osAdminPauseInterieur()+'</div>';
+}
+function _osAdminPauseInterieur(){
+  var auj = _pauseCle(new Date());
+  var liste = (window._pausesRedac || []).filter(function(p){ return !p.redaction_id && p.fin >= auj; });
+  var btn = 'font-family:Space Mono,monospace;font-size:0.65rem;padding:5px 10px;background:#fff;color:var(--encre);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;';
+  var h = '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;"><i class="ti ti-player-pause"></i> Pause générale · toutes les rédactions</div>'
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Pour les vacances de toute l\'association (été, Noël…) : aucune rédaction n\'a de série cassée ni de relance pendant la période. Pour une seule rédaction, son rédac chef règle la pause dans Ma rédac\' > Réglages.</div>';
+  if(liste.length){
+    h += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:0.8rem;">';
+    liste.forEach(function(p){
+      var enCours = p.debut <= auj;
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:8px;font-size:0.78rem;">'
+        +'<i class="ti ti-player-pause" style="color:#5B4FB5;"></i>'
+        +'<span style="flex:1;"><strong>Du '+_pauseDateCourte(p.debut)+' au '+_pauseDateCourte(p.fin)+'</strong>'+(enCours ? ' · en cours' : '')+'</span>'
+        +'<button type="button" style="'+btn+'" onclick="osPauseTerminer(\''+p.id+'\',\'\')">'+(enCours ? 'Reprendre maintenant' : 'Annuler')+'</button></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
+    +'<label style="font-size:0.74rem;color:var(--gris);">Du <input type="date" id="ag-pause-debut" value="'+auj+'" style="font-size:0.78rem;padding:5px 6px;border:1px solid var(--gris-bord);border-radius:6px;"></label>'
+    +'<label style="font-size:0.74rem;color:var(--gris);">au <input type="date" id="ag-pause-fin" style="font-size:0.78rem;padding:5px 6px;border:1px solid var(--gris-bord);border-radius:6px;"></label>'
+    +'<button type="button" style="'+btn+'" onclick="osAdminPauseDuree(7)">1 semaine</button>'
+    +'<button type="button" style="'+btn+'" onclick="osAdminPauseDuree(14)">2 semaines</button>'
+    +'<button type="button" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:7px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;" onclick="osPauseGeneraleAjouter()"><i class="ti ti-player-pause"></i> Mettre toutes les rédactions en pause</button>'
+    +'</div>';
+  return h;
+}
+function osAdminPauseRedessiner(){
+  var el = document.getElementById('ag-pause-bloc');
+  if(el) el.innerHTML = _osAdminPauseInterieur();
+  window._seriePastilleLe = 0;
+}
+function osAdminPauseDuree(jours){
+  var d = document.getElementById('ag-pause-debut'), f = document.getElementById('ag-pause-fin');
+  if(!d || !f || !d.value) return;
+  var t = d.value.split('-'), fin = new Date(Date.UTC(+t[0], +t[1]-1, +t[2]+jours-1));
+  f.value = fin.toISOString().slice(0, 10);
+}
+function osPauseGeneraleAjouter(){
+  if(getUserRole() !== 'admin') return;
+  var debut = (document.getElementById('ag-pause-debut') || {}).value, fin = (document.getElementById('ag-pause-fin') || {}).value;
+  if(!debut || !fin){ notif('Choisis le début et la fin de la pause', 'erreur'); return; }
+  if(fin < debut){ notif('La fin de la pause est avant son début', 'erreur'); return; }
+  if(fin < _pauseCle(new Date())){ notif('Cette pause est déjà passée', 'erreur'); return; }
+  // Décision qui touche tout le monde : une confirmation, jamais un simple clic
+  osConfirmer('Mettre TOUTES les rédactions en pause du '+_pauseDateCourte(debut)+' au '+_pauseDateCourte(fin)+' ?\nAucune série ne sera cassée et aucune relance ne partira pendant cette période.', { oui:'Mettre en pause' }).then(function(ok){
+    if(!ok) return;
+    fetch(SB_URL+'/rest/v1/pauses_redaction', { method:'POST', headers:Object.assign({}, _pauseH(), { 'Content-Type':'application/json', 'Prefer':'return=minimal' }),
+      body:JSON.stringify({ redaction_id:null, debut:debut, fin:fin }) })
+      .then(function(r){
+        if(!r.ok){ notif('Impossible d\'enregistrer la pause', 'erreur'); return; }
+        notif('Pause générale enregistrée', 'succes');
+        osPausesCharger(function(){ osAdminPauseRedessiner(); });
+      }).catch(function(){ notif('Impossible d\'enregistrer la pause', 'erreur'); });
+  });
 }
