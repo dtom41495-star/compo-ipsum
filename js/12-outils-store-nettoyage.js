@@ -2849,6 +2849,7 @@ function _rafraichirListeCarnet(){
       +'</div>'
       +'<div class="cx-ligne-droite">'
       +'<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
+      +(c.publication_auto ? '<i class="ti ti-bolt" style="color:var(--rouge);font-size:0.9rem;" title="Publication automatique des communiqués"></i>' : '')
       +'<span class="cx-fiab cx-fiab-'+fid+'" title="Fiabilité : '+CARNET_FIABILITE[fid]+'"></span>'
       +'</div></div>';
   });
@@ -3070,7 +3071,12 @@ function osCarnetOuvrirForm(c, opts){
     +'<div><label class="nlx-label" for="cf-fiabilite">Fiabilité</label><select id="cf-fiabilite" class="nlx-champ">'
     +[3,2,1].map(function(v){ return '<option value="'+v+'"'+((c ? parseInt(c.fiabilite)||2 : 2)===v?' selected':'')+'>'+CARNET_FIABILITE[v]+'</option>'; }).join('')+'</select></div>'
     +'</div>'
-    +'<div><label class="nlx-label" for="cf-notes">Notes internes</label>'
+    +(getUserRole() === 'admin'
+      ? '<label class="cx-auto" style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.7rem 0.8rem;border:1px solid var(--gris-bord);border-radius:10px;margin:0.2rem 0 0.8rem;cursor:pointer;">'
+        +'<input type="checkbox" id="cf-publication-auto" style="margin-top:3px;accent-color:var(--rouge);"'+(c&&c.publication_auto?' checked':'')+'>'
+        +'<span style="font-size:0.78rem;line-height:1.45;"><b>Publier ses communiqués automatiquement</b><br><span style="color:var(--gris);">Quand la tâche quotidienne trouve un communiqué de cette adresse mail dans la boîte contact@, il est publié et les abonnés sont prévenus sans validation. Sinon il reste en brouillon, à valider.</span></span></label>'
+      : '')
+        +'<div><label class="nlx-label" for="cf-notes">Notes internes</label>'
     +'<textarea id="cf-notes" class="nlx-champ" rows="3" placeholder="Préférences de contact, contexte, remarques…">'+esc((c&&c.notes)||'')+'</textarea></div>'
     +'<div class="dlg-actions"><button class="se-btn-secondaire" onclick="document.getElementById(\'carnet-form-overlay\').remove()">Annuler</button>'
     +'<button class="se-btn-principal" onclick="osCarnetSauver()">'+(c ? 'Enregistrer' : 'Créer le contact')+'</button></div>';
@@ -3092,6 +3098,8 @@ function osCarnetSauver(){
     notes: (document.getElementById('cf-notes')||{}).value||null,
     updated_at: new Date().toISOString()
   };
+  var caseAuto = document.getElementById('cf-publication-auto');
+  if(caseAuto) payload.publication_auto = !!caseAuto.checked;
 
   var isNew = !_carnetEditId;
   if(isNew){
