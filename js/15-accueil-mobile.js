@@ -545,7 +545,6 @@ function _accueilMenusMaRedac(onglet){
     var m = [{icon:'checks', label:'Tout marquer comme lu', action:function(){ _osRedacMarquerSujetsLus(); osRedactionsChangerOnglet('sujets'); }}];
     if(admin){
       m.push({icon:'mail', label:'Notifier les abonnés', action:function(){ osEnvoyerNotifsSujets(); }});
-      m.push({icon:'trash', label:'Nettoyer les sujets publiés', action:function(){ osNettoyerSujetsPublies(); }});
     }
     var droit = typeof osSujetsDroit === 'function' ? osSujetsDroit() : (chef ? 'chef' : null);
     return { menu:m, flottant: droit ? {icon:droit==='chef'?'plus':'bulb', label:droit==='chef'?'Nouveau sujet':'Proposer un sujet', action:function(){ osOuvrirNouveauSujetModal(); }} : null };
@@ -666,9 +665,18 @@ function osMenuMobile(items){
 
 // Onglets « À prendre » / « En cours » des Sujets (téléphone et ordinateur)
 function _osSujetsFiltrer(btn){
-  window._sujetsFiltre = btn.dataset.f;
+  var traites = btn.dataset.f === 'traites';
+  if(!traites) window._sujetsFiltre = btn.dataset.f;
   var barre = btn.parentNode;
   barre.querySelectorAll('button').forEach(function(b){ b.classList.toggle('actif', b === btn); });
   var liste = barre.parentNode.querySelector('.sujets-liste');
-  if(liste) liste.dataset.filtre = btn.dataset.f;
+  var zoneTraites = document.getElementById('sujets-traites-zone');
+  if(liste){
+    liste.style.display = traites ? 'none' : 'flex';
+    if(!traites) liste.dataset.filtre = btn.dataset.f;
+  }
+  if(zoneTraites){
+    zoneTraites.style.display = traites ? 'block' : 'none';
+    if(traites && typeof osSujetsTraitesCharger === 'function') osSujetsTraitesCharger();
+  }
 }

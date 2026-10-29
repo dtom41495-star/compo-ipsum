@@ -94,6 +94,10 @@ function _ckCalculer(D, P){
   C.pubs = { cur:publies.filter(function(a){ return _ckEstDans(_ckDatePub(a), cur0, now + 1); }).length, prev:publies.filter(function(a){ return _ckEstDans(_ckDatePub(a), prev0, cur0); }).length,
     spark: sem8.map(function(d){ var a0 = d.getTime(), a1 = a0 + 7 * CK_JOUR; return publies.filter(function(a){ return _ckEstDans(_ckDatePub(a), a0, a1); }).length; }) };
 
+  // Sujets traités : sujets distincts dont un article est publié dans la période
+  var sujetsPubliesDans = function(a0, a1){ var vus = {}; publies.forEach(function(a){ if(a.sujet_id && _ckEstDans(_ckDatePub(a), a0, a1)) vus[a.sujet_id] = true; }); return Object.keys(vus).length; };
+  C.sujetsTraites = { cur:sujetsPubliesDans(cur0, now + 1), prev:sujetsPubliesDans(prev0, cur0) };
+
   // Séries et brèves de la semaine, membre par membre (même calcul que « Ma série »)
   var gels = {}; D.gels.forEach(function(g){ (gels[g.membre_id] = gels[g.membre_id] || new Set()).add(String(g.semaine).slice(0, 10)); });
   var rattache = {}, redacsDe = {};
@@ -339,7 +343,8 @@ function _ckCircuitHtml(C){
   var c = C.circuit, cases = [[CK_COUL.gris, 'En écriture', c.ecriture], [CK_COUL.bleu, 'Au SR', c.sr], [CK_COUL.cyan, 'Relus', c.relus], [CK_COUL.vert, 'Bons à publier', c.bons], [CK_COUL.nuit, 'En ligne (30 j)', c.enLigne]];
   var h = '<div class="ck-flux">'+cases.map(function(x){ return '<div style="background:'+x[0]+'"><b>'+x[2]+'</b><span>'+x[1]+'</span></div>'; }).join('')+'</div>'
     +'<div class="ck-legende"><span>Délai de relecture moyen : <b>'+(c.delai ? _ckDuree(c.delai) : '—')+'</b></span><span>Relus ce mois : <b>'+c.relusMois+'</b></span>'
-    +'<span>Bloqués : <b'+(c.bloquesArticles.length ? ' style="color:'+CK_COUL.rouge+'"' : '')+'>'+c.bloquesArticles.length+'</b></span><span>En ligne maintenant : <b>'+C.enLigne+'</b></span></div>';
+    +'<span>Bloqués : <b'+(c.bloquesArticles.length ? ' style="color:'+CK_COUL.rouge+'"' : '')+'>'+c.bloquesArticles.length+'</b></span><span>En ligne maintenant : <b>'+C.enLigne+'</b></span>'
+    +'<span>Sujets traités ('+_ckPeriodeTxt(C.P)+') : <b>'+C.sujetsTraites.cur+'</b> <small>('+_ckDelta(C.sujetsTraites.cur, C.sujetsTraites.prev).txt.replace(' vs période précédente', ' vs précédente')+')</small></span></div>';
   h += '<h2 class="ck-sous">Rédactions en ce moment</h2>';
   if(!C.redacs.length) return h+_ckVide('Aucune rédaction lancée.');
   return h+C.redacs.map(function(r){
@@ -410,8 +415,8 @@ function _ckFinancesHtml(C){
 
 function _ckVieAssoHtml(C){
   var v = C.vieAsso, s = v.sujets, pc = function(n){ return s.total ? ' ('+Math.round(n / s.total * 100)+' %)' : ''; };
-  return '<table><tr><th>Parcours des sujets (année)</th><th class="n"></th></tr><tr><td>Sujets traités</td><td class="n">'+s.total+'</td></tr><tr><td>Pris par un bénévole</td><td class="n">'+s.pris+pc(s.pris)+'</td></tr>'
-    +'<tr><td>Menés jusqu’à la publication</td><td class="n">'+s.publies+pc(s.publies)+'</td></tr></table>'
+  return '<table><tr><th>Parcours des sujets (année)</th><th class="n"></th></tr><tr><td>Sujets de l’année</td><td class="n">'+s.total+'</td></tr><tr><td>Pris par un bénévole</td><td class="n">'+s.pris+pc(s.pris)+'</td></tr>'
+    +'<tr><td>Sujets traités (article publié)</td><td class="n">'+s.publies+pc(s.publies)+'</td></tr></table>'
     +'<div class="ck-legende" style="margin-top:12px"><span>Candidatures en cours : <b>'+v.candidats.cours+'</b>'+(v.candidats.aRelancer ? ' ('+v.candidats.aRelancer+' à relancer)' : '')+'</span><span>Réponses de satisfaction : <b>'+v.satisfaction+'</b></span><span>Sans connexion depuis 30 j : <b>'+v.sansNouvelles+'</b></span></div>'
     +'<div class="ck-legende"><span>Plumes en circulation : <b>'+_ckNum(v.plumes)+'</b></span><span>Commandes boutique à traiter : <b>'+v.commandes+'</b></span><span>Gels utilisés (30 j) : <b>'+v.gelsMois+'</b></span></div>';
 }
