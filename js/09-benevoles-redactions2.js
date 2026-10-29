@@ -1248,9 +1248,10 @@ function osRedactionsRenderSelecteur(wc, uid, liens){
     h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:0.3rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
     h += isChef ? '<span style="font-size:0.56rem;padding:1px 6px;border-radius:3px;background:#EAF3DE;color:#27500A;">'+roleLabel+'</span>' : '<span>'+esc(roleLabel)+'</span>';
     h += '<span><i class="ti ti-users" style="vertical-align:-2px;"></i> '+membresCount+'</span>';
+    if(typeof osRedacPastilleFermee === 'function') h += osRedacPastilleFermee(redac.id);
     h += '<span><i class="ti ti-pencil" style="vertical-align:-2px;"></i> '+enCours+' en cours</span>';
     h += '</div></div>';
-    h += '<div style="color:var(--gris);font-size:1rem;flex-shrink:0;">→</div>';
+    h += '<div style="color:var(--gris);font-size:1.1rem;flex-shrink:0;display:flex;"><i class="ti ti-chevron-right"></i></div>';
     h += '</button>';
   });
   h += '</div></div>';
@@ -1345,8 +1346,9 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
         +'<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">'
         +(isChef?'<span style="background:#C0DD97;color:#27500A;padding:1px 6px;border-radius:3px;font-size:0.56rem;">'+roleLabel+'</span>':'<span>'+esc(roleLabel)+'</span>')
         +'<span><i class="ti ti-users" style="vertical-align:-2px;"></i> '+membresCount+'</span>'
+        +(typeof osRedacPastilleFermee === 'function' ? osRedacPastilleFermee(lien.redaction_id, true) : '')
         +'</div></div>'
-        +'<div style="color:rgba(255,255,255,0.3);font-size:1rem;flex-shrink:0;">→</div>';
+        +'<div style="color:rgba(255,255,255,0.35);font-size:1.1rem;flex-shrink:0;display:flex;"><i class="ti ti-chevron-right"></i></div>';
 
       btn.onclick = function(){ choisir(lien.redaction_id); };
       card.appendChild(btn);
