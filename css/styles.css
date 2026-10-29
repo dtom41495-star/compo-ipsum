@@ -6870,3 +6870,12 @@ a.gd-lien .gd-ouvrir { pointer-events: none; }
 .carte-sugg-item:hover,.carte-sugg-item.actif{background:rgba(0,0,0,0.05);}
 .carte-sugg-source{padding:0.3rem 0.65rem;font-family:Space Mono,monospace;font-size:0.55rem;color:var(--gris);border-top:1px solid var(--gris-bord);}
 .carte-lieu{height:190px;margin-top:0.6rem;border-radius:var(--md-shape-sm);overflow:hidden;border:1px solid var(--gris-bord);z-index:0;position:relative;}
+
+/* Barre des tâches masquée (fenêtre plein écran ou ancrée) : poignée centrée en bas + bord sensible au survol
+   (js/05-notifications-courrier-com.js, osMajDock) */
+#os-dock-poignee{position:fixed;left:50%;bottom:0;transform:translate(-50%,8px);width:88px;height:22px;display:flex;align-items:flex-end;justify-content:center;padding:0 0 5px;border:0;background:none;z-index:99001;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;}
+#os-dock-poignee.visible{opacity:1;pointer-events:auto;transform:translate(-50%,0);}
+#os-dock-poignee span{display:block;width:46px;height:5px;border-radius:999px;background:rgba(26,26,46,.55);box-shadow:0 0 0 1px rgba(255,255,255,.4);transition:width .15s ease,height .15s ease,background .15s ease;}
+#os-dock-poignee:hover span,#os-dock-poignee:focus-visible span{width:62px;height:6px;background:rgba(26,26,46,.88);}
+#os-dock-bord{position:fixed;left:0;right:0;bottom:0;height:6px;z-index:99002;display:none;}
+@media (max-width:768px){#os-dock-poignee,#os-dock-bord{display:none !important;}}

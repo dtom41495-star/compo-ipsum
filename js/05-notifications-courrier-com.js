@@ -1054,6 +1054,7 @@ function osFocusWindow(pageId){
   win.el.style.zIndex = _zCounter;
   window._activeWindowId = pageId;
   osUpdateDockActiveState();
+  osMajDock();
   // Refresh des données si la fonction existe — seulement quand on revient sur la fenêtre
   var refreshFn = dejaActive ? null : _appRefreshMap[pageId];
   if(refreshFn){
@@ -1081,6 +1082,8 @@ function osMinimizeWindow(pageId){
     window._activeWindowId = null;
     osUpdateDockActiveState();
   }
+  // Une fenêtre minimisée ne cache plus la barre des tâches
+  osMajDock();
 }
 
 function osMaximizeWindow(pageId){
@@ -1095,8 +1098,7 @@ function osMaximizeWindow(pageId){
     el.style.top = win.prevY;
     win.maximized = false;
     win.snapSide = null; // sinon osAUneMaximisee() reste vrai et le dock ne revient jamais
-    // Vérifier si d'autres fenêtres sont encore maximisées
-    osVerifierDockVisibilite();
+    osMajDock();
   } else {
     // Mémoriser la géométrie d'origine — mais pas si la fenêtre est déjà ancrée,
     // sinon on enregistrerait la demi-largeur d'ancrage comme "taille normale".
@@ -1113,58 +1115,119 @@ function osMaximizeWindow(pageId){
     el.style.left = '10px';
     el.style.top = '0px';
     win.maximized = true;
-    // Masquer le dock
-    osMasquerDock();
+    osMajDock();
   }
 }
 
-var _dockMasque = false;
+// ===== BARRE DES TÂCHES (dock) : masquée dès qu'une fenêtre visible est plein écran ou ancrée =====
+// Un seul endroit décide : osMajDock(), appelée à chaque changement (agrandir, ancrer, restaurer, minimiser,
+// fermer, revenir sur une fenêtre). Quand la barre est masquée :
+//  - on la fait revenir en passant la souris sur le bord bas de l'écran (elle reste tant qu'on la survole, et
+//    se range 0,5 s après qu'on l'a quittée) ;
+//  - ou en cliquant / touchant la petite poignée centrée en bas (elle se range après 4 s sans survol).
+// Plus de bouton « Barre des tâches » posé par-dessus le contenu des fenêtres.
+var _dockMasque = false;       // une fenêtre visible est plein écran ou ancrée
+var _dockRevele = false;       // la barre est ressortie malgré tout (survol du bord, poignée)
+var _dockSurvole = false;
+var _dockTimer = null;
+var _dockSourisY = -1;          // dernière position verticale connue de la souris (le navigateur n'envoie pas toujours « mouseenter » à une souris immobile quand la barre glisse sous elle)
 
-function osMasquerDock(){
-  if(_dockMasque) return;
-  _dockMasque = true;
+function _osDockElements(){
+  var poignee = document.getElementById('os-dock-poignee');
+  if(!poignee){
+    poignee = document.createElement('button');
+    poignee.id = 'os-dock-poignee';
+    poignee.type = 'button';
+    poignee.title = 'Afficher la barre des tâches';
+    poignee.setAttribute('aria-label', 'Afficher la barre des tâches');
+    poignee.innerHTML = '<span></span>';
+    poignee.onclick = function(){ osAfficherDockTemporaire(4000); };
+    document.body.appendChild(poignee);
+  }
+  var bord = document.getElementById('os-dock-bord');
+  if(!bord){
+    bord = document.createElement('div');
+    bord.id = 'os-dock-bord';
+    bord.addEventListener('mouseenter', function(){ osAfficherDockTemporaire(0); });
+    document.body.appendChild(bord);
+  }
+  if(!document._dockSourisBranchee){
+    document._dockSourisBranchee = true;
+    document.addEventListener('mousemove', function(e){ _dockSourisY = e.clientY; }, { passive:true });
+  }
+  var inner = document.getElementById('os-dock-inner');
+  if(inner && !inner._survolBranche){
+    inner._survolBranche = true;
+    inner.addEventListener('mouseenter', function(){ _dockSurvole = true; clearTimeout(_dockTimer); });
+    inner.addEventListener('mouseleave', function(){
+      _dockSurvole = false;
+      if(_dockMasque && _dockRevele) _osDockProgrammerRangement(500);
+    });
+  }
+  return { poignee: poignee, bord: bord };
+}
+
+function _osDockAppliquer(){
   var dock = document.getElementById('os-dock');
-  if(dock){
-    dock.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
-    dock.style.transform = 'translateY(120%)';
-  }
-  // Bouton de rappel
-  var btn = document.getElementById('os-dock-recall');
-  if(!btn){
-    btn = document.createElement('div');
-    btn.id = 'os-dock-recall';
-    btn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:99001;background:#1A1A2E;border:1px solid rgba(255,255,255,0.22);border-radius:999px;padding:7px 14px;cursor:pointer;font-family:DM Sans,Arial,sans-serif;font-size:0.76rem;font-weight:600;color:#fff;display:flex;align-items:center;gap:7px;box-shadow:0 4px 14px rgba(0,0,0,0.35);transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateY(20px);';
-    btn.title = 'Réafficher la barre des tâches';
-    btn.innerHTML = '<i class="ti ti-layout-bottombar"></i> Barre des tâches';
-    btn.onclick = function(){ osAfficherDockTemporaire(); };
-    document.body.appendChild(btn);
-  }
-  setTimeout(function(){
-    btn.style.opacity = '1';
-    btn.style.transform = 'translateY(0)';
-  }, 350);
+  if(!dock) return;
+  var el = _osDockElements();
+  var rangee = _dockMasque && !_dockRevele;
+  dock.style.transition = 'transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+  dock.style.transform = rangee ? 'translateY(110%)' : 'translateY(0)';
+  el.poignee.classList.toggle('visible', rangee);
+  el.bord.style.display = rangee ? 'block' : 'none';
+  // L'ancien bouton flottant (versions précédentes) ne doit plus rester
+  var ancien = document.getElementById('os-dock-recall');
+  if(ancien && ancien.parentNode) ancien.parentNode.removeChild(ancien);
 }
 
-function osAfficherDockTemporaire(){
-  var dock = document.getElementById('os-dock');
-  if(dock){
-    dock.style.transform = 'translateY(0)';
+function _osDockProgrammerRangement(ms){
+  clearTimeout(_dockTimer);
+  _dockTimer = setTimeout(function(){
+    var dock = document.getElementById('os-dock');
+    var hauteur = (dock && dock.offsetHeight) || 52;
+    // La souris est sur la barre (survol détecté, ou immobile là où la barre vient d'apparaître) : on attend qu'elle la quitte
+    if(_dockSurvole || (_dockSourisY >= 0 && _dockSourisY >= window.innerHeight - hauteur - 2)){
+      _osDockProgrammerRangement(500);
+      return;
+    }
+    _dockRevele = false;
+    _osDockAppliquer();
+  }, ms);
+}
+
+function osMajDock(){
+  var doit = osAUneMaximisee();
+  if(doit !== _dockMasque){
+    _dockMasque = doit;
+    if(!doit){ _dockRevele = false; clearTimeout(_dockTimer); }
   }
-  // Masquer à nouveau après 3s si des fenêtres restent maximisées
-  clearTimeout(window._dockHideTimer);
-  window._dockHideTimer = setTimeout(function(){
-    if(osAUneMaximisee()) osMasquerDockSilencieux();
-  }, 3000);
+  _osDockAppliquer();
 }
 
-function osMasquerDockSilencieux(){
-  var dock = document.getElementById('os-dock');
-  if(dock) dock.style.transform = 'translateY(120%)';
+// Fait ressortir la barre masquée. ms > 0 : elle se range toute seule après ce délai sans survol (poignée, tactile) ;
+// ms = 0 : elle reste tant que la souris est dessus (bord de l'écran), et se range après 1,5 s si elle n'y arrive pas.
+function osAfficherDockTemporaire(ms){
+  if(!_dockMasque) return;
+  _dockRevele = true;
+  _osDockAppliquer();
+  clearTimeout(_dockTimer);
+  // Avec le bord : si la souris n'arrive pas sur la barre (survol rapide du bord), elle se range d'elle-même ;
+  // dès qu'elle est dessus, le survol (mouseenter) annule ce délai
+  _osDockProgrammerRangement(ms > 0 ? ms : 1500);
 }
 
+// Une fenêtre VISIBLE (pas minimisée) occupe tout l'écran ou la moitié : la barre n'a plus sa place
 function osAUneMaximisee(){
-  return Object.values(_windows).some(function(w){ return w.maximized || w.snapSide; });
+  if(window.innerWidth <= 768) return false;   // sur téléphone, la barre du bas reste toujours là
+  return Object.values(_windows).some(function(w){
+    return (w.maximized || w.snapSide) && w.el && !w.el.classList.contains('minimized');
+  });
 }
+
+// Anciens noms, gardés pour les appels existants
+function osMasquerDock(){ osMajDock(); }
+function osVerifierDockVisibilite(){ osMajDock(); }
 
 // Ancrage façon Windows/Ubuntu — occupe la moitié gauche ou droite du bureau.
 function osSnapWindow(pageId, side){
@@ -1191,7 +1254,7 @@ function osSnapWindow(pageId, side){
   osFocusWindow(pageId);
   // Comme pour le plein écran, la barre des tâches n'a plus sa place une fois les
   // fenêtres ancrées côte à côte.
-  osMasquerDock();
+  osMajDock();
 }
 
 function osAfficherApercuSnap(zone, wsRect){
@@ -1215,26 +1278,6 @@ function osMasquerApercuSnap(){
   var prev = document.getElementById('os-snap-preview');
   if(prev) prev.style.display = 'none';
 }
-
-function osVerifierDockVisibilite(){
-  if(!osAUneMaximisee()){
-    // Plus aucune fenêtre maximisée — remonter le dock
-    _dockMasque = false;
-    clearTimeout(window._dockHideTimer);
-    var dock = document.getElementById('os-dock');
-    if(dock){
-      dock.style.transform = 'translateY(0)';
-    }
-    var btn = document.getElementById('os-dock-recall');
-    if(btn){
-      btn.style.opacity = '0';
-      btn.style.transform = 'translateY(20px)';
-      setTimeout(function(){ if(btn.parentNode) btn.parentNode.removeChild(btn); }, 350);
-    }
-  }
-}
-
-
 
 function osMakeResizable(win){
   var handle = document.createElement('div');
