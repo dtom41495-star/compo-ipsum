@@ -1817,7 +1817,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     // jour à ce moment-là). Recrutement/Communiqués ont déjà ce correctif, Sujets non :
     // bug repéré via Mathéo (Tarn + Haute-Garonne), badge "7" alors que le Tarn est vide.
     _osRedacMajBadgeRail('sujets', sujets.filter(function(s){ return seenSJ.indexOf(s.id)===-1; }).length);
-    // Aucun sujet en cours : la liste vide et l'onglet « Traités » s'affichent quand même
+    // Aucun sujet en cours : la liste vide s'affiche quand même, avec ses onglets
     if(!sujets.length){ _rendreSujets({}); return; }
     // Article rattaché à chaque sujet, s'il en existe un — un sujet doit toujours
     // pouvoir mener à son article (créé automatiquement, réservé puis rédigé, ou
@@ -1846,8 +1846,7 @@ function osRedacChargerSujets(zone, roleRedac, callback){
     if(typeof osRouletteBandeau === 'function') h += osRouletteBandeau(sujets.filter(function(s){ return s.statut==='ouvert' && !s.responsable; }).length);
     h += '<div class="sujets-onglets">'
       +'<button type="button" class="'+(filtre==='libres'?'actif':'')+'" data-f="libres" onclick="_osSujetsFiltrer(this)"><i class="ti ti-hand-stop"></i>À prendre <span class="sujets-onglets-nb">'+nbLibres+'</span></button>'
-      +'<button type="button" class="'+(filtre==='pris'?'actif':'')+'" data-f="pris" onclick="_osSujetsFiltrer(this)"><i class="ti ti-pencil"></i>En cours <span class="sujets-onglets-nb">'+(sujets.length-nbLibres)+'</span></button>'
-      +'<button type="button" data-f="traites" onclick="_osSujetsFiltrer(this)"><i class="ti ti-history"></i>Traités</button></div>';
+      +'<button type="button" class="'+(filtre==='pris'?'actif':'')+'" data-f="pris" onclick="_osSujetsFiltrer(this)"><i class="ti ti-pencil"></i>En cours <span class="sujets-onglets-nb">'+(sujets.length-nbLibres)+'</span></button></div>';
     h += '<div class="sujets-liste" data-filtre="'+filtre+'" style="display:flex;flex-direction:column;gap:0.6rem;">';
     if(!nbLibres) h += '<div class="sujets-vide" data-pour="libres"><i class="ti ti-mood-empty"></i>Aucun sujet à prendre pour l\'instant.</div>';
     if(nbLibres === sujets.length) h += '<div class="sujets-vide" data-pour="pris"><i class="ti ti-pencil-off"></i>Aucun sujet en cours de rédaction.</div>';
@@ -1904,7 +1903,6 @@ function osRedacChargerSujets(zone, roleRedac, callback){
       h += '</div>';
     });
     h += '</div>';
-    h += '<div id="sujets-traites-zone" style="display:none;"></div>';
     zone.innerHTML = h;
     if(callback) callback();
     } // fin _rendreSujets
@@ -1916,56 +1914,3 @@ function osRedacChargerSujets(zone, roleRedac, callback){
 
 // Ancien point d'entrée, gardé pour les boutons déjà affichés : même fenêtre que partout
 function brfAbandonnerSujetDepuisRedac(sujetId){ osSujetSeDesengager(sujetId); }
-
-// ---- Onglet « Traités » : les sujets dont l'article est publié (lecture seule, ils restent en base) ----
-function osSujetsTraitesCharger(){
-  var zone = document.getElementById('sujets-traites-zone');
-  if(!zone) return;
-  zone.innerHTML = '<div class="sujets-vide"><i class="ti ti-loader-2"></i>Chargement…</div>';
-  var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
-  var url = SB_URL+'/rest/v1/briefing?statut=eq.publie&order=created_at.desc&limit=300&select=id,titre,note,rubrique,priorite,responsable,created_at';
-  if(window._redacActiveId) url += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
-  fetch(url, { headers:authH }).then(function(r){ return r.json(); }).then(function(sujets){
-    if(!Array.isArray(sujets)){ throw new Error('lecture'); }
-    if(!sujets.length){
-      zone.innerHTML = '<div class="sujets-vide"><i class="ti ti-history"></i>Aucun sujet traité pour le moment : ils apparaissent ici une fois leur article publié.</div>';
-      return;
-    }
-    return fetch(SB_URL+'/rest/v1/articles?sujet_id=in.('+sujets.map(function(s){ return s.id; }).join(',')+')&select=id,titre,statut,sujet_id', { headers:authH })
-      .then(function(r){ return r.json(); }).catch(function(){ return []; })
-      .then(function(arts){
-        var parSujet = {};
-        (Array.isArray(arts) ? arts : []).forEach(function(a){ if(a.sujet_id) parSujet[a.sujet_id] = a; });
-        var h = '<div style="position:relative;margin-bottom:0.6rem;"><input type="search" id="sujets-traites-q" placeholder="Rechercher un sujet déjà traité…" oninput="osSujetsTraitesFiltrer(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.8rem;border:1px solid #E7E5E4;border-radius:10px;font:500 14px \'DM Sans\',Arial,sans-serif;"></div>';
-        h += '<div id="sujets-traites-liste" style="display:flex;flex-direction:column;gap:0.6rem;">';
-        sujets.forEach(function(s){
-          var art = parSujet[s.id];
-          var date = s.created_at ? new Date(s.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Paris' }) : '';
-          h += '<div class="sujet-carte sujet-traite" data-q="'+esc(((s.titre||'')+' '+(s.rubrique||'')+' '+(s.note||'')).toLowerCase())+'" style="background:#F9FAFB;border:0.5px solid var(--gris-bord);border-radius:12px;padding:0.8rem 1rem;">'
-            +'<div style="font-weight:600;font-size:0.85rem;color:var(--encre);">'+esc(s.titre||'Sans titre')+'</div>'
-            +'<div style="font-family:DM Sans,sans-serif;font-size:0.7rem;color:var(--gris);margin-top:0.25rem;display:flex;gap:0.7rem;flex-wrap:wrap;">'
-            +(s.responsable ? '<span><i class="ti ti-pencil"></i> '+esc(s.responsable)+'</span>' : '')
-            +(s.rubrique ? '<span>'+esc(s.rubrique)+'</span>' : '')
-            +(date ? '<span>proposé le '+date+'</span>' : '')+'</div>'
-            +(s.note ? '<div style="font-size:0.78rem;color:var(--gris);margin-top:0.3rem;">'+esc(s.note)+'</div>' : '')
-            +(art ? '<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:0.5px solid var(--gris-bord);"><button class="sj-btn sj-lien" data-aid="'+esc(art.id)+'" onclick="mesArticlesOuvrir(this.dataset.aid,\'lecture\')"><i class="ti ti-file-text"></i>Voir l\'article</button></div>' : '')
-            +'</div>';
-        });
-        h += '</div><div class="sujets-vide" id="sujets-traites-aucun" style="display:none;"><i class="ti ti-search-off"></i>Aucun sujet traité ne correspond.</div>';
-        zone.innerHTML = h;
-      });
-  }).catch(function(){
-    zone.innerHTML = '<div class="sujets-vide"><i class="ti ti-alert-triangle"></i>Impossible de charger les sujets traités.</div>';
-  });
-}
-function osSujetsTraitesFiltrer(q){
-  q = (q || '').trim().toLowerCase();
-  var vus = 0;
-  document.querySelectorAll('#sujets-traites-liste .sujet-traite').forEach(function(c){
-    var ok = !q || c.getAttribute('data-q').indexOf(q) !== -1;
-    c.style.display = ok ? '' : 'none';
-    if(ok) vus++;
-  });
-  var aucun = document.getElementById('sujets-traites-aucun');
-  if(aucun) aucun.style.display = vus ? 'none' : 'flex';
-}

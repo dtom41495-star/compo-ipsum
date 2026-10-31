@@ -2751,7 +2751,7 @@ function osAppComBrief(id, titre){
   .then(function(arts){
     var a = arts&&arts[0];
     if(!a){ notif('Article introuvable','erreur'); return; }
-    _osComGenererBriefDoc(a, ['Post Instagram (1080x1080)','Story Instagram (1080x1920)']);
+    _osComGenererBriefDoc(a, ['Post Instagram (1080x1350, format 4:5)','Story Instagram (1080x1920)']);
   });
 }
 
@@ -3058,8 +3058,10 @@ function osVerifierComDejaConnecte(){
 
 // Visible seulement si : un communicant s'est déjà connecté au moins une fois ET aucun n'est actuellement disponible
 function osCalculerAccesVisuels(){
-  if(window._comDejaConnecte === undefined || window._comDisponible === undefined) return; // attendre les deux résultats
-  var visible = window._comDejaConnecte === true && window._comDisponible === false;
+  // Un admin peut forcer l'ouverture (bouton dans Gestion des rédactions) sans attendre ces deux résultats
+  var force = typeof osVisuelsForce === 'function' && osVisuelsForce();
+  if(!force && (window._comDejaConnecte === undefined || window._comDisponible === undefined)) return; // attendre les deux résultats
+  var visible = force || (window._comDejaConnecte === true && window._comDisponible === false);
   if(window._visuelsProAccessible === visible) return; // pas de changement, rien à refaire
   window._visuelsProAccessible = visible;
   osBuildDock();
@@ -3076,6 +3078,7 @@ function osVisuelsVerifierAcces(){
       +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.5rem;">Appli Visuels indisponible</div>'
       +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1.2rem;">'+(window._comDejaConnecte===false?'Aucun membre de la communication ne s\'est encore connecté.':'Un membre de la communication est disponible pour s\'en charger.')+'</div>'
       +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:0.5rem 1.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">OK</button>'
+      +(getUserRole()==='admin' ? '<div style="margin-top:0.7rem;"><button onclick="this.closest(\'[style*=fixed]\').remove();osVisuelsForcer(true);go(\'visuels-pro\');" style="padding:0.45rem 1.2rem;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:8px;cursor:pointer;font-size:0.75rem;">Ouvrir quand même (admin)</button></div>' : '')
       +'</div>';
     document.body.appendChild(mo);
     return false;
@@ -3105,7 +3108,7 @@ function osNotifierComArticleValide(article){
 
     var emailHtml = _emailCompo({
       accent:'violet', etiquette:'VISUELS', titre:'Un article à illustrer',
-      texte:'Cet article vient de passer en bon à publier et a besoin de visuels : un post Instagram carré (1080 × 1080) et une story (1080 × 1920).',
+      texte:'Cet article vient de passer en bon à publier et a besoin de visuels : un post Instagram au format 4:5 (1080 × 1350) et une story (1080 × 1920).',
       contenu:_emailCarteArticle(article),
       description:chapeau || corps,
       apresCarte:(article.image ? '<img src="'+esc(_driveImgSrc(article.image))+'" style="max-width:100%;border-radius:8px;display:block;" alt="Image de l\'article">' : ''),

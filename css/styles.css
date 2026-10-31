@@ -2965,12 +2965,13 @@ input:focus,select:focus,textarea:focus{
   box-shadow:0 8px 32px rgba(0,0,0,0.25);
   user-select:none;
 }
-.vpro-canvas.publi{width:540px;height:540px;}
-.vpro-canvas.story{width:304px;height:540px;}
+.vpro-canvas.publi{width:540px;height:675px;}
+.vpro-canvas.story{width:360px;height:640px;}
+#vpro-bg,#vpro-gradient{position:absolute;left:0;top:0;right:0;}
 
 /* ÉLÉMENTS DRAGGABLES */
 .vpro-el{
-  position:absolute;cursor:move;
+  position:absolute;cursor:move;width:max-content;
   touch-action:none;
 }
 .vpro-el.selected .vpro-el-inner{
