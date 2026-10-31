@@ -225,7 +225,7 @@ var GD_ROLES_ASSO = [
   { cle:['secretaire'],     titre:'Secrétaire',           icone:'ti-mail-opened',  aide:'Courriers, documents officiels et signatures.' },
   { cle:['tresorier'],      titre:'Trésorier·ère',        icone:'ti-coin-euro',    aide:'Notes de frais, remboursements, adhésions et cotisations.' },
   { cle:['vie_asso'],       titre:'Vie associative',      icone:'ti-heart-handshake', aide:'Arrivée ou départ de l’équipe, heures de bénévolat, pause, difficultés avec un membre.' },
-  { cle:['communication', 'responsable_com', 'com_externe', 'com_interne'], titre:'Communication', icone:'ti-speakerphone', aide:'Réseaux sociaux, visuels, communiqués et newsletter.' }
+  { role:'communicant', titre:'Communication', icone:'ti-speakerphone', aide:'Réseaux sociaux, visuels, communiqués et newsletter.' }
 ];
 function _gdNom(m){ return ((m.prenom || '')+' '+(m.nom || '')).trim() || 'Membre'; }
 function _gdAFonction(m, cles){
@@ -255,7 +255,7 @@ function _gdContactsHtml(){
       +'<p class="gd-aide-role">Un sujet, un article, une relecture, un souci avec ta rédaction : commence par là.</p>'+chefs.map(_gdPersonne).join('');
   }
   GD_ROLES_ASSO.forEach(function(r){
-    var gens = membres.filter(function(m){ return _gdAFonction(m, r.cle); });
+    var gens = membres.filter(function(m){ return r.role ? m.role === r.role : _gdAFonction(m, r.cle); });
     h += '<h2><i class="ti '+r.icone+'"></i> '+r.titre+'</h2><p class="gd-aide-role">'+r.aide+'</p>'
       +(gens.length ? gens.map(_gdPersonne).join('') : '<p class="gd-vide">Personne n’a encore cette fonction.</p>');
   });

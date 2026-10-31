@@ -699,7 +699,7 @@ function osBuildDock(){
   if(Array.isArray(fonctions) && fonctions.indexOf('tresorier') !== -1 && !apps.some(function(a){ return a.id==='tresorerie'; })){
     apps = apps.concat([{ id:'tresorerie', icon:'<i class="ti ti-currency-euro"></i>', label:'Trésorerie', color:'#0F6E56' }]);
   }
-  if(window._visuelsProAccessible !== true){ apps = apps.filter(function(a){ return a.id !== 'visuels-pro'; }); }
+  if(!osVisuelsOuvert()){ apps = apps.filter(function(a){ return a.id !== 'visuels-pro'; }); }
   var pinnedIds = apps.map(function(a){ return a.id; });
 
   // Apps épinglées. Une icône construite dans un try/catch chacune : une app mal

@@ -1574,8 +1574,8 @@ var ALL_APPS_CATALOGUE = [
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
-  { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','admin'] },
-  { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','redacteur','correcteur','redac_chef','communicant'], fonctions_requises:['communication','responsable_com','com_externe','com_interne'] },
+  { id:'visuels-pro',    icon:'<i class="ti ti-palette"></i>', label:'Visuels',         color:'#155724', roles:['redacteur','correcteur','redac_chef','communicant','admin'] },
+  { id:'app-com',        icon:'<i class="ti ti-microphone-2"></i>', label:'Com',             color:'#7D3C98', roles:['admin','communicant'] },
   { id:'app-courrier',   icon:'<i class="ti ti-mailbox"></i>', label:'Courrier',        color:'#1A5276', roles:['admin','redacteur','correcteur','redac_chef'], fonctions_requises:['secretaire','president','vice_president'] },
   { id:'newsletter',     icon:'<i class="ti ti-mail"></i>', label:'Newsletter',     color:'#155724', roles:['correcteur','admin','redac_chef'] },
   { id:'tutos',          icon:'<i class="ti ti-book-2"></i>', label:'Guide',          color:'#4A235A', roles:['redacteur','correcteur'] },
@@ -1613,7 +1613,7 @@ var PROFILS_PREDEFINIS = {
   admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','cockpit','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
-  communicant: ['app-com','redactions','notes','compo-store','boutique','mail','signatures'],
+  communicant: ['app-com','visuels-pro','redactions','notes','compo-store','boutique','mail','signatures'],
 };
 
 window._userApps = null;
@@ -1728,6 +1728,20 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'cps-admin', epingle: true })
+        }).catch(function(){});
+      }
+
+      // Communicant·es (rôle ou fonction de communication) : l'appli Visuels est toujours présente et épinglée
+      if(osEstCommunicant() && !allIds.includes('visuels-pro')){
+        allIds.push('visuels-pro');
+        epinglesIds.push('visuels-pro');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'visuels-pro', epingle: true })
         }).catch(function(){});
       }
 

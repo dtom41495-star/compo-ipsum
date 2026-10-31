@@ -665,18 +665,9 @@ function osMenuMobile(items){
 
 // Onglets « À prendre » / « En cours » des Sujets (téléphone et ordinateur)
 function _osSujetsFiltrer(btn){
-  var traites = btn.dataset.f === 'traites';
-  if(!traites) window._sujetsFiltre = btn.dataset.f;
+  window._sujetsFiltre = btn.dataset.f;
   var barre = btn.parentNode;
   barre.querySelectorAll('button').forEach(function(b){ b.classList.toggle('actif', b === btn); });
   var liste = barre.parentNode.querySelector('.sujets-liste');
-  var zoneTraites = document.getElementById('sujets-traites-zone');
-  if(liste){
-    liste.style.display = traites ? 'none' : 'flex';
-    if(!traites) liste.dataset.filtre = btn.dataset.f;
-  }
-  if(zoneTraites){
-    zoneTraites.style.display = traites ? 'block' : 'none';
-    if(traites && typeof osSujetsTraitesCharger === 'function') osSujetsTraitesCharger();
-  }
+  if(liste) liste.dataset.filtre = btn.dataset.f;
 }

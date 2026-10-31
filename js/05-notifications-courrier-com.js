@@ -26,7 +26,7 @@ function osConstruireRattrapage(callback){
   var fonctions = getUserFonction();
   var isAdmin = role==='admin';
   var isVieAsso = isAdmin || fonctions.indexOf('vie_asso')!==-1;
-  var isCommunicant = isAdmin || role==='communicant' || ['communication','responsable_com','com_externe','com_interne'].some(function(f){ return fonctions.indexOf(f)!==-1; });
+  var isCommunicant = isAdmin || role==='communicant';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   var mesLiens = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id===uid; });
@@ -1907,7 +1907,7 @@ function osSpotlightSearch(q){
     {id:'visuels-pro',label:'Visuels',icon:'<i class="ti ti-palette"></i>'},
     {id:'newsletter',label:'Newsletter',icon:'<i class="ti ti-mail-forward"></i>'},
   ];
-  pages = pages.filter(function(p){ return p.id!=='visuels-pro' || window._visuelsProAccessible===true; });
+  pages = pages.filter(function(p){ return p.id!=='visuels-pro' || osVisuelsOuvert(); });
   var filtered = q ? pages.filter(function(p){ return p.label.toLowerCase().includes(q.toLowerCase()); }) : pages;
   res.innerHTML = '';
   filtered.slice(0,6).forEach(function(p){
@@ -2006,7 +2006,7 @@ function osAppsAccessibles(){
     var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
     if(storeApp) appsAff.push(storeApp);
   }
-  return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
+  return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || osVisuelsOuvert()); });
 }
 
 function osStartAction(action){
@@ -2751,7 +2751,7 @@ function osAppComBrief(id, titre){
   .then(function(arts){
     var a = arts&&arts[0];
     if(!a){ notif('Article introuvable','erreur'); return; }
-    _osComGenererBriefDoc(a, ['Post Instagram (1080x1080)','Story Instagram (1080x1920)']);
+    _osComGenererBriefDoc(a, ['Post Instagram (1080x1350, format 4:5)','Story Instagram (1080x1920)']);
   });
 }
 
@@ -3016,18 +3016,15 @@ function osDNDMajUI(){
   });
 }
 
-// Renvoie l'id des membres ayant une fonction communication (communication / responsable_com / com_externe / com_interne)
+// Renvoie l'id des membres du profil communicant (rôle « communicant »)
 function _osComMembreIds(membres){
-  return (membres||[]).filter(function(m){
-    var f = fonctionArray(m.fonction);
-    return f.indexOf('communication')!==-1 || f.indexOf('responsable_com')!==-1 || f.indexOf('com_externe')!==-1 || f.indexOf('com_interne')!==-1;
-  }).map(function(m){ return m.id; });
+  return (membres||[]).filter(function(m){ return m.role==='communicant'; }).map(function(m){ return m.id; });
 }
 
 function osVerifierDispoVisuels(){
   // Vérifier si au moins un membre de la com est disponible (dnd=false)
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
@@ -3042,7 +3039,7 @@ function osVerifierDispoVisuels(){
 // Un membre de la com s'est-il déjà connecté au moins une fois (ligne dans presence) ?
 function osVerifierComDejaConnecte(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,role,fonction',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     var comIds = _osComMembreIds((!membres||membres.code)?[]:membres);
@@ -3058,8 +3055,10 @@ function osVerifierComDejaConnecte(){
 
 // Visible seulement si : un communicant s'est déjà connecté au moins une fois ET aucun n'est actuellement disponible
 function osCalculerAccesVisuels(){
-  if(window._comDejaConnecte === undefined || window._comDisponible === undefined) return; // attendre les deux résultats
-  var visible = window._comDejaConnecte === true && window._comDisponible === false;
+  // Un admin peut forcer l'ouverture (bouton dans Gestion des rédactions) sans attendre ces deux résultats
+  var force = typeof osVisuelsForce === 'function' && osVisuelsForce();
+  if(!force && (window._comDejaConnecte === undefined || window._comDisponible === undefined)) return; // attendre les deux résultats
+  var visible = force || (window._comDejaConnecte === true && window._comDisponible === false);
   if(window._visuelsProAccessible === visible) return; // pas de changement, rien à refaire
   window._visuelsProAccessible = visible;
   osBuildDock();
@@ -3068,7 +3067,7 @@ function osCalculerAccesVisuels(){
 
 function osVisuelsVerifierAcces(){
   // Appelé avant d'ouvrir visuels — retourne true si accessible
-  if(window._visuelsProAccessible !== true){
+  if(!osVisuelsOuvert()){
     var mo = document.createElement('div');
     mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
     mo.innerHTML = '<div style="background:white;border-radius:12px;padding:2rem;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'
@@ -3076,6 +3075,7 @@ function osVisuelsVerifierAcces(){
       +'<div style="font-weight:700;font-size:0.95rem;color:var(--encre);margin-bottom:0.5rem;">Appli Visuels indisponible</div>'
       +'<div style="font-size:0.78rem;color:var(--gris);margin-bottom:1.2rem;">'+(window._comDejaConnecte===false?'Aucun membre de la communication ne s\'est encore connecté.':'Un membre de la communication est disponible pour s\'en charger.')+'</div>'
       +'<button onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:0.5rem 1.5rem;background:var(--rouge);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">OK</button>'
+      +(getUserRole()==='admin' ? '<div style="margin-top:0.7rem;"><button onclick="this.closest(\'[style*=fixed]\').remove();osVisuelsForcer(true);go(\'visuels-pro\');" style="padding:0.45rem 1.2rem;background:white;color:var(--encre);border:1px solid var(--gris-bord);border-radius:8px;cursor:pointer;font-size:0.75rem;">Ouvrir quand même (admin)</button></div>' : '')
       +'</div>';
     document.body.appendChild(mo);
     return false;
@@ -3086,14 +3086,11 @@ function osVisuelsVerifierAcces(){
 function osNotifierComArticleValide(article){
   // Trouver les membres de la com disponibles
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    var membresCom = membres.filter(function(m){
-      var f = fonctionArray(m.fonction);
-      return f.indexOf('communication')!==-1 || f.indexOf('responsable_com')!==-1 || f.indexOf('com_externe')!==-1 || f.indexOf('com_interne')!==-1;
-    });
+    var membresCom = membres.filter(function(m){ return m.role==='communicant'; });
     if(!membresCom.length) return;
 
     // Construire le brief HTML
@@ -3105,7 +3102,7 @@ function osNotifierComArticleValide(article){
 
     var emailHtml = _emailCompo({
       accent:'violet', etiquette:'VISUELS', titre:'Un article à illustrer',
-      texte:'Cet article vient de passer en bon à publier et a besoin de visuels : un post Instagram carré (1080 × 1080) et une story (1080 × 1920).',
+      texte:'Cet article vient de passer en bon à publier et a besoin de visuels : un post Instagram au format 4:5 (1080 × 1350) et une story (1080 × 1920).',
       contenu:_emailCarteArticle(article),
       description:chapeau || corps,
       apresCarte:(article.image ? '<img src="'+esc(_driveImgSrc(article.image))+'" style="max-width:100%;border-radius:8px;display:block;" alt="Image de l\'article">' : ''),

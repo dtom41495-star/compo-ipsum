@@ -2249,8 +2249,6 @@ function osBenevolesChangerFonction(membreId, fonction){
   }).catch(function(e){ console.error('Fonction réseau:', e); notif('Erreur réseau'); });
 }
 
-var FONCTIONS_COM = ['communication','responsable_com','com_externe','com_interne'];
-
 function osBenevolesChangerRole(membreId, nouveauRole){
   if(getUserRole() !== 'admin'){ notif('Seul un admin peut changer le rôle d\'un membre','erreur'); return; }
   if(!osConfirmerPuis('Changer le rôle en "'+nouveauRole+'" ?', {oui:'Changer le rôle'}, osBenevolesChangerRole, this, arguments)) return;
@@ -2261,32 +2259,10 @@ function osBenevolesChangerRole(membreId, nouveauRole){
   }).then(function(r){
     if(r.ok){
       notif('Rôle mis à jour : '+nouveauRole, 'succes');
-      // L'appli Com exige à la fois le rôle ET une fonction communication (ex:
-      // 'communication') — sans ça, quelqu'un tout juste passé "communicant" se
-      // retrouverait avec le rôle mais sans accès à sa propre appli. On complète la
-      // fonction automatiquement si elle n'y est pas déjà, plutôt que de laisser un
-      // admin découvrir ce détail à la main sur une autre fiche.
-      if(nouveauRole === 'communicant') _osGarantirFonctionCom(membreId);
       osBenevolesDashRender();
       setTimeout(function(){ osBenevolesOuvrirFiche(membreId); }, 400);
     } else { notif('Erreur mise à jour rôle'); }
   }).catch(function(){ notif('Erreur réseau'); });
-}
-
-function _osGarantirFonctionCom(membreId){
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&select=fonction', {headers:authH})
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    var m = data && data[0];
-    var fonctions = fonctionArray(m && m.fonction);
-    if(fonctions.some(function(f){ return FONCTIONS_COM.indexOf(f)!==-1; })) return; // déjà une fonction com
-    fonctions.push('communication');
-    fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId), {
-      method:'PATCH', headers: Object.assign({}, authH, {'Prefer':'return=minimal'}),
-      body: JSON.stringify({ fonction: fonctions })
-    }).catch(function(){});
-  }).catch(function(){});
 }
 
 function osBenvSuspendre(membreId){
