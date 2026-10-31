@@ -1907,7 +1907,7 @@ function osSpotlightSearch(q){
     {id:'visuels-pro',label:'Visuels',icon:'<i class="ti ti-palette"></i>'},
     {id:'newsletter',label:'Newsletter',icon:'<i class="ti ti-mail-forward"></i>'},
   ];
-  pages = pages.filter(function(p){ return p.id!=='visuels-pro' || window._visuelsProAccessible===true; });
+  pages = pages.filter(function(p){ return p.id!=='visuels-pro' || osVisuelsOuvert(); });
   var filtered = q ? pages.filter(function(p){ return p.label.toLowerCase().includes(q.toLowerCase()); }) : pages;
   res.innerHTML = '';
   filtered.slice(0,6).forEach(function(p){
@@ -2006,7 +2006,7 @@ function osAppsAccessibles(){
     var storeApp = ALL_APPS_CATALOGUE.find(function(a){ return a.id==='compo-store'; });
     if(storeApp) appsAff.push(storeApp);
   }
-  return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || window._visuelsProAccessible===true); });
+  return appsAff.filter(function(a){ return !a.legacy && (a.id!=='visuels-pro' || osVisuelsOuvert()); });
 }
 
 function osStartAction(action){
@@ -3070,7 +3070,7 @@ function osCalculerAccesVisuels(){
 
 function osVisuelsVerifierAcces(){
   // Appelé avant d'ouvrir visuels — retourne true si accessible
-  if(window._visuelsProAccessible !== true){
+  if(!osVisuelsOuvert()){
     var mo = document.createElement('div');
     mo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
     mo.innerHTML = '<div style="background:white;border-radius:12px;padding:2rem;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'

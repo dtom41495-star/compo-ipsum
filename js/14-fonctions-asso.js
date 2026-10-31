@@ -40,6 +40,19 @@ function osSansRedactionVoulu(m){
   return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('vie_asso') !== -1;
 }
 
+// Profil communicant : rôle « communicant » ou une des fonctions de communication.
+// Ces membres ont toujours accès à l'appli Visuels (les autres seulement quand la com n'est pas disponible).
+var FONCTIONS_COM_LISTE = ['communication','responsable_com','com_externe','com_interne'];
+function osEstCommunicant(){
+  if(getUserRole() === 'communicant') return true;
+  var f = getUserFonction();
+  return FONCTIONS_COM_LISTE.some(function(x){ return f.indexOf(x) !== -1; });
+}
+// L'appli Visuels est-elle ouverte pour moi ? (communicant, ou ouverture automatique/forcée)
+function osVisuelsOuvert(){
+  return window._visuelsProAccessible === true || osEstCommunicant();
+}
+
 // Affichage court pour les cartes
 function fonctionShort(val){
   var arr = fonctionArray(val);
