@@ -649,6 +649,32 @@ function _osNotifierVieAssoIndisponibilite(nomMembre, raison){
   }).catch(function(){});
 }
 
+// Les admins sont prévenus à chaque fois qu'un membre passe Indisponible ou redevient Disponible
+// (Chat ou e-mail, selon le canal choisi par chacun) ; l'admin qui change lui-même son état n'est pas prévenu.
+function osNotifierAdminsDispo(nomMembre, dispo, precision){
+  var moi = getUserId();
+  var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  fetch(SB_URL+'/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,prenom,email,canal_notif',{headers:authHGet})
+  .then(function(r){return r.json();})
+  .then(function(admins){
+    (Array.isArray(admins) ? admins : []).filter(function(a){ return a.id !== moi; }).forEach(function(a){
+      var qui = nomMembre+(precision ? ' ('+precision+')' : '');
+      var titre = dispo ? qui+' est de nouveau disponible' : qui+' est indisponible';
+      notifierPersonnel(a.id, a.canal_notif,
+        '*'+_chatSansMiseEnForme(titre)+'*\nChangement de disponibilité sur Compo.',
+        'vie_asso', function(){
+          if(!a.email) return;
+          envoyerEmailResend(a.email, '[Compo] '+titre, _emailCompo({
+            accent: dispo ? 'vert' : 'rouge', etiquette:'DISPONIBILITÉ', titre:esc(titre),
+            bonjour:'Bonjour '+esc(a.prenom||'')+',',
+            texte:'<strong>'+esc(nomMembre)+'</strong> vient de se mettre '+(dispo ? 'en <strong>disponible</strong>.' : 'en <strong>indisponible</strong>.'),
+            boutons:[{label:'Voir sur Compo', url:'https://compo.ipsummedia.fr'}],
+            pourquoi:'Tu reçois cet email car tu es administrateur·rice de Compo.' }), 'vie_asso');
+        });
+    });
+  }).catch(function(){});
+}
+
 function _benvFormatDate(d){
   if(!d) return '—';
   var now = new Date();
