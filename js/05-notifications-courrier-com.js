@@ -26,7 +26,7 @@ function osConstruireRattrapage(callback){
   var fonctions = getUserFonction();
   var isAdmin = role==='admin';
   var isVieAsso = isAdmin || fonctions.indexOf('vie_asso')!==-1;
-  var isCommunicant = isAdmin || role==='communicant' || ['communication','responsable_com','com_externe','com_interne'].some(function(f){ return fonctions.indexOf(f)!==-1; });
+  var isCommunicant = isAdmin || role==='communicant';
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   var mesLiens = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id===uid; });
@@ -3016,18 +3016,15 @@ function osDNDMajUI(){
   });
 }
 
-// Renvoie l'id des membres ayant une fonction communication (communication / responsable_com / com_externe / com_interne)
+// Renvoie l'id des membres du profil communicant (rôle « communicant »)
 function _osComMembreIds(membres){
-  return (membres||[]).filter(function(m){
-    var f = fonctionArray(m.fonction);
-    return f.indexOf('communication')!==-1 || f.indexOf('responsable_com')!==-1 || f.indexOf('com_externe')!==-1 || f.indexOf('com_interne')!==-1;
-  }).map(function(m){ return m.id; });
+  return (membres||[]).filter(function(m){ return m.role==='communicant'; }).map(function(m){ return m.id; });
 }
 
 function osVerifierDispoVisuels(){
   // Vérifier si au moins un membre de la com est disponible (dnd=false)
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
@@ -3042,7 +3039,7 @@ function osVerifierDispoVisuels(){
 // Un membre de la com s'est-il déjà connecté au moins une fois (ligne dans presence) ?
 function osVerifierComDejaConnecte(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,role,fonction',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     var comIds = _osComMembreIds((!membres||membres.code)?[]:membres);
@@ -3089,14 +3086,11 @@ function osVisuelsVerifierAcces(){
 function osNotifierComArticleValide(article){
   // Trouver les membres de la com disponibles
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    var membresCom = membres.filter(function(m){
-      var f = fonctionArray(m.fonction);
-      return f.indexOf('communication')!==-1 || f.indexOf('responsable_com')!==-1 || f.indexOf('com_externe')!==-1 || f.indexOf('com_interne')!==-1;
-    });
+    var membresCom = membres.filter(function(m){ return m.role==='communicant'; });
     if(!membresCom.length) return;
 
     // Construire le brief HTML

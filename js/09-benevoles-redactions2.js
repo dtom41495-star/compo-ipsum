@@ -188,7 +188,7 @@ function _osBenvOrganigrammeAdminHTML(membres){
   var avecFonction = membres.filter(function(m){ return fonctionArray(m.fonction).length; });
   var tier1 = avecFonction.filter(function(m){ return aUneDe(m,['president']); });
   var tier2 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && aUneDe(m,['vice_president','tresorier','secretaire']); });
-  var tier3 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && tier2.indexOf(m)===-1 && aUneDe(m,['responsable_com','communication','com_externe','com_interne','vie_asso']); });
+  var tier3 = avecFonction.filter(function(m){ return tier1.indexOf(m)===-1 && tier2.indexOf(m)===-1 && aUneDe(m,['vie_asso']); });
 
   function carteFonction(m, estTop){
     // Président·e devient le nœud focal du bureau (corail, comme le "chef" de

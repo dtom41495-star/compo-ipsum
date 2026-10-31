@@ -717,8 +717,8 @@ var AGENDA_TYPES = {
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
-var AGENDA_CIBLE_FONCTIONS = ['tresorier','responsable_com','com_externe','vie_asso'];
-var FONCTIONS_LBL = {tresorier:'Trésorier',responsable_com:'Resp. com',com_externe:'Com externe',vie_asso:'Vie asso'};
+var AGENDA_CIBLE_FONCTIONS = ['tresorier','vie_asso'];
+var FONCTIONS_LBL = {tresorier:'Trésorier',vie_asso:'Vie asso'};
 
 function osAgendaRender(){
   var wc = document.getElementById('wincontent-agenda');

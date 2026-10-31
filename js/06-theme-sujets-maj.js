@@ -372,7 +372,7 @@ var TOUR_ETAPES = [
     cible: function(){ return window.innerWidth <= 768 ? '.acc-situation .dnd-switch' : '#os-dnd-btn'; },
     titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
     texte: function(){
-      var estCommunicant = _osComMembreIds([{id:'moi', fonction:getUserFonction()}]).length > 0;
+      var estCommunicant = typeof osEstCommunicant === 'function' && osEstCommunicant();
       if(estCommunicant){
         return 'Ce bouton sert à signaler que tu ne peux pas t\'investir dans l\'association en ce moment — les autres le voient tout de suite. '
           + '<strong style="color:var(--rouge);">En tant que membre de la communication</strong>, si tu passes en indisponible et qu\'aucun autre communicant n\'est disponible, l\'outil Visuels s\'ouvre en libre-service pour les rédacteurs le temps que tu reviennes.';

@@ -1,18 +1,12 @@
 // ===== FONCTIONS ASSOCIATIVES (libellés + helpers partagés) =====
 var FONCTIONS_LABELS = {
   tresorier:'Trésorier·ère',
-  communication:'Communication',
-  responsable_com:'Resp. com', com_externe:'Com externe',
-  com_interne:'Com interne', vie_asso:'Vie associative',
+  vie_asso:'Vie associative',
   secretaire:'Secrétaire', president:'Président·e',
   vice_president:'Vice-président·e'
 };
 var FONCTIONS_LIST_GLOBAL = [
   {id:'tresorier',     label:'Trésorier·ère'},
-  {id:'communication', label:'Communication'},
-  {id:'responsable_com',label:'Responsable communication'},
-  {id:'com_externe',   label:'Communication externe'},
-  {id:'com_interne',   label:'Communication interne'},
   {id:'vie_asso',      label:'Vie associative'},
   {id:'secretaire',    label:'Secrétaire'},
   {id:'president',     label:'Président·e'},
@@ -40,13 +34,10 @@ function osSansRedactionVoulu(m){
   return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('vie_asso') !== -1;
 }
 
-// Profil communicant : rôle « communicant » ou une des fonctions de communication.
+// Profil communicant : c'est le rôle « communicant » (il n'y a plus de fonctions de communication à part).
 // Ces membres ont toujours accès à l'appli Visuels (les autres seulement quand la com n'est pas disponible).
-var FONCTIONS_COM_LISTE = ['communication','responsable_com','com_externe','com_interne'];
 function osEstCommunicant(){
-  if(getUserRole() === 'communicant') return true;
-  var f = getUserFonction();
-  return FONCTIONS_COM_LISTE.some(function(x){ return f.indexOf(x) !== -1; });
+  return getUserRole() === 'communicant';
 }
 // L'appli Visuels est-elle ouverte pour moi ? (communicant, ou ouverture automatique/forcée)
 function osVisuelsOuvert(){
@@ -66,8 +57,7 @@ function fonctionLong(val){
   if(!arr.length) return '';
   var LONG = {
     tresorier:'Trésorier·ère',
-    responsable_com:'Responsable communication', com_externe:'Communication externe',
-    com_interne:'Communication interne', vie_asso:'Vie associative',
+    vie_asso:'Vie associative',
     secretaire:'Secrétaire', president:'Président·e',
     vice_president:'Vice-président·e'
   };
