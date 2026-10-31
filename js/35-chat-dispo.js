@@ -13,15 +13,29 @@
 var CHAT_DISPO_SCOPE = 'https://www.googleapis.com/auth/chat.users.availability';
 var CHAT_DISPO_URL = 'https://chat.googleapis.com/v1/users/me/availability';
 var CHAT_DISPO_INTERVALLE = 2 * 60 * 1000;
-// Le Ne pas déranger de Chat dure au plus un an : Compo le pose pour un peu moins, et le
-// retire dès qu'on repasse « Disponible ».
-var CHAT_DISPO_DUREE_DND = '31500000s';
+// Le Ne pas déranger posé par Compo dure 7 jours, et Compo le renouvelle tant que la personne reste
+// « Indisponible » et ouvre Compo (voir _chatDispoFinProche) ; il est retiré dès qu'on repasse « Disponible ».
+var CHAT_DISPO_DUREE_DND = '604800s';
+var CHAT_DISPO_DUREE_MS = 7 * 24 * 3600 * 1000;
+
+// Date de fin du Ne pas déranger posé par Compo (mémorisée sur l'appareil) : elle permet de distinguer
+// un Ne pas déranger qui a simplement expiré d'un Ne pas déranger retiré à la main dans Chat.
+function _chatDispoCleFin(){ return 'compo_chat_dnd_fin_'+getUserId(); }
+function _chatDispoFinLire(){
+  try{ var v = +localStorage.getItem(_chatDispoCleFin()); return v > 0 ? v : 0; }catch(e){ return 0; }
+}
+function _chatDispoFinEcrire(ms){
+  try{ if(ms) localStorage.setItem(_chatDispoCleFin(), String(ms)); else localStorage.removeItem(_chatDispoCleFin()); }catch(e){}
+}
+function _chatDispoExpire(){ var f = _chatDispoFinLire(); return f > 0 && Date.now() >= f - 60000; }
+function _chatDispoFinProche(){ var f = _chatDispoFinLire(); return f > 0 && f - Date.now() < 24 * 3600 * 1000; }
 
 // Demander la permission à la connexion, en même temps que Drive (un seul écran Google)
 if(typeof GOOGLE_SCOPES_CONNEXION !== 'undefined' && GOOGLE_SCOPES_CONNEXION.indexOf(CHAT_DISPO_SCOPE) === -1){
   GOOGLE_SCOPES_CONNEXION.push(CHAT_DISPO_SCOPE);
 }
 
+var _chatDispoDernierRenouv = 0;
 var _chatDispoDerniereDND = null;   // dernier état « Ne pas déranger » vu dans Chat (null = pas encore lu)
 var _chatDispoTimer = null;
 var _chatDispoRelierPropose = false;
@@ -67,10 +81,11 @@ function osChatDispoSuiteCompo(indispo){
     if(!jeton){ _chatDispoProposerRelier(true); return; }
     if(indispo){
       _chatDispoAppel(jeton, ':markAsDoNotDisturb', 'POST', { ttl:CHAT_DISPO_DUREE_DND }).then(function(a){
-        if(a) _chatDispoDerniereDND = true; else _chatDispoSignalerEchec();
+        if(a){ _chatDispoDerniereDND = true; _chatDispoFinEcrire(Date.now() + CHAT_DISPO_DUREE_MS); } else _chatDispoSignalerEchec();
       });
     } else {
       // Un ACTIVE très court rend la main à Chat, qui recalcule l'état selon l'activité
+      _chatDispoFinEcrire(0);
       _chatDispoLire(jeton).then(function(dnd){
         if(dnd === false){ _chatDispoDerniereDND = false; return; }
         _chatDispoAppel(jeton, ':markAsActive', 'POST', { ttl:'60s' }).then(function(a){
@@ -135,12 +150,26 @@ function osChatDispoVerifier(){
         var cle = 'compo_chat_dispo_lie_'+getUserId(), dejaLie = false;
         try{ dejaLie = localStorage.getItem(cle) === '1'; localStorage.setItem(cle, '1'); }catch(e){}
         if(!dejaLie){ if(dnd !== _dndActif) osChatDispoSuiteCompo(_dndActif); return; }
+        if(_chatDispoSuiteExpiration(dnd)) return;
         if(dnd !== _dndActif) _chatDispoAppliquerDansCompo(dnd);
         return;
       }
+      if(_chatDispoSuiteExpiration(dnd)) return;
       if(avant !== dnd) _chatDispoAppliquerDansCompo(dnd);
     });
   });
+}
+
+// Compo est « Indisponible » et le Ne pas déranger de Chat qu'il avait posé arrive à échéance (ou vient d'expirer) :
+// on le renouvelle au lieu de remettre la personne « Disponible ». Renvoie true si c'est le cas.
+function _chatDispoSuiteExpiration(dnd){
+  if(typeof _dndActif === 'undefined' || !_dndActif) return false;
+  if((!dnd && _chatDispoExpire()) || (dnd && _chatDispoFinProche())){
+    // Une tentative par heure au plus : si Google refuse, pas de message d'erreur toutes les 2 minutes
+    if(Date.now() - _chatDispoDernierRenouv > 3600000){ _chatDispoDernierRenouv = Date.now(); osChatDispoSuiteCompo(true); }
+    return true;
+  }
+  return false;
 }
 
 function osChatDispoDemarrer(){
