@@ -36,8 +36,13 @@ function osSansRedactionVoulu(m){
 
 // Profil communicant : c'est le rôle « communicant » (il n'y a plus de fonctions de communication à part).
 // Ces membres ont toujours accès à l'appli Visuels (les autres seulement quand la com n'est pas disponible).
+// Le rôle « communicant » sert aussi à des membres de la vie associative qui n'écrivent pas : ceux qui ont la
+// fonction Vie associative ne font pas de com et ne comptent pas dans l'équipe com (disponibilité, ouverture de Visuels).
+function osMembreCom(m){
+  return !!m && m.role === 'communicant' && fonctionArray(m.fonction).indexOf('vie_asso') === -1;
+}
 function osEstCommunicant(){
-  return getUserRole() === 'communicant';
+  return osMembreCom({ role:getUserRole(), fonction:getUserFonction() });
 }
 // L'appli Visuels est-elle ouverte pour moi ? (communicant, ou ouverture automatique/forcée)
 function osVisuelsOuvert(){

@@ -26,7 +26,7 @@ function osConstruireRattrapage(callback){
   var fonctions = getUserFonction();
   var isAdmin = role==='admin';
   var isVieAsso = isAdmin || fonctions.indexOf('vie_asso')!==-1;
-  var isCommunicant = isAdmin || role==='communicant';
+  var isCommunicant = isAdmin || osEstCommunicant();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   var mesLiens = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id===uid; });
@@ -3018,7 +3018,7 @@ function osDNDMajUI(){
 
 // Renvoie l'id des membres du profil communicant (rôle « communicant »)
 function _osComMembreIds(membres){
-  return (membres||[]).filter(function(m){ return m.role==='communicant'; }).map(function(m){ return m.id; });
+  return (membres||[]).filter(osMembreCom).map(function(m){ return m.id; });
 }
 
 function osVerifierDispoVisuels(){
@@ -3090,7 +3090,7 @@ function osNotifierComArticleValide(article){
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    var membresCom = membres.filter(function(m){ return m.role==='communicant'; });
+    var membresCom = membres.filter(osMembreCom);
     if(!membresCom.length) return;
 
     // Construire le brief HTML
