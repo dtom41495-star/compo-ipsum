@@ -2968,6 +2968,9 @@ function osToggleDND(){
       osVerifierDispoVisuels();
       notif(_dndActif ? 'Mode Ne pas déranger activé' : 'Tu es de nouveau disponible', _dndActif?'':'succes');
       if(_dndActif) _osNotifierVieAssoIndisponibilite(getUserNomComplet(), 'signalé(e) indisponible');
+      // Les admins sont prévenus dans les deux sens (indisponible / de nouveau disponible)
+      var precision = osEstCommunicant() ? 'communication' : (getUserHasFonction('vie_asso') ? 'vie associative' : '');
+      if(typeof osNotifierAdminsDispo === 'function') osNotifierAdminsDispo(getUserNomComplet(), !_dndActif, precision);
       // Google Chat suit : Ne pas déranger activé ou retiré (js/35-chat-dispo.js)
       if(typeof osChatDispoSuiteCompo === 'function') osChatDispoSuiteCompo(_dndActif);
     }
