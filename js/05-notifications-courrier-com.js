@@ -26,7 +26,7 @@ function osConstruireRattrapage(callback){
   var fonctions = getUserFonction();
   var isAdmin = role==='admin';
   var isVieAsso = isAdmin || fonctions.indexOf('vie_asso')!==-1;
-  var isCommunicant = isAdmin || role==='communicant';
+  var isCommunicant = isAdmin || osEstCommunicant();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
   var mesLiens = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id===uid; });
@@ -2641,7 +2641,9 @@ function osAppComCharger(){
   // explicitement marqués comme ayant besoin d'un visuel, au moment de « Valider »
   // (osDemanderBesoinVisuel). Avant, TOUT article validé ou publié atterrissait ici,
   // qu'il ait besoin d'un visuel ou non — la com devait trier elle-même.
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)&besoin_visuel=eq.true'+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id';
+  // Un admin voit aussi les publications que personne n'a demandées à la com
+  var filtreBesoin = getUserRole()==='admin' ? '' : '&besoin_visuel=eq.true';
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreBesoin+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id,besoin_visuel';
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
@@ -2697,6 +2699,7 @@ function osAppComCharger(){
       h += '<div style="font-size:0.9rem;font-weight:600;color:var(--encre);">'+esc(a.titre||'Sans titre')+'</div>';
       h += '<div style="display:flex;gap:0.4rem;align-items:center;margin-top:3px;flex-wrap:wrap;">';
       h += statutBadge;
+      if(a.besoin_visuel !== true) h += '<span title="Personne n\'a demandé de visuel à la com pour cet article : tu le vois parce que tu es admin" style="font-size:0.58rem;padding:2px 7px;border-radius:10px;background:#F1EFEC;color:#6B7280;font-weight:600;">Non demandé à la com</span>';
       if(a.rubrique) h += '<span style="font-size:0.6rem;color:var(--gris);">'+esc(a.rubrique)+'</span>';
       if(a.auteur)   h += '<span style="font-size:0.6rem;color:var(--gris);">Par '+esc(a.auteur)+'</span>';
       if(d)          h += '<span style="font-size:0.6rem;color:var(--gris);">'+d+'</span>';
@@ -2716,6 +2719,7 @@ function osAppComCharger(){
       // déroulant unique, poussé à droite, pour ne pas ajouter une rangée en plus.
       var statutCom = a.statut_com || 'a_faire';
       h += '<div style="display:flex;gap:0.5rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--gris-bord);align-items:center;flex-wrap:wrap;">';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(_osComNomRedac(a.redaction_id))+'" data-img="'+esc(imgArt ? imgArt.url : '')+'" onclick="osAppComGenererVisuel(this)" title="Fabrique le post et la story avec le titre et la photo de l\'article, et les télécharge" style="font-size:0.7rem;padding:5px 14px;background:linear-gradient(135deg,#ea5b1c,#ec5b67);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-wand"></i> Créer et télécharger</button>';
       h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.7rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;"><i class="ti ti-cloud-upload"></i> Envoyer le visuel</button>';
       h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-photo"></i> Voir les visuels</button>';
       h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Brief</button>';
@@ -2731,6 +2735,14 @@ function osAppComCharger(){
     h += '</div>';
     zone.innerHTML = h;
   }).catch(function(){ zone.innerHTML = osErreurHtml('osAppComCharger'); });
+}
+
+// Fabrique le post et la story d'un article et les télécharge, sans passer par l'éditeur
+function osAppComGenererVisuel(btn){
+  if(!btn || btn.disabled) return;
+  if(typeof osVisuelsGenererArticle !== 'function'){ notif('Appli Visuels indisponible', 'erreur'); return; }
+  btn.disabled = true;
+  osVisuelsGenererArticle({ titre:btn.dataset.titre, redaction:btn.dataset.redac, image:btn.dataset.img }).then(function(){ btn.disabled = false; });
 }
 
 function osAppComStatut(id, statut){
@@ -3021,13 +3033,13 @@ function osDNDMajUI(){
 
 // Renvoie l'id des membres du profil communicant (rôle « communicant »)
 function _osComMembreIds(membres){
-  return (membres||[]).filter(function(m){ return m.role==='communicant'; }).map(function(m){ return m.id; });
+  return (membres||[]).filter(osMembreCom).map(function(m){ return m.id; });
 }
 
 function osVerifierDispoVisuels(){
   // Vérifier si au moins un membre de la com est disponible (dnd=false)
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,role,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,role,fonction,marque_inactif,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
@@ -3042,11 +3054,12 @@ function osVerifierDispoVisuels(){
 // Un membre de la com s'est-il déjà connecté au moins une fois (ligne dans presence) ?
 function osVerifierComDejaConnecte(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,role,fonction',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,role,fonction,marque_inactif',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     var comIds = _osComMembreIds((!membres||membres.code)?[]:membres);
-    if(!comIds.length){ window._comDejaConnecte = false; osCalculerAccesVisuels(); return; }
+    // Aucun communicant actif : personne d'autre pour faire les visuels, l'appli s'ouvre à tous
+    if(!comIds.length){ window._comDejaConnecte = true; osCalculerAccesVisuels(); return; }
     fetch(SB_URL+'/rest/v1/presence?membre_id=in.('+comIds.join(',')+')&select=membre_id&limit=1',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(rows){
@@ -3089,11 +3102,11 @@ function osVisuelsVerifierAcces(){
 function osNotifierComArticleValide(article){
   // Trouver les membres de la com disponibles
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres?dnd=eq.false&actif=eq.true&select=id,prenom,nom,email,role,fonction,marque_inactif,avatar_id',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    var membresCom = membres.filter(function(m){ return m.role==='communicant'; });
+    var membresCom = membres.filter(osMembreCom);
     if(!membresCom.length) return;
 
     // Construire le brief HTML

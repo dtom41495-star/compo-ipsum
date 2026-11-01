@@ -328,26 +328,97 @@ function vproSetTextColor(couleur){
 }
 
 // ---- Export PNG en 1080 de large ----
-function vproExporter(){
+// Dessine le visuel affiché et le télécharge ; renvoie une promesse (true si le fichier est parti).
+function _vproCapturer(nomFichier){
   var canvas = _vproCanvas();
-  if(!canvas){ notif('Visuel introuvable'); return; }
-  if(typeof html2canvas !== 'function'){ notif('Export indisponible : bibliothèque non chargée', 'erreur'); return; }
-  notif('Export en cours...');
+  if(!canvas || typeof html2canvas !== 'function') return Promise.resolve(false);
   document.querySelectorAll('.vpro-el').forEach(function(e){ e.classList.remove('selected'); });
   document.querySelectorAll('.vpro-handle').forEach(function(h){ h.style.opacity = '0'; });
   var toolbar = document.getElementById('vpro-toolbar');
   if(toolbar) toolbar.classList.remove('visible');
   var f = vproMetre();
-  setTimeout(function(){
-    html2canvas(canvas, { scale: f.l / f.ecran, useCORS:true, allowTaint:true, backgroundColor:null, logging:false }).then(function(c){
-      var link = document.createElement('a');
-      link.download = 'visuel-ipsum-'+f.nom+'.png';
-      link.href = c.toDataURL('image/png', 1.0);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      document.querySelectorAll('.vpro-handle').forEach(function(h){ h.style.opacity = ''; });
-      notif('Visuel exporté !', 'succes');
-    }).catch(function(){ document.querySelectorAll('.vpro-handle').forEach(function(h){ h.style.opacity = ''; }); notif('Erreur export', 'erreur'); });
-  }, 100);
+  var fin = function(){ document.querySelectorAll('.vpro-handle').forEach(function(h){ h.style.opacity = ''; }); };
+  return new Promise(function(ok){ setTimeout(ok, 100); }).then(function(){
+    return html2canvas(canvas, { scale: f.l / f.ecran, useCORS:true, allowTaint:true, backgroundColor:null, logging:false });
+  }).then(function(c){
+    var link = document.createElement('a');
+    link.download = nomFichier || ('visuel-ipsum-'+f.nom+'.png');
+    link.href = c.toDataURL('image/png', 1.0);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    fin();
+    return true;
+  }).catch(function(){ fin(); return false; });
+}
+
+function vproExporter(){
+  if(!_vproCanvas()){ notif('Visuel introuvable'); return; }
+  if(typeof html2canvas !== 'function'){ notif('Export indisponible : bibliothèque non chargée', 'erreur'); return; }
+  notif('Export en cours...');
+  _vproCapturer().then(function(ok){ notif(ok ? 'Visuel exporté !' : 'Erreur export', ok ? 'succes' : 'erreur'); });
+}
+
+// ---- Génération directe depuis un article (appli Com) : post 4:5 + story 9:16 téléchargés ----
+// Photo : celle de l'article si elle peut être lue ; sinon le visuel est fait sans photo et on le dit.
+function _vproPhotoEnDataUrl(url){
+  if(!url) return Promise.resolve(null);
+  var src = typeof _driveImgSrc === 'function' ? _driveImgSrc(url) : url;
+  return fetch(src).then(function(r){ if(!r.ok) throw new Error('http'); return r.blob(); }).then(function(b){
+    return new Promise(function(ok, ko){ var fr = new FileReader(); fr.onload = function(){ ok(fr.result); }; fr.onerror = ko; fr.readAsDataURL(b); });
+  }).catch(function(){
+    // Repli : l'image chargée comme élément (si le serveur autorise l'usage dans un canevas)
+    return new Promise(function(ok){
+      var im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = function(){
+        try{ var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); ok(c.toDataURL('image/jpeg', 0.92)); }
+        catch(e){ ok(null); }
+      };
+      im.onerror = function(){ ok(null); };
+      im.src = src;
+    });
+  });
+}
+
+function osVisuelsGenererArticle(o){
+  var page = document.getElementById('page-visuels-pro');
+  if(!page || !_vproCanvas()){ notif('Appli Visuels introuvable', 'erreur'); return Promise.resolve(false); }
+  if(typeof html2canvas !== 'function'){ notif('Export indisponible : bibliothèque non chargée', 'erreur'); return Promise.resolve(false); }
+  notif('Création des visuels…');
+  var styleAvant = page.getAttribute('style');
+  var tabs = document.querySelectorAll('.vpro-format-tab');
+  var slug = String(o.titre || 'visuel').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'visuel';
+  var rendre = function(){ return new Promise(function(ok){ setTimeout(ok, 250); }); };
+  var photoOk = false;
+  return _vproPhotoEnDataUrl(o.image).then(function(photo){
+    photoOk = !!photo;
+    vproPhotoB64 = photo || null;
+    // L'appli est affichée hors écran le temps du dessin (une page masquée n'a pas de dimensions)
+    page.style.cssText = (styleAvant || '')+';display:block !important;position:fixed;left:-10000px;top:0;width:1400px;';
+    var t = document.getElementById('vpro-titre'); if(t) t.value = o.titre || '';
+    var sel = document.getElementById('vpro-redac');
+    if(sel){
+      var ok = Array.prototype.some.call(sel.options, function(op){ return op.value === o.redaction; });
+      sel.value = ok ? o.redaction : '';
+    }
+    var chaine = Promise.resolve(true);
+    [['publi', 'post'], ['story', 'story']].forEach(function(f, i){
+      chaine = chaine.then(function(){
+        vproSetFormat(f[0], tabs[i]);
+        return (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(rendre);
+      }).then(function(){ vproRendreTitre(); vproReancrer(); return rendre(); })
+        .then(function(){ return _vproCapturer('visuel-ipsum-'+slug+'-'+f[1]+'.png'); });
+    });
+    return chaine;
+  }).then(function(ok){
+    if(styleAvant === null) page.removeAttribute('style'); else page.setAttribute('style', styleAvant);
+    vproSetFormat('publi', tabs[0]);
+    if(!ok) notif('Le visuel n\'a pas pu être créé', 'erreur');
+    else notif(photoOk || !o.image ? 'Post et story téléchargés' : 'Post et story téléchargés, mais sans la photo (elle n\'a pas pu être lue)', photoOk || !o.image ? 'succes' : '');
+    return ok;
+  }).catch(function(){
+    if(styleAvant === null) page.removeAttribute('style'); else page.setAttribute('style', styleAvant);
+    notif('Le visuel n\'a pas pu être créé', 'erreur');
+    return false;
+  });
 }
 
 function vproInit(){
