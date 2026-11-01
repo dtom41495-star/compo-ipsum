@@ -255,7 +255,7 @@ function _gdContactsHtml(){
       +'<p class="gd-aide-role">Un sujet, un article, une relecture, un souci avec ta rédaction : commence par là.</p>'+chefs.map(_gdPersonne).join('');
   }
   GD_ROLES_ASSO.forEach(function(r){
-    var gens = membres.filter(function(m){ return r.role ? m.role === r.role : _gdAFonction(m, r.cle); });
+    var gens = membres.filter(function(m){ return r.role ? (r.role === 'communicant' ? osMembreCom(m) : m.role === r.role) : _gdAFonction(m, r.cle); });
     h += '<h2><i class="ti '+r.icone+'"></i> '+r.titre+'</h2><p class="gd-aide-role">'+r.aide+'</p>'
       +(gens.length ? gens.map(_gdPersonne).join('') : '<p class="gd-vide">Personne n’a encore cette fonction.</p>');
   });
