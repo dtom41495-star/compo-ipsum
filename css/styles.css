@@ -4352,6 +4352,8 @@ input:focus,select:focus,textarea:focus{
 .cpc-bas { flex-wrap: wrap; }
 .cpc-actions { flex-wrap: wrap; justify-content: flex-end; }
 .cpc-icone { width: 32px; padding: 0; justify-content: center; }
+.cpc-sep { width: 1px; height: 20px; background: #D6D3D1; margin: 0 6px; align-self: center; flex-shrink: 0; }
+.cpc-modifier { background: #F5F5F4; }
 .cpc-court { display: none; }
 @media (max-width: 768px) {
   .cpa-actions { width: 100%; }

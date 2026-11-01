@@ -1392,9 +1392,10 @@ function cpsMakeCard(cp, isAdmin){
   var actions = dispBtn;
   if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsAjouterAuSujet(this.dataset.cpid)" title="Ajouter ce communiqué à un sujet existant"><i class="ti ti-link-plus"></i><span class="cpc-long">Ajouter à un sujet</span></button>';
-  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire</button>';
+  actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)" title="Écrire un article à partir de ce communiqué"><i class="ti ti-pencil"></i>Écrire</button>';
   if(isAdmin){
-    actions += '<button class="mac-btn cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
+    // Séparé des actions d'écriture, et avec une autre icône que le crayon d'« Écrire » : on ne confond plus les deux
+    actions += '<span class="cpc-sep" aria-hidden="true"></span><button class="mac-btn cpc-icone cpc-modifier" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier le communiqué" aria-label="Modifier le communiqué"><i class="ti ti-file-settings"></i></button>'
       +'<button class="mac-btn mac-btn-refus cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminSupprimer(this.dataset.cpid)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
     if(cp.statut === 'brouillon') actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="cpsAdminPublier(this.dataset.cpid)"><i class="ti ti-world-upload"></i>Publier</button>';
   }
@@ -1450,10 +1451,23 @@ function _cpsSujetDepuisCp(cp, pourEcrire){
   }).catch(function(){ notif('Erreur réseau','erreur'); return null; });
 }
 
+// Communiqué complet pour une action (sujet, article) : _cpsData ne contient parfois que des id (compteur
+// du badge, avant l'ouverture de l'onglet), ce qui donnait un « Sujet sans titre » ; on prend donc un exemplaire
+// qui a ses données, sinon on le relit en base.
+function _cpsDonneesCompletes(cpId){
+  var tous = (window._cpAdminListe||[]).concat(window._cpsData||[]);
+  var cp = tous.find(function(c){ return c.id === cpId && (c.titre || c.objet); });
+  if(cp) return Promise.resolve(cp);
+  return _cpInvitChargerCp(cpId).catch(function(){ return null; });
+}
+
 function cpsCréerSujet(cpId){
-  var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
-  var cp = cps.find(function(c){return c.id===cpId;});
-  if(!cp){ notif('CP introuvable','erreur'); return; }
+  _cpsDonneesCompletes(cpId).then(function(cp){
+    if(!cp){ notif('CP introuvable','erreur'); return; }
+    _cpsCréerSujetDepuis(cp);
+  });
+}
+function _cpsCréerSujetDepuis(cp){
   _cpsSujetDepuisCp(cp, false).then(function(sujet){
     if(!sujet) return;
     if(sujet.statut === 'ouvert'){
@@ -1507,10 +1521,12 @@ function cpsDémarrerRedactionDepuisSujet(sujetId, titre, angle, cp){
 }
 
 function cpsCréerArticle(cpId){
-  var cps = (window._cpsData||[]).concat(window._cpAdminListe||[]);
-  var cp = cps.find(function(c){return c.id===cpId;});
-  if(!cp){ notif('CP introuvable','erreur'); return; }
-
+  _cpsDonneesCompletes(cpId).then(function(cp){
+    if(!cp){ notif('CP introuvable','erreur'); return; }
+    _cpsCréerArticleDepuis(cp);
+  });
+}
+function _cpsCréerArticleDepuis(cp){
   // Un sujet pour cet article, selon les réglages de la rédaction (voir _cpsSujetDepuisCp),
   // puis l'éditeur pré-rempli avec le communiqué
   if(osRedacBloqueePourMoi(window._redacActiveId)) return;
