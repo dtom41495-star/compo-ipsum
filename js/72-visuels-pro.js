@@ -364,8 +364,26 @@ function vproExporter(){
 
 // ---- Génération directe depuis un article (appli Com) : post 4:5 + story 9:16 téléchargés ----
 // Photo : celle de l'article si elle peut être lue ; sinon le visuel est fait sans photo et on le dit.
+// Image d'un lien Drive : le navigateur sait l'afficher mais pas la lire (pas de CORS chez Google) ;
+// la fonction serveur image-drive-lire la lit et la renvoie en base64.
+function _vproPhotoDrive(url){
+  if(!/drive\.google\.com/.test(String(url)) || typeof SB_URL === 'undefined') return Promise.resolve(null);
+  var h = Object.assign({}, typeof SB_HEADERS !== 'undefined' ? SB_HEADERS : {}, { 'Content-Type':'application/json', 'Authorization':'Bearer '+((typeof _session !== 'undefined' && _session && _session.access_token) || '') });
+  return fetch(SB_URL+'/functions/v1/image-drive-lire', { method:'POST', headers:h, body:JSON.stringify({ url:url }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ return d && d.ok && d.base64 ? 'data:'+(d.mimeType || 'image/jpeg')+';base64,'+d.base64 : null; })
+    .catch(function(){ return null; });
+}
+
 function _vproPhotoEnDataUrl(url){
   if(!url) return Promise.resolve(null);
+  return _vproPhotoDrive(url).then(function(viaServeur){
+    return viaServeur || _vproPhotoDirecte(url);
+  });
+}
+
+// Lecture directe depuis le navigateur (images hébergées avec CORS, comme celles de Supabase)
+function _vproPhotoDirecte(url){
   var src = typeof _driveImgSrc === 'function' ? _driveImgSrc(url) : url;
   return fetch(src).then(function(r){ if(!r.ok) throw new Error('http'); return r.blob(); }).then(function(b){
     return new Promise(function(ok, ko){ var fr = new FileReader(); fr.onload = function(){ ok(fr.result); }; fr.onerror = ko; fr.readAsDataURL(b); });
