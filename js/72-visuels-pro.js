@@ -159,15 +159,17 @@ function vproPlacer(){
     if(!g){ el.style.display = 'none'; return; }
     el.style.display = '';
     var p = vproPos[nom] || (vproPos[nom] = { x:g.x, y:g.y });
-    el.style.left = _vproPx(p.x);
     el.style.top = _vproPx(p.y);
-    el.style.right = 'auto'; el.style.bottom = 'auto';
-    // Éléments calés sur le bord droit du pied de page : le texte grandit vers la gauche
+    el.style.bottom = 'auto';
+    // Éléments calés sur le bord droit du pied de page : ancrés par leur bord droit (le texte grandit vers
+    // la gauche), sans rien mesurer, donc même si l'appli est masquée au moment du dessin
     if(g.droite && p.droite !== null){
       if(p.droite === undefined) p.droite = g.droite;
-      el.style.left = '0px';   // mesure hors de la marge droite, sans retour à la ligne
-      var larg = el.getBoundingClientRect().width / vproU();
-      if(larg > 0){ p.x = p.droite - larg; el.style.left = _vproPx(p.x); }
+      el.style.left = 'auto';
+      el.style.right = _vproPx(vproMetre().l - p.droite);
+    } else {
+      el.style.left = _vproPx(p.x);
+      el.style.right = 'auto';
     }
     var al = vproAligns[nom];
     if(al && nom !== 'titre' && nom !== 'logo' && nom !== 'bouton'){
@@ -255,7 +257,9 @@ function vproStartDrag(e, nom){
   var u = vproU();
   var departX = e.touches ? e.touches[0].clientX : e.clientX;
   var departY = e.touches ? e.touches[0].clientY : e.clientY;
-  var x0 = p.x, y0 = p.y, bouge = false;
+  // Un élément ancré à droite quitte son ancrage au premier vrai déplacement, depuis sa place actuelle
+  var ancre = p.droite !== null && p.droite !== undefined && !!_vproGab(nom) && !!_vproGab(nom).droite;
+  var x0 = ancre ? el.offsetLeft / u : p.x, y0 = p.y, bouge = false;
   function onMove(ev){
     var cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
     var cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
@@ -263,6 +267,7 @@ function vproStartDrag(e, nom){
     bouge = true;
     ev.preventDefault();
     p.droite = null;
+    el.style.right = 'auto';
     p.x = x0 + (cx - departX) / u;
     p.y = y0 + (cy - departY) / u;
     el.style.left = _vproPx(p.x);
