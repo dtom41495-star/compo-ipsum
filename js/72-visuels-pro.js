@@ -383,20 +383,64 @@ function _vproPhotoEnDataUrl(url){
   });
 }
 
+// Pas de photo trouvée (ou illisible) : on propose d'en choisir une, ou de continuer sans.
+function _vproDemanderPhoto(raison){
+  return new Promise(function(ok){
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;padding:1.5rem;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.3);">'
+      +'<div style="font-size:2rem;margin-bottom:.4rem;"><i class="ti ti-photo-off"></i></div>'
+      +'<div style="font-weight:700;font-size:.95rem;margin-bottom:.4rem;">Pas de photo pour ce visuel</div>'
+      +'<div style="font-size:.8rem;color:#6B7280;margin-bottom:1.1rem;">'+_vproEsc(raison)+'</div>'
+      +'<input type="file" accept="image/*" style="display:none">'
+      +'<div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;">'
+      +'<button type="button" data-a="choisir" style="padding:.55rem 1.1rem;border:none;border-radius:8px;background:#E8461E;color:#fff;font-weight:600;cursor:pointer;"><i class="ti ti-photo"></i> Choisir une photo</button>'
+      +'<button type="button" data-a="sans" style="padding:.55rem 1.1rem;border:1px solid #D6D3D1;border-radius:8px;background:#fff;cursor:pointer;">Continuer sans photo</button>'
+      +'</div></div>';
+    var fichier = ov.querySelector('input');
+    var fin = function(v){ ov.remove(); ok(v); };
+    fichier.onchange = function(){
+      var f = fichier.files && fichier.files[0];
+      if(!f){ return; }
+      var fr = new FileReader();
+      fr.onload = function(){ fin(fr.result); };
+      fr.onerror = function(){ fin(null); };
+      fr.readAsDataURL(f);
+    };
+    ov.addEventListener('click', function(e){
+      var a = e.target.closest && e.target.closest('[data-a]');
+      if(a && a.getAttribute('data-a') === 'choisir') fichier.click();
+      else if(a && a.getAttribute('data-a') === 'sans') fin(null);
+    });
+    document.body.appendChild(ov);
+  });
+}
+
 function osVisuelsGenererArticle(o){
   var page = document.getElementById('page-visuels-pro');
   if(!page || !_vproCanvas()){ notif('Appli Visuels introuvable', 'erreur'); return Promise.resolve(false); }
   if(typeof html2canvas !== 'function'){ notif('Export indisponible : bibliothèque non chargée', 'erreur'); return Promise.resolve(false); }
   notif('Création des visuels…');
   var styleAvant = page.getAttribute('style');
+  // La page vit dans un bloc masqué (#pages-source) : on la sort le temps du dessin, en tête du document
+  // (pour que les identifiants pointent sur elle et pas sur une copie ouverte dans une fenêtre), puis on la remet.
+  var parent = page.parentNode, suivant = page.nextSibling;
+  var remettre = function(){
+    if(page.parentNode !== parent) parent.insertBefore(page, suivant && suivant.parentNode === parent ? suivant : null);
+    if(styleAvant === null) page.removeAttribute('style'); else page.setAttribute('style', styleAvant);
+  };
   var tabs = document.querySelectorAll('.vpro-format-tab');
   var slug = String(o.titre || 'visuel').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'visuel';
   var rendre = function(){ return new Promise(function(ok){ setTimeout(ok, 250); }); };
   var photoOk = false;
   return _vproPhotoEnDataUrl(o.image).then(function(photo){
+    if(photo) return photo;
+    return _vproDemanderPhoto(o.image ? 'La photo de l\'article n\'a pas pu être lue. Tu peux en choisir une sur ton ordinateur.' : 'Aucune photo n\'a été trouvée dans cet article. Tu peux en choisir une sur ton ordinateur.');
+  }).then(function(photo){
     photoOk = !!photo;
     vproPhotoB64 = photo || null;
     // L'appli est affichée hors écran le temps du dessin (une page masquée n'a pas de dimensions)
+    document.body.insertBefore(page, document.body.firstChild);
     page.style.cssText = (styleAvant || '')+';display:block !important;position:fixed;left:-10000px;top:0;width:1400px;';
     var t = document.getElementById('vpro-titre'); if(t) t.value = o.titre || '';
     var sel = document.getElementById('vpro-redac');
@@ -414,13 +458,14 @@ function osVisuelsGenererArticle(o){
     });
     return chaine;
   }).then(function(ok){
-    if(styleAvant === null) page.removeAttribute('style'); else page.setAttribute('style', styleAvant);
     vproSetFormat('publi', tabs[0]);
+    remettre();
     if(!ok) notif('Le visuel n\'a pas pu être créé', 'erreur');
-    else notif(photoOk || !o.image ? 'Post et story téléchargés' : 'Post et story téléchargés, mais sans la photo (elle n\'a pas pu être lue)', photoOk || !o.image ? 'succes' : '');
+    else notif(photoOk ? 'Post et story téléchargés' : 'Post et story téléchargés, sans photo', photoOk ? 'succes' : '');
     return ok;
-  }).catch(function(){
-    if(styleAvant === null) page.removeAttribute('style'); else page.setAttribute('style', styleAvant);
+  }).catch(function(e){
+    remettre();
+    console.error('[Visuels]', e);
     notif('Le visuel n\'a pas pu être créé', 'erreur');
     return false;
   });
