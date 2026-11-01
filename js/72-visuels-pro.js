@@ -367,11 +367,17 @@ function vproExporter(){
 // la fonction serveur image-drive-lire la lit et la renvoie en base64.
 function _vproPhotoDrive(url){
   if(!/drive\.google\.com/.test(String(url)) || typeof SB_URL === 'undefined') return Promise.resolve(null);
-  var h = Object.assign({}, typeof SB_HEADERS !== 'undefined' ? SB_HEADERS : {}, { 'Content-Type':'application/json', 'Authorization':'Bearer '+((typeof _session !== 'undefined' && _session && _session.access_token) || '') });
+  // Seulement les en-têtes que la fonction autorise en CORS (authorization, apikey, content-type) :
+  // SB_HEADERS contient aussi « Prefer », ce qui faisait refuser la requête par le navigateur.
+  var h = { 'Content-Type':'application/json', 'Authorization':'Bearer '+((typeof _session !== 'undefined' && _session && _session.access_token) || '') };
+  if(typeof SB_KEY !== 'undefined') h.apikey = SB_KEY;
   return fetch(SB_URL+'/functions/v1/image-drive-lire', { method:'POST', headers:h, body:JSON.stringify({ url:url }) })
     .then(function(r){ return r.json(); })
-    .then(function(d){ return d && d.ok && d.base64 ? 'data:'+(d.mimeType || 'image/jpeg')+';base64,'+d.base64 : null; })
-    .catch(function(){ return null; });
+    .then(function(d){
+      if(!(d && d.ok && d.base64)) console.warn('[visuels] photo Drive illisible :', d && d.raison, d && d.statut);
+      return d && d.ok && d.base64 ? 'data:'+(d.mimeType || 'image/jpeg')+';base64,'+d.base64 : null;
+    })
+    .catch(function(e){ console.warn('[visuels] appel image-drive-lire impossible :', e); return null; });
 }
 
 function _vproPhotoEnDataUrl(url){
