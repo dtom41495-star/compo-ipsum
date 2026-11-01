@@ -19,7 +19,6 @@ var VPRO_GRADIENTS = {
   none:   'none'
 };
 var VPRO_ORANGE = '#FF5A00';
-var VPRO_PLUS = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M15 3h10v12h12v10H25v12H15V25H3V15h12z" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M17.5 7h5v12h12v5h-12v12h-5V24h-12v-5h12z" fill="#111"/></svg>');
 
 var vproFormat = 'publi';
 var vproSelectedEl = null;
