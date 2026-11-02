@@ -704,12 +704,21 @@ function cpsInvitationCreerSujet(cpId, btn){
 var CP_IA_INFO = 'Ajouté automatiquement : une IA a lu le mail et renseigné le titre, la source, la date, le type et la rédaction. À vérifier avec le communiqué d\'origine.';
 function _cpEstAuto(cp){ return !!cp && cp.origine === 'auto'; }
 // style : 'carte' (étiquette des cartes), 'ligne' (liste compacte), 'entete' (bandeau sombre du détail)
+// Look « IA » : étoile à quatre branches et dégradé bleu-violet-rose (css/styles.css, .cp-ia). Chaque étoile porte son propre
+// dégradé (identifiant unique) : un dégradé défini dans un bloc masqué ne s'afficherait pas.
+var _cpIaN = 0;
+function _cpIaEtoile(sombre){
+  var id = 'cpia'+(++_cpIaN);
+  var c = sombre ? ['#8AB4F8', '#C58AF9', '#F28B82'] : ['#4285F4', '#9B72CB', '#D96570'];
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="'+id+'" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="'+c[0]+'"/><stop offset=".55" stop-color="'+c[1]+'"/><stop offset="1" stop-color="'+c[2]+'"/></linearGradient></defs>'
+    +'<path fill="url(#'+id+')" d="M12 0C12.6 6.6 17.4 11.4 24 12 17.4 12.6 12.6 17.4 12 24 11.4 17.4 6.6 12.6 0 12 6.6 11.4 11.4 6.6 12 0Z"/></svg>';
+}
 function _cpIaBadge(cp, style){
   if(!_cpEstAuto(cp)) return '';
   var t = esc(CP_IA_INFO);
-  if(style === 'carte') return '<span class="mac-statut" style="color:#5B2A86;background:#F1E7FB;" title="'+t+'"><i class="ti ti-sparkles" style="vertical-align:-1px;"></i> Rempli par IA</span>';
-  if(style === 'entete') return '<span title="'+t+'" style="display:inline-flex;align-items:center;gap:4px;font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(214,178,240,0.18);color:#E3C8F5;"><i class="ti ti-sparkles"></i>Rempli par IA</span>';
-  return '<span title="'+t+'" style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:999px;background:#F1E7FB;color:#5B2A86;flex-shrink:0;white-space:nowrap;"><i class="ti ti-sparkles" style="vertical-align:-1px;"></i> IA</span>';
+  if(style === 'entete') return '<span class="cp-ia cp-ia-nuit" data-sombre-ignore title="'+t+'">'+_cpIaEtoile(true)+'<span class="cp-ia-txt">Rempli par IA</span></span>';
+  if(style === 'carte') return '<span class="cp-ia" title="'+t+'">'+_cpIaEtoile(false)+'<span class="cp-ia-txt">Rempli par IA</span></span>';
+  return '<span class="cp-ia cp-ia-mini" title="'+t+'">'+_cpIaEtoile(false)+'<span class="cp-ia-txt">IA</span></span>';
 }
 
 // Macaron d'état (cartes de la liste, même style que l'agenda) : ma situation si je me
@@ -1654,7 +1663,7 @@ function osCpFenetreRender(winId){
     +'</div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;line-height:1.3;color:white;margin-bottom:0.35rem;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +(metas.length ? '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">'+metas.join(POINT)+'</div>' : '')
-    +(_cpEstAuto(cp) ? '<div style="margin-top:0.5rem;font-family:DM Sans,sans-serif;font-size:0.72rem;line-height:1.45;color:rgba(255,255,255,0.72);"><i class="ti ti-sparkles" style="color:#E3C8F5;"></i> '+esc(CP_IA_INFO)+'</div>' : '')
+    +(_cpEstAuto(cp) ? '<div class="cp-ia-note">'+esc(CP_IA_INFO)+'</div>' : '')
     +'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.75rem;">'
     +'<button onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')" style="'+BTN_HDR+'"><i class="ti ti-link"></i> Copier le lien</button>'
     +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="'+BTN_HDR+'"><i class="ti ti-world-upload"></i> Publier</button>':'')
