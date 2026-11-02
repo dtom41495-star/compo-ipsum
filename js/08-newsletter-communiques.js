@@ -699,6 +699,19 @@ function cpsInvitationCreerSujet(cpId, btn){
   }).catch(function(){ notif('Erreur réseau','erreur'); _cpInvitBoutonLibre(btn); });
 }
 
+// Communiqué ajouté automatiquement (colonne origine = 'auto') : une IA a lu le mail et rempli le titre, la source,
+// la date, le type et la rédaction. Le texte du communiqué est recopié tel quel, mais le reste est à vérifier.
+var CP_IA_INFO = 'Ajouté automatiquement : une IA a lu le mail et renseigné le titre, la source, la date, le type et la rédaction. À vérifier avec le communiqué d\'origine.';
+function _cpEstAuto(cp){ return !!cp && cp.origine === 'auto'; }
+// style : 'carte' (étiquette des cartes), 'ligne' (liste compacte), 'entete' (bandeau sombre du détail)
+function _cpIaBadge(cp, style){
+  if(!_cpEstAuto(cp)) return '';
+  var t = esc(CP_IA_INFO);
+  if(style === 'carte') return '<span class="mac-statut" style="color:#5B2A86;background:#F1E7FB;" title="'+t+'"><i class="ti ti-sparkles" style="vertical-align:-1px;"></i> Rempli par IA</span>';
+  if(style === 'entete') return '<span title="'+t+'" style="display:inline-flex;align-items:center;gap:4px;font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(214,178,240,0.18);color:#E3C8F5;"><i class="ti ti-sparkles"></i>Rempli par IA</span>';
+  return '<span title="'+t+'" style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:999px;background:#F1E7FB;color:#5B2A86;flex-shrink:0;white-space:nowrap;"><i class="ti ti-sparkles" style="vertical-align:-1px;"></i> IA</span>';
+}
+
 // Macaron d'état (cartes de la liste, même style que l'agenda) : ma situation si je me
 // suis proposé·e, sinon les places restantes / Complet. '' si rien d'utile à dire.
 function _cpInvitMacaronHTML(cp, e){
@@ -1227,6 +1240,7 @@ function cpsvListe(liste, cps, vus){
     var badgeInvit = cp.type === 'invitation_presse'
       ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;flex-shrink:0;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
       : '';
+    badgeInvit += _cpIaBadge(cp, 'ligne');
     // Ma situation sur l'invitation, en toutes lettres (Tu couvres / Disponible...)
     if(cp.type === 'invitation_presse'){
       var moiL = _cpInvitEtat(cp, (window._cpsDisposParCp||{})[cp.id]).moi;
@@ -1345,6 +1359,7 @@ function cpsMakeCard(cp, isAdmin){
   var haut = '';
   if(nonLu) haut += '<span class="mac-statut cp-nonlu-dot" style="color:#6B2F8A;background:#F3E8FA;">Nouveau</span>';
   if(cp.statut === 'brouillon') haut += '<span class="mac-statut" style="color:#92400E;background:#FEF3C7;" title="Pas encore visible par l\'équipe">Brouillon</span>';
+  haut += _cpIaBadge(cp, 'carte');
   haut += '<span class="mac-surtitre"><i class="ti ti-'+(estInvit ? 'microphone' : 'news')+'" style="vertical-align:-2px;"></i> '
     +(estInvit ? 'Invitation presse' : 'Communiqué')+(cp.source ? ' · '+esc(cp.source) : '')+'</span>';
   if(dateStr) haut += '<span class="mac-date">'+dateStr+'</span>';
@@ -1632,12 +1647,14 @@ function osCpFenetreRender(winId){
   hdr.innerHTML =
     '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;">'
     +(cp.type === 'invitation_presse' ? '<span style="display:inline-flex;align-items:center;gap:4px;font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(214,178,240,0.18);color:#E3C8F5;"><i class="ti ti-microphone"></i>Invitation presse</span>' : '')
+    +_cpIaBadge(cp, 'entete')
     +(cp.statut==='publie'
       ?'<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(46,158,91,0.2);color:#9BE0B4;">Publié</span>'
       :'<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(243,223,162,0.2);color:#F3DFA2;">Brouillon</span>')
     +'</div>'
     +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;line-height:1.3;color:white;margin-bottom:0.35rem;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +(metas.length ? '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">'+metas.join(POINT)+'</div>' : '')
+    +(_cpEstAuto(cp) ? '<div style="margin-top:0.5rem;font-family:DM Sans,sans-serif;font-size:0.72rem;line-height:1.45;color:rgba(255,255,255,0.72);"><i class="ti ti-sparkles" style="color:#E3C8F5;"></i> '+esc(CP_IA_INFO)+'</div>' : '')
     +'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.75rem;">'
     +'<button onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')" style="'+BTN_HDR+'"><i class="ti ti-link"></i> Copier le lien</button>'
     +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="'+BTN_HDR+'"><i class="ti ti-world-upload"></i> Publier</button>':'')
