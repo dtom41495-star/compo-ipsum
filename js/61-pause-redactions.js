@@ -5,7 +5,7 @@
 //  - relances et rappels du serveur (fonctions benevoles-* et relances-auto) : rien ne part ;
 //  - notifications de rédaction : elles attendent la reprise, comme en dehors des horaires (js/17) ;
 //  - indicateur de rythme (js/56) : la rédaction n'est pas notée en retard.
-// Une semaine (du mercredi au mardi) est neutre dès qu'une pause la touche. Pour quelqu'un qui est dans plusieurs rédactions,
+// Une semaine (du mercredi au mardi) est neutre si une pause en couvre au moins 4 jours (PAUSE_JOURS_MIN). Pour quelqu'un qui est dans plusieurs rédactions,
 // elle ne l'est que si TOUTES ses rédactions (lancées) sont en pause : sinon la série suit la rédaction qui travaille.
 // VACANCES AVANCÉES : une pause générale avec gel = true FERME les rédactions : plus personne (sauf les admins) ne peut écrire un
 // article, réserver un sujet ni rien modifier côté rédaction (la base le refuse : politiques gel_redactions_*, fonction redactions_gelees()).
@@ -36,10 +36,19 @@ function _pauseCle(d){
 function _pauseConcerne(p, redacId){ return !p.redaction_id || p.redaction_id === redacId; }
 
 // La semaine qui commence à `debutSem` (un mercredi, date locale) est-elle touchée par une pause de cette rédaction ?
+// Seuil : la semaine n'est neutre que si la pause en couvre au moins PAUSE_JOURS_MIN jours sur 7
+// (une pause de 1 ou 2 jours ne dispense pas d'envoyer la brève de la semaine).
+var PAUSE_JOURS_MIN = 4;
 function osPauseRedacSemaine(redacId, debutSem){
-  var fin = new Date(debutSem); fin.setDate(fin.getDate() + 6);
-  var de = _pauseCle(debutSem), a = _pauseCle(fin);
-  return (window._pausesRedac || []).some(function(p){ return _pauseConcerne(p, redacId) && p.debut <= a && p.fin >= de; });
+  var pauses = (window._pausesRedac || []).filter(function(p){ return _pauseConcerne(p, redacId); });
+  if(!pauses.length) return false;
+  var couverts = 0;
+  for(var i = 0; i < 7; i++){
+    var j = new Date(debutSem); j.setDate(j.getDate() + i);
+    var cle = _pauseCle(j);
+    if(pauses.some(function(p){ return p.debut <= cle && p.fin >= cle; })) couverts++;
+  }
+  return couverts >= PAUSE_JOURS_MIN;
 }
 // Pour un membre : toutes ses rédactions lancées sont en pause cette semaine-là (pause générale incluse)
 function osPauseMembreSemaine(membreId, debutSem){
