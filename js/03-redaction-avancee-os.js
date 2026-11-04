@@ -403,6 +403,8 @@ function _rSetBlockType(tag){
   var bloc = _rBlocCourant();
   var live = document.getElementById('r-corps-live');
   if(!bloc || !live) return;
+  // Même bouton une seconde fois : on retire la mise en forme (citation, titre) et le bloc redevient un paragraphe
+  if(bloc.tagName === tag) tag = 'P';
   var neuf = document.createElement(tag);
   while(bloc.firstChild) neuf.appendChild(bloc.firstChild);
   if(!neuf.firstChild) neuf.innerHTML = '<br>';
@@ -496,7 +498,14 @@ function rCorpsOnInput(e){
 // dialecte où rFormat('h2') produisait toujours une ligne isolée) ; Entrée sur une puce
 // vide sort de la liste (convention standard "double Entrée pour sortir").
 function rCorpsOnKeydown(e){
-  if(e.key !== 'Enter') return;
+  if(e.key === 'Enter') _rEntreeDansBloc(e);
+  else if(e.key === 'Backspace') _rRetourArriereDebutBloc(e);
+}
+// Entrée dans un titre ou une citation : nouveau paragraphe normal en dessous (et non une nouvelle citation) ;
+// Entrée sur une puce vide : on sort de la liste. Appelée sur la touche Entrée ET sur l'événement « beforeinput »
+// (insertParagraph) : sur de nombreux claviers de téléphone, la touche Entrée n'est pas signalée comme telle,
+// et le navigateur coupait alors la citation en deux citations.
+function _rEntreeDansBloc(e){
   var bloc = _rBlocCourant();
   var live = document.getElementById('r-corps-live');
   if(!bloc || !live) return;
@@ -517,6 +526,22 @@ function rCorpsOnKeydown(e){
     _rCorpsSync();
   }
 }
+// Retour arrière tout au début d'un titre ou d'une citation : le bloc redevient un paragraphe (comme dans Notion ou Word)
+function _rRetourArriereDebutBloc(e){
+  var bloc = _rBlocCourant();
+  if(!bloc || !(bloc.tagName==='H2' || bloc.tagName==='H3' || bloc.tagName==='BLOCKQUOTE')) return;
+  var sel = window.getSelection();
+  if(!sel.rangeCount || !sel.isCollapsed) return;
+  var avant = document.createRange();
+  avant.selectNodeContents(bloc);
+  avant.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+  if(avant.toString() !== '') return;
+  e.preventDefault();
+  _rSetBlockType(bloc.tagName);   // même type : bascule en paragraphe
+}
+document.addEventListener('beforeinput', function(e){
+  if(e.inputType === 'insertParagraph' && e.target && e.target.id === 'r-corps-live') _rEntreeDansBloc(e);
+});
 // Empêche tout collage (Word/Google Docs/Substack...) d'apporter du HTML étranger dans
 // l'éditeur — seul le texte brut passe, retapé/reformaté ensuite à la main si besoin.
 function rCorpsOnPaste(e){
