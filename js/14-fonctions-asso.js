@@ -3,14 +3,15 @@ var FONCTIONS_LABELS = {
   tresorier:'Trésorier·ère',
   vie_asso:'Vie associative',
   secretaire:'Secrétaire', president:'Président·e',
-  vice_president:'Vice-président·e'
+  vice_president:'Vice-président·e', co_president:'Co-président·e'
 };
 var FONCTIONS_LIST_GLOBAL = [
   {id:'tresorier',     label:'Trésorier·ère'},
   {id:'vie_asso',      label:'Vie associative'},
   {id:'secretaire',    label:'Secrétaire'},
   {id:'president',     label:'Président·e'},
-  {id:'vice_president',label:'Vice-président·e'}
+  {id:'vice_president',label:'Vice-président·e'},
+  {id:'co_president',  label:'Co-président·e'}
 ];
 
 // Normalise m.fonction en tableau (compatibilité string legacy)
@@ -66,7 +67,7 @@ function fonctionLong(val){
     tresorier:'Trésorier·ère',
     vie_asso:'Vie associative',
     secretaire:'Secrétaire', president:'Président·e',
-    vice_president:'Vice-président·e'
+    vice_president:'Vice-président·e', co_president:'Co-président·e'
   };
   return arr.map(function(f){ return LONG[f]||f; }).join(', ');
 }

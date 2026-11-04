@@ -272,7 +272,7 @@ function osStartMenuPourToi(){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token || '')});
   var role = getUserRole();
   var fonctions = (typeof getUserFonction === 'function' ? getUserFonction() : []) || [];
-  var voitCandidatures = role === 'admin' || fonctions.indexOf('vie_asso') !== -1;
+  var voitCandidatures = role === 'admin' || osFonctionsVieAsso(fonctions);
   var pFile = (typeof _srVoitLaFile === 'function' && _srVoitLaFile() && typeof _srChargerFile === 'function') ? _srChargerFile() : Promise.resolve([]);
   var pEvt = fetch(SB_URL+'/rest/v1/agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut', {headers:authH})
     .then(function(r){ return r.json(); }).catch(function(){ return []; });

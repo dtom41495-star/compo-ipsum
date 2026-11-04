@@ -296,7 +296,7 @@ function osWidgetPastilles(){
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')});
   var uid = getUserId(), role = getUserRole();
   var fonctions = (typeof getUserFonction === 'function' ? getUserFonction() : []) || [];
-  var voitCand = role === 'admin' || fonctions.indexOf('vie_asso') !== -1;
+  var voitCand = role === 'admin' || osFonctionsVieAsso(fonctions);
   var d = new Date(), aujIso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   var debutMois = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
   function lire(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, {headers:authH}).then(function(r){ return r.json(); }).then(function(x){ return Array.isArray(x) ? x : []; }).catch(function(){ return []; }); }

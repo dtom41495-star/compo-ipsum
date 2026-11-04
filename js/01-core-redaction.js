@@ -2008,7 +2008,12 @@ function getUserFonction(){
   if(Array.isArray(f)) return f;
   try { var p = JSON.parse(f); return Array.isArray(p) ? p : []; } catch(e){ return []; }
 }
-function getUserHasFonction(f){ return getUserFonction().indexOf(f) !== -1; }
+// Le·la co-président·e a les mêmes pouvoirs que la vie associative (appli Bénévoles, candidatures, heures) : la base le traite pareil (est_vie_asso)
+function osFonctionsVieAsso(fonctions){ return !!fonctions && (fonctions.indexOf('vie_asso') !== -1 || fonctions.indexOf('co_president') !== -1); }
+function getUserHasFonction(f){
+  var fonctions = getUserFonction();
+  return f === 'vie_asso' ? osFonctionsVieAsso(fonctions) : fonctions.indexOf(f) !== -1;
+}
 function getUserEmail(){ return localStorage.getItem('ipsum_user_email')||''; }
 
 function bvnValider(){
