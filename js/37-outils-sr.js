@@ -455,6 +455,8 @@ function osHistoriqueOuvrir(docArg){
   mo.addEventListener('click', function(e){
     if(e.target === mo || e.target.closest('[data-a="fermer"]')){ fermer(); return; }
     var corps = mo.querySelector('.hist-corps');
+    var br = e.target.closest('[data-restaurer]');
+    if(br){ _versRestaurer(doc, br.dataset.restaurer, fermer); return; }
     var bv = e.target.closest('[data-v]');
     if(bv){ _versAfficher(corps, doc, bv.dataset.v, bv.dataset.p, bv.dataset.titre); return; }
     if(e.target.closest('[data-a="retour"]') && mo._frise){ corps.innerHTML = mo._frise; corps.scrollTop = mo._defil || 0; }
@@ -466,14 +468,21 @@ function osHistoriqueOuvrir(docArg){
       lignes = Array.isArray(lignes) ? lignes : [];
       var ids = [];
       lignes.forEach(function(l){ var d = l.details && l.details.destinataire_id; if(d && ids.indexOf(d) === -1) ids.push(d); });
-      if(!ids.length) return [lignes, []];
-      return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.map(encodeURIComponent).join(',')+')&select=id,prenom,nom', {headers:authH})
+      // Versions du texte (sans le texte lui-même) : les copies d'étape et les modifications entre deux étapes
+      return fetch(SB_URL+'/rest/v1/articles_versions?article_id=eq.'+encodeURIComponent(doc.id)+'&order=id.asc&select=id,type,statut,membre_id,created_at', {headers:authH})
         .then(function(r){ return r.json(); }).catch(function(){ return []; })
-        .then(function(m){ return [lignes, Array.isArray(m) ? m : []]; });
+        .then(function(vers){
+          vers = Array.isArray(vers) ? vers : [];
+          vers.forEach(function(v){ if(v.type !== 'etape' && v.membre_id && ids.indexOf(v.membre_id) === -1) ids.push(v.membre_id); });
+          if(!ids.length) return [lignes, [], vers];
+          return fetch(SB_URL+'/rest/v1/membres?id=in.('+ids.map(encodeURIComponent).join(',')+')&select=id,prenom,nom', {headers:authH})
+            .then(function(r){ return r.json(); }).catch(function(){ return []; })
+            .then(function(m){ return [lignes, Array.isArray(m) ? m : [], vers]; });
+        });
     })
     .then(function(res){
       var corps = mo.querySelector('.hist-corps');
-      if(corps) corps.innerHTML = mo._frise = _histRendre(doc, res[0], res[1]);
+      if(corps) corps.innerHTML = mo._frise = _histRendre(doc, res[0], res[1], res[2]);
       if(corps) corps.addEventListener('scroll', function(){ if(corps.querySelector('.hist-liste')) mo._defil = corps.scrollTop; });
     })
     .catch(function(){
@@ -482,7 +491,8 @@ function osHistoriqueOuvrir(docArg){
     });
 }
 
-function _histRendre(doc, lignes, membres){
+function _histRendre(doc, lignes, membres, versions){
+  versions = versions || [];
   var noms = {};
   membres.forEach(function(m){ noms[m.id] = ((m.prenom||'')+' '+(m.nom||'')).trim(); });
   // Prénoms de l'auteur·rice et des co-signataires (co-écriture, js/49) : « Tom », ou « Tom et Lola »
@@ -500,10 +510,30 @@ function _histRendre(doc, lignes, membres){
     if(l.action === 'publication' && etapes.some(function(e){ return e.action === 'en_ligne' && Math.abs(new Date(e.created_at) - new Date(l.created_at)) < 5*60000; })) return;
     etapes.push(l);
   });
-  if(!etapes.length) return '<div class="verif-vide"><i class="ti ti-history"></i>Aucune étape notée pour cet article. L\'historique détaillé est noté depuis sa mise en place : les articles plus anciens peuvent ne rien afficher.</div>';
+  var sauvegardes = versions.filter(function(v){ return v.type && v.type !== 'etape'; });
+  if(!etapes.length && !sauvegardes.length) return '<div class="verif-vide"><i class="ti ti-history"></i>Aucune étape notée pour cet article. L\'historique détaillé est noté depuis sa mise en place : les articles plus anciens peuvent ne rien afficher.</div>';
   var h = '<ol class="hist-liste">';
   var versionPrec = null;
-  etapes.forEach(function(e){
+  // Étapes et modifications du texte entre deux étapes, dans l'ordre du temps
+  var elements = etapes.map(function(e){ return { t:new Date(e.created_at).getTime(), e:e }; })
+    .concat(sauvegardes.map(function(v){ return { t:new Date(v.created_at).getTime(), v:v }; }))
+    .sort(function(a, b){ return a.t - b.t; });
+  elements.forEach(function(el){
+    if(el.v){
+      var sv = el.v, idx = versions.indexOf(sv), prec = idx > 0 ? versions[idx - 1] : null;
+      var nomV = noms[sv.membre_id] || 'Quelqu\'un', dV = new Date(sv.created_at);
+      var dateV = isNaN(dV) ? '' : dV.toLocaleString('fr-FR', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      var depart = sv.type === 'depart';
+      var titreV = depart ? 'Texte de départ' : nomV+' a modifié le texte';
+      h += '<li class="hist-etape hist-gris"><span class="hist-pastille"><i class="ti ti-'+(depart ? 'flag' : 'edit')+'"></i></span><div class="hist-contenu">'
+        +'<div class="hist-ligne">'+(depart ? 'Texte de départ <span class="hist-role">avant les premières modifications enregistrées</span>' : '<strong>'+esc(nomV)+'</strong> a modifié le texte')+'</div>'
+        +'<div class="hist-date">'+esc(dateV)+'</div>'
+        +(prec ? '<button type="button" class="hist-version" data-v="'+esc(String(sv.id))+'" data-p="'+esc(String(prec.id))+'" data-titre="'+esc(titreV)+'"><i class="ti ti-arrows-diff"></i>Voir ce qui a changé</button>'
+               : '<button type="button" class="hist-version" data-v="'+esc(String(sv.id))+'" data-titre="'+esc(titreV)+'"><i class="ti ti-file-text"></i>Voir le texte</button>')
+        +'</div></li>';
+      return;
+    }
+    var e = el.e;
     var conf = HIST_ETAPES[e.action] || { icone:'point', ton:'gris', texte:e.action };
     var qui = e.role === 'systeme' ? 'Compo' : (e.auteur || 'Quelqu\'un');
     var role = HIST_ROLES[e.role];
@@ -689,6 +719,39 @@ function _versAfficher(corps, doc, v, p, titreVue){
     });
 }
 
+// Remet titre, chapô et texte d'une version. L'état d'avant reste dans l'historique (la base garde une version de chaque modification) :
+// on peut donc toujours revenir à ce qu'il y avait avant de restaurer.
+function _versRestaurer(doc, versionId, fermer){
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  osConfirmer('Revenir à cette version ?\nLe titre, le chapô et le texte de l\'article seront remis comme dans cette version. Ce qui est écrit actuellement reste dans l\'historique.', { oui:'Revenir à cette version', icone:'restore', danger:false }).then(function(ok){
+    if(!ok) return;
+    fetch(SB_URL+'/rest/v1/articles_versions?id=eq.'+encodeURIComponent(versionId)+'&select=titre,chapeau,corps', {headers:authH})
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        var v = Array.isArray(rows) ? rows[0] : null;
+        if(!v) throw new Error('version introuvable');
+        return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(doc.id), {
+          method:'PATCH', headers:Object.assign({}, authH, {'Prefer':'return=representation'}),
+          body:JSON.stringify({ titre:v.titre, chapeau:v.chapeau, corps:v.corps })
+        }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok && Array.isArray(d) && d.length, v:v }; }); });
+      })
+      .then(function(res){
+        if(!res.ok){ notif('Impossible de revenir à cette version : tu n\'as peut-être pas le droit de modifier cet article.', 'erreur'); return; }
+        // Article ouvert dans l'éditeur : on le met à jour sous les yeux
+        if(currentDoc && currentDoc.id === doc.id){
+          currentDoc.titre = res.v.titre; currentDoc.chapeau = res.v.chapeau; currentDoc.corps = res.v.corps;
+          var t = document.getElementById('r-titre'); if(t){ t.value = res.v.titre || ''; t.style.height = 'auto'; t.style.height = t.scrollHeight+'px'; }
+          var c = document.getElementById('r-chapeau'); if(c) c.value = res.v.chapeau || '';
+          if(typeof rCorpsSetValeur === 'function') rCorpsSetValeur(res.v.corps || '');
+          if(typeof updateStats === 'function') updateStats();
+        }
+        notif('Version remise en place', 'succes');
+        if(typeof fermer === 'function') fermer();
+      })
+      .catch(function(){ notif('Impossible de revenir à cette version pour le moment', 'erreur'); });
+  });
+}
+
 // Paragraphes de l'article en texte simple (DOMParser : rien n'est exécuté ni chargé)
 function _versParagraphes(html){
   var d = new DOMParser().parseFromString('<div>'+(html || '')+'</div>', 'text/html').body;
@@ -731,7 +794,8 @@ function _versRendre(apres, avant, titreVue){
   var date = new Date(apres.created_at);
   var h = '<button type="button" class="hist-retour" data-a="retour"><i class="ti ti-arrow-left"></i>Retour à l\'historique</button>'
     +'<div class="vers-entete"><div class="vers-titre">'+esc(titreVue || 'Texte de l\'article')+'</div>'
-    +'<div class="hist-date">'+esc(isNaN(date) ? '' : date.toLocaleString('fr-FR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' }))+'</div></div>';
+    +'<div class="hist-date">'+esc(isNaN(date) ? '' : date.toLocaleString('fr-FR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' }))+'</div>'
+    +'<button type="button" class="hist-version" data-restaurer="'+esc(String(apres.id))+'" title="Remet le titre, le chapô et le texte de l\'article comme dans cette version"><i class="ti ti-restore"></i>Revenir à cette version</button></div>';
   var champ = function(nom, a, b){
     if(!a && !b) return '';
     var diff = avant && (a || '') !== (b || '');
