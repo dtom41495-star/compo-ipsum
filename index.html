@@ -818,6 +818,9 @@
 
       <!-- Toolbar formatage -->
       <div id="r-barre-outils" style="display:flex;gap:4px;padding:6px 0;border-bottom:1px solid var(--gris-bord);margin-bottom:1.2rem;flex-wrap:wrap;position:sticky;top:0;background:white;z-index:1;">
+        <button id="r-btn-annuler" onmousedown="event.preventDefault()" onclick="rAnnuler()" title="Annuler (Ctrl+Z)" aria-label="Annuler" disabled style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.8rem;"><i class="ti ti-arrow-back-up"></i></button>
+        <button id="r-btn-retablir" onmousedown="event.preventDefault()" onclick="rRetablir()" title="Rétablir (Ctrl+Y)" aria-label="Rétablir" disabled style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.8rem;"><i class="ti ti-arrow-forward-up"></i></button>
+        <div style="width:1px;background:var(--gris-bord);margin:2px 2px;"></div>
         <button onclick="rFormat('bold')" title="Gras" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-weight:700;font-size:0.8rem;">B</button>
         <button onclick="rFormat('italic')" title="Italique" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-style:italic;font-size:0.8rem;">I</button>
         <button onclick="rFormat('quote')" title="Citation" style="width:28px;height:28px;border:1px solid var(--gris-bord);border-radius:5px;background:white;cursor:pointer;font-size:0.75rem;"><i class="ti ti-quote"></i></button>
@@ -1394,6 +1397,7 @@
 <script src="js/70-guide.js"></script>
 <script src="js/71-carte-lieu.js"></script>
 <script src="js/72-visuels-pro.js"></script>
+<script src="js/73-editeur-annuler-images.js"></script>
 <script src="js/26-video-tuto.js"></script>
 <script src="js/27-patchnotes.js"></script>
 <script src="js/23-flouter.js"></script>
