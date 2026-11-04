@@ -25,7 +25,7 @@ function osConstruireRattrapage(callback){
   var role = getUserRole();
   var fonctions = getUserFonction();
   var isAdmin = role==='admin';
-  var isVieAsso = isAdmin || osFonctionsVieAsso(fonctions);
+  var isVieAsso = isAdmin || fonctions.indexOf('vie_asso')!==-1;
   var isCommunicant = isAdmin || osEstCommunicant();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
 
