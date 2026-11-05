@@ -2995,7 +2995,7 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div><button type="button" onclick="osAgendaCocherBureau(this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;border:1px solid var(--encre);border-radius:20px;cursor:pointer;background:white;color:var(--encre);"><i class="ti ti-users"></i> Bureau</button>'
     +'<span style="font-size:0.7rem;color:var(--gris);margin-left:0.5rem;">Coche président·e, vice-président·e, trésorier, secrétaire et vie asso. Décoche ensuite ce que tu veux.</span></div>';
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
-  if(!ev) html += '<div id="ag-creneaux" style="display:none;"></div>';
+  html += '<div id="ag-creneaux" style="display:none;"></div>';
   html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
   // Prévenir ou non (activé par défaut) : à la création, l'invitation par email ; à la modification,
   // le message aux inscrits quand la date, l'heure ou le lieu change. Décocher = rien ne part.
@@ -3021,7 +3021,7 @@ function osAgendaOuvrirFormulaire(ev){
 
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
   if(!isEdit){ var t = document.getElementById('ag-titre'); if(t) t.focus(); }
-  osAgendaInitApercuCibles(isEdit);
+  osAgendaInitApercuCibles(isEdit, isEdit ? ev.id : null);
   if(typeof osCarteLieuBrancher === 'function') osCarteLieuBrancher('ag-lieu', 'ag-lieu-carte');
 }
 
@@ -3232,11 +3232,11 @@ function _osAgendaChargerCiblesBase(){
 var AGENDA_COLLECTE_DEBUT = new Date('2026-11-06T00:00:00');
 var _agendaCreneauxTimer = null, _agendaCreneauxCle = '';
 var AGENDA_JOURS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-function _agendaSuggererCreneaux(ids){
+function _agendaSuggererCreneaux(ids, titre){
   var zone = document.getElementById('ag-creneaux');
   if(!zone) return;
   ids = (ids || []).slice().sort();
-  var cle = ids.join(',');
+  var cle = ids.join(',')+'|'+(titre||'');
   if(cle === _agendaCreneauxCle) return;
   _agendaCreneauxCle = cle;
   clearTimeout(_agendaCreneauxTimer);
@@ -3248,15 +3248,15 @@ function _agendaSuggererCreneaux(ids){
       .then(function(rows){
         if(cle !== _agendaCreneauxCle) return;
         if(!Array.isArray(rows) || !rows.length){ zone.style.display = 'none'; return; }
-        _agendaAfficherCreneaux(zone, rows.slice(0, 3), ids.length);
+        _agendaAfficherCreneaux(zone, rows.slice(0, 3), ids.length, titre);
       })
       .catch(function(){ zone.style.display = 'none'; });
   }, 350);
 }
-function _agendaAfficherCreneaux(zone, rows, total){
+function _agendaAfficherCreneaux(zone, rows, total, titre){
   var max = Math.max.apply(null, rows.map(function(r){ return +r.attendus; })) || 1;
   var jeune = (Date.now() - AGENDA_COLLECTE_DEBUT.getTime()) < 28 * 86400000;
-  var h = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> Meilleurs créneaux pour ces invités</div>';
+  var h = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> '+(titre || 'Meilleurs créneaux pour ces invités')+'</div>';
   rows.forEach(function(r){
     var n = +r.attendus;
     var txt = n < 1 ? 'moins d\'1 personne sur '+total : '≈ '+Math.round(n)+' sur '+total;
@@ -3276,17 +3276,45 @@ function osAgendaChoisirCreneau(jour, heure){
   while(((d.getDay() + 6) % 7) + 1 !== jour) d.setDate(d.getDate() + 1);
   function loc(x){ var p = function(n){ return (n < 10 ? '0' : '')+n; }; return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())+'T'+p(x.getHours())+':'+p(x.getMinutes()); }
   var deb = document.getElementById('ag-debut'), fin = document.getElementById('ag-fin');
+  // Garder la durée déjà saisie (décaler une réunion de 2h la laisse à 2h), sinon 1h
+  var duree = 3600000;
+  if(deb && fin && deb.value && fin.value){ var dd = new Date(fin.value) - new Date(deb.value); if(dd > 0 && dd < 24 * 3600000) duree = dd; }
   if(deb){ deb.value = loc(d); deb.dispatchEvent(new Event('change', {bubbles:true})); }
-  if(fin && (!fin.value || new Date(fin.value) <= d)){ fin.value = loc(new Date(d.getTime() + 3600000)); fin.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(fin){ fin.value = loc(new Date(d.getTime() + duree)); fin.dispatchEvent(new Event('change', {bubbles:true})); }
   if(typeof notif === 'function') notif(AGENDA_JOURS[jour]+' '+d.toLocaleDateString('fr-FR', {day:'numeric', month:'long'})+' à '+heure+'h', 'succes');
 }
 
-function osAgendaInitApercuCibles(isEdit){
+function osAgendaInitApercuCibles(isEdit, evId){
   _agendaCreneauxCle = '';   // nouveau formulaire : recalculer les créneaux
   var zone = document.getElementById('ag-apercu-cibles');
   if(!zone) return;
-  if(isEdit){ zone.style.display='none'; return; }   // pas d'invitation à la modification
   var base = null;
+  if(isEdit){
+    // Pas d'invitation à la modification : pas d'aperçu des invités. Mais les créneaux servent à décaler la réunion :
+    // calculés sur les inscrits (3 ou plus), sinon sur les invités cochés.
+    zone.style.display = 'none';
+    var inscritsIds = [];
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    var majEdit = function(){
+      if(inscritsIds.length >= 3){ _agendaSuggererCreneaux(inscritsIds, 'Meilleurs créneaux pour les inscrits'); return; }
+      if(!base) return;
+      var sel = document.getElementById('ag-redaction');
+      _agendaSuggererCreneaux(_osAgendaCiblesMembres(base.membres, base.liens, lireE('ag-roles'), lireE('ag-fonctions'), sel&&sel.value||null).map(function(m){ return m.id; }));
+    };
+    var lireE = function(name){ return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;}); };
+    Promise.all([
+      _osAgendaChargerCiblesBase(),
+      evId ? fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&statut=neq.refuse&select=membre_id',{headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }) : []
+    ]).then(function(res){
+      base = res[0] || null;
+      inscritsIds = Array.isArray(res[1]) ? res[1].map(function(i){ return i.membre_id; }).filter(Boolean) : [];
+      majEdit();
+    });
+    if(zone.parentNode) zone.parentNode.addEventListener('change', majEdit);
+    var selE = document.getElementById('ag-redaction');
+    if(selE) selE.addEventListener('change', majEdit);
+    return;
+  }
   function lire(name){ return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;}); }
   function maj(){
     if(!base){ return; }
