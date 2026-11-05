@@ -2736,7 +2736,7 @@ function osAppComCharger(){
       // déroulant unique, poussé à droite, pour ne pas ajouter une rangée en plus.
       var statutCom = a.statut_com || 'a_faire';
       h += '<div style="display:flex;gap:0.5rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--gris-bord);align-items:center;flex-wrap:wrap;">';
-      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(_osComNomRedac(a.redaction_id))+'" data-img="'+esc(imgArt ? imgArt.url : '')+'" onclick="osAppComGenererVisuel(this)" title="Fabrique le post et la story avec le titre et la photo de l\'article, et les télécharge" style="font-size:0.7rem;padding:5px 14px;background:linear-gradient(135deg,#ea5b1c,#ec5b67);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-wand"></i> Créer et télécharger</button>';
+      h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(_osComNomRedac(a.redaction_id))+'" data-img="'+esc(imgArt ? imgArt.url : '')+'" data-imgs="'+esc(JSON.stringify(typeof osImagesArticle === 'function' ? osImagesArticle(a) : []))+'" onclick="osAppComGenererVisuel(this)" title="Fabrique le post et la story avec le titre et la photo de l\'article, et les télécharge" style="font-size:0.7rem;padding:5px 14px;background:linear-gradient(135deg,#ea5b1c,#ec5b67);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-wand"></i> Créer et télécharger</button>';
       h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComEnvoyerVisuel(this.dataset.titre,this.dataset.redac)" style="font-size:0.7rem;padding:5px 14px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;"><i class="ti ti-cloud-upload"></i> Envoyer le visuel</button>';
       h += '<button data-titre="'+esc(a.titre||'')+'" data-redac="'+esc(a.redaction_id||'')+'" onclick="osAppComVoirVisuels(this.dataset.titre,this.dataset.redac)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-photo"></i> Voir les visuels</button>';
       h += '<button data-id="'+a.id+'" data-titre="'+esc(a.titre||'')+'" onclick="osAppComBrief(this.dataset.id,this.dataset.titre)" style="font-size:0.66rem;padding:4px 11px;border:1px solid var(--gris-bord);border-radius:6px;background:transparent;color:var(--gris);cursor:pointer;"><i class="ti ti-file-text"></i> Brief</button>';
@@ -2759,7 +2759,8 @@ function osAppComGenererVisuel(btn){
   if(!btn || btn.disabled) return;
   if(typeof osVisuelsGenererArticle !== 'function'){ notif('Appli Visuels indisponible', 'erreur'); return; }
   btn.disabled = true;
-  osVisuelsGenererArticle({ titre:btn.dataset.titre, redaction:btn.dataset.redac, image:btn.dataset.img }).then(function(){ btn.disabled = false; });
+  var images = []; try{ images = JSON.parse(btn.dataset.imgs || '[]'); }catch(e){}
+  osVisuelsGenererArticle({ titre:btn.dataset.titre, redaction:btn.dataset.redac, image:btn.dataset.img, images:images }).then(function(){ btn.disabled = false; });
 }
 
 function osAppComStatut(id, statut){
@@ -2798,13 +2799,13 @@ function osAppComBrief(id, titre){
 // l'article pour aller la chercher à la main.
 //
 // Retourne {url, source:'couverture'|'corps', legende} ou null.
+// Photo principale d'un article (couverture, sinon la première du texte). Même recherche que le bouton Visuels
+// d'un article et le choix de la photo (osImagesArticle, js/72), pour ne garder qu'une seule façon de faire.
 function _osComImageArticle(article){
   if(!article) return null;
-  if(article.image) return { url: article.image, source: 'couverture', legende: article.image_legende || '' };
-  var corps = article.corps || '';
-  var m = corps.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-  if(m && m[2]) return { url: m[2], source: 'corps', legende: m[1] || '' };
-  return null;
+  var liste = typeof osImagesArticle === 'function' ? osImagesArticle(article) : [];
+  if(!liste.length) return null;
+  return { url: liste[0].url, source: liste[0].source === 'couverture' ? 'couverture' : 'corps', legende: liste[0].legende || '' };
 }
 
 function _osComNomRedac(redactionId){

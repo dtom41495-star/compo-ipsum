@@ -2293,45 +2293,30 @@ document.addEventListener('keydown',function(e){
 
 
 
-// Générer visuels depuis la page rédaction
+// Bouton « Visuels » de l'éditeur et de la lecture : titre, rédaction et photo arrivent dans l'appli Visuels
+// (js/72 : osVisuelsDepuisArticle ; s'il y a plusieurs photos, on choisit). Avant, seul le titre suivait.
 function genererVisuelsDepuisRedaction(){
-  if(!osVisuelsVerifierAcces()) return;
-  var titre = (document.getElementById('r-titre')||{}).value||'';
-  if(!titre.trim()){ notif('Ajoute un titre avant de générer les visuels'); return; }
-  go('visuels-pro');
-  setTimeout(function(){
-    var vproTitre = document.getElementById('vpro-titre');
-    if(vproTitre){
-      vproTitre.value = titre.trim();
-      var inner = document.getElementById('vpro-titre-inner');
-      if(inner) inner.textContent = titre.trim();
-      if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    }
-    notif('Titre importé dans Visuels','succes');
-  }, 300);
+  var leg = document.getElementById('r-img-leg');
+  osVisuelsDepuisArticle({
+    titre: (document.getElementById('r-titre')||{}).value || '',
+    corps: (document.getElementById('r-corps')||{}).value || '',
+    image: (typeof imgB64 !== 'undefined' && imgB64 && !_imgRetiree) ? imgB64 : null,   // couverture, enregistrée ou juste choisie
+    image_legende: leg ? leg.value : '',
+    redaction: (document.getElementById('r-redaction')||{}).value || (currentDoc && currentDoc.redaction) || ''
+  });
 }
 
 function genererVisuelsDepuisLecture(){
-  if(!osVisuelsVerifierAcces()) return;
-  var titre = '';
-  // Chercher le titre dans la vue lecture ou l'article courant
-  if(currentDoc && currentDoc.titre) titre = currentDoc.titre;
-  else {
-    var el = document.getElementById('art-preview');
-    if(el){ var h1 = el.querySelector('h1'); if(h1) titre = h1.textContent.trim(); }
+  var doc = currentDoc ? Object.assign({}, currentDoc) : null;
+  if(!doc){
+    var el = document.getElementById('art-preview'), h1 = el && el.querySelector('h1');
+    doc = { titre: h1 ? h1.textContent.trim() : '' };
   }
-  if(!titre){ notif('Titre introuvable'); return; }
-  go('visuels-pro');
-  setTimeout(function(){
-    var vproTitre = document.getElementById('vpro-titre');
-    if(vproTitre){
-      vproTitre.value = titre;
-      var inner = document.getElementById('vpro-titre-inner');
-      if(inner) inner.textContent = titre;
-      if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    }
-    notif('Titre importé dans Visuels','succes');
-  }, 300);
+  if(!doc.redaction && doc.redaction_id){
+    var r = (window._redactionsData||[]).find(function(x){ return x.id === doc.redaction_id; });
+    if(r) doc.redaction = r.nom;
+  }
+  osVisuelsDepuisArticle(doc);
 }
 
 // Init mode pro quand on arrive sur la page
