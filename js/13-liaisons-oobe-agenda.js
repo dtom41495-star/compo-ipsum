@@ -2995,6 +2995,7 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div><button type="button" onclick="osAgendaCocherBureau(this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;border:1px solid var(--encre);border-radius:20px;cursor:pointer;background:white;color:var(--encre);"><i class="ti ti-users"></i> Bureau</button>'
     +'<span style="font-size:0.7rem;color:var(--gris);margin-left:0.5rem;">Coche président·e, vice-président·e, trésorier, secrétaire et vie asso. Décoche ensuite ce que tu veux.</span></div>';
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
+  if(!ev) html += '<div id="ag-creneaux" style="display:none;"></div>';
   html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
   // Prévenir ou non (activé par défaut) : à la création, l'invitation par email ; à la modification,
   // le message aux inscrits quand la date, l'heure ou le lieu change. Décocher = rien ne part.
@@ -3225,7 +3226,63 @@ function _osAgendaChargerCiblesBase(){
 }
 
 // Aperçu en direct, sous les cases : combien de personnes, et lesquelles
+// ===== MEILLEURS CRÉNEAUX (formulaire de création) =====
+// D'après les habitudes de connexion des invités (fonction SQL creneaux_suggestions : heures de présence comptées depuis le
+// 6 novembre 2026, complétées par l'activité des 12 dernières semaines). Seulement des totaux, et pour 3 invités ou plus.
+var AGENDA_COLLECTE_DEBUT = new Date('2026-11-06T00:00:00');
+var _agendaCreneauxTimer = null, _agendaCreneauxCle = '';
+var AGENDA_JOURS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+function _agendaSuggererCreneaux(ids){
+  var zone = document.getElementById('ag-creneaux');
+  if(!zone) return;
+  ids = (ids || []).slice().sort();
+  var cle = ids.join(',');
+  if(cle === _agendaCreneauxCle) return;
+  _agendaCreneauxCle = cle;
+  clearTimeout(_agendaCreneauxTimer);
+  if(ids.length < 3){ zone.style.display = 'none'; return; }
+  _agendaCreneauxTimer = setTimeout(function(){
+    var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+    fetch(SB_URL+'/rest/v1/rpc/creneaux_suggestions', { method:'POST', headers:authH, body:JSON.stringify({ p_membres: ids }) })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if(cle !== _agendaCreneauxCle) return;
+        if(!Array.isArray(rows) || !rows.length){ zone.style.display = 'none'; return; }
+        _agendaAfficherCreneaux(zone, rows.slice(0, 3), ids.length);
+      })
+      .catch(function(){ zone.style.display = 'none'; });
+  }, 350);
+}
+function _agendaAfficherCreneaux(zone, rows, total){
+  var max = Math.max.apply(null, rows.map(function(r){ return +r.attendus; })) || 1;
+  var jeune = (Date.now() - AGENDA_COLLECTE_DEBUT.getTime()) < 28 * 86400000;
+  var h = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> Meilleurs créneaux pour ces invités</div>';
+  rows.forEach(function(r){
+    var n = +r.attendus;
+    var txt = n < 1 ? 'moins d\'1 personne sur '+total : '≈ '+Math.round(n)+' sur '+total;
+    h += '<button type="button" onclick="osAgendaChoisirCreneau('+r.jour+','+r.heure+')" style="display:flex;align-items:center;gap:0.6rem;width:100%;text-align:left;margin-bottom:0.3rem;padding:0.45rem 0.6rem;border:1px solid var(--gris-bord);border-radius:8px;background:white;cursor:pointer;font-family:DM Sans,sans-serif;">'
+      +'<span style="flex:1;min-width:0;font-size:0.78rem;font-weight:600;color:var(--encre);">'+AGENDA_JOURS[r.jour]+' '+r.heure+'h–'+(r.heure+1)+'h</span>'
+      +'<span style="width:70px;height:6px;border-radius:3px;background:var(--gris-clair);overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:'+Math.max(8, Math.round(n / max * 100))+'%;background:#2E9E5B;"></span></span>'
+      +'<span style="font-size:0.7rem;color:var(--gris);white-space:nowrap;min-width:130px;text-align:right;">'+txt+'</span></button>';
+  });
+  h += '<div style="font-size:0.66rem;color:var(--gris);line-height:1.4;">Personnes habituellement connectées à Compo à cette heure-là. Clique pour remplir la date (la prochaine occurrence).'
+    +(jeune ? ' Encore peu de données (collecte lancée le 6 novembre) : à prendre comme une indication.' : '')+'</div>';
+  zone.innerHTML = h;
+  zone.style.cssText = 'background:#EEF8F1;border:1px solid #CDEBD7;border-radius:8px;padding:0.6rem 0.7rem;';
+}
+// Remplit Début (prochain jour/heure correspondant, au plus tôt demain) et, si besoin, Fin une heure après
+function osAgendaChoisirCreneau(jour, heure){
+  var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(heure, 0, 0, 0);
+  while(((d.getDay() + 6) % 7) + 1 !== jour) d.setDate(d.getDate() + 1);
+  function loc(x){ var p = function(n){ return (n < 10 ? '0' : '')+n; }; return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())+'T'+p(x.getHours())+':'+p(x.getMinutes()); }
+  var deb = document.getElementById('ag-debut'), fin = document.getElementById('ag-fin');
+  if(deb){ deb.value = loc(d); deb.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(fin && (!fin.value || new Date(fin.value) <= d)){ fin.value = loc(new Date(d.getTime() + 3600000)); fin.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(typeof notif === 'function') notif(AGENDA_JOURS[jour]+' '+d.toLocaleDateString('fr-FR', {day:'numeric', month:'long'})+' à '+heure+'h', 'succes');
+}
+
 function osAgendaInitApercuCibles(isEdit){
+  _agendaCreneauxCle = '';   // nouveau formulaire : recalculer les créneaux
   var zone = document.getElementById('ag-apercu-cibles');
   if(!zone) return;
   if(isEdit){ zone.style.display='none'; return; }   // pas d'invitation à la modification
@@ -3236,6 +3293,7 @@ function osAgendaInitApercuCibles(isEdit){
     var sel = document.getElementById('ag-redaction');
     var cibles = _osAgendaCiblesMembres(base.membres, base.liens, lire('ag-roles'), lire('ag-fonctions'), sel&&sel.value||null);
     var noms = cibles.map(function(m){ return esc(((m.prenom||'')+' '+(m.nom||'')).trim()||m.email); }).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+    _agendaSuggererCreneaux(cibles.map(function(m){ return m.id; }));
     zone.innerHTML = '<b>'+(cibles.length===0?'Personne ne sera prévenu·e':cibles.length+' personne'+(cibles.length>1?'s seront prévenues':' sera prévenue')+' par email')+'</b> à la création.'
       +(noms.length?'<div style="color:var(--gris);margin-top:0.25rem;max-height:5.5rem;overflow:auto;">'+noms.join(' · ')+'</div>':'');
   }

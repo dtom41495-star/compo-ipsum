@@ -1224,6 +1224,12 @@ function osParamsRenderSection(section, container){
     rowCache.appendChild(btnCache);
     container.appendChild(rowCache);
 
+    // Transparence : les habitudes de connexion servent aux suggestions de créneaux de l'Agenda (js/13, creneaux_suggestions)
+    var rowCreneaux = document.createElement('div');
+    rowCreneaux.className = 'params-row';
+    rowCreneaux.innerHTML = '<div><div class="params-label">Heures de connexion</div><div class="params-label-sub">Compo compte les heures de la semaine où tu es connecté·e (par exemple « mardi 20h »), sans garder le détail. Ça sert seulement à suggérer les créneaux de réunion où le plus de monde est disponible. Personne ne voit tes horaires : seuls des totaux sur 3 personnes ou plus sont affichés.</div></div>';
+    container.appendChild(rowCreneaux);
+
     // Installer Compo comme une appli (js/52-installer-pc.js) : absent si déjà installé ou si le navigateur ne sait pas faire
     var rowInstall = typeof osInstallerParamsLigne === 'function' ? osInstallerParamsLigne() : null;
     if(rowInstall) container.appendChild(rowInstall);

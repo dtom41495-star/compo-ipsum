@@ -1154,6 +1154,12 @@ function osPresencePing(){
     headers:authH,
     body:JSON.stringify({membre_id:uid, last_seen:new Date().toISOString()})
   }).catch(function(){});
+  // Habitudes de connexion pour suggérer des créneaux de réunion (Agenda) : de simples compteurs
+  // « jour × heure » (fonction SQL presence_compter, une fois par heure au plus), jamais le détail des connexions
+  if(document.visibilityState === 'visible' && Date.now() - (window._presenceCompteeLe || 0) > 10 * 60 * 1000){
+    window._presenceCompteeLe = Date.now();
+    fetch(SB_URL+'/rest/v1/rpc/presence_compter',{ method:'POST', headers:authH, body:'{}' }).catch(function(){});
+  }
 }
 
 function osPresenceCharger(){
