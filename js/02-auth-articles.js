@@ -1204,7 +1204,7 @@ function lancerCompo(){
   var urls = {
     redactions:       SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',
     membresRedacs:    SB_URL+'/rest/v1/membres_redactions?select=*',
-    membres:          SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu,avatar_id&order=prenom.asc',
+    membres:          SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,redaction,cp_prompt_repondu,avatar_id,created_at&order=prenom.asc',
     mesArticles:      uid ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=id,titre,statut,auteur_id,correcteur_id,updated_at&order=updated_at.desc.nullslast&limit=50' : null,
     annonces:         SB_URL+'/rest/v1/annonces?actif=eq.true&redaction_id=is.null&select=*&order=created_at.desc&limit=20',
     cps:              SB_URL+'/rest/v1/communiques?select=id,titre,source,created_at,statut&order=created_at.desc&limit=30',

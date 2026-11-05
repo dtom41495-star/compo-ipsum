@@ -2276,7 +2276,7 @@ function cpsAfficherAbonnement(){
     var CATS = {'Élu·e':{'bg':'#FAEEDA','c':'#633806'},'Institutionnel':{'bg':'#E6F1FB','c':'#0C447C'},'Association':{'bg':'#EEEDFE','c':'#3C3489'},'Entreprise':{'bg':'#F1EFE8','c':'#444441'},'Média':{'bg':'#E1F5EE','c':'#085041'},'Expert·e':{'bg':'#FBEAF0','c':'#72243E'},'Autre':{'bg':'#F1EFE8','c':'#5F5E5A'}};
     var html = '';
     html += '<div style="margin-bottom:1rem;">';
-    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Notifications CPs</div>';
+    html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.5rem;">Alertes communiqués</div>';
     // Même DA que la carte « Nouveaux sujets par email » de l'onglet Sujets
     // (osRedactionsMembre_OngletSujets) : carte blanche, icône dans un badge de
     // couleur fixe, et un interrupteur pour l'abonnement plutôt qu'un bouton texte
@@ -2284,8 +2284,8 @@ function cpsAfficherAbonnement(){
     html += '<div style="display:flex;align-items:center;gap:0.7rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.6rem 0.8rem;">';
     html += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
     html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">'+(abonneGlobal?'Notifications activées':'Notifications désactivées')+'</div>';
-    html += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">'+(abonneGlobal?'Tu reçois les récapitulatifs CPs par email.':'Tu ne reçois plus les récapitulatifs CPs.')+'</div></div>';
+    html += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">'+(abonneGlobal?'Résumé des communiqués par mail : activé':'Résumé des communiqués par mail : désactivé')+'</div>';
+    html += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">'+(abonneGlobal?'Tu reçois par mail le résumé des nouveaux communiqués de presse.':'Tu ne reçois pas le résumé des communiqués de presse. Active-le, ou choisis des sources précises ci-dessous.')+'</div></div>';
     html += '<label class="compo-toggle"><input type="checkbox" '+(abonneGlobal?'checked':'')+' onchange="cpsToggleAbonnementGlobal(!this.checked)"><span class="track"></span><span class="thumb"></span></label>';
     html += '</div>';
     if(contacts.length){
@@ -2293,7 +2293,7 @@ function cpsAfficherAbonnement(){
       html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Par source <span style="opacity:0.6;">('+(abonneGlobal?contacts.length:abonneSources.length)+'/'+contacts.length+')</span></div>';
       html += '<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.7rem;">'+(abonneGlobal
         ? 'Le résumé global couvre déjà toutes les sources — désactive-le ci-dessus pour choisir des sources précises.'
-        : 'Coche les sources qui t\'intéressent pour recevoir leurs CPs séparément.')+'</div>';
+        : 'Coche les sources qui t\'intéressent pour recevoir leurs communiqués séparément.')+'</div>';
       var parCat = {};
       contacts.forEach(function(c){ var cat=c.categorie||'Autre'; if(!parCat[cat])parCat[cat]=[]; parCat[cat].push(c); });
       Object.keys(parCat).sort().forEach(function(cat){

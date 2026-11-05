@@ -35,7 +35,10 @@ function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn){
     var debut = new Date(debutSem); debut.setDate(debut.getDate() - 7*k);
     var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
     n[k] = breves.filter(function(b){ return b.date >= debut && b.date < fin; }).length;
-    avant[k] = !!(arrivee && fin <= arrivee);
+    // Semaine d'avant l'arrivée : rien n'était dû. La semaine pendant laquelle on est arrivé non plus, si elle est restée
+    // vide (on ne demande pas à un nouveau de « rattraper » la semaine où il nous a rejoints) ; une brève écrite cette
+    // semaine-là compte quand même. La semaine en cours compte toujours.
+    avant[k] = !!(arrivee && (fin <= arrivee || (k > 0 && debut < arrivee && n[k] === 0)));
     gelP[k] = !!(gels && gels.has(_serieCle(debut)));
     pause[k] = !avant[k] && !!(pf && pf(debut));
     gel[k] = gelP[k] || pause[k];
@@ -60,7 +63,7 @@ function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn){
     var debutK = new Date(debutSem); debutK.setDate(debutK.getDate() - 7*k);
     pastilles.push({ debut:debutK, etat: avant[k] ? 'avant' : (pause[k] ? 'pause' : (gel[k] ? 'gel' : ((k === 0 ? faite : (n[k] >= 1)) ? 'ok' : (comp[k] ? 'comp' : (k === 0 ? 'attente' : 'vide'))))), courante:k === 0 });
   }
-  return { n0:n[0], besoin:besoin, faite:faite, gel0:gelP[0] && !pause[0], pause0:pause[0], serie:serie, articleMois:articleMois, joursArticle:joursArticle, pastilles:pastilles };
+  return { nouveau:!!avant[1], n0:n[0], besoin:besoin, faite:faite, gel0:gelP[0] && !pause[0], pause0:pause[0], serie:serie, articleMois:articleMois, joursArticle:joursArticle, pastilles:pastilles };
 }
 
 // Articles du membre (brèves et articles envoyés au SR ou publiés, toutes rédactions confondues)
@@ -125,7 +128,12 @@ function _serieGelPossible(gels, cfg, solde){
   if(solde < cfg.cout) return { ok:false, raison:'Il te faut '+cfg.cout+' plumes pour geler, tu en as '+solde+'.' };
   return { ok:true, raison:'' };
 }
+// Arrivée dans l'écriture : premier rattachement à une rédaction (comme le serveur, benevoles-relance-breves), sinon création du compte
 function _serieArrivee(uid){
+  var rattache = (window._membresRedactionsData || []).filter(function(l){ return l.membre_id === uid && l.rattache_le; })
+    .map(function(l){ return new Date(l.rattache_le); }).filter(function(d){ return !isNaN(d); })
+    .sort(function(a, b){ return a - b; })[0];
+  if(rattache) return rattache;
   var membre = (window._membresData || []).find(function(m){ return m.id === uid; });
   return membre && membre.created_at ? new Date(membre.created_at) : null;
 }
@@ -326,19 +334,20 @@ var _SERIE_FLAMME_FACHEE = '<svg class="rp-serie-visage" viewBox="0 0 52 52" ari
 function osSerieCarteHtml(e, x){
   x = x || {};
   var jours = 7 - ((new Date().getDay() - REG_JOUR_DEBUT + 7) % 7);   // jours restants, aujourd'hui compris, jusqu'à mardi
-  var titre = e.serie > 0 ? e.serie+' semaine'+(e.serie > 1 ? 's' : '')+' de série' : 'Pas de série en cours';
+  var titre = e.serie > 0 ? e.serie+' semaine'+(e.serie > 1 ? 's' : '')+' de série' : (e.nouveau ? 'Ta série commence ici' : 'Pas de série en cours');
   var breve, brevOk = e.faite;
   if(e.pause0) breve = 'Rédaction en pause : ta série est en veille, pas de brève à envoyer';
   else if(e.gel0) breve = 'Semaine gelée : série protégée, pas de brève à envoyer';
   else if(e.faite) breve = 'Brève de la semaine : faite';
   else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), encore '+jours+' jour'+(jours > 1 ? 's' : '');
-  else breve = e.serie > 0 ? 'Une brève avant mercredi pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : 'Envoie une brève cette semaine pour lancer ta série';
+  else breve = e.serie > 0 ? 'Une brève avant mercredi pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : (e.nouveau ? 'Bienvenue ! Une brève cette semaine et ta série démarre' : 'Envoie une brève cette semaine pour lancer ta série');
   var art = e.articleMois
     ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
     : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
-  var etatFlamme = (e.gel0 || e.pause0) ? ' gelee' : (e.faite ? '' : (e.serie > 0 ? ' eteinte' : ' fachee'));
-  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'"'+(etatFlamme === '' ? _serieFlammeStyle() : '')+' title="'+(e.pause0 ? 'Rédaction en pause' : e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme attend ta brève' : 'La flamme n\'est pas contente')))+'">'
-    +'<i class="ti ti-flame"></i>'+(!e.faite && e.serie === 0 ? _SERIE_FLAMME_FACHEE : '')+(e.gel0 ? '<i class="ti ti-snowflake rp-serie-givre"></i>' : '')+'</div>';
+  var fachee = !e.faite && e.serie === 0 && !e.nouveau;
+  var etatFlamme = (e.gel0 || e.pause0) ? ' gelee' : (e.faite ? '' : (fachee ? ' fachee' : ' eteinte'));
+  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'"'+(etatFlamme === '' ? _serieFlammeStyle() : '')+' title="'+(e.pause0 ? 'Rédaction en pause' : e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme attend ta brève' : (e.nouveau ? 'La flamme attend ta première brève' : 'La flamme n\'est pas contente'))))+'">'
+    +'<i class="ti ti-flame"></i>'+(fachee ? _SERIE_FLAMME_FACHEE : '')+(e.gel0 ? '<i class="ti ti-snowflake rp-serie-givre"></i>' : '')+'</div>';
   // Gel : réservé aux semaines pas encore faites ; coût et solde viennent du serveur
   var gel = '';
   if(x.gels && x.gels.dispo){
@@ -373,8 +382,13 @@ function osSerieChargerCarte(zone, enCache){
   Promise.all([_serieCharger(uid), _serieGels(uid), _serieConfig(), _serieSolde()]).then(function(res){
     var x = { gels:res[1], cfg:res[2], solde:res[3] };
     window._serieSoldeCourant = res[3];
-    var html = osSerieCarteHtml(osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set), x);
-    window._serieCarteCache = { uid:uid, html:html, le:Date.now() };
+    var arrivee = _serieArrivee(uid);
+    var html = osSerieCarteHtml(osSerieCalculer(res[0], arrivee, null, res[1].set), x);
+    // Pas de cache tant que la date d'arrivée n'est pas connue (équipes et membres pas encore chargés) : sinon un nouveau
+    // garderait une minute la carte calculée sans elle (« semaine d'avant vide : 2 brèves à rattraper »)
+    var arriveeConnue = !!arrivee || (Array.isArray(window._membresRedactionsData) && Array.isArray(window._membresData) && window._membresData.length > 0);
+    window._serieCarteCache = arriveeConnue ? { uid:uid, html:html, le:Date.now() } : null;
+    if(!arriveeConnue) setTimeout(function(){ var z = (zone.id && document.getElementById(zone.id)) || zone; if(z && z.isConnected) osSerieChargerCarte(z); }, 2500);
     // La zone a pu être remplacée entre-temps (accueil redessiné) : viser l'élément actuel
     var cible = (zone.id && document.getElementById(zone.id)) || zone;
     cible.innerHTML = html;
@@ -436,7 +450,7 @@ function osSerieChargerPastille(el){
   if(window._seriePastilleLe && Date.now() - window._seriePastilleLe < 60000 && window._seriePastilleEtat) return;
   Promise.all([_serieCharger(uid), _serieGels(uid)]).then(function(res){
     var e = osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set);
-    var classe = (e.gel0 || e.pause0) ? 'gelee' : (e.faite ? 'allumee' : (e.serie > 0 ? 'eteinte' : 'fachee'));
+    var classe = (e.gel0 || e.pause0) ? 'gelee' : (e.faite ? 'allumee' : ((e.serie > 0 || e.nouveau) ? 'eteinte' : 'fachee'));
     var titre = e.serie > 0 ? 'Série de '+e.serie+' semaine'+(e.serie > 1 ? 's' : '') : 'Pas de série en cours';
     if(e.pause0) titre += ', rédaction en pause';
     else if(e.gel0) titre += ', semaine gelée';

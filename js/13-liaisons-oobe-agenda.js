@@ -567,6 +567,8 @@ function oobeTerminer(){
   // Marquer OOBE comme terminé
   localStorage.setItem('compo_oobe_done_'+userId, '1');
   localStorage.setItem('compo_os_tour_pending', '1'); // déclenche le tuto interactif au premier chargement du bureau
+  localStorage.setItem('compo_os_apps_moved_tooltip', '1'); // un nouveau membre n'a pas connu l'ancien bureau
+  localStorage.setItem('compo_patchnote_nouveau_membre', '1'); // ni les « nouveautés » d'un Compo qu'il découvre (js/27)
 
   var screen = document.getElementById('oobe-screen');
   var fermerOobe = function(){

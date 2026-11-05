@@ -793,7 +793,8 @@ function osDockSignal(icone, classe, actif){
 
 function _creerIconeDock(app, isPinned){
   var icon = document.createElement('div');
-  icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '');
+  // Ma rédac' et Rédiger gardent leur nom à côté de l'icône : ce sont les deux portes d'entrée, et une rangée d'icônes sans texte ne se lit pas quand on arrive
+  icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '') + (app.id === 'redactions' || app.id === 'redaction' ? ' dock-icon-nomme' : '');
   icon.dataset.page = app.id;
   icon.dataset.pinned = isPinned ? '1' : '0';
   // Reconstruit avec le dock : sans ça le signal de Ma rédac attendait le prochain
@@ -1165,7 +1166,7 @@ function osAfficherPromptCP(fonctions){
     +'<button id="cp-prompt-non" class="btn sec" style="font-size:0.78rem;padding:0.5rem 1rem;">Non</button>'
     +'<button id="cp-prompt-oui" style="font-size:0.78rem;padding:0.5rem 1.2rem;border:none;border-radius:7px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;">Oui</button>'
     +'</div>'
-    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:0.8rem;">Tu peux changer d\'avis à tout moment dans Ma rédac\' > Mes abonnements.</div>';
+    +'<div style="font-size:0.68rem;color:var(--gris);margin-top:0.8rem;">Tu peux changer d\'avis à tout moment dans Ma rédac\' › Communiqués › Alertes communiqués.</div>';
 
   overlay.appendChild(card);
   document.body.appendChild(overlay);

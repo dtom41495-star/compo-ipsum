@@ -339,6 +339,9 @@ function osDismissTooltip(){
 function osShowAppsMovedTooltip(){
   var seen = localStorage.getItem('compo_os_apps_moved_tooltip');
   if(seen) return;
+  // « Les apps ont déménagé » ne parle qu'à ceux qui ont connu l'ancien bureau : jamais sur téléphone (pas de Menu)
+  // ni pour un nouveau membre (l'accueil de bienvenue le marque comme vu, js/13)
+  if(typeof osEstMobile === 'function' && osEstMobile()) return;
   var el = document.getElementById('os-apps-moved-tooltip');
   if(el){
     el.style.display = 'block';
@@ -369,7 +372,8 @@ var TOUR_ETAPES = [
     // Sur mobile, le bouton n'est plus dans la barre des tâches (retiré, source de bugs
     // d'affichage) — il vit désormais dans le rail de Ma Rédac', donc on ouvre cette page-là.
     pageId: function(){ return window.innerWidth <= 768 ? 'redactions' : null; },
-    cible: function(){ return window.innerWidth <= 768 ? '.acc-situation .dnd-switch' : '#os-dnd-btn'; },
+    // Sur téléphone, l'étape ouvre Mon profil : le choix Disponible / Indispo y est #rp-dnd
+    cible: function(){ return window.innerWidth <= 768 ? '#rp-dnd' : '#os-dnd-btn'; },
     titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
     texte: function(){
       var estCommunicant = typeof osEstCommunicant === 'function' && osEstCommunicant();
@@ -382,7 +386,7 @@ var TOUR_ETAPES = [
   },
   {
     id: 'redac', pageId: 'redactions', cible: '#redac-sidebar-rail',
-    titre: '<i class="ti ti-news"></i> Ma Rédac\'',
+    titre: '<i class="ti ti-users-group"></i> Ma Rédac\'',
     texte: 'Ton espace rédaction : ton profil, les sujets disponibles à réserver, les annonces de recrutement, et ta rédaction locale. Le bandeau "Sujets à rédiger" en haut te montre toujours ce qu\'il y a de plus urgent à écrire.'
   },
   {
@@ -442,7 +446,8 @@ function osTourFermer(){
 
 function _tourAttendreElement(selector, callback, tentative){
   tentative = tentative || 0;
-  var el = document.querySelector(selector);
+  // L'élément visible : les pages ouvertes en fenêtre sont des copies, l'original (masqué) porte les mêmes identifiants
+  var el = Array.prototype.filter.call(document.querySelectorAll(selector), function(x){ return x.getClientRects().length > 0; })[0] || null;
   if(el){ callback(el); return; }
   if(tentative >= 40) return; // ~6s, abandon silencieux si l'élément n'apparaît jamais
   setTimeout(function(){ _tourAttendreElement(selector, callback, tentative+1); }, 150);
@@ -817,11 +822,12 @@ function osParamsRenderSection(section, container){
     // certains envois si la notification in-app suffit déjà).
     var rowCanal = document.createElement('div');
     rowCanal.className = 'params-row';
-    rowCanal.innerHTML = '<div><div class="params-label">Notifications personnelles <span class="badge-beta">Bêta</span></div><div class="params-label-sub">Comment tu veux recevoir « un article t\'attend au SR », « ton article est en ligne »...</div></div>'
+    // Même réglage que « Mes notifications » de Ma rédac' > Mon profil (membres.canal_notif) : mêmes mots aux deux endroits
+    rowCanal.innerHTML = '<div><div class="params-label">Mes notifications</div><div class="params-label-sub">Où je reçois les alertes : « un article t\'attend au SR », « ton article est en ligne »… Le même réglage que dans Ma rédac\' › Mon profil.</div></div>'
       + '<div style="display:flex;align-items:center;gap:8px;">'
-      + '<span id="canal-notif-label-off" style="font-size:0.72rem;color:var(--gris);">Email</span>'
+      + '<span id="canal-notif-label-off" style="font-size:0.72rem;color:var(--gris);">Mail</span>'
       + '<label class="compo-toggle"><input type="checkbox" id="params-canal-notif" onchange="osChoisirCanalNotif(this.checked?\'chat\':\'email\')"><span class="track"></span><span class="thumb"></span></label>'
-      + '<span id="canal-notif-label-on" style="font-size:0.72rem;color:var(--gris);">Google Chat</span>'
+      + '<span id="canal-notif-label-on" style="font-size:0.72rem;color:var(--gris);">Chat</span>'
       + '</div>';
     container.appendChild(rowCanal);
     _osChargerCanalNotifActuel();
@@ -873,13 +879,14 @@ function osParamsRenderSection(section, container){
     // Demande de changement de rôle
     var rowRole = document.createElement('div');
     rowRole.className = 'params-row';
-    rowRole.innerHTML = '<div><div class="params-label">Demander un changement de rôle</div><div class="params-label-sub">Envoie une demande à l\'admin</div></div>';
+    rowRole.innerHTML = '<div><div class="params-label">Demander un changement de rôle</div><div class="params-label-sub">Rédacteur·rice : écrit des articles et des brèves. SR (secrétaire de rédaction) : relit et corrige ceux des autres. Communicant·e : réseaux sociaux et visuels. La demande part à l\'admin.</div></div>';
     var roleSelect = document.createElement('select');
-    roleSelect.style.cssText = 'padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:Space Mono,monospace;';
+    roleSelect.style.cssText = 'padding:0.4rem 0.7rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.82rem;font-family:DM Sans,sans-serif;';
     var roles = ['redacteur','correcteur','communicant'];
+    var NOMS_ROLES = { redacteur:'Rédacteur·rice', correcteur:'SR (relecture)', communicant:'Communicant·e' };
     roles.forEach(function(r){
       var opt = document.createElement('option');
-      opt.value = r; opt.textContent = r;
+      opt.value = r; opt.textContent = NOMS_ROLES[r] || r;
       if(r === getUserRole()) opt.selected = true;
       roleSelect.appendChild(opt);
     });
