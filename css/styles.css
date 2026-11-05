@@ -6997,3 +6997,12 @@ button.tr-temps:hover { background: #E0D0EC; }
 .os-window.fen-anim { transition: transform 0.26s cubic-bezier(.3,.8,.3,1), opacity 0.26s ease, box-shadow 0.2s !important; pointer-events: none; }
 .os-window.fen-anim-taille { transition: left 0.26s cubic-bezier(.3,.8,.3,1), top 0.26s cubic-bezier(.3,.8,.3,1), width 0.26s cubic-bezier(.3,.8,.3,1), height 0.26s cubic-bezier(.3,.8,.3,1), box-shadow 0.2s !important; }
 @media (prefers-reduced-motion: reduce) { .os-window.fen-anim, .os-window.fen-anim-taille { transition: none !important; } }
+
+/* Barre des tâches : l'icône d'une appli non épinglée s'efface à la fermeture de sa fenêtre */
+.dock-icon.dock-icon-sortie { transition: opacity 0.25s ease, transform 0.25s ease, margin 0.25s ease; opacity: 0; transform: scale(0.6); }
+@media (prefers-reduced-motion: reduce) { .dock-icon.dock-icon-sortie { transition: none; } }
+
+/* Barre de titre d'une fenêtre : l'icône de l'appli à gauche du titre */
+.os-titlebar-icone { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; margin-right: 0; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
+.os-titlebar-icone i { line-height: 1; }
+@media (max-width: 768px) { .os-titlebar-icone { display: none; } }
