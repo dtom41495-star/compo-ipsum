@@ -849,7 +849,9 @@ function _creerIconeDock(app, isPinned){
     e.stopPropagation();
     icon.classList.add('bouncing');
     setTimeout(function(){ icon.classList.remove('bouncing'); }, 500);
-    osOpenWindow(app.id);
+    // Fenêtre déjà ouverte (même réduite) : on la retrouve telle quelle, sans recharger son contenu (js/75)
+    if(typeof osRestaurerFenetre === 'function' && _windows[app.id]) osRestaurerFenetre(app.id);
+    else osOpenWindow(app.id);
   };
 
   // Clic droit — menu contextuel

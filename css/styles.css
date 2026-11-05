@@ -6992,3 +6992,8 @@ button.tr-temps:hover { background: #E0D0EC; }
 .vpro-choix-pied { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
 .vpro-choix-pied button { padding: 0.55rem 1.1rem; border-radius: 8px; border: 1px solid #D6D3D1; background: #fff; cursor: pointer; font: 600 0.82rem 'DM Sans', sans-serif; }
 @media (max-width: 500px) { .vpro-choix-grille { grid-template-columns: repeat(2, 1fr); } .vpro-choix-pied button { flex: 1; min-height: 44px; } }
+
+/* Fenêtres : réduire / retrouver (vers et depuis l'icône de la barre) et agrandir, animés (js/75) */
+.os-window.fen-anim { transition: transform 0.26s cubic-bezier(.3,.8,.3,1), opacity 0.26s ease, box-shadow 0.2s !important; pointer-events: none; }
+.os-window.fen-anim-taille { transition: left 0.26s cubic-bezier(.3,.8,.3,1), top 0.26s cubic-bezier(.3,.8,.3,1), width 0.26s cubic-bezier(.3,.8,.3,1), height 0.26s cubic-bezier(.3,.8,.3,1), box-shadow 0.2s !important; }
+@media (prefers-reduced-motion: reduce) { .os-window.fen-anim, .os-window.fen-anim-taille { transition: none !important; } }
