@@ -441,6 +441,16 @@ function _osOpenWindowExecuter(pageId){
     btnCpACote.innerHTML = '<i class="ti ti-layout-sidebar-right" style="vertical-align:-2px;margin-right:2px;"></i>Lire à côté';
   }
 
+  // Icône de l'appli à gauche du titre, comme dans la barre des tâches (même couleur, même dessin)
+  var appIcone = (typeof ALL_APPS_CATALOGUE !== 'undefined' ? ALL_APPS_CATALOGUE : []).find(function(a){ return a.id === pageId; })
+    || [].concat.apply([], Object.keys(typeof DOCK_APPS !== 'undefined' ? DOCK_APPS : {}).map(function(k){ return DOCK_APPS[k]; })).find(function(a){ return a.id === pageId; });
+  if(appIcone && appIcone.icon){
+    var iconeEl = document.createElement('span');
+    iconeEl.className = 'os-titlebar-icone';
+    iconeEl.style.background = appIcone.color || '#6B7280';
+    iconeEl.innerHTML = appIcone.icon;
+    tb.appendChild(iconeEl);
+  }
   tb.appendChild(titleEl);
   if(saveIndicator) tb.appendChild(saveIndicator);
   if(btnCpACote) tb.appendChild(btnCpACote);
@@ -897,19 +907,25 @@ function osCloseWindowForce(pageId){
   if(pageId === 'redaction') osChronoStop('redaction');
   if(pageId === 'app-correction') osChronoStop('correction');
   if(pageId === 'snake') osSnakeCleanup();
-  // Même effet de rebond que l'ouverture, mais à la fermeture
+  // Barre des tâches : le nom de l'appli se replie en douceur (même transition qu'en passant d'une fenêtre à
+  // l'autre) et, si l'appli n'est pas épinglée, son icône s'efface ; la barre n'est reconstruite qu'après.
+  // Avant, elle était reconstruite tout de suite : le nom et l'icône disparaissaient d'un coup.
   var dockIcon = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
   if(dockIcon){
-    dockIcon.classList.add('bouncing');
-    setTimeout(function(){ dockIcon.classList.remove('bouncing'); }, 500);
+    dockIcon.classList.remove('active-app');
+    if(dockIcon.dataset.pinned === '0') dockIcon.classList.add('dock-icon-sortie');
   }
   var el = win.el;
-  el.style.transform = 'scale(0.85)';
+  // La fenêtre se referme sur elle-même en s'effaçant (la transition est posée avant, sinon le navigateur
+  // peut appliquer le changement d'un coup)
+  el.style.pointerEvents = 'none';
+  el.style.transition = 'transform 0.22s cubic-bezier(.4,0,.6,1), opacity 0.2s ease';
+  void el.offsetWidth;
+  el.style.transform = 'scale(0.9)';
   el.style.opacity = '0';
-  el.style.transition = 'transform 0.2s ease, opacity 0.15s';
   setTimeout(function(){
     if(el.parentNode) el.parentNode.removeChild(el);
-  }, 200);
+  }, 230);
   // Ma rédac fermée sur l'onglet Sujets/Recrutement : ce qui y était affiché a été vu,
   // sinon l'icône du dock se remettrait à clignoter pour des choses qu'on vient de lire.
   if(pageId === 'redactions'){
@@ -925,9 +941,9 @@ function osCloseWindowForce(pageId){
     setTimeout(osMesArticlesChargerACorriger, 1500);
   }
   if(window._activeWindowId === pageId) window._activeWindowId = null;
-  // Mettre à jour le dock
-  setTimeout(osDockMajFenetresOuvertes, 50);
-  setTimeout(osVerifierDockVisibilite, 250);
+  // Mettre à jour le dock, une fois le nom replié et l'icône effacée
+  setTimeout(osDockMajFenetresOuvertes, dockIcon ? 300 : 50);
+  setTimeout(osVerifierDockVisibilite, 350);
   // Une nouvelle version attendait que la rédaction se termine pour être proposée
   if(pageId === 'redaction' && _compoVersionChangeeEnAttente) osVerifierNouvelleVersion();
   // Bureau vide — si une mise à jour attend, programmer le rechargement auto après inactivité
