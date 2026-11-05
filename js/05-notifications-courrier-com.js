@@ -1401,7 +1401,20 @@ function osBuildDesktopIcons(){
   
   var role = getUserRole();
   var dockApps = (DOCK_APPS[role] || DOCK_APPS.redacteur).map(function(a){ return a.id; });
-  
+
+  // Ma rédac' en tête du bureau, bien visible : c'est l'appli centrale (profil, sujets, Rédiger, équipe, communiqués).
+  // Avant, elle n'était qu'une petite icône sans nom dans la barre du bas, et un nouveau ne la trouvait pas.
+  if(['admin','redac_chef','redacteur','correcteur'].indexOf(role) !== -1){
+    var redacIcon = document.createElement('div');
+    redacIcon.className = 'desktop-icon desktop-icon-vedette';
+    redacIcon.dataset.app = 'redactions';
+    redacIcon.title = 'Ta rédaction : sujets à prendre, Rédiger, membres, communiqués';
+    redacIcon.onclick = function(){ osOpenWindow('redactions'); };
+    redacIcon.innerHTML = '<div class="desktop-icon-img" style="background:linear-gradient(135deg,#E8461E,#F07A2E);color:white;"><i class="ti ti-news"></i></div>'
+      +'<div class="desktop-icon-label">Ma rédac\'</div>';
+    container.appendChild(redacIcon);
+  }
+
   // Icône Stats dashboard (tous)
   var statsIcon = document.createElement('div');
   statsIcon.className = 'desktop-icon';
@@ -2018,6 +2031,10 @@ function osStartAction(action){
     osOuvrirParams();
   }
   else if(action === 'spotlight'){
+    // La loupe ouvre la vraie recherche (celle du Menu : applis, membres, articles, sujets, aide), comme Ctrl K.
+    // L'ancienne petite recherche ne connaissait que 4 pages : « écrire un article » ou un nom de membre ne donnaient rien.
+    // (après le clic : sinon ce même clic, vu comme « à côté du menu », le referme aussitôt)
+    if(typeof osStartMenuRecherche === 'function'){ setTimeout(osStartMenuRecherche, 0); return; }
     var sp = document.getElementById('os-spotlight');
     if(sp){ sp.classList.add('visible'); document.getElementById('spotlight-input').focus(); osSpotlightSearch(''); }
   }

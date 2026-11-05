@@ -186,6 +186,59 @@ function _smOuvrirRecent(r){
 }
 
 // ----- Recherche élargie -----
+// Sans accents ni majuscules, mot par mot (« écrire un article » trouve Rédiger, « coordonnées de Charlie » trouve Charlie)
+var OS_RECHERCHE_VIDES = ['un','une','le','la','les','de','des','du','d','l','a','au','aux','et','ou','pour','mon','ma','mes','ton','ta','tes','son','sa','ses','je','j','veux','comment','ou','en','sur','avec','faire','trouver','chercher','cherche'];
+// Mots qui mènent à une appli, en plus de son nom
+var OS_RECHERCHE_MOTS = {
+  'redaction':     'ecrire rediger nouvel nouveau article breve texte papier redaction',
+  'mes-articles':  'mes articles brouillons suivre relecture etape statut',
+  'redactions':    'ma redac redaction equipe membres membre sujets communiques profil carte adherent',
+  'app-correction':'corriger relire relecture sr secretariat',
+  'carnet':        'contacts contact sources source interlocuteur repertoire',
+  'tutos':         'guide aide manuel tutoriel tuto',
+  'notes-frais':   'frais remboursement ticket essence kilometres',
+  'agenda':        'evenements evenement calendrier reunion reportage',
+  'notes':         'notes idees brouillon',
+  'magneto':       'enregistrer enregistrement audio son interview micro',
+  'transcrire':    'transcription transcrire audio interview texte',
+  'upload-medias': 'fichiers drive photos videos rushs',
+  'boutique':      'plumes boutique recompenses',
+  'veille':        'veille actualites flux rss'
+};
+function _osRechNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/['’]/g, ' '); }
+function _osRechMots(q){
+  return _osRechNorm(q).split(/[^a-z0-9]+/).filter(function(m){ return m.length > 1 && OS_RECHERCHE_VIDES.indexOf(m) === -1; });
+}
+function osRechercheApps(q){
+  var mots = _osRechMots(q), ql = _osRechNorm(q).trim();
+  if(!ql) return [];
+  return osAppsAccessibles().map(function(a){
+    var nom = _osRechNorm(a.label), cles = nom+' '+(OS_RECHERCHE_MOTS[a.id] || '');
+    var score = nom.indexOf(ql) !== -1 ? 10 : 0;
+    mots.forEach(function(m){ if(cles.indexOf(m) !== -1) score++; });
+    return { a:a, score:score };
+  }).filter(function(x){ return x.score > 0; }).sort(function(x, y){ return y.score - x.score; }).map(function(x){ return x.a; });
+}
+function osRechercheMembres(q){
+  var mots = _osRechMots(q), ql = _osRechNorm(q).trim();
+  if(!ql) return [];
+  return (window._membresData||[]).filter(function(m){
+    var nom = _osRechNorm((m.prenom||'')+' '+(m.nom||''));
+    return nom.indexOf(ql) !== -1 || mots.some(function(w){ return w.length > 2 && nom.split(' ').some(function(p){ return p.indexOf(w) === 0; }); });
+  });
+}
+// « Qui contacter ? » du Guide : rédac chef, président·e, trésorerie, vie associative… avec leurs mails
+var OS_RECHERCHE_CONTACT = ['contact','contacter','coordonnees','coordonnee','joindre','annuaire','telephone','tel','numero','mail','email','adresse','qui','president','presidente','tresorier','tresoriere','secretaire','vie','asso','aide','responsable','chef'];
+var _smAide = [];
+function osRechercheAide(q){
+  var mots = _osRechMots(q);
+  if(!mots.some(function(m){ return OS_RECHERCHE_CONTACT.indexOf(m) !== -1; })) return [];
+  return [{ titre:'Qui contacter ?', sous:'Guide · rédac chef, président·e, trésorerie, vie associative', fn:function(){ osOuvrirGuideContacts(); } }];
+}
+function osOuvrirGuideContacts(){
+  if(typeof osOuvrirTutos === 'function') osOuvrirTutos();
+  setTimeout(function(){ if(typeof osGuideChapitre === 'function') osGuideChapitre('contacts'); }, 400);
+}
 function osStartMenuChercher(q){
   q = String(q||'').trim();
   _smQ = q;
@@ -197,12 +250,12 @@ function osStartMenuChercher(q){
     return;
   }
   defaut.style.display = 'none'; res.style.display = '';
-  var ql = q.toLowerCase();
   var jeton = ++_smRechercheJeton;
 
-  // Apps et membres : tout de suite
-  var apps = osAppsAccessibles().filter(function(a){ return a.label.toLowerCase().indexOf(ql) !== -1; }).slice(0, 8);
-  var membres = (window._membresData||[]).filter(function(m){ return ((m.prenom||'')+' '+(m.nom||'')).toLowerCase().indexOf(ql) !== -1; }).slice(0, 4);
+  // Apps, membres et aide : tout de suite
+  var apps = osRechercheApps(q).slice(0, 8);
+  var membres = osRechercheMembres(q).slice(0, 4);
+  _smAide = osRechercheAide(q);
   _smResultatsRendre(apps, membres, null, null);
 
   // Articles et sujets : après une courte pause de frappe
@@ -246,6 +299,7 @@ function _smResultatsRendre(apps, membres, articles, sujets){
     b.onclick = function(){ osToggleStartMenu(); fn(); };
     return b;
   }
+  groupe('Aide', _smQ ? _smAide : [], function(x){ return ligne('#4A235A', '<i class="ti ti-address-book"></i>', x.titre, x.sous, x.fn); });
   groupe('Apps', apps, function(a){ return ligne(a.color, a.icon, a.label, 'App', function(){ osOpenWindow(a.id); }); });
   groupe('Membres', membres, function(m){
     return ligne('#0F6E56', '<i class="ti ti-user"></i>', ((m.prenom||'')+' '+(m.nom||'')).trim(), 'Membre', function(){

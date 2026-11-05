@@ -151,6 +151,11 @@ function afficherPatchNote(){
       liste = liste || PATCHNOTES;
       var vu = _patchnoteVu();
       if(vu === liste[0].id) return;
+      // Nouveau membre (accueil de bienvenue tout juste fait, js/13) : pas de « nouveautés » sur un Compo qu'il découvre ;
+      // on note juste où il en est, il verra les suivantes
+      var nouveauMembre = false;
+      try { nouveauMembre = localStorage.getItem('compo_patchnote_nouveau_membre') === '1'; localStorage.removeItem('compo_patchnote_nouveau_membre'); } catch(e){}
+      if(nouveauMembre && !vu){ _patchnoteMarquerVu(liste); return; }
       var nVu = _patchnoteNumero(vu), nouvelles;
       if(nVu !== null) nouvelles = liste.filter(function(n){ return _patchnoteNumero(n.id) > nVu; });
       else nouvelles = liste.slice(0, 1);

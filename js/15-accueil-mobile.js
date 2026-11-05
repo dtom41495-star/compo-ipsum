@@ -24,7 +24,7 @@ var ACCUEIL_REDAC_TUILES = [
   { id:'redac:recrutement', onglet:'recrutement', icon:'<i class="ti ti-user-plus"></i>',    label:'Recrutement',  color:'#7D3C98' }
 ];
 var ACCUEIL_REDAC_TITRES = { profil:'Mon profil', sujets:'Sujets', recrutement:'Recrutement', redac:'Ma rédaction',
-  cps:'Communiqués', 'cps-abonnements':'Mes abonnements', admin:'Gestion rédactions' };
+  cps:'Communiqués', 'cps-abonnements':'Alertes communiqués', admin:'Gestion rédactions' };
 // En bas de l'accueil, pas en tuile
 var ACCUEIL_HORS_TUILES = ['tutos','params'];
 
@@ -69,7 +69,7 @@ function _accueilApps(){
     var sansRedac = getUserRole() !== 'admin' && !(window._membresRedactionsData||[]).some(function(mr){ return mr.membre_id === uidAcc; });
     ACCUEIL_REDAC_TUILES.forEach(function(t){ if(!sansRedac || t.onglet === 'recrutement') liste.push(t); });
     // …et ses abonnements aux communiqués, sinon introuvables sans la tuile Communiqués
-    if(sansRedac) liste.push({ id:'redac:cps-abonnements', onglet:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Mes abonnements', color:'#4A235A' });
+    if(sansRedac) liste.push({ id:'redac:cps-abonnements', onglet:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Alertes communiqués', color:'#4A235A' });
     if(getUserRole() === 'admin') liste.push({ id:'redac:admin', onglet:'admin', icon:'<i class="ti ti-building-community"></i>', label:'Gestion rédactions', color:'#2C3E50' });
   }
   liste = liste.map(function(a){ return a.id === 'cps-admin' ? Object.assign({}, a, {label:'Gestion des CPs'}) : a; });
@@ -261,6 +261,8 @@ function osAccueilMobileRendre(){
     +'<span class="acc-sous-salut">'+(aMaRedac ? 'Voir mon profil et ma carte' : esc(jour))+'</span></span>'
     +(aMaRedac ? '<i class="ti ti-chevron-right acc-chevron"></i>' : '')
     +'</button>'
+    // Rédiger juste sous le bonjour : c'est ce qu'on vient faire (avant, il fallait faire défiler pour le trouver)
+    +(grande ? '<div class="acc-tuiles">'+_accueilTuile(grande.app, true, grande.sous)+'</div>' : '')
     +_accueilSituationHtml(redac, etatRedac, plusieursRedacs, jour);
   // Série : la carte « Ma série » complète, comme dans Ma rédac' (remplie après le rendu, js/33-serie.js)
   if(aMaRedac) h += '<div class="rp-serie acc-serie-carte" id="acc-serie-carte" style="display:none;"></div>';
@@ -270,7 +272,6 @@ function osAccueilMobileRendre(){
       +'<div class="acc-installer-btns"><button type="button" class="acc-installer-ok">Installer</button><button type="button" class="acc-installer-non">Plus tard</button></div></div></div>';
   }
   if(cartes) h += '<div class="acc-a-faire">'+cartes+'</div>';
-  if(grande) h += '<div class="acc-tuiles">'+_accueilTuile(grande.app, true, grande.sous)+'</div>';
 
   ACCUEIL_RUBRIQUES.forEach(function(r){
     var t = r.ids.filter(function(id){ return parId[id] && !dejaPlacees[id]; });
@@ -554,7 +555,7 @@ function _accueilMenusMaRedac(onglet){
       {icon:'checks', label:'Tout marquer comme lu', action:function(){ cpsToutMarquerLu(); }},
       {icon:'refresh', label:'Actualiser', action:function(){ cpsCharger(); }},
       {icon:'download', label:'Exporter en CSV', action:function(){ cpsExportCSV(); }},
-      {icon:'bell', label:'Mes abonnements', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
+      {icon:'bell', label:'Alertes communiqués', action:function(){ osOuvrirMaRedacMobile('cps-abonnements'); }}
     ]};
   }
   if(onglet === 'admin' && admin){

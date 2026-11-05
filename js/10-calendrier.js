@@ -293,11 +293,20 @@ function osRedacOuvrirFicheMembre(membreId, redacId){
       h += '</div>';
       h += '<div style="flex:1;">';
       h += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(membre.prenom||'')+' '+esc(membre.nom||'')+'</div>';
-      h += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-top:2px;">'+esc(membre.email||'')+'</div>';
+      h += (membre.email ? '<a href="mailto:'+esc(membre.email)+'" class="redac-fiche-mail" title="Lui écrire un mail">'+esc(membre.email)+'</a>' : '');
       h += '<div title="Identifiant imprimé sur sa carte d\'adhérent" style="font-family:Space Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.7);margin-top:3px;"><i class="ti ti-id"></i> '+osIdentifiantMembre(membre.id)+'</div>';
       h += '</div>';
       h += '<button class="redac-fiche-fermer" onclick="document.body.removeChild(document.getElementById(\'redac-fiche-membre-overlay\'))" style="background:rgba(255,255,255,0.12);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem;"><i class="ti ti-x"></i></button>';
       h += '</div>';
+
+      // Le joindre : avant, le mail n'était qu'un petit texte gris, sans rien à toucher
+      if(membre.email && membreId !== getUserId()){
+        h += '<div class="redac-fiche-joindre">'
+          +'<a class="redac-fiche-btn principal" href="mailto:'+esc(membre.email)+'"><i class="ti ti-mail"></i>Écrire un mail</a>'
+          +'<button type="button" class="redac-fiche-btn" data-mail="'+esc(membre.email)+'" onclick="osCopierMailMembre(this)"><i class="ti ti-copy"></i>Copier l\'adresse</button>'
+          +'<button type="button" class="redac-fiche-btn" onclick="var o=document.getElementById(\'redac-fiche-membre-overlay\');if(o)o.remove();osOuvrirGuideContacts();" title="Rédac chef, président·e, trésorerie, vie associative"><i class="ti ti-address-book"></i>Qui contacter ?</button>'
+          +'</div>';
+      }
 
       // Badges + stats
       h += '<div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gris-bord);">';
@@ -2165,8 +2174,9 @@ function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
   // avec son sous-menu "Mes abonnements" juste en dessous.
   var ongletsCps = onglets.filter(function(o){ return o.groupe==='cps'; });
   if(ongletsCps.length){
-    h += '<div id="redac-cps-groupe" style="background:white;border-radius:10px;padding:4px;margin-top:4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">';
-    ongletsCps.forEach(function(o){ h += boutonOnglet(o); });
+    // Communiqués, puis ses alertes en retrait, comme un sous-menu (avant : une boîte blanche à part, qui ressemblait à un menu resté ouvert)
+    h += '<div id="redac-cps-groupe" style="display:flex;flex-direction:column;gap:2px;">';
+    ongletsCps.forEach(function(o, i){ h += i ? '<div class="redac-sous-onglet">'+boutonOnglet(o)+'</div>' : boutonOnglet(o); });
     h += '</div>';
   }
   h += '<div style="flex:1;"></div>';
@@ -2232,7 +2242,7 @@ function _osRedacOngletsListe(){
     // osRedactionsRenderAvecOnglets), mais listés ici aussi pour la barre flottante
     // et le tour guidé, qui s'appuient tous les deux sur cette liste.
     {id:'cps',             icon:'<i class="ti ti-news"></i>', label:'Communiqués', groupe:'cps'},
-    {id:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Mes abonnements', groupe:'cps'}
+    {id:'cps-abonnements', icon:'<i class="ti ti-bell"></i>', label:'Alertes communiqués', groupe:'cps'}
   ];
   if(getUserRole() === 'admin'){
     onglets.push({id:'admin', icon:'<i class="ti ti-settings"></i>', label:'Gestion rédactions'});
@@ -2426,6 +2436,14 @@ function osRedactionsRenderAdmin(wc, uid){
 
 // Carte d'un membre sur téléphone (Ma rédaction et Gestion rédactions) : toucher le nom
 // ouvre sa fiche, le rôle et le retrait sont en dessous
+function osCopierMailMembre(btn){
+  var mail = btn && btn.dataset.mail;
+  if(!mail) return;
+  var fin = function(){ notif('Adresse copiée : '+mail, 'succes'); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(mail).then(fin).catch(function(){ notif(mail); });
+  else notif(mail);
+}
+
 function _osRedacCarteMembreMobile(m, redacId, rr, sousTitreHtml){
   return '<div class="rm-carte">'
     +'<button type="button" class="rm-tete" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacOuvrirFicheMembre(this.dataset.mid,this.dataset.rid)">'

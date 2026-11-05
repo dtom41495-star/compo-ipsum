@@ -6960,3 +6960,21 @@ button.tr-temps:hover { background: #E0D0EC; }
   .tr-boutons .mac-btn { flex: 1; justify-content: center; height: 44px; }
   .tr-seg { gap: 0.5rem; padding: 0.45rem 0.2rem; }
 }
+
+/* Bureau : Ma rédac', l'appli centrale, en tête et mise en avant */
+.desktop-icon-vedette .desktop-icon-img { background: linear-gradient(135deg, #E8461E, #F07A2E) !important; color: #fff !important; border-color: rgba(255,255,255,0.55) !important; box-shadow: 0 0 0 3px rgba(232,70,30,0.35), 0 6px 18px rgba(232,70,30,0.45) !important; }
+.desktop-icon-vedette:hover .desktop-icon-img { background: linear-gradient(135deg, #D63B15, #E8461E) !important; }
+.desktop-icon-vedette .desktop-icon-label { font-weight: 700; }
+
+/* Fiche d'un membre : le joindre */
+.redac-fiche-mail { display: inline-block; font-size: 0.76rem; color: #FFD3C2; margin-top: 2px; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.redac-fiche-mail:hover { color: #fff; }
+.redac-fiche-joindre { display: flex; gap: 0.45rem; flex-wrap: wrap; padding: 0.8rem 1.5rem; border-bottom: 1px solid var(--gris-bord); background: #FBFAF8; }
+.redac-fiche-btn { display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--gris-bord); background: #fff; color: var(--encre); font: 600 0.76rem 'DM Sans', sans-serif; cursor: pointer; text-decoration: none; }
+.redac-fiche-btn.principal { background: #E8461E; border-color: #E8461E; color: #fff; }
+.redac-fiche-btn:hover { filter: brightness(0.97); }
+@media (max-width: 768px) { .redac-fiche-joindre { padding: 0.7rem 1rem; } .redac-fiche-btn { flex: 1 1 auto; justify-content: center; height: 42px; } }
+
+/* Ma rédac' : « Alertes communiqués » en retrait sous Communiqués */
+.redac-sous-onglet { margin-left: 18px; padding-left: 6px; border-left: 2px solid var(--gris-bord); }
+.redac-sous-onglet > * { font-size: 0.92em; }
