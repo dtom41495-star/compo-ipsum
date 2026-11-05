@@ -719,8 +719,23 @@ var AGENDA_TYPES = {
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
-var AGENDA_CIBLE_FONCTIONS = ['tresorier','vie_asso'];
-var FONCTIONS_LBL = {tresorier:'Trésorier',vie_asso:'Vie asso'};
+var AGENDA_CIBLE_FONCTIONS = ['president','vice_president','tresorier','secretaire','vie_asso'];
+var FONCTIONS_LBL = {president:'Président·e',vice_president:'Vice-président·e',tresorier:'Trésorier',secretaire:'Secrétaire',vie_asso:'Vie asso'};
+// Le bouton « Bureau » du formulaire coche ces fonctions (on peut ensuite en décocher, la vie asso par exemple)
+var AGENDA_BUREAU = ['president','vice_president','tresorier','secretaire','vie_asso'];
+// « Toute l'équipe » : rien de coché, ou tous les rôles + trésorier et vie asso (les seules fonctions proposées
+// avant l'ajout du bureau : les anciens événements « tout coché » restent ouverts à tous)
+function _agendaToutLeMonde(roles, fonctions){
+  roles = roles || []; fonctions = fonctions || [];
+  if(!roles.length && !fonctions.length) return true;
+  return roles.length === AGENDA_CIBLE_ROLES.length && ['tresorier','vie_asso'].every(function(f){ return fonctions.indexOf(f) !== -1; });
+}
+function osAgendaCocherBureau(btn){
+  document.querySelectorAll('input[name="ag-roles"]').forEach(function(c){ c.checked = false; });
+  document.querySelectorAll('input[name="ag-fonctions"]').forEach(function(c){ c.checked = AGENDA_BUREAU.indexOf(c.value) !== -1; });
+  var zone = document.getElementById('ag-apercu-cibles');
+  if(zone && zone.parentNode) zone.parentNode.dispatchEvent(new Event('change'));
+}
 
 function osAgendaRender(){
   var wc = document.getElementById('wincontent-agenda');
@@ -2081,8 +2096,7 @@ function _osAgendaEnvoyerSerie(dests, construire, fin){
 function osAgendaPeutSInscrire(ev){
   if(!ev || ev._virtuel) return true;
   var roles = ev.cible_roles || [], fonctions = ev.cible_fonctions || [];
-  var toutLeMonde = (!roles.length && !fonctions.length)
-    || (roles.length === AGENDA_CIBLE_ROLES.length && fonctions.length === AGENDA_CIBLE_FONCTIONS.length);
+  var toutLeMonde = _agendaToutLeMonde(roles, fonctions);
   if(toutLeMonde) return true;
   var role = getUserRole();
   if(role === 'admin') return true;
@@ -2978,6 +2992,8 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div style="'+TITRE_SECTION+'">Qui est invité</div>';
   html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;line-height:1.5;">Rien de coché = toute l\'équipe. Sinon, sont invités les membres qui ont <b>un des rôles</b> cochés <b>ou une des fonctions</b> cochées. Les rédacteurs et SR doivent appartenir à la « Rédaction concernée » choisie plus haut (« Toutes » = rattaché·es à au moins une rédaction). Les membres marqués inactifs ne sont jamais invités.</div>';
   html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'SR', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
+  html += '<div><button type="button" onclick="osAgendaCocherBureau(this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;border:1px solid var(--encre);border-radius:20px;cursor:pointer;background:white;color:var(--encre);"><i class="ti ti-users"></i> Bureau</button>'
+    +'<span style="font-size:0.7rem;color:var(--gris);margin-left:0.5rem;">Coche président·e, vice-président·e, trésorier, secrétaire et vie asso. Décoche ensuite ce que tu veux.</span></div>';
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
   html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
   html += '</div>';
@@ -3176,8 +3192,7 @@ function _osAgendaCiblesMembres(membres, liens, roles, fonctions, redactionId){
     if(redactionId && String(l.redaction_id)!==String(redactionId)) return;
     rattaches[l.membre_id] = true;
   });
-  var toutLeMonde = (!roles.length && !fonctions.length)
-    || (roles.length===AGENDA_CIBLE_ROLES.length && fonctions.length===AGENDA_CIBLE_FONCTIONS.length);
+  var toutLeMonde = _agendaToutLeMonde(roles, fonctions);
   return (membres||[]).filter(function(m){
     if(!m.email || m.role==='interdit' || m.marque_inactif) return false;
     if(toutLeMonde) return true;
