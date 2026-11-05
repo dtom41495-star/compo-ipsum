@@ -6978,8 +6978,3 @@ button.tr-temps:hover { background: #E0D0EC; }
 /* Ma rédac' : « Alertes communiqués » en retrait sous Communiqués */
 .redac-sous-onglet { margin-left: 18px; padding-left: 6px; border-left: 2px solid var(--gris-bord); }
 .redac-sous-onglet > * { font-size: 0.92em; }
-
-/* Barre des tâches : Ma rédac' et Rédiger affichent toujours leur nom */
-.dock-icon.dock-icon-nomme .dock-icon-name { max-width: 160px; opacity: 1; margin-left: 8px; }
-.dock-icon.dock-icon-nomme .dock-icon-pill { background: rgba(255,255,255,0.08); padding-right: 10px; }
-.dock-icon.dock-icon-nomme.active-app .dock-icon-pill { background: rgba(255,255,255,0.16); }
