@@ -1036,7 +1036,8 @@ function osAgendaRendreCalendrier(){
   // En-têtes jours
   var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   var hdrJours = document.createElement('div');
-  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
+  // minmax(0,1fr) et non 1fr : sinon un titre d'événement long élargit sa colonne, la grille ne s'aligne plus sur les jours
+  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
   JOURS.forEach(function(j, idx){
     var el = document.createElement('div');
     el.style.cssText = 'text-align:center;font-family:DM Sans,sans-serif;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
@@ -1050,7 +1051,7 @@ function osAgendaRendreCalendrier(){
   grid.style.cssText = 'flex:1;overflow-y:auto;padding:0 0.6rem 0.6rem;';
 
   var cellGrid = document.createElement('div');
-  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gris-bord);';
+  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--gris-bord);';
 
   var premier = new Date(_agendaAnnee, _agendaMois, 1);
   var jourSemaine = (premier.getDay() + 6) % 7;
@@ -1077,7 +1078,7 @@ function osAgendaRendreCalendrier(){
     });
 
     var cell = document.createElement('div');
-    cell.style.cssText = 'min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
+    cell.style.cssText = 'min-width:0;min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
 
     var numEl = document.createElement('div');
     numEl.style.cssText = 'font-family:DM Sans,sans-serif;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
@@ -1087,8 +1088,10 @@ function osAgendaRendreCalendrier(){
     evsDuJour.slice(0,3).forEach(function(ev){
       var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
       var dot = document.createElement('div');
+      dot.className = 'agenda-mois-ev';
+      dot.title = ev.titre || '';
       dot.style.cssText = 'font-size:0.52rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;background:'+t.bg+';color:'+t.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;';
-      dot.innerHTML = t.icon+' '+esc(ev.titre||'');
+      dot.innerHTML = t.icon+'<span class="agenda-mois-ev-titre"> '+esc(ev.titre||'')+'</span>';
       cell.appendChild(dot);
     });
     if(evsDuJour.length > 3){
@@ -1378,6 +1381,7 @@ function osAgendaRendreJour(){
       +'<i class="ti ti-calendar-off" style="font-size:1.8rem;color:var(--gris);opacity:0.6;"></i>'
       +'<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">Aucun événement '+(estAuj?'aujourd\'hui':'ce jour-là')+'</div>'
       +'<div style="font-size:0.75rem;color:var(--gris);">'+(_agendaFiltreActif && _agendaFiltreActif!=='tous' ? 'Dans la catégorie sélectionnée. ' : '')+'Utilise les flèches pour passer au jour suivant.</div>'
+      +_agendaProchainHTML(jour)
       +'</div>';
     body.appendChild(zone);
     return;
@@ -1421,6 +1425,18 @@ function osAgendaRendreJour(){
 
   var cible = estAuj ? _agendaHeureDecimale(new Date()) : _agendaHeureDecimale(items[0].debut);
   _agendaDefilerVers(zone, plage, HAUTEUR, cible);
+}
+
+// Vue Jour vide : un bouton mène directement au prochain événement (au lieu de cliquer jour après jour)
+function _agendaProchainHTML(jour){
+  var finJour = new Date(jour); finJour.setHours(23,59,59,999);
+  var suivant = _agendaEvsVisibles(function(d){ return d > finJour; })
+    .sort(function(a,b){ return new Date(a.date_debut) - new Date(b.date_debut); })[0];
+  if(!suivant) return '';
+  var d = new Date(suivant.date_debut);
+  var quand = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  return '<button onclick="osAgendaAllerJour('+d.getFullYear()+','+d.getMonth()+','+d.getDate()+')" style="margin-top:0.8rem;display:inline-flex;align-items:center;gap:0.4rem;font-family:DM Sans,sans-serif;font-size:0.78rem;font-weight:600;padding:7px 14px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);cursor:pointer;max-width:100%;">'
+    +'<i class="ti ti-arrow-right"></i><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Prochain : '+esc(suivant.titre||'Événement')+' · '+quand+'</span></button>';
 }
 
 function osAgendaJourPrev(){ _agendaJourActuel.setDate(_agendaJourActuel.getDate()-1); osAgendaRendreJour(); }
@@ -1640,7 +1656,9 @@ function osAgendaOuvrirDetail(ev){
         iz += '<div style="background:'+sm.bg+';border-radius:8px;padding:0.6rem 0.7rem;">';
         iz += '<div style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;font-weight:600;color:'+sm.c+';"><i class="ti ti-'+sm.i+'" style="font-size:1rem;"></i>'+sm.l+'</div>';
         iz += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">';
-        if(monInscription.statut==='confirme'){
+        // Ordre de mission = déplacement : inutile pour un événement uniquement en visio
+        var enVisioSeule = !!ev.lien_visio && (!ev.lieu || /^\s*(en\s+)?(visio|visioconf[ée]rence|en ligne|distanciel)\s*$/i.test(ev.lieu));
+        if(monInscription.statut==='confirme' && !enVisioSeule){
           iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Mon ordre de mission</button>';
         }
         iz += '<button id="agenda-desinscr-btn" style="'+BTN_DANGER+'">Se désinscrire</button>';

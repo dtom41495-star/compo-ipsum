@@ -3540,6 +3540,9 @@ input:focus,select:focus,textarea:focus{
   /* Agenda : l'étiquette « places restantes » passe sous le titre */
   .agenda-carte { flex-wrap: wrap; }
   .agenda-carte-macaron { width: 100%; padding-left: calc(46px + 0.8rem); }
+  /* Agenda, vue Mois : les cases sont trop étroites pour un titre, seule l'icône colorée reste (le titre est dans la fiche) */
+  .agenda-mois-ev { text-align: center; font-size: 0.8rem !important; padding: 2px 0 !important; }
+  .agenda-mois-ev-titre { display: none; }
 }
 
 /* ===== PROJETS (js/16-projets.js, repris d'Ipsum Projets) ===== */
