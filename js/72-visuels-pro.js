@@ -456,9 +456,15 @@ function osVisuelsGenererArticle(o){
   var slug = String(o.titre || 'visuel').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'visuel';
   var rendre = function(){ return new Promise(function(ok){ setTimeout(ok, 250); }); };
   var photoOk = false;
-  return _vproPhotoEnDataUrl(o.image).then(function(photo){
-    if(photo) return photo;
-    return _vproDemanderPhoto(o.image ? 'La photo de l\'article n\'a pas pu être lue. Tu peux en choisir une sur ton ordinateur.' : 'Aucune photo n\'a été trouvée dans cet article. Tu peux en choisir une sur ton ordinateur.');
+  var aDesImages = !!(o.image || (o.images && o.images.length));
+  // Plusieurs photos dans l'article : on choisit laquelle va sur le visuel (null = annulé, '' = sans photo)
+  var choix = (o.images && o.images.length > 1) ? _vproChoisirImage(o.images) : Promise.resolve(o.image || (o.images && o.images[0] && o.images[0].url) || '');
+  return choix.then(function(url){
+    if(url === null) throw { annule:true };
+    if(url === '') return aDesImages ? null : _vproDemanderPhoto('Aucune photo n\'a été trouvée dans cet article. Tu peux en choisir une sur ton ordinateur.');
+    return _vproPhotoEnDataUrl(url).then(function(photo){
+      return photo || _vproDemanderPhoto('La photo de l\'article n\'a pas pu être lue. Tu peux en choisir une sur ton ordinateur.');
+    });
   }).then(function(photo){
     photoOk = !!photo;
     vproPhotoB64 = photo || null;
@@ -488,10 +494,92 @@ function osVisuelsGenererArticle(o){
     return ok;
   }).catch(function(e){
     remettre();
+    if(e && e.annule){ notif('Visuel annulé'); return false; }
     console.error('[Visuels]', e);
     notif('Le visuel n\'a pas pu être créé', 'erreur');
     return false;
   });
+}
+
+// ---- Les photos d'un article : la couverture puis celles du texte, sans doublon ----
+function osImagesArticle(doc){
+  var liste = [], vus = {};
+  var ajouter = function(url, legende, source){
+    url = String(url || '').trim();
+    if(!url || vus[url]) return;
+    vus[url] = true;
+    liste.push({ url:url, legende:(/^l[ée]gende de l['’]image$/i.test(String(legende||'').trim()) ? '' : String(legende||'').trim()), source:source });
+  };
+  if(doc && doc.image) ajouter(doc.image, doc.image_legende, 'couverture');
+  var re = /!\[([^\]]*)\]\(([^)\s]+)\)/g, m, corps = (doc && doc.corps) || '';
+  while((m = re.exec(corps))) ajouter(m[2], m[1], 'texte');
+  return liste;
+}
+
+// Fenêtre de choix de la photo. Promesse : l'adresse choisie, '' pour « sans photo », null si annulé.
+function _vproChoisirImage(images){
+  return new Promise(function(ok){
+    var ov = document.createElement('div');
+    ov.className = 'vpro-choix-voile';
+    ov.innerHTML = '<div class="vpro-choix" role="dialog" aria-label="Choisir la photo du visuel">'
+      +'<div class="vpro-choix-titre">Quelle photo pour le visuel ?</div>'
+      +'<div class="vpro-choix-sous">L\'article en contient '+images.length+'. Touche celle que tu veux.</div>'
+      +'<div class="vpro-choix-grille">'+images.map(function(im, i){
+          var src = typeof _driveImgSrc === 'function' ? _driveImgSrc(im.url) : im.url;
+          return '<button type="button" class="vpro-choix-img" data-i="'+i+'"><img src="'+_vproEsc(src)+'" alt="" loading="lazy">'
+            +'<span>'+(im.source === 'couverture' ? 'Couverture' : (im.legende ? _vproEsc(im.legende) : 'Photo '+(i + 1)))+'</span></button>';
+        }).join('')+'</div>'
+      +'<div class="vpro-choix-pied"><button type="button" data-a="annuler">Annuler</button><button type="button" data-a="sans">Sans photo</button></div>'
+      +'</div>';
+    var fin = function(v){ ov.remove(); document.removeEventListener('keydown', echap); ok(v); };
+    var echap = function(e){ if(e.key === 'Escape') fin(null); };
+    document.addEventListener('keydown', echap);
+    ov.addEventListener('click', function(e){
+      if(e.target === ov){ fin(null); return; }
+      var b = e.target.closest && e.target.closest('[data-i],[data-a]');
+      if(!b) return;
+      if(b.dataset.a === 'annuler') fin(null);
+      else if(b.dataset.a === 'sans') fin('');
+      else fin(images[+b.dataset.i].url);
+    });
+    document.body.appendChild(ov);
+  });
+}
+
+// ---- Bouton « Visuels » d'un article (éditeur ou lecture) : titre, rédaction et photo arrivent dans l'appli ----
+function osVisuelsDepuisArticle(doc){
+  if(typeof osVisuelsVerifierAcces === 'function' && !osVisuelsVerifierAcces()) return;
+  var titre = String((doc && doc.titre) || '').trim();
+  if(!titre){ notif('Ajoute un titre avant de générer les visuels'); return; }
+  var images = osImagesArticle(doc);
+  go('visuels-pro');
+  setTimeout(function(){
+    var t = document.getElementById('vpro-titre');
+    if(t){
+      t.value = titre;
+      var inner = document.getElementById('vpro-titre-inner');
+      if(inner) inner.textContent = titre;
+      if(typeof vproUpdateEl === 'function') vproUpdateEl('titre');
+    }
+    var sel = document.getElementById('vpro-redac');
+    if(sel && doc.redaction && Array.prototype.some.call(sel.options, function(op){ return op.value === doc.redaction; })){
+      sel.value = doc.redaction;
+      sel.dispatchEvent(new Event('change', { bubbles:true }));
+      if(typeof vproRendreTextes === 'function') vproRendreTextes();
+    }
+    if(!images.length){ notif('Titre importé. L\'article n\'a pas de photo : choisis-en une avec le bouton Photo.'); return; }
+    var choix = images.length > 1 ? _vproChoisirImage(images) : Promise.resolve(images[0].url);
+    choix.then(function(url){
+      if(!url){ notif('Titre importé'+(url === '' ? ', sans photo' : '')); return; }
+      notif('Import de la photo…');
+      return _vproPhotoEnDataUrl(url).then(function(photo){
+        if(!photo){ notif('Titre importé, mais la photo n\'a pas pu être lue : choisis-la avec le bouton Photo.', 'erreur'); return; }
+        vproPhotoB64 = photo;
+        vproUpdateBg();
+        notif('Titre et photo importés', 'succes');
+      });
+    });
+  }, 350);
 }
 
 function vproInit(){

@@ -1260,36 +1260,82 @@ function rLectureAfficherCommentaires(doc){
 // l'éditeur riche de Substack — il colle les # et ** au caractère près. On copie donc aussi
 // une version HTML équivalente (text/html), que les éditeurs riches préfèrent au collage et
 // qui arrive déjà mise en forme (titres, gras, italique, listes).
+// Liens, images et adresses nues sont mis de côté avant la mise en forme : un « _ » dans une adresse
+// (utm_source=…) ne doit pas devenir de l'italique.
 function _mdInlineVersHtml(ligne){
-  var t = esc(ligne);
+  var reserve = [];
+  var garder = function(html){ reserve.push(html); return '\u0000'+(reserve.length - 1)+'\u0000'; };
+  var t = String(ligne || '');
+  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function(m, alt, url){ return garder('<img src="'+esc(_mdImageUrl(url))+'" alt="'+esc(_mdLegende(alt))+'">'); });
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(m, txt, url){
+    if(!/^(https?:|mailto:)/i.test(url)) return txt;
+    return garder('<a href="'+esc(url)+'">'+_mdStyles(esc(txt))+'</a>');
+  });
+  t = t.replace(/\bhttps?:\/\/[^\s<>()]+[^\s<>().,;:!?»"']/g, function(url){ return garder('<a href="'+esc(url)+'">'+esc(url)+'</a>'); });
+  t = _mdStyles(esc(t));
+  return t.replace(/\u0000(\d+)\u0000/g, function(m, i){ return reserve[+i]; });
+}
+// Gras ** **, italique _ _ (celui de l'éditeur de Compo) et * *
+function _mdStyles(t){
   t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  t = t.replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  t = t.replace(/(^|[^\w])_([^_\n]+?)_(?![\w])/g, '$1<em>$2</em>');
+  t = t.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
   return t;
+}
+// Une image du Drive : son lien « …/file/d/ID/view » est une page, pas une image ; Substack a besoin de l'image elle-même
+function _mdImageUrl(url){
+  var m = String(url).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=|thumbnail\?(?:[^#]*&)?id=)([A-Za-z0-9_-]{10,})/);
+  return m ? 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w2000' : url;
+}
+// « Légende de l'image » est le texte d'exemple de l'éditeur : pas une vraie légende
+function _mdLegende(alt){
+  var a = String(alt || '').trim();
+  return /^l[ée]gende de l['’]image$/i.test(a) ? '' : a;
 }
 function _mdVersHtmlLeger(md){
   var lignes = (md||'').split('\n');
-  var html = '', dansListe = false;
+  var html = '', dansListe = false, dansCitation = false;
+  var fermer = function(){
+    if(dansListe){ html += '</ul>'; dansListe = false; }
+    if(dansCitation){ html += '</blockquote>'; dansCitation = false; }
+  };
   lignes.forEach(function(ligne){
     var t = ligne.trim();
-    if(!t){ if(dansListe){ html+='</ul>'; dansListe=false; } return; }
-    if(t === '---'){ if(dansListe){ html+='</ul>'; dansListe=false; } html+='<hr>'; return; }
+    if(!t){ fermer(); return; }
+    if(t === '---'){ fermer(); html += '<hr>'; return; }
     var mTitre = t.match(/^(#{1,3})\s+(.*)$/);
     if(mTitre){
-      if(dansListe){ html+='</ul>'; dansListe=false; }
+      fermer();
       var n = mTitre[1].length;
       html += '<h'+n+'>'+_mdInlineVersHtml(mTitre[2])+'</h'+n+'>';
       return;
     }
+    // Image seule sur sa ligne : une figure, avec sa légende si elle en a une vraie
+    var mImg = t.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/);
+    if(mImg){
+      fermer();
+      var leg = _mdLegende(mImg[1]);
+      html += '<figure><img src="'+esc(_mdImageUrl(mImg[2]))+'" alt="'+esc(leg)+'">'+(leg ? '<figcaption>'+esc(leg)+'</figcaption>' : '')+'</figure>';
+      return;
+    }
+    var mCit = t.match(/^>\s?(.*)$/);
+    if(mCit){
+      if(dansListe){ html += '</ul>'; dansListe = false; }
+      if(!dansCitation){ html += '<blockquote>'; dansCitation = true; }
+      html += '<p>'+_mdInlineVersHtml(mCit[1])+'</p>';
+      return;
+    }
     var mListe = t.match(/^-\s+(.*)$/);
     if(mListe){
-      if(!dansListe){ html+='<ul>'; dansListe=true; }
+      if(dansCitation){ html += '</blockquote>'; dansCitation = false; }
+      if(!dansListe){ html += '<ul>'; dansListe = true; }
       html += '<li>'+_mdInlineVersHtml(mListe[1])+'</li>';
       return;
     }
-    if(dansListe){ html+='</ul>'; dansListe=false; }
+    fermer();
     html += '<p>'+_mdInlineVersHtml(t)+'</p>';
   });
-  if(dansListe) html += '</ul>';
+  fermer();
   return html;
 }
 function _copierPourSubstack(md, msgSucces){
@@ -2247,45 +2293,30 @@ document.addEventListener('keydown',function(e){
 
 
 
-// Générer visuels depuis la page rédaction
+// Bouton « Visuels » de l'éditeur et de la lecture : titre, rédaction et photo arrivent dans l'appli Visuels
+// (js/72 : osVisuelsDepuisArticle ; s'il y a plusieurs photos, on choisit). Avant, seul le titre suivait.
 function genererVisuelsDepuisRedaction(){
-  if(!osVisuelsVerifierAcces()) return;
-  var titre = (document.getElementById('r-titre')||{}).value||'';
-  if(!titre.trim()){ notif('Ajoute un titre avant de générer les visuels'); return; }
-  go('visuels-pro');
-  setTimeout(function(){
-    var vproTitre = document.getElementById('vpro-titre');
-    if(vproTitre){
-      vproTitre.value = titre.trim();
-      var inner = document.getElementById('vpro-titre-inner');
-      if(inner) inner.textContent = titre.trim();
-      if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    }
-    notif('Titre importé dans Visuels','succes');
-  }, 300);
+  var leg = document.getElementById('r-img-leg');
+  osVisuelsDepuisArticle({
+    titre: (document.getElementById('r-titre')||{}).value || '',
+    corps: (document.getElementById('r-corps')||{}).value || '',
+    image: (typeof imgB64 !== 'undefined' && imgB64 && !_imgRetiree) ? imgB64 : null,   // couverture, enregistrée ou juste choisie
+    image_legende: leg ? leg.value : '',
+    redaction: (document.getElementById('r-redaction')||{}).value || (currentDoc && currentDoc.redaction) || ''
+  });
 }
 
 function genererVisuelsDepuisLecture(){
-  if(!osVisuelsVerifierAcces()) return;
-  var titre = '';
-  // Chercher le titre dans la vue lecture ou l'article courant
-  if(currentDoc && currentDoc.titre) titre = currentDoc.titre;
-  else {
-    var el = document.getElementById('art-preview');
-    if(el){ var h1 = el.querySelector('h1'); if(h1) titre = h1.textContent.trim(); }
+  var doc = currentDoc ? Object.assign({}, currentDoc) : null;
+  if(!doc){
+    var el = document.getElementById('art-preview'), h1 = el && el.querySelector('h1');
+    doc = { titre: h1 ? h1.textContent.trim() : '' };
   }
-  if(!titre){ notif('Titre introuvable'); return; }
-  go('visuels-pro');
-  setTimeout(function(){
-    var vproTitre = document.getElementById('vpro-titre');
-    if(vproTitre){
-      vproTitre.value = titre;
-      var inner = document.getElementById('vpro-titre-inner');
-      if(inner) inner.textContent = titre;
-      if(typeof vproUpdateEl==='function') vproUpdateEl('titre');
-    }
-    notif('Titre importé dans Visuels','succes');
-  }, 300);
+  if(!doc.redaction && doc.redaction_id){
+    var r = (window._redactionsData||[]).find(function(x){ return x.id === doc.redaction_id; });
+    if(r) doc.redaction = r.nom;
+  }
+  osVisuelsDepuisArticle(doc);
 }
 
 // Init mode pro quand on arrive sur la page
