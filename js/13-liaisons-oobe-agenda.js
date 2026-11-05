@@ -1011,6 +1011,7 @@ function _agendaMacaronHTML(ev, monStatut){
   if(monStatut === 'confirme') return macaron('circle-check', 'Inscrit', '#E3F6EA', '#BFE6CD', '#1E7A45');
   if(monStatut === 'en_attente') return macaron('clock', 'En attente', '#FFF6DB', '#F3DFA2', '#8A6400');
   var passe = new Date(ev.date_debut) < new Date();
+  if(!passe && !osAgendaPeutSInscrire(ev)) return macaron('lock', 'Réservé', 'var(--gris-clair)', 'var(--gris-bord)', 'var(--gris)');
   if(passe || !ev.places_max) return '';
   var restantes = Math.max(0, ev.places_max - (ev._nb_inscrits || 0));
   if(!restantes) return macaron('circle-x', 'Complet', '#FDECEC', '#F5C6C6', '#B42318');
@@ -1643,7 +1644,14 @@ function osAgendaOuvrirDetail(ev){
     // Mon inscription
     if(ev.statut !== 'annule'){
       iz += '<div style="margin-top:0.8rem;">';
-      if(!monInscription){
+      var reserve = !monInscription && !osAgendaPeutSInscrire(ev);
+      if(reserve){
+        // Événement réservé à un public (rôles / fonctions cochés) : visible par tous, mais on ne s'y inscrit pas soi-même.
+        // Un responsable peut toujours ajouter quelqu'un à la main (« Ajouter un participant »).
+        iz += '<div style="display:flex;gap:0.5rem;align-items:flex-start;background:var(--gris-clair);border-radius:8px;padding:0.6rem 0.7rem;font-size:0.76rem;color:var(--encre);line-height:1.45;">'
+          +'<i class="ti ti-lock" style="font-size:1rem;color:var(--gris);margin-top:1px;"></i>'
+          +'<div><b>Réservé à : '+esc(_agendaPublicTexte(ev))+'</b><br><span style="color:var(--gris);">Tu peux voir l\'événement, mais pas t\'y inscrire. Si ta présence est utile, un·e responsable peut t\'ajouter.</span></div></div>';
+      } else if(!monInscription){
         iz += '<button id="agenda-inscr-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'
           +(complet ? 'Complet · '+nbConfirmes+'/'+ev.places_max+' inscrits' : '<i class="ti ti-check"></i> S\'inscrire')+'</button>';
       } else {
@@ -2067,11 +2075,38 @@ function _osAgendaEnvoyerSerie(dests, construire, fin){
   suivant(0);
 }
 
+// Public d'un événement (case « Qui est invité ») : même règle que les invitations (_osAgendaCiblesMembres).
+// Rien de coché, ou tout coché = toute l'équipe. Sinon : une des fonctions cochées, ou un des rôles cochés
+// (rédacteurs et SR rattachés à la rédaction de l'événement, ou à une rédaction s'il n'en a pas). Les admins passent toujours.
+function osAgendaPeutSInscrire(ev){
+  if(!ev || ev._virtuel) return true;
+  var roles = ev.cible_roles || [], fonctions = ev.cible_fonctions || [];
+  var toutLeMonde = (!roles.length && !fonctions.length)
+    || (roles.length === AGENDA_CIBLE_ROLES.length && fonctions.length === AGENDA_CIBLE_FONCTIONS.length);
+  if(toutLeMonde) return true;
+  var role = getUserRole();
+  if(role === 'admin') return true;
+  if(fonctions.some(function(f){ return getUserHasFonction(f); })) return true;
+  if(roles.indexOf(role) === -1) return false;
+  var uid = getUserId();
+  return (window._membresRedactionsData || []).some(function(l){
+    return l.membre_id === uid && (!ev.redaction_id || String(l.redaction_id) === String(ev.redaction_id));
+  });
+}
+function _agendaPublicTexte(ev){
+  var R = {redacteur:'rédacteurs', correcteur:'SR', admin:'admins'};
+  var morceaux = (ev.cible_roles || []).map(function(r){ return R[r] || r; })
+    .concat((ev.cible_fonctions || []).map(function(f){ return ((typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[f]) || FONCTIONS_LBL[f] || f).toLowerCase(); }));
+  var t = morceaux.join(', ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function osAgendaSInscrire(evId){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  if(ev && !osAgendaPeutSInscrire(ev)){ notif('Cet événement est réservé à : '+_agendaPublicTexte(ev)+'.', 'alerte'); return; }
   var statutInitial = (ev && ev.validation_admin) ? 'en_attente' : 'confirme';
 
   // Inscription à un événement déjà passé (saisie rétroactive, ex. pour créditer des
