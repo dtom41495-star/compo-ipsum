@@ -1410,7 +1410,7 @@ function osBuildDesktopIcons(){
     redacIcon.dataset.app = 'redactions';
     redacIcon.title = 'Ta rédaction : sujets à prendre, Rédiger, membres, communiqués';
     redacIcon.onclick = function(){ osOpenWindow('redactions'); };
-    redacIcon.innerHTML = '<div class="desktop-icon-img" style="background:linear-gradient(135deg,#E8461E,#F07A2E);color:white;"><i class="ti ti-users-group"></i></div>'
+    redacIcon.innerHTML = '<div class="desktop-icon-img" style="background:linear-gradient(135deg,#E8461E,#F07A2E);color:white;"><i class="ti ti-news"></i></div>'
       +'<div class="desktop-icon-label">Ma rédac\'</div>';
     container.appendChild(redacIcon);
   }

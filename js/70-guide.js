@@ -135,7 +135,7 @@ function _gdChapitreHtml(id){
     +'<h2>Écrire et suivre</h2>'
     +_gdAppCarte('ti-pencil', '#E8461E', 'Rédiger', 'Écrire un article ou une brève, ajouter une image, l’envoyer au SR.', 'redaction')
     +_gdAppCarte('ti-article', '#993C1D', 'Articles', 'Tous tes textes et leur étape : en écriture, au SR, relu, en ligne.', 'mes-articles')
-    +_gdAppCarte('ti-users-group', '#1A5276', 'Ma rédac’', 'Ta rédaction : ses sujets, ses membres, ses communiqués de presse et son équipe.', 'redactions')
+    +_gdAppCarte('ti-news', '#1A5276', 'Ma rédac’', 'Ta rédaction : ses sujets, ses membres, ses communiqués de presse et son équipe.', 'redactions')
     +_gdAppCarte('ti-notes', '#856404', 'Notes', 'Ton bloc-notes personnel, pour garder une idée ou un plan.', 'notes')
     +_gdAppCarte('ti-address-book', '#0C5460', 'Sources', 'Ton carnet de contacts : qui as-tu interviewé, comment le recontacter.', 'carnet')
     +'<h2>Trouver des idées et s’organiser</h2>'

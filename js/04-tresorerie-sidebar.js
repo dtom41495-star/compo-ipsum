@@ -793,8 +793,7 @@ function osDockSignal(icone, classe, actif){
 
 function _creerIconeDock(app, isPinned){
   var icon = document.createElement('div');
-  // Ma rédac' et Rédiger gardent leur nom à côté de l'icône : ce sont les deux portes d'entrée, et une rangée d'icônes sans texte ne se lit pas quand on arrive
-  icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '') + (app.id === 'redactions' || app.id === 'redaction' ? ' dock-icon-nomme' : '');
+  icon.className = 'dock-icon' + (window._activeWindowId === app.id ? ' active-app' : '');
   icon.dataset.page = app.id;
   icon.dataset.pinned = isPinned ? '1' : '0';
   // Reconstruit avec le dock : sans ça le signal de Ma rédac attendait le prochain
