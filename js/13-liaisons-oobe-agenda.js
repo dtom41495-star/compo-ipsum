@@ -2996,6 +2996,11 @@ function osAgendaOuvrirFormulaire(ev){
     +'<span style="font-size:0.7rem;color:var(--gris);margin-left:0.5rem;">Coche président·e, vice-président·e, trésorier, secrétaire et vie asso. Décoche ensuite ce que tu veux.</span></div>';
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
   html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
+  // Prévenir ou non (activé par défaut) : à la création, l'invitation par email ; à la modification,
+  // le message aux inscrits quand la date, l'heure ou le lieu change. Décocher = rien ne part.
+  html += ev
+    ? interrupteur('ag-prevenir', 'Prévenir les inscrits du changement', 'Si la date, l\'heure ou le lieu change, les inscrits reçoivent un message. Décoche pour ne rien envoyer.', true, 'bell')
+    : interrupteur('ag-prevenir', 'Prévenir par email', 'Les personnes ci-dessus reçoivent l\'invitation à la création. Décoche pour créer l\'événement sans rien envoyer.', true, 'bell');
   html += '</div>';
 
   html += '</div>';
@@ -3046,6 +3051,8 @@ function osAgendaSauvegarder(evId){
   var places = (document.getElementById('ag-places')||{}).value||'';
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
   var ouvertExternes = !!(document.getElementById('ag-ouvert-externes')||{}).checked;
+  var caseP = document.getElementById('ag-prevenir');
+  var prevenir = !caseP || caseP.checked;   // activé par défaut
   var infosReservees = !!(document.getElementById('ag-infos-reservees')||{}).checked;
   var organisateur = (document.getElementById('ag-organisateur')||{}).value||getUserNomComplet();
   var redactionId = (document.getElementById('ag-redaction')||{}).value||null;
@@ -3115,11 +3122,12 @@ function osAgendaSauvegarder(evId){
       else osAgendaRendreVue();
     });
     // Événement passé (saisi rétroactivement pour créditer des heures) — ne pas inviter à un événement déjà terminé
-    if(!isEdit && new Date(payload.date_debut) > new Date()){
+    if(!prevenir){ /* « Prévenir » décoché : aucun message */ }
+    else if(!isEdit && new Date(payload.date_debut) > new Date()){
       osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
       if(payload.contact_email) osAgendaPrevenirContactExterne(evSauve);
     }
-    if(isEdit && evAvant && evAvant.id && evAvant.statut!=='annule' && new Date(payload.date_debut) > new Date()){
+    if(prevenir && isEdit && evAvant && evAvant.id && evAvant.statut!=='annule' && new Date(payload.date_debut) > new Date()){
       _osAgendaPrevenirModification(evAvant, evSauve);
     }
   }).catch(function(){ notif('Erreur sauvegarde'); });
