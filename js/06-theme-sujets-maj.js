@@ -386,7 +386,7 @@ var TOUR_ETAPES = [
   },
   {
     id: 'redac', pageId: 'redactions', cible: '#redac-sidebar-rail',
-    titre: '<i class="ti ti-news"></i> Ma Rédac\'',
+    titre: '<i class="ti ti-users-group"></i> Ma Rédac\'',
     texte: 'Ton espace rédaction : ton profil, les sujets disponibles à réserver, les annonces de recrutement, et ta rédaction locale. Le bandeau "Sujets à rédiger" en haut te montre toujours ce qu\'il y a de plus urgent à écrire.'
   },
   {
