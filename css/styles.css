@@ -7263,3 +7263,14 @@ button.trx-temps:hover { background: #E0D0EC; }
   .cx-rail-sep { display: none; }
   .cx-cat-relancer { order: -1; }   /* sur téléphone, en tête des pastilles : sinon caché au bout du défilement */
 }
+
+/* Roulette des sujets en thème sombre : le bandeau gardait son dégradé clair (le mode sombre
+   automatique n'adapte pas les dégradés) sous un texte passé en clair, illisible */
+:root.theme-dark .rl-bandeau { background: linear-gradient(90deg, rgba(232,70,30,0.20), rgba(232,70,30,0.07)); border-color: rgba(232,70,30,0.38); }
+:root.theme-dark .rl-bandeau-off { background: #1E1E30; border-color: rgba(255,255,255,0.10); }
+:root.theme-dark .rl-bandeau-off .rl-de { background: #4A4858; box-shadow: 0 3px 0 #2E2C3A; }
+:root.theme-dark .rl-bandeau-t { color: #E8E6E1; }
+:root.theme-dark .rl-bandeau-t small { color: rgba(232,230,225,0.65); }
+/* Sources, « À relancer » */
+:root.theme-dark .cx-compte-relancer { background: rgba(224,162,27,0.14); color: #F3D58A; }
+:root.theme-dark .cx-activite { color: #E9BE5C; }

@@ -1170,6 +1170,8 @@ function osSujetValiderProposition(sujetId, accepte, raison){
     notif(accepte ? 'Sujet publié' : 'Proposition refusée : son auteur·rice peut la préciser et la renvoyer', accepte ? 'succes' : '');
     _osSujetPrevenirAuteur(s, accepte, raison);
     window._sujetsPropositionsAttente = (window._sujetsPropositionsAttente||[]).filter(function(x){ return x.id !== sujetId; });
+    // Validé par moi : je l'ai vu, il ne doit pas revenir comme « nouveau » sur mes autres appareils
+    if(accepte && typeof osVusAjouter === 'function') osVusAjouter('sujet', [sujetId], true);
     osRedactionsChangerOnglet('sujets');
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
