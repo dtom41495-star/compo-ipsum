@@ -1291,8 +1291,12 @@ function osMesArticlesCharger(){
     // n'a pas besoin de cette étape, cf. estValidateurCentral()/rWorkflowMajInterface).
     q = SB_URL+'/rest/v1/articles?statut=in.(valide,valide_central)&select=*&order=updated_at.desc.nullslast';
   } else {
+    // « Mes articles » et « Mes brouillons » : UNIQUEMENT les articles dont je suis l'auteur·rice.
+    // NE PAS rajouter correcteur_id ici : les articles des autres que je relis sont dans « À relire »
+    // et « Tous les articles ». (Bug réintroduit trois fois : la requête prenait aussi les articles
+    // relus, puis un filtre plus bas devait les retirer, et chaque retouche du filtre les faisait revenir.)
     q = uid
-      ? SB_URL+'/rest/v1/articles?or=(auteur_id.eq.'+encodeURIComponent(uid)+',correcteur_id.eq.'+encodeURIComponent(uid)+')&select=*&order=updated_at.desc.nullslast'
+      ? SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&select=*&order=updated_at.desc.nullslast'
       : SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc.nullslast';
   }
 
@@ -1368,9 +1372,9 @@ function maOsFiltre(){
   if(_maOnglet === 'tableau-sr') return;   // le tableau de bord se dessine seul
 
   var arts = _maCache.slice();
-  // Mes brouillons / Mes articles partagent la même requête (mes articles + ceux que je
-  // corrige) et se distinguent ici : mes brouillons d'un côté, mes articles plus avancés de l'autre
-  // (les articles des autres que je relis n'apparaissent dans aucun des deux). Le statut lui-même se lit désormais
+  // Mes brouillons / Mes articles partagent la même requête (mes articles seulement, voir
+  // osMesArticlesCharger) et se distinguent ici : mes brouillons d'un côté, le reste de l'autre.
+  // Le filtre sur auteur_id est gardé en double sécurité. Le statut lui-même se lit désormais
   // dans le regroupement de la vue "Tous les articles" plutôt que via un filtre à part —
   // c'était tout l'intérêt du rail.
   if(_maOnglet === 'brouillons'){
