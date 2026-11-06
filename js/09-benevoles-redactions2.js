@@ -960,8 +960,12 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   fetch(SB_URL+'/rest/v1/recrutement_candidatures?id=eq.'+candidatureId,{method:'PATCH',headers:authH,body:JSON.stringify({statut:decision})})
   .then(function(r){
-    if(r.ok){
-      notif(decision==='accepte'?'Candidature acceptée':'Candidature refusée','succes');
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    // Acceptée sur une annonce rattachée à une commission : la personne rejoint la commission
+    // (déjà dedans : rien ne change). Le message au candidat attend le résultat pour le lui dire.
+    (decision==='accepte' && membreId && annonceId ? _benvAjouterCommissionAnnonce(annonceId, membreId) : Promise.resolve(''))
+    .then(function(nomCommission){
+      if(nomCommission !== null) notif(decision==='accepte' ? 'Candidature acceptée'+(nomCommission ? ', ajouté·e à la commission '+nomCommission : '') : 'Candidature refusée','succes');
       // Email au candidat
       if(email){
         var sujet = decision==='accepte'?'✓ Ta candidature a été acceptée — Ipsum Média':'Ta candidature chez Ipsum Média';
@@ -970,12 +974,12 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
           +'<div style="background:#F7F8FA;padding:1.5rem;">'
           +'<p style="font-size:0.95rem;color:#111;">Bonjour '+esc(prenom)+'</p>'
           +(decision==='accepte'
-            ?'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Bonne nouvelle ! Ta candidature a été <strong style="color:#155724;">acceptée</strong>. Bienvenue dans l\'équipe !</p><p style="font-size:0.78rem;color:#6B7280;margin-top:0.5rem;">Tu seras contacté prochainement pour la suite.</p>'
+            ?'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Bonne nouvelle ! Ta candidature a été <strong style="color:#155724;">acceptée</strong>. Bienvenue dans l\'équipe !'+(nomCommission ? ' Tu rejoins la commission <strong>'+esc(nomCommission)+'</strong>.' : '')+'</p><p style="font-size:0.78rem;color:#6B7280;margin-top:0.5rem;">Tu seras contacté prochainement pour la suite.</p>'
             :'<p style="font-size:0.85rem;color:#374151;margin-top:0.5rem;">Merci pour ta candidature. Malheureusement, nous n\'avons pas pu retenir ta candidature cette fois-ci. N\'hésite pas à postuler à nouveau !</p>'
           )
           +'</div></div>';
         var chatTexte = (decision==='accepte'
-          ? '✓ Ta candidature a été acceptée ! Bienvenue dans l\'équipe, tu seras contacté prochainement pour la suite.'
+          ? '✓ Ta candidature a été acceptée ! Bienvenue dans l\'équipe'+(nomCommission ? ', tu rejoins la commission '+_chatSansMiseEnForme(nomCommission) : '')+'. Tu seras contacté prochainement pour la suite.'
           : 'Merci pour ta candidature. Nous n\'avons pas pu la retenir cette fois-ci — n\'hésite pas à postuler à nouveau !');
         function envoyerEmailCandidature(){ envoyerEmailResend(email, sujet, corps); }
         if(membreId){
@@ -1003,8 +1007,34 @@ function osBenvCandidatureTraiter(candidatureId, membreId, decision, email, pren
       // Rafraîchit juste le badge de compteur sur la liste des annonces en arrière-plan
       // (pas tout le tableau de bord — équipe/commissions/stats n'ont pas à recharger ici).
       osBenvChargerRecrutement();
-    } else notif('Erreur','erreur');
+    });
   });
+}
+
+// Ajoute le membre à la commission de l'annonce, s'il y en a une. Renvoie le nom de la
+// commission ('' : pas de commission ; null : ajout refusé, déjà signalé). Déjà membre : l'ajout est
+// ignoré (contrainte unique) et on renvoie quand même le nom.
+function _benvAjouterCommissionAnnonce(annonceId, membreId){
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/recrutement_annonces?id=eq.'+encodeURIComponent(annonceId)+'&select=commission_id,commissions(nom)',{headers:authH})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      var a = Array.isArray(rows) ? rows[0] : null;
+      if(!a || !a.commission_id) return '';
+      var nom = (a.commissions && a.commissions.nom) || 'de l\'annonce';
+      return fetch(SB_URL+'/rest/v1/commission_membres?on_conflict=commission_id,membre_id',{method:'POST',
+        headers:Object.assign({}, authH, {'Content-Type':'application/json','Prefer':'return=representation,resolution=ignore-duplicates'}),
+        body:JSON.stringify({commission_id:a.commission_id, membre_id:membreId})})
+      .then(function(r){
+        if(!r.ok){ notif('Candidature acceptée, mais l\'ajout à la commission '+nom+' a échoué : fais-le à la main','alerte'); return null; }
+        return r.json().then(function(ajout){
+          // Nouveau dans la commission : sa fonction liée suit (comme un ajout à la main)
+          if(Array.isArray(ajout) && ajout.length && typeof _benvSyncFonctionCommission === 'function') _benvSyncFonctionCommission(a.commission_id, membreId, true);
+          return nom;
+        });
+      });
+    })
+    .catch(function(){ return ''; });
 }
 
 function osBenvEnvoyerRecap(){
