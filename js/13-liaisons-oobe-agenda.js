@@ -3254,19 +3254,29 @@ function _agendaSuggererCreneaux(ids, titre){
   }, 350);
 }
 function _agendaAfficherCreneaux(zone, rows, total, titre){
-  var max = Math.max.apply(null, rows.map(function(r){ return +r.attendus; })) || 1;
-  var jeune = (Date.now() - AGENDA_COLLECTE_DEBUT.getTime()) < 28 * 86400000;
-  var h = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> '+(titre || 'Meilleurs créneaux pour ces invités')+'</div>';
+  var max = Math.max.apply(null, rows.map(function(r){ return +r.attendus; })) || 0;
+  var titreHtml = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> '+(titre || 'Meilleurs créneaux pour ces invités')+'</div>';
+  // Données trop minces (moins de 2 semaines de collecte, ou moins d'une personne attendue au meilleur créneau) :
+  // pas de classement, il serait trompeur (des barres pleines pour « moins d'1 personne sur 13 »)
+  var collecteJours = (Date.now() - AGENDA_COLLECTE_DEBUT.getTime()) / 86400000;
+  if(collecteJours < 14 || max < 1){
+    zone.innerHTML = titreHtml
+      +'<div style="font-size:0.74rem;color:var(--gris);line-height:1.45;">Pas encore assez de données pour suggérer un créneau. Compo apprend les heures de connexion des membres depuis le 6 novembre : reviens dans quelques semaines.</div>';
+    zone.style.cssText = 'background:var(--gris-clair);border:1px solid var(--gris-bord);border-radius:8px;padding:0.6rem 0.7rem;';
+    return;
+  }
+  var h = titreHtml;
   rows.forEach(function(r){
     var n = +r.attendus;
-    var txt = n < 1 ? 'moins d\'1 personne sur '+total : '≈ '+Math.round(n)+' sur '+total;
+    var txt = '≈ '+Math.round(n)+' sur '+total;
+    // Barre rapportée au nombre d'invités : 6 sur 13 = à moitié pleine
     h += '<button type="button" onclick="osAgendaChoisirCreneau('+r.jour+','+r.heure+')" style="display:flex;align-items:center;gap:0.6rem;width:100%;text-align:left;margin-bottom:0.3rem;padding:0.45rem 0.6rem;border:1px solid var(--gris-bord);border-radius:8px;background:white;cursor:pointer;font-family:DM Sans,sans-serif;">'
       +'<span style="flex:1;min-width:0;font-size:0.78rem;font-weight:600;color:var(--encre);">'+AGENDA_JOURS[r.jour]+' '+r.heure+'h–'+(r.heure+1)+'h</span>'
-      +'<span style="width:70px;height:6px;border-radius:3px;background:var(--gris-clair);overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:'+Math.max(8, Math.round(n / max * 100))+'%;background:#2E9E5B;"></span></span>'
-      +'<span style="font-size:0.7rem;color:var(--gris);white-space:nowrap;min-width:130px;text-align:right;">'+txt+'</span></button>';
+      +'<span style="width:70px;height:6px;border-radius:3px;background:var(--gris-clair);overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:'+Math.min(100, Math.max(4, Math.round(n / Math.max(1, total) * 100)))+'%;background:#2E9E5B;"></span></span>'
+      +'<span style="font-size:0.7rem;color:var(--gris);white-space:nowrap;min-width:70px;text-align:right;">'+txt+'</span></button>';
   });
-  h += '<div style="font-size:0.66rem;color:var(--gris);line-height:1.4;">Personnes habituellement connectées à Compo à cette heure-là. Clique pour remplir la date (la prochaine occurrence).'
-    +(jeune ? ' Encore peu de données (collecte lancée le 6 novembre) : à prendre comme une indication.' : '')+'</div>';
+  h += '<div style="font-size:0.66rem;color:var(--gris);line-height:1.4;">Nombre d\'invités habituellement connectés à Compo à cette heure-là. Clique pour remplir la date (la prochaine occurrence).'
+    +(collecteJours < 28 ? ' Encore peu de recul : à prendre comme une indication.' : '')+'</div>';
   zone.innerHTML = h;
   zone.style.cssText = 'background:#EEF8F1;border:1px solid #CDEBD7;border-radius:8px;padding:0.6rem 0.7rem;';
 }
