@@ -698,13 +698,14 @@ function osLaunchpadContextMenu(app, estEpingle, x, y){
 
 function osLaunchpadToggleEpingle(appId, epingle){
   var uid = getUserId(); if(!uid) return;
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(uid)+'&app_id=eq.'+encodeURIComponent(appId), {
-    method:'PATCH',
+  // Upsert : une appli de base n'a pas forcément de ligne dans membres_apps (les accès sont calculés, js/80)
+  fetch(SB_URL+'/rest/v1/membres_apps?on_conflict=membre_id,app_id', {
+    method:'POST',
     headers: Object.assign({}, SB_HEADERS, {
       'Authorization':'Bearer '+(_session&&_session.access_token||''),
-      'Prefer':'return=minimal'
+      'Prefer':'return=minimal,resolution=merge-duplicates'
     }),
-    body: JSON.stringify({ epingle: epingle })
+    body: JSON.stringify({ membre_id: uid, app_id: appId, epingle: epingle })
   }).then(function(r){
     if(r.ok){
       notif(epingle ? 'App épinglée dans le dock !' : 'App retirée du dock');
@@ -1643,7 +1644,9 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     // global (redacteur/correcteur/...), qui n'est jamais littéralement 'redac_chef'.
     fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.redac_chef&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
     // Membre d'au moins une rédaction ? La Boutique n'est accessible qu'à celles et ceux qui en font partie
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    // SR dans au moins une rédaction ? (Newsletter…)
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.correcteur&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ])
   .then(function(resultats){
     var data = resultats[0];
@@ -1665,235 +1668,28 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
       if(callback) callback();
       return;
     }
-    if(!data.length){
-      window._userApps = null;
-      window._userAppsAll = null;
-      // Si l'OOBE est déjà faite mais aucune app configurée → écran d'attente
-      var oobeDone = localStorage.getItem('compo_oobe_done_'+userId);
-      if(oobeDone){
-        osAfficherSessionNonConfiguree();
-        return;
-      }
-      var roleInitial = roleOverride || getUserRole();
-      _initialiserAppsParDefaut(userId, (estChefQuelquePart && roleInitial !== 'admin') ? 'redac_chef' : roleInitial);
-    } else {
-      // Apps trouvées — si OOBE pas encore faite, ne pas la sauter
-      // Elle permettra au bénévole de saisir prénom/nom même si apps préconfigurées
-      var allIds = data.map(function(d){ return d.app_id; });
-      var epinglesIds = data.filter(function(d){ return d.epingle; }).map(function(d){ return d.app_id; });
-
-      // Admin : garantir gestion-apps toujours présent
-      var roleEffectif = roleOverride || getUserRole();
-      if(roleEffectif === 'admin' && !allIds.includes('gestion-apps')){
-        allIds.push('gestion-apps');
-        epinglesIds.push('gestion-apps');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'gestion-apps', epingle: false })
-        }).catch(function(){});
-      }
-
-      // fonctionFraiche (chargée juste au-dessus) prime sur l'ancienne valeur globale,
-      // qui peut ne pas encore exister à ce stade — voir le commentaire plus haut.
-      var fonctionsEffectives = fonctionFraiche || getUserFonction();
-
-      // Trésorier : garantir tresorerie toujours présent si fonction tresorier
-      if(fonctionsEffectives.indexOf('tresorier') !== -1 && !allIds.includes('tresorerie')){
-        allIds.push('tresorerie');
-        epinglesIds.push('tresorerie');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'tresorerie', epingle: true })
-        }).catch(function(){});
-      }
-
-      // Rédac chef : garantir cps-admin (Communiqués) toujours présent — devenir chef
-      // (osRedacChefChangerRole) ne fait qu'un PATCH sur role_redac, jamais sur
-      // membres_apps ; sans cette garantie, personne ne récupérait automatiquement de
-      // quoi créer un communiqué en le devenant, il fallait qu'un admin pense à le
-      // faire à la main depuis Gestion apps.
-      if(estChefQuelquePart && !allIds.includes('cps-admin')){
-        allIds.push('cps-admin');
-        epinglesIds.push('cps-admin');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'cps-admin', epingle: true })
-        }).catch(function(){});
-      }
-
-      // Communicant·es (rôle ou fonction de communication) : l'appli Visuels est toujours présente et épinglée
-      if(osEstCommunicant() && !allIds.includes('visuels-pro')){
-        allIds.push('visuels-pro');
-        epinglesIds.push('visuels-pro');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'visuels-pro', epingle: true })
-        }).catch(function(){});
-      }
-
-      // Agenda : garantir toujours présent — l'icône fixe du bureau (osBuildDesktopIcons)
-      // y donnait accès à tout le monde sans jamais dépendre de membres_apps, donc
-      // personne n'avait besoin de se l'auto-accorder. Le bureau étant masqué sur
-      // mobile (#os-desktop-icons{display:none}), ce chemin unique disparaissait pour
-      // quiconque n'avait pas Agenda dans ses apps réelles — la plupart des rédacteurs
-      // et correcteurs, absents de leurs profils par défaut (voir PROFILS_PREDEFINIS).
-      // appAccessible() plus bas filtre déjà par rôle, pas besoin de le revérifier ici.
-      if(!allIds.includes('agenda')){
-        allIds.push('agenda');
-        epinglesIds.push('agenda');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'agenda', epingle: true })
-        }).catch(function(){});
-      }
-
-      // Veille : garantir toujours présent — Tom veut que tout le monde l'ait d'entrée,
-      // pas seulement les nouveaux comptes (PROFILS_PREDEFINIS ne s'applique jamais
-      // rétroactivement aux comptes déjà configurés dans membres_apps). Même mécanisme
-      // que pour Agenda juste au-dessus ; appAccessible() plus bas filtre quand même par
-      // rôle, donc ça n'accorde rien à un rôle qui ne devrait pas l'avoir (communicant).
-      if(!allIds.includes('veille')){
-        allIds.push('veille');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'veille' })
-        }).catch(function(){});
-      }
-
-      // Salles : toujours sur le bureau (js/05, à côté de l'Agenda), donc plus dans le Store ; on la garantit
-      // dans les applis du membre pour qu'elle figure aussi dans le menu et la recherche
-      if(!allIds.includes('salles')){
-        allIds.push('salles');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'salles' })
-        }).catch(function(){});
-      }
-
-      // Boutique : pour tous les membres d'une rédaction (même mécanisme que Veille)
-      if(estDansUneRedac && !allIds.includes('boutique')){
-        allIds.push('boutique');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'boutique' })
-        }).catch(function(){});
-      }
-
-      // Écran rédac : pour les rédac chefs et les admins (même mécanisme que Veille)
-      if((estChefQuelquePart || roleEffectif === 'admin') && !allIds.includes('ecran-redac')){
-        allIds.push('ecran-redac');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'ecran-redac' })
-        }).catch(function(){});
-      }
-
-      // Cockpit : réservé aux admins (même mécanisme que l'écran rédac)
-      if(roleEffectif === 'admin' && !allIds.includes('cockpit')){
-        allIds.push('cockpit');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'cockpit' })
-        }).catch(function(){});
-      }
-
-      // Projets : accessible à tout le monde (même mécanisme que Veille ci-dessus)
-      if(!allIds.includes('projets')){
-        allIds.push('projets');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'projets' })
-        }).catch(function(){});
-      }
-
-      // Notes de frais : pour tout le monde (le trésorier valide, les admins gardent un regard dessus)
-      if(!allIds.includes('notes-frais')){
-        allIds.push('notes-frais');
-        fetch(SB_URL+'/rest/v1/membres_apps', {
-          method:'POST',
-          headers: Object.assign({}, SB_HEADERS, {
-            'Authorization':'Bearer '+(_session&&_session.access_token||''),
-            'Prefer':'return=minimal,resolution=ignore-duplicates'
-          }),
-          body: JSON.stringify({ membre_id: userId, app_id: 'notes-frais' })
-        }).catch(function(){});
-      }
-
-      // Filtrer aussi selon le rôle — une app admin ne doit pas apparaître pour un rédacteur
-      // SAUF si le membre a la fonction requise (ex: tresorier)
-      function appAccessible(a){
-        // Boutique : réservée aux membres d'une rédaction (les admins la gèrent, ils l'ont toujours)
-        if(a.id === 'boutique' && roleEffectif !== 'admin' && !estDansUneRedac) return false;
-        if(!a.roles) return true;
-        // "redac_chef" en plus du rôle global, jamais à sa place : role_redac est un
-        // statut par rédaction, pas le rôle Compo de la personne. Le vérifier EN PLUS
-        // (et non en remplacement) évite qu'un chef rédacteur perde l'accès à Rédiger
-        // (roles:['redacteur','admin'], sans 'redac_chef') tout en débloquant enfin
-        // Communiqués (roles:['admin','redac_chef']) — jusqu'ici accordable depuis
-        // Gestion apps mais toujours filtré ici, silencieusement, faute de connaître
-        // ce statut.
-        var roleOk = a.roles.includes(roleEffectif) || (estChefQuelquePart && a.roles.includes('redac_chef'));
-        if(!roleOk) return false;
-        // Si l'app requiert une fonction, vérifier (sauf admin)
-        if(a.fonctions_requises && a.fonctions_requises.length && roleEffectif !== 'admin'){
-          return a.fonctions_requises.some(function(f){ return fonctionsEffectives.indexOf(f) !== -1; });
-        }
-        return true;
-      }
-
-      window._userApps = ALL_APPS_CATALOGUE.filter(function(a){
-        if(!epinglesIds.includes(a.id)) return false;
-        return appAccessible(a);
-      });
-      window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){
-        if(!allIds.includes(a.id)) return false;
-        return appAccessible(a);
-      });
+    // ── Ce que la personne voit : CALCULÉ (js/80-acces.js), plus coché appli par appli ──
+    // Toutes les applis que son rôle Compo, son rôle dans ses rédactions et ses fonctions autorisent,
+    // plus les applis « au choix » du Store qu'elle a installées. membres_apps ne sert plus qu'à ça
+    // (applis du Store installées) et à l'épinglage dans la barre du bas.
+    var roleEffectif = roleOverride || getUserRole();
+    var fonctionsEffectives = fonctionFraiche || getUserFonction();
+    var estSRQuelquePart = !!(resultats[4] && !resultats[4].code && resultats[4].length);
+    var acces = osAccesCalculer({ role:roleEffectif, fonctions:fonctionsEffectives, chef:estChefQuelquePart, sr:estSRQuelquePart, dansUneRedac:estDansUneRedac, installees:data.map(function(d){ return d.app_id; }) });
+    window._accesCourant = acces;
+    window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){ return acces.visibles[a.id]; });
+    var epinglesIds = data.filter(function(d){ return d.epingle && acces.visibles[d.app_id]; }).map(function(d){ return d.app_id; });
+    // Rien d'épinglé (nouveau compte) : la barre par défaut du rôle, enregistrée une fois pour toutes
+    if(!epinglesIds.length){
+      var profilDefaut = PROFILS_PREDEFINIS[estChefQuelquePart && roleEffectif !== 'admin' ? 'redac_chef' : roleEffectif] || PROFILS_PREDEFINIS.redacteur;
+      epinglesIds = profilDefaut.filter(function(id){ return acces.visibles[id]; }).slice(0, 8);
+      if(epinglesIds.length) fetch(SB_URL+'/rest/v1/membres_apps', {
+        method:'POST',
+        headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Prefer':'return=minimal,resolution=merge-duplicates' }),
+        body: JSON.stringify(epinglesIds.map(function(id){ return { membre_id:userId, app_id:id, epingle:true }; }))
+      }).catch(function(){});
     }
+    window._userApps = ALL_APPS_CATALOGUE.filter(function(a){ return epinglesIds.indexOf(a.id) !== -1; });
     callback();
   }).catch(function(){ window._userApps = null; window._userAppsAll = null; callback(); });
 }
@@ -2001,12 +1797,14 @@ function osGestionAppsRender(){
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email,role,fonction,avatar_id&order=prenom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {headers:authHGA}).then(function(r){return r.json();})
+    fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {headers:authHGA}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac', {headers:authHGA}).then(function(r){return r.json();}).catch(function(){ return []; })
   ]).then(function(results){
     var membres   = (!results[0]||results[0].code) ? [] : results[0];
     var appsData  = (!results[1]||results[1].code) ? [] : results[1];
     var redacs    = (!results[2]||results[2].code) ? [] : results[2];
     var demandes  = (!results[3]||results[3].code) ? [] : results[3];
+    var liensRedac = Array.isArray(results[4]) ? results[4] : [];
 
     wc.innerHTML = '';
 
@@ -2021,7 +1819,7 @@ function osGestionAppsRender(){
     rail.className = 'mobile-onglets';
     rail.style.cssText = 'width:170px;flex-shrink:0;background:var(--gris-clair);border-right:0.5px solid var(--gris-bord);display:flex;flex-direction:column;padding:10px 8px;gap:3px;box-sizing:border-box;';
     rail.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:.78rem;color:var(--encre);padding:2px 10px 8px;">Administration</div>'
-      + [['apps','ti-apps','Apps',''],
+      + [['apps','ti-eye','Accès',''],
          ['membres','ti-users','Membres',''],
          ['demandes','ti-bell','Demandes', demandes.length ? String(demandes.length) : ''],
          ['rapports','ti-file-text','Rapports',''],
@@ -2042,7 +1840,7 @@ function osGestionAppsRender(){
     wc.appendChild(layout);
 
     // Gardées pour changer d'onglet sans tout recharger (osGestionAppsOnglet)
-    window._gestionAppsDonnees = { membres:membres, appsData:appsData, redacs:redacs, demandes:demandes };
+    window._gestionAppsDonnees = { membres:membres, appsData:appsData, redacs:redacs, demandes:demandes, liensRedac:liensRedac };
     _osGestionAppsCorps(body, _onglet);
   }).catch(function(){ wc.innerHTML = osErreurHtml(osGestionAppsRender); });
 }
@@ -2058,7 +1856,7 @@ function _osGestionAppsCorps(body, onglet){
   } else if(onglet === 'maintenance' && typeof osMaintenanceAdminRendre === 'function'){
     osMaintenanceAdminRendre(body);  // js/51-maintenance.js
   } else {
-    _osGestionAppsBodyRender(body, d.membres, d.appsData);
+    _osGestionAppsBodyRender(body, d.membres, d.appsData, d.liensRedac, d.redacs);
   }
 }
 
@@ -2526,91 +2324,40 @@ function osChangerEmailMembreEnvoyer(membreId){
   });
 }
 
-// ── Onglet Apps (ancien contenu) ────────────────────────────────────
-function _osGestionAppsBodyRender(zone, membres, appsData){
-    // Construire map membre_id -> Set(app_ids)
-    var appsParMembre = {};
-    appsData.forEach(function(row){
-      if(!appsParMembre[row.membre_id]) appsParMembre[row.membre_id] = new Set();
-      appsParMembre[row.membre_id].add(row.app_id);
-    });
-
-    var html = '<div style="padding:0;">';
-    html += '<div style="padding:.6rem 1.4rem .4rem;font-family:Space Mono,monospace;font-size:.6rem;color:var(--gris);">Coche les apps accessibles pour chaque membre. Les changements s\'appliquent à la prochaine connexion.</div>';
-    membres.forEach(function(m){
-      var nomAffiche = (m.prenom||'').trim() || (m.nom||'').trim()
-        ? (esc(m.prenom||'')+' '+esc(m.nom||'')).trim()
-        : '<span style="color:var(--gris);font-style:italic;">'+esc(m.email||m.id.slice(0,8)+'…')+'</span>';
-      var membreApps = appsParMembre[m.id] || new Set();
-
-      // Apps disponibles pour ce rôle + fonctions
-      var membreFonctions = fonctionArray(m.fonction);
-      var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
-        if(!a.roles) return true;
-        // Trésorerie : accessible si fonction tresorier, quel que soit le rôle
-        if(a.id === 'tresorerie'){
-          return m.role === 'admin' || membreFonctions.indexOf('tresorier') !== -1;
-        }
-        // Règle générale
-        return a.roles.includes(m.role);
-      });
-
-      html += '<div style="border-bottom:1px solid var(--gris-bord);">';
-
-      // En-tête membre (cliquable pour déplier)
-      html += '<div style="display:flex;align-items:center;gap:0.8rem;padding:0.9rem 1.4rem;cursor:pointer;user-select:none;" onclick="osGestionAppsToggle(\''+m.id+'\')">';
-      html += renderAvatarHTML(m, 34, {});
-      html += '<div style="flex:1;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--encre);">'+nomAffiche+'</div>';
-      html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);">'+esc(m.role||'')+' · '+membreApps.size+' app(s) activée(s)</div>';
-      html += '</div>';
-      html += '<span id="gapp-chevron-'+m.id+'" style="color:var(--gris);font-size:0.8rem;transition:transform 0.2s;">▶</span>';
-      html += '</div>';
-
-      // Grille apps (masquée par défaut)
-      html += '<div id="gapp-grid-'+m.id+'" style="display:none;padding:0 1.4rem 1rem;">';
-      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.4rem;">';
-
-      appsDisponibles.forEach(function(app){
-        var checked = membreApps.has(app.id);
-        // Certaines apps exigent en plus une fonction associative (ex: Bénévoles ->
-        // vie_asso) — cochées ici, elles resteront pourtant invisibles pour le membre
-        // tant que cette fonction ne lui est pas assignée sur sa fiche. On le signale
-        // directement ici : c'est le seul endroit où admin et membre se retrouvent
-        // désynchronisés sans qu'aucune erreur ne s'affiche nulle part.
-        var fonctionManquante = (app.fonctions_requises && app.fonctions_requises.length && m.role !== 'admin'
-          && !app.fonctions_requises.some(function(f){ return membreFonctions.indexOf(f)!==-1; }))
-          ? app.fonctions_requises.map(function(f){ return FONCTIONS_LABELS[f]||f; }).join(' ou ')
-          : null;
-        html += '<label title="'+(fonctionManquante?'Nécessite aussi la fonction : '+esc(fonctionManquante)+' (fiche du membre)':'')+'" style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border:0.5px solid '+(fonctionManquante?'#E8C468':'var(--gris-bord)')+';border-radius:6px;cursor:pointer;background:'+(checked?(fonctionManquante?'#FFF8E7':'var(--gris-clair)'):'white')+';transition:background 0.1s;" id="gapp-label-'+m.id+'-'+app.id+'">';
-        html += '<input type="checkbox" '+(checked?'checked':'')+' onchange="osGestionAppsToggleApp(\''+m.id+'\',\''+app.id+'\',this.checked)" style="accent-color:var(--rouge);width:14px;height:14px;flex-shrink:0;">';
-        html += '<span style="font-size:0.82rem;">'+app.icon+'</span>';
-        html += '<span style="font-size:0.72rem;font-weight:500;color:var(--encre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">'+esc(app.label)+'</span>';
-        if(fonctionManquante) html += '<span style="font-size:0.7rem;color:#856404;flex-shrink:0;"><i class="ti ti-alert-triangle"></i></span>';
-        html += '</label>';
-      });
-
-      html += '</div>';
-
-      // Raccourcis profils
-      html += '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap;align-items:center;">';
-      html += '<span style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);text-transform:uppercase;letter-spacing:0.07em;">Profil :</span>';
-      html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'redacteur\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #F5C4B3;border-radius:4px;background:#FFF5F0;color:#712B13;cursor:pointer;">Rédacteur</button>';
-      html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'correcteur\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #B5D4F4;border-radius:4px;background:#EFF6FD;color:#0C447C;cursor:pointer;">SR</button>';
-      html += '<button onclick="osGestionAppsAppliquerProfil(\''+m.id+'\',\'admin\')" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid #C0DD97;border-radius:4px;background:#F0F8E8;color:#27500A;cursor:pointer;">Admin</button>';
-      html += '<span style="color:var(--gris-bord);margin:0 2px;">·</span>';
-      html += '<button onclick="osGestionAppsSelectAll(\''+m.id+'\',true)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">Tout activer</button>';
-      html += '<button onclick="osGestionAppsSelectAll(\''+m.id+'\',false)" style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 8px;border:0.5px solid var(--gris-bord);border-radius:4px;background:white;cursor:pointer;color:var(--gris);">Tout désactiver</button>';
-      html += '</div>';
-
-      html += '</div>'; // grid
-      html += '</div>'; // membre block
-    });
-
-    html += '</div>'; // outer
-    zone.innerHTML = html;
-    window._gappAppsParMembre = appsParMembre;
-    window._gappMembres = membres;
+// ── Onglet Accès : ce que chacun voit (lecture seule) ───────────────
+// Les accès sont calculés (js/80-acces.js) : plus de cases à cocher. Pour donner une appli à quelqu'un,
+// on lui donne le rôle (Compo ou dans une rédaction) ou la fonction qui va avec.
+function _osGestionAppsBodyRender(zone, membres, appsData, liensRedac, redacs){
+  liensRedac = liensRedac || [];
+  var nomRedac = {}; (redacs||[]).forEach(function(r){ nomRedac[r.id] = r.nom; });
+  var LIB_RR = { redac_chef:'chef', correcteur:'SR', redacteur:'' };
+  var parApp = {}; ALL_APPS_CATALOGUE.forEach(function(a){ parApp[a.id] = a; });
+  var h = '<div class="acx">'
+    +'<div class="acx-aide"><i class="ti ti-info-circle"></i><span>Ce que chaque membre voit dans Compo, <b>calculé</b> à partir de son rôle, de ses rédactions et de ses fonctions. Pour donner une appli à quelqu\'un, donne-lui le rôle ou la fonction qui va avec (onglet Membres, ou Ma rédac\' pour les rôles dans une rédaction).</span></div>';
+  membres.forEach(function(m){
+    var liens = liensRedac.filter(function(l){ return l.membre_id === m.id; });
+    var installees = appsData.filter(function(r){ return r.membre_id === m.id; }).map(function(r){ return r.app_id; });
+    var acces = osAccesCalculer(osAccesContexteMembre(m, liens, installees));
+    var nom = ((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—';
+    var redacsTxt = liens.map(function(l){ return esc(nomRedac[l.redaction_id] || '?')+(LIB_RR[l.role_redac] ? ' · '+LIB_RR[l.role_redac] : ''); }).join(', ');
+    function puces(groupe){
+      return Object.keys(acces.groupes).filter(function(id){ return acces.groupes[id] === groupe && parApp[id]; }).map(function(id){
+        var a = parApp[id];
+        return '<span class="acx-app">'+a.icon+esc(a.label)+(acces.raisons[id] ? '<em>'+esc(acces.raisons[id])+'</em>' : '')+'</span>';
+      }).join('');
+    }
+    var base = puces('base'), resp = puces('resp'), store = puces('store');
+    h += '<details class="acx-membre"><summary>'+renderAvatarHTML(m, 30, {})
+      +'<span class="acx-nom"><b>'+esc(nom)+'</b><small>'+esc(m.role||'')+(redacsTxt ? ' · '+redacsTxt : ' · aucune rédaction')+'</small></span>'
+      +'<span class="acx-nb">'+Object.keys(acces.visibles).length+' applis</span></summary>'
+      +'<div class="acx-groupes">'
+      +'<div><div class="acx-t"><i class="ti ti-lock"></i> De base</div>'+(base || '<span class="acx-vide">—</span>')+'</div>'
+      +'<div><div class="acx-t"><i class="ti ti-key"></i> Par ses responsabilités</div>'+(resp || '<span class="acx-vide">Aucune</span>')+'</div>'
+      +'<div><div class="acx-t"><i class="ti ti-building-store"></i> Installées depuis le Store</div>'+(store || '<span class="acx-vide">Aucune</span>')+'</div>'
+      +'</div></details>';
+  });
+  zone.innerHTML = h+'</div>';
+  window._gappMembres = membres;
 }
 
 function osGestionAppsToggle(membreId){
