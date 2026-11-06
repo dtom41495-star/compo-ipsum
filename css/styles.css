@@ -7073,25 +7073,45 @@ button.trx-temps:hover { background: #E0D0EC; }
 .sal-sans-lien { font-size: 0.74rem; color: var(--gris); text-align: center; padding: 0.55rem; border: 1px dashed var(--gris-bord); border-radius: 10px; background: #fff; }
 .sal-sans-lien.admin { cursor: pointer; font-weight: 600; color: var(--encre); display: flex; align-items: center; justify-content: center; gap: 6px; }
 
-/* Plan des locaux */
-.sal-plan { max-width: 760px; margin: 0 auto; }
-.sal-toit { height: 54px; margin: 0 6%; background: linear-gradient(135deg, #C8553D, #A63D2A); clip-path: polygon(6% 100%, 50% 0, 94% 100%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; }
-.sal-toit span { font: 700 0.72rem Poppins, sans-serif; color: #fff; letter-spacing: 0.08em; text-transform: uppercase; }
-.sal-batiment { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 6px; background: #8C7B6B; border-radius: 4px; }
-.sal-piece { position: relative; min-height: 170px; border-radius: 3px; padding: 0.6rem; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; cursor: pointer;
-  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--sal-c) 10%, #FBF7F0) 0 22px, color-mix(in srgb, var(--sal-c) 16%, #F4EDE2) 22px 23px); transition: filter 0.15s ease; }
-.sal-piece:hover { filter: brightness(1.04); }
-.sal-piece:focus-visible { outline: 3px solid var(--sal-c); outline-offset: -3px; }
-.sal-piece.fermee { cursor: default; filter: grayscale(0.6); }
-.sal-piece-plaque { font: 700 0.74rem Poppins, sans-serif; color: #fff; background: var(--sal-c); padding: 2px 10px; border-radius: 4px; box-shadow: 0 2px 0 rgba(0,0,0,0.15); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sal-piece-deco { font-size: 2.3rem; line-height: 1; filter: drop-shadow(0 3px 2px rgba(0,0,0,0.12)); }
-.sal-piece:hover .sal-piece-deco { animation: sal-hop 0.5s ease; }
-.sal-piece-gens { min-height: 38px; display: flex; align-items: center; justify-content: center; }
-.sal-piece-gens .sal-av { border-color: #FBF7F0; }
-.sal-piece-prochain { font-size: 0.64rem; color: var(--encre); background: rgba(255,255,255,0.85); border-radius: 6px; padding: 2px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sal-porte { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 34px; height: 8px; background: #F6F4F0; border-radius: 2px 2px 0 0; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: var(--gris); }
-.sal-piece.occupee .sal-porte { background: #2E9E5B; }
-.sal-sol { height: 30px; background: #D9CFC3; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 600; color: #6B5D4F; }
+/* Plan des locaux : vue de dessus, au trait */
+.sal-plan { --sal-mur: #2B2B3A; --sal-trait: #8A8A99; --sal-sol: #fff; --sal-grille: rgba(26,26,46,0.045); --sal-hachure: rgba(26,26,46,0.07); --sal-texte: #1A1A2E;
+  max-width: 820px; margin: 0 auto; padding: 1rem; border-radius: 12px; border: 1px solid var(--gris-bord);
+  background-color: var(--sal-sol); background-image: linear-gradient(var(--sal-grille) 1px, transparent 1px), linear-gradient(90deg, var(--sal-grille) 1px, transparent 1px); background-size: 16px 16px; }
+.sal-plan-cartouche { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.7rem; font-family: 'DM Sans', sans-serif; }
+.sal-plan-cartouche b { font: 700 0.78rem Poppins, sans-serif; letter-spacing: 0.12em; color: var(--sal-texte); }
+.sal-plan-cartouche span { font-size: 0.68rem; color: var(--gris); text-transform: uppercase; letter-spacing: 0.06em; }
+.sal-plan-bat { position: relative; border: 2.5px solid var(--sal-mur); background: var(--sal-sol); }
+.sal-plan-pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+/* Murs : 1,5 px par salle de chaque côté, deux salles voisines font un mur de 3 px ; mur du bas plus épais (couloir) */
+.sal-pp { position: relative; min-height: 168px; padding: 0.6rem 0.7rem 1.4rem; border: 1.5px solid var(--sal-mur); border-bottom-width: 3px; background: var(--sal-sol); cursor: pointer; display: flex; flex-direction: column; transition: background 0.15s ease; }
+.sal-pp:hover { background: color-mix(in srgb, var(--sal-c) 7%, var(--sal-sol)); }
+.sal-pp:focus-visible { outline: 2px solid var(--sal-c); outline-offset: -6px; }
+.sal-pp.occupee { background: color-mix(in srgb, #2E9E5B 10%, var(--sal-sol)); }
+.sal-pp.fermee { cursor: default; background: repeating-linear-gradient(45deg, var(--sal-sol) 0 7px, var(--sal-hachure) 7px 8px); }
+.sal-pp-nom { font: 700 0.72rem 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sal-texte); border-left: 3px solid var(--sal-c); padding-left: 6px; line-height: 1.3; }
+.sal-pp-info { font: 0.66rem ui-monospace, 'SFMono-Regular', Menlo, monospace; color: var(--gris); padding-left: 9px; margin-top: 1px; }
+.sal-pp.occupee .sal-pp-info { color: #1E7A45; font-weight: 600; }
+.sal-pp-table { position: relative; margin: auto; width: 62%; max-width: 150px; height: 44px; border: 1.5px solid var(--sal-trait); border-radius: 22px; background: var(--sal-sol); display: flex; align-items: center; justify-content: center; }
+.sal-pp.fermee .sal-pp-table { border-style: dashed; opacity: 0.6; }
+.sal-pp-gens { display: flex; padding-left: 6px; }
+.sal-pp-gens .sal-av { border-color: var(--sal-sol); }
+.sal-pp-prochain { font-size: 0.62rem; color: var(--gris); text-align: center; margin-top: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Porte sur le couloir : ouverture dans le mur du bas et arc de battant */
+.sal-pp-porte { position: absolute; bottom: -3px; left: 18px; width: 30px; height: 3px; background: var(--sal-sol); }
+.sal-pp-porte::before { content: ''; position: absolute; left: 0; bottom: 3px; width: 28px; height: 28px; border-top: 1.5px solid var(--sal-trait); border-right: 1.5px solid var(--sal-trait); border-top-right-radius: 100%; }
+.sal-pp-porte::after { content: ''; position: absolute; left: 0; bottom: 3px; width: 1.5px; height: 28px; background: var(--sal-mur); }
+.sal-pp.occupee .sal-pp-porte::after { background: #2E9E5B; width: 2px; }
+.sal-pp.fermee .sal-pp-porte { background: var(--sal-mur); }
+.sal-pp.fermee .sal-pp-porte::before, .sal-pp.fermee .sal-pp-porte::after { display: none; }
+.sal-plan-couloir { height: 34px; display: flex; align-items: center; justify-content: center; }
+.sal-plan-couloir span { font: 0.64rem 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.2em; color: var(--sal-trait); }
+.sal-plan-entree { position: absolute; bottom: -2.5px; left: 50%; transform: translate(-50%, 100%); background: var(--sal-sol); font: 600 0.64rem 'DM Sans', sans-serif; color: var(--gris); padding: 3px 8px; text-transform: uppercase; letter-spacing: 0.08em; }
+.sal-plan-entree::before { content: ''; position: absolute; top: -2.5px; left: 0; right: 0; height: 2.5px; background: var(--sal-sol); }
+.sal-plan-legende { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.9rem; font-size: 0.66rem; color: var(--gris); }
+.sal-plan-legende span { display: inline-flex; align-items: center; gap: 5px; }
+.sal-lg { width: 14px; height: 10px; border: 1.5px solid var(--sal-mur); background: var(--sal-sol); display: inline-block; }
+.sal-lg-occ { background: color-mix(in srgb, #2E9E5B 18%, var(--sal-sol)); }
+.sal-lg-fer { background: repeating-linear-gradient(45deg, var(--sal-sol) 0 3px, var(--sal-trait) 3px 4px); }
 
 /* Formulaire de personnalisation */
 .sal-form { max-width: 460px; margin: 0 auto; background: #fff; border: 1px solid var(--gris-bord); border-radius: 14px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
@@ -7113,11 +7133,15 @@ button.trx-temps:hover { background: #E0D0EC; }
 @media (max-width: 768px) {
   .sal-entete { padding: 0.7rem 0.9rem; }
   .sal-corps { padding: 0.8rem; }
-  .sal-batiment { grid-template-columns: 1fr 1fr; }
-  .sal-piece { min-height: 150px; }
+  .sal-plan { padding: 0.7rem; }
+  .sal-plan-pieces { grid-template-columns: 1fr 1fr; }
+  .sal-pp { min-height: 150px; }
 }
-:root.theme-dark .sal-app, :root.theme-dark .sal-porte { background: #15152A; }
+:root.theme-dark .sal-app { background: #15152A; }
+:root.theme-dark .sal-plan { --sal-mur: #C9C9D6; --sal-trait: #7A7A8E; --sal-sol: #1E1E36; --sal-grille: rgba(255,255,255,0.04); --sal-hachure: rgba(255,255,255,0.08); --sal-texte: #EDEDF5; border-color: rgba(255,255,255,0.1); }
 :root.theme-dark .sal-entete, :root.theme-dark .sal-carte, :root.theme-dark .sal-form, :root.theme-dark .sal-sans-lien, :root.theme-dark .sal-btn-sec, :root.theme-dark .sal-champ { background: #1E1E36; }
 :root.theme-dark .sal-emoji { background: color-mix(in srgb, var(--sal-c) 30%, #1E1E36); }
 :root.theme-dark .sal-av { border-color: #1E1E36; }
-@media (prefers-reduced-motion: reduce) { .sal-av, .sal-criquet, .sal-carte.anime::after, .sal-carte:hover .sal-emoji, .sal-piece:hover .sal-piece-deco { animation: none; } .sal-carte:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sal-av, .sal-criquet, .sal-carte.anime::after, .sal-carte:hover .sal-emoji { animation: none; } .sal-carte:hover { transform: none; } }
+:root.theme-dark .sal-vues { background: rgba(255,255,255,0.06); }
+:root.theme-dark .sal-vues button.actif { background: #2A2A48; color: #EDEDF5; }

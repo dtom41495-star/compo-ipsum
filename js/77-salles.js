@@ -41,7 +41,7 @@ function _sallesIlYa(d){
 }
 function _sallesVue(){
   if(!_salles.vue){ try{ _salles.vue = localStorage.getItem(SALLES_CLE_VUE); }catch(e){} }
-  return _salles.vue === 'plan' ? 'plan' : 'cartes';
+  return _salles.vue === 'cartes' ? 'cartes' : 'plan';   // le plan par défaut
 }
 function osSallesChoisirVue(v){
   _salles.vue = v;
@@ -66,8 +66,8 @@ function osSallesRender(){
   wc.innerHTML = '<div class="sal-entete">'
     +'<div class="sal-entete-titres"><div class="sal-titre"><i class="ti ti-video"></i> Salles</div>'
     +'<div class="sal-sous">Les salles de visio de l\'asso, toujours au même lien. « Entrer » ouvre Google Meet.</div></div>'
-    +'<div class="sal-vues"><button id="sal-vue-cartes" onclick="osSallesChoisirVue(\'cartes\')"><i class="ti ti-layout-grid"></i> Salles</button>'
-    +'<button id="sal-vue-plan" onclick="osSallesChoisirVue(\'plan\')"><i class="ti ti-home"></i> Plan</button></div>'
+    +'<div class="sal-vues"><button id="sal-vue-plan" onclick="osSallesChoisirVue(\'plan\')"><i class="ti ti-layout-board"></i> Plan</button>'
+    +'<button id="sal-vue-cartes" onclick="osSallesChoisirVue(\'cartes\')"><i class="ti ti-layout-grid"></i> Liste</button></div>'
     +(admin ? '<button class="sal-btn-sec" onclick="osSallesEditer(null)"><i class="ti ti-plus"></i> Salle</button>' : '')
     +'</div>'
     +'<div id="salles-corps" class="sal-corps">'+osLoadingHtml('osSallesRender')+'</div>';
@@ -160,23 +160,31 @@ function _sallesCartesHTML(){
   return h;
 }
 
-// ---- Vue plan : les locaux de l'asso ----
+// ---- Vue plan : les locaux de l'asso, vus de dessus comme un plan d'architecte ----
+// Murs au trait, une porte (avec son arc d'ouverture) sur le couloir pour chaque salle, une table au milieu
+// et les personnes entrées autour. Pièce occupée : sol teinté ; pas de lien Meet : pièce hachurée, porte fermée.
 function _sallesPlanHTML(){
-  var h = '<div class="sal-plan"><div class="sal-toit"><span>Ipsum Média</span></div><div class="sal-batiment">';
-  _salles.liste.forEach(function(s, i){
+  var admin = getUserRole() === 'admin';
+  var h = '<div class="sal-plan"><div class="sal-plan-cartouche"><b>IPSUM MÉDIA</b><span>Plan des salles · visio</span></div>'
+    +'<div class="sal-plan-bat"><div class="sal-plan-pieces">';
+  _salles.liste.forEach(function(s){
     var coul = s.couleur || '#0E7C66';
     var presents = _sallesPresents(s), prochain = _sallesProchain(s);
-    var clic = s.lien ? 'osSallesEntrer(\''+s.id+'\')' : (getUserRole() === 'admin' ? 'osSallesEditer(\''+s.id+'\')' : '');
-    h += '<div class="sal-piece'+(presents.length ? ' occupee' : '')+(s.lien ? '' : ' fermee')+'" style="--sal-c:'+esc(coul)+';"'+(clic ? ' onclick="'+clic+'" role="button" tabindex="0"' : '')+' title="'+esc(s.lien ? 'Entrer dans '+s.nom : 'Porte fermée : pas encore de lien Meet')+'">'
-      +'<div class="sal-piece-plaque">'+esc(s.nom)+'</div>'
-      +'<div class="sal-piece-deco">'+esc(_sallesEmoji(s))+'</div>'
-      +'<div class="sal-piece-gens">'+(presents.length ? _sallesAvatars(presents, 34, 5) : '<span class="sal-criquet">🦗</span>')+'</div>'
-      +(prochain ? '<div class="sal-piece-prochain"><i class="ti ti-calendar-event"></i> '+esc(prochain.titre || 'Événement')+'</div>' : '')
-      +'<div class="sal-porte">'+(s.lien ? '' : '<i class="ti ti-lock"></i>')+'</div>'
+    var clic = s.lien ? 'osSallesEntrer(\''+s.id+'\')' : (admin ? 'osSallesEditer(\''+s.id+'\')' : '');
+    h += '<div class="sal-pp'+(presents.length ? ' occupee' : '')+(s.lien ? '' : ' fermee')+'" style="--sal-c:'+esc(coul)+';"'
+      +(clic ? ' onclick="'+clic+'" role="button" tabindex="0"' : '')
+      +' title="'+esc(s.lien ? 'Entrer dans '+s.nom : 'Pas encore de lien Meet')+'">'
+      +'<div class="sal-pp-nom">'+esc(s.nom)+'</div>'
+      +'<div class="sal-pp-info">'+(presents.length ? presents.length+' présent'+(presents.length > 1 ? 's' : '') : (s.lien ? 'libre' : 'fermée'))+'</div>'
+      +'<div class="sal-pp-table">'+(presents.length ? '<div class="sal-pp-gens">'+_sallesAvatars(presents, 26, 6)+'</div>' : '')+'</div>'
+      +(prochain ? '<div class="sal-pp-prochain"><i class="ti ti-calendar-event"></i> '+esc(prochain.titre || 'Événement')+'</div>' : '')
+      +'<span class="sal-pp-porte"></span>'
       +'</div>';
   });
-  h += '</div><div class="sal-sol"><span><i class="ti ti-door"></i> Entrée</span></div></div>'
-    +'<div class="sal-aide">Clique sur une pièce pour y entrer. Les avatars : les personnes entrées depuis Compo dans la dernière heure.</div>';
+  h += '</div><div class="sal-plan-couloir"><span>Couloir</span></div>'
+    +'<div class="sal-plan-entree"><i class="ti ti-arrow-up"></i> Entrée</div></div>'
+    +'<div class="sal-plan-legende"><span><i class="sal-lg sal-lg-occ"></i> occupée</span><span><i class="sal-lg"></i> libre</span><span><i class="sal-lg sal-lg-fer"></i> pas de lien</span></div></div>'
+    +'<div class="sal-aide">Clique sur une salle pour y entrer. Autour de la table : les personnes entrées depuis Compo dans la dernière heure.</div>';
   return h;
 }
 
