@@ -2,8 +2,11 @@
 // Des salles de visio permanentes (La Conf' de rédac, Le Bureau, La Machine à café…). Chacune a son lien Google Meet
 // fixe (compte Workspace de l'asso : pas de limite de durée), collé une fois par un admin.
 // Meet s'ouvre dans un nouvel onglet (Google interdit de l'afficher dans une autre page).
-// Meet ne dit pas qui est dans la réunion : Compo affiche qui y est entré depuis Compo dans la dernière heure
-// (table salles_passages, effacée au bout de 7 jours), et le prochain événement de l'Agenda prévu dans la salle.
+// Meet ne dit pas qui est dans la réunion. Compo garde la main sur l'onglet Meet qu'il ouvre : tant qu'il est ouvert,
+// il le signale toutes les 30 s (salles_passages.vu_le) ; quand il se ferme, ou qu'on clique « Je suis sorti »,
+// la sortie est notée (sortie_le). Présent = pas sorti et signe de vie de moins de 2 min 30.
+// Sans suivi possible (fenêtre bloquée, appli Meet du téléphone qui reprend la main) : présent 45 min au plus.
+// Table effacée au bout de 7 jours. Aussi : le prochain événement de l'Agenda prévu dans la salle.
 //
 // Pour que ce soit vivant :
 //  - chaque salle a un emoji, une couleur et une phrase d'accueil (personnalisables par les admins) ;
@@ -11,11 +14,14 @@
 //  - deux vues : les cartes, ou le plan des locaux de l'asso (les salles comme des pièces d'une maison).
 // Dans l'Agenda, le formulaire d'un événement propose de choisir une salle (remplit le lien visio).
 
-var SALLES_RECENT_MIN = 60;
+var SALLES_SIGNE_MS = 30000;          // signe de vie de l'onglet Meet
+var SALLES_ABSENT_MS = 150000;        // sans signe de vie depuis 2 min 30 : plus compté présent
+var SALLES_SANS_SUIVI_MIN = 45;       // présence quand Compo ne peut pas suivre l'onglet
 var SALLES_CLE_VUE = 'compo_salles_vue';
 var SALLES_EMOJIS = ['📰','🛋️','☕','🎙️','🧠','📸','🎬','🗺️','🌿','🍕','🚀','🎧','🏛️','⚽','🎨','📚'];
 var SALLES_COULEURS = ['#EA5B1C','#1A1A2E','#0E7C66','#1A5276','#6B2F8A','#B7950B','#C0392B','#2E86C1'];
 var _salles = { liste:[], passages:[], evenements:[], timer:null, vue:null, edition:null };
+var _sallesSuivi = null;   // { passageId, salleId, onglet, timer, depuis }
 
 function _sallesH(json){
   var h = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
@@ -92,11 +98,12 @@ function osSallesRender(){
 }
 
 function _sallesRafraichir(){
-  var depuis = new Date(Date.now() - SALLES_RECENT_MIN * 60000).toISOString();
+  var vivant = new Date(Date.now() - SALLES_ABSENT_MS).toISOString();
+  var depuis = new Date(Date.now() - 6 * 3600000).toISOString();
   var recent = new Date(Date.now() - 3 * 3600000).toISOString();   // un événement commencé il y a moins de 3 h compte encore
   Promise.all([
     osSallesCharger(),
-    _sallesLire('salles_passages?entre_le=gte.'+encodeURIComponent(depuis)+'&order=entre_le.desc&select=salle_id,membre_id,entre_le'),
+    _sallesLire('salles_passages?sortie_le=is.null&vu_le=gte.'+encodeURIComponent(vivant)+'&entre_le=gte.'+encodeURIComponent(depuis)+'&order=entre_le.desc&select=id,salle_id,membre_id,entre_le'),
     _sallesLire('agenda_evenements?statut=eq.publie&lien_visio=not.is.null&date_debut=gte.'+encodeURIComponent(recent)+'&order=date_debut.asc&limit=50&select=id,titre,date_debut,lien_visio')
   ]).then(function(r){
     _salles.passages = r[1]; _salles.evenements = r[2];
@@ -104,7 +111,7 @@ function _sallesRafraichir(){
   });
 }
 
-// Personnes entrées depuis Compo dans la dernière heure (une par personne, la plus récente)
+// Personnes dans la salle : entrées depuis Compo et pas ressorties (une par personne, la plus récente)
 function _sallesPresents(s){
   var vus = {}, l = [];
   _salles.passages.forEach(function(p){ if(p.salle_id === s.id && !vus[p.membre_id]){ vus[p.membre_id] = 1; l.push(p); } });
@@ -143,7 +150,8 @@ function _sallesDessiner(){
   var c = document.getElementById('salles-corps');
   if(!c) return;
   if(!_salles.liste.length){ c.innerHTML = '<div class="sal-vide">Aucune salle pour l\'instant.</div>'; return; }
-  c.innerHTML = _sallesVue() === 'plan' ? _sallesPlanHTML() : _sallesCartesHTML();
+  _sallesRetrouverSuivi();
+  c.innerHTML = _sallesBandeauHTML() + (_sallesVue() === 'plan' ? _sallesPlanHTML() : _sallesCartesHTML());
 }
 
 // ---- Vue cartes ----
@@ -163,7 +171,7 @@ function _sallesCartesHTML(){
       +'</div>';
     h += '<div class="sal-presence">'
       +(presents.length
-        ? '<div class="sal-avatars">'+_sallesAvatars(presents, 30)+'</div><div class="sal-presence-txt">'+presents.length+(presents.length > 1 ? ' personnes entrées' : ' personne entrée')+' depuis Compo</div>'
+        ? '<div class="sal-avatars">'+_sallesAvatars(presents, 30)+'</div><div class="sal-presence-txt">'+presents.length+(presents.length > 1 ? ' personnes' : ' personne')+' dans la salle</div>'
         : '<div class="sal-silence">Silence radio… <span class="sal-criquet">🦗</span></div>')
       +'</div>';
     if(prochain) h += '<div class="sal-prochain" onclick="osOpenWindow(\'agenda\')"><i class="ti ti-calendar-event"></i> <b>'+esc(prochain.titre || 'Événement')+'</b>, '+_sallesQuand(prochain.date_debut)+'</div>';
@@ -212,7 +220,7 @@ function _sallesPlanHTML(){
   h += '</div><div class="sal-plan-couloir"><span>Couloir</span></div>'
     +'<div class="sal-plan-entree"><i class="ti ti-arrow-up"></i> Entrée</div></div>'
     +'<div class="sal-plan-legende"><span><i class="sal-lg sal-lg-occ"></i> occupée</span><span><i class="sal-lg"></i> libre</span><span><i class="sal-lg sal-lg-fer"></i> pas de lien</span><span><i class="sal-lg sal-lg-res"></i> réservée</span></div></div>'
-    +'<div class="sal-aide">Clique sur une salle pour y entrer. Autour de la table : les personnes entrées depuis Compo dans la dernière heure.</div>';
+    +'<div class="sal-aide">Clique sur une salle pour y entrer. Autour de la table : les personnes entrées depuis Compo et pas encore ressorties (Compo voit quand l\'onglet Meet se ferme).</div>';
   return h;
 }
 
@@ -221,15 +229,76 @@ function _sallesPlanHTML(){
 function osSallesEntrer(id){
   var s = _salles.liste.find(function(x){ return x.id === id; });
   if(!s || !s.lien || !s.acces) return;
+  if(_sallesSuivi) osSallesSortir(true);   // on change de salle : sortie de la précédente
   // Sans « noopener » dans les options : avec, window.open renvoie toujours null et on croirait l'onglet bloqué
   var w = window.open(s.lien, '_blank');
   if(w){ try{ w.opener = null; }catch(e){} }
   else notif('Ton navigateur a bloqué l\'ouverture de Meet. Autorise les fenêtres pour Compo, ou copie le lien.', 'alerte');
-  // Ajout immédiat de son avatar (sans attendre la base), puis rafraîchissement
+  var suivi = _sallesSuivi = { passageId:null, salleId:id, onglet:w || null, depuis:Date.now(), timer:null };
+  // Ajout immédiat de son avatar (sans attendre la base)
   _salles.passages.unshift({ salle_id:id, membre_id:getUserId(), entre_le:new Date().toISOString() });
   _sallesDessiner();
-  fetch(SB_URL+'/rest/v1/salles_passages', { method:'POST', headers:_sallesH(true), body:JSON.stringify({ salle_id:id }) })
-    .then(function(){ _sallesRafraichir(); }).catch(function(){});
+  var h = _sallesH(true); h['Prefer'] = 'return=representation';
+  fetch(SB_URL+'/rest/v1/salles_passages', { method:'POST', headers:h, body:JSON.stringify(w ? { salle_id:id } : { salle_id:id, vu_le:_sallesDans(SALLES_SANS_SUIVI_MIN) }) })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var p = Array.isArray(j) ? j[0] : null;
+      if(!p || suivi !== _sallesSuivi) return;
+      suivi.passageId = p.id;
+      if(w) suivi.timer = setInterval(_sallesSigneDeVie, SALLES_SIGNE_MS);
+      _sallesRafraichir();
+    }).catch(function(){});
+}
+function _sallesDans(min){ return new Date(Date.now() + min * 60000).toISOString(); }
+function _sallesMajPassage(corps, suivi){
+  suivi = suivi || _sallesSuivi;
+  if(!suivi || !suivi.passageId) return Promise.resolve();
+  return fetch(SB_URL+'/rest/v1/salles_passages?id=eq.'+suivi.passageId, { method:'PATCH', headers:_sallesH(true), body:JSON.stringify(corps), keepalive:true }).catch(function(){});
+}
+// Toutes les 30 s : l'onglet Meet est-il encore ouvert ?
+function _sallesSigneDeVie(){
+  var suivi = _sallesSuivi;
+  if(!suivi) return;
+  var ferme = true;
+  try{ ferme = !suivi.onglet || suivi.onglet.closed; }catch(e){ ferme = false; }
+  if(ferme){
+    // Fermé dans les 20 premières secondes : c'est l'appli Meet du téléphone qui a pris le relais, pas une sortie.
+    // Compo ne peut plus suivre : présence limitée à 45 min (ou jusqu'à « Je suis sorti »).
+    if(Date.now() - suivi.depuis < 20000){
+      clearInterval(suivi.timer); suivi.timer = null; suivi.onglet = null;
+      _sallesMajPassage({ vu_le:_sallesDans(SALLES_SANS_SUIVI_MIN) }, suivi);
+      return;
+    }
+    osSallesSortir(true);
+    return;
+  }
+  _sallesMajPassage({ vu_le:new Date().toISOString() }, suivi);
+}
+// Sortie : onglet Meet fermé, autre salle, ou bouton « Je suis sorti »
+function osSallesSortir(silencieux){
+  var suivi = _sallesSuivi;
+  if(!suivi) return;
+  clearInterval(suivi.timer);
+  _sallesMajPassage({ sortie_le:new Date().toISOString() }, suivi);
+  _sallesSuivi = null;
+  _salles.passages = _salles.passages.filter(function(p){ return !(p.membre_id === getUserId() && p.salle_id === suivi.salleId); });
+  if(!silencieux) notif('À bientôt !', 'succes');
+  _sallesDessiner();
+  setTimeout(_sallesRafraichir, 600);
+}
+// Après un rechargement de Compo : on retrouve sa présence en cours (pour pouvoir dire « Je suis sorti »)
+function _sallesRetrouverSuivi(){
+  if(_sallesSuivi) return;
+  var moi = _salles.passages.find(function(p){ return p.membre_id === getUserId() && p.id; });
+  if(moi) _sallesSuivi = { passageId:moi.id, salleId:moi.salle_id, onglet:null, depuis:new Date(moi.entre_le).getTime(), timer:null };
+}
+function _sallesBandeauHTML(){
+  if(!_sallesSuivi) return '';
+  var s = _salles.liste.find(function(x){ return x.id === _sallesSuivi.salleId; });
+  if(!s) return '';
+  var min = Math.max(0, Math.round((Date.now() - _sallesSuivi.depuis) / 60000));
+  return '<div class="sal-bandeau"><i class="ti ti-point-filled"></i><span>Tu es dans <b>'+esc(s.nom)+'</b>'+(min ? ' depuis '+min+' min' : '')+'</span>'
+    +'<button onclick="osSallesSortir()"><i class="ti ti-door-exit"></i> Je suis sorti</button></div>';
 }
 function osSallesCopier(id){
   var s = _salles.liste.find(function(x){ return x.id === id; });
