@@ -3,14 +3,18 @@ var FONCTIONS_LABELS = {
   tresorier:'Trésorier·ère',
   vie_asso:'Vie associative',
   secretaire:'Secrétaire', president:'Président·e',
-  vice_president:'Vice-président·e'
+  vice_president:'Vice-président·e',
+  relations_partenaires:'Relations partenaires'
 };
 var FONCTIONS_LIST_GLOBAL = [
   {id:'tresorier',     label:'Trésorier·ère'},
   {id:'vie_asso',      label:'Vie associative'},
   {id:'secretaire',    label:'Secrétaire'},
   {id:'president',     label:'Président·e'},
-  {id:'vice_president',label:'Vice-président·e'}
+  {id:'vice_president',label:'Vice-président·e'},
+  // Chargé·e des relations partenaires : fait connaître le média aux assos, mairies, salles…
+  // pour être dans leur liste presse (voir « À relancer » dans l'appli Sources)
+  {id:'relations_partenaires',label:'Relations partenaires'}
 ];
 
 // Normalise m.fonction en tableau (compatibilité string legacy)

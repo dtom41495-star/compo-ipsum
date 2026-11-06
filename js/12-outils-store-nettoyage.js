@@ -2747,9 +2747,60 @@ var CARNET_FIABILITE_COLORS = {
   2:{ bg:'#FAEEDA', c:'#633806' },
   3:{ bg:'#EAF3DE', c:'#27500A' }
 };
-var HIST_TYPES = ['Échange email','Appel téléphonique','Interview accordée','Interview refusée','Rencontre terrain','CP reçu','Note interne','Autre'];
+var HIST_TYPES = ['Échange email','Appel téléphonique','Interview accordée','Interview refusée','Rencontre terrain','Demande de liste presse','CP reçu','Note interne','Autre'];
 
 var _carnetFiltreCategorie = 'Tous';
+var _carnetFiltreChoisi = false;
+
+// ---- À RELANCER ----
+// Organisations du carnet qui ne nous envoient pas (ou plus) leurs communiqués : la liste de travail
+// de la personne chargée des relations partenaires (se faire connaître, entrer dans leur liste presse).
+// Médias et expert·es n'en font pas partie : on ne compte pas sur leurs communiqués.
+var CARNET_RELANCER = '__relancer';
+var CARNET_SILENCE_JOURS = 90;        // pas de communiqué depuis 3 mois : à relancer
+var CARNET_CONTACTE_RECENT_JOURS = 21; // contacté il y a moins de 3 semaines : on laisse le temps de répondre
+var _carnetActivite = {};             // contact_id -> { cp: date du dernier communiqué, echange: date du dernier échange noté }
+function _carnetChargerActivite(authH){
+  _carnetActivite = {};
+  function noter(id, cle, quand){
+    if(!id || !quand) return;
+    var a = _carnetActivite[id] = _carnetActivite[id] || {};
+    if(!a[cle] || quand > a[cle]) a[cle] = quand;
+  }
+  return Promise.all([
+    fetch(SB_URL+'/rest/v1/communiques?contact_id=not.is.null&select=contact_id,date_cp,created_at', { headers:authH }).then(function(r){ return r.json(); }).catch(function(){ return []; }),
+    fetch(SB_URL+'/rest/v1/contacts_historique?select=contact_id,type,created_at', { headers:authH }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(res){
+    (Array.isArray(res[0]) ? res[0] : []).forEach(function(cp){ noter(cp.contact_id, 'cp', cp.date_cp || cp.created_at); });
+    (Array.isArray(res[1]) ? res[1] : []).forEach(function(h){ if(h.type !== 'CP reçu') noter(h.contact_id, 'echange', h.created_at); });
+    _carnetActiviteChargee = true;
+    _rafraichirListeCarnet();
+  });
+}
+var _carnetActiviteChargee = false;
+function _carnetJoursDepuis(d){ return d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null; }
+function _carnetDepuisTexte(j){
+  if(j === null) return '';
+  if(j < 1) return 'aujourd\'hui';
+  if(j < 31) return 'il y a '+j+' j';
+  if(j < 365) return 'il y a '+Math.round(j/30)+' mois';
+  return 'il y a plus d\'un an';
+}
+function _carnetEstARelancer(c){
+  if(c.categorie === 'Média' || c.categorie === 'Expert·e') return false;
+  var j = _carnetJoursDepuis((_carnetActivite[c.id]||{}).cp);
+  return j === null || j > CARNET_SILENCE_JOURS;
+}
+function _carnetNbARelancer(){
+  return _carnetActiviteChargee ? _carnetContacts.filter(_carnetEstARelancer).length : 0;
+}
+// Ligne sous le nom : dernier communiqué reçu, dernier échange
+function _carnetActiviteTexte(c){
+  var a = _carnetActivite[c.id] || {};
+  var jc = _carnetJoursDepuis(a.cp), je = _carnetJoursDepuis(a.echange);
+  return (jc === null ? 'Aucun communiqué reçu' : 'Dernier communiqué '+_carnetDepuisTexte(jc))
+    + (je === null ? ' · jamais contacté' : ' · contacté '+_carnetDepuisTexte(je));
+}
 var _carnetRecherche = '';
 var _carnetContacts = [];
 var _carnetEditId = null;
@@ -2760,6 +2811,9 @@ function osCarnetRender(){
   wc.innerHTML = osLoadingHtml('osCarnetRender');
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Chargé·e des relations partenaires : on arrive directement sur « À relancer » (une fois, ensuite on garde son choix)
+  if(!_carnetFiltreChoisi && typeof getUserHasFonction === 'function' && getUserHasFonction('relations_partenaires')) _carnetFiltreCategorie = CARNET_RELANCER;
+  _carnetChargerActivite(authH);
   fetch(SB_URL+'/rest/v1/contacts_sources?select=*&order=nom.asc', { headers:authH })
   .then(function(r){ return r.json(); })
   .then(function(contacts){
@@ -2795,6 +2849,10 @@ function osCarnetBuildUI(wc){
     html += '<button type="button" class="cx-cat'+(_carnetFiltreCategorie === cat ? ' actif' : '')+'" data-cat="'+esc(cat)+'" onclick="osCarnetSetCat(this.dataset.cat)">'
       +CARNET_CAT_ICONS[cat]+'<span>'+esc(cat)+'</span>'+(n ? '<em>'+n+'</em>' : '')+'</button>';
   });
+  var nbRel = _carnetNbARelancer();
+  html += '<div class="cx-rail-sep"></div>'
+    +'<button type="button" class="cx-cat cx-cat-relancer'+(_carnetFiltreCategorie === CARNET_RELANCER ? ' actif' : '')+'" data-cat="'+CARNET_RELANCER+'" onclick="osCarnetSetCat(this.dataset.cat)" title="Organisations dont on ne reçoit pas de communiqués depuis 3 mois">'
+    +'<i class="ti ti-send"></i><span>À relancer</span>'+(nbRel ? '<em>'+nbRel+'</em>' : '')+'</button>';
   html += '</nav>';
 
   html += '<div class="cx-main">';
@@ -2829,6 +2887,7 @@ function _carnetPastilles(c){
 
 function osCarnetSetCat(cat){
   _carnetFiltreCategorie = cat;
+  _carnetFiltreChoisi = true;
   document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
     btn.classList.toggle('actif', btn.dataset.cat === cat);
   });
@@ -2845,15 +2904,16 @@ function _rafraichirListeCarnet(){
   var liste = document.getElementById('carnet-liste');
   if(!liste) return;
   var q = _carnetRecherche.trim().toLowerCase();
+  var relancer = _carnetFiltreCategorie === CARNET_RELANCER;
   var contacts = _carnetContacts.filter(function(c){
-    var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie;
+    var matchCat = _carnetFiltreCategorie === 'Tous' || c.categorie === _carnetFiltreCategorie || (relancer && _carnetEstARelancer(c));
     var matchQ = !q || (c.nom||'').toLowerCase().includes(q) || (c.organisation||'').toLowerCase().includes(q) || (c.poste||'').toLowerCase().includes(q);
     return matchCat && matchQ;
   });
   // Nombre de contacts par catégorie (change après un ajout ou une suppression)
   document.querySelectorAll('#wincontent-carnet .cx-cat').forEach(function(btn){
     var cat = btn.dataset.cat;
-    var n = cat === 'Tous' ? _carnetContacts.length : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
+    var n = cat === 'Tous' ? _carnetContacts.length : cat === CARNET_RELANCER ? _carnetNbARelancer() : _carnetContacts.filter(function(c){ return c.categorie === cat; }).length;
     var em = btn.querySelector('em');
     if(n && !em){ em = document.createElement('em'); btn.appendChild(em); }
     if(em){ if(n) em.textContent = n; else em.remove(); }
@@ -2861,13 +2921,28 @@ function _rafraichirListeCarnet(){
   var actif = document.querySelector('#carnet-detail-panel [data-fiche-id]');
   var idActif = actif ? actif.dataset.ficheId : null;
 
+  // À relancer : d'abord ceux qu'on n'a pas contactés récemment, du plus ancien au plus récent
+  if(relancer){
+    var cle = function(c){
+      var a = _carnetActivite[c.id] || {}, je = _carnetJoursDepuis(a.echange);
+      var recent = je !== null && je < CARNET_CONTACTE_RECENT_JOURS;
+      return [recent ? 1 : 0, a.echange || a.cp || ''];
+    };
+    contacts = contacts.slice().sort(function(x, y){
+      var a = cle(x), b = cle(y);
+      return a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+    });
+  }
   if(!contacts.length){
-    liste.innerHTML = '<div class="cx-vide"><i class="ti ti-address-book"></i>'
-      +(_carnetContacts.length ? 'Aucun contact pour ce filtre.' : 'Le carnet est vide.<br>Ajoute le premier contact de la rédaction.')
+    liste.innerHTML = '<div class="cx-vide"><i class="ti ti-'+(relancer ? 'mood-happy' : 'address-book')+'"></i>'
+      +(relancer ? (_carnetActiviteChargee ? 'Personne à relancer : toutes les organisations du carnet nous ont envoyé un communiqué ces 3 derniers mois.' : 'Chargement…')
+        : _carnetContacts.length ? 'Aucun contact pour ce filtre.' : 'Le carnet est vide.<br>Ajoute le premier contact de la rédaction.')
       +'</div>';
     return;
   }
-  var html = '<div class="cx-compte">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
+  var html = relancer
+    ? '<div class="cx-compte cx-compte-relancer"><b>'+contacts.length+' organisation'+(contacts.length>1?'s':'')+'</b> ne nous '+(contacts.length>1?'ont':'a')+' envoyé aucun communiqué depuis 3 mois. Un appel ou un mail pour leur demander de nous ajouter à leur liste presse, puis « Noter un échange » sur la fiche.</div>'
+    : '<div class="cx-compte">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</div>';
   contacts.forEach(function(c){
     var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
     var fid = parseInt(c.fiabilite)||2;
@@ -2876,6 +2951,7 @@ function _rafraichirListeCarnet(){
       +'<div class="cx-avatar" style="background:'+col.bg+';color:'+col.c+';">'+esc(_carnetInitiales(c))+'</div>'
       +'<div class="cx-ligne-infos"><div class="cx-nom">'+esc(c.nom||'')+'</div>'
       +(sousTitre ? '<div class="cx-poste">'+sousTitre+'</div>' : '')
+      +(relancer ? '<div class="cx-activite">'+esc(_carnetActiviteTexte(c))+'</div>' : '')
       +'</div>'
       +'<div class="cx-ligne-droite">'
       +'<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
@@ -2898,7 +2974,9 @@ function osCarnetOuvrirFiche(id){
   });
 
   var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-  var peutModifier = getUserRole() === 'admin' || (getUserId() && c.cree_par === getUserId());
+  var peutSupprimer = getUserRole() === 'admin' || (getUserId() && c.cree_par === getUserId());
+  // La personne chargée des relations partenaires tient le carnet à jour : elle modifie toutes les fiches (pas de suppression)
+  var peutModifier = peutSupprimer || getUserHasFonction('relations_partenaires');
   var cid = esc(c.id);
 
   var html = '<div class="cx-fiche-contenu" data-fiche-id="'+cid+'">';
@@ -2915,7 +2993,7 @@ function osCarnetOuvrirFiche(id){
   html += '<button class="mac-btn" data-id="'+cid+'" onclick="osCarnetNouvelEchange(this.dataset.id)"><i class="ti ti-message-plus"></i>Noter un échange</button>';
   if(peutModifier){
     html += '<button class="mac-btn cpc-icone" data-id="'+cid+'" onclick="osCarnetEditerDepuisFiche(this.dataset.id)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
-      +'<button class="mac-btn mac-btn-refus cpc-icone" data-id="'+cid+'" onclick="osCarnetSupprimer(this.dataset.id)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
+      +(peutSupprimer ? '<button class="mac-btn mac-btn-refus cpc-icone" data-id="'+cid+'" onclick="osCarnetSupprimer(this.dataset.id)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>' : '');
   }
   html += '</div>';
 
@@ -3063,6 +3141,7 @@ function osCarnetSauverEchange(contactId){
       // Rafraîchir updated_at dans _carnetContacts
       var idx = _carnetContacts.findIndex(function(c){ return c.id === contactId; });
       if(idx>=0) _carnetContacts[idx].updated_at = new Date().toISOString();
+      if(type !== 'CP reçu'){ _carnetActivite[contactId] = _carnetActivite[contactId] || {}; _carnetActivite[contactId].echange = new Date().toISOString(); }
       _rafraichirListeCarnet();
     } else { notif('Erreur enregistrement'); }
   }).catch(function(){ notif('Erreur réseau'); });

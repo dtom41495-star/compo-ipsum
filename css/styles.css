@@ -7254,3 +7254,12 @@ button.trx-temps:hover { background: #E0D0EC; }
 .cpc-raison span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :root.theme-dark .cpc-fav.actif, :root.theme-dark .cpf-fav.actif { background: rgba(224,162,27,0.15); border-color: rgba(224,162,27,0.4); color: #F3C969; }
 :root.theme-dark .cpc-raison { color: #8FD9AE; }
+
+/* Sources : « À relancer » (relations partenaires) */
+.cx-rail-sep { height: 1px; background: #E7E5E4; margin: 6px 6px; flex-shrink: 0; }
+.cx-activite { font-size: 0.7rem; line-height: 1.35; color: #9A6B00; margin-top: 2px; }
+.cx-compte-relancer { background: #FFF6DB; color: #5C4300; border-radius: 9px; padding: 0.55rem 0.7rem; line-height: 1.45; }
+@media (max-width: 768px) {
+  .cx-rail-sep { display: none; }
+  .cx-cat-relancer { order: -1; }   /* sur téléphone, en tête des pastilles : sinon caché au bout du défilement */
+}

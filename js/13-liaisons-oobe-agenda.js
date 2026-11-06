@@ -719,8 +719,8 @@ var AGENDA_TYPES = {
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
-var AGENDA_CIBLE_FONCTIONS = ['president','vice_president','tresorier','secretaire','vie_asso'];
-var FONCTIONS_LBL = {president:'Président·e',vice_president:'Vice-président·e',tresorier:'Trésorier',secretaire:'Secrétaire',vie_asso:'Vie asso'};
+var AGENDA_CIBLE_FONCTIONS = ['president','vice_president','tresorier','secretaire','vie_asso','relations_partenaires'];
+var FONCTIONS_LBL = {president:'Président·e',vice_president:'Vice-président·e',tresorier:'Trésorier',secretaire:'Secrétaire',vie_asso:'Vie asso',relations_partenaires:'Relations partenaires'};
 // Le bouton « Bureau » du formulaire coche ces fonctions (on peut ensuite en décocher, la vie asso par exemple)
 var AGENDA_BUREAU = ['president','vice_president','tresorier','secretaire','vie_asso'];
 // « Toute l'équipe » : rien de coché, ou tous les rôles + trésorier et vie asso (les seules fonctions proposées
