@@ -719,8 +719,23 @@ var AGENDA_TYPES = {
 };
 
 var AGENDA_CIBLE_ROLES = ['redacteur','correcteur','admin'];
-var AGENDA_CIBLE_FONCTIONS = ['tresorier','vie_asso'];
-var FONCTIONS_LBL = {tresorier:'Trésorier',vie_asso:'Vie asso'};
+var AGENDA_CIBLE_FONCTIONS = ['president','vice_president','tresorier','secretaire','vie_asso'];
+var FONCTIONS_LBL = {president:'Président·e',vice_president:'Vice-président·e',tresorier:'Trésorier',secretaire:'Secrétaire',vie_asso:'Vie asso'};
+// Le bouton « Bureau » du formulaire coche ces fonctions (on peut ensuite en décocher, la vie asso par exemple)
+var AGENDA_BUREAU = ['president','vice_president','tresorier','secretaire','vie_asso'];
+// « Toute l'équipe » : rien de coché, ou tous les rôles + trésorier et vie asso (les seules fonctions proposées
+// avant l'ajout du bureau : les anciens événements « tout coché » restent ouverts à tous)
+function _agendaToutLeMonde(roles, fonctions){
+  roles = roles || []; fonctions = fonctions || [];
+  if(!roles.length && !fonctions.length) return true;
+  return roles.length === AGENDA_CIBLE_ROLES.length && ['tresorier','vie_asso'].every(function(f){ return fonctions.indexOf(f) !== -1; });
+}
+function osAgendaCocherBureau(btn){
+  document.querySelectorAll('input[name="ag-roles"]').forEach(function(c){ c.checked = false; });
+  document.querySelectorAll('input[name="ag-fonctions"]').forEach(function(c){ c.checked = AGENDA_BUREAU.indexOf(c.value) !== -1; });
+  var zone = document.getElementById('ag-apercu-cibles');
+  if(zone && zone.parentNode) zone.parentNode.dispatchEvent(new Event('change'));
+}
 
 function osAgendaRender(){
   var wc = document.getElementById('wincontent-agenda');
@@ -1011,6 +1026,7 @@ function _agendaMacaronHTML(ev, monStatut){
   if(monStatut === 'confirme') return macaron('circle-check', 'Inscrit', '#E3F6EA', '#BFE6CD', '#1E7A45');
   if(monStatut === 'en_attente') return macaron('clock', 'En attente', '#FFF6DB', '#F3DFA2', '#8A6400');
   var passe = new Date(ev.date_debut) < new Date();
+  if(!passe && !osAgendaPeutSInscrire(ev)) return macaron('lock', 'Réservé', 'var(--gris-clair)', 'var(--gris-bord)', 'var(--gris)');
   if(passe || !ev.places_max) return '';
   var restantes = Math.max(0, ev.places_max - (ev._nb_inscrits || 0));
   if(!restantes) return macaron('circle-x', 'Complet', '#FDECEC', '#F5C6C6', '#B42318');
@@ -1036,7 +1052,8 @@ function osAgendaRendreCalendrier(){
   // En-têtes jours
   var JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   var hdrJours = document.createElement('div');
-  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
+  // minmax(0,1fr) et non 1fr : sinon un titre d'événement long élargit sa colonne, la grille ne s'aligne plus sur les jours
+  hdrJours.style.cssText = 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;padding:0 0.6rem;background:var(--gris-clair);flex-shrink:0;';
   JOURS.forEach(function(j, idx){
     var el = document.createElement('div');
     el.style.cssText = 'text-align:center;font-family:DM Sans,sans-serif;font-size:0.58rem;color:'+(idx>=5?'var(--rouge)':'var(--gris)')+';padding:5px 0;background:white;';
@@ -1050,7 +1067,7 @@ function osAgendaRendreCalendrier(){
   grid.style.cssText = 'flex:1;overflow-y:auto;padding:0 0.6rem 0.6rem;';
 
   var cellGrid = document.createElement('div');
-  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gris-bord);';
+  cellGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--gris-bord);';
 
   var premier = new Date(_agendaAnnee, _agendaMois, 1);
   var jourSemaine = (premier.getDay() + 6) % 7;
@@ -1077,7 +1094,7 @@ function osAgendaRendreCalendrier(){
     });
 
     var cell = document.createElement('div');
-    cell.style.cssText = 'min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
+    cell.style.cssText = 'min-width:0;min-height:72px;background:'+(isToday?'#FFF5F3':isWeekend?'#FAFAFA':'white')+';padding:3px;cursor:'+(evsDuJour.length?'pointer':'default')+';';
 
     var numEl = document.createElement('div');
     numEl.style.cssText = 'font-family:DM Sans,sans-serif;font-size:0.65rem;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'white':'var(--gris)')+';margin-bottom:2px;'+(isToday?'background:var(--rouge);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;':'');
@@ -1087,8 +1104,10 @@ function osAgendaRendreCalendrier(){
     evsDuJour.slice(0,3).forEach(function(ev){
       var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
       var dot = document.createElement('div');
+      dot.className = 'agenda-mois-ev';
+      dot.title = ev.titre || '';
       dot.style.cssText = 'font-size:0.52rem;padding:1px 4px;border-radius:3px;margin-bottom:1px;background:'+t.bg+';color:'+t.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;';
-      dot.innerHTML = t.icon+' '+esc(ev.titre||'');
+      dot.innerHTML = t.icon+'<span class="agenda-mois-ev-titre"> '+esc(ev.titre||'')+'</span>';
       cell.appendChild(dot);
     });
     if(evsDuJour.length > 3){
@@ -1378,6 +1397,7 @@ function osAgendaRendreJour(){
       +'<i class="ti ti-calendar-off" style="font-size:1.8rem;color:var(--gris);opacity:0.6;"></i>'
       +'<div style="font-size:0.88rem;font-weight:600;color:var(--encre);">Aucun événement '+(estAuj?'aujourd\'hui':'ce jour-là')+'</div>'
       +'<div style="font-size:0.75rem;color:var(--gris);">'+(_agendaFiltreActif && _agendaFiltreActif!=='tous' ? 'Dans la catégorie sélectionnée. ' : '')+'Utilise les flèches pour passer au jour suivant.</div>'
+      +_agendaProchainHTML(jour)
       +'</div>';
     body.appendChild(zone);
     return;
@@ -1421,6 +1441,18 @@ function osAgendaRendreJour(){
 
   var cible = estAuj ? _agendaHeureDecimale(new Date()) : _agendaHeureDecimale(items[0].debut);
   _agendaDefilerVers(zone, plage, HAUTEUR, cible);
+}
+
+// Vue Jour vide : un bouton mène directement au prochain événement (au lieu de cliquer jour après jour)
+function _agendaProchainHTML(jour){
+  var finJour = new Date(jour); finJour.setHours(23,59,59,999);
+  var suivant = _agendaEvsVisibles(function(d){ return d > finJour; })
+    .sort(function(a,b){ return new Date(a.date_debut) - new Date(b.date_debut); })[0];
+  if(!suivant) return '';
+  var d = new Date(suivant.date_debut);
+  var quand = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  return '<button onclick="osAgendaAllerJour('+d.getFullYear()+','+d.getMonth()+','+d.getDate()+')" style="margin-top:0.8rem;display:inline-flex;align-items:center;gap:0.4rem;font-family:DM Sans,sans-serif;font-size:0.78rem;font-weight:600;padding:7px 14px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);cursor:pointer;max-width:100%;">'
+    +'<i class="ti ti-arrow-right"></i><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Prochain : '+esc(suivant.titre||'Événement')+' · '+quand+'</span></button>';
 }
 
 function osAgendaJourPrev(){ _agendaJourActuel.setDate(_agendaJourActuel.getDate()-1); osAgendaRendreJour(); }
@@ -1627,7 +1659,14 @@ function osAgendaOuvrirDetail(ev){
     // Mon inscription
     if(ev.statut !== 'annule'){
       iz += '<div style="margin-top:0.8rem;">';
-      if(!monInscription){
+      var reserve = !monInscription && !osAgendaPeutSInscrire(ev);
+      if(reserve){
+        // Événement réservé à un public (rôles / fonctions cochés) : visible par tous, mais on ne s'y inscrit pas soi-même.
+        // Un responsable peut toujours ajouter quelqu'un à la main (« Ajouter un participant »).
+        iz += '<div style="display:flex;gap:0.5rem;align-items:flex-start;background:var(--gris-clair);border-radius:8px;padding:0.6rem 0.7rem;font-size:0.76rem;color:var(--encre);line-height:1.45;">'
+          +'<i class="ti ti-lock" style="font-size:1rem;color:var(--gris);margin-top:1px;"></i>'
+          +'<div><b>Réservé à : '+esc(_agendaPublicTexte(ev))+'</b><br><span style="color:var(--gris);">Tu peux voir l\'événement, mais pas t\'y inscrire. Si ta présence est utile, un·e responsable peut t\'ajouter.</span></div></div>';
+      } else if(!monInscription){
         iz += '<button id="agenda-inscr-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:0.6rem;background:'+(complet?'var(--gris-clair)':'var(--rouge)')+';color:'+(complet?'var(--gris)':'white')+';border:none;border-radius:8px;font-family:Poppins,sans-serif;font-weight:600;font-size:0.85rem;cursor:'+(complet?'not-allowed':'pointer')+';">'
           +(complet ? 'Complet · '+nbConfirmes+'/'+ev.places_max+' inscrits' : '<i class="ti ti-check"></i> S\'inscrire')+'</button>';
       } else {
@@ -1640,7 +1679,9 @@ function osAgendaOuvrirDetail(ev){
         iz += '<div style="background:'+sm.bg+';border-radius:8px;padding:0.6rem 0.7rem;">';
         iz += '<div style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;font-weight:600;color:'+sm.c+';"><i class="ti ti-'+sm.i+'" style="font-size:1rem;"></i>'+sm.l+'</div>';
         iz += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">';
-        if(monInscription.statut==='confirme'){
+        // Ordre de mission = déplacement : inutile pour un événement uniquement en visio
+        var enVisioSeule = !!ev.lien_visio && (!ev.lieu || /^\s*(en\s+)?(visio|visioconf[ée]rence|en ligne|distanciel)\s*$/i.test(ev.lieu));
+        if(monInscription.statut==='confirme' && !enVisioSeule){
           iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Mon ordre de mission</button>';
         }
         iz += '<button id="agenda-desinscr-btn" style="'+BTN_DANGER+'">Se désinscrire</button>';
@@ -2049,11 +2090,37 @@ function _osAgendaEnvoyerSerie(dests, construire, fin){
   suivant(0);
 }
 
+// Public d'un événement (case « Qui est invité ») : même règle que les invitations (_osAgendaCiblesMembres).
+// Rien de coché, ou tout coché = toute l'équipe. Sinon : une des fonctions cochées, ou un des rôles cochés
+// (rédacteurs et SR rattachés à la rédaction de l'événement, ou à une rédaction s'il n'en a pas). Les admins passent toujours.
+function osAgendaPeutSInscrire(ev){
+  if(!ev || ev._virtuel) return true;
+  var roles = ev.cible_roles || [], fonctions = ev.cible_fonctions || [];
+  var toutLeMonde = _agendaToutLeMonde(roles, fonctions);
+  if(toutLeMonde) return true;
+  var role = getUserRole();
+  if(role === 'admin') return true;
+  if(fonctions.some(function(f){ return getUserHasFonction(f); })) return true;
+  if(roles.indexOf(role) === -1) return false;
+  var uid = getUserId();
+  return (window._membresRedactionsData || []).some(function(l){
+    return l.membre_id === uid && (!ev.redaction_id || String(l.redaction_id) === String(ev.redaction_id));
+  });
+}
+function _agendaPublicTexte(ev){
+  var R = {redacteur:'rédacteurs', correcteur:'SR', admin:'admins'};
+  var morceaux = (ev.cible_roles || []).map(function(r){ return R[r] || r; })
+    .concat((ev.cible_fonctions || []).map(function(f){ return ((typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[f]) || FONCTIONS_LBL[f] || f).toLowerCase(); }));
+  var t = morceaux.join(', ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function osAgendaSInscrire(evId){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var ev = _agendaEvenements.find(function(e){return e.id===evId;});
+  if(ev && !osAgendaPeutSInscrire(ev)){ notif('Cet événement est réservé à : '+_agendaPublicTexte(ev)+'.', 'alerte'); return; }
   var statutInitial = (ev && ev.validation_admin) ? 'en_attente' : 'confirme';
 
   // Inscription à un événement déjà passé (saisie rétroactive, ex. pour créditer des
@@ -2925,8 +2992,16 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div style="'+TITRE_SECTION+'">Qui est invité</div>';
   html += '<div style="font-size:0.72rem;color:var(--gris);margin-top:-0.4rem;line-height:1.5;">Rien de coché = toute l\'équipe. Sinon, sont invités les membres qui ont <b>un des rôles</b> cochés <b>ou une des fonctions</b> cochées. Les rédacteurs et SR doivent appartenir à la « Rédaction concernée » choisie plus haut (« Toutes » = rattaché·es à au moins une rédaction). Les membres marqués inactifs ne sont jamais invités.</div>';
   html += puces('Rôles', AGENDA_CIBLE_ROLES, {redacteur:'Rédacteurs', correcteur:'SR', admin:'Admins'}, ev?ev.cible_roles:[], 'ag-roles');
+  html += '<div><button type="button" onclick="osAgendaCocherBureau(this)" style="display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;border:1px solid var(--encre);border-radius:20px;cursor:pointer;background:white;color:var(--encre);"><i class="ti ti-users"></i> Bureau</button>'
+    +'<span style="font-size:0.7rem;color:var(--gris);margin-left:0.5rem;">Coche président·e, vice-président·e, trésorier, secrétaire et vie asso. Décoche ensuite ce que tu veux.</span></div>';
   html += puces('Fonctions', AGENDA_CIBLE_FONCTIONS, FONCTIONS_LBL, ev?ev.cible_fonctions:[], 'ag-fonctions');
+  html += '<div id="ag-creneaux" style="display:none;"></div>';
   html += '<div id="ag-apercu-cibles" style="font-size:0.74rem;color:var(--encre);background:var(--gris-clair);border-radius:8px;padding:0.55rem 0.7rem;line-height:1.5;">Calcul des invités…</div>';
+  // Prévenir ou non (activé par défaut) : à la création, l'invitation par email ; à la modification,
+  // le message aux inscrits quand la date, l'heure ou le lieu change. Décocher = rien ne part.
+  html += ev
+    ? interrupteur('ag-prevenir', 'Prévenir les inscrits du changement', 'Si la date, l\'heure ou le lieu change, les inscrits reçoivent un message. Décoche pour ne rien envoyer.', true, 'bell')
+    : interrupteur('ag-prevenir', 'Prévenir par email', 'Les personnes ci-dessus reçoivent l\'invitation à la création. Décoche pour créer l\'événement sans rien envoyer.', true, 'bell');
   html += '</div>';
 
   html += '</div>';
@@ -2946,7 +3021,7 @@ function osAgendaOuvrirFormulaire(ev){
 
   document.getElementById('ag-submit').onclick = function(){ osAgendaSauvegarder(ev?ev.id:null); };
   if(!isEdit){ var t = document.getElementById('ag-titre'); if(t) t.focus(); }
-  osAgendaInitApercuCibles(isEdit);
+  osAgendaInitApercuCibles(isEdit, isEdit ? ev.id : null);
   if(typeof osCarteLieuBrancher === 'function') osCarteLieuBrancher('ag-lieu', 'ag-lieu-carte');
 }
 
@@ -2977,6 +3052,8 @@ function osAgendaSauvegarder(evId){
   var places = (document.getElementById('ag-places')||{}).value||'';
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
   var ouvertExternes = !!(document.getElementById('ag-ouvert-externes')||{}).checked;
+  var caseP = document.getElementById('ag-prevenir');
+  var prevenir = !caseP || caseP.checked;   // activé par défaut
   var infosReservees = !!(document.getElementById('ag-infos-reservees')||{}).checked;
   var organisateur = (document.getElementById('ag-organisateur')||{}).value||getUserNomComplet();
   var redactionId = (document.getElementById('ag-redaction')||{}).value||null;
@@ -3046,11 +3123,12 @@ function osAgendaSauvegarder(evId){
       else osAgendaRendreVue();
     });
     // Événement passé (saisi rétroactivement pour créditer des heures) — ne pas inviter à un événement déjà terminé
-    if(!isEdit && new Date(payload.date_debut) > new Date()){
+    if(!prevenir){ /* « Prévenir » décoché : aucun message */ }
+    else if(!isEdit && new Date(payload.date_debut) > new Date()){
       osAgendaEnvoyerInvitations(evSauve, roles, fonctions);
       if(payload.contact_email) osAgendaPrevenirContactExterne(evSauve);
     }
-    if(isEdit && evAvant && evAvant.id && evAvant.statut!=='annule' && new Date(payload.date_debut) > new Date()){
+    if(prevenir && isEdit && evAvant && evAvant.id && evAvant.statut!=='annule' && new Date(payload.date_debut) > new Date()){
       _osAgendaPrevenirModification(evAvant, evSauve);
     }
   }).catch(function(){ notif('Erreur sauvegarde'); });
@@ -3123,8 +3201,7 @@ function _osAgendaCiblesMembres(membres, liens, roles, fonctions, redactionId){
     if(redactionId && String(l.redaction_id)!==String(redactionId)) return;
     rattaches[l.membre_id] = true;
   });
-  var toutLeMonde = (!roles.length && !fonctions.length)
-    || (roles.length===AGENDA_CIBLE_ROLES.length && fonctions.length===AGENDA_CIBLE_FONCTIONS.length);
+  var toutLeMonde = _agendaToutLeMonde(roles, fonctions);
   return (membres||[]).filter(function(m){
     if(!m.email || m.role==='interdit' || m.marque_inactif) return false;
     if(toutLeMonde) return true;
@@ -3149,17 +3226,102 @@ function _osAgendaChargerCiblesBase(){
 }
 
 // Aperçu en direct, sous les cases : combien de personnes, et lesquelles
-function osAgendaInitApercuCibles(isEdit){
+// ===== MEILLEURS CRÉNEAUX (formulaire de création) =====
+// D'après les habitudes de connexion des invités (fonction SQL creneaux_suggestions : heures de présence comptées depuis le
+// 6 novembre 2026, complétées par l'activité des 12 dernières semaines). Seulement des totaux, et pour 3 invités ou plus.
+var AGENDA_COLLECTE_DEBUT = new Date('2026-11-06T00:00:00');
+var _agendaCreneauxTimer = null, _agendaCreneauxCle = '';
+var AGENDA_JOURS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+function _agendaSuggererCreneaux(ids, titre){
+  var zone = document.getElementById('ag-creneaux');
+  if(!zone) return;
+  ids = (ids || []).slice().sort();
+  var cle = ids.join(',')+'|'+(titre||'');
+  if(cle === _agendaCreneauxCle) return;
+  _agendaCreneauxCle = cle;
+  clearTimeout(_agendaCreneauxTimer);
+  if(ids.length < 3){ zone.style.display = 'none'; return; }
+  _agendaCreneauxTimer = setTimeout(function(){
+    var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
+    fetch(SB_URL+'/rest/v1/rpc/creneaux_suggestions', { method:'POST', headers:authH, body:JSON.stringify({ p_membres: ids }) })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if(cle !== _agendaCreneauxCle) return;
+        if(!Array.isArray(rows) || !rows.length){ zone.style.display = 'none'; return; }
+        _agendaAfficherCreneaux(zone, rows.slice(0, 3), ids.length, titre);
+      })
+      .catch(function(){ zone.style.display = 'none'; });
+  }, 350);
+}
+function _agendaAfficherCreneaux(zone, rows, total, titre){
+  var max = Math.max.apply(null, rows.map(function(r){ return +r.attendus; })) || 1;
+  var jeune = (Date.now() - AGENDA_COLLECTE_DEBUT.getTime()) < 28 * 86400000;
+  var h = '<div style="font-size:0.74rem;font-weight:700;color:var(--encre);margin-bottom:0.35rem;"><i class="ti ti-sparkles"></i> '+(titre || 'Meilleurs créneaux pour ces invités')+'</div>';
+  rows.forEach(function(r){
+    var n = +r.attendus;
+    var txt = n < 1 ? 'moins d\'1 personne sur '+total : '≈ '+Math.round(n)+' sur '+total;
+    h += '<button type="button" onclick="osAgendaChoisirCreneau('+r.jour+','+r.heure+')" style="display:flex;align-items:center;gap:0.6rem;width:100%;text-align:left;margin-bottom:0.3rem;padding:0.45rem 0.6rem;border:1px solid var(--gris-bord);border-radius:8px;background:white;cursor:pointer;font-family:DM Sans,sans-serif;">'
+      +'<span style="flex:1;min-width:0;font-size:0.78rem;font-weight:600;color:var(--encre);">'+AGENDA_JOURS[r.jour]+' '+r.heure+'h–'+(r.heure+1)+'h</span>'
+      +'<span style="width:70px;height:6px;border-radius:3px;background:var(--gris-clair);overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:'+Math.max(8, Math.round(n / max * 100))+'%;background:#2E9E5B;"></span></span>'
+      +'<span style="font-size:0.7rem;color:var(--gris);white-space:nowrap;min-width:130px;text-align:right;">'+txt+'</span></button>';
+  });
+  h += '<div style="font-size:0.66rem;color:var(--gris);line-height:1.4;">Personnes habituellement connectées à Compo à cette heure-là. Clique pour remplir la date (la prochaine occurrence).'
+    +(jeune ? ' Encore peu de données (collecte lancée le 6 novembre) : à prendre comme une indication.' : '')+'</div>';
+  zone.innerHTML = h;
+  zone.style.cssText = 'background:#EEF8F1;border:1px solid #CDEBD7;border-radius:8px;padding:0.6rem 0.7rem;';
+}
+// Remplit Début (prochain jour/heure correspondant, au plus tôt demain) et, si besoin, Fin une heure après
+function osAgendaChoisirCreneau(jour, heure){
+  var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(heure, 0, 0, 0);
+  while(((d.getDay() + 6) % 7) + 1 !== jour) d.setDate(d.getDate() + 1);
+  function loc(x){ var p = function(n){ return (n < 10 ? '0' : '')+n; }; return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())+'T'+p(x.getHours())+':'+p(x.getMinutes()); }
+  var deb = document.getElementById('ag-debut'), fin = document.getElementById('ag-fin');
+  // Garder la durée déjà saisie (décaler une réunion de 2h la laisse à 2h), sinon 1h
+  var duree = 3600000;
+  if(deb && fin && deb.value && fin.value){ var dd = new Date(fin.value) - new Date(deb.value); if(dd > 0 && dd < 24 * 3600000) duree = dd; }
+  if(deb){ deb.value = loc(d); deb.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(fin){ fin.value = loc(new Date(d.getTime() + duree)); fin.dispatchEvent(new Event('change', {bubbles:true})); }
+  if(typeof notif === 'function') notif(AGENDA_JOURS[jour]+' '+d.toLocaleDateString('fr-FR', {day:'numeric', month:'long'})+' à '+heure+'h', 'succes');
+}
+
+function osAgendaInitApercuCibles(isEdit, evId){
+  _agendaCreneauxCle = '';   // nouveau formulaire : recalculer les créneaux
   var zone = document.getElementById('ag-apercu-cibles');
   if(!zone) return;
-  if(isEdit){ zone.style.display='none'; return; }   // pas d'invitation à la modification
   var base = null;
+  if(isEdit){
+    // Pas d'invitation à la modification : pas d'aperçu des invités. Mais les créneaux servent à décaler la réunion :
+    // calculés sur les inscrits (3 ou plus), sinon sur les invités cochés.
+    zone.style.display = 'none';
+    var inscritsIds = [];
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+    var majEdit = function(){
+      if(inscritsIds.length >= 3){ _agendaSuggererCreneaux(inscritsIds, 'Meilleurs créneaux pour les inscrits'); return; }
+      if(!base) return;
+      var sel = document.getElementById('ag-redaction');
+      _agendaSuggererCreneaux(_osAgendaCiblesMembres(base.membres, base.liens, lireE('ag-roles'), lireE('ag-fonctions'), sel&&sel.value||null).map(function(m){ return m.id; }));
+    };
+    var lireE = function(name){ return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;}); };
+    Promise.all([
+      _osAgendaChargerCiblesBase(),
+      evId ? fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&statut=neq.refuse&select=membre_id',{headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return []; }) : []
+    ]).then(function(res){
+      base = res[0] || null;
+      inscritsIds = Array.isArray(res[1]) ? res[1].map(function(i){ return i.membre_id; }).filter(Boolean) : [];
+      majEdit();
+    });
+    if(zone.parentNode) zone.parentNode.addEventListener('change', majEdit);
+    var selE = document.getElementById('ag-redaction');
+    if(selE) selE.addEventListener('change', majEdit);
+    return;
+  }
   function lire(name){ return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;}); }
   function maj(){
     if(!base){ return; }
     var sel = document.getElementById('ag-redaction');
     var cibles = _osAgendaCiblesMembres(base.membres, base.liens, lire('ag-roles'), lire('ag-fonctions'), sel&&sel.value||null);
     var noms = cibles.map(function(m){ return esc(((m.prenom||'')+' '+(m.nom||'')).trim()||m.email); }).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+    _agendaSuggererCreneaux(cibles.map(function(m){ return m.id; }));
     zone.innerHTML = '<b>'+(cibles.length===0?'Personne ne sera prévenu·e':cibles.length+' personne'+(cibles.length>1?'s seront prévenues':' sera prévenue')+' par email')+'</b> à la création.'
       +(noms.length?'<div style="color:var(--gris);margin-top:0.25rem;max-height:5.5rem;overflow:auto;">'+noms.join(' · ')+'</div>':'');
   }

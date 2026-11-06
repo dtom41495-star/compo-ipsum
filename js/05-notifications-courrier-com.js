@@ -356,7 +356,7 @@ function _osOpenWindowExecuter(pageId){
     guide:'Manuel', tickets:'Assistance', log:'Journal', 
     newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Projets',
     snake:'Presse Express', substack:'Articles publiés', signatures:'Signatures',
-    'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'transcrire':'Transcrire', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie', veille:'Veille'
+    'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'transcrire':'Transcrire', 'salles':'Salles', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie', veille:'Veille'
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
