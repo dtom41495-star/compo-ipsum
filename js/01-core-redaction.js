@@ -1190,6 +1190,11 @@ function renderLecture(){
   if(dateRef) etat.push((s === 'publie' ? 'Publié ' : 'Modifié ')+_maDateCourte(dateRef).replace(/^([A-Z])/, function(c){ return c.toLowerCase(); }));
   if(s === 'publie' && doc.lien_publication) etat.push('<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Voir en ligne</a>');
 
+  // Historique (étapes, relectures, texte à chaque étape) : aussi depuis la lecture, sinon il n'était accessible
+  // qu'en édition, qui n'est plus possible pour l'auteur·rice une fois l'article parti au SR
+  var peutHistorique = typeof osHistoriqueOuvrir === 'function' && !!doc.id
+    && (estAuteurLect || getUserRole() === 'admin' || peutEcrire)
+    && (s !== 'brouillon' || doc.titre_original || doc.corps_original || estRefuse);
   var h = '<div class="lx-barre">'
     +'<div class="lx-etat">'+(st[0] ? '<span class="mac-statut" style="color:'+st[1]+';background:'+st[2]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'>'+st[0]+'</span>' : '')
       +'<span class="lx-etat-infos">'+etat.join('<span class="lx-sep"> · </span>')+'</span></div>'
@@ -1197,7 +1202,8 @@ function renderLecture(){
       +(peutEcrire ? '<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="chargerDansRedaction(currentDoc)"><i class="ti ti-pencil"></i><span>'+libModifier+'</span></button>' : '')
       +'<button class="mac-btn" onclick="genMd(\'lect\')" title="Copier le texte pour Substack"><i class="ti ti-copy"></i><span>Copier</span></button>'
       +'<button class="mac-btn" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i><span>Visuels</span></button>'
-      +'<button class="mac-btn" onclick="exporterPDF()"><i class="ti ti-file-type-pdf"></i><span>PDF</span></button>'
+      +(peutHistorique ? '<button class="mac-btn" onclick="osHistoriqueOuvrir(currentDoc)" title="Étapes, relectures et versions du texte"><i class="ti ti-history"></i><span>Historique</span></button>' : '')
+      +'<button class="mac-btn" onclick="exporterPDF()" title="Télécharger l\'article en PDF"><i class="ti ti-file-type-pdf"></i><span>PDF</span></button>'
     +'</div></div>';
 
   // L'article
@@ -1871,133 +1877,7 @@ function nlToggleCarteHistorique(cardId){
 }
 
 
-// Export PDF via impression navigateur
-function exporterPDF(){
-  if(!currentDoc){ notif('Aucun article charge'); return; }
-  // La fenêtre s'ouvre tout de suite (sinon le navigateur la bloque) ; la date de validation des tampons est lue ensuite
-  var fenetre = window.open('', '_blank');
-  if(!fenetre){ notif('Autorise les popups pour exporter le PDF', 'erreur'); return; }
-  try { fenetre.document.write('<p style="font-family:Arial,sans-serif;padding:2rem;color:#6B7280;">Préparation du document…</p>'); } catch(e){}
-  var docExport = currentDoc;
-  var ecrire = function(d){
-    if(typeof currentDoc !== 'undefined' && currentDoc !== docExport) window.currentDoc = docExport;
-    fenetre.document.open();
-    fenetre.document.write(_exporterPDFHtml(d));
-    fenetre.document.close();
-    fenetre.onload = function(){ setTimeout(function(){ fenetre.print(); }, 500); };
-  };
-  if(typeof osTamponsDonnees === 'function') osTamponsDonnees(docExport).then(ecrire, function(){ ecrire(null); });
-  else ecrire(null);
-  notif('Fenetre d impression ouverte - choisis PDF comme destination');
-}
-
-function _exporterPDFHtml(donneesTampons){
-  // Créer le document d'impression avec le contenu mis en forme
-  var titre = currentDoc.titre || 'Article';
-  var auteur = (typeof osSignature === 'function' ? osSignature(currentDoc) : currentDoc.auteur) || '';   // avec les co-signataires (js/49)
-  var redaction = currentDoc.redaction || '';
-  var chapeau = currentDoc.chapeau || '';
-  var corps = currentDoc.corps || '';
-  var rubrique = currentDoc.rubrique || '';
-  var datePub = currentDoc.date_publication || '';
-  var dateCreation = currentDoc.cree_le ? new Date(currentDoc.cree_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
-  var sources = currentDoc.sources && currentDoc.sources.length ? currentDoc.sources : [];
-  var tags = currentDoc.tags && currentDoc.tags.length ? currentDoc.tags : [];
-  var statut = currentDoc.statut || 'brouillon';
-  var image = currentDoc.image || null;
-  var imageLegende = currentDoc.image_legende || '';
-  var communiques = currentDoc.communiques && currentDoc.communiques.length ? currentDoc.communiques : [];
-  var correcteur = currentDoc.correcteur || '';   // le SR de l'article, s'il y en a un
-  var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
-
-  var tamponsHtml = (typeof osTamponsHtml === 'function') ? osTamponsHtml(currentDoc, donneesTampons) : '';
-  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
-  html += '<title>'+escHtml(titre)+'</title>';
-  html += '<style>';
-  html += '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Montserrat:wght@800&family=Caveat:wght@700&display=swap");';
-  html += 'body{font-family:"DM Sans",Arial,sans-serif;margin:0;padding:2cm;font-size:11pt;color:#1A1A2E;line-height:1.7;}';
-  html += '.header{border-bottom:3px solid #ea5b1c;padding-bottom:1rem;margin-bottom:1.5rem;}';
-  html += '.entete{display:flex;align-items:center;gap:14px;margin-bottom:0.4rem;}';
-  html += '.entete img{height:56px;width:auto;flex-shrink:0;}';
-  html += '.logo{font-size:8.5pt;color:#6B7280;letter-spacing:0.12em;text-transform:uppercase;}';
-  html += 'h1{font-size:22pt;font-weight:700;margin:0.5rem 0;line-height:1.2;color:#1A1A2E;}';
-  html += '.chapeau{font-size:12pt;font-style:italic;color:#6B7280;border-left:3px solid #ea5b1c;padding-left:1rem;margin:1rem 0;}';
-  html += '.meta{font-size:8.5pt;color:#6B7280;margin-bottom:1.5rem;font-family:Space Mono,monospace;display:flex;gap:1.5rem;flex-wrap:wrap;}';
-  html += '.badge{display:inline-block;padding:2px 8px;border:1px solid #6B7280;font-size:7.5pt;text-transform:uppercase;letter-spacing:0.05em;}';
-  html += '.badge-valide{border-color:#155724;color:#155724;}';
-  html += '.badge-brouillon{border-color:#856404;color:#856404;}';
-  html += '.corps{font-size:11pt;line-height:1.85;white-space:pre-wrap;margin-bottom:2rem;}';
-  html += 'img{max-width:100%;height:auto;margin:1rem 0;}';
-  html += '.legende{font-size:8.5pt;color:#6B7280;font-style:italic;margin-top:-0.5rem;margin-bottom:1rem;}';
-  html += '.sources{border-top:1px solid #E5E7EB;padding-top:0.8rem;margin-top:1.5rem;font-size:8.5pt;color:#6B7280;font-family:Space Mono,monospace;}';
-  html += '.tags{margin-top:0.5rem;font-size:8.5pt;color:#6B7280;font-family:Space Mono,monospace;}';
-  html += '.communiques{background:#D6EAF8;padding:0.8rem 1rem;margin-top:1rem;font-size:8.5pt;font-family:Space Mono,monospace;color:#1A5276;border-left:3px solid #1A5276;}';
-  html += '.footer{border-top:1px solid #E5E7EB;margin-top:2rem;padding-top:0.8rem;font-size:8pt;color:#6B7280;font-family:Space Mono,monospace;}';
-  html += '@media print{body{padding:1.5cm;}@page{margin:1.5cm;}}';
-  if(tamponsHtml && typeof TAMPON_CSS_PDF !== 'undefined') html += TAMPON_CSS_PDF;
-  html += '</style></head><body>';
-
-  // Header
-  html += '<div class="header">';
-  html += '<div class="entete">'+(logo ? '<img src="'+escHtml(logo)+'" alt="Ipsum Média">' : '')+'<div class="logo">Association Ipsum Média</div></div>';
-  html += '<h1>'+escHtml(titre)+'</h1>';
-  if(chapeau) html += '<div class="chapeau">'+escHtml(chapeau)+'</div>';
-  html += '</div>';
-
-  // Meta
-  html += '<div class="meta">';
-  html += '<span>Par <strong>'+escHtml(auteur)+'</strong></span>';
-  if(correcteur) html += '<span>Relu par <strong>'+escHtml(correcteur)+'</strong></span>';
-  if(redaction) html += '<span>'+escHtml(redaction)+'</span>';
-  if(rubrique) html += '<span>'+escHtml(rubrique)+'</span>';
-  if(dateCreation) html += '<span>'+escHtml(dateCreation)+'</span>';
-  if(datePub) html += '<span>Publication : '+escHtml(datePub)+'</span>';
-  var badgeCls = statut === 'valide' ? 'badge-valide' : 'badge-brouillon';
-  html += '<span class="badge '+badgeCls+'">'+escHtml(statut)+'</span>';
-  html += '</div>';
-
-  // Image — un lien Drive /view brut ne s'affiche pas dans un <img>, il faut
-  // l'endpoint image direct (_driveImgSrc, déjà utilisé partout ailleurs où une image
-  // d'article est affichée — c'était seulement oublié ici, à l'export PDF).
-  if(image){
-    html += '<img src="'+escHtml(_driveImgSrc(image))+'" alt="'+escHtml(imageLegende)+'">';
-    if(imageLegende) html += '<div class="legende">'+escHtml(imageLegende)+'</div>';
-  }
-
-  // Corps
-  html += '<div class="corps">'+escHtml(corps)+'</div>';
-
-  // Sources
-  if(sources.length){
-    html += '<div class="sources"><strong>Sources</strong><br>';
-    sources.forEach(function(s){ html += escHtml(s)+'<br>'; });
-    html += '</div>';
-  }
-
-  // Tags
-  if(tags.length){
-    html += '<div class="tags">'+tags.map(function(t){return '#'+escHtml(t);}).join(' ')+'</div>';
-  }
-
-  // Communiques
-  if(communiques.length){
-    html += '<div class="communiques"><strong>Communiques sources lies :</strong> ';
-    html += communiques.map(function(c){ return escHtml(c.objet)+' ('+escHtml(c.organisation)+')'; }).join(' - ');
-    html += '</div>';
-  }
-
-  // Tampons « Bon à publier » / « Publié » (mêmes qu'en lecture)
-  if(tamponsHtml) html += '<div class="tampons">'+TAMPON_SVG+tamponsHtml+'</div>';
-
-  // Footer
-  html += '<div class="footer">';
-  html += 'Ipsum Media - Association loi 1901 - SIRET 10023843500018 - contact@ipsummedia.fr<br>';
-  html += "Document genere par Compo le "+new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
-  html += '</div>';
-
-  html += '</body></html>';
-  return html;
-}
+// Export PDF : voir js/79-article-pdf.js (vrai fichier PDF téléchargé, plus de fenêtre d'impression)
 
 function escHtml(str){
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
