@@ -10,7 +10,7 @@ function osEstMobile(){ return window.innerWidth <= 768; }
 var ACCUEIL_RUBRIQUES = [
   { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
-  { titre:'Sur le terrain', ids:['agenda','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
+  { titre:'Sur le terrain', ids:['agenda','salles','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','notes-frais','boutique','newsletter','signatures','projets','tableau'] },
   { titre:'Administration', ids:['cockpit','gestion-apps','redac:admin','cps-admin','bugs','nettoyage'] }
 ];
@@ -35,6 +35,7 @@ function _accueilAppsBureau(){
   var apps = [
     { id:'stats-dashboard', icon:'<i class="ti ti-chart-bar"></i>', label:'Stats', color:'#0D0D1A' },
     { id:'agenda', icon:'<i class="ti ti-calendar"></i>', label:'Agenda', color:'#C0392B' },
+    { id:'salles', icon:'<i class="ti ti-video"></i>', label:'Salles', color:'#0E7C66' },
     { id:'substack', icon:'<i class="ti ti-world"></i>', label:'Articles publiés', color:'#E8461E' },
     { id:'upload-medias', icon:'<i class="ti ti-folder"></i>', label:'Fichiers', color:'#1A5276' },
     { id:'mail', icon:'<i class="ti ti-mail"></i>', label:'Mail', color:'#1A6BC4' },

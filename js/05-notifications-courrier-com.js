@@ -1504,6 +1504,25 @@ function osBuildDesktopIcons(){
   agendaIcon.appendChild(agendaLabel);
   container.appendChild(agendaIcon);
 
+  // Icône Salles (salles de visio, js/77-salles.js) toujours présente, à côté de l'Agenda
+  if(role !== 'interdit'){
+    var sallesIcon = document.createElement('div');
+    sallesIcon.className = 'desktop-icon';
+    sallesIcon.dataset.app = 'salles';
+    sallesIcon.onclick = function(){ osOpenWindow('salles'); };
+    var sallesImg = document.createElement('div');
+    sallesImg.className = 'desktop-icon-img';
+    sallesImg.style.background = 'linear-gradient(135deg,#0E7C66,#16A085)';
+    sallesImg.style.color = 'white';
+    sallesImg.innerHTML = '<i class="ti ti-video"></i>';
+    var sallesLabel = document.createElement('div');
+    sallesLabel.className = 'desktop-icon-label';
+    sallesLabel.textContent = 'Salles';
+    sallesIcon.appendChild(sallesImg);
+    sallesIcon.appendChild(sallesLabel);
+    container.appendChild(sallesIcon);
+  }
+
   // Icône Veille toujours présente sur le bureau (Tom veut qu'elle soit visible
   // directement, pas seulement dans le dock)
   if(role === 'admin' || role === 'redacteur' || role === 'correcteur'){
