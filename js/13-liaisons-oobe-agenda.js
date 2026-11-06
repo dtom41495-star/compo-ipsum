@@ -349,134 +349,257 @@ function rLectureAfficherCpSource(doc, container){
 }
 
 // ===== OOBE (PREMIÈRE CONNEXION) =====
+// Cinq étapes : 1. Bienvenue (rédaction, rôle, qui a invité) · 2. Profil + avatar ·
+// 3. Notifications (Google Chat ou mail) · 4. Ce que tu peux faire (selon le rôle) ·
+// 5. C'est prêt (visite guidée, vidéo ou plus tard).
+// Plus de choix d'applis ni de demande d'accès : ce que chacun·e voit est calculé à partir
+// de son rôle (js/80-acces.js).
 
-var _oobeAppsSelectionnees = new Set();
+var _oobeNbSteps = 5;
 var _oobeStepCourant = 0;
-var _oobeNbSteps = 3;
 var _oobeAvatarChoisi = '';
+var _oobeCanal = 'email';
+var _oobeAccueil = 'visite';
+var _oobeCtx = null; // { email, role, fonctions, liens:[{role_redac, aussi_sr, redaction_id, nom, chefs}], invitePar }
 
 function oobeVerifier(userId, membre){
   var done = localStorage.getItem('compo_oobe_done_'+userId);
   if(done) return false;
-  // Ne déclencher QUE si le prénom est explicitement vide ou null en base
-  // Un prénom qui ressemble à un préfixe email (pas d'espace, tout minuscule + chiffres) n'est pas fiable
   if(!membre) return true; // nouveau compte sans ligne membres
   // Jamais connecté·e : compte tout neuf, même si le prénom est déjà rempli (formulaire
-  // d'inscription, compte créé par un admin). Avant, ces comptes-là sautaient l'OOBE,
-  // et donc aussi le choix d'avatar et la visite guidée.
+  // d'inscription, compte créé par un admin)
   if(!membre.derniere_connexion) return true;
   var prenom = (membre.prenom||'').trim();
-  if(!prenom) return true; // prénom vide → OOBE
-  // Si prénom semble être un préfixe email (ex: dtom6, john123) → OOBE
-  // Détection : pas d'espace, contient des chiffres, ou tout en minuscules sans majuscule
-  var ressembleEmail = prenom.length > 0 && /^[a-z0-9._-]+$/.test(prenom) && !/[A-Z]/.test(prenom);
-  if(ressembleEmail) return true;
-  return false;
+  if(!prenom) return true;
+  // Prénom qui ressemble à un préfixe d'email (ex : dtom6, john123) → OOBE
+  var ressembleEmail = /^[a-z0-9._-]+$/.test(prenom) && !/[A-Z]/.test(prenom);
+  return ressembleEmail;
+}
+
+function _oobeAuth(){
+  return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+}
+function _oobeJson(url){
+  return fetch(SB_URL+url, { headers:_oobeAuth() })
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(d){ return Array.isArray(d) ? d : []; })
+    .catch(function(){ return []; });
 }
 
 function oobeOuvrir(userId, role){
   var screen = document.getElementById('oobe-screen');
   if(!screen) return;
-  screen.classList.add('visible');
-  // Apps déjà configurées (compte approuvé ou créé par un admin) ? Vérifié en base : à ce
-  // stade elles ne sont pas encore chargées dans Compo. Sans ça, un compte déjà équipé
-  // se voyait redemander ses applis puis bloquer sur « compte non configuré ».
-  // Les accès sont calculés à partir du rôle (js/80) : plus d'étape « choisis tes applis » ni de demande d'accès
-  _oobeOuvrirSuite(userId, role, true); return;
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id&limit=1', {
-    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')})
-  }).then(function(r){ return r.json(); })
-  .then(function(rows){ _oobeOuvrirSuite(userId, role, Array.isArray(rows) && rows.length > 0); })
-  .catch(function(){ _oobeOuvrirSuite(userId, role, false); });
-}
+  var logo = document.getElementById('oobe-logo-img'), logoLogin = document.querySelector('.os-login-logo');
+  if(logo && logoLogin && !logo.src) logo.src = logoLogin.src;
 
-function _oobeOuvrirSuite(userId, role, appsPreconfigurees){
-  // Vérifier si les apps sont déjà configurées par l'admin
-  window._oobeAppsPreconfigurees = !!appsPreconfigurees;
-
-  // Adapter le nombre de dots selon qu'on a l'étape apps ou pas
-  var nbSteps = window._oobeAppsPreconfigurees ? 2 : 3;
+  _oobeStepCourant = 0;
+  _oobeAvatarChoisi = '';
+  _oobeAccueil = 'visite';
   var progress = document.getElementById('oobe-progress');
   if(progress){
     progress.innerHTML = '';
-    for(var i=0;i<nbSteps;i++){
+    for(var i = 0; i < _oobeNbSteps; i++){
       var dot = document.createElement('div');
-      dot.className = 'oobe-dot' + (i===0?' active':'');
+      dot.className = 'oobe-dot'+(i === 0 ? ' active' : '');
       dot.id = 'oobe-dot-'+i;
       progress.appendChild(dot);
     }
   }
+  for(var j = 0; j < _oobeNbSteps; j++){
+    var st = document.getElementById('oobe-step-'+j);
+    if(st) st.classList.toggle('active', j === 0);
+  }
 
-  // Masquer l'étape apps si préconfigurée
-  var stepApps = document.getElementById('oobe-step-2');
-  if(stepApps) stepApps.style.display = window._oobeAppsPreconfigurees ? 'none' : '';
-
-  // Pré-remplir avec ce qu'on sait
   var prenom = localStorage.getItem('ipsum_user_prenom')||'';
   var nom = localStorage.getItem('ipsum_user_nom')||'';
-  var p = document.getElementById('oobe-prenom');
-  var n = document.getElementById('oobe-nom');
+  var p = document.getElementById('oobe-prenom'), n = document.getElementById('oobe-nom');
   if(p && prenom && prenom !== 'null') p.value = prenom;
   if(n && nom && nom !== 'null') n.value = nom;
 
-  // Grille d'avatars — même liste que Réglages > Mon profil. Choix gardé en mémoire
-  // (_oobeAvatarChoisi) et écrit seulement à oobeTerminer(), pas de PATCH immédiat comme
-  // osChoisirAvatar : la ligne membres n'existe pas forcément encore à ce stade (nouveau
-  // compte), donc PATCH échouerait silencieusement — le POST de secours d'oobeTerminer()
-  // s'en charge en même temps que prénom/nom/rôle.
-  _oobeAvatarChoisi = '';
+  var email = (_session && _session.user && _session.user.email) || localStorage.getItem('ipsum_user_email') || '';
+  _oobeCtx = { email:email, role:role || 'redacteur', fonctions:[], liens:[], invitePar:'' };
+  _oobeCanal = _oobeChatPossible(email) ? 'chat' : 'email';
+  _oobeRendre();
+  screen.classList.add('visible');
+
+  // Ce qu'on sait du compte : rédactions (et leur rédac chef), fonctions, qui a invité
+  _oobeJson('/rest/v1/membres?id=eq.'+encodeURIComponent(userId)+'&select=email,role,fonction,canal_notif,avatar_id,invite_par')
+  .then(function(rows){
+    var m = rows[0] || {};
+    if(m.email) _oobeCtx.email = m.email;
+    if(m.role) _oobeCtx.role = m.role;
+    _oobeCtx.fonctions = fonctionArray(m.fonction);
+    if(m.canal_notif === 'chat' && _oobeChatPossible(_oobeCtx.email)) _oobeCanal = 'chat';
+    else if(m.canal_notif === 'email') _oobeCanal = 'email';
+    else _oobeCanal = _oobeChatPossible(_oobeCtx.email) ? 'chat' : 'email';
+    if(m.avatar_id && !_oobeAvatarChoisi) _oobeAvatarChoisi = m.avatar_id;
+    var reqInvite = m.invite_par && m.invite_par !== userId
+      ? _oobeJson('/rest/v1/membres?id=eq.'+encodeURIComponent(m.invite_par)+'&select=prenom,nom')
+      : Promise.resolve([]);
+    var reqLiens = _oobeJson('/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&select=redaction_id,role_redac,aussi_sr,redactions(nom)');
+    return Promise.all([reqInvite, reqLiens]);
+  }).then(function(res){
+    var inv = res[0][0];
+    if(inv) _oobeCtx.invitePar = ((inv.prenom||'')+' '+(inv.nom||'')).trim();
+    _oobeCtx.liens = res[1].map(function(l){
+      return { redaction_id:l.redaction_id, role_redac:l.role_redac, aussi_sr:!!l.aussi_sr, nom:(l.redactions && l.redactions.nom) || 'Rédaction', chefs:[] };
+    });
+    var ids = _oobeCtx.liens.map(function(l){ return l.redaction_id; }).filter(Boolean);
+    if(!ids.length) return [];
+    return _oobeJson('/rest/v1/membres_redactions?redaction_id=in.('+ids.join(',')+')&role_redac=eq.redac_chef&select=redaction_id,membre_id,membres(prenom,nom)');
+  }).then(function(chefs){
+    (chefs || []).forEach(function(c){
+      if(c.membre_id === userId || !c.membres) return;
+      var l = _oobeCtx.liens.find(function(x){ return x.redaction_id === c.redaction_id; });
+      if(l) l.chefs.push(((c.membres.prenom||'')+' '+(c.membres.nom||'')).trim());
+    });
+    _oobeRendre();
+  }).catch(function(){ _oobeRendre(); });
+}
+
+function _oobeChatPossible(email){
+  var dom = typeof COMPO_DOMAINE_WORKSPACE !== 'undefined' ? COMPO_DOMAINE_WORKSPACE : 'ipsummedia.fr';
+  return !!email && email.toLowerCase().indexOf('@'+dom) !== -1;
+}
+
+function _oobePrenom(){
+  var p = ((document.getElementById('oobe-prenom')||{}).value||'').trim();
+  if(!p) p = (localStorage.getItem('ipsum_user_prenom')||'').trim();
+  return p && p !== 'null' && !/^[a-z0-9._-]+$/.test(p) ? p : '';
+}
+
+var OOBE_ROLES_REDAC = { redacteur:'rédaction', correcteur:'SR', redac_chef:'rédac chef' };
+
+function _oobeRendre(){
+  if(!_oobeCtx) return;
+  var c = _oobeCtx, prenom = _oobePrenom();
+
+  // 1. Bienvenue
+  var t = document.getElementById('oobe-bienvenue-titre');
+  if(t) t.textContent = 'Bienvenue chez Ipsum Média'+(prenom ? ', '+prenom : '')+'\u00a0!';
+  var redacs = document.getElementById('oobe-redacs');
+  if(redacs){
+    var html = c.liens.map(function(l){
+      var r = l.role_redac === 'redac_chef' && l.aussi_sr ? 'rédac chef + SR' : (OOBE_ROLES_REDAC[l.role_redac] || 'rédaction');
+      var qui = r === 'rédaction' ? 'membre de la rédaction' : r;
+      var nomR = /^r[ée]dac/i.test(l.nom) ? l.nom : 'Rédaction '+l.nom;
+      return '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-news"></i></span><div><b>'+esc(nomR)+'</b>'
+        +'<small>Tu rejoins en tant que <b>'+esc(qui)+'</b>'+(l.chefs.length ? ' · rédac chef : '+esc(l.chefs.join(', ')) : '')+'</small></div></div>';
+    }).join('');
+    if(!html){
+      if(c.role === 'communicant') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-speakerphone"></i></span><div><b>Équipe communication</b><small>Tu fais connaître les articles du média</small></div></div>';
+      else if(c.role === 'correcteur') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-pencil-check"></i></span><div><b>SR de toutes les rédactions</b><small>Tu relis les articles de chaque rédaction</small></div></div>';
+      else if(c.role === 'admin') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-shield-check"></i></span><div><b>Administration</b><small>Tu as la main sur tout Compo</small></div></div>';
+      else if(c.fonctions.length) html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-heart-handshake"></i></span><div><b>Bureau de l\'association</b><small>'+esc(c.fonctions.map(function(f){ return (typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[f]) || f; }).join(', '))+'</small></div></div>';
+    }
+    redacs.innerHTML = html;
+  }
+  var inv = document.getElementById('oobe-invite-par');
+  if(inv) inv.textContent = c.invitePar ? 'Invitation de '+c.invitePar : '';
+
+  // 2. Avatars
   var avGrid = document.getElementById('oobe-avatar-grid');
   if(avGrid) oobeRenderGrilleAvatars(avGrid);
 
-  // Construire la grille d'apps seulement si pas préconfigurées
-  if(!window._oobeAppsPreconfigurees){
-    // Pas les applis toujours présentes sur le bureau, ni les anciennes versions
-    var SUR_LE_BUREAU = ['agenda','salles','veille','tutos','stats-dashboard'];
-    var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
-      var r = a.roles||[];
-      return (r.includes(role) || (role === 'redac_chef' && r.includes('redacteur'))) && SUR_LE_BUREAU.indexOf(a.id) === -1 && !a.legacy && !/\(v1\)/.test(a.label);
-    });
-    var profil = PROFILS_PREDEFINIS[role] || PROFILS_PREDEFINIS.redacteur;
-    _oobeAppsSelectionnees.clear();
-    profil.forEach(function(id){
-      if(_oobeAppsSelectionnees.size < 8 && appsDisponibles.some(function(a){ return a.id === id; })) _oobeAppsSelectionnees.add(id);
-    });
+  // 3. Notifications
+  var canaux = document.getElementById('oobe-canaux');
+  if(canaux){
+    var chatOk = _oobeChatPossible(c.email);
+    canaux.innerHTML =
+      '<button type="button" class="oobe-opt'+(_oobeCanal === 'chat' ? ' on' : '')+'"'+(chatOk ? ' onclick="oobeChoisirCanal(\'chat\')"' : ' disabled')+'>'
+      +'<i class="ti ti-message-circle"></i><div><b>Par Google Chat</b><small>'
+      +(chatOk ? 'Un message de BipBoup, le bot de la rédac. Le plus rapide.' : 'Réservé aux adresses @'+esc(typeof COMPO_DOMAINE_WORKSPACE !== 'undefined' ? COMPO_DOMAINE_WORKSPACE : 'ipsummedia.fr'))
+      +'</small></div></button>'
+      +'<button type="button" class="oobe-opt'+(_oobeCanal === 'email' ? ' on' : '')+'" onclick="oobeChoisirCanal(\'email\')">'
+      +'<i class="ti ti-mail"></i><div><b>Par mail</b><small>'+(c.email ? 'Sur '+esc(c.email) : 'Sur ton adresse mail')+'</small></div></button>';
+  }
 
-    var compteur = document.getElementById('oobe-compteur');
-    function majCompteur(){ if(compteur) compteur.innerHTML = '<strong>'+_oobeAppsSelectionnees.size+'</strong> / 8 applis choisies'; }
-    majCompteur();
-    var grid = document.getElementById('oobe-apps-grid');
-    if(grid){
-      grid.innerHTML = '';
-      appsDisponibles.forEach(function(app){
-        var card = document.createElement('div');
-        card.className = 'oobe-app-card'+(_oobeAppsSelectionnees.has(app.id)?' selected':'');
-        card.innerHTML = '<span class="oobe-app-icon">'+app.icon+'</span><span class="oobe-app-name">'+esc(app.label)+'</span>';
-        card.onclick = function(){
-          if(_oobeAppsSelectionnees.has(app.id)){
-            _oobeAppsSelectionnees.delete(app.id);
-            card.classList.remove('selected');
-          } else {
-            if(_oobeAppsSelectionnees.size >= 8){ notif('8 applis au maximum : retires-en une pour en ajouter une autre'); return; }
-            _oobeAppsSelectionnees.add(app.id);
-            card.classList.add('selected');
-          }
-          majCompteur();
-        };
-        grid.appendChild(card);
-      });
-    }
+  // 4. Ce que tu peux faire
+  var roleEl = document.getElementById('oobe-role');
+  if(roleEl) roleEl.innerHTML = _oobeRoleHTML(c);
+
+  // 5. C'est prêt
+  var pret = document.getElementById('oobe-pret-titre');
+  if(pret) pret.textContent = 'Tout est prêt'+(prenom ? ', '+prenom : '')+'\u00a0!';
+  var acc = document.getElementById('oobe-accueils');
+  if(acc){
+    var opts = [
+      ['visite', 'ti-hand-finger', 'Faire la visite guidée', 'Quelques étapes, tu peux l\'arrêter quand tu veux'],
+      ['video', 'ti-player-play', 'Voir la vidéo', 'Quelques minutes pour tout comprendre'],
+      ['rien', 'ti-clock', 'Plus tard', 'La visite et la vidéo restent dans le Guide']
+    ];
+    acc.innerHTML = opts.map(function(o){
+      return '<button type="button" class="oobe-opt'+(o[0] === 'rien' ? ' oobe-opt-discret' : '')+(_oobeAccueil === o[0] ? ' on' : '')+'" onclick="oobeChoisirAccueil(\''+o[0]+'\')">'
+        +'<i class="ti '+o[1]+'"></i><div><b>'+o[2]+'</b><small>'+o[3]+'</small></div></button>';
+    }).join('');
   }
 }
 
+// Étape 4 : ce que le rôle permet, puis ce qu'ajoutent les responsabilités (rédac chef, SR, fonctions dans l'asso)
+function _oobeRoleHTML(c){
+  function liste(titre, items){
+    return '<div class="oobe-role-bloc">'+(titre ? '<div class="oobe-role-sous">'+titre+'</div>' : '')
+      +items.map(function(it){ return '<div class="oobe-puce"><i class="ti ti-circle-check"></i><span><b>'+it[0]+'</b> '+it[1]+'</span></div>'; }).join('')+'</div>';
+  }
+  var role = c.role, titre, base;
+  if(role === 'admin'){
+    titre = 'admin';
+    base = [['Gérer les membres', 'leurs rôles, leurs rédactions et leurs fonctions, dans l\'appli Admin'],
+            ['Voir toutes les rédactions', 'leurs sujets, leurs articles et leur équipe'],
+            ['Valider et publier', 'les articles relus'],
+            ['Suivre l\'activité', 'dans les Stats']];
+  } else if(role === 'communicant'){
+    titre = 'communication';
+    base = [['Créer les visuels', 'des articles publiés (posts, stories)'],
+            ['Préparer les publications', 'dans l\'appli Com'],
+            ['Suivre l\'agenda', 'et les événements à relayer']];
+  } else if(role === 'correcteur'){
+    titre = 'SR de toutes les rédactions';
+    base = [['Relire et corriger', 'les articles envoyés par toutes les rédactions'],
+            ['Renvoyer un article', 'à son auteur avec tes commentaires'],
+            ['T\'inscrire', 'aux réunions et reportages de l\'agenda']];
+  } else {
+    titre = 'membre de la rédaction';
+    base = [['Réserver un sujet', 'de ta rédaction, ou en proposer'],
+            ['Écrire', 'tes articles et brèves, puis les envoyer au SR'],
+            ['Suivre', 'les communiqués reçus par la rédaction'],
+            ['T\'inscrire', 'aux réunions et reportages de l\'agenda'],
+            ['Gagner des plumes', 'en publiant régulièrement']];
+  }
+  var html = '<div class="oobe-title">Ton rôle : '+titre+'</div>'+liste('', base);
+
+  var chefDe = c.liens.filter(function(l){ return l.role_redac === 'redac_chef'; }).map(function(l){ return l.nom; });
+  if(chefDe.length && role !== 'admin')
+    html += liste('Et comme rédac chef ('+esc(chefDe.join(', '))+')', [
+      ['Valider les sujets', 'proposés et les attribuer'],
+      ['Gérer ton équipe', 'dans Ma rédac\''],
+      ['Envoyer la newsletter', 'de ta rédaction'],
+      ['Afficher l\'écran rédac', 'pendant les réunions']]);
+  var srDe = c.liens.filter(function(l){ return typeof osLienEstSR === 'function' ? osLienEstSR(l) : (l.role_redac === 'correcteur' || l.aussi_sr); }).map(function(l){ return l.nom; });
+  if(srDe.length && role !== 'correcteur' && role !== 'admin')
+    html += liste('Et comme SR ('+esc(srDe.join(', '))+')', [
+      ['Relire et corriger', 'les articles de ta rédaction'],
+      ['Les renvoyer', 'à leur auteur avec tes commentaires']]);
+
+  var f = c.fonctions, asso = [];
+  if(f.indexOf('tresorier') !== -1) asso.push(['Tenir la trésorerie', 'et suivre le Cockpit']);
+  if(f.indexOf('vie_asso') !== -1) asso.push(['Accueillir les bénévoles', 'et suivre les candidatures']);
+  if(f.indexOf('secretaire') !== -1 || f.indexOf('president') !== -1 || f.indexOf('vice_president') !== -1) asso.push(['Gérer le courrier', 'de l\'association']);
+  if(f.indexOf('relations_partenaires') !== -1) asso.push(['Faire connaître le média', 'aux partenaires, depuis les Sources']);
+  if(asso.length){
+    var lbl = f.map(function(x){ return (typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[x]) || x; }).join(', ');
+    html += liste('Et pour l\'asso ('+esc(lbl)+')', asso);
+  }
+  return html;
+}
+
 function oobeRenderGrilleAvatars(grid){
-  var html = AVATARS_DISPONIBLES.map(function(a){
+  grid.innerHTML = AVATARS_DISPONIBLES.map(function(a){
     var estActif = a.id === _oobeAvatarChoisi;
     return '<div class="oobe-avatar-card'+(estActif?' selected':'')+'" data-avatar-id="'+a.id+'" onclick="oobeChoisirAvatar(this.dataset.avatarId)" title="'+esc(a.label)+'">'
       +'<svg viewBox="0 0 64 64" width="40" height="40"><use href="#avatar-'+a.id+'"></use></svg>'
       +'</div>';
   }).join('');
-  grid.innerHTML = html;
 }
 
 function oobeChoisirAvatar(avatarId){
@@ -485,32 +608,45 @@ function oobeChoisirAvatar(avatarId){
   if(grid) oobeRenderGrilleAvatars(grid);
 }
 
+function oobeChoisirCanal(canal){
+  if(canal === 'chat' && !_oobeChatPossible(_oobeCtx && _oobeCtx.email)) return;
+  _oobeCanal = canal;
+  _oobeRendre();
+}
+
+function oobeChoisirAccueil(choix){
+  _oobeAccueil = choix;
+  _oobeRendre();
+}
+
+function _oobeAller(de, vers){
+  var cur = document.getElementById('oobe-step-'+de), nxt = document.getElementById('oobe-step-'+vers);
+  if(!nxt) return;
+  if(cur) cur.classList.remove('active');
+  nxt.classList.add('active');
+  for(var i = 0; i < _oobeNbSteps; i++){
+    var d = document.getElementById('oobe-dot-'+i);
+    if(!d) continue;
+    d.classList.toggle('active', i === vers);
+    d.classList.toggle('done', i < vers);
+  }
+  _oobeStepCourant = vers;
+  var carte = document.querySelector('.oobe-card');
+  if(carte) carte.scrollTop = 0;
+}
+
 function oobeNext(step){
   if(step === 1){
     var prenom = (document.getElementById('oobe-prenom')||{}).value||'';
     if(!prenom.trim()){ notif('Saisis ton prénom'); return; }
+    _oobeRendre(); // le prénom saisi apparaît dans « Tout est prêt, … »
   }
+  if(step + 1 >= _oobeNbSteps){ oobeTerminer(); return; }
+  _oobeAller(step, step + 1);
+}
 
-  // Si apps préconfigurées, sauter l'étape apps (étape 2) et terminer directement
-  // après le profil (étape 1).
-  var nextStep = step + 1;
-  if(window._oobeAppsPreconfigurees && step === 1){
-    // Pas d'étape apps — terminer directement
-    oobeTerminer();
-    return;
-  }
-
-  var current = document.getElementById('oobe-step-'+step);
-  var next = document.getElementById('oobe-step-'+nextStep);
-  if(current) current.classList.remove('active');
-  if(next) next.classList.add('active');
-
-  var dot = document.getElementById('oobe-dot-'+step);
-  var dotNext = document.getElementById('oobe-dot-'+nextStep);
-  if(dot){ dot.classList.remove('active'); dot.classList.add('done'); }
-  if(dotNext) dotNext.classList.add('active');
-
-  _oobeStepCourant = nextStep;
+function oobeRetour(step){
+  if(step > 0) _oobeAller(step, step - 1);
 }
 
 function oobeTerminer(){
@@ -518,99 +654,57 @@ function oobeTerminer(){
   var prenom = ((document.getElementById('oobe-prenom')||{}).value||'').trim();
   var nom    = ((document.getElementById('oobe-nom')||{}).value||'').trim();
   var role   = getUserRole();
+  if(!prenom){ _oobeAller(_oobeStepCourant, 1); notif('Saisis ton prénom'); return; }
 
-  // Le thème n'est plus proposé pendant l'OOBE (sombre est en bêta) — osAppliquerThemeAuDemarrage()
-  // applique déjà "clair" par défaut tant que compo_os_theme n'est pas défini.
-
-  // Sauvegarder le profil — PATCH uniquement prenom/nom, jamais le rôle
-  if(prenom){
-    localStorage.setItem('ipsum_user_prenom', prenom);
-    localStorage.setItem('ipsum_user_nom', nom);
-  }
-  if(_session && _session.access_token && prenom){
+  localStorage.setItem('ipsum_user_prenom', prenom);
+  localStorage.setItem('ipsum_user_nom', nom);
+  if(_session && _session.access_token){
     var email = _session.user ? _session.user.email : '';
-    // PATCH uniquement — on ne touche jamais au rôle existant en base
+    var champs = { prenom:prenom, nom:nom || '', avatar_id:_oobeAvatarChoisi || null, canal_notif:_oobeCanal };
+    // PATCH de sa ligne — jamais le rôle. Pas de ligne (ancien cas) : on la crée.
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+userId, {
       method:'PATCH',
-      headers: Object.assign({}, SB_HEADERS, {
-        'Authorization':'Bearer '+_session.access_token,
-        'Prefer':'return=minimal'
-      }),
-      body: JSON.stringify({
-        prenom: prenom,
-        nom: nom || '',
-        email: email,
-        avatar_id: _oobeAvatarChoisi || null
-        // PAS de role — on ne l'écrase jamais
-      })
-    }).then(function(r){
-      // Si la ligne n'existe pas (404 ou 0 rows), créer avec le rôle du localStorage
-      if(r.ok) return;
+      headers: Object.assign(_oobeAuth(), {'Prefer':'return=representation'}),
+      body: JSON.stringify(champs)
+    }).then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(rows){
+      if(Array.isArray(rows) && rows.length) return;
       return fetch(SB_URL+'/rest/v1/membres', {
         method:'POST',
-        headers: Object.assign({}, SB_HEADERS, {
-          'Authorization':'Bearer '+_session.access_token,
-          'Prefer':'return=minimal,resolution=merge-duplicates'
-        }),
-        body: JSON.stringify({
-          id: userId,
-          prenom: prenom,
-          nom: nom || '',
-          email: email,
-          role: role || 'redacteur',
-          avatar_id: _oobeAvatarChoisi || null
-        })
+        headers: Object.assign(_oobeAuth(), {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+        body: JSON.stringify(Object.assign({ id:userId, email:email, role:role || 'redacteur' }, champs))
       });
     }).catch(function(){});
   }
 
-  // Marquer OOBE comme terminé
   localStorage.setItem('compo_oobe_done_'+userId, '1');
-  localStorage.setItem('compo_os_tour_pending', '1'); // déclenche le tuto interactif au premier chargement du bureau
   localStorage.setItem('compo_os_apps_moved_tooltip', '1'); // un nouveau membre n'a pas connu l'ancien bureau
   localStorage.setItem('compo_patchnote_nouveau_membre', '1'); // ni les « nouveautés » d'un Compo qu'il découvre (js/27)
+  localStorage.setItem('compo_os_tutos_propose', '1'); // le choix vient d'être fait ici
+  // Accueil choisi à l'étape 5 : la visite guidée (osBuildDock la lance), la vidéo, ou rien pour l'instant
+  if(_oobeAccueil === 'visite') localStorage.setItem('compo_os_tour_pending', '1');
+  else localStorage.removeItem('compo_os_tour_pending');
+  if(_oobeAccueil !== 'video'){ try { localStorage.setItem('compo_video_tuto_vu_'+userId, '1'); } catch(e){} }
 
   var screen = document.getElementById('oobe-screen');
-  var fermerOobe = function(){
-    if(screen){
-      screen.style.transition = 'opacity 0.5s';
-      screen.style.opacity = '0';
-      setTimeout(function(){
-        screen.classList.remove('visible');
-        screen.style.opacity = '';
-        screen.style.transition = '';
-      }, 550);
-    }
-  };
-
-  if(window._oobeAppsPreconfigurees){
-    // Apps déjà configurées par l'admin — lancer directement Compo
-    fermerOobe();
+  if(screen){
+    screen.style.transition = 'opacity 0.5s';
+    screen.style.opacity = '0';
     setTimeout(function(){
-      // Charger ses applis d'abord : sur une session reprise, elles ne l'ont pas encore été
-      // (la barre des tâches partait sinon sur le profil par défaut, pas le sien)
-      var suite = function(){ lancerCompo(); setTimeout(afficherPatchNote, 1200); };
-      if(typeof _chargerAppsUtilisateur === 'function') _chargerAppsUtilisateur(userId, suite, role);
-      else suite();
-    }, 600);
-  } else {
-    // Soumettre une demande d'accès
-    var appsFinales = Array.from(_oobeAppsSelectionnees);
-    fetch(SB_URL+'/rest/v1/membres_demandes', {
-      method:'POST',
-      headers: Object.assign({}, SB_HEADERS, {
-        'Authorization':'Bearer '+(_session&&_session.access_token||''),
-        'Prefer':'return=minimal'
-      }),
-      body: JSON.stringify({
-        membre_id: userId,
-        apps_demandees: appsFinales,
-        statut: 'en_attente'
-      })
-    }).catch(function(){});
-    fermerOobe();
-    setTimeout(function(){ osAfficherSessionNonConfiguree(); }, 600);
+      screen.classList.remove('visible');
+      screen.style.opacity = '';
+      screen.style.transition = '';
+    }, 550);
   }
+  setTimeout(function(){
+    var suite = function(){
+      lancerCompo();
+      setTimeout(afficherPatchNote, 1200);
+      if(_oobeAccueil === 'video' && typeof osVideoTutoPremierLancement === 'function') osVideoTutoPremierLancement();
+    };
+    if(typeof _chargerAppsUtilisateur === 'function') _chargerAppsUtilisateur(userId, suite, role);
+    else suite();
+  }, 600);
 }
 
 // ===== INIT OS =====

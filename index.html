@@ -196,48 +196,58 @@
 
 
 <!-- OS LOGIN -->
-<!-- OOBE — Première connexion -->
+<!-- OOBE — Première connexion : 5 étapes, remplies par js/13 (oobeOuvrir) -->
 <div id="oobe-screen">
   <div class="oobe-card">
+    <div class="oobe-progress" id="oobe-progress"></div>
 
-    <!-- Progression -->
-    <div class="oobe-progress" id="oobe-progress">
-      <div class="oobe-dot active" id="oobe-dot-0"></div>
-      <div class="oobe-dot" id="oobe-dot-1"></div>
-      <div class="oobe-dot" id="oobe-dot-2"></div>
-    </div>
-
-    <!-- Étape 0 : Bienvenue -->
+    <!-- 1. Bienvenue : rédaction, rôle, qui a invité -->
     <div class="oobe-step active" id="oobe-step-0">
-      <div class="oobe-title">Bienvenue sur Compo <i class="ti ti-hand-stop"></i></div>
-      <div class="oobe-sub">Ipsum Média · Configuration initiale</div>
-      <p style="color:rgba(255,255,255,0.6);font-size:0.88rem;line-height:1.7;margin-bottom:1.5rem;">
-        On va configurer ton espace en quelques étapes. Ça prend moins de 2 minutes.
-      </p>
-      <button class="oobe-btn" onclick="oobeNext(0)">Commencer →</button>
+      <div class="oobe-logo"><img id="oobe-logo-img" alt=""></div>
+      <div class="oobe-title" id="oobe-bienvenue-titre">Bienvenue chez Ipsum Média&nbsp;!</div>
+      <p class="oobe-texte">Compo, c'est l'outil de toute l'équipe : on y trouve les sujets, on y écrit les articles, on s'y retrouve pour les réunions.</p>
+      <div id="oobe-redacs"></div>
+      <p class="oobe-petit" id="oobe-invite-par"></p>
+      <div class="oobe-bas"><span></span><button class="oobe-btn" onclick="oobeNext(0)">C'est parti <i class="ti ti-arrow-right"></i></button></div>
     </div>
 
-    <!-- Étape 1 : Profil -->
+    <!-- 2. Profil -->
     <div class="oobe-step" id="oobe-step-1">
-      <div class="oobe-title">Ton profil</div>
-      <div class="oobe-sub">Ces infos apparaîtront dans Compo</div>
-      <label class="oobe-label">Prénom</label>
-      <input type="text" id="oobe-prenom" class="oobe-input" placeholder="Ex : Tom" autocomplete="given-name">
-      <label class="oobe-label">Nom</label>
-      <input type="text" id="oobe-nom" class="oobe-input" placeholder="Ex : Martin" autocomplete="family-name">
-      <label class="oobe-label">Avatar (facultatif)</label>
+      <div class="oobe-title">Qui es-tu&nbsp;?</div>
+      <div class="oobe-deux">
+        <div><label class="oobe-label" for="oobe-prenom">Prénom</label>
+        <input type="text" id="oobe-prenom" class="oobe-input" placeholder="Ex : Tom" autocomplete="given-name"></div>
+        <div><label class="oobe-label" for="oobe-nom">Nom</label>
+        <input type="text" id="oobe-nom" class="oobe-input" placeholder="Ex : Martin" autocomplete="family-name"></div>
+      </div>
+      <label class="oobe-label">Choisis ton avatar</label>
       <div class="oobe-avatar-grid" id="oobe-avatar-grid"></div>
-      <button class="oobe-btn" onclick="oobeNext(1)">Continuer →</button>
+      <div class="oobe-bas"><button class="oobe-retour" onclick="oobeRetour(1)"><i class="ti ti-arrow-left"></i> Retour</button><button class="oobe-btn" onclick="oobeNext(1)">Continuer <i class="ti ti-arrow-right"></i></button></div>
     </div>
 
-    <!-- Étape 2 : Apps (le thème n'est plus proposé ici — sombre est en bêta, réglable depuis les paramètres) -->
+    <!-- 3. Notifications -->
     <div class="oobe-step" id="oobe-step-2">
-      <div class="oobe-title">Tes apps</div>
-      <div class="oobe-sub">Choisis les applis de ta barre du bas (8 au maximum). Agenda, Veille, Guide et Stats sont toujours sur le bureau, et les autres applis s'ajoutent plus tard depuis le Compo Store.</div>
-      <div class="oobe-compteur" id="oobe-compteur"></div>
-      <div class="oobe-apps-grid" id="oobe-apps-grid"></div>
-      <button class="oobe-btn" onclick="oobeTerminer()">C'est parti <i class="ti ti-rocket"></i></button>
-      <button class="oobe-btn-sec" onclick="oobeTerminer()">Passer cette étape</button>
+      <div class="oobe-title">Comment veux-tu être prévenu·e&nbsp;?</div>
+      <p class="oobe-texte">Nouveau sujet, retour du SR, rappel d'événement…</p>
+      <div id="oobe-canaux"></div>
+      <div class="oobe-opt oobe-opt-info"><i class="ti ti-moon"></i><div><b>Tu fais une pause&nbsp;?</b><small>Tu pourras passer « indisponible » à tout moment depuis l'accueil.</small></div></div>
+      <div class="oobe-bas"><button class="oobe-retour" onclick="oobeRetour(2)"><i class="ti ti-arrow-left"></i> Retour</button><button class="oobe-btn" onclick="oobeNext(2)">Continuer <i class="ti ti-arrow-right"></i></button></div>
+    </div>
+
+    <!-- 4. Ce que tu peux faire (selon le rôle) -->
+    <div class="oobe-step" id="oobe-step-3">
+      <div id="oobe-role"></div>
+      <div class="oobe-note"><i class="ti ti-building-store"></i><span>D'autres outils (flouter une photo, transcrire une interview…) s'installent depuis le <b>Store</b>.</span></div>
+      <div class="oobe-bas"><button class="oobe-retour" onclick="oobeRetour(3)"><i class="ti ti-arrow-left"></i> Retour</button><button class="oobe-btn" onclick="oobeNext(3)">Continuer <i class="ti ti-arrow-right"></i></button></div>
+    </div>
+
+    <!-- 5. C'est prêt : visite guidée ou vidéo -->
+    <div class="oobe-step" id="oobe-step-4">
+      <div class="oobe-confettis"><i class="ti ti-confetti"></i></div>
+      <div class="oobe-title" id="oobe-pret-titre">Tout est prêt&nbsp;!</div>
+      <p class="oobe-texte">Une visite guidée de 2 minutes te montre où tout se trouve, dans le vrai Compo.</p>
+      <div id="oobe-accueils"></div>
+      <div class="oobe-bas"><button class="oobe-retour" onclick="oobeRetour(4)"><i class="ti ti-arrow-left"></i> Retour</button><button class="oobe-btn" onclick="oobeTerminer()">Entrer dans Compo <i class="ti ti-arrow-right"></i></button></div>
     </div>
 
   </div>

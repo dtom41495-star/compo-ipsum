@@ -1949,38 +1949,6 @@ body {
 }
 .oobe-dot.active { background: #ea5b1c; }
 .oobe-dot.done  { background: rgba(255,255,255,0.4); }
-.oobe-theme-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.2rem;
-}
-.oobe-theme-card {
-  border: 2px solid rgba(255,255,255,0.1);
-  border-radius: 12px; padding: 1rem;
-  cursor: pointer; transition: border-color 0.2s;
-  text-align: center;
-}
-.oobe-theme-card.selected { border-color: #ea5b1c; }
-.oobe-theme-preview {
-  height: 60px; border-radius: 8px; margin-bottom: 0.5rem;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
-}
-.oobe-theme-label {
-  font-family: Space Mono, monospace; font-size: 0.7rem; color: rgba(255,255,255,0.6);
-}
-.oobe-apps-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr));
-  gap: 0.6rem; margin-bottom: 1.2rem; max-height: 260px; overflow-y: auto;
-}
-.oobe-app-card {
-  border: 1.5px solid rgba(255,255,255,0.08);
-  border-radius: 10px; padding: 0.7rem 0.5rem;
-  cursor: pointer; transition: border-color 0.15s, background 0.15s;
-  text-align: center;
-}
-.oobe-app-card:hover { background: rgba(255,255,255,0.05); }
-.oobe-app-card.selected { border-color: #ea5b1c; background: rgba(234,91,28,0.1); }
-.oobe-app-icon { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
-.oobe-app-name { font-size: 0.65rem; color: rgba(255,255,255,0.6); font-family: Space Mono, monospace; }
 .oobe-avatar-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(52px,1fr));
   gap: 0.5rem; margin-bottom: 1rem; max-height: 140px; overflow-y: auto;
@@ -1992,6 +1960,52 @@ body {
 }
 .oobe-avatar-card:hover { background: rgba(255,255,255,0.06); }
 .oobe-avatar-card.selected { border-color: #ea5b1c; background: rgba(234,91,28,0.12); }
+/* Première connexion en 5 étapes (js/13) */
+.oobe-card { max-height: calc(100vh - 2rem); overflow-y: auto; }
+.oobe-logo { margin-bottom: 1.2rem; }
+.oobe-logo img { height: 34px; display: block; }
+.oobe-texte { color: rgba(255,255,255,0.65); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.1rem; }
+.oobe-petit { color: rgba(255,255,255,0.45); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; margin: 0.4rem 0 0; min-height: 1em; }
+.oobe-title + .oobe-texte { margin-top: 0.2rem; }
+.oobe-step > .oobe-title { margin-bottom: 0.9rem; }
+.oobe-redac { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; color: #fff; font-family: 'DM Sans', sans-serif; }
+.oobe-redac b { font-family: 'Poppins', sans-serif; font-size: 0.95rem; }
+.oobe-redac small { display: block; color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 2px; }
+.oobe-redac small b { font-family: inherit; font-size: inherit; color: #fff; }
+.oobe-redac-ic { flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(234,91,28,0.18); color: #FF8A5C; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.oobe-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.oobe-opt { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1.5px solid rgba(255,255,255,0.12); color: #fff; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: border-color .15s, background .15s; }
+.oobe-opt:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+.oobe-opt > i { font-size: 1.3rem; color: rgba(255,255,255,0.7); margin-top: 1px; }
+.oobe-opt b { display: block; font-size: 0.92rem; }
+.oobe-opt small { display: block; color: rgba(255,255,255,0.55); font-size: 0.8rem; margin-top: 2px; line-height: 1.4; }
+.oobe-opt.on { border-color: #ea5b1c; background: rgba(234,91,28,0.1); }
+.oobe-opt.on > i { color: #FF8A5C; }
+.oobe-opt:disabled { opacity: 0.45; cursor: not-allowed; }
+.oobe-opt-info { border-style: dashed; cursor: default; }
+.oobe-opt-info:hover { background: rgba(255,255,255,0.03) !important; }
+.oobe-opt-discret { border-style: dashed; }
+.oobe-role-bloc { margin-bottom: 0.9rem; }
+.oobe-role-sous { font-family: Space Mono, monospace; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.45); margin: 0.2rem 0 0.4rem; }
+.oobe-puce { display: flex; gap: 9px; align-items: flex-start; color: rgba(255,255,255,0.75); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; line-height: 1.45; margin-bottom: 7px; }
+.oobe-puce i { color: #4ADE80; font-size: 1.05rem; margin-top: 1px; flex: none; }
+.oobe-puce b { color: #fff; }
+.oobe-note { display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.65); font-family: 'DM Sans', sans-serif; font-size: 0.82rem; line-height: 1.45; }
+.oobe-note i { font-size: 1.1rem; color: #FF8A5C; flex: none; }
+.oobe-note b { color: #fff; }
+.oobe-confettis { font-size: 2.6rem; color: #ea5b1c; margin-bottom: 0.4rem; }
+.oobe-bas { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 1.4rem; }
+.oobe-bas .oobe-btn { width: auto; margin-top: 0; display: inline-flex; align-items: center; gap: 6px; padding: 0.7rem 1.4rem; }
+.oobe-retour { background: none; border: none; color: rgba(255,255,255,0.5); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 6px 0; }
+.oobe-retour:hover { color: #fff; }
+#oobe-screen .oobe-input { background: rgba(255,255,255,0.07) !important; color: #fff !important; border-color: rgba(255,255,255,0.12) !important; }
+#oobe-screen .oobe-input:focus { border-color: #ea5b1c !important; }
+@media (max-width: 520px){
+  #oobe-screen { padding: 1rem 0.75rem; }
+  .oobe-card { padding: 1.5rem 1.15rem; border-radius: 16px; }
+  .oobe-title { font-size: 1.25rem; }
+  .oobe-deux { grid-template-columns: 1fr; }
+}
 
 /* ===== APP PARAMÈTRES ===== */
 .params-app { padding:0; display:flex; height:100%; }
@@ -4268,11 +4282,7 @@ input:focus,select:focus,textarea:focus{
 #lisib-label { font-family: 'DM Sans', sans-serif; font-size: 0.7rem !important; }
 
 /* Création de compte : choix des applis */
-#oobe-step-2 .oobe-sub { font-family: 'DM Sans', sans-serif; font-size: 0.8rem; line-height: 1.5; letter-spacing: 0; }
-.oobe-app-icon { color: rgba(255,255,255,0.75); }
-.oobe-app-card.selected .oobe-app-icon { color: #FF8A5C; }
-.oobe-compteur { font-family: 'DM Sans', sans-serif; font-size: 0.76rem; color: rgba(255,255,255,0.6); margin: -0.4rem 0 0.8rem; }
-.oobe-compteur strong { color: #FF8A5C; }
+
 
 /* Appli Flouter */
 .fl-app { display: flex; flex-direction: column; height: 100%; background: #F4F2EF; font-family: 'DM Sans', sans-serif; }
