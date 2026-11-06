@@ -1,13 +1,21 @@
 // ===== SALLES : LES SALLES DE VISIO DE L'ASSO =====
-// Des salles de visio permanentes (Salle de rédaction, Bureau, Salle libre…). Chacune a son lien Google Meet fixe
-// (compte Workspace de l'asso : pas de limite de durée), collé une fois par un admin. Plus besoin de chercher le lien.
+// Des salles de visio permanentes (La Conf' de rédac, Le Bureau, La Machine à café…). Chacune a son lien Google Meet
+// fixe (compte Workspace de l'asso : pas de limite de durée), collé une fois par un admin.
 // Meet s'ouvre dans un nouvel onglet (Google interdit de l'afficher dans une autre page).
 // Meet ne dit pas qui est dans la réunion : Compo affiche qui y est entré depuis Compo dans la dernière heure
 // (table salles_passages, effacée au bout de 7 jours), et le prochain événement de l'Agenda prévu dans la salle.
+//
+// Pour que ce soit vivant :
+//  - chaque salle a un emoji, une couleur et une phrase d'accueil (personnalisables par les admins) ;
+//  - les avatars des personnes entrées s'affichent sur la salle, une salle vide dit « Silence radio… 🦗 » ;
+//  - deux vues : les cartes, ou le plan des locaux de l'asso (les salles comme des pièces d'une maison).
 // Dans l'Agenda, le formulaire d'un événement propose de choisir une salle (remplit le lien visio).
 
 var SALLES_RECENT_MIN = 60;
-var _salles = { liste:[], passages:[], evenements:[], timer:null };
+var SALLES_CLE_VUE = 'compo_salles_vue';
+var SALLES_EMOJIS = ['📰','🛋️','☕','🎙️','🧠','📸','🎬','🗺️','🌿','🍕','🚀','🎧','🏛️','⚽','🎨','📚'];
+var SALLES_COULEURS = ['#EA5B1C','#1A1A2E','#0E7C66','#1A5276','#6B2F8A','#B7950B','#C0392B','#2E86C1'];
+var _salles = { liste:[], passages:[], evenements:[], timer:null, vue:null, edition:null };
 
 function _sallesH(json){
   var h = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
@@ -20,98 +28,160 @@ function _sallesLire(chemin){
 function osSallesCharger(){
   return _sallesLire('salles?actif=eq.true&order=ordre.asc,nom.asc&select=*').then(function(l){ _salles.liste = l; return l; });
 }
-function _sallesNomMembre(id){
+function _sallesMembre(id){
   var m = (window._membresData || []).find(function(x){ return x.id === id; });
-  if(m) return ((m.prenom || '')+' '+(m.nom || '')).trim();
-  return id === getUserId() ? (getUserPrenom()+' '+getUserNom()).trim() : 'Quelqu\'un';
+  if(m) return m;
+  if(id === getUserId()) return { id:id, prenom:getUserPrenom(), nom:getUserNom() };
+  return { id:id, prenom:'Quelqu\'un', nom:'' };
 }
+function _sallesNomMembre(id){ var m = _sallesMembre(id); return ((m.prenom || '')+' '+(m.nom || '')).trim(); }
 function _sallesIlYa(d){
   var min = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000));
   return min < 1 ? 'à l\'instant' : 'il y a '+min+' min';
+}
+function _sallesVue(){
+  if(!_salles.vue){ try{ _salles.vue = localStorage.getItem(SALLES_CLE_VUE); }catch(e){} }
+  return _salles.vue === 'plan' ? 'plan' : 'cartes';
+}
+function osSallesChoisirVue(v){
+  _salles.vue = v;
+  try{ localStorage.setItem(SALLES_CLE_VUE, v); }catch(e){}
+  _sallesMajBoutonsVue();
+  _sallesDessiner();
+}
+function _sallesMajBoutonsVue(){
+  ['cartes','plan'].forEach(function(v){
+    var b = document.getElementById('sal-vue-'+v);
+    if(b) b.classList.toggle('actif', _sallesVue() === v);
+  });
 }
 
 function osSallesRender(){
   var wc = document.getElementById('wincontent-salles');
   if(!wc) return;
   var admin = getUserRole() === 'admin';
-  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--fond, #F6F4F0);';
-  wc.innerHTML = '<div class="salles-entete" style="flex-shrink:0;display:flex;align-items:center;gap:0.6rem;padding:0.8rem 1.2rem;background:white;border-bottom:1px solid var(--gris-bord);">'
-    +'<div style="flex:1;min-width:0;"><div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.95rem;color:var(--encre);"><i class="ti ti-video"></i> Salles</div>'
-    +'<div style="font-size:0.72rem;color:var(--gris);">Les salles de visio de l\'asso, toujours au même lien. « Entrer » ouvre Google Meet.</div></div>'
-    +(admin ? '<button onclick="osSallesAjouter()" style="font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:6px 12px;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-plus"></i> Salle</button>' : '')
+  _salles.edition = null;
+  wc.className = (wc.className || '').replace(/\bsal-app\b/, '')+' sal-app';
+  wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
+  wc.innerHTML = '<div class="sal-entete">'
+    +'<div class="sal-entete-titres"><div class="sal-titre"><i class="ti ti-video"></i> Salles</div>'
+    +'<div class="sal-sous">Les salles de visio de l\'asso, toujours au même lien. « Entrer » ouvre Google Meet.</div></div>'
+    +'<div class="sal-vues"><button id="sal-vue-cartes" onclick="osSallesChoisirVue(\'cartes\')"><i class="ti ti-layout-grid"></i> Salles</button>'
+    +'<button id="sal-vue-plan" onclick="osSallesChoisirVue(\'plan\')"><i class="ti ti-home"></i> Plan</button></div>'
+    +(admin ? '<button class="sal-btn-sec" onclick="osSallesEditer(null)"><i class="ti ti-plus"></i> Salle</button>' : '')
     +'</div>'
-    +'<div id="salles-corps" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">'+osLoadingHtml('osSallesRender')+'</div>';
+    +'<div id="salles-corps" class="sal-corps">'+osLoadingHtml('osSallesRender')+'</div>';
+  _sallesMajBoutonsVue();
   _sallesRafraichir();
   clearInterval(_salles.timer);
   _salles.timer = setInterval(function(){
     if(!document.getElementById('wincontent-salles')){ clearInterval(_salles.timer); return; }
-    if(document.visibilityState === 'visible') _sallesRafraichir();
+    if(document.visibilityState === 'visible' && !_salles.edition) _sallesRafraichir();
   }, 30000);
 }
 
 function _sallesRafraichir(){
   var depuis = new Date(Date.now() - SALLES_RECENT_MIN * 60000).toISOString();
-  var maintenant = new Date(Date.now() - 3 * 3600000).toISOString();   // un événement commencé il y a moins de 3 h compte encore
+  var recent = new Date(Date.now() - 3 * 3600000).toISOString();   // un événement commencé il y a moins de 3 h compte encore
   Promise.all([
     osSallesCharger(),
     _sallesLire('salles_passages?entre_le=gte.'+encodeURIComponent(depuis)+'&order=entre_le.desc&select=salle_id,membre_id,entre_le'),
-    _sallesLire('agenda_evenements?statut=eq.publie&lien_visio=not.is.null&date_debut=gte.'+encodeURIComponent(maintenant)+'&order=date_debut.asc&limit=50&select=id,titre,date_debut,lien_visio')
+    _sallesLire('agenda_evenements?statut=eq.publie&lien_visio=not.is.null&date_debut=gte.'+encodeURIComponent(recent)+'&order=date_debut.asc&limit=50&select=id,titre,date_debut,lien_visio')
   ]).then(function(r){
     _salles.passages = r[1]; _salles.evenements = r[2];
-    _sallesDessiner();
+    if(!_salles.edition) _sallesDessiner();
   });
+}
+
+// Personnes entrées depuis Compo dans la dernière heure (une par personne, la plus récente)
+function _sallesPresents(s){
+  var vus = {}, l = [];
+  _salles.passages.forEach(function(p){ if(p.salle_id === s.id && !vus[p.membre_id]){ vus[p.membre_id] = 1; l.push(p); } });
+  return l;
+}
+function _sallesProchain(s){
+  return s.lien ? _salles.evenements.find(function(e){ return (e.lien_visio || '').trim() === s.lien.trim(); }) : null;
+}
+function _sallesQuand(d){
+  d = new Date(d);
+  return d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })+' à '+d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+}
+function _sallesEmoji(s){ return s.emoji || '🎥'; }
+function _sallesAvatars(presents, taille, max){
+  max = max || 6;
+  var h = presents.slice(0, max).map(function(p, i){
+    var m = _sallesMembre(p.membre_id);
+    var av = typeof renderAvatarHTML === 'function' ? renderAvatarHTML(m, taille, {}) : '<span>'+esc((m.prenom || '?').charAt(0))+'</span>';
+    return '<span class="sal-av" style="animation-delay:'+(i * 80)+'ms;" title="'+esc(_sallesNomMembre(p.membre_id)+' · '+_sallesIlYa(p.entre_le))+'">'+av+'</span>';
+  }).join('');
+  if(presents.length > max) h += '<span class="sal-av sal-av-plus">+'+(presents.length - max)+'</span>';
+  return h;
 }
 
 function _sallesDessiner(){
   var c = document.getElementById('salles-corps');
   if(!c) return;
+  if(!_salles.liste.length){ c.innerHTML = '<div class="sal-vide">Aucune salle pour l\'instant.</div>'; return; }
+  c.innerHTML = _sallesVue() === 'plan' ? _sallesPlanHTML() : _sallesCartesHTML();
+}
+
+// ---- Vue cartes ----
+function _sallesCartesHTML(){
   var admin = getUserRole() === 'admin';
-  var h = '';
-  if(!_salles.liste.length) h += '<div style="text-align:center;padding:2.5rem;color:var(--gris);font-size:0.8rem;">Aucune salle pour l\'instant.</div>';
-  h += '<div class="salles-grille" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.8rem;">';
+  var h = '<div class="sal-grille">';
   _salles.liste.forEach(function(s){
     var coul = s.couleur || '#0E7C66';
-    // Entré·es depuis Compo dans la dernière heure (une ligne par personne, la plus récente)
-    var vus = {}, recents = [];
-    _salles.passages.forEach(function(p){ if(p.salle_id === s.id && !vus[p.membre_id]){ vus[p.membre_id] = 1; recents.push(p); } });
-    var prochain = s.lien ? _salles.evenements.find(function(e){ return (e.lien_visio || '').trim() === s.lien.trim(); }) : null;
-    h += '<div class="salles-carte" style="background:white;border:1px solid var(--gris-bord);border-radius:12px;padding:0.9rem;display:flex;flex-direction:column;gap:0.55rem;">'
-      +'<div style="display:flex;align-items:center;gap:0.6rem;">'
-      +'<span style="width:38px;height:38px;border-radius:10px;background:'+esc(coul)+';color:white;display:inline-flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;"><i class="ti ti-video"></i></span>'
-      +'<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.9rem;color:var(--encre);">'+esc(s.nom)+'</div>'
-      +(s.description ? '<div style="font-size:0.7rem;color:var(--gris);line-height:1.35;">'+esc(s.description)+'</div>' : '')+'</div>'
-      +(admin ? '<button title="Changer le lien Meet" onclick="osSallesLien(\''+s.id+'\')" style="border:none;background:none;color:var(--gris);cursor:pointer;font-size:0.95rem;"><i class="ti ti-link"></i></button>'
-              +'<button title="Retirer la salle" onclick="osSallesRetirer(\''+s.id+'\')" style="border:none;background:none;color:var(--gris);cursor:pointer;font-size:0.95rem;"><i class="ti ti-trash"></i></button>' : '')
+    var presents = _sallesPresents(s), prochain = _sallesProchain(s);
+    h += '<div class="sal-carte'+(presents.length ? ' anime' : '')+'" style="--sal-c:'+esc(coul)+';">'
+      +'<div class="sal-carte-haut">'
+      +'<span class="sal-emoji">'+esc(_sallesEmoji(s))+'</span>'
+      +'<div class="sal-noms"><div class="sal-nom">'+esc(s.nom)+'</div>'
+      +(s.accueil || s.description ? '<div class="sal-accueil">« '+esc(s.accueil || s.description)+' »</div>' : '')+'</div>'
+      +(admin ? '<button class="sal-ico" title="Personnaliser" onclick="osSallesEditer(\''+s.id+'\')"><i class="ti ti-pencil"></i></button>' : '')
       +'</div>';
-    if(prochain){
-      var d = new Date(prochain.date_debut);
-      var quand = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })+' à '+d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-      h += '<div onclick="osOpenWindow(\'agenda\')" style="cursor:pointer;font-size:0.72rem;color:var(--encre);background:var(--gris-clair);border-radius:6px;padding:0.35rem 0.5rem;"><i class="ti ti-calendar-event"></i> Prochain : <b>'+esc(prochain.titre || 'Événement')+'</b>, '+quand+'</div>';
-    }
-    h += '<div style="font-size:0.72rem;color:'+(recents.length ? '#1E7A45' : 'var(--gris)')+';min-height:1.1rem;line-height:1.4;">'
-      +(recents.length
-        ? '<i class="ti ti-point-filled"></i> Entré·es depuis Compo : '+recents.map(function(p){ return esc(_sallesNomMembre(p.membre_id))+' ('+_sallesIlYa(p.entre_le)+')'; }).join(', ')
-        : 'Personne n\'y est entré depuis Compo dans la dernière heure')
+    h += '<div class="sal-presence">'
+      +(presents.length
+        ? '<div class="sal-avatars">'+_sallesAvatars(presents, 30)+'</div><div class="sal-presence-txt">'+presents.length+(presents.length > 1 ? ' personnes entrées' : ' personne entrée')+' depuis Compo</div>'
+        : '<div class="sal-silence">Silence radio… <span class="sal-criquet">🦗</span></div>')
       +'</div>';
+    if(prochain) h += '<div class="sal-prochain" onclick="osOpenWindow(\'agenda\')"><i class="ti ti-calendar-event"></i> <b>'+esc(prochain.titre || 'Événement')+'</b>, '+_sallesQuand(prochain.date_debut)+'</div>';
     if(s.lien){
-      h += '<div style="display:flex;gap:0.4rem;">'
-        +'<button onclick="osSallesEntrer(\''+s.id+'\')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border:none;border-radius:8px;background:'+(recents.length ? '#2E9E5B' : 'var(--rouge)')+';color:white;font-family:Poppins,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;">'
-        +'<i class="ti ti-door-enter"></i> '+(recents.length ? 'Rejoindre' : 'Entrer')+'</button>'
-        +'<button title="Copier le lien" onclick="osSallesCopier(\''+s.id+'\')" style="padding:0.55rem 0.7rem;border:1px solid var(--gris-bord);border-radius:8px;background:white;color:var(--encre);cursor:pointer;"><i class="ti ti-copy"></i></button>'
-        +'</div>';
+      h += '<div class="sal-actions"><button class="sal-entrer'+(presents.length ? ' vert' : '')+'" onclick="osSallesEntrer(\''+s.id+'\')"><i class="ti ti-door-enter"></i> '+(presents.length ? 'Les rejoindre' : 'Entrer')+'</button>'
+        +'<button class="sal-ico sal-ico-bord" title="Copier le lien" onclick="osSallesCopier(\''+s.id+'\')"><i class="ti ti-copy"></i></button></div>';
     } else {
       h += admin
-        ? '<button onclick="osSallesLien(\''+s.id+'\')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0.55rem;border:1px dashed var(--gris-bord);border-radius:8px;background:white;color:var(--encre);font-weight:600;font-size:0.8rem;cursor:pointer;"><i class="ti ti-link-plus"></i> Coller le lien Meet</button>'
-        : '<div style="font-size:0.74rem;color:var(--gris);text-align:center;padding:0.5rem;border:1px dashed var(--gris-bord);border-radius:8px;">Pas encore de lien : un admin doit l\'ajouter.</div>';
+        ? '<button class="sal-sans-lien admin" onclick="osSallesEditer(\''+s.id+'\')"><i class="ti ti-link-plus"></i> Coller le lien Meet</button>'
+        : '<div class="sal-sans-lien">Porte fermée : un admin doit ajouter le lien Meet.</div>';
     }
     h += '</div>';
   });
   h += '</div>';
-  if(admin) h += '<div style="margin-top:1rem;font-size:0.7rem;color:var(--gris);line-height:1.5;">Pour créer un lien Meet permanent : sur meet.google.com, connecté avec le compte de l\'asso, « Nouvelle réunion » puis « Créer une réunion pour une date ultérieure », et copie le lien. Il reste valable tant qu\'il sert.</div>';
-  c.innerHTML = h;
+  if(admin) h += '<div class="sal-aide">Pour créer un lien Meet permanent : sur meet.google.com, connecté avec le compte de l\'asso, « Nouvelle réunion » puis « Créer une réunion pour une date ultérieure », et copie le lien.</div>';
+  return h;
 }
 
-// Entrer : on note le passage (pour que les autres voient qui est dans la salle), puis Meet s'ouvre dans un onglet
+// ---- Vue plan : les locaux de l'asso ----
+function _sallesPlanHTML(){
+  var h = '<div class="sal-plan"><div class="sal-toit"><span>Ipsum Média</span></div><div class="sal-batiment">';
+  _salles.liste.forEach(function(s, i){
+    var coul = s.couleur || '#0E7C66';
+    var presents = _sallesPresents(s), prochain = _sallesProchain(s);
+    var clic = s.lien ? 'osSallesEntrer(\''+s.id+'\')' : (getUserRole() === 'admin' ? 'osSallesEditer(\''+s.id+'\')' : '');
+    h += '<div class="sal-piece'+(presents.length ? ' occupee' : '')+(s.lien ? '' : ' fermee')+'" style="--sal-c:'+esc(coul)+';"'+(clic ? ' onclick="'+clic+'" role="button" tabindex="0"' : '')+' title="'+esc(s.lien ? 'Entrer dans '+s.nom : 'Porte fermée : pas encore de lien Meet')+'">'
+      +'<div class="sal-piece-plaque">'+esc(s.nom)+'</div>'
+      +'<div class="sal-piece-deco">'+esc(_sallesEmoji(s))+'</div>'
+      +'<div class="sal-piece-gens">'+(presents.length ? _sallesAvatars(presents, 34, 5) : '<span class="sal-criquet">🦗</span>')+'</div>'
+      +(prochain ? '<div class="sal-piece-prochain"><i class="ti ti-calendar-event"></i> '+esc(prochain.titre || 'Événement')+'</div>' : '')
+      +'<div class="sal-porte">'+(s.lien ? '' : '<i class="ti ti-lock"></i>')+'</div>'
+      +'</div>';
+  });
+  h += '</div><div class="sal-sol"><span><i class="ti ti-door"></i> Entrée</span></div></div>'
+    +'<div class="sal-aide">Clique sur une pièce pour y entrer. Les avatars : les personnes entrées depuis Compo dans la dernière heure.</div>';
+  return h;
+}
+
+// ---- Entrer ----
+// On note le passage (pour que les autres voient qui est dans la salle), puis Meet s'ouvre dans un onglet
 function osSallesEntrer(id){
   var s = _salles.liste.find(function(x){ return x.id === id; });
   if(!s || !s.lien) return;
@@ -119,6 +189,9 @@ function osSallesEntrer(id){
   var w = window.open(s.lien, '_blank');
   if(w){ try{ w.opener = null; }catch(e){} }
   else notif('Ton navigateur a bloqué l\'ouverture de Meet. Autorise les fenêtres pour Compo, ou copie le lien.', 'alerte');
+  // Ajout immédiat de son avatar (sans attendre la base), puis rafraîchissement
+  _salles.passages.unshift({ salle_id:id, membre_id:getUserId(), entre_le:new Date().toISOString() });
+  _sallesDessiner();
   fetch(SB_URL+'/rest/v1/salles_passages', { method:'POST', headers:_sallesH(true), body:JSON.stringify({ salle_id:id }) })
     .then(function(){ _sallesRafraichir(); }).catch(function(){});
 }
@@ -129,39 +202,82 @@ function osSallesCopier(id){
   else if(navigator.clipboard) navigator.clipboard.writeText(s.lien).then(function(){ notif('Lien copié', 'succes'); });
 }
 
-// ---- Admins ----
+// ---- Admins : créer / personnaliser une salle ----
 function _sallesLienValide(l){ return /^https:\/\/\S+$/.test(l); }
-function osSallesLien(id){
-  var s = _salles.liste.find(function(x){ return x.id === id; });
-  if(!s) return;
-  var l = prompt('Lien Google Meet de « '+s.nom+' » (https://meet.google.com/…) :', s.lien || '');
-  if(l === null) return;
-  l = l.trim();
-  if(l && !_sallesLienValide(l)){ notif('Le lien doit commencer par https://', 'alerte'); return; }
-  fetch(SB_URL+'/rest/v1/salles?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:_sallesH(true), body:JSON.stringify({ lien:l || null }) })
-    .then(function(r){ if(!r.ok) throw 0; notif(l ? 'Lien enregistré' : 'Lien retiré', 'succes'); _sallesRafraichir(); })
-    .catch(function(){ notif('Erreur : lien non enregistré', 'alerte'); });
+function osSallesEditer(id){
+  var c = document.getElementById('salles-corps');
+  if(!c) return;
+  var s = id ? _salles.liste.find(function(x){ return x.id === id; }) : null;
+  if(id && !s) return;
+  _salles.edition = { id:id, emoji:(s && s.emoji) || '☕', couleur:(s && s.couleur) || '#0E7C66' };
+  var h = '<div class="sal-form">'
+    +'<div class="sal-form-titre">'+(s ? 'Personnaliser « '+esc(s.nom)+' »' : 'Nouvelle salle')+'</div>'
+    +'<div id="sal-apercu"></div>'
+    +'<label class="sal-label">Nom</label><input id="sal-f-nom" class="sal-champ" maxlength="40" value="'+esc(s ? s.nom : '')+'" placeholder="Ex. La Machine à café" oninput="_sallesApercu()">'
+    +'<label class="sal-label">Emoji</label><div class="sal-choix" id="sal-f-emojis">'
+    +SALLES_EMOJIS.map(function(e){ return '<button type="button" data-v="'+e+'" onclick="_sallesChoix(\'emoji\',this.dataset.v)">'+e+'</button>'; }).join('')+'</div>'
+    +'<label class="sal-label">Couleur</label><div class="sal-choix" id="sal-f-couleurs">'
+    +SALLES_COULEURS.map(function(k){ return '<button type="button" class="sal-pastille" data-v="'+k+'" style="background:'+k+';" onclick="_sallesChoix(\'couleur\',this.dataset.v)"></button>'; }).join('')+'</div>'
+    +'<label class="sal-label">Phrase d\'accueil</label><input id="sal-f-accueil" class="sal-champ" maxlength="90" value="'+esc(s ? (s.accueil || '') : '')+'" placeholder="Ex. Pour un point rapide ou juste papoter." oninput="_sallesApercu()">'
+    +'<label class="sal-label">Lien Google Meet</label><input id="sal-f-lien" class="sal-champ" value="'+esc(s ? (s.lien || '') : '')+'" placeholder="https://meet.google.com/…">'
+    +'<div class="sal-form-btns">'
+    +(s ? '<button class="sal-btn-danger" onclick="osSallesRetirer(\''+s.id+'\')"><i class="ti ti-trash"></i> Retirer</button>' : '')
+    +'<span style="flex:1;"></span><button class="sal-btn-sec" onclick="osSallesFermerEdition()">Annuler</button>'
+    +'<button class="sal-btn-ok" onclick="osSallesEnregistrer()">Enregistrer</button></div>'
+    +'</div>';
+  c.innerHTML = h;
+  _sallesChoix('emoji', _salles.edition.emoji);
+  _sallesChoix('couleur', _salles.edition.couleur);
+  var n = document.getElementById('sal-f-nom'); if(n) n.focus();
 }
-function osSallesAjouter(){
-  var nom = prompt('Nom de la nouvelle salle (ex. Salle Haute-Garonne) :');
-  if(!nom || !nom.trim()) return;
-  var slug = nom.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
-  if(slug.length < 2){ notif('Nom trop court', 'alerte'); return; }
-  var l = (prompt('Lien Google Meet (tu peux le coller plus tard) :') || '').trim();
-  if(l && !_sallesLienValide(l)){ notif('Le lien doit commencer par https://', 'alerte'); return; }
-  var h = _sallesH(true); h['Prefer'] = 'return=representation';
-  fetch(SB_URL+'/rest/v1/salles', { method:'POST', headers:h, body:JSON.stringify({ nom:nom.trim(), slug:slug, lien:l || null, ordre:(_salles.liste.length + 1) * 10 }) })
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      if(j && !Array.isArray(j) && j.code){ notif(j.code === '23505' ? 'Une salle porte déjà ce nom' : 'Erreur : '+(j.message || j.code), 'alerte'); return; }
-      notif('Salle créée', 'succes'); _sallesRafraichir();
-    }).catch(function(){ notif('Erreur', 'alerte'); });
+function _sallesChoix(quoi, v){
+  if(!_salles.edition) return;
+  _salles.edition[quoi] = v;
+  var zone = document.getElementById(quoi === 'emoji' ? 'sal-f-emojis' : 'sal-f-couleurs');
+  if(zone) zone.querySelectorAll('button').forEach(function(b){ b.classList.toggle('actif', b.dataset.v === v); });
+  _sallesApercu();
+}
+function _sallesApercu(){
+  var z = document.getElementById('sal-apercu');
+  if(!z || !_salles.edition) return;
+  var nom = (document.getElementById('sal-f-nom') || {}).value || 'Nom de la salle';
+  var acc = (document.getElementById('sal-f-accueil') || {}).value || '';
+  z.innerHTML = '<div class="sal-carte" style="--sal-c:'+esc(_salles.edition.couleur)+';"><div class="sal-carte-haut"><span class="sal-emoji">'+esc(_salles.edition.emoji)+'</span>'
+    +'<div class="sal-noms"><div class="sal-nom">'+esc(nom)+'</div>'+(acc ? '<div class="sal-accueil">« '+esc(acc)+' »</div>' : '')+'</div></div></div>';
+}
+function osSallesFermerEdition(){ _salles.edition = null; _sallesDessiner(); }
+function osSallesEnregistrer(){
+  var e = _salles.edition;
+  if(!e) return;
+  var nom = ((document.getElementById('sal-f-nom') || {}).value || '').trim();
+  var accueil = ((document.getElementById('sal-f-accueil') || {}).value || '').trim();
+  var lien = ((document.getElementById('sal-f-lien') || {}).value || '').trim();
+  if(!nom){ notif('Donne un nom à la salle', 'alerte'); return; }
+  if(lien && !_sallesLienValide(lien)){ notif('Le lien doit commencer par https://', 'alerte'); return; }
+  var corps = { nom:nom, emoji:e.emoji, couleur:e.couleur, accueil:accueil || null, lien:lien || null };
+  var req;
+  if(e.id){
+    req = fetch(SB_URL+'/rest/v1/salles?id=eq.'+encodeURIComponent(e.id), { method:'PATCH', headers:_sallesH(true), body:JSON.stringify(corps) });
+  } else {
+    var slug = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    if(slug.length < 2) slug = 'salle-'+Date.now().toString(36);
+    corps.slug = slug; corps.ordre = (_salles.liste.length + 1) * 10;
+    var h = _sallesH(true); h['Prefer'] = 'return=representation';
+    req = fetch(SB_URL+'/rest/v1/salles', { method:'POST', headers:h, body:JSON.stringify(corps) });
+  }
+  req.then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ return { ok:r.ok, j:j }; }); })
+    .then(function(x){
+      if(!x.ok){ notif(x.j && x.j.code === '23505' ? 'Une salle porte déjà ce nom' : 'Erreur : salle non enregistrée', 'alerte'); return; }
+      notif(e.id ? 'Salle mise à jour' : 'Salle créée', 'succes');
+      _salles.edition = null;
+      _sallesRafraichir();
+    }).catch(function(){ notif('Erreur : salle non enregistrée', 'alerte'); });
 }
 function osSallesRetirer(id){
   var s = _salles.liste.find(function(x){ return x.id === id; });
   if(!s || !confirm('Retirer la salle « '+s.nom+' » ?')) return;
   fetch(SB_URL+'/rest/v1/salles?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:_sallesH(true), body:JSON.stringify({ actif:false }) })
-    .then(function(){ notif('Salle retirée', 'succes'); _sallesRafraichir(); })
+    .then(function(){ notif('Salle retirée', 'succes'); _salles.edition = null; _sallesRafraichir(); })
     .catch(function(){ notif('Erreur', 'alerte'); });
 }
 
@@ -177,7 +293,7 @@ function osSallesBrancherAgenda(){
     sel.style.cssText = champ.style.cssText + ';margin-bottom:0.35rem;';
     var actuelle = (champ.value || '').trim();
     sel.innerHTML = '<option value="">Une salle de l\'asso…</option>'
-      + l.map(function(s){ return '<option value="'+esc(s.lien)+'"'+(s.lien.trim() === actuelle ? ' selected' : '')+'>'+esc(s.nom)+'</option>'; }).join('')
+      + l.map(function(s){ return '<option value="'+esc(s.lien)+'"'+(s.lien.trim() === actuelle ? ' selected' : '')+'>'+esc((s.emoji ? s.emoji+' ' : '')+s.nom)+'</option>'; }).join('')
       + '<option value="__autre">Autre lien</option>';
     sel.onchange = function(){
       if(sel.value === '__autre'){ champ.value = ''; champ.focus(); return; }
