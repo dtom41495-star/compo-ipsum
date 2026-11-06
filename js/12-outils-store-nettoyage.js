@@ -1590,7 +1590,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'magneto',        icon:'<i class="ti ti-microphone"></i>', label:'Enregistrer',  color:'#A32D2D', roles:['admin','redac_chef','redacteur','correcteur','communicant'], desc:'Enregistre un son directement depuis ton téléphone et envoie-le sur le Drive de ta rédaction.' },
   { id:'flouter',        icon:'<i class="ti ti-blur"></i>', label:'Flouter',       color:'#3D5A80', roles:['admin','redac_chef','redacteur','correcteur'], store:true, desc:'Floute visages, plaques ou documents sur une photo avant de la publier. Tout reste sur ton appareil.' },
   { id:'transcrire',     icon:'<i class="ti ti-headphones"></i>', label:'Transcrire',    color:'#6B2F8A', roles:['admin','redac_chef','redacteur','correcteur','communicant'], store:true, desc:'Transforme un enregistrement audio (interview, conférence, vocal) en texte avec les minutes. Tout se passe sur ton appareil, le fichier n\'est envoyé nulle part.' },
-  { id:'salles',         icon:'<i class="ti ti-video"></i>', label:'Salles',        color:'#0E7C66', roles:['admin','redac_chef','redacteur','correcteur','communicant'], store:true, desc:'Les salles de visio de l\'asso (rédaction, bureau…), toujours au même lien Meet : on voit qui vient d\'y entrer et la prochaine réunion prévue.' },
+  { id:'salles',         icon:'<i class="ti ti-video"></i>', label:'Salles',        color:'#0E7C66', roles:['admin','redac_chef','redacteur','correcteur','communicant'], desc:'Les salles de visio de l\'asso (rédaction, bureau…), toujours au même lien Meet : on voit qui vient d\'y entrer et la prochaine réunion prévue.' },
   { id:'gestion-apps',   icon:'<i class="ti ti-settings"></i>', label:'Admin',          color:'#2C3E50', roles:['admin'], desc:'Administration : accès aux apps, gestion des membres et validation des demandes d\'accès.' },
   { id:'nettoyage',      icon:'<i class="ti ti-vacuum-cleaner"></i>', label:'Nettoyage',      color:'#721C24', roles:['admin'] },
   { id:'ecran-redac',    icon:'<i class="ti ti-device-tv"></i>', label:'Écran rédac',    color:'#1A1A2E', roles:['admin','redac_chef'], desc:'Tableau de bord en direct pour un écran d\'affichage : circuit des articles, agenda et sujets ouverts, toutes rédactions. Aucune notification.' },
@@ -1781,6 +1781,20 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
             'Prefer':'return=minimal,resolution=ignore-duplicates'
           }),
           body: JSON.stringify({ membre_id: userId, app_id: 'veille' })
+        }).catch(function(){});
+      }
+
+      // Salles : toujours sur le bureau (js/05, à côté de l'Agenda), donc plus dans le Store ; on la garantit
+      // dans les applis du membre pour qu'elle figure aussi dans le menu et la recherche
+      if(!allIds.includes('salles')){
+        allIds.push('salles');
+        fetch(SB_URL+'/rest/v1/membres_apps', {
+          method:'POST',
+          headers: Object.assign({}, SB_HEADERS, {
+            'Authorization':'Bearer '+(_session&&_session.access_token||''),
+            'Prefer':'return=minimal,resolution=ignore-duplicates'
+          }),
+          body: JSON.stringify({ membre_id: userId, app_id: 'salles' })
         }).catch(function(){});
       }
 
