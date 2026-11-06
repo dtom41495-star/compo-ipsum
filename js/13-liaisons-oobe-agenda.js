@@ -431,7 +431,7 @@ function _oobeOuvrirSuite(userId, role, appsPreconfigurees){
   // Construire la grille d'apps seulement si pas préconfigurées
   if(!window._oobeAppsPreconfigurees){
     // Pas les applis toujours présentes sur le bureau, ni les anciennes versions
-    var SUR_LE_BUREAU = ['agenda','veille','tutos','stats-dashboard'];
+    var SUR_LE_BUREAU = ['agenda','salles','veille','tutos','stats-dashboard'];
     var appsDisponibles = ALL_APPS_CATALOGUE.filter(function(a){
       var r = a.roles||[];
       return (r.includes(role) || (role === 'redac_chef' && r.includes('redacteur'))) && SUR_LE_BUREAU.indexOf(a.id) === -1 && !a.legacy && !/\(v1\)/.test(a.label);
