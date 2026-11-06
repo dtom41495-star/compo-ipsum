@@ -1641,6 +1641,8 @@ function osCpFenetreRender(winId){
   // la fiche (ex: après une action), sinon le contenu s'empilait en double.
   wc.innerHTML = '';
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
+  // Texte sélectionnable et copiable (titre, infos, contact, corps) : le reste de Compo ne l'est pas (styles.css)
+  wc.classList.add('cp-lisible');
 
   // Header coloré
   var hdr = document.createElement('div');
