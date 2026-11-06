@@ -79,7 +79,7 @@ function osAccesContexteMembre(m, liens, installees){
     role: m.role,
     fonctions: typeof fonctionArray === 'function' ? fonctionArray(m.fonction) : (m.fonction || []),
     chef: liens.some(function(l){ return l.role_redac === 'redac_chef'; }),
-    sr: liens.some(function(l){ return l.role_redac === 'correcteur'; }),
+    sr: liens.some(function(l){ return typeof osLienEstSR === 'function' ? osLienEstSR(l) : l.role_redac === 'correcteur'; }),
     dansUneRedac: liens.length > 0,
     installees: installees || []
   };

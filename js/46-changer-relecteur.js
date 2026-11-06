@@ -46,7 +46,7 @@ function _crAfficher(chargement){
   } else {
     var st = e.ctx && e.ctx.stats;
     var redacId = a.redaction_id;
-    var deLaRedac = function(m){ return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacId && l.role_redac === 'correcteur'; }); };
+    var deLaRedac = function(m){ return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacId && osLienEstSR(l); }); };
     corps = '<p class="se-texte">« '+esc(a.titre || 'Sans titre')+' »</p>'
       +'<p class="se-aide">'+(a.correcteur ? 'Relecteur actuel : <strong>'+esc(a.correcteur)+'</strong>. Il sera prévenu que l’article ne lui est plus confié.' : 'Aucun relecteur : l’article attend dans la file du SR.')+'</p>'
       +'<div class="cr-liste">'

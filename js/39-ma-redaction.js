@@ -20,7 +20,7 @@ var MR_STATUTS = {
   'valide_central':{ l:'Bon à publier (centrale)', bg:'#D4EDDA', c:'#0B3D91' },
   'publie':        { l:'En ligne',                 bg:'#1A1A2E', c:'#FFFFFF' }
 };
-var MR_ROLES = [['redacteur', 'Rédacteur·rice'], ['correcteur', 'SR'], ['redac_chef', 'Rédac chef']];
+var MR_ROLES = ROLES_REDAC_MENU;
 var MR_URGENCE = {
   normal: { bg:'#D4EDDA', c:'#155724' }, moyen: { bg:'#FFF3CD', c:'#856404' }, urgent: { bg:'#FCEBEB', c:'#A32D2D' }
 };
@@ -96,7 +96,7 @@ function _mrCharger(){
       res[0].forEach(function(m){ parId[m.id] = m; });
       // Les membres de la rédaction, chefs d'abord, puis par prénom
       var membres = liens.filter(function(l){ return parId[l.membre_id] && parId[l.membre_id].role !== 'interdit'; }).map(function(l){
-        return Object.assign({}, parId[l.membre_id], { roleRedac:l.role_redac || 'redacteur' });
+        return Object.assign({}, parId[l.membre_id], { roleRedac:l.role_redac || 'redacteur', aussiSr:!!l.aussi_sr });
       }).sort(function(a, b){
         return ((b.roleRedac === 'redac_chef') - (a.roleRedac === 'redac_chef')) || (a.prenom || '').localeCompare(b.prenom || '', 'fr');
       });
@@ -259,7 +259,7 @@ function _mrMembres(d){
   if(osEstMobile()){
     return h+'<div class="rm-liste">'+d.membres.map(function(m){
       var n = nbArts[m.id] || 0;
-      return _osRedacCarteMembreMobile(m, d.redac.id, m.roleRedac, n+' article'+(n > 1 ? 's' : ''));
+      return _osRedacCarteMembreMobile(m, d.redac.id, osRoleRedacValeur({ role_redac:m.roleRedac, aussi_sr:m.aussiSr }), n+' article'+(n > 1 ? 's' : ''));
     }).join('')+'</div></div>';
   }
   h += '<table class="mr-table"><thead><tr><th>Membre</th><th>Rôle</th><th>Articles</th><th></th></tr></thead><tbody>';
@@ -267,8 +267,8 @@ function _mrMembres(d){
     h += '<tr data-act="fiche" data-mid="'+esc(m.id)+'"><td><div class="mr-membre"><span class="mr-puce-av">'+renderAvatarHTML(m, 26, {})
       +'<span data-presence-id="'+esc(m.id)+'" class="mr-presence" style="background:'+(osEstEnLigne(m.id) ? '#27AE60' : '#888')+';"></span></span>'
       +'<span>'+esc((m.prenom || '')+' '+(m.nom || ''))+'</span></div></td>'
-      +'<td><select class="mr-role" data-mid="'+esc(m.id)+'" data-rid="'+esc(d.redac.id)+'" data-avant="'+esc(m.roleRedac)+'">'
-      +MR_ROLES.map(function(r){ return '<option value="'+r[0]+'"'+(m.roleRedac === r[0] ? ' selected' : '')+'>'+r[1]+'</option>'; }).join('')+'</select></td>'
+      +'<td><select class="mr-role" data-mid="'+esc(m.id)+'" data-rid="'+esc(d.redac.id)+'" data-avant="'+esc(osRoleRedacValeur({ role_redac:m.roleRedac, aussi_sr:m.aussiSr }))+'">'
+      +MR_ROLES.map(function(r){ return '<option value="'+r[0]+'"'+(osRoleRedacValeur({ role_redac:m.roleRedac, aussi_sr:m.aussiSr }) === r[0] ? ' selected' : '')+'>'+r[1]+'</option>'; }).join('')+'</select></td>'
       +'<td class="mr-centre">'+(nbArts[m.id] || 0)+'</td>'
       +'<td><button type="button" class="mr-retirer" data-act="retirer" data-mid="'+esc(m.id)+'" title="Retirer de la rédaction"><i class="ti ti-user-minus"></i></button></td></tr>';
   });
@@ -392,7 +392,7 @@ function _mrRelecture(d){
 
   // Charge par correcteur : les SR de la rédaction, et toute personne qui a relu ou relit (admin, rédac chef…)
   var sr = {};
-  d.membres.forEach(function(m){ if(m.roleRedac === 'correcteur' || m.role === 'correcteur') sr[m.id] = { id:m.id, nom:((m.prenom || '')+' '+(m.nom || '')).trim(), enCours:0, dort:0, relus:0, durees:[] }; });
+  d.membres.forEach(function(m){ if(m.roleRedac === 'correcteur' || m.aussiSr || m.role === 'correcteur') sr[m.id] = { id:m.id, nom:((m.prenom || '')+' '+(m.nom || '')).trim(), enCours:0, dort:0, relus:0, durees:[] }; });
   prises.forEach(function(a){
     if(!sr[a.correcteur_id]) sr[a.correcteur_id] = { id:a.correcteur_id, nom:a.correcteur || _mrNomMembre(d, a.correcteur_id), enCours:0, dort:0, relus:0, durees:[] };
     sr[a.correcteur_id].enCours++;
@@ -498,17 +498,20 @@ function osRedacChefChangerRole(membreId, redacId, nouveauRole){
     document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ if(sel.dataset.avant) sel.value = sel.dataset.avant; });
     notif(message, 'erreur');
   }
+  // « Rédac chef + SR » : rédac chef qui relit aussi (aussi_sr) ; tout autre rôle remet aussi_sr à faux
+  var roleBase = nouveauRole === 'redac_chef_sr' ? 'redac_chef' : nouveauRole;
+  var aussiSr = nouveauRole === 'redac_chef_sr';
   function appliquer(){
     var h = Object.assign({}, _mrEntetes(), { 'Prefer':'return=representation' });
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id', { method:'PATCH', headers:h, body:JSON.stringify({ role_redac:nouveauRole }) })
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(membreId)+'&redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id', { method:'PATCH', headers:h, body:JSON.stringify({ role_redac:roleBase, aussi_sr:aussiSr }) })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(lignes){
       if(!Array.isArray(lignes) || !lignes.length){ annuler('Le rôle n’a pas pu être changé'); return; }
       var lien = (window._membresRedactionsData || []).find(function(l){ return l.membre_id === membreId && l.redaction_id === redacId; });
-      if(lien) lien.role_redac = nouveauRole;
+      if(lien){ lien.role_redac = roleBase; lien.aussi_sr = aussiSr; }
       if(_mr.donnees && _mr.redacId === redacId){
         var m = _mr.donnees.membres.find(function(x){ return x.id === membreId; });
-        if(m) m.roleRedac = nouveauRole;
+        if(m){ m.roleRedac = roleBase; m.aussiSr = aussiSr; }
       }
       document.querySelectorAll('select[data-mid="'+membreId+'"][data-rid="'+redacId+'"]').forEach(function(sel){ sel.dataset.avant = nouveauRole; });
       notif('Rôle mis à jour', 'succes');
@@ -517,7 +520,7 @@ function osRedacChefChangerRole(membreId, redacId, nouveauRole){
   }
   // Un chef non-admin qui se retire lui-même son statut perd l'écran qui permet de le restaurer :
   // on bloque s'il est le seul chef.
-  if(membreId === getUserId() && nouveauRole !== 'redac_chef' && getUserRole() !== 'admin'){
+  if(membreId === getUserId() && roleBase !== 'redac_chef' && getUserRole() !== 'admin'){
     _mrLire('membres_redactions?redaction_id=eq.'+encodeURIComponent(redacId)+'&role_redac=eq.redac_chef&select=membre_id').then(function(chefs){
       if(chefs.filter(function(l){ return l.membre_id !== membreId; }).length === 0){
         annuler('Impossible : tu es le seul chef de cette rédaction. Nomme d’abord quelqu’un d’autre chef.');

@@ -83,7 +83,7 @@ function _osBenvOrganigrammeHTML(membres){
     var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
     // Pointillés : SR de toutes les rédactions (rôle global). Trait plein : SR de cette rédaction.
     var estCorrecteur = !estChef && m.role==='correcteur';
-    var srRedac = !estChef && !estCorrecteur && liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redacId && l.role_redac==='correcteur'; });
+    var srRedac = !estChef && !estCorrecteur && liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redacId && osLienEstSR(l); });
     var taille = estChef?52:40;
     // Le rôle Compo (admin/correcteur/...) garde toujours sa couleur habituelle —
     // celle qu'on retrouve partout ailleurs dans l'app (Tchap, listes de membres...).
@@ -128,7 +128,7 @@ function _osBenvOrganigrammeHTML(membres){
     });
     // Le correcteur encadre le travail des rédacteurs avant le chef — il a son propre
     // étage entre le chef et le reste de l'équipe plutôt que d'être mélangé avec eux.
-    var estSRIci = function(m){ return m.role==='correcteur' || liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redac.id && l.role_redac==='correcteur'; }); };
+    var estSRIci = function(m){ return m.role==='correcteur' || liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redac.id && osLienEstSR(l); }); };
     var correcteurs = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && estSRIci(m); });
     var autres = membresRedac.filter(function(m){ return chefs.indexOf(m)===-1 && !estSRIci(m); });
 

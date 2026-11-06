@@ -2453,7 +2453,7 @@ function _osRedacCarteMembreMobile(m, redacId, rr, sousTitreHtml){
     +'<span class="rm-nom"><strong>'+esc((m.prenom||'')+' '+(m.nom||''))+'</strong><span>'+sousTitreHtml+'</span></span>'
     +'<i class="ti ti-chevron-right"></i></button>'
     +'<div class="rm-actions"><select class="rm-role" data-mid="'+m.id+'" data-rid="'+redacId+'" data-avant="'+esc(rr)+'" onchange="osRedacChefChangerRole(this.dataset.mid,this.dataset.rid,this.value)">'
-    +[['redacteur','Rédacteur·rice'],['correcteur','Secrétaire de rédaction'],['redac_chef','Rédac chef']].map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+r[1]+'</option>'; }).join('')
+    +ROLES_REDAC_MENU.map(function(r){ return '<option value="'+r[0]+'"'+(rr===r[0]?' selected':'')+'>'+(r[0]==='correcteur'?'Secrétaire de rédaction':r[1])+'</option>'; }).join('')
     +'</select><button type="button" class="rm-retirer" data-mid="'+m.id+'" data-rid="'+redacId+'" onclick="osRedacChefRetirerMembre(this.dataset.mid,this.dataset.rid)"><i class="ti ti-user-minus"></i>Retirer</button></div>'
     +'</div>';
 }
@@ -2508,7 +2508,7 @@ function _osRedactionsAdminMobile(wc, tousArts){
       var arts = tousArts.filter(function(a){ return a.auteur_id === o.m.id && a.redaction_id === redac.id; });
       var pub = arts.filter(function(a){ return a.statut==='publie'; }).length;
       var sous = arts.length+' article'+(arts.length>1?'s':'')+' · '+pub+' publié'+(pub>1?'s':'')+' · <span id="heures-'+o.m.id+'">0h</span>';
-      h += _osRedacCarteMembreMobile(o.m, redac.id, o.lien.role_redac||'redacteur', sous);
+      h += _osRedacCarteMembreMobile(o.m, redac.id, osRoleRedacValeur(o.lien), sous);
     });
     if(!actifs.length) h += '<div class="rm-vide">Aucun membre dans cette rédaction.</div>';
     h += '</div>';
@@ -2690,7 +2690,7 @@ function osAdminAjouterMembreRedac(redacId){
   var optionsHtml = dispo.map(function(m){ return '<option value="'+m.id+'">'+esc(m.prenom||'')+' '+esc(m.nom||'')+' ('+m.role+')</option>'; }).join('');
   modal.innerHTML = '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1rem;color:var(--encre);">Ajouter un membre</div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Membre</div><select id="redac-add-membre" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;">'+optionsHtml+'</select></div>'
-    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Rôle dans la rédaction</div><select id="redac-add-role" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;"><option value="redacteur">Rédacteur·rice</option><option value="correcteur">SR (relit les articles de cette rédaction)</option><option value="redac_chef">Rédac chef</option></select></div>'
+    +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Rôle dans la rédaction</div><select id="redac-add-role" style="width:100%;font-family:Space Mono,monospace;font-size:0.78rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;box-sizing:border-box;"><option value="redacteur">Rédacteur·rice</option><option value="correcteur">SR (relit les articles de cette rédaction)</option><option value="redac_chef">Rédac chef</option><option value="redac_chef_sr">Rédac chef + SR</option></select></div>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-add-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Ajouter</button>'
@@ -2702,7 +2702,7 @@ function osAdminAjouterMembreRedac(redacId){
     var membreId = modal.querySelector('#redac-add-membre').value;
     var roleRedac = modal.querySelector('#redac-add-role').value;
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/membres_redactions',{method:'POST',headers:authH,body:JSON.stringify({membre_id:membreId,redaction_id:redacId,role_redac:roleRedac})})
+    fetch(SB_URL+'/rest/v1/membres_redactions',{method:'POST',headers:authH,body:JSON.stringify({membre_id:membreId,redaction_id:redacId,role_redac:roleRedac==='redac_chef_sr'?'redac_chef':roleRedac,aussi_sr:roleRedac==='redac_chef_sr'})})
     .then(function(r){ if(r.ok){ notif('Membre ajouté','succes'); document.body.removeChild(overlay); osRedactionsRender(); } else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); } })
     .catch(function(){ notif('Erreur réseau'); });
   });
