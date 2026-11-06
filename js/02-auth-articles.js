@@ -845,7 +845,9 @@ function chargerProfilMembre(userId, contexte){
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
-    var membre = data && data[0] ? data[0] : null;
+    // Réponse d'erreur (jeton expiré, réseau…) : ce n'est pas « pas de fiche », on réessaie
+    if(!Array.isArray(data)) throw new Error('profil illisible');
+    var membre = data[0] || null;
     if(membre){
       // Vérifier si le compte est interdit ou désactivé
       if(membre.role === 'interdit' || membre.actif === false){
@@ -896,22 +898,12 @@ function chargerProfilMembre(userId, contexte){
         srEl.textContent = roleLabelsInit[membre.role] || membre.role;
       }
     } else {
-      // Nouveau compte sans ligne dans membres — ne pas écraser le localStorage avec un préfixe email
-      var email = _session && _session.user ? _session.user.email : '';
-      // Garder le prenom/role existant en localStorage si présents
-      if(!localStorage.getItem('ipsum_user_prenom')) localStorage.setItem('ipsum_user_prenom', '');
-      if(!localStorage.getItem('ipsum_user_nom')) localStorage.setItem('ipsum_user_nom', '');
-      if(!localStorage.getItem('ipsum_user_role')) localStorage.setItem('ipsum_user_role', 'redacteur');
+      // Compte Google sans fiche membre : la personne n'a pas été invitée (invite-membre crée
+      // la fiche en même temps que le compte). Pas de première connexion ni d'accès : un écran
+      // qui l'explique. Le serveur refuse de toute façon qu'elle se crée une fiche elle-même.
       var ls2 = document.getElementById('login-screen');
       if(ls2) ls2.classList.remove('visible');
-      // Toujours déclencher l'OOBE pour les nouveaux comptes
-      if(!localStorage.getItem('compo_oobe_done_'+userId)){
-        var loginEl2 = document.getElementById('os-login');
-        if(loginEl2) loginEl2.style.display = 'none';
-        oobeOuvrir(userId, localStorage.getItem('ipsum_user_role') || 'redacteur');
-      } else {
-        _chargerAppsUtilisateur(userId, function(){ lancerCompo(); }, localStorage.getItem('ipsum_user_role') || 'redacteur');
-      }
+      osAfficherCompteNonInscrit(_session && _session.user ? _session.user.email : '');
     }
   })
   .catch(function(){

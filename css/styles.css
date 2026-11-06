@@ -7470,3 +7470,15 @@ div.adm-kpi { cursor: default; }
   .adm-redac-ajout select:first-child { flex-basis: 100%; }
   .adm-corps { overflow-x: hidden; }
 }
+
+/* Compte Google sans fiche membre (js/12 osAfficherCompteNonInscrit) */
+.cni-ecran { position: fixed; inset: 0; z-index: 99999; background: #0D0D1A; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.cni-carte { max-width: 440px; width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 2rem 1.5rem; text-align: center; color: #fff; font-family: 'DM Sans', sans-serif; }
+.cni-ic { font-size: 2.4rem; color: #FF8A5C; margin-bottom: 0.6rem; }
+.cni-titre { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.2rem; margin-bottom: 0.8rem; }
+.cni-texte { color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.6; margin: 0 0 0.8rem; overflow-wrap: anywhere; }
+.cni-texte b { color: #fff; }
+.cni-petit { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+.cni-petit a { color: #FF8A5C; }
+.cni-btn { margin-top: 0.6rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #fff; border-radius: 10px; padding: 0.6rem 1.2rem; font-family: inherit; font-size: 0.88rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.cni-btn:hover { background: rgba(255,255,255,0.14); }

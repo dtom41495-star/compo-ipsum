@@ -1713,49 +1713,25 @@ function osAfficherAccesSuspendu(){
   document.body.appendChild(screen);
 }
 
-function osAfficherSessionNonConfiguree(){
+// Écran montré à un compte Google du domaine qui se connecte sans avoir été invité
+// (aucune fiche membre) : il n'entre pas dans Compo. Un admin doit l'inviter depuis l'appli Admin.
+function osAfficherCompteNonInscrit(email){
   var loginEl = document.getElementById('os-login');
   if(loginEl) loginEl.style.display = 'none';
   var desktop = document.getElementById('os-desktop');
   if(desktop) desktop.style.display = 'none';
-
-  var existing = document.getElementById('session-non-configuree');
-  if(existing) return;
-
-  var uid = getUserId();
+  if(document.getElementById('compte-non-inscrit')) return;
   var screen = document.createElement('div');
-  screen.id = 'session-non-configuree';
-  screen.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0D0D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;';
-
-  screen.innerHTML =
-    '<div style="font-size:2.5rem;margin-bottom:0.5rem;"><i class="ti ti-hourglass"></i></div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.1rem;color:white;text-align:center;">Accès en attente</div>'
-    +'<div id="snc-msg" style="font-family:Space Mono,monospace;font-size:0.72rem;color:rgba(255,255,255,0.4);text-align:center;max-width:380px;line-height:1.7;">Vérification en cours...</div>'
-    +'<div style="margin-top:1.5rem;display:flex;gap:0.8rem;">'
-    +'<button onclick="seDeconnecter()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;">Se déconnecter</button>'
-    +'<button onclick="location.reload()" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:0.5rem 1.2rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:8px;cursor:pointer;"><i class="ti ti-refresh"></i> Réessayer</button>'
+  screen.id = 'compte-non-inscrit';
+  screen.className = 'cni-ecran';
+  screen.innerHTML = '<div class="cni-carte" role="alertdialog" aria-labelledby="cni-titre">'
+    +'<div class="cni-ic"><i class="ti ti-user-question"></i></div>'
+    +'<div id="cni-titre" class="cni-titre">Ce compte n\u2019est pas inscrit sur Compo</div>'
+    +'<p class="cni-texte">'+(email ? '<b>'+esc(email)+'</b> n\u2019a' : 'Ce compte n\u2019a')+' pas encore été invité. Compo est réservé aux membres d\u2019Ipsum Média : demande à un admin de t\u2019inviter, tu recevras alors un mail pour entrer.</p>'
+    +'<p class="cni-texte cni-petit">Une question ? Écris à <a href="mailto:contact@ipsummedia.fr">contact@ipsummedia.fr</a></p>'
+    +'<button class="cni-btn" onclick="seDeconnecter()"><i class="ti ti-logout"></i> Se déconnecter</button>'
     +'</div>';
-
   document.body.appendChild(screen);
-
-  // Charger le statut de la demande
-  if(uid){
-    fetch(SB_URL+'/rest/v1/membres_demandes?membre_id=eq.'+uid+'&select=statut&order=created_at.desc&limit=1', {
-      headers: Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') })
-    }).then(function(r){ return r.json(); })
-    .then(function(data){
-      var demande = data && data[0];
-      var msgEl = document.getElementById('snc-msg');
-      if(!msgEl) return;
-      if(demande && demande.statut === 'en_attente'){
-        msgEl.textContent = 'Ta demande d\u2019acc\u00e8s a bien \u00e9t\u00e9 envoy\u00e9e. L\u2019administrateur va l\u2019examiner et activer ton compte.';
-      } else if(demande && demande.statut === 'refuse'){
-        msgEl.textContent = 'Ta demande a \u00e9t\u00e9 refus\u00e9e. Contacte l\u2019administrateur.';
-      } else {
-        msgEl.textContent = 'Ton compte n\u2019a pas encore \u00e9t\u00e9 configur\u00e9. Contacte l\u2019administrateur.';
-      }
-    }).catch(function(){});
-  }
 }
 
 function _initialiserAppsParDefaut(userId, role){

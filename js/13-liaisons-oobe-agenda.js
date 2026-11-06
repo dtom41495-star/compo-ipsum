@@ -659,21 +659,12 @@ function oobeTerminer(){
   localStorage.setItem('ipsum_user_prenom', prenom);
   localStorage.setItem('ipsum_user_nom', nom);
   if(_session && _session.access_token){
-    var email = _session.user ? _session.user.email : '';
     var champs = { prenom:prenom, nom:nom || '', avatar_id:_oobeAvatarChoisi || null, canal_notif:_oobeCanal };
-    // PATCH de sa ligne — jamais le rôle. Pas de ligne (ancien cas) : on la crée.
+    // PATCH de sa fiche (créée à l'invitation) — jamais le rôle
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+userId, {
       method:'PATCH',
-      headers: Object.assign(_oobeAuth(), {'Prefer':'return=representation'}),
+      headers: Object.assign(_oobeAuth(), {'Prefer':'return=minimal'}),
       body: JSON.stringify(champs)
-    }).then(function(r){ return r.ok ? r.json() : []; })
-    .then(function(rows){
-      if(Array.isArray(rows) && rows.length) return;
-      return fetch(SB_URL+'/rest/v1/membres', {
-        method:'POST',
-        headers: Object.assign(_oobeAuth(), {'Prefer':'return=minimal,resolution=merge-duplicates'}),
-        body: JSON.stringify(Object.assign({ id:userId, email:email, role:role || 'redacteur' }, champs))
-      });
     }).catch(function(){});
   }
 
