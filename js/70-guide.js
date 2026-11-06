@@ -225,6 +225,7 @@ var GD_ROLES_ASSO = [
   { cle:['secretaire'],     titre:'Secrétaire',           icone:'ti-mail-opened',  aide:'Courriers, documents officiels et signatures.' },
   { cle:['tresorier'],      titre:'Trésorier·ère',        icone:'ti-coin-euro',    aide:'Notes de frais, remboursements, adhésions et cotisations.' },
   { cle:['vie_asso'],       titre:'Vie associative',      icone:'ti-heart-handshake', aide:'Arrivée ou départ de l’équipe, heures de bénévolat, pause, difficultés avec un membre.' },
+  { cle:['relations_partenaires'], titre:'Relations partenaires', icone:'ti-address-book', aide:'Faire connaître Ipsum à une asso, une mairie, une salle, et recevoir leurs communiqués.' },
   { role:'communicant', titre:'Communication', icone:'ti-speakerphone', aide:'Réseaux sociaux, visuels, communiqués et newsletter.' }
 ];
 function _gdNom(m){ return ((m.prenom || '')+' '+(m.nom || '')).trim() || 'Membre'; }
