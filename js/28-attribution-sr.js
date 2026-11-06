@@ -34,7 +34,7 @@ function _srEstRelecteur(m, redacId, adminsInclus){
   if(!m || m.dnd || m.marque_inactif || m.role === 'interdit') return false;
   if(m.role === 'correcteur') return true;
   if(adminsInclus && m.role === 'admin') return true;
-  return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacId && l.role_redac === 'correcteur'; });
+  return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacId && osLienEstSR(l); });
 }
 
 // Données utiles au classement : membres, charge, dernière attribution, délais habituels
@@ -48,7 +48,7 @@ function osSrContexteClassement(){
     typeof osSrStatsDelais === 'function' ? osSrStatsDelais().catch(function(){ return null; }) : Promise.resolve(null),
     // Rôles de tous les membres dans les rédactions, relus ici : la mémoire du navigateur peut
     // ne contenir que ceux de la personne connectée, et les SR d'une rédaction disparaissaient
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(res){
     if(Array.isArray(res[4]) && res[4].length){
       var connus = {};
@@ -141,7 +141,7 @@ function osSrAttributionRemplir(list){
     }
 
     var classes = osSrClasser(_assignDoc, ctx, { adminsInclus: mode !== 'auto' });
-    var deLaRedac = function(m){ return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacArticle && l.role_redac === 'correcteur'; }); };
+    var deLaRedac = function(m){ return (window._membresRedactionsData||[]).some(function(l){ return l.membre_id === m.id && l.redaction_id === redacArticle && osLienEstSR(l); }); };
     var cartes = [];
 
     function choisir(el, fn){

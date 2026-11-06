@@ -443,40 +443,77 @@ function _tourEstChefOuAdmin(){
   return role === 'admin' || (monLien && monLien.role_redac === 'redac_chef');
 }
 
+// Étapes de la visite guidée (Guide > « La visite guidée », et proposée au premier lancement).
+// cible : un sélecteur, ou une liste essayée dans l'ordre (le premier élément visible gagne) ;
+// pageId : fenêtre à ouvrir ; avant : à lancer une fois la fenêtre ouverte (changer d'onglet…).
+// Revue en novembre 2026 : Menu, disponibilité, sujets et roulette, communiqués (favoris, « Pour tes sujets »),
+// circuit d'un article, Mes articles (historique, PDF), agenda (créneaux), Salles, cloche et Guide.
+function _tourMobile(){ return typeof osEstMobile === 'function' ? osEstMobile() : window.innerWidth <= 768; }
 var TOUR_ETAPES = [
   {
-    id: 'dispo',
-    // Sur mobile, le bouton n'est plus dans la barre des tâches (retiré, source de bugs
-    // d'affichage) — il vit désormais dans le rail de Ma Rédac', donc on ouvre cette page-là.
-    pageId: function(){ return window.innerWidth <= 768 ? 'redactions' : null; },
-    // Sur téléphone, l'étape ouvre Mon profil : le choix Disponible / Indispo y est #rp-dnd
-    cible: function(){ return window.innerWidth <= 768 ? '#rp-dnd' : '#os-dnd-btn'; },
-    titre: '<i class="ti ti-circle-dot"></i> Disponible / Indisponible',
+    id: 'accueil',
+    cible: function(){ return _tourMobile() ? '#os-accueil-mobile .acc-salut' : '#os-start-btn'; },
+    titre: '<i class="ti ti-layout-grid"></i> Bienvenue dans Compo',
     texte: function(){
-      var estCommunicant = typeof osEstCommunicant === 'function' && osEstCommunicant();
-      if(estCommunicant){
-        return 'Ce bouton sert à signaler que tu ne peux pas t\'investir dans l\'association en ce moment — les autres le voient tout de suite. '
-          + '<strong style="color:var(--rouge);">En tant que membre de la communication</strong>, si tu passes en indisponible et qu\'aucun autre communicant n\'est disponible, l\'outil Visuels s\'ouvre en libre-service pour les rédacteurs le temps que tu reviennes.';
-      }
-      return 'Ce bouton sert à signaler que tu ne peux pas t\'investir dans l\'association en ce moment — pas de pression, ça prévient juste les autres.';
+      return _tourMobile()
+        ? 'C\'est ton accueil : ton profil et ta carte d\'adhérent en haut, <b>Rédiger</b> juste en dessous, puis toutes tes applis rangées par rubrique. La visite fait le tour de l\'essentiel en quelques étapes.'
+        : 'Toutes tes applis sont dans le <b>Menu</b> (ou <b>Ctrl K</b> pour en chercher une). Clic droit sur une appli pour l\'épingler dans la barre du bas. La visite fait le tour de l\'essentiel en quelques étapes.';
     }
   },
   {
-    id: 'redac', pageId: 'redactions', cible: '#redac-sidebar-rail',
-    titre: '<i class="ti ti-news"></i> Ma Rédac\'',
-    texte: 'Ton espace rédaction : ton profil, les sujets disponibles à réserver, les annonces de recrutement, et ta rédaction locale. Le bandeau "Sujets à rédiger" en haut te montre toujours ce qu\'il y a de plus urgent à écrire.'
+    id: 'dispo',
+    cible: function(){ return _tourMobile() ? '#os-accueil-mobile .acc-sit-dispo' : '#os-dnd-btn'; },
+    titre: '<i class="ti ti-user-check"></i> Ta disponibilité',
+    texte: function(){
+      var t = '<b>Disponible</b> : tu reçois les sujets et les notifications. Passe en <b>Indisponible</b> quand tu fais une pause (examens, vacances…) : plus de notifications, et l\'équipe le voit.';
+      if(typeof osEstCommunicant === 'function' && osEstCommunicant())
+        t += ' <b style="color:var(--rouge);">Côté com</b> : si plus aucun communicant n\'est disponible, l\'outil Visuels s\'ouvre aux rédacteurs le temps que tu reviennes.';
+      return t;
+    }
   },
   {
-    id: 'cps',
-    pageId: function(){ return _tourEstChefOuAdmin() ? 'cps-admin' : 'redactions'; },
-    cible: function(){ return _tourEstChefOuAdmin() ? '#page-cps-admin .panel-title' : '#redac-cps-groupe'; },
-    titre: '<i class="ti ti-speakerphone"></i> Communiqués de presse',
-    texte: 'Les communiqués reçus par Ipsum Média arrivent ici, dans Ma Rédac\'. Tu peux transformer un communiqué en sujet à rédiger, ou directement créer un article à partir de son contenu.'
+    id: 'sujets', pageId: 'redactions',
+    avant: function(){ if(typeof osRedactionsChangerOnglet === 'function') osRedactionsChangerOnglet('sujets'); },
+    cible: ['#redac-sidebar-rail button[data-onglet="sujets"]', '.rl-bandeau', '#win-redactions'],
+    titre: '<i class="ti ti-pin"></i> Ma rédac\' : les sujets',
+    texte: 'Les sujets de ta rédaction, à <b>réserver</b> d\'un clic. Tu hésites ? La <b>roulette</b> en tire un pour toi. Tu peux aussi <b>proposer</b> tes propres sujets : un rédac chef les valide.'
   },
   {
-    id: 'redaction', pageId: 'redaction', cible: '#r-titre',
-    titre: '<i class="ti ti-pencil"></i> Rédiger un article',
-    texte: 'Ton article suit un circuit fixe : En écriture → Au SR → Relu par le SR → Bon à publier → En ligne. Une fois prêt, clique sur « Envoyer au SR » pour le faire relire par le secrétariat de rédaction.'
+    id: 'cps', pageId: 'redactions',
+    avant: function(){ if(typeof osRedactionsChangerOnglet === 'function') osRedactionsChangerOnglet('cps'); },
+    cible: ['#redac-cps-groupe', '#cps-liste', '#win-redactions'],
+    titre: '<i class="ti ti-speakerphone"></i> Les communiqués de presse',
+    texte: 'Tout ce que les assos, mairies et institutions nous envoient. Ceux qui concernent <b>tes sujets réservés</b> remontent en tête ; mets une <b>étoile</b> pour les garder sous la main, et crée un sujet ou un article à partir d\'un communiqué.'
+  },
+  {
+    // « Rédiger » demande d'abord le sujet (js/22) ; si un article est déjà en cours, l'éditeur s'ouvre directement
+    id: 'redaction', pageId: 'redaction', cible: ['#rs-overlay .rs-boite', '#r-titre', '#win-redaction'],
+    titre: '<i class="ti ti-pencil"></i> Écrire un article',
+    texte: 'Chaque papier part d\'un <b>sujet</b> : choisis-en un libre (ou propose le tien), et l\'équipe sait qui écrit quoi. Dans l\'éditeur, tout est enregistré au fur et à mesure, et <b>Ctrl V</b> colle une image. Quand c\'est prêt, <b>« Envoyer au SR »</b> : relecture, bon à publier, puis en ligne.'
+  },
+  {
+    id: 'mes-articles', pageId: 'mes-articles', cible: ['#win-mes-articles .mac-actions', '#win-mes-articles'],
+    titre: '<i class="ti ti-files"></i> Mes articles',
+    texte: 'Où en est chacun de tes articles, et ce que le SR en a dit. <b>Lire</b> l\'ouvre comme publié ; de là, <b>Historique</b> retrace chaque étape et <b>PDF</b> télécharge un document propre à envoyer.'
+  },
+  {
+    id: 'agenda', pageId: 'agenda', cible: ['#agenda-body', '#win-agenda'],
+    titre: '<i class="ti ti-calendar"></i> L\'agenda',
+    texte: 'Réunions, reportages, formations… Inscris-toi en un clic, <b>sur un créneau seulement</b> si l\'événement le permet. Sur chaque fiche : l\'<b>itinéraire</b> et <b>« Ajouter à mon agenda »</b>.'
+  },
+  {
+    id: 'salles', pageId: 'salles', cible: ['#win-salles .sal-plan', '#win-salles'],
+    titre: '<i class="ti ti-video"></i> Les salles',
+    texte: 'Les salles de réunion en visio de l\'association. Un clic pour <b>entrer</b> (Google Meet), et tu vois qui est déjà dedans. Certaines salles sont réservées au bureau.'
+  },
+  {
+    id: 'fin',
+    cible: function(){ return _tourMobile() ? '#os-accueil-mobile .acc-bas [data-app="tutos"]' : '#os-atraiter-btn'; },
+    titre: '<i class="ti ti-help-circle"></i> Et si tu as une question',
+    texte: function(){
+      return (_tourMobile() ? '' : 'La <b>cloche</b> rassemble ce qui t\'attend (articles à relire, réponses, rappels). ')
+        + 'Le <b>Guide</b> répond aux questions courantes et dit <b>qui contacter</b> pour quoi ; tu peux y relancer cette visite quand tu veux. Bonne écriture !';
+    }
   }
 ];
 
@@ -484,6 +521,9 @@ var _tourIndex = 0;
 var _tourPageOuverte = null;
 
 function osTourDemarrer(){
+  // La bulle doit passer au-dessus des dialogues (choix du sujet…) : hors du bureau, sinon son z-index y reste enfermé
+  var bulle = document.getElementById('os-tour-bubble');
+  if(bulle && bulle.parentNode !== document.body) document.body.appendChild(bulle);
   _tourIndex = 0;
   osTourAllerA(0);
 }
@@ -493,6 +533,7 @@ function osTourAllerA(i){
   var etape = TOUR_ETAPES[i];
   if(!etape){ osTourFermer(); return; }
   _tourIndex = i;
+  _tourFermerDialogues();
   var pageId = typeof etape.pageId === 'function' ? etape.pageId() : etape.pageId;
   // Ferme la fenêtre ouverte par l'étape précédente si on change de fenêtre
   if(_tourPageOuverte && _tourPageOuverte !== pageId) osCloseWindow(_tourPageOuverte);
@@ -502,14 +543,24 @@ function osTourAllerA(i){
   } else {
     _tourPageOuverte = null;
   }
+  if(etape.avant) setTimeout(function(){ try{ etape.avant(); }catch(e){} }, pageId ? 450 : 0);
   var cible = typeof etape.cible === 'function' ? etape.cible() : etape.cible;
-  _tourAttendreElement(cible, function(el){ osTourPositionnerBulle(el, etape); });
+  // La bulle de l'étape précédente reste affichée pendant qu'on attend la suivante : on la cache
+  var bulle = document.getElementById('os-tour-bubble'); if(bulle) bulle.style.opacity = '0';
+  _tourAttendreElement(cible, function(el){
+    if(_tourIndex !== i) return;   // on a déjà changé d'étape entre-temps
+    try{ el.scrollIntoView({ block:'nearest', behavior:'smooth' }); }catch(e){}
+    setTimeout(function(){ osTourPositionnerBulle(el, etape); }, 120);
+  });
 }
 
 function osTourSuivant(){ osTourAllerA(_tourIndex + 1); }
 function osTourPrecedent(){ osTourAllerA(_tourIndex - 1); }
 
+// Le choix du sujet ouvert par l'étape « Écrire un article » ne doit pas rester à l'écran après
+function _tourFermerDialogues(){ if(document.getElementById('rs-overlay') && typeof _rsFermer === 'function') _rsFermer(); }
 function osTourFermer(){
+  _tourFermerDialogues();
   var uid = getUserId();
   if(uid) localStorage.setItem('compo_os_tour_vu_'+uid, '1');
   var el = document.getElementById('os-tour-bubble');
@@ -523,8 +574,14 @@ function osTourFermer(){
 
 function _tourAttendreElement(selector, callback, tentative){
   tentative = tentative || 0;
-  // L'élément visible : les pages ouvertes en fenêtre sont des copies, l'original (masqué) porte les mêmes identifiants
-  var el = Array.prototype.filter.call(document.querySelectorAll(selector), function(x){ return x.getClientRects().length > 0; })[0] || null;
+  // L'élément visible : les pages ouvertes en fenêtre sont des copies, l'original (masqué) porte les mêmes identifiants.
+  // Liste de sélecteurs : essayés dans l'ordre (les derniers servent de repli, on leur laisse d'abord le temps d'arriver)
+  var liste = Array.isArray(selector) ? selector : [selector];
+  var el = null;
+  for(var k = 0; k < liste.length && !el; k++){
+    if(k > 0 && tentative < 12) break;
+    el = Array.prototype.filter.call(document.querySelectorAll(liste[k]), function(x){ return x.getClientRects().length > 0; })[0] || null;
+  }
   if(el){ callback(el); return; }
   if(tentative >= 40) return; // ~6s, abandon silencieux si l'élément n'apparaît jamais
   setTimeout(function(){ _tourAttendreElement(selector, callback, tentative+1); }, 150);

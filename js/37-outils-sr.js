@@ -411,7 +411,7 @@ function _histPeutVoir(doc){
   return (window._membresRedactionsData||[]).some(function(l){
     if(l.membre_id !== moi) return false;
     if(l.role_redac === 'redac_chef') return l.redaction_id === doc.redaction_id || (centrale && l.redaction_id === centrale.id);
-    return l.role_redac === 'correcteur' && l.redaction_id === doc.redaction_id;
+    return osLienEstSR(l) && l.redaction_id === doc.redaction_id;
   });
 }
 

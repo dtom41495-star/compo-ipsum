@@ -38,7 +38,7 @@ function _poulsPermis(){ return !!getUserId(); }
 function _poulsNbCorrecteurs(redacId){
   var liens = window._membresRedactionsData || [];
   var n = (window._membresData || []).filter(function(m){
-    return m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.role_redac === 'correcteur' && (!redacId || l.redaction_id === redacId); });
+    return m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && osLienEstSR(l) && (!redacId || l.redaction_id === redacId); });
   }).length;
   return Math.max(1, n);
 }

@@ -16,7 +16,7 @@ function osEstSR(redacId){
   if(getUserRole() === 'correcteur') return true;
   var uid = getUserId();
   return (window._membresRedactionsData||[]).some(function(l){
-    return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && l.role_redac === 'correcteur';
+    return l.membre_id === uid && (!redacId || l.redaction_id === redacId) && osLienEstSR(l);
   });
 }
 
@@ -86,7 +86,7 @@ function _srNotifierFile(doc, rendu){
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres?actif=not.is.false&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()}).then(function(r){ return r.json(); }),
     doc.redaction_id
-      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&role_redac=eq.correcteur&select=membre_id,redaction_id,role_redac', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
+      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=membre_id,redaction_id,role_redac,aussi_sr', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
       : Promise.resolve([])
   ])
   .then(function(res){
@@ -96,7 +96,7 @@ function _srNotifierFile(doc, rendu){
     var cibles = membres.filter(function(m){
       if(m.id === doc.auteur_id || m.id === getUserId() || m.dnd || m.marque_inactif) return false;
       // Les admins aussi : ils voient la file et peuvent y prendre un article, il faut donc les prévenir
-      return m.role === 'admin' || m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && l.role_redac === 'correcteur'; });
+      return m.role === 'admin' || m.role === 'correcteur' || liens.some(function(l){ return l.membre_id === m.id && l.redaction_id === doc.redaction_id && osLienEstSR(l); });
     });
     var lien = 'https://compo.ipsummedia.fr/?article='+encodeURIComponent(doc.id);
     var titre = doc.titre || 'Sans titre';

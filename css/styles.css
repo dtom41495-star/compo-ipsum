@@ -1416,7 +1416,7 @@ body {
 }
 #os-tour-bubble {
   position: fixed;
-  z-index: 99901;
+  z-index: 200100;   /* au-dessus des fenêtres de dialogue (.se-overlay), que la visite peut montrer */
   background: rgba(10,10,20,0.97);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
@@ -7306,3 +7306,18 @@ button.trx-temps:hover { background: #E0D0EC; }
 :root.theme-dark .ag-couv-trou { background: repeating-linear-gradient(135deg, rgba(232,70,30,0.45) 0 6px, rgba(232,70,30,0.18) 6px 12px); }
 :root.theme-dark .ag-couv-trous { color: #FF9B86; }
 :root.theme-dark .ag-couv-ok { color: #6FD39A; }
+
+/* Admin > Accès : ce que chacun voit (calculé, js/80-acces.js) */
+.acx { padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.acx-aide { display: flex; gap: 0.5rem; background: #F0F7FF; border: 1px solid #CFE2F7; color: #1A4A7A; border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.76rem; line-height: 1.45; margin-bottom: 0.4rem; }
+.acx-membre { border: 1px solid var(--gris-bord); border-radius: 10px; background: white; }
+.acx-membre summary { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.8rem; cursor: pointer; list-style: none; }
+.acx-membre summary::-webkit-details-marker { display: none; }
+.acx-nom { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 0.84rem; }
+.acx-nom small { font-size: 0.68rem; color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acx-nb { font-size: 0.7rem; color: var(--gris); }
+.acx-groupes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; padding: 0 0.8rem 0.8rem; }
+.acx-t { font: 700 0.62rem 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gris); margin-bottom: 0.35rem; }
+.acx-app { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; padding: 3px 8px; border-radius: 7px; background: var(--gris-clair); margin: 0 4px 5px 0; }
+.acx-app em { font-style: normal; color: var(--gris); font-size: 0.64rem; }
+.acx-vide { font-size: 0.72rem; color: var(--gris); }

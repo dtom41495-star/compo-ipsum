@@ -125,7 +125,13 @@ var db = {
             if(e && e.code === '23505' && /sujet/i.test((e.message||'')+(e.details||''))) throw _errSujetDejaEcrit(null);
             throw new Error(e.message||e.hint||('HTTP '+r.status));
           });
-          return r.json();
+          return r.json().then(function(lignes){
+            // La base peut refuser une modification sans erreur (droits, maintenance) : 0 ligne modifiée.
+            // Avant, Compo affichait « Enregistré » alors que rien ne l'était.
+            if(method === 'PATCH' && Array.isArray(lignes) && !lignes.length)
+              throw new Error('Modification refusée : tu n\'as pas (ou plus) le droit de modifier cet article'+(typeof _maintenanceActive !== 'undefined' && _maintenanceActive ? ' pendant la maintenance' : '')+'.');
+            return lignes;
+          });
         });
       }
       // Garde-fou : jamais deux articles sur le même sujet. Une copie gardée sur

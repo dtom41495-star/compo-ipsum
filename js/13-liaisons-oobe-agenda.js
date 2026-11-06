@@ -381,8 +381,8 @@ function oobeOuvrir(userId, role){
   // Apps déjà configurées (compte approuvé ou créé par un admin) ? Vérifié en base : à ce
   // stade elles ne sont pas encore chargées dans Compo. Sans ça, un compte déjà équipé
   // se voyait redemander ses applis puis bloquer sur « compte non configuré ».
-  var dejaChargees = !!(window._userAppsAll && window._userAppsAll.length);
-  if(dejaChargees || !userId || !_session){ _oobeOuvrirSuite(userId, role, dejaChargees); return; }
+  // Les accès sont calculés à partir du rôle (js/80) : plus d'étape « choisis tes applis » ni de demande d'accès
+  _oobeOuvrirSuite(userId, role, true); return;
   fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+encodeURIComponent(userId)+'&select=app_id&limit=1', {
     headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session.access_token||'')})
   }).then(function(r){ return r.json(); })

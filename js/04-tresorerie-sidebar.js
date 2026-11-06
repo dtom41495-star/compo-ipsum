@@ -922,13 +922,13 @@ function _afficherMenuDock(e, app, isPinned){
 
 function osPinglerApp(appId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'resolution=merge-duplicates,return=minimal'});
-  fetch(SB_URL+'/rest/v1/membres_apps',{method:'POST',headers:authH,body:JSON.stringify({membre_id:getUserId(),app_id:appId,epingle:true})})
+  fetch(SB_URL+'/rest/v1/membres_apps?on_conflict=membre_id,app_id',{method:'POST',headers:authH,body:JSON.stringify({membre_id:getUserId(),app_id:appId,epingle:true})})
   .then(function(r){ if(r.ok){ notif('App épinglée','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
 }
 
 function osDepinglerApp(appId){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/membres_apps?membre_id=eq.'+getUserId()+'&app_id=eq.'+appId,{method:'PATCH',headers:Object.assign({},authH,{'Prefer':'return=minimal'}),body:JSON.stringify({epingle:false})})
+  fetch(SB_URL+'/rest/v1/membres_apps?on_conflict=membre_id,app_id',{method:'POST',headers:Object.assign({},authH,{'Prefer':'return=minimal,resolution=merge-duplicates'}),body:JSON.stringify({membre_id:getUserId(),app_id:appId,epingle:false})})
   .then(function(r){ if(r.ok){ notif('App désépinglée','succes'); _chargerAppsUtilisateur(getUserId(),function(){ osBuildDock(); }); } });
 }
 
