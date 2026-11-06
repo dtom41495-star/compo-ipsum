@@ -7274,3 +7274,35 @@ button.trx-temps:hover { background: #E0D0EC; }
 /* Sources, « À relancer » */
 :root.theme-dark .cx-compte-relancer { background: rgba(224,162,27,0.14); color: #F3D58A; }
 :root.theme-dark .cx-activite { color: #E9BE5C; }
+
+/* Agenda : itinéraire, ajout à son agenda, inscription sur une partie du temps (js/78-agenda-pratique.js) */
+.ag-itin { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.45rem; }
+.ag-btn-sec { display: inline-flex; align-items: center; gap: 5px; font: 600 0.72rem 'DM Sans', sans-serif; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--gris-bord); background: white; color: var(--encre); text-decoration: none; white-space: nowrap; }
+.ag-btn-sec:hover { border-color: var(--encre); }
+.ag-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 240px; background: white; border: 1px solid var(--gris-bord); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.14); padding: 4px; }
+.ag-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--encre); cursor: pointer; text-align: left; font-family: 'DM Sans', sans-serif; }
+.ag-menu button:hover { background: var(--gris-clair); }
+.ag-menu button i { font-size: 1.1rem; color: var(--gris); }
+.ag-menu b { display: block; font-size: 0.8rem; }
+.ag-menu small { display: block; font-size: 0.68rem; color: var(--gris); }
+.ag-couv { margin-top: 0.8rem; }
+.ag-couv-titre { font: 600 0.62rem 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gris); margin-bottom: 0.35rem; }
+.ag-couv-barre { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--gris-clair); }
+.ag-couv-m { display: flex; align-items: center; justify-content: center; background: #1E7A45; color: white; font: 700 0.66rem 'DM Sans', sans-serif; min-width: 2px; }
+.ag-couv-m + .ag-couv-m { box-shadow: inset 1px 0 0 rgba(255,255,255,0.6); }
+.ag-couv-trou { background: repeating-linear-gradient(135deg, #F4C7C3 0 6px, #FCEBEB 6px 12px); }
+.ag-couv-axe { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--gris); margin-top: 3px; }
+.ag-couv-trous { font-size: 0.74rem; color: #A32D2D; margin-top: 0.35rem; line-height: 1.4; }
+.ag-couv-ok { font-size: 0.74rem; color: #1E7A45; margin-top: 0.35rem; }
+.ag-cren-choix { display: flex; flex-direction: column; gap: 0.45rem; margin: 0.4rem 0 0.7rem; font-size: 0.84rem; }
+.ag-cren-choix label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none; letter-spacing: 0; font: 500 0.84rem 'DM Sans', sans-serif; color: var(--encre); }
+.ag-cren-heures { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.4rem; }
+.ag-cren-heures[hidden] { display: none; }
+:root.theme-dark .ag-btn-sec, :root.theme-dark .ag-menu { background: #1E1E30; color: #E8E6E1; border-color: rgba(255,255,255,0.12); }
+:root.theme-dark .ag-menu button { color: #E8E6E1; }
+:root.theme-dark .ag-menu button:hover { background: rgba(255,255,255,0.06); }
+:root.theme-dark .ag-couv-barre { background: rgba(255,255,255,0.06); }
+:root.theme-dark .ag-couv-m { background: #2E9E5B; }
+:root.theme-dark .ag-couv-trou { background: repeating-linear-gradient(135deg, rgba(232,70,30,0.45) 0 6px, rgba(232,70,30,0.18) 6px 12px); }
+:root.theme-dark .ag-couv-trous { color: #FF9B86; }
+:root.theme-dark .ag-couv-ok { color: #6FD39A; }
