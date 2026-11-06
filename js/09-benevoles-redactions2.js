@@ -858,7 +858,7 @@ function osBenvAnnonceNouvelle(){
       +'<textarea id="benv-ann-desc" oninput="_recrutementApercu(\'benv-ann-desc\')" rows="6" placeholder="Ce qu\'on recherche, les missions... (mise en forme : **gras**, _italique_, ### titre, - liste, [lien](url))" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;font-family:DM Sans,sans-serif;margin-top:2px;resize:vertical;box-sizing:border-box;"></textarea>'
       +'<div id="benv-ann-desc-preview" class="art-corps" style="flex:1;min-width:0;font-size:0.78rem;padding:0.5rem 0.7rem;border:1.5px dashed var(--gris-bord);border-radius:6px;margin-top:2px;overflow-y:auto;max-height:160px;"></div>'
       +'</div></div>'
-      +'<div style="margin-bottom:0.8rem;"><label style="font-size:0.65rem;color:var(--gris);">Email de contact</label><input id="benv-ann-email" type="email" placeholder="contact@ipsummedia.fr" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
+      +'<div style="margin-bottom:0.8rem;"><label style="font-size:0.65rem;color:var(--gris);">Email de contact</label><input id="benv-ann-email" type="email" value="vie-associative@ipsummedia.fr" placeholder="vie-associative@ipsummedia.fr" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
       +'<div style="display:flex;gap:0.5rem;">'
       +'<button onclick="osBenvAnnonceSauvegarder()" style="padding:0.4rem 1rem;background:var(--rouge);color:white;border:none;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;">Publier</button>'
       +'<button onclick="document.getElementById(\'benv-annonce-form-zone\').style.display=\'none\'" style="padding:0.4rem 0.8rem;background:transparent;border:1px solid var(--gris-bord);border-radius:6px;font-size:0.72rem;cursor:pointer;color:var(--gris);">Annuler</button>'
@@ -1459,13 +1459,14 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           return;
         }
         var m = destinataires[idx];
+        var contact = a.email_contact || 'vie-associative@ipsummedia.fr';  // annonce sans contact : la vie associative
         var html = _emailCompo({
           accent:'violet', etiquette:'RECRUTEMENT',
           titre: esc(a.titre||''),
           bonjour: 'Bonjour '+esc(m.prenom||'')+',',
           texte: 'Ipsum Média recrute ! Une nouvelle annonce vient d\'être publiée.',
           contenu: a.description ? '<div style="border-left:3px solid '+EMAIL_COUL.bord+';padding:2px 0 2px 12px;font:400 14px/1.6 '+EMAIL_POLICE+';color:#44403C;">'+mdVersHtml(a.description)+'</div>' : '',
-          apresCarte: a.email_contact ? 'Contact : <a href="mailto:'+esc(a.email_contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(a.email_contact)+'</a>' : '',
+          apresCarte: 'Contact : <a href="mailto:'+esc(contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(contact)+'</a>',
           boutons: [{ label:'Ça m\'intéresse', url:'https://compo.ipsummedia.fr' }],
           pourquoi: 'Tu reçois cet email parce que tu es membre d\'Ipsum Média.'
         });
