@@ -7145,3 +7145,17 @@ button.trx-temps:hover { background: #E0D0EC; }
 @media (prefers-reduced-motion: reduce) { .sal-av, .sal-criquet, .sal-carte.anime::after, .sal-carte:hover .sal-emoji { animation: none; } .sal-carte:hover { transform: none; } }
 :root.theme-dark .sal-vues { background: rgba(255,255,255,0.06); }
 :root.theme-dark .sal-vues button.actif { background: #2A2A48; color: #EDEDF5; }
+/* Salles réservées (« Qui peut entrer ») */
+.sal-reservee { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--encre); background: var(--gris-clair); border-style: solid; }
+.sal-reserve-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 0.64rem; font-weight: 600; color: var(--gris); background: var(--gris-clair); border-radius: 999px; padding: 1px 8px; }
+.sal-pp.reservee { cursor: not-allowed; background: repeating-linear-gradient(-45deg, var(--sal-sol) 0 5px, var(--sal-hachure) 5px 6px), repeating-linear-gradient(45deg, transparent 0 5px, var(--sal-hachure) 5px 6px); }
+.sal-pp.reservee .sal-pp-table { border-style: dashed; opacity: 0.5; }
+.sal-pp.reservee .sal-pp-porte { background: var(--sal-mur); }
+.sal-pp.reservee .sal-pp-porte::before, .sal-pp.reservee .sal-pp-porte::after { display: none; }
+.sal-lg-res { background: repeating-linear-gradient(-45deg, var(--sal-sol) 0 2px, var(--sal-trait) 2px 3px), repeating-linear-gradient(45deg, transparent 0 2px, var(--sal-trait) 2px 3px); }
+.sal-aide-form { font-size: 0.68rem; color: var(--gris); line-height: 1.45; }
+.sal-choix-txt { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; align-items: center; }
+.sal-case { text-transform: none; letter-spacing: 0; font-weight: 500; font-family: "DM Sans", sans-serif; display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; padding: 3px 10px; border: 1px solid var(--gris-bord); border-radius: 20px; cursor: pointer; color: var(--encre); background: #fff; }
+.sal-case input { accent-color: var(--rouge); margin: 0; }
+.sal-btn-bureau { padding: 3px 10px; border-radius: 20px; border-color: var(--encre); }
+:root.theme-dark .sal-case { background: #1E1E36; }

@@ -26,7 +26,18 @@ function _sallesLire(chemin){
   return fetch(SB_URL+'/rest/v1/'+chemin, { headers:_sallesH() }).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; });
 }
 function osSallesCharger(){
-  return _sallesLire('salles?actif=eq.true&order=ordre.asc,nom.asc&select=*').then(function(l){ _salles.liste = l; return l; });
+  // La colonne lien n'est pas lisible directement : la fonction salles_liens() ne la donne que pour les salles
+  // où l'on a le droit d'entrer (réglage « Qui peut entrer » : rôles / fonctions, admins partout)
+  return Promise.all([
+    _sallesLire('salles?actif=eq.true&order=ordre.asc,nom.asc&select=id,slug,nom,description,couleur,ordre,emoji,accueil,cible_roles,cible_fonctions'),
+    fetch(SB_URL+'/rest/v1/rpc/salles_liens', { method:'POST', headers:_sallesH(true), body:'{}' }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(r){
+    var liens = {};
+    (Array.isArray(r[1]) ? r[1] : []).forEach(function(x){ liens[x.id] = x.lien || ''; });
+    r[0].forEach(function(s){ s.acces = Object.prototype.hasOwnProperty.call(liens, s.id); s.lien = s.acces ? (liens[s.id] || null) : null; });
+    _salles.liste = r[0];
+    return r[0];
+  });
 }
 function _sallesMembre(id){
   var m = (window._membresData || []).find(function(x){ return x.id === id; });
@@ -107,6 +118,16 @@ function _sallesQuand(d){
   return d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })+' à '+d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
 }
 function _sallesEmoji(s){ return s.emoji || '🎥'; }
+var SALLES_ROLES = ['redacteur','correcteur','communicant'];
+var SALLES_ROLES_LBL = { redacteur:'Rédacteurs', correcteur:'SR', communicant:'Com', admin:'Admins' };
+function _sallesReservee(s){ return (s.cible_roles || []).length > 0 || (s.cible_fonctions || []).length > 0; }
+function _sallesPublic(s){
+  var f = s.cible_fonctions || [], r = s.cible_roles || [];
+  var bureau = (typeof AGENDA_BUREAU !== 'undefined' ? AGENDA_BUREAU : []);
+  if(!r.length && bureau.length && f.length === bureau.length && bureau.every(function(x){ return f.indexOf(x) !== -1; })) return 'au bureau';
+  var lbl = (typeof FONCTIONS_LBL !== 'undefined' ? FONCTIONS_LBL : {});
+  return 'à : '+r.map(function(x){ return (SALLES_ROLES_LBL[x] || x).toLowerCase(); }).concat(f.map(function(x){ return (lbl[x] || x).toLowerCase(); })).join(', ');
+}
 function _sallesAvatars(presents, taille, max){
   max = max || 6;
   var h = presents.slice(0, max).map(function(p, i){
@@ -136,7 +157,8 @@ function _sallesCartesHTML(){
       +'<div class="sal-carte-haut">'
       +'<span class="sal-emoji">'+esc(_sallesEmoji(s))+'</span>'
       +'<div class="sal-noms"><div class="sal-nom">'+esc(s.nom)+'</div>'
-      +(s.accueil || s.description ? '<div class="sal-accueil">« '+esc(s.accueil || s.description)+' »</div>' : '')+'</div>'
+      +(s.accueil || s.description ? '<div class="sal-accueil">« '+esc(s.accueil || s.description)+' »</div>' : '')
+      +(_sallesReservee(s) && s.acces ? '<div class="sal-reserve-badge"><i class="ti ti-lock"></i> Réservée '+esc(_sallesPublic(s))+'</div>' : '')+'</div>'
       +(admin ? '<button class="sal-ico" title="Personnaliser" onclick="osSallesEditer(\''+s.id+'\')"><i class="ti ti-pencil"></i></button>' : '')
       +'</div>';
     h += '<div class="sal-presence">'
@@ -145,13 +167,15 @@ function _sallesCartesHTML(){
         : '<div class="sal-silence">Silence radio… <span class="sal-criquet">🦗</span></div>')
       +'</div>';
     if(prochain) h += '<div class="sal-prochain" onclick="osOpenWindow(\'agenda\')"><i class="ti ti-calendar-event"></i> <b>'+esc(prochain.titre || 'Événement')+'</b>, '+_sallesQuand(prochain.date_debut)+'</div>';
-    if(s.lien){
+    if(!s.acces){
+      h += '<div class="sal-sans-lien sal-reservee"><i class="ti ti-lock"></i> Réservée '+esc(_sallesPublic(s))+'</div>';
+    } else if(s.lien){
       h += '<div class="sal-actions"><button class="sal-entrer'+(presents.length ? ' vert' : '')+'" onclick="osSallesEntrer(\''+s.id+'\')"><i class="ti ti-door-enter"></i> '+(presents.length ? 'Les rejoindre' : 'Entrer')+'</button>'
         +'<button class="sal-ico sal-ico-bord" title="Copier le lien" onclick="osSallesCopier(\''+s.id+'\')"><i class="ti ti-copy"></i></button></div>';
     } else {
       h += admin
         ? '<button class="sal-sans-lien admin" onclick="osSallesEditer(\''+s.id+'\')"><i class="ti ti-link-plus"></i> Coller le lien Meet</button>'
-        : '<div class="sal-sans-lien">Porte fermée : un admin doit ajouter le lien Meet.</div>';
+        : '<div class="sal-sans-lien">Pas encore de lien : un admin doit l\'ajouter.</div>';
     }
     h += '</div>';
   });
@@ -170,12 +194,16 @@ function _sallesPlanHTML(){
   _salles.liste.forEach(function(s){
     var coul = s.couleur || '#0E7C66';
     var presents = _sallesPresents(s), prochain = _sallesProchain(s);
-    var clic = s.lien ? 'osSallesEntrer(\''+s.id+'\')' : (admin ? 'osSallesEditer(\''+s.id+'\')' : '');
-    h += '<div class="sal-pp'+(presents.length ? ' occupee' : '')+(s.lien ? '' : ' fermee')+'" style="--sal-c:'+esc(coul)+';"'
+    var etat = !s.acces ? 'reservee' : (!s.lien ? 'fermee' : '');
+    var clic = etat === 'reservee' ? '' : (s.lien ? 'osSallesEntrer(\''+s.id+'\')' : (admin ? 'osSallesEditer(\''+s.id+'\')' : ''));
+    var info = etat === 'reservee' ? 'réservée '+_sallesPublic(s)
+      : presents.length ? presents.length+' présent'+(presents.length > 1 ? 's' : '')
+      : etat === 'fermee' ? 'pas encore de lien' : (_sallesReservee(s) ? 'libre · réservée '+_sallesPublic(s) : 'libre');
+    h += '<div class="sal-pp'+(presents.length ? ' occupee' : '')+(etat ? ' '+etat : '')+'" style="--sal-c:'+esc(coul)+';"'
       +(clic ? ' onclick="'+clic+'" role="button" tabindex="0"' : '')
-      +' title="'+esc(s.lien ? 'Entrer dans '+s.nom : 'Pas encore de lien Meet')+'">'
+      +' title="'+esc(etat === 'reservee' ? 'Réservée '+_sallesPublic(s) : s.lien ? 'Entrer dans '+s.nom : 'Pas encore de lien Meet')+'">'
       +'<div class="sal-pp-nom">'+esc(s.nom)+'</div>'
-      +'<div class="sal-pp-info">'+(presents.length ? presents.length+' présent'+(presents.length > 1 ? 's' : '') : (s.lien ? 'libre' : 'fermée'))+'</div>'
+      +'<div class="sal-pp-info">'+(etat === 'reservee' ? '<i class="ti ti-lock"></i> ' : '')+esc(info)+'</div>'
       +'<div class="sal-pp-table">'+(presents.length ? '<div class="sal-pp-gens">'+_sallesAvatars(presents, 26, 6)+'</div>' : '')+'</div>'
       +(prochain ? '<div class="sal-pp-prochain"><i class="ti ti-calendar-event"></i> '+esc(prochain.titre || 'Événement')+'</div>' : '')
       +'<span class="sal-pp-porte"></span>'
@@ -183,7 +211,7 @@ function _sallesPlanHTML(){
   });
   h += '</div><div class="sal-plan-couloir"><span>Couloir</span></div>'
     +'<div class="sal-plan-entree"><i class="ti ti-arrow-up"></i> Entrée</div></div>'
-    +'<div class="sal-plan-legende"><span><i class="sal-lg sal-lg-occ"></i> occupée</span><span><i class="sal-lg"></i> libre</span><span><i class="sal-lg sal-lg-fer"></i> pas de lien</span></div></div>'
+    +'<div class="sal-plan-legende"><span><i class="sal-lg sal-lg-occ"></i> occupée</span><span><i class="sal-lg"></i> libre</span><span><i class="sal-lg sal-lg-fer"></i> pas de lien</span><span><i class="sal-lg sal-lg-res"></i> réservée</span></div></div>'
     +'<div class="sal-aide">Clique sur une salle pour y entrer. Autour de la table : les personnes entrées depuis Compo dans la dernière heure.</div>';
   return h;
 }
@@ -192,7 +220,7 @@ function _sallesPlanHTML(){
 // On note le passage (pour que les autres voient qui est dans la salle), puis Meet s'ouvre dans un onglet
 function osSallesEntrer(id){
   var s = _salles.liste.find(function(x){ return x.id === id; });
-  if(!s || !s.lien) return;
+  if(!s || !s.lien || !s.acces) return;
   // Sans « noopener » dans les options : avec, window.open renvoie toujours null et on croirait l'onglet bloqué
   var w = window.open(s.lien, '_blank');
   if(w){ try{ w.opener = null; }catch(e){} }
@@ -228,6 +256,11 @@ function osSallesEditer(id){
     +SALLES_COULEURS.map(function(k){ return '<button type="button" class="sal-pastille" data-v="'+k+'" style="background:'+k+';" onclick="_sallesChoix(\'couleur\',this.dataset.v)"></button>'; }).join('')+'</div>'
     +'<label class="sal-label">Phrase d\'accueil</label><input id="sal-f-accueil" class="sal-champ" maxlength="90" value="'+esc(s ? (s.accueil || '') : '')+'" placeholder="Ex. Pour un point rapide ou juste papoter." oninput="_sallesApercu()">'
     +'<label class="sal-label">Lien Google Meet</label><input id="sal-f-lien" class="sal-champ" value="'+esc(s ? (s.lien || '') : '')+'" placeholder="https://meet.google.com/…">'
+    +'<label class="sal-label">Qui peut entrer</label>'
+    +'<div class="sal-aide-form">Rien de coché = tout le monde. Sinon, seuls les membres qui ont un des rôles ou une des fonctions cochés (les admins entrent partout). Les autres voient la salle, fermée.</div>'
+    +'<div class="sal-choix-txt">'+SALLES_ROLES.map(function(r){ return _sallesCase('sal-f-roles', r, SALLES_ROLES_LBL[r], s && (s.cible_roles || []).indexOf(r) !== -1); }).join('')+'</div>'
+    +'<div class="sal-choix-txt"><button type="button" class="sal-btn-sec sal-btn-bureau" onclick="_sallesCocherBureau()"><i class="ti ti-users"></i> Bureau</button>'
+    +((typeof AGENDA_CIBLE_FONCTIONS !== 'undefined' ? AGENDA_CIBLE_FONCTIONS : []).map(function(f){ return _sallesCase('sal-f-fonctions', f, (typeof FONCTIONS_LBL !== 'undefined' && FONCTIONS_LBL[f]) || f, s && (s.cible_fonctions || []).indexOf(f) !== -1); }).join(''))+'</div>'
     +'<div class="sal-form-btns">'
     +(s ? '<button class="sal-btn-danger" onclick="osSallesRetirer(\''+s.id+'\')"><i class="ti ti-trash"></i> Retirer</button>' : '')
     +'<span style="flex:1;"></span><button class="sal-btn-sec" onclick="osSallesFermerEdition()">Annuler</button>'
@@ -253,6 +286,15 @@ function _sallesApercu(){
   z.innerHTML = '<div class="sal-carte" style="--sal-c:'+esc(_salles.edition.couleur)+';"><div class="sal-carte-haut"><span class="sal-emoji">'+esc(_salles.edition.emoji)+'</span>'
     +'<div class="sal-noms"><div class="sal-nom">'+esc(nom)+'</div>'+(acc ? '<div class="sal-accueil">« '+esc(acc)+' »</div>' : '')+'</div></div></div>';
 }
+function _sallesCase(nom, v, lbl, coche){
+  return '<label class="sal-case"><input type="checkbox" name="'+nom+'" value="'+esc(v)+'"'+(coche ? ' checked' : '')+'> '+esc(lbl)+'</label>';
+}
+function _sallesCocherBureau(){
+  document.querySelectorAll('input[name="sal-f-roles"]').forEach(function(c){ c.checked = false; });
+  var b = typeof AGENDA_BUREAU !== 'undefined' ? AGENDA_BUREAU : [];
+  document.querySelectorAll('input[name="sal-f-fonctions"]').forEach(function(c){ c.checked = b.indexOf(c.value) !== -1; });
+}
+function _sallesCoches(nom){ return Array.from(document.querySelectorAll('input[name="'+nom+'"]:checked')).map(function(c){ return c.value; }); }
 function osSallesFermerEdition(){ _salles.edition = null; _sallesDessiner(); }
 function osSallesEnregistrer(){
   var e = _salles.edition;
@@ -262,15 +304,16 @@ function osSallesEnregistrer(){
   var lien = ((document.getElementById('sal-f-lien') || {}).value || '').trim();
   if(!nom){ notif('Donne un nom à la salle', 'alerte'); return; }
   if(lien && !_sallesLienValide(lien)){ notif('Le lien doit commencer par https://', 'alerte'); return; }
-  var corps = { nom:nom, emoji:e.emoji, couleur:e.couleur, accueil:accueil || null, lien:lien || null };
+  var corps = { nom:nom, emoji:e.emoji, couleur:e.couleur, accueil:accueil || null, lien:lien || null,
+    cible_roles:_sallesCoches('sal-f-roles'), cible_fonctions:_sallesCoches('sal-f-fonctions') };
   var req;
   if(e.id){
     req = fetch(SB_URL+'/rest/v1/salles?id=eq.'+encodeURIComponent(e.id), { method:'PATCH', headers:_sallesH(true), body:JSON.stringify(corps) });
   } else {
-    var slug = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    var slug = nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
     if(slug.length < 2) slug = 'salle-'+Date.now().toString(36);
     corps.slug = slug; corps.ordre = (_salles.liste.length + 1) * 10;
-    var h = _sallesH(true); h['Prefer'] = 'return=representation';
+    var h = _sallesH(true); h['Prefer'] = 'return=minimal';   // pas de représentation : le lien n'est pas relisible
     req = fetch(SB_URL+'/rest/v1/salles', { method:'POST', headers:h, body:JSON.stringify(corps) });
   }
   req.then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ return { ok:r.ok, j:j }; }); })
