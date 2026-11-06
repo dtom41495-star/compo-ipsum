@@ -1459,18 +1459,17 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           return;
         }
         var m = destinataires[idx];
-        var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">'
-          +osEnteteEmailLogo('📢 Nouvelle annonce de recrutement')
-          +'<div style="padding:1.2rem 1.5rem;">'
-          +'<p>Bonjour '+esc(m.prenom||'')+'</p>'
-          +'<div style="border-left:4px solid #E8461E;padding:0.8rem 1rem;margin:0.8rem 0;background:#F8F9FA;">'
-          +'<h3 style="margin:0 0 0.3rem;font-size:1rem;">'+esc(a.titre||'')+'</h3>'
-          +(a.description?'<div style="margin:0.5rem 0 0;font-size:0.9rem;">'+mdVersHtml(a.description)+'</div>':'')
-          +(a.email_contact?'<div style="color:#666;font-size:0.85rem;margin-top:0.5rem;">📧 '+esc(a.email_contact)+'</div>':'')
-          +'</div>'
-          +'<p style="margin-top:1.5rem;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.5rem 1rem;text-decoration:none;border-radius:4px;">Voir sur Compo</a></p>'
-          +'</div></div>';
-        envoyerEmailResend(m.email, '[Compo] Recrutement : '+a.titre, html, 'recrutement')
+        var html = _emailCompo({
+          accent:'violet', etiquette:'RECRUTEMENT',
+          titre: esc(a.titre||''),
+          bonjour: 'Bonjour '+esc(m.prenom||'')+',',
+          texte: 'Ipsum Média recrute ! Une nouvelle annonce vient d\'être publiée.',
+          contenu: a.description ? '<div style="border-left:3px solid '+EMAIL_COUL.bord+';padding:2px 0 2px 12px;font:400 14px/1.6 '+EMAIL_POLICE+';color:#44403C;">'+mdVersHtml(a.description)+'</div>' : '',
+          apresCarte: a.email_contact ? 'Contact : <a href="mailto:'+esc(a.email_contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(a.email_contact)+'</a>' : '',
+          boutons: [{ label:'Voir l\'annonce sur Compo', url:'https://compo.ipsummedia.fr' }],
+          pourquoi: 'Tu reçois cet email parce que tu es membre d\'Ipsum Média.'
+        });
+        envoyerEmailResend(m.email, '[Recrutement] '+a.titre, html, 'recrutement')
         .then(function(r){ if(r && r.ok !== false) nb++; else echecs.push(m.email); })
         .catch(function(){ echecs.push(m.email); })
         .finally(function(){ setTimeout(function(){ envoyerProchain(idx+1); }, 200); });
