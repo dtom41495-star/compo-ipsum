@@ -1369,14 +1369,16 @@ function maOsFiltre(){
 
   var arts = _maCache.slice();
   // Mes brouillons / Mes articles partagent la même requête (mes articles + ceux que je
-  // corrige) et se distinguent ici : les brouillons dont je suis l'auteur·rice d'un côté,
-  // tout le reste du parcours éditorial de l'autre. Le statut lui-même se lit désormais
+  // corrige) et se distinguent ici : mes brouillons d'un côté, mes articles plus avancés de l'autre
+  // (les articles des autres que je relis n'apparaissent dans aucun des deux). Le statut lui-même se lit désormais
   // dans le regroupement de la vue "Tous les articles" plutôt que via un filtre à part —
   // c'était tout l'intérêt du rail.
   if(_maOnglet === 'brouillons'){
     arts = arts.filter(function(a){ return (a.statut||'brouillon')==='brouillon' && a.auteur_id===uid; });
   } else if(_maOnglet === 'mes'){
-    arts = arts.filter(function(a){ return !((a.statut||'brouillon')==='brouillon' && a.auteur_id===uid); });
+    // Seulement MES articles (dont je suis l'auteur·rice), hors brouillons. Ceux des autres que je relis
+    // (correcteur_id = moi) ont leur place dans « À relire » et « Tous les articles », pas ici.
+    arts = arts.filter(function(a){ return a.auteur_id===uid && (a.statut||'brouillon')!=='brouillon'; });
   } else if(_maOnglet === 'corriger'){
     // Les articles sans relecteur sont dans la file (section à part)
     arts = arts.filter(function(a){ return !!a.correcteur_id; });
