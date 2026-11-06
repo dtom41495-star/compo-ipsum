@@ -1466,7 +1466,7 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           texte: 'Ipsum Média recrute ! Une nouvelle annonce vient d\'être publiée.',
           contenu: a.description ? '<div style="border-left:3px solid '+EMAIL_COUL.bord+';padding:2px 0 2px 12px;font:400 14px/1.6 '+EMAIL_POLICE+';color:#44403C;">'+mdVersHtml(a.description)+'</div>' : '',
           apresCarte: a.email_contact ? 'Contact : <a href="mailto:'+esc(a.email_contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(a.email_contact)+'</a>' : '',
-          boutons: [{ label:'Voir l\'annonce sur Compo', url:'https://compo.ipsummedia.fr' }],
+          boutons: [{ label:'Ça m\'intéresse', url:'https://compo.ipsummedia.fr' }],
           pourquoi: 'Tu reçois cet email parce que tu es membre d\'Ipsum Média.'
         });
         envoyerEmailResend(m.email, '[Recrutement] '+a.titre, html, 'recrutement')
