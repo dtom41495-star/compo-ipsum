@@ -1561,6 +1561,7 @@ function osAgendaOuvrirDetail(ev){
   html += '<div style="font-size:0.78rem;color:var(--gris);margin-top:0.25rem;">'+dateStr+' · '+heureStr+finStr+'</div>';
   html += '</div>';
   html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
+  if(!isAnnule) html += '<span style="display:inline-flex;"><button onclick="event.stopPropagation();osAgendaMenuAjouterAgenda(this,\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-calendar-plus"></i> Ajouter à mon agenda</button></span>';
   html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-link"></i> Copier le lien</button>';
   if(isAdmin && !isAnnule){
     html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-pencil"></i> Modifier</button>';
@@ -1591,10 +1592,11 @@ function osAgendaOuvrirDetail(ev){
   html += ligneInfo('clock', heureStr+finStr);
   var evI = _agPourAffichage(ev);
   if(evI._infosMasquees) html += ligneInfo('lock', 'Lieu'+(ev.lien_visio ? ' et lien de connexion' : '')+' communiqué'+(ev.lien_visio ? 's' : '')+' aux inscrit·es');
-  else if(ev.lieu) html += ligneInfo('map-pin', esc(ev.lieu)) + '<div id="ag-fiche-carte" class="carte-lieu" style="display:none;"></div>';
+  else if(ev.lieu) html += ligneInfo('map-pin', esc(ev.lieu)+(typeof _agendaItineraireHTML === 'function' ? _agendaItineraireHTML(ev) : '')) + '<div id="ag-fiche-carte" class="carte-lieu" style="display:none;"></div>';
   if(evI.lien_visio) html += ligneInfo('video', '<a href="'+esc(ev.lien_visio)+'" target="_blank" rel="noopener" style="color:var(--bleu);">Rejoindre en visio</a>');
   if(ev.organisateur) html += ligneInfo('user', esc(ev.organisateur));
   if(ev.places_max) html += ligneInfo('armchair', ev.places_max+' places'+(ev.validation_admin?' · inscription soumise à validation':''));
+  if(ev.inscription_partielle) html += ligneInfo('clock-hour-4', 'On peut venir une partie du temps : indique ton créneau en t\'inscrivant');
   if(ev.description){
     html += '<div style="'+TITRE_SECTION+'margin-top:1rem;">Description</div>';
     html += '<div style="font-size:0.84rem;color:var(--encre);line-height:1.6;white-space:pre-wrap;">'+esc(ev.description)+'</div>';
@@ -1623,6 +1625,7 @@ function osAgendaOuvrirDetail(ev){
     if(!zone) return;
 
     var monInscription = inscriptions.find(function(i){return i.membre_id===uid;});
+    if(typeof _agendaMesCreneaux !== 'undefined'){ if(monInscription) _agendaMesCreneaux[ev.id] = monInscription; else delete _agendaMesCreneaux[ev.id]; }
     var nbConfirmes = inscriptions.filter(function(i){return i.statut==='confirme';}).length;
     var nbEnAttente = inscriptions.filter(function(i){return i.statut==='en_attente';}).length;
     var complet = ev.places_max && nbConfirmes >= ev.places_max;
@@ -1655,6 +1658,8 @@ function osAgendaOuvrirDetail(ev){
       if(inscrConfirmes.length > 10) iz += '<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;color:var(--gris);margin-left:6px;">+'+(inscrConfirmes.length-10)+'</span>';
       iz += '</div>';
     }
+    // Inscription sur une partie du temps : heures couvertes et trous
+    if(ev.inscription_partielle && typeof agendaCouvertureHTML === 'function') iz += agendaCouvertureHTML(ev, inscriptions);
 
     // Mon inscription
     if(ev.statut !== 'annule'){
@@ -1678,12 +1683,17 @@ function osAgendaOuvrirDetail(ev){
         var sm = ST_MOI[monInscription.statut] || {c:'var(--encre)', bg:'var(--gris-clair)', i:'info-circle', l:monInscription.statut};
         iz += '<div style="background:'+sm.bg+';border-radius:8px;padding:0.6rem 0.7rem;">';
         iz += '<div style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;font-weight:600;color:'+sm.c+';"><i class="ti ti-'+sm.i+'" style="font-size:1rem;"></i>'+sm.l+'</div>';
+        if(ev.inscription_partielle && monInscription.statut !== 'refuse'){
+          var monCren = typeof agendaCreneauTexte === 'function' ? agendaCreneauTexte(monInscription, ev) : '';
+          iz += '<div style="font-size:0.76rem;color:var(--encre);margin-top:0.3rem;"><i class="ti ti-clock-hour-4" style="vertical-align:-2px;"></i> '+(monCren ? 'Ton créneau : <b>'+esc(monCren)+'</b>' : 'Tout l\'événement')+'</div>';
+        }
         iz += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">';
         // Ordre de mission = déplacement : inutile pour un événement uniquement en visio
         var enVisioSeule = !!ev.lien_visio && (!ev.lieu || /^\s*(en\s+)?(visio|visioconf[ée]rence|en ligne|distanciel)\s*$/i.test(ev.lieu));
         if(monInscription.statut==='confirme' && !enVisioSeule){
           iz += '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+uid+'\')" style="'+BTN_SEC+'"><i class="ti ti-clipboard-list"></i> Mon ordre de mission</button>';
         }
+        if(ev.inscription_partielle && monInscription.statut !== 'refuse') iz += '<button onclick="event.stopPropagation();osAgendaChoisirCreneauInscription(\''+ev.id+'\',\''+monInscription.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-clock-edit"></i> Changer mon créneau</button>';
         iz += '<button id="agenda-desinscr-btn" style="'+BTN_DANGER+'">Se désinscrire</button>';
         iz += '</div></div>';
       }
@@ -1728,7 +1738,8 @@ function osAgendaOuvrirDetail(ev){
           var mAvatar = m || {prenom:'?', nom:'?'};
           iz += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid var(--gris-bord);flex-wrap:wrap;">'
             +renderAvatarHTML(mAvatar, 24, {})
-            +'<div style="flex:1;min-width:110px;font-size:0.8rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+nom+(dateInscr?'<span style="font-family:DM Sans,sans-serif;font-size:0.58rem;color:var(--gris);margin-left:0.45rem;">'+dateInscr+'</span>':'')+'</div>'
+            +'<div style="flex:1;min-width:110px;font-size:0.8rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+nom+(dateInscr?'<span style="font-family:DM Sans,sans-serif;font-size:0.58rem;color:var(--gris);margin-left:0.45rem;">'+dateInscr+'</span>':'')
+            +(ev.inscription_partielle && insc.statut !== 'refuse' ? '<div style="font-size:0.66rem;color:var(--gris);"><i class="ti ti-clock-hour-4" style="vertical-align:-1px;"></i> '+esc(agendaCreneauTexte(insc, ev) || 'Tout l\'événement')+'</div>' : '')+'</div>'
             +'<span style="font-family:DM Sans,sans-serif;font-size:0.56rem;padding:2px 6px;background:'+sc.bg+';color:'+sc.c+';border-radius:3px;">'+sc.l+'</span>'
             +presenceHtml
             +(insc.statut==='confirme' && m ? '<button onclick="event.stopPropagation();osAgendaOrdreMission(\''+ev.id+'\',\''+insc.membre_id+'\')" title="Ordre de mission" style="'+BTN_ICONE+'border:1px solid var(--gris-bord);color:#1A5276;"><i class="ti ti-clipboard-list"></i></button>':'')
@@ -1775,7 +1786,7 @@ function osAgendaOuvrirDetail(ev){
     zone.innerHTML = iz;
 
     var btnI = document.getElementById('agenda-inscr-btn');
-    if(btnI && !complet) btnI.onclick = function(){ osAgendaSInscrire(ev.id); };
+    if(btnI && !complet) btnI.onclick = function(){ if(ev.inscription_partielle && typeof osAgendaChoisirCreneauInscription === 'function') osAgendaChoisirCreneauInscription(ev.id); else osAgendaSInscrire(ev.id); };
     var btnD = document.getElementById('agenda-desinscr-btn');
     if(btnD) btnD.onclick = function(){ osAgendaSeDesinscrire(monInscription.id, ev.id); };
 
@@ -1849,7 +1860,7 @@ function osAgendaTelechargerInscrits(evId, format){
     }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){ return (d&&d.inscrits)||[]; }).catch(function(){ return []; });
 
   Promise.all([
-    lire('/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(ev.id)+'&select=membre_id,statut,created_at'),
+    lire('/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(ev.id)+'&select=membre_id,statut,created_at,arrivee,depart'),
     lire('/rest/v1/membres?actif=eq.true&select=id,prenom,nom,email'),
     lire('/rest/v1/membres_redactions?select=membre_id,redaction_id'),
     pExternes
@@ -1861,7 +1872,8 @@ function osAgendaTelechargerInscrits(evId, format){
     r[0].filter(function(i){ return i.statut === 'confirme' || i.statut === 'en_attente'; }).forEach(function(i){
       var m = parId[i.membre_id] || {};
       var redacs = r[2].filter(function(l){ return l.membre_id === i.membre_id && nomRedac[l.redaction_id]; }).map(function(l){ return nomRedac[l.redaction_id]; });
-      lignes.push({ nom:(m.nom||'').trim(), prenom:(m.prenom||'').trim(), qualite: redacs.join(', ') || 'Membre', statut:i.statut, email:m.email||'', date:i.created_at });
+      lignes.push({ nom:(m.nom||'').trim(), prenom:(m.prenom||'').trim(), qualite: redacs.join(', ') || 'Membre', statut:i.statut, email:m.email||'', date:i.created_at,
+        creneau: ev.inscription_partielle ? (agendaCreneauTexte(i, ev) || 'Tout l\'événement') : '' });
     });
     r[3].forEach(function(e){
       var parts = String(e.nom||'').trim().split(/\s+/);
@@ -1874,8 +1886,9 @@ function osAgendaTelechargerInscrits(evId, format){
 
     if(format === 'csv'){
       function cel(v){ v = String(v==null?'':v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
-      var csv = ['Nom','Prénom','Rédaction / qualité','Statut','Email','Inscrit le'].join(';')+'\n'
-        + lignes.map(function(l){ return [l.nom,l.prenom,l.qualite,LIB[l.statut],l.email,l.date ? new Date(l.date).toLocaleDateString('fr-FR') : ''].map(cel).join(';'); }).join('\n');
+      var avecCren = !!ev.inscription_partielle;
+      var csv = ['Nom','Prénom','Rédaction / qualité','Statut'].concat(avecCren ? ['Créneau'] : []).concat(['Email','Inscrit le']).join(';')+'\n'
+        + lignes.map(function(l){ return [l.nom,l.prenom,l.qualite,LIB[l.statut]].concat(avecCren ? [l.creneau||'Tout l\'événement'] : []).concat([l.email,l.date ? new Date(l.date).toLocaleDateString('fr-FR') : '']).map(cel).join(';'); }).join('\n');
       var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1892,9 +1905,10 @@ function osAgendaTelechargerInscrits(evId, format){
       + _osRapportKpi(ev.places_max || '—', 'Places')
       + '</div></section><section><h2>Liste des inscrits</h2>';
     if(lignes.length){
-      corps += '<table><tr><th style="width:28px;">N°</th><th>Nom</th><th>Rédaction / qualité</th><th>Statut</th><th style="width:30%;">Présence / signature</th></tr>';
+      var cren = !!ev.inscription_partielle;
+      corps += '<table><tr><th style="width:28px;">N°</th><th>Nom</th><th>Rédaction / qualité</th><th>Statut</th>'+(cren ? '<th>Créneau</th>' : '')+'<th style="width:30%;">Présence / signature</th></tr>';
       lignes.forEach(function(l, i){
-        corps += '<tr style="height:30px;"><td>'+(i+1)+'</td><td><strong>'+esc((l.prenom+' '+l.nom).trim()||'—')+'</strong></td><td>'+esc(l.qualite)+'</td><td>'+esc(LIB[l.statut])+'</td><td></td></tr>';
+        corps += '<tr style="height:30px;"><td>'+(i+1)+'</td><td><strong>'+esc((l.prenom+' '+l.nom).trim()||'—')+'</strong></td><td>'+esc(l.qualite)+'</td><td>'+esc(LIB[l.statut])+'</td>'+(cren ? '<td>'+esc(l.creneau||'Tout l\'événement')+'</td>' : '')+'<td></td></tr>';
       });
       corps += '</table>';
     } else corps += '<div class="vide">Aucun inscrit pour l\'instant.</div>';
@@ -2115,7 +2129,7 @@ function _agendaPublicTexte(ev){
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-function osAgendaSInscrire(evId){
+function osAgendaSInscrire(evId, creneau){
   var uid = getUserId();
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -2127,6 +2141,8 @@ function osAgendaSInscrire(evId){
   // heures après coup) : presence=true d'emblée — l'inscription EST la confirmation de
   // présence, pas la peine de repasser par l'appel.
   var inscrPayload = {evenement_id:evId, membre_id:uid, statut:statutInitial};
+  // Inscription sur une partie du temps (créneau choisi dans osAgendaChoisirCreneauInscription)
+  if(creneau && creneau.arrivee){ inscrPayload.arrivee = creneau.arrivee; inscrPayload.depart = creneau.depart; }
   if(ev && ev.date_debut && new Date(ev.date_debut) < new Date()) inscrPayload.presence = true;
   fetch(SB_URL+'/rest/v1/agenda_inscriptions',{
     method:'POST', headers:authH,
@@ -2141,7 +2157,8 @@ function osAgendaSInscrire(evId){
       notif('Inscription confirmée','succes');
       _osAgendaNotifierEquipeInscription(ev, getUserNomComplet(), 'confirme');
       if(inscr && ev && ev.date_debut && new Date(ev.date_debut) < new Date()){
-        var duree = ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
+        var duree = (inscr.arrivee && inscr.depart) ? Math.round((new Date(inscr.depart)-new Date(inscr.arrivee))/60000)
+          : ev.date_fin ? Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000) : 60;
         if(duree > 0){
           var authHPost = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
           fetch(SB_URL+'/rest/v1/heures_benevolat',{
@@ -2293,7 +2310,7 @@ function osAgendaAdminDesinscrire(inscrId, evId){
   if(!osConfirmerPuis('Désinscrire ce membre ?', null, osAgendaAdminDesinscrire, this, arguments)) return;
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var authHGet = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id',{headers:authHGet})
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?id=eq.'+inscrId+'&select=membre_id,evenement_id,arrivee,depart',{headers:authHGet})
   .then(function(r){return r.json();})
   .then(function(data){
     var insc = data && data[0];
@@ -2379,7 +2396,7 @@ function osAgendaCreditHeuresAuto(){
   var uid = getUserId();
 
   // Événements passés — chercher ceux avec date_fin renseignée ET ceux avec seulement date_debut passée
-  var urlEvs = SB_URL+'/rest/v1/agenda_evenements?statut=neq.annule&select=id,titre,type,date_debut,date_fin';
+  var urlEvs = SB_URL+'/rest/v1/agenda_evenements?statut=neq.annule&select=id,titre,type,date_debut,date_fin,inscription_partielle';
   urlEvs += '&or=(date_fin.lt.'+encodeURIComponent(maintenant)+',and(date_fin.is.null,date_debut.lt.'+encodeURIComponent(maintenant)+'))';
   fetch(urlEvs,{headers:authH})
   .then(function(r){return r.json();})
@@ -2388,7 +2405,7 @@ function osAgendaCreditHeuresAuto(){
 
     // Inscriptions confirmées du membre pour ces événements
     var evIds = evs.map(function(e){return e.id;});
-    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&presence=eq.true&evenement_id=in.('+evIds.join(',')+')'+'&select=id,evenement_id',{headers:authH})
+    return fetch(SB_URL+'/rest/v1/agenda_inscriptions?membre_id=eq.'+uid+'&statut=eq.confirme&presence=eq.true&evenement_id=in.('+evIds.join(',')+')'+'&select=id,evenement_id,arrivee,depart',{headers:authH})
     .then(function(r){return r.json();})
     .then(function(inscriptions){
       if(!inscriptions||inscriptions.code||!inscriptions.length) return;
@@ -2407,7 +2424,9 @@ function osAgendaCreditHeuresAuto(){
           var ev = evs.find(function(e){return e.id===insc.evenement_id;});
           if(!ev||!ev.date_debut) return;
           var duree;
-          if(ev.date_fin){
+          if(ev.inscription_partielle && insc.arrivee && insc.depart){
+            duree = Math.round((new Date(insc.depart)-new Date(insc.arrivee))/60000);   // créneau choisi
+          } else if(ev.date_fin){
             duree = Math.round((new Date(ev.date_fin)-new Date(ev.date_debut))/60000);
           } else {
             duree = 60; // 1h par défaut si pas de date_fin
@@ -2499,7 +2518,8 @@ function osAgendaValiderInscr(inscrId, evId){
         var ev = insc ? _agendaEvenements.find(function(e){ return e.id === (evId||insc.evenement_id); }) : null;
         // Calculer et enregistrer les heures de bénévolat
         if(insc && ev && ev.date_debut){
-          var duree = ev.date_fin ? Math.round((new Date(ev.date_fin) - new Date(ev.date_debut)) / 60000) : 60;
+          var duree = (insc.arrivee && insc.depart) ? Math.round((new Date(insc.depart) - new Date(insc.arrivee)) / 60000)
+            : ev.date_fin ? Math.round((new Date(ev.date_fin) - new Date(ev.date_debut)) / 60000) : 60;
           if(duree > 0){
             fetch(SB_URL+'/rest/v1/heures_benevolat',{
               method:'POST',
@@ -2981,6 +3001,7 @@ function osAgendaOuvrirFormulaire(ev){
   html += '<div style="'+TITRE_SECTION+'">Inscriptions</div>';
   html += champ('Places max', '<input id="ag-places" type="number" min="1" value="'+(ev&&ev.places_max?ev.places_max:'')+'" placeholder="Illimité" style="'+CHAMP+'">');
   html += interrupteur('ag-validation', 'Validation des inscriptions', 'Chaque inscription attend l\'accord d\'un admin ou rédac chef.', ev&&ev.validation_admin, 'user-check');
+  html += interrupteur('ag-partielle', 'On peut venir une partie du temps', 'Chacun indique son créneau (ex. 14 h – 17 h). La fiche montre les heures couvertes et les trous.', ev&&ev.inscription_partielle, 'clock-hour-4');
   // Décoché par défaut : jamais public sans un geste explicite, pour ne pas exposer par
   // erreur un événement interne (bureau, réunion...).
   html += '<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:0.7rem 0.8rem;">'
@@ -3052,6 +3073,7 @@ function osAgendaSauvegarder(evId){
   var places = (document.getElementById('ag-places')||{}).value||'';
   var validation = !!(document.getElementById('ag-validation')||{}).checked;
   var ouvertExternes = !!(document.getElementById('ag-ouvert-externes')||{}).checked;
+  var partielle = !!(document.getElementById('ag-partielle')||{}).checked;
   var caseP = document.getElementById('ag-prevenir');
   var prevenir = !caseP || caseP.checked;   // activé par défaut
   var infosReservees = !!(document.getElementById('ag-infos-reservees')||{}).checked;
@@ -3084,6 +3106,7 @@ function osAgendaSauvegarder(evId){
     places_max:places?parseInt(places):null,
     validation_admin:validation,
     ouvert_externes:ouvertExternes,
+    inscription_partielle:partielle,
     statut:'publie',
     contact_nom: type==='interview' ? (contactNom.trim()||null) : null,
     contact_email: type==='interview' ? (contactEmail.trim()||null) : null
