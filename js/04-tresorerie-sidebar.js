@@ -445,28 +445,16 @@ function osChargerWidgets(){
       container.appendChild(w);
     }
 
-    // Widget notifs
-    var notifHtml = '';
-    if(_ncItems && _ncItems.length){
-      _ncItems.slice(0,5).forEach(function(n){
-        var ic = {succes:'<i class="ti ti-circle-check"></i>',erreur:'<i class="ti ti-x"></i>',info:'<i class="ti ti-info-circle"></i>'}[n.type]||'<i class="ti ti-bell"></i>';
-        notifHtml += '<div style="display:flex;align-items:flex-start;gap:0.4rem;padding:0.3rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">'
-          +'<span style="font-size:0.7rem;flex-shrink:0;margin-top:1px;">'+ic+'</span>'
-          +'<div style="flex:1;"><div style="font-size:0.73rem;color:rgba(0,0,0,0.75);line-height:1.3;">'+esc(n.msg||'')+'</div>'
-          +'<div style="font-family:Space Mono,monospace;font-size:0.55rem;color:rgba(0,0,0,0.35);">'+n.time+'</div>'
-          +'</div></div>';
-      });
-      if(_ncItems.length > 5) notifHtml += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:rgba(0,0,0,0.35);text-align:center;padding-top:0.3rem;">+'+ (_ncItems.length-5)+' autres</div>';
-    } else { notifHtml = '<div style="font-family:Space Mono,monospace;font-size:0.65rem;color:rgba(0,0,0,0.35);text-align:center;padding:0.4rem;">Aucune notification</div>'; }
-    var notifW = document.createElement('div');
-    notifW.style.cssText = 'background:rgba(255,255,255,0.7);border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:0.75rem 0.85rem;';
-    notifW.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">'
-      +'<div style="display:flex;align-items:center;gap:0.4rem;">'
-      +'<span style="font-size:0.8rem;"><i class="ti ti-bell"></i></span>'
-      +'<span style="font-family:Arial,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(0,0,0,0.4);font-weight:600;">Notifications</span>'
-      +'</div>'
-      +'<button onclick="osClearNotifs();osChargerWidgets();" style="font-family:Space Mono,monospace;font-size:0.55rem;padding:1px 6px;background:transparent;border:0.5px solid rgba(0,0,0,0.15);border-radius:4px;cursor:pointer;color:rgba(0,0,0,0.4);">Effacer</button>'
-      +'</div>'+notifHtml;
+    // Plus de liste de notifications ici (doublon de la cloche) : un raccourci vers elle
+    var cpt = typeof osNotifCompteurs === 'function' ? osNotifCompteurs() : { total:0, taches:0, nouvelles:0 };
+    var notifW = document.createElement('button');
+    notifW.type = 'button';
+    notifW.className = 'wid-cloche';
+    notifW.innerHTML = '<span class="wid-cloche-ic"><i class="ti ti-bell"></i></span><span class="wid-cloche-tx"><strong>'
+      +(cpt.total ? cpt.total+' notification'+(cpt.total > 1 ? 's' : '') : 'Notifications')+'</strong><small>'
+      +(cpt.total ? [cpt.taches ? cpt.taches+' à traiter' : '', cpt.nouvelles ? cpt.nouvelles+' nouvelle'+(cpt.nouvelles > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') : (cpt.infos ? cpt.infos+' pour info' : 'Rien de neuf'))
+      +'</small></span><span class="wid-cloche-go">Ouvrir</span>';
+    notifW.onclick = function(){ if(_sidebarOpen) osToggleSidebar(); if(typeof osATraiterBasculer === 'function' && !(window._atr && _atr.ouvert)) osATraiterBasculer(); };
     container.appendChild(notifW);
     // Heures
     widget('<i class="ti ti-feather"></i>','Mes heures et plumes',
