@@ -1486,14 +1486,18 @@ function osRedacNotifierAnnonceRecrutement(annonceId, annonceTitre, btn){
           return;
         }
         var m = destinataires[idx];
-        var contact = a.email_contact || 'vie-associative@ipsummedia.fr';  // annonce sans contact : la vie associative
+        var contact = a.email_contact || 'vie-associative@ipsummedia.fr';
+        // Qui envoie l'annonce (la personne qui clique sur « Notifier l'équipe »), avec ses fonctions dans l'asso
+        var expediteur = (typeof getUserNomComplet === 'function' ? getUserNomComplet() : '').trim();
+        var fonctionsExp = (typeof getUserFonction === 'function' ? getUserFonction() : []).map(function(f){ return (FONCTIONS_LABELS[f]||f).toLowerCase(); }).join(', ');  // annonce sans contact : la vie associative
         var html = _emailCompo({
           accent:'violet', etiquette:'RECRUTEMENT',
           titre: esc(a.titre||''),
           bonjour: 'Bonjour '+esc(m.prenom||'')+',',
           texte: 'Ipsum Média recrute ! Une nouvelle annonce vient d\'être publiée.',
           contenu: a.description ? '<div style="border-left:3px solid '+EMAIL_COUL.bord+';padding:2px 0 2px 12px;font:400 14px/1.6 '+EMAIL_POLICE+';color:#44403C;">'+mdVersHtml(a.description)+'</div>' : '',
-          apresCarte: 'Contact : <a href="mailto:'+esc(contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(contact)+'</a>',
+          apresCarte: 'Contact : <a href="mailto:'+esc(contact)+'" style="color:'+EMAIL_COUL.rouge+';font-weight:600;text-decoration:none;">'+esc(contact)+'</a>'
+            +(expediteur ? '<br><span style="color:'+EMAIL_COUL.gris+';">Message envoyé par <b style="color:'+EMAIL_COUL.encre+';">'+esc(expediteur)+'</b>'+(fonctionsExp ? ', '+esc(fonctionsExp) : '')+'</span>' : ''),
           boutons: [{ label:'Ça m\'intéresse', url:'https://compo.ipsummedia.fr' }],
           pourquoi: 'Tu reçois cet email parce que tu es membre d\'Ipsum Média.'
         });
