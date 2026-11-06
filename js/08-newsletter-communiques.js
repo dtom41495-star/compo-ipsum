@@ -1037,6 +1037,110 @@ function _cpsChargerSujetsParCp(cpIds, callback){
   }).catch(function(){ window._cpsSujetsParCp = {}; if(callback) callback(); });
 }
 
+// ===== FAVORIS ET COMMUNIQUÉS « POUR TES SUJETS » =====
+// Favoris : table communiques_favoris, propre à chaque membre (étoile sur la carte et dans la fiche, filtre « Favoris »).
+// Pour tes sujets : en tête de la liste, les communiqués liés aux sujets que j'ai réservés (sujet créé depuis le communiqué,
+// ou communiqué ajouté au sujet), puis ceux qui en parlent sans y être liés (mots du titre en commun) : de quoi
+// nourrir l'article en cours.
+window._cpsFavoris = window._cpsFavoris || null;   // Set des identifiants, null tant que pas chargé
+window._cpsMesSujets = window._cpsMesSujets || [];  // [{ id, titre, cp_id, cps:[ids liés] }]
+function _cpsH(){ return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}); }
+function _cpsChargerFavoris(){
+  return fetch(SB_URL+'/rest/v1/communiques_favoris?select=communique_id', { headers:_cpsH() })
+    .then(function(r){ return r.json(); })
+    .then(function(rows){ window._cpsFavoris = new Set((Array.isArray(rows) ? rows : []).map(function(x){ return x.communique_id; })); })
+    .catch(function(){ window._cpsFavoris = window._cpsFavoris || new Set(); });
+}
+function cpsEstFavori(id){ return !!(window._cpsFavoris && window._cpsFavoris.has(id)); }
+function _cpsEtoileHTML(id, classe){
+  var fav = cpsEstFavori(id);
+  return '<button class="'+classe+(fav ? ' actif' : '')+'" data-fav="'+esc(id)+'" onclick="event.stopPropagation();cpsBasculerFavori(this.dataset.fav)" title="'+(fav ? 'Retirer des favoris' : 'Mettre en favori')+'" aria-label="'+(fav ? 'Retirer des favoris' : 'Mettre en favori')+'" aria-pressed="'+fav+'">'
+    +(fav ? '<span class="cp-etoile-pleine" aria-hidden="true">★</span>' : '<i class="ti ti-star"></i>')+(classe.indexOf('cpf-btn') !== -1 ? (fav ? 'En favori' : 'Favori') : '')+'</button>';
+}
+// L'étoile change tout de suite partout (cartes, fiche) ; la base suit, et on revient en arrière si elle refuse
+function cpsBasculerFavori(id){
+  if(!window._cpsFavoris) window._cpsFavoris = new Set();
+  var ajout = !window._cpsFavoris.has(id);
+  if(ajout) window._cpsFavoris.add(id); else window._cpsFavoris.delete(id);
+  _cpsMajEtoiles(id);
+  var req = ajout
+    ? fetch(SB_URL+'/rest/v1/communiques_favoris', { method:'POST', headers:Object.assign(_cpsH(), {'Content-Type':'application/json','Prefer':'return=minimal,resolution=ignore-duplicates'}), body:JSON.stringify({ communique_id:id }) })
+    : fetch(SB_URL+'/rest/v1/communiques_favoris?communique_id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:_cpsH() });
+  req.then(function(r){
+    if(!r.ok) throw 0;
+    notif(ajout ? 'Ajouté à tes favoris' : 'Retiré de tes favoris', 'succes');
+    // Filtre « Favoris » actif : la liste suit
+    if(window._cpsFiltreActif === 'favoris' && !ajout){ var l = osGetEl('cps-liste') || document.getElementById('cps-liste'); if(l) cpsRendreListe(l, window._cpsData||[]); }
+  }).catch(function(){
+    if(ajout) window._cpsFavoris.delete(id); else window._cpsFavoris.add(id);
+    _cpsMajEtoiles(id);
+    notif('Favori non enregistré', 'erreur');
+  });
+}
+function _cpsMajEtoiles(id){
+  document.querySelectorAll('[data-fav="'+(window.CSS && CSS.escape ? CSS.escape(id) : id)+'"]').forEach(function(b){
+    var tmp = document.createElement('div');
+    tmp.innerHTML = _cpsEtoileHTML(id, b.className.replace(/\s*actif\b/, ''));
+    b.replaceWith(tmp.firstChild);
+  });
+}
+
+// Mes sujets réservés (ou proposés) et les communiqués qui leur sont liés
+function _cpsChargerMesSujets(){
+  var moi = (typeof getUserNomComplet === 'function' ? getUserNomComplet() : '') || '';
+  if(!moi.trim()){ window._cpsMesSujets = []; return Promise.resolve(); }
+  return fetch(SB_URL+'/rest/v1/briefing?responsable=eq.'+encodeURIComponent(moi)+'&statut=in.(en_cours,propose)&order=reserve_le.desc.nullslast&limit=20&select=id,titre,cp_id', { headers:_cpsH() })
+    .then(function(r){ return r.json(); })
+    .then(function(sujets){
+      sujets = Array.isArray(sujets) ? sujets : [];
+      sujets.forEach(function(s){ s.cps = s.cp_id ? [s.cp_id] : []; });
+      window._cpsMesSujets = sujets;
+      if(!sujets.length) return;
+      return fetch(SB_URL+'/rest/v1/briefing_communiques?briefing_id=in.('+sujets.map(function(s){ return encodeURIComponent(s.id); }).join(',')+')&select=briefing_id,communique_id', { headers:_cpsH() })
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(liens){
+          (Array.isArray(liens) ? liens : []).forEach(function(l){
+            var s = sujets.find(function(x){ return x.id === l.briefing_id; });
+            if(s && s.cps.indexOf(l.communique_id) === -1) s.cps.push(l.communique_id);
+          });
+        }).catch(function(){});
+    }).catch(function(){ window._cpsMesSujets = []; });
+}
+// Mots significatifs d'un texte (sans accents, sans petits mots)
+var _CPS_VIDES = ('avec dans pour sans sous chez entre vers depuis pendant contre selon cette cette ces ses leur leurs nous vous elle elles ils sont etre avoir fait faire plus moins tres tout tous toute toutes autre autres apres avant aussi ainsi alors comme mais donc encore deja bien ville commune communique presse invitation conference annee annees jour jours mois semaine novembre octobre decembre janvier fevrier mars avril juin juillet aout septembre lundi mardi mercredi jeudi vendredi samedi dimanche nouveau nouvelle nouveaux nouvelles grand grande').split(' ');
+function _cpsMots(t){
+  return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/)
+    .filter(function(m){ return m.length >= 4 && _CPS_VIDES.indexOf(m) === -1 && !/^\d+$/.test(m); });
+}
+// Communiqués à mettre en avant : liés à un de mes sujets, puis proches (2 mots du titre en commun au moins)
+function _cpsPourMesSujets(cps){
+  var sujets = window._cpsMesSujets || [];
+  if(!sujets.length) return [];
+  var res = [], pris = {};
+  sujets.forEach(function(s){
+    s.cps.forEach(function(id){
+      var cp = cps.find(function(c){ return c.id === id; });
+      if(cp && !pris[id]){ pris[id] = 1; res.push({ cp:cp, raison:'lie', sujet:s.titre }); }
+    });
+  });
+  var limite = Date.now() - 60 * 86400000;
+  var proches = [];
+  sujets.forEach(function(s){
+    var motsSujet = _cpsMots(s.titre);
+    if(motsSujet.length < 2) return;
+    cps.forEach(function(c){
+      if(pris[c.id] || new Date(c.date_cp || c.created_at).getTime() < limite) return;
+      var motsCp = _cpsMots((c.titre||'')+' '+(c.objet||''));
+      var communs = motsSujet.filter(function(m, i){ return motsSujet.indexOf(m) === i && motsCp.indexOf(m) !== -1; });
+      if(communs.length >= 2) proches.push({ cp:c, raison:'proche', sujet:s.titre, score:communs.length });
+    });
+  });
+  proches.sort(function(a, b){ return b.score - a.score; }).forEach(function(p){
+    if(!pris[p.cp.id] && res.filter(function(x){ return x.raison === 'proche'; }).length < 4){ pris[p.cp.id] = 1; res.push(p); }
+  });
+  return res;
+}
+
 function cpsCharger(){
   var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
   if(!liste) return;
@@ -1052,9 +1156,9 @@ function cpsCharger(){
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;
     window._cpsData = cps;
-    _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
+    Promise.all([_cpsChargerFavoris(), _cpsChargerMesSujets()]).then(function(){ _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
       _cpsChargerDispos(cps, function(){ cpsRendreListe(liste, cps); });
-    });
+    }); });
   }).catch(function(){ liste.innerHTML = osErreurHtml('cpsCharger'); });
 }
 
@@ -1073,12 +1177,14 @@ function cpsRendreListe(liste, cps){
   var invitations = cps.filter(function(c){ return c.type==='invitation_presse'; });
   var communiques = cps.filter(function(c){ return c.type!=='invitation_presse'; });
   var nonLus = cps.filter(function(c){ return vus.indexOf(c.id)===-1; });
+  var favoris = cps.filter(function(c){ return cpsEstFavori(c.id); });
 
   // Filtrer
   var filtres = cps.filter(function(c){
     if(filtreType==='communique' && c.type==='invitation_presse') return false;
     if(filtreType==='invitation_presse' && c.type!=='invitation_presse') return false;
     if(filtreType==='non_lus' && vus.indexOf(c.id)!==-1) return false;
+    if(filtreType==='favoris' && !cpsEstFavori(c.id)) return false;
     if(rechercheVal){
       // « source » : c'est là que le formulaire range l'organisation
       var hay = _cpsSansAccent((c.titre||'')+' '+(c.organisation||'')+' '+(c.source||'')+' '+(c.corps||'')+' '+(c.objet||'')+' '+(c.lieu_evenement||''));
@@ -1138,11 +1244,13 @@ function cpsRendreListe(liste, cps){
       {id:'tous',             label:'Tous',        n:cps.length},
       {id:'communique',       label:'Communiqués', n:communiques.length},
       {id:'invitation_presse',label:'Invitations', n:invitations.length},
-      {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0}
+      {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0},
+      {id:'favoris',          label:'Favoris',     n:favoris.length, etoile:true}
     ].forEach(function(f){
+      if(f.id === 'favoris' && !f.n && filtreType !== 'favoris') return;   // pas de pastille tant qu'il n'y a pas de favori
       var btn = document.createElement('button');
       btn.className = 'cpa-filtre'+(filtreType===f.id ? ' actif' : '');
-      btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
+      btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+(f.etoile ? '<span class="cps-filtre-etoile" aria-hidden="true">★</span>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
       btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
       barreType.appendChild(btn);
     });
@@ -1209,6 +1317,15 @@ function cpsRendreListe(liste, cps){
     // garde le tri par date du communiqué — sans ça, un CP saisi aujourd'hui mais daté d'il
     // y a une semaine se perdait au milieu de la liste.
     var nouveaux = [], suite = filtres;
+    // « Pour tes sujets » : communiqués liés aux sujets que j'ai réservés, puis ceux qui en parlent
+    var pourMoi = (filtreType === 'tous' && filtreDate === 'tous' && !rechercheVal) ? _cpsPourMesSujets(filtres) : [];
+    if(pourMoi.length){
+      liste.appendChild(_cpsTitreSection('ti-target-arrow', 'Pour tes sujets', pourMoi.length, 'Liés aux sujets que tu as réservés, ou qui en parlent'));
+      pourMoi.forEach(function(x){ liste.appendChild(cpsMakeCard(x.cp, false, x)); });
+      var dejaMontres = pourMoi.map(function(x){ return x.cp; });
+      suite = filtres.filter(function(c){ return dejaMontres.indexOf(c) === -1; });
+      filtres = suite;
+    }
     if(filtreType !== 'non_lus' && !rechercheVal){
       var depuis = Date.now() - CPS_NOUVEAUX_MS;
       nouveaux = filtres.filter(function(c){ return vus.indexOf(c.id) === -1 && c.created_at && new Date(c.created_at).getTime() >= depuis; })
@@ -1223,6 +1340,8 @@ function cpsRendreListe(liste, cps){
       liste.appendChild(_cpsTitreSection('ti-sparkles', 'Nouveaux', nouveaux.length, 'Ajoutés ces 2 derniers jours, pas encore lus'));
       rendre(nouveaux);
       if(suite.length) liste.appendChild(_cpsTitreSection('ti-calendar', 'Tous les communiqués', suite.length, 'Par date du communiqué'));
+    } else if(pourMoi.length && suite.length){
+      liste.appendChild(_cpsTitreSection('ti-calendar', 'Tous les communiqués', suite.length, 'Par date du communiqué'));
     }
     rendre(suite);
   }
@@ -1344,7 +1463,7 @@ function cpsExportCSV(){
   notif('Export CSV téléchargé','succes');
 }
 
-function cpsMakeCard(cp, isAdmin){
+function cpsMakeCard(cp, isAdmin, pourSujet){
   var vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]');
   var nonLu = vus.indexOf(cp.id) === -1;
   var estInvit = cp.type === 'invitation_presse';
@@ -1413,7 +1532,7 @@ function cpsMakeCard(cp, isAdmin){
 
   // Actions à droite. Modifier / Supprimer / Publier seulement dans l'appli
   // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
-  var actions = dispBtn;
+  var actions = _cpsEtoileHTML(cp.id, 'mac-btn cpc-icone cpc-fav') + dispBtn;
   if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsAjouterAuSujet(this.dataset.cpid)" title="Ajouter ce communiqué à un sujet existant"><i class="ti ti-link-plus"></i><span class="cpc-long">Ajouter à un sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)" title="Écrire un article à partir de ce communiqué"><i class="ti ti-pencil"></i>Écrire</button>';
@@ -1427,7 +1546,8 @@ function cpsMakeCard(cp, isAdmin){
   var extrait = (cp.corps||'').replace(/\s+/g,' ').trim();
 
   card.innerHTML =
-    '<div class="mac-haut">'+haut+'</div>'
+    (pourSujet ? '<div class="cpc-raison"><i class="ti ti-'+(pourSujet.raison === 'lie' ? 'link' : 'bulb')+'"></i><span>'+(pourSujet.raison === 'lie' ? 'Lié à ton sujet' : 'Peut servir pour ton sujet')+' « '+esc(pourSujet.sujet || '')+' »</span></div>' : '')
+    +'<div class="mac-haut">'+haut+'</div>'
     +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +evInfos
     +(extrait ? '<div class="cpc-extrait">'+esc(extrait)+'</div>' : '')
@@ -1669,6 +1789,7 @@ function osCpFenetreRender(winId){
       +'<button class="cpf-btn cpf-btn-principal" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire un article</button>'
       +(cp.corps ? '<button class="cpf-btn" onclick="osCpCopierTexte(\''+esc(winId)+'\')"><i class="ti ti-copy"></i>Copier le texte</button>' : '')
       +'<button class="cpf-btn" onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')"><i class="ti ti-link"></i>Copier le lien</button>'
+      +_cpsEtoileHTML(cp.id, 'cpf-btn cpf-fav')
       +(isAdmin && cp.statut === 'brouillon' ? '<button class="cpf-btn" onclick="cpsAdminPublier(\''+cp.id+'\')"><i class="ti ti-world-upload"></i>Publier</button>' : '')
       +(isAdmin ? '<button class="cpf-btn" onclick="cpsAdminEditer(\''+cp.id+'\')"><i class="ti ti-pencil-cog"></i>Modifier</button>' : '')
     +'</div>';
@@ -1736,6 +1857,9 @@ function osCpFenetreRender(winId){
   // Sans texte saisi : on montre directement la première pièce jointe
   wc.appendChild(page);
   if(!cp.corps && fichiers.length) osCpApercu(winId, 0, true);
+
+  // Favoris pas encore chargés (fiche ouverte depuis un lien) : on les charge et l'étoile se met à jour
+  if(!window._cpsFavoris) _cpsChargerFavoris().then(function(){ _cpsMajEtoiles(cp.id); });
 
   // ---- Contact lié ----
   if(cp.contact_id){

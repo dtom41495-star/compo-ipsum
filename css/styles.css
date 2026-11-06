@@ -7245,3 +7245,12 @@ button.trx-temps:hover { background: #E0D0EC; }
 #r-corps-live .r-img-envoi { margin: 0.6rem 0; padding: 1.4rem 1rem; border: 1px dashed var(--gris-bord); border-radius: 8px; background: var(--gris-clair); color: var(--gris); font-size: 0.8rem; text-align: center; user-select: none; animation: r-img-envoi 1.2s ease-in-out infinite alternate; }
 @keyframes r-img-envoi { from { opacity: 0.55; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #r-corps-live .r-img-envoi { animation: none; } }
+/* Communiqués : favoris et « Pour tes sujets » (js/08) */
+.cpc-fav.actif, .cpf-fav.actif { color: #B7791F; border-color: #F3D27A; background: #FFF8E1; }
+.cp-etoile-pleine { color: #E0A21B; font-size: 1.05rem; line-height: 1; }
+.cpa-filtre .cps-filtre-etoile, .cps-filtre-etoile { color: #E0A21B !important; font-size: 0.9rem; margin-right: 3px; }
+.cpc-raison { display: flex; align-items: center; gap: 6px; margin: -0.1rem 0 0.45rem; font-size: 0.72rem; font-weight: 600; color: #1E7A45; }
+.cpc-raison i { font-size: 0.95rem; flex-shrink: 0; }
+.cpc-raison span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root.theme-dark .cpc-fav.actif, :root.theme-dark .cpf-fav.actif { background: rgba(224,162,27,0.15); border-color: rgba(224,162,27,0.4); color: #F3C969; }
+:root.theme-dark .cpc-raison { color: #8FD9AE; }
