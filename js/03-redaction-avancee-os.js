@@ -232,7 +232,10 @@ function _rCorpsSync(){
   var ta = document.getElementById('r-corps');
   var live = document.getElementById('r-corps-live');
   if(!ta || !live) return;
-  ta.value = htmlVersMd(live);
+  // Repère « Envoi de l'image… » (image collée en cours d'envoi) : jamais enregistré dans l'article
+  var source = live;
+  if(live.querySelector('.r-img-envoi')){ source = live.cloneNode(true); source.querySelectorAll('.r-img-envoi').forEach(function(x){ x.remove(); }); }
+  ta.value = htmlVersMd(source);
   ta.dispatchEvent(new Event('input', {bubbles:true})); // .value= seul ne déclenche rien nativement
   live.classList.toggle('r-vide', live.textContent.trim()==='');
 }
@@ -544,12 +547,45 @@ document.addEventListener('beforeinput', function(e){
 });
 // Empêche tout collage (Word/Google Docs/Substack...) d'apporter du HTML étranger dans
 // l'éditeur — seul le texte brut passe, retapé/reformaté ensuite à la main si besoin.
+// Exception : une IMAGE seule dans le presse-papier (capture d'écran, « Copier l'image » d'un site ou d'une photo)
+// est envoyée sur le Drive et insérée à l'endroit du curseur, comme avec le bouton Image. Quand il y a aussi du texte
+// (Word ou Google Docs placent souvent une image de la sélection à côté du texte), c'est le texte qui est collé.
 function rCorpsOnPaste(e){
+  var cd = e.clipboardData || window.clipboardData;
+  var texte = cd ? cd.getData('text/plain') : '';
+  var image = !texte.trim() ? _rImageDuPressePapier(cd) : null;
   e.preventDefault();
-  var texte = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if(image){ _rInsererImageFichier(image); return; }
   document.execCommand('insertText', false, texte);
   _rCorpsSync();
 }
+function _rImageDuPressePapier(cd){
+  if(!cd) return null;
+  var items = cd.items ? Array.prototype.slice.call(cd.items) : [];
+  for(var i = 0; i < items.length; i++){
+    if(items[i].kind === 'file' && /^image\//.test(items[i].type)){ var f = items[i].getAsFile(); if(f) return f; }
+  }
+  var fichiers = cd.files ? Array.prototype.slice.call(cd.files) : [];
+  return fichiers.find(function(f){ return /^image\//.test(f.type); }) || null;
+}
+// Glisser-déposer une image (depuis le bureau ou un dossier) dans l'article : même chose
+document.addEventListener('dragover', function(e){
+  if(e.target && e.target.closest && e.target.closest('#r-corps-live') && e.dataTransfer && Array.prototype.some.call(e.dataTransfer.types || [], function(t){ return t === 'Files'; })) e.preventDefault();
+});
+document.addEventListener('drop', function(e){
+  var live = e.target && e.target.closest && e.target.closest('#r-corps-live');
+  if(!live || !e.dataTransfer) return;
+  var f = Array.prototype.slice.call(e.dataTransfer.files || []).find(function(x){ return /^image\//.test(x.type); });
+  if(!f) return;
+  e.preventDefault();
+  // Curseur à l'endroit du dépôt, pour y insérer l'image
+  try{
+    var r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    if(!r && document.caretPositionFromPoint){ var p = document.caretPositionFromPoint(e.clientX, e.clientY); if(p){ r = document.createRange(); r.setStart(p.offsetNode, p.offset); } }
+    if(r){ var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+  }catch(err){}
+  _rInsererImageFichier(f);
+});
 try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
 
 // Upload vers Drive (même Edge Function que l'image de couverture) — pour que toutes
@@ -558,13 +594,26 @@ try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
 function rInsererImageInline(event){
   var file = event.target.files[0];
   event.target.value = '';
-  if(!file) return;
+  if(file) _rInsererImageFichier(file);
+}
+function _rInsererImageFichier(file){
   var live = document.getElementById('r-corps-live');
-  if(!live) return;
+  if(!live || !file) return;
   var blocCible = _rBlocCourant() || live.lastElementChild; // capturé avant l'upload async
+  // Repère visible à l'endroit choisi pendant l'envoi (remplacé par l'image, ou retiré en cas d'erreur)
+  var attente = document.createElement('p');
+  attente.className = 'r-img-envoi';
+  attente.setAttribute('contenteditable', 'false');
+  attente.textContent = 'Envoi de l\'image…';
+  if(blocCible && blocCible.parentNode === live) live.insertBefore(attente, blocCible.nextSibling);
+  else live.appendChild(attente);
   notif('Envoi de l\'image...');
   var redacId = currentDoc && currentDoc.redaction_id;
   var titre = (currentDoc && currentDoc.titre) || (document.getElementById('r-titre')||{}).value || 'Image';
+  // Une capture collée s'appelle souvent « image.png » : on lui donne un nom parlant
+  if(!file.name || /^image\.(png|jpe?g|gif|webp)$/i.test(file.name)){
+    try{ file = new File([file], 'image-collee-'+Date.now()+'.'+((file.type.split('/')[1]||'png').replace('jpeg','jpg')), { type:file.type }); }catch(e){}
+  }
   _compresserImage(file).then(function(fichier){
     return uploadImageVersDrive(fichier, redacId, titre);
   }).then(function(url){
@@ -575,8 +624,8 @@ function rInsererImageInline(event){
     img.style.cssText = 'max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;';
     var p = document.createElement('p'); p.appendChild(img);
     var pVide = document.createElement('p'); pVide.innerHTML = '<br>';
-    if(blocCible && blocCible.parentNode === live){
-      live.insertBefore(p, blocCible.nextSibling);
+    if(attente.parentNode === live){
+      live.replaceChild(p, attente);
       live.insertBefore(pVide, p.nextSibling);
     } else {
       live.appendChild(p); live.appendChild(pVide);
@@ -585,7 +634,10 @@ function rInsererImageInline(event){
     live.focus();
     _rCorpsSync();
     notif('Image ajoutée à l\'article','succes');
-  }).catch(function(){ notif('Erreur envoi image','erreur'); });
+  }).catch(function(){
+    if(attente.parentNode) attente.parentNode.removeChild(attente);
+    notif('Erreur envoi image','erreur');
+  });
 }
 
 

@@ -1037,6 +1037,110 @@ function _cpsChargerSujetsParCp(cpIds, callback){
   }).catch(function(){ window._cpsSujetsParCp = {}; if(callback) callback(); });
 }
 
+// ===== FAVORIS ET COMMUNIQUÉS « POUR TES SUJETS » =====
+// Favoris : table communiques_favoris, propre à chaque membre (étoile sur la carte et dans la fiche, filtre « Favoris »).
+// Pour tes sujets : en tête de la liste, les communiqués liés aux sujets que j'ai réservés (sujet créé depuis le communiqué,
+// ou communiqué ajouté au sujet), puis ceux qui en parlent sans y être liés (mots du titre en commun) : de quoi
+// nourrir l'article en cours.
+window._cpsFavoris = window._cpsFavoris || null;   // Set des identifiants, null tant que pas chargé
+window._cpsMesSujets = window._cpsMesSujets || [];  // [{ id, titre, cp_id, cps:[ids liés] }]
+function _cpsH(){ return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}); }
+function _cpsChargerFavoris(){
+  return fetch(SB_URL+'/rest/v1/communiques_favoris?select=communique_id', { headers:_cpsH() })
+    .then(function(r){ return r.json(); })
+    .then(function(rows){ window._cpsFavoris = new Set((Array.isArray(rows) ? rows : []).map(function(x){ return x.communique_id; })); })
+    .catch(function(){ window._cpsFavoris = window._cpsFavoris || new Set(); });
+}
+function cpsEstFavori(id){ return !!(window._cpsFavoris && window._cpsFavoris.has(id)); }
+function _cpsEtoileHTML(id, classe){
+  var fav = cpsEstFavori(id);
+  return '<button class="'+classe+(fav ? ' actif' : '')+'" data-fav="'+esc(id)+'" onclick="event.stopPropagation();cpsBasculerFavori(this.dataset.fav)" title="'+(fav ? 'Retirer des favoris' : 'Mettre en favori')+'" aria-label="'+(fav ? 'Retirer des favoris' : 'Mettre en favori')+'" aria-pressed="'+fav+'">'
+    +(fav ? '<span class="cp-etoile-pleine" aria-hidden="true">★</span>' : '<i class="ti ti-star"></i>')+(classe.indexOf('cpf-btn') !== -1 ? (fav ? 'En favori' : 'Favori') : '')+'</button>';
+}
+// L'étoile change tout de suite partout (cartes, fiche) ; la base suit, et on revient en arrière si elle refuse
+function cpsBasculerFavori(id){
+  if(!window._cpsFavoris) window._cpsFavoris = new Set();
+  var ajout = !window._cpsFavoris.has(id);
+  if(ajout) window._cpsFavoris.add(id); else window._cpsFavoris.delete(id);
+  _cpsMajEtoiles(id);
+  var req = ajout
+    ? fetch(SB_URL+'/rest/v1/communiques_favoris', { method:'POST', headers:Object.assign(_cpsH(), {'Content-Type':'application/json','Prefer':'return=minimal,resolution=ignore-duplicates'}), body:JSON.stringify({ communique_id:id }) })
+    : fetch(SB_URL+'/rest/v1/communiques_favoris?communique_id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:_cpsH() });
+  req.then(function(r){
+    if(!r.ok) throw 0;
+    notif(ajout ? 'Ajouté à tes favoris' : 'Retiré de tes favoris', 'succes');
+    // Filtre « Favoris » actif : la liste suit
+    if(window._cpsFiltreActif === 'favoris' && !ajout){ var l = osGetEl('cps-liste') || document.getElementById('cps-liste'); if(l) cpsRendreListe(l, window._cpsData||[]); }
+  }).catch(function(){
+    if(ajout) window._cpsFavoris.delete(id); else window._cpsFavoris.add(id);
+    _cpsMajEtoiles(id);
+    notif('Favori non enregistré', 'erreur');
+  });
+}
+function _cpsMajEtoiles(id){
+  document.querySelectorAll('[data-fav="'+(window.CSS && CSS.escape ? CSS.escape(id) : id)+'"]').forEach(function(b){
+    var tmp = document.createElement('div');
+    tmp.innerHTML = _cpsEtoileHTML(id, b.className.replace(/\s*actif\b/, ''));
+    b.replaceWith(tmp.firstChild);
+  });
+}
+
+// Mes sujets réservés (ou proposés) et les communiqués qui leur sont liés
+function _cpsChargerMesSujets(){
+  var moi = (typeof getUserNomComplet === 'function' ? getUserNomComplet() : '') || '';
+  if(!moi.trim()){ window._cpsMesSujets = []; return Promise.resolve(); }
+  return fetch(SB_URL+'/rest/v1/briefing?responsable=eq.'+encodeURIComponent(moi)+'&statut=in.(en_cours,propose)&order=reserve_le.desc.nullslast&limit=20&select=id,titre,cp_id', { headers:_cpsH() })
+    .then(function(r){ return r.json(); })
+    .then(function(sujets){
+      sujets = Array.isArray(sujets) ? sujets : [];
+      sujets.forEach(function(s){ s.cps = s.cp_id ? [s.cp_id] : []; });
+      window._cpsMesSujets = sujets;
+      if(!sujets.length) return;
+      return fetch(SB_URL+'/rest/v1/briefing_communiques?briefing_id=in.('+sujets.map(function(s){ return encodeURIComponent(s.id); }).join(',')+')&select=briefing_id,communique_id', { headers:_cpsH() })
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(liens){
+          (Array.isArray(liens) ? liens : []).forEach(function(l){
+            var s = sujets.find(function(x){ return x.id === l.briefing_id; });
+            if(s && s.cps.indexOf(l.communique_id) === -1) s.cps.push(l.communique_id);
+          });
+        }).catch(function(){});
+    }).catch(function(){ window._cpsMesSujets = []; });
+}
+// Mots significatifs d'un texte (sans accents, sans petits mots)
+var _CPS_VIDES = ('avec dans pour sans sous chez entre vers depuis pendant contre selon cette cette ces ses leur leurs nous vous elle elles ils sont etre avoir fait faire plus moins tres tout tous toute toutes autre autres apres avant aussi ainsi alors comme mais donc encore deja bien ville commune communique presse invitation conference annee annees jour jours mois semaine novembre octobre decembre janvier fevrier mars avril juin juillet aout septembre lundi mardi mercredi jeudi vendredi samedi dimanche nouveau nouvelle nouveaux nouvelles grand grande').split(' ');
+function _cpsMots(t){
+  return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/)
+    .filter(function(m){ return m.length >= 4 && _CPS_VIDES.indexOf(m) === -1 && !/^\d+$/.test(m); });
+}
+// Communiqués à mettre en avant : liés à un de mes sujets, puis proches (2 mots du titre en commun au moins)
+function _cpsPourMesSujets(cps){
+  var sujets = window._cpsMesSujets || [];
+  if(!sujets.length) return [];
+  var res = [], pris = {};
+  sujets.forEach(function(s){
+    s.cps.forEach(function(id){
+      var cp = cps.find(function(c){ return c.id === id; });
+      if(cp && !pris[id]){ pris[id] = 1; res.push({ cp:cp, raison:'lie', sujet:s.titre }); }
+    });
+  });
+  var limite = Date.now() - 60 * 86400000;
+  var proches = [];
+  sujets.forEach(function(s){
+    var motsSujet = _cpsMots(s.titre);
+    if(motsSujet.length < 2) return;
+    cps.forEach(function(c){
+      if(pris[c.id] || new Date(c.date_cp || c.created_at).getTime() < limite) return;
+      var motsCp = _cpsMots((c.titre||'')+' '+(c.objet||''));
+      var communs = motsSujet.filter(function(m, i){ return motsSujet.indexOf(m) === i && motsCp.indexOf(m) !== -1; });
+      if(communs.length >= 2) proches.push({ cp:c, raison:'proche', sujet:s.titre, score:communs.length });
+    });
+  });
+  proches.sort(function(a, b){ return b.score - a.score; }).forEach(function(p){
+    if(!pris[p.cp.id] && res.filter(function(x){ return x.raison === 'proche'; }).length < 4){ pris[p.cp.id] = 1; res.push(p); }
+  });
+  return res;
+}
+
 function cpsCharger(){
   var liste = osGetEl('cps-liste') || document.getElementById('cps-liste');
   if(!liste) return;
@@ -1052,9 +1156,9 @@ function cpsCharger(){
   .then(function(cps){
     cps = (!cps||cps.code) ? [] : cps;
     window._cpsData = cps;
-    _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
+    Promise.all([_cpsChargerFavoris(), _cpsChargerMesSujets()]).then(function(){ _cpsChargerSujetsParCp(cps.map(function(c){return c.id;}), function(){
       _cpsChargerDispos(cps, function(){ cpsRendreListe(liste, cps); });
-    });
+    }); });
   }).catch(function(){ liste.innerHTML = osErreurHtml('cpsCharger'); });
 }
 
@@ -1073,12 +1177,14 @@ function cpsRendreListe(liste, cps){
   var invitations = cps.filter(function(c){ return c.type==='invitation_presse'; });
   var communiques = cps.filter(function(c){ return c.type!=='invitation_presse'; });
   var nonLus = cps.filter(function(c){ return vus.indexOf(c.id)===-1; });
+  var favoris = cps.filter(function(c){ return cpsEstFavori(c.id); });
 
   // Filtrer
   var filtres = cps.filter(function(c){
     if(filtreType==='communique' && c.type==='invitation_presse') return false;
     if(filtreType==='invitation_presse' && c.type!=='invitation_presse') return false;
     if(filtreType==='non_lus' && vus.indexOf(c.id)!==-1) return false;
+    if(filtreType==='favoris' && !cpsEstFavori(c.id)) return false;
     if(rechercheVal){
       // « source » : c'est là que le formulaire range l'organisation
       var hay = _cpsSansAccent((c.titre||'')+' '+(c.organisation||'')+' '+(c.source||'')+' '+(c.corps||'')+' '+(c.objet||'')+' '+(c.lieu_evenement||''));
@@ -1138,11 +1244,13 @@ function cpsRendreListe(liste, cps){
       {id:'tous',             label:'Tous',        n:cps.length},
       {id:'communique',       label:'Communiqués', n:communiques.length},
       {id:'invitation_presse',label:'Invitations', n:invitations.length},
-      {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0}
+      {id:'non_lus',          label:'Non lus',     n:nonLus.length, point:nonLus.length>0},
+      {id:'favoris',          label:'Favoris',     n:favoris.length, etoile:true}
     ].forEach(function(f){
+      if(f.id === 'favoris' && !f.n && filtreType !== 'favoris') return;   // pas de pastille tant qu'il n'y a pas de favori
       var btn = document.createElement('button');
       btn.className = 'cpa-filtre'+(filtreType===f.id ? ' actif' : '');
-      btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
+      btn.innerHTML = (f.point ? '<b class="cpr-point"></b>' : '')+(f.etoile ? '<span class="cps-filtre-etoile" aria-hidden="true">★</span>' : '')+esc(f.label)+' <span>'+f.n+'</span>';
       btn.onclick = function(){ window._cpsFiltreActif=f.id; cpsRendreListe(liste,window._cpsData||[]); };
       barreType.appendChild(btn);
     });
@@ -1209,6 +1317,15 @@ function cpsRendreListe(liste, cps){
     // garde le tri par date du communiqué — sans ça, un CP saisi aujourd'hui mais daté d'il
     // y a une semaine se perdait au milieu de la liste.
     var nouveaux = [], suite = filtres;
+    // « Pour tes sujets » : communiqués liés aux sujets que j'ai réservés, puis ceux qui en parlent
+    var pourMoi = (filtreType === 'tous' && filtreDate === 'tous' && !rechercheVal) ? _cpsPourMesSujets(filtres) : [];
+    if(pourMoi.length){
+      liste.appendChild(_cpsTitreSection('ti-target-arrow', 'Pour tes sujets', pourMoi.length, 'Liés aux sujets que tu as réservés, ou qui en parlent'));
+      pourMoi.forEach(function(x){ liste.appendChild(cpsMakeCard(x.cp, false, x)); });
+      var dejaMontres = pourMoi.map(function(x){ return x.cp; });
+      suite = filtres.filter(function(c){ return dejaMontres.indexOf(c) === -1; });
+      filtres = suite;
+    }
     if(filtreType !== 'non_lus' && !rechercheVal){
       var depuis = Date.now() - CPS_NOUVEAUX_MS;
       nouveaux = filtres.filter(function(c){ return vus.indexOf(c.id) === -1 && c.created_at && new Date(c.created_at).getTime() >= depuis; })
@@ -1223,6 +1340,8 @@ function cpsRendreListe(liste, cps){
       liste.appendChild(_cpsTitreSection('ti-sparkles', 'Nouveaux', nouveaux.length, 'Ajoutés ces 2 derniers jours, pas encore lus'));
       rendre(nouveaux);
       if(suite.length) liste.appendChild(_cpsTitreSection('ti-calendar', 'Tous les communiqués', suite.length, 'Par date du communiqué'));
+    } else if(pourMoi.length && suite.length){
+      liste.appendChild(_cpsTitreSection('ti-calendar', 'Tous les communiqués', suite.length, 'Par date du communiqué'));
     }
     rendre(suite);
   }
@@ -1344,7 +1463,7 @@ function cpsExportCSV(){
   notif('Export CSV téléchargé','succes');
 }
 
-function cpsMakeCard(cp, isAdmin){
+function cpsMakeCard(cp, isAdmin, pourSujet){
   var vus = JSON.parse(localStorage.getItem('ipsum_cps_vus')||'[]');
   var nonLu = vus.indexOf(cp.id) === -1;
   var estInvit = cp.type === 'invitation_presse';
@@ -1413,7 +1532,7 @@ function cpsMakeCard(cp, isAdmin){
 
   // Actions à droite. Modifier / Supprimer / Publier seulement dans l'appli
   // Communiqués admin (isAdmin), jamais dans les vues de Ma rédac'.
-  var actions = dispBtn;
+  var actions = _cpsEtoileHTML(cp.id, 'mac-btn cpc-icone cpc-fav') + dispBtn;
   if(!sujetLie) actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerSujet(this.dataset.cpid)" title="Créer un sujet à partir de ce communiqué"><i class="ti ti-pin"></i><span class="cpc-long">En faire un sujet</span><span class="cpc-court">Sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsAjouterAuSujet(this.dataset.cpid)" title="Ajouter ce communiqué à un sujet existant"><i class="ti ti-link-plus"></i><span class="cpc-long">Ajouter à un sujet</span></button>';
   actions += '<button class="mac-btn" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)" title="Écrire un article à partir de ce communiqué"><i class="ti ti-pencil"></i>Écrire</button>';
@@ -1427,7 +1546,8 @@ function cpsMakeCard(cp, isAdmin){
   var extrait = (cp.corps||'').replace(/\s+/g,' ').trim();
 
   card.innerHTML =
-    '<div class="mac-haut">'+haut+'</div>'
+    (pourSujet ? '<div class="cpc-raison"><i class="ti ti-'+(pourSujet.raison === 'lie' ? 'link' : 'bulb')+'"></i><span>'+(pourSujet.raison === 'lie' ? 'Lié à ton sujet' : 'Peut servir pour ton sujet')+' « '+esc(pourSujet.sujet || '')+' »</span></div>' : '')
+    +'<div class="mac-haut">'+haut+'</div>'
     +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +evInfos
     +(extrait ? '<div class="cpc-extrait">'+esc(extrait)+'</div>' : '')
@@ -1632,115 +1752,121 @@ function osCpFenetreRender(winId){
   var wc = document.getElementById('wincontent-'+winId);
   if(!wc) return;
   var cp = (window._cpEnAttente||{})[winId];
-  if(!cp){ wc.innerHTML='<div style="padding:1rem;color:var(--gris);font-family:Space Mono,monospace;">CP introuvable</div>'; return; }
+  if(!cp){ wc.innerHTML='<div class="cpf-vide">Communiqué introuvable</div>'; return; }
 
   var isAdmin = getUserRole() === 'admin';
-  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  var estInvit = cp.type === 'invitation_presse';
+  var dateStr = cp.date_cp ? new Date(cp.date_cp).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+  if(dateStr) dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+  var redac = cp.redaction_id && (window._redactionsData||[]).find(function(r){ return r.id === cp.redaction_id; });
 
-  // Vider avant de reconstruire — cette fonction peut être rappelée pour rafraîchir
-  // la fiche (ex: après une action), sinon le contenu s'empilait en double.
+  // Vider avant de reconstruire : cette fonction est rappelée pour rafraîchir la fiche (après une action)
   wc.innerHTML = '';
   wc.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
   // Texte sélectionnable et copiable (titre, infos, contact, corps) : le reste de Compo ne l'est pas (styles.css)
   wc.classList.add('cp-lisible');
 
-  // Header coloré
-  var hdr = document.createElement('div');
-  hdr.style.cssText = 'background:var(--encre-fixe);padding:1rem 1.2rem 0.9rem;flex-shrink:0;';
-  // Métadonnées en DM Sans (comme l'agenda) plutôt qu'en Space Mono, jugé peu lisible
-  var META = 'display:inline-flex;align-items:center;gap:4px;font-family:DM Sans,sans-serif;font-size:0.74rem;color:rgba(255,255,255,0.72);white-space:nowrap;';
-  var BTN_HDR = 'display:inline-flex;align-items:center;gap:5px;font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;border-radius:6px;padding:5px 10px;cursor:pointer;';
+  var page = document.createElement('div');
+  page.className = 'cpf';
+
+  // ---- En-tête : type, statut, titre, source et date, actions ----
   var metas = [];
-  if(cp.source) metas.push('<span style="'+META+'"><i class="ti ti-building" style="font-size:0.9rem;"></i>'+esc(cp.source)+'</span>');
-  if(cp.organisation && cp.organisation !== cp.source) metas.push('<span style="'+META+'"><i class="ti ti-building-community" style="font-size:0.9rem;"></i>'+esc(cp.organisation)+'</span>');
-  if(dateStr) metas.push('<span style="'+META+'"><i class="ti ti-calendar" style="font-size:0.9rem;"></i>'+dateStr+'</span>');
-  var POINT = '<span style="color:rgba(255,255,255,0.3);font-size:0.74rem;">·</span>';
-  hdr.innerHTML =
-    '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;">'
-    +(cp.type === 'invitation_presse' ? '<span style="display:inline-flex;align-items:center;gap:4px;font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(214,178,240,0.18);color:#E3C8F5;"><i class="ti ti-microphone"></i>Invitation presse</span>' : '')
-    +_cpIaBadge(cp, 'entete')
-    +(cp.statut==='publie'
-      ?'<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(46,158,91,0.2);color:#9BE0B4;">Publié</span>'
-      :'<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(243,223,162,0.2);color:#F3DFA2;">Brouillon</span>')
+  if(cp.source) metas.push('<span><i class="ti ti-building"></i>'+esc(cp.source)+'</span>');
+  if(cp.organisation && cp.organisation !== cp.source) metas.push('<span><i class="ti ti-building-community"></i>'+esc(cp.organisation)+'</span>');
+  if(dateStr) metas.push('<span><i class="ti ti-calendar"></i>'+esc(dateStr)+'</span>');
+  if(redac) metas.push('<span><i class="ti ti-news"></i>'+esc(redac.nom)+'</span>');
+  var entete = document.createElement('div');
+  entete.className = 'cpf-carte cpf-entete';
+  entete.innerHTML = '<div class="cpf-puces">'
+      +(estInvit ? '<span class="cpf-puce cpf-puce-invit"><i class="ti ti-microphone"></i>Invitation presse</span>' : '<span class="cpf-puce"><i class="ti ti-file-text"></i>Communiqué</span>')
+      +(cp.statut === 'publie' ? '' : '<span class="cpf-puce cpf-puce-brouillon">Brouillon</span>')
+      +_cpIaBadge(cp, 'carte')
     +'</div>'
-    +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;line-height:1.3;color:white;margin-bottom:0.35rem;">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
-    +(metas.length ? '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">'+metas.join(POINT)+'</div>' : '')
-    +(_cpEstAuto(cp) ? '<div class="cp-ia-note">'+esc(CP_IA_INFO)+'</div>' : '')
-    +'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.75rem;">'
-    +'<button onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')" style="'+BTN_HDR+'"><i class="ti ti-link"></i> Copier le lien</button>'
-    +(isAdmin&&cp.statut==='brouillon'?'<button onclick="cpsAdminPublier(\''+cp.id+'\')" style="'+BTN_HDR+'"><i class="ti ti-world-upload"></i> Publier</button>':'')
-    +(isAdmin?'<button onclick="cpsAdminEditer(\''+cp.id+'\')" style="'+BTN_HDR+'"><i class="ti ti-pencil"></i> Modifier</button>':'')
+    +'<h1 class="cpf-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</h1>'
+    +(metas.length ? '<div class="cpf-metas">'+metas.join('')+'</div>' : '')
+    +(_cpEstAuto(cp) ? '<div class="cpf-ia-note"><i class="ti ti-info-circle"></i>'+esc(CP_IA_INFO)+'</div>' : '')
+    +'<div class="cpf-actions">'
+      +'<button class="cpf-btn cpf-btn-principal" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire un article</button>'
+      +(cp.corps ? '<button class="cpf-btn" onclick="osCpCopierTexte(\''+esc(winId)+'\')"><i class="ti ti-copy"></i>Copier le texte</button>' : '')
+      +'<button class="cpf-btn" onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')"><i class="ti ti-link"></i>Copier le lien</button>'
+      +_cpsEtoileHTML(cp.id, 'cpf-btn cpf-fav')
+      +(isAdmin && cp.statut === 'brouillon' ? '<button class="cpf-btn" onclick="cpsAdminPublier(\''+cp.id+'\')"><i class="ti ti-world-upload"></i>Publier</button>' : '')
+      +(isAdmin ? '<button class="cpf-btn" onclick="cpsAdminEditer(\''+cp.id+'\')"><i class="ti ti-pencil-cog"></i>Modifier</button>' : '')
     +'</div>';
-  wc.appendChild(hdr);
+  page.appendChild(entete);
 
-  // Contact lié (placeholder, rechargé après)
-  if(cp.contact_id){
-    var contactZone = document.createElement('div');
-    contactZone.id = 'cp-win-contact-'+winId;
-    contactZone.style.cssText = 'padding:0.7rem 1.2rem;background:#E6F1FB;font-size:0.78rem;color:#0C447C;font-family:Space Mono,monospace;flex-shrink:0;border-bottom:1px solid #C8DDF5;';
-    contactZone.innerHTML = osLoadingHtml();
-    wc.appendChild(contactZone);
+  // ---- Invitation presse : l'événement et qui le couvre, avant le texte ----
+  if(estInvit){
+    var invit = document.createElement('div');
+    invit.className = 'cpf-invit';
+    _cpInvitRendreFiche(cp, invit);
+    page.appendChild(invit);
   }
 
-  // Contenu scrollable
-  var body = document.createElement('div');
-  body.style.cssText = 'flex:1;overflow-y:auto;padding:1rem 1.2rem;';
+  // ---- Le texte (colonne principale) et, à côté, la source et les pièces jointes ----
+  var grille = document.createElement('div');
+  grille.className = 'cpf-grille';
 
+  var texte = document.createElement('article');
+  texte.className = 'cpf-carte cpf-texte';
   if(cp.corps){
-    var corps = document.createElement('div');
-    corps.style.cssText = 'font-size:0.88rem;color:var(--encre);line-height:1.75;white-space:pre-wrap;margin-bottom:1.2rem;';
-    corps.textContent = cp.corps;
-    body.appendChild(corps);
+    texte.innerHTML = '<div class="cpf-label">Le communiqué</div><div class="cpf-corps">'+_cpCorpsHTML(cp.corps)+'</div>';
+  } else {
+    texte.innerHTML = '<div class="cpf-label">Le communiqué</div><div class="cpf-sans-texte"><i class="ti ti-file-off"></i>Pas de texte saisi : le communiqué est dans la pièce jointe.</div>';
   }
+  grille.appendChild(texte);
 
-  // Fichiers joints (nouveau système multi-fichiers) — un bloc par fichier, iframe pour un
-  // PDF, image simple sinon.
-  (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }).forEach(function(f){
-    var fichierWrap = document.createElement('div');
-    fichierWrap.style.cssText = 'margin-bottom:1.2rem;';
-    if(f.type === 'image'){
-      fichierWrap.innerHTML =
-        '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
-        +'<img src="'+esc(_driveImgSrc(f.url))+'" style="max-width:100%;border-radius:6px;border:1px solid var(--gris-bord);display:block;">';
-    } else {
-      fichierWrap.innerHTML =
-        '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">'+esc(f.nom)+'</div>'
-        +'<iframe src="'+esc(_driveLienPourIframe(f.url))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-        +'<a href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
-    }
-    body.appendChild(fichierWrap);
-  });
+  var cote = document.createElement('aside');
+  cote.className = 'cpf-cote';
+  // Source (rempli après chargement du contact lié)
+  var source = document.createElement('div');
+  source.className = 'cpf-carte';
+  source.id = 'cp-win-contact-'+winId;
+  source.innerHTML = '<div class="cpf-label">Source</div><div class="cpf-source-nom">'+esc(cp.source || cp.organisation || 'Non renseignée')+'</div>'
+    +(cp.contact_id ? '<div class="cpf-petit">'+osLoadingHtml()+'</div>' : '');
+  cote.appendChild(source);
 
-  if(cp.fichier_pdf){
-    var pdfWrap = document.createElement('div');
-    pdfWrap.innerHTML =
-      '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF (ancien format)</div>'
-      +'<iframe src="'+esc(_driveLienPourIframe(cp.fichier_pdf))+'" style="width:100%;height:480px;border:1px solid var(--gris-bord);border-radius:6px;"></iframe>'
-      +'<a href="'+esc(_driveLienAuthuser(cp.fichier_pdf))+'" target="_blank" style="font-size:0.72rem;color:var(--bleu);margin-top:0.3rem;display:inline-block;"><i class="ti ti-external-link"></i> Ouvrir dans un nouvel onglet</a>';
-    body.appendChild(pdfWrap);
-  } else if(cp.fichier_b64){
-    var embedWrap = document.createElement('div');
-    embedWrap.innerHTML =
-      '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:0.4rem;">Document PDF</div>'
-      +'<embed src="'+cp.fichier_b64+'" type="application/pdf" style="width:100%;min-height:380px;border:1px solid var(--gris-bord);border-radius:4px;">';
-    body.appendChild(embedWrap);
-  } else if(!cp.corps && !(cp.communique_fichiers&&cp.communique_fichiers.length)){
-    body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gris);font-size:0.85rem;font-family:Space Mono,monospace;">Aucun contenu pour ce communiqué.</div>';
+  // Pièces jointes : une ligne par fichier (Ouvrir, Aperçu) au lieu d'un grand cadre vide
+  var fichiers = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); })
+    .map(function(f){ return { nom:f.nom||'Fichier', type:f.type === 'image' ? 'image' : 'pdf', url:f.url }; });
+  if(cp.fichier_pdf) fichiers.push({ nom:'Document PDF', type:'pdf', url:cp.fichier_pdf });
+  else if(cp.fichier_b64) fichiers.push({ nom:'Document PDF', type:'b64', url:cp.fichier_b64 });
+  window._cpFichiersFiche = window._cpFichiersFiche || {};
+  window._cpFichiersFiche[winId] = fichiers;
+  if(fichiers.length){
+    var pj = document.createElement('div');
+    pj.className = 'cpf-carte';
+    pj.innerHTML = '<div class="cpf-label">Pièces jointes · '+fichiers.length+'</div>'
+      + fichiers.map(function(f, i){
+        var ouvrir = f.type === 'b64' ? '' : '<a class="cpf-mini" href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" rel="noopener" title="Ouvrir dans un nouvel onglet"><i class="ti ti-external-link"></i></a>';
+        return '<div class="cpf-fichier"><i class="ti ti-'+(f.type === 'image' ? 'photo' : 'file-type-pdf')+' cpf-fichier-ico"></i>'
+          +'<span class="cpf-fichier-nom" title="'+esc(f.nom)+'">'+esc(f.nom)+'</span>'
+          +'<button class="cpf-mini" title="Aperçu" onclick="osCpApercu(\''+esc(winId)+'\','+i+')"><i class="ti ti-eye"></i></button>'+ouvrir+'</div>';
+      }).join('');
+    cote.appendChild(pj);
   }
+  grille.appendChild(cote);
+  page.appendChild(grille);
 
-  // Invitation presse : l'événement et qui le couvre, en tête de la fiche (avant le
-  // texte et les pièces jointes) plutôt que dans une bande collée en bas de la fenêtre.
-  if(cp.type === 'invitation_presse') _cpInvitRendreFiche(cp, body);
+  // Aperçu d'une pièce jointe (sous le texte, sur toute la largeur), ouvert à la demande
+  var apercu = document.createElement('div');
+  apercu.className = 'cpf-carte cpf-apercu';
+  apercu.id = 'cpf-apercu-'+winId;
+  apercu.style.display = 'none';
+  page.appendChild(apercu);
+  // Sans texte saisi : on montre directement la première pièce jointe
+  wc.appendChild(page);
+  if(!cp.corps && fichiers.length) osCpApercu(winId, 0, true);
 
-  wc.appendChild(body);
+  // Favoris pas encore chargés (fiche ouverte depuis un lien) : on les charge et l'étoile se met à jour
+  if(!window._cpsFavoris) _cpsChargerFavoris().then(function(){ _cpsMajEtoiles(cp.id); });
 
-  // Charger le contact lié
+  // ---- Contact lié ----
   if(cp.contact_id){
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
     var uid = getUserId();
     // Coordonnées (email, téléphone) : seulement pour la personne choisie pour couvrir
     // une invitation presse. Les autres voient le nom et l'organisation de la source.
-    var estInvit = cp.type === 'invitation_presse';
     var pChoisi = !estInvit ? Promise.resolve(false) :
       _cpInvitChargerDispos(cp.id).then(function(ds){ return (ds||[]).some(function(d){ return d.membre_id === uid && d.statut === 'selectionne'; }); }).catch(function(){ return false; });
     Promise.all([
@@ -1750,23 +1876,75 @@ function osCpFenetreRender(winId){
     ]).then(function(results){
       var c = results[0]&&results[0][0];
       var estAbonne = results[1]&&results[1].length>0;
-      var voitCoordonnees = results[2] === true;
+      var voitCoordonnees = results[2] === true;   // comme avant : coordonnées seulement pour la personne retenue sur une invitation
       var el = document.getElementById('cp-win-contact-'+winId);
-      if(!el||!c) return;
-      el.innerHTML =
-        '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">'
-        +'<div style="flex:1;"><i class="ti ti-address-book"></i> <strong>'+esc(c.nom||'')+'</strong>'
-        +(c.poste?' · <span style="font-size:0.85em;">'+esc(c.poste)+'</span>':'')
-        +(c.organisation?' — '+esc(c.organisation):'')
-        +(voitCoordonnees
-          ? '<br>'+(c.email?'<a href="mailto:'+esc(c.email)+'" style="color:#0C447C;">'+esc(c.email)+'</a>':'')+(c.telephone?' · <a href="tel:'+esc(c.telephone)+'" style="color:#0C447C;">'+esc(c.telephone)+'</a>':'')
-          : (estInvit ? '<br><span style="opacity:0.75;">Coordonnées visibles une fois choisi·e pour couvrir l\'invitation</span>' : ''))
-        +'</div>'
-        +'<button data-contact="'+esc(cp.contact_id)+'" data-abonne="'+(estAbonne?'1':'0')+'" onclick="cpsBasculeAbonnementSource(this.dataset.contact, this.dataset.abonne===\'1\', this)" style="font-size:0.65rem;padding:3px 8px;background:'+(estAbonne?'#C8DDF5':'#E6F1FB')+';border:1px solid #8AB4D6;border-radius:5px;cursor:pointer;color:#0C447C;">'
-        +'<i class="ti ti-bell"></i> '+(estAbonne?'Abonné':'S\'abonner à cette source')+'</button>'
-        +'</div>';
+      if(!el) return;
+      if(!c){ var p = el.querySelector('.cpf-petit'); if(p) p.remove(); return; }
+      var lignes = '';
+      if(voitCoordonnees){
+        if(c.email) lignes += '<a class="cpf-coord" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i>'+esc(c.email)+'</a>';
+        if(c.telephone) lignes += '<a class="cpf-coord" href="tel:'+esc(String(c.telephone).replace(/\s/g,''))+'"><i class="ti ti-phone"></i>'+esc(c.telephone)+'</a>';
+      } else if(estInvit && (c.email || c.telephone)){
+        lignes += '<div class="cpf-petit"><i class="ti ti-lock"></i> Coordonnées visibles une fois choisi·e pour couvrir l\'invitation</div>';
+      }
+      el.innerHTML = '<div class="cpf-label">Source</div>'
+        +'<div class="cpf-source-nom">'+esc(c.nom || cp.source || '')+'</div>'
+        +((c.poste || c.organisation) ? '<div class="cpf-petit">'+esc([c.poste, c.organisation].filter(Boolean).join(' · '))+'</div>' : '')
+        +(lignes ? '<div class="cpf-coords">'+lignes+'</div>' : '')
+        +_cpBoutonSuivre(cp.contact_id, estAbonne);
     }).catch(function(){});
   }
+}
+
+function _cpBoutonSuivre(contactId, abonne){
+  return '<button class="cpf-btn cpf-btn-plein'+(abonne ? ' actif' : '')+'" data-contact="'+esc(contactId)+'" data-abonne="'+(abonne?'1':'0')+'" onclick="osCpSuivreSource(this)">'
+    +'<i class="ti ti-bell'+(abonne ? '-check' : '')+'"></i> '+(abonne ? 'Tu suis cette source' : 'Suivre cette source')+'</button>';
+}
+// Suivre / ne plus suivre la source (abonnements_sources, via cpsBasculeAbonnementSource) ; le bouton change tout de suite
+function osCpSuivreSource(btn){
+  var abonne = btn.dataset.abonne === '1';
+  cpsBasculeAbonnementSource(btn.dataset.contact, abonne, document.createElement('button'));
+  btn.outerHTML = _cpBoutonSuivre(btn.dataset.contact, !abonne);
+}
+
+// Texte d'un communiqué : paragraphes (ligne vide) et retours à la ligne gardés ; adresses mail, liens et
+// numéros de téléphone deviennent cliquables. Tout est échappé avant.
+function _cpCorpsHTML(corps){
+  var lien = function(t){
+    return t
+      .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]»])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+      .replace(/(^|[\s(>])(www\.[^\s<]+[^\s<.,;:!?)\]»])/g, '$1<a href="https://$2" target="_blank" rel="noopener">$2</a>')
+      .replace(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '<a href="mailto:$1">$1</a>')
+      .replace(/(^|[^\d])((?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4})(?!\d)/g, function(m, avant, num){ return avant+'<a href="tel:'+num.replace(/[\s.-]/g,'')+'">'+num+'</a>'; });
+  };
+  return String(corps).replace(/\r\n?/g, '\n').trim().split(/\n\s*\n+/).map(function(par){
+    return '<p>'+lien(esc(par)).replace(/\n/g, '<br>')+'</p>';
+  }).join('');
+}
+function osCpCopierTexte(winId){
+  var cp = (window._cpEnAttente||{})[winId];
+  if(!cp || !cp.corps) return;
+  var t = (cp.titre ? cp.titre+'\n\n' : '')+cp.corps;
+  if(typeof _osCopierTexte === 'function') _osCopierTexte(t, 'Texte du communiqué copié');
+  else if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ notif('Texte du communiqué copié', 'succes'); });
+}
+// Aperçu d'une pièce jointe sous le texte ; un second clic sur le même fichier le referme
+function osCpApercu(winId, i, sansDefiler){
+  var z = document.getElementById('cpf-apercu-'+winId);
+  var f = ((window._cpFichiersFiche||{})[winId]||[])[i];
+  if(!z || !f) return;
+  if(z.dataset.i === String(i) && z.style.display !== 'none'){ z.style.display = 'none'; z.innerHTML = ''; z.dataset.i = ''; return; }
+  z.dataset.i = String(i);
+  var corps = f.type === 'image'
+    ? '<img src="'+esc(_driveImgSrc(f.url))+'" alt="">'
+    : f.type === 'b64'
+      ? '<embed src="'+f.url+'" type="application/pdf">'
+      : '<iframe src="'+esc(_driveLienPourIframe(f.url))+'"></iframe>';
+  z.innerHTML = '<div class="cpf-apercu-tete"><span class="cpf-label">'+esc(f.nom)+'</span>'
+    +(f.type !== 'b64' ? '<a class="cpf-btn" href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i>Ouvrir</a>' : '')
+    +'<button class="cpf-mini" title="Fermer l\'aperçu" onclick="osCpApercu(\''+esc(winId)+'\','+i+')"><i class="ti ti-x"></i></button></div>'+corps;
+  z.style.display = 'block';
+  if(!sansDefiler) z.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 // ---- FICHIERS JOINTS (PDF + images, plusieurs par communiqué) ----
