@@ -543,10 +543,7 @@ function _osBenvMajBadgeRail(ongletId, count){
 function _osBenvMarquerRecrutementLu(){
   try{
     var allIds = (window._benvAnnonces||[]).map(function(a){return a.id;});
-    var seen = [];
-    try{ seen = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
-    var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
-    localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeen));
+    if(typeof osVusAjouter === 'function') osVusAjouter('recrutement', allIds, true);
     _osBenvMajBadgeRail('recrutement', 0);
   }catch(e){}
 }
@@ -1533,20 +1530,14 @@ function _osRedacMajBadgeRail(ongletId, count){
 function _osRedacMarquerSujetsLus(){
   try{
     var allIds = (_sujetsData||[]).map(function(s){return s.id;});
-    var seen = [];
-    try{ seen = JSON.parse(localStorage.getItem('compo_os_sujets_vus')||'[]'); }catch(e){}
-    var newSeen = seen.concat(allIds.filter(function(id){ return seen.indexOf(id)===-1; }));
-    localStorage.setItem('compo_os_sujets_vus', JSON.stringify(newSeen));
+    if(typeof osVusAjouter === 'function') osVusAjouter('sujet', allIds, true);
     _osRedacMajBadgeRail('sujets', 0);
   }catch(e){}
 }
 function _osRedacMarquerRecrutementLu(){
   try{
     var allIdsR = (window._recrutementAnnonces||[]).map(function(a){return a.id;});
-    var seenR2 = [];
-    try{ seenR2 = JSON.parse(localStorage.getItem('compo_os_recrutement_vus')||'[]'); }catch(e){}
-    var newSeenR = seenR2.concat(allIdsR.filter(function(id){ return seenR2.indexOf(id)===-1; }));
-    localStorage.setItem('compo_os_recrutement_vus', JSON.stringify(newSeenR));
+    if(typeof osVusAjouter === 'function') osVusAjouter('recrutement', allIdsR, true);
     _osRedacMajBadgeRail('recrutement', 0);
   }catch(e){}
 }

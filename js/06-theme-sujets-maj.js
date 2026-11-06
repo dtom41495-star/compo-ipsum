@@ -201,6 +201,75 @@ function _osLireListeVus(cle){
   catch(e){ return []; }
 }
 
+// ── « Vu » partagé entre les appareils (table elements_vus) ──
+// Les badges continuent de lire les listes du navigateur (compo_os_sujets_vus…) ; on y fusionne ce
+// qui a été vu ailleurs, et chaque « vu » d'ici part aussi en base. Sans ça, un sujet lu ou validé
+// sur l'ordinateur restait compté comme nouveau sur le téléphone, jusqu'à ouvrir l'onglet.
+var VUS_CLES = { sujet:'compo_os_sujets_vus', recrutement:'compo_os_recrutement_vus' };
+function osVusEnvoyer(type, ids){
+  ids = (ids || []).filter(Boolean);
+  if(!ids.length || !_session || !_session.access_token || !getUserId()) return;
+  fetch(SB_URL+'/rest/v1/elements_vus?on_conflict=membre_id,type,objet_id', {
+    method:'POST',
+    headers:Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token,'Content-Type':'application/json','Prefer':'return=minimal,resolution=ignore-duplicates'}),
+    body:JSON.stringify(ids.map(function(id){ return { membre_id:getUserId(), type:type, objet_id:String(id) }; }))
+  }).catch(function(){});
+}
+// Ajoute des ids à la liste « vus » du navigateur (et en base si envoyer)
+function osVusAjouter(type, ids, envoyer){
+  var cle = VUS_CLES[type]; if(!cle) return [];
+  var vus = _osLireListeVus(cle);
+  var nouveaux = (ids || []).filter(function(id){ return id && vus.indexOf(id) === -1; });
+  if(nouveaux.length){ try{ localStorage.setItem(cle, JSON.stringify(vus.concat(nouveaux))); }catch(e){} }
+  if(envoyer) osVusEnvoyer(type, ids);
+  return nouveaux;
+}
+// Récupère ce qui a été vu sur les autres appareils (4 derniers mois), puis remet les badges à jour
+var _vusSyncEnCours = null;
+function osVusSynchroniser(){
+  if(_vusSyncEnCours) return _vusSyncEnCours;
+  if(!_session || !_session.access_token || !getUserId()) return Promise.resolve();
+  var depuis = new Date(Date.now() - 120*86400000).toISOString();
+  _vusSyncEnCours = fetch(SB_URL+'/rest/v1/elements_vus?select=type,objet_id&vu_le=gte.'+encodeURIComponent(depuis), {
+    headers:Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token})
+  }).then(function(r){ return r.ok ? r.json() : []; })
+  .then(function(rows){
+    var parType = {};
+    (Array.isArray(rows) ? rows : []).forEach(function(x){ (parType[x.type] = parType[x.type] || []).push(x.objet_id); });
+    var change = false;
+    Object.keys(parType).forEach(function(t){ if(osVusAjouter(t, parType[t], false).length) change = true; });
+    if(change){ osRedacRecompterBadges(); osRedacMajClignotement(); }
+  }).catch(function(){})
+  .then(function(){ _vusSyncEnCours = null; });
+  return _vusSyncEnCours;
+}
+// Propositions de sujets en attente (rédac chefs et admins), relues en base : validées ailleurs, elles
+// ne doivent plus compter dans la pastille
+function osSujetsRechargerPropositions(){
+  var uid = getUserId();
+  if(!uid || !_session || !_session.access_token) return Promise.resolve();
+  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token});
+  var admin = getUserRole() === 'admin';
+  var chefIds = admin ? Promise.resolve(null) : fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&role_redac=eq.redac_chef&select=redaction_id', {headers:authH})
+    .then(function(r){ return r.json(); }).then(function(rows){ return (Array.isArray(rows) ? rows : []).map(function(x){ return x.redaction_id; }); });
+  return chefIds.then(function(ids){
+    if(ids && !ids.length){ window._sujetsPropositionsAttente = []; return; }
+    return fetch(SB_URL+'/rest/v1/briefing?statut=eq.propose&select=id,redaction_id'+(ids ? '&redaction_id=in.('+ids.join(',')+')' : ''), {headers:authH})
+      .then(function(r){ return r.json(); })
+      .then(function(p){ if(Array.isArray(p)) window._sujetsPropositionsAttente = p; });
+  }).then(function(){ osRedacRecompterBadges(); }).catch(function(){});
+}
+// Recalcule les pastilles du rail de Ma rédac' (si la fenêtre est ouverte) à partir des données en mémoire
+function osRedacRecompterBadges(){
+  if(!document.getElementById('redac-sidebar-rail') || typeof _osRedacOngletsListe !== 'function' || typeof _osRedacMajBadgeRail !== 'function') return;
+  // Onglet Sujets affiché : ses sujets sont vus au fur et à mesure (marqués en le quittant), pas de pastille
+  var compter = function(o){ var m = String(o.badge||'').match(/>(\d+)\+?</); return m ? parseInt(m[1], 10) : 0; };
+  _osRedacOngletsListe().forEach(function(o){
+    if(o.id === 'sujets') _osRedacMajBadgeRail('sujets', _redacOnglet === 'sujets' ? 0 : compter(o));
+    if(o.id === 'recrutement') _osRedacMajBadgeRail('recrutement', _redacOnglet === 'recrutement' ? 0 : compter(o));
+  });
+}
+
 function osRedacResteDuNonLu(){
   if(!_redacNonLusIds) return false;
   var lu = {
@@ -249,8 +318,16 @@ function osRedacClignotementInit(){
   if(_redacClignoteInit) return;
   _redacClignoteInit = true;
   osRedacChargerNonLus();
-  setInterval(osRedacChargerNonLus, 180000);
+  osVusSynchroniser();
+  setInterval(function(){ osRedacChargerNonLus(); osVusSynchroniser(); osSujetsRechargerPropositions(); }, 180000);
   setInterval(osRedacMajClignotement, 3000);
+  // Retour sur Compo (autre appareil utilisé entre-temps) : on relit ce qui a été vu ou validé ailleurs
+  var _vusDernierRetour = 0;
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden || Date.now() - _vusDernierRetour < 20000) return;
+    _vusDernierRetour = Date.now();
+    osVusSynchroniser(); osSujetsRechargerPropositions(); osRedacChargerNonLus();
+  });
 }
 
 // ===== MES ARTICLES : CLIGNOTEMENT VERT DE L'ICÔNE (article à corriger) =====
