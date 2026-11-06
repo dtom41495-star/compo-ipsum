@@ -4684,10 +4684,11 @@ textarea.nlx-champ { min-height: 0; line-height: 1.5; }
 
 /* Texte sélectionnable et copiable dans les fenêtres de lecture (article, correction du SR,
    communiqué) : l'interface reste non sélectionnable, mais pas ce qu'on lit */
-#lect-content, #lect-content *, #corr-contenu, #corr-contenu *, #lect-cp-content, #lect-cp-content * {
+#lect-content, #lect-content *, #corr-contenu, #corr-contenu *, #lect-cp-content, #lect-cp-content *, .cp-lisible, .cp-lisible * {
   -webkit-user-select: text; user-select: text; cursor: auto;
 }
-#lect-content button, #corr-contenu button, #lect-cp-content button { -webkit-user-select: none; user-select: none; cursor: pointer; }
+#lect-content button, #corr-contenu button, #lect-cp-content button, .cp-lisible button, .cp-lisible button * { -webkit-user-select: none; user-select: none; cursor: pointer; }
+.cp-lisible a, .cp-lisible a * { cursor: pointer; }
 
 
 /* ===== Fenêtre « Envoyer au SR » : même style que les autres fenêtres (se-boite) ===== */
