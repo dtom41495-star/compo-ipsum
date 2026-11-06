@@ -7241,3 +7241,7 @@ button.trx-temps:hover { background: #E0D0EC; }
 :root.theme-dark .cpf-btn-principal { background: var(--rouge); }
 :root.theme-dark .cpf-puce-invit { background: rgba(155,89,182,0.2); color: #D7B5E8; }
 :root.theme-dark .cpf-ia-note { background: rgba(124,92,214,0.15); color: #C9B8F0; }
+/* Éditeur : image collée en cours d'envoi (js/03, _rInsererImageFichier) */
+#r-corps-live .r-img-envoi { margin: 0.6rem 0; padding: 1.4rem 1rem; border: 1px dashed var(--gris-bord); border-radius: 8px; background: var(--gris-clair); color: var(--gris); font-size: 0.8rem; text-align: center; user-select: none; animation: r-img-envoi 1.2s ease-in-out infinite alternate; }
+@keyframes r-img-envoi { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #r-corps-live .r-img-envoi { animation: none; } }
