@@ -852,7 +852,7 @@ function osBenvAnnonceNouvelle(){
       +'<div style="margin-bottom:0.6rem;"><label style="font-size:0.65rem;color:var(--gris);">Description</label>'
       +_recrutementEditorToolbarHTML('benv-ann-desc')
       +'<div style="display:flex;gap:0.6rem;">'
-      +'<textarea id="benv-ann-desc" oninput="_recrutementApercu(\'benv-ann-desc\')" rows="6" placeholder="Ce qu\'on recherche, les missions... (mise en forme : **gras**, _italique_, ### titre, - liste, [lien](url))" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;font-family:DM Sans,sans-serif;margin-top:2px;resize:vertical;box-sizing:border-box;"></textarea>'
+      +'<textarea id="benv-ann-desc" oninput="_recrutementApercu(\'benv-ann-desc\');_recrutementRetenirSel(this)" onselect="_recrutementRetenirSel(this)" onkeyup="_recrutementRetenirSel(this)" onmouseup="_recrutementRetenirSel(this)" ontouchend="_recrutementRetenirSel(this)" rows="6" placeholder="Ce qu\'on recherche, les missions... (mise en forme : **gras**, _italique_, ### titre, - liste, [lien](url))" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.78rem;font-family:DM Sans,sans-serif;margin-top:2px;resize:vertical;box-sizing:border-box;"></textarea>'
       +'<div id="benv-ann-desc-preview" class="art-corps" style="flex:1;min-width:0;font-size:0.78rem;padding:0.5rem 0.7rem;border:1.5px dashed var(--gris-bord);border-radius:6px;margin-top:2px;overflow-y:auto;max-height:160px;"></div>'
       +'</div></div>'
       +'<div style="margin-bottom:0.8rem;"><label style="font-size:0.65rem;color:var(--gris);">Email de contact</label><input id="benv-ann-email" type="email" value="vie-associative@ipsummedia.fr" placeholder="vie-associative@ipsummedia.fr" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid var(--gris-bord);border-radius:6px;font-size:0.8rem;margin-top:2px;box-sizing:border-box;"></div>'
@@ -870,9 +870,19 @@ function osBenvAnnonceSauvegarder(){
   var desc = (document.getElementById('benv-ann-desc')||{}).value||'';
   var email = (document.getElementById('benv-ann-email')||{}).value||'';
   if(!titre.trim()){ notif('Le titre est obligatoire'); return; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=representation'});
   fetch(SB_URL+'/rest/v1/recrutement_annonces',{method:'POST',headers:authH,body:JSON.stringify({titre:titre.trim(),description:desc.trim()||null,commission_id:commId||null,email_contact:email.trim()||null,statut:'ouvert',created_by:getUserId()})})
-  .then(function(r){ if(r.ok){ notif('Annonce publiée','succes'); osBenevolesDashRender(); } else notif('Erreur','erreur'); });
+  .then(function(r){
+    if(!r.ok){ notif('Erreur','erreur'); return; }
+    notif('Annonce publiée','succes');
+    osBenevolesDashRender();
+    // Publier n'envoie rien tout seul : on propose tout de suite de prévenir l'équipe par mail
+    // (osRedacNotifierAnnonceRecrutement demande confirmation avant l'envoi)
+    return r.json().then(function(rows){
+      var a = Array.isArray(rows) ? rows[0] : null;
+      if(a && a.id && typeof osRedacNotifierAnnonceRecrutement === 'function') setTimeout(function(){ osRedacNotifierAnnonceRecrutement(a.id, a.titre, null); }, 400);
+    });
+  }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
 
 function osBenvAnnonceToggle(id, statutActuel){

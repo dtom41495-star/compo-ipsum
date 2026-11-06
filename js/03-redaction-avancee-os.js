@@ -179,17 +179,30 @@ function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
 // resynchronisation DOM<->markdown façon #r-corps-live pour un formulaire aussi court).
 function _recrutementEditorToolbarHTML(taId){
   return '<div style="display:flex;gap:4px;margin-bottom:6px;">'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'bold\')" title="Gras" style="width:28px;height:28px;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">B</button>'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'italic\')" title="Italique" style="width:28px;height:28px;font-style:italic;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">i</button>'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'h3\')" title="Titre de section" style="width:28px;height:28px;font-size:0.62rem;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">H3</button>'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'ul\')" title="Liste à puces" style="width:28px;height:28px;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">•—</button>'
-    +'<button type="button" onclick="_recrutementFormat(\''+taId+'\',\'link\')" title="Lien" style="width:28px;height:28px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);"><i class="ti ti-link"></i></button>'
+    +'<button type="button" onmousedown="event.preventDefault()" onclick="_recrutementFormat(\''+taId+'\',\'bold\')" title="Gras" style="width:28px;height:28px;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">B</button>'
+    +'<button type="button" onmousedown="event.preventDefault()" onclick="_recrutementFormat(\''+taId+'\',\'italic\')" title="Italique" style="width:28px;height:28px;font-style:italic;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">i</button>'
+    +'<button type="button" onmousedown="event.preventDefault()" onclick="_recrutementFormat(\''+taId+'\',\'h3\')" title="Titre de section" style="width:28px;height:28px;font-size:0.62rem;font-weight:700;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">H3</button>'
+    +'<button type="button" onmousedown="event.preventDefault()" onclick="_recrutementFormat(\''+taId+'\',\'ul\')" title="Liste à puces" style="width:28px;height:28px;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);">•—</button>'
+    +'<button type="button" onmousedown="event.preventDefault()" onclick="_recrutementFormat(\''+taId+'\',\'link\')" title="Lien" style="width:28px;height:28px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;border-radius:6px;cursor:pointer;color:var(--encre);"><i class="ti ti-link"></i></button>'
     +'</div>';
+}
+// Remplace un morceau du texte sans faire sauter le curseur ni le défilement : affecter ta.value
+// envoyait la vue tout en bas du champ à chaque clic sur Gras / Italique…
+function _recrutementRemplacer(ta, debut, fin, texte, selDebut, selFin){
+  var haut = ta.scrollTop;
+  try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
+  if(typeof ta.setRangeText === 'function') ta.setRangeText(texte, debut, fin, 'preserve');
+  else ta.value = ta.value.slice(0, debut) + texte + ta.value.slice(fin);
+  ta.setSelectionRange(selDebut, selFin);
+  ta.scrollTop = haut;
 }
 function _recrutementFormat(taId, type){
   var ta = document.getElementById(taId);
   if(!ta) return;
+  // Sélection retenue avant le clic (_recrutementRetenirSel) : certains navigateurs (Safari, téléphones)
+  // la perdent quand le champ n'a plus le focus, et le gras partait alors à la fin du texte
   var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
+  if(document.activeElement !== ta && ta._sel && ta._sel[1] <= val.length){ s = ta._sel[0]; e = ta._sel[1]; }
   var sel = val.slice(s,e);
   if(type==='bold' || type==='italic' || type==='link'){
     var before, after, ph;
@@ -198,25 +211,22 @@ function _recrutementFormat(taId, type){
     else {
       osDemander('Adresse du lien', 'https://', {oui:'Insérer le lien', icone:'link', type:'url'}).then(function(url){
         if(!url || url === 'https://') return;
-        var v = ta.value, texteLien = v.slice(s, e) || 'texte du lien';
-        ta.value = v.slice(0,s) + '[' + texteLien + '](' + url + ')' + v.slice(e);
-        ta.focus(); ta.setSelectionRange(s+1, s+1+texteLien.length);
+        var texteLien = ta.value.slice(s, e) || 'texte du lien';
+        _recrutementRemplacer(ta, s, e, '[' + texteLien + '](' + url + ')', s+1, s+1+texteLien.length);
         _recrutementApercu(taId);
       });
       return;
     }
     var texte = sel || ph;
-    ta.value = val.slice(0,s) + before+texte+after + val.slice(e);
-    ta.focus(); ta.setSelectionRange(s+before.length, s+before.length+texte.length);
+    _recrutementRemplacer(ta, s, e, before+texte+after, s+before.length, s+before.length+texte.length);
   } else {
     var debutLigne = val.lastIndexOf('\n', s-1) + 1;
     var prefix = type==='h3' ? '### ' : '- ';
-    ta.value = val.slice(0,debutLigne) + prefix + val.slice(debutLigne);
-    var pos = s + prefix.length;
-    ta.focus(); ta.setSelectionRange(pos,pos);
+    _recrutementRemplacer(ta, debutLigne, debutLigne, prefix, s + prefix.length, e + prefix.length);
   }
   _recrutementApercu(taId);
 }
+function _recrutementRetenirSel(ta){ ta._sel = [ta.selectionStart, ta.selectionEnd]; }
 function _recrutementApercu(taId){
   var ta = document.getElementById(taId);
   var prev = document.getElementById(taId+'-preview');
