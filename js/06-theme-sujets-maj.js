@@ -744,20 +744,11 @@ function osInitSujets(){
     // clignoter pour un nouveau sujet — il était marqué vu dès le démarrage.
     var prevenus = [];
     try { prevenus = JSON.parse(localStorage.getItem('compo_os_sujets_prevenus') || '[]'); } catch(e){}
-    var nouveaux = sujets.filter(function(s){ return seen.indexOf(s.id) === -1 && prevenus.indexOf(s.id) === -1; });
-    if(!nouveaux.length) return;
-
-    localStorage.setItem('compo_os_sujets_prevenus', JSON.stringify(prevenus.concat(nouveaux.map(function(s){ return s.id; }))));
-
-    // Ajouter en silence dans le centre
-    nouveaux.forEach(function(s){
-      osAddNotif('Sujet disponible : '+s.titre, 'sujet', function(){ osOuvrirSujets(); }, true);
-    });
-    // Ajouter à la file de lecture séquentielle
-    nouveaux.forEach(function(s){
-      _notifQueue2.push({ msg:'Sujet disponible : '+s.titre, action:function(){ osOuvrirSujets(); } });
-    });
-    if(!_notifPlaying) setTimeout(osPlayNextNotif, 500);
+    var nonVus = sujets.filter(function(s){ return seen.indexOf(s.id) === -1; });
+    var nouveaux = nonVus.filter(function(s){ return prevenus.indexOf(s.id) === -1; });
+    if(nouveaux.length) localStorage.setItem('compo_os_sujets_prevenus', JSON.stringify(prevenus.concat(nouveaux.map(function(s){ return s.id; }))));
+    // Dans la cloche (section « Nouveau »), avec une bulle pour ceux qui arrivent pendant qu'on est là (js/82)
+    if(typeof osNotifSujets === 'function') osNotifSujets(nonVus, nouveaux);
   });
 }
 
