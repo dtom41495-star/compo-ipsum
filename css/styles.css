@@ -1416,7 +1416,7 @@ body {
 }
 #os-tour-bubble {
   position: fixed;
-  z-index: 99901;
+  z-index: 200100;   /* au-dessus des fenêtres de dialogue (.se-overlay), que la visite peut montrer */
   background: rgba(10,10,20,0.97);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
