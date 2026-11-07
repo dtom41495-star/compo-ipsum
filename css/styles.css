@@ -7599,3 +7599,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .sr-ecrire:hover { background: #991B1B; color: #fff; border-color: #991B1B; }
 .sr-remarque-contact-mobile { display: block; margin-top: 6px; font-size: 0.78rem; color: #991B1B; }
 .sr-remarque-contact-mobile .sr-remarque-qui { font-weight: 700; }
+
+/* Solde de plumes dans la fiche d'un bénévole (js/11) */
+.benv-plumes { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 0.8rem; color: #6B2F8A; }
+.benv-plumes i { font-size: 1rem; }
+.benv-plumes strong { font-family: Poppins, sans-serif; font-size: 0.95rem; }
