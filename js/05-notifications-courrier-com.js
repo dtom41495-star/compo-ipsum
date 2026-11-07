@@ -1749,6 +1749,10 @@ function osGoogleScopeAccorde(scope){
 
 function osLoginGoogle(){
   var retour = location.origin + location.pathname;
+  // Pendant que Google s'ouvre (connexion lente), le bouton laisse place à un message d'attente
+  var txt = document.getElementById('os-login-attente-txt');
+  if(txt) txt.textContent = 'Ouverture de Google…';
+  document.documentElement.classList.add('connexion-en-cours');
   // access_type=offline + prompt=consent : sans ces deux paramètres, Google ne délivre
   // aucun jeton de rafraîchissement. Mais une fois ce jeton obtenu et rangé côté serveur
   // (_osGoogleRangerJeton), il reste valable : inutile de redemander l'accord à Drive à
@@ -1802,7 +1806,7 @@ function _osCheckRetourGoogle(){
   fetch(SB_URL+'/auth/v1/user', { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+accessToken } })
   .then(function(r){ return r.json(); })
   .then(function(user){
-    if(!user || !user.id){ notif('Connexion Google échouée','erreur'); return; }
+    if(!user || !user.id){ document.documentElement.classList.remove('connexion-en-cours'); notif('Connexion Google échouée','erreur'); return; }
     _session = { access_token: accessToken, refresh_token: refreshToken, user: user, expires_at: Date.now()+(expiresIn*1000) };
     localStorage.setItem('ipsum_session', JSON.stringify(_session));
     SB_HEADERS['Authorization'] = 'Bearer '+accessToken;
@@ -1814,7 +1818,7 @@ function _osCheckRetourGoogle(){
     // serveur. Il ne reste ainsi ni dans localStorage ni au-delà de cette page.
     if(providerToken) _osGoogleRangerJeton(providerToken, providerRefreshToken);
   })
-  .catch(function(){ notif('Connexion Google échouée — erreur réseau','erreur'); });
+  .catch(function(){ document.documentElement.classList.remove('connexion-en-cours'); notif('Connexion Google échouée — erreur réseau','erreur'); });
   return true;
 }
 
