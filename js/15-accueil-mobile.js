@@ -27,6 +27,8 @@ var ACCUEIL_REDAC_TITRES = { profil:'Mon profil', sujets:'Sujets', recrutement:'
   cps:'Communiqués', 'cps-abonnements':'Alertes communiqués', admin:'Gestion rédactions' };
 // En bas de l'accueil, pas en tuile
 var ACCUEIL_HORS_TUILES = ['tutos','params'];
+// Onglets de Ma rédac' qui sont des sous-pages d'un autre : le retour y ramène
+var ACCUEIL_REDAC_PARENTS = { 'cps-abonnements':'cps' };
 
 // Icônes du bureau qui ne sont pas dans le catalogue d'applications, ou qui y sont
 // réservées à certains rôles alors que le bureau les montre à tous
@@ -654,6 +656,20 @@ function _accueilPreparerMaRedac(){
   if(!osEstMobile()){ win.classList.remove('redac-directe'); return; }
   var onglet = _redacOnglet;
   win.classList.add('redac-directe');
+  // Sous-page d'un onglet (Alertes communiqués → Communiqués) : un bouton retour interne, masqué sur
+  // téléphone, dont se servent le bouton du haut et le retour du téléphone (voir _accBoutonRetourInterne)
+  var contenu = document.getElementById('wincontent-redactions');
+  if(contenu){
+    var ancien = contenu.querySelector(':scope > .acc-retour-onglet'); if(ancien) ancien.remove();
+    var parent = ACCUEIL_REDAC_PARENTS[onglet];
+    if(parent){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'acc-retour-onglet'; b.setAttribute('data-retour', '');
+      b.textContent = ACCUEIL_REDAC_TITRES[parent] || 'Retour';
+      b.addEventListener('click', function(){ osOuvrirMaRedacMobile(parent); });
+      contenu.insertBefore(b, contenu.firstChild);
+    }
+  }
   var titre = win.querySelector('.os-titlebar-title');
   if(titre) titre.textContent = ACCUEIL_REDAC_TITRES[onglet] || 'Ma rédac\'';
   _accueilActionsFenetre(win, _accueilMenusMaRedac(onglet));
