@@ -7560,3 +7560,9 @@ div.adm-kpi { cursor: default; }
 @media (max-width: 768px){
   .nf-suppr { display: none; }
 }
+
+/* Téléphone : les boutons retour internes des applis (« ← Agenda », « ← Tous les membres »…) font doublon
+   avec le bouton du haut, qui fait la même chose (js/15 _accBoutonRetourInterne) */
+@media (max-width: 768px){
+  .os-window [data-retour], .os-window .fil-retour { display: none !important; }
+}

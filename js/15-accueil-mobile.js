@@ -397,10 +397,18 @@ function _accueilPreparerFenetre(win){
 // fiche d'un événement, on revient à l'agenda, pas à l'accueil. Une fenêtre posée par-dessus (dialogue,
 // liste des événements d'un jour, notifications) se referme d'abord.
 function _accVisible(el){ return !!(el && el.isConnected && el.getClientRects().length); }
+// Dans une appli, le bouton interne est masqué sur téléphone (doublon du bouton du haut) : on regarde
+// alors si la page qui le contient est affichée
+function _accRetourActif(b){
+  if(b.disabled) return false;
+  if(_accVisible(b)) return true;
+  var bloc = b.closest('.fil-retour') || b;
+  return !!(b.closest('.os-window') && bloc.parentElement && _accVisible(bloc.parentElement));
+}
 function _accBoutonRetourInterne(racine){
   if(!racine) return null;
   var bs = racine.querySelectorAll('[data-retour]');
-  for(var i = bs.length - 1; i >= 0; i--){ if(_accVisible(bs[i]) && !bs[i].disabled) return bs[i]; }
+  for(var i = bs.length - 1; i >= 0; i--){ if(_accRetourActif(bs[i])) return bs[i]; }
   return null;
 }
 function _accVoileHaut(){
