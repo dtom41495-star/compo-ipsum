@@ -760,6 +760,7 @@ function oobeTerminer(){
   } catch(e){}
 
   // Pas de session - afficher login
+  document.documentElement.classList.remove('connexion-en-cours');
   var loginEl = document.getElementById('os-login');
   if(loginEl) loginEl.style.display = 'grid';
   } // fin demarrer()

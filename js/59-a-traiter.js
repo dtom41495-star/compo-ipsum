@@ -14,6 +14,7 @@ var _atr = { taches:[], infos:[], ouvert:false, deplies:{}, resumeFait:false, ch
 var ATR_TYPES = {
   relire:      { titre:'Articles à relire',        sous:'attribués à toi',            icone:'search',       couleur:'#1A5276', ouvrir:function(){ osOpenWindow('app-correction'); } },
   publier:     { titre:'Prêts à publier',          sous:'validés par la rédaction',   icone:'circle-check', couleur:'#0F6E56', ouvrir:function(){ _redacOnglet = 'redac'; osOpenWindow('redactions'); } },
+  cps_brouillons: { titre:'Communiqués à valider', sous:'brouillons de la boîte contact@', icone:'mail-check', couleur:'#4A235A', ouvrir:function(){ osCpsOuvrirBrouillons(); } },
   suppression: { titre:'Demandes de suppression',  sous:'comptes à traiter',          icone:'trash',        couleur:'#856404', ouvrir:function(){ osOpenWindow('benevoles'); } },
   cps:         { titre:'Communiqués non lus',      sous:'dans ta rédaction',          icone:'news',         couleur:'#4A235A', ouvrir:function(){ osOpenWindow(window._atrCpsAppId || 'cps-admin'); } },
   projets:     { titre:'Tâches de projet',         sous:'qui te sont assignées',      icone:'layout-kanban',couleur:'#0C5460', ouvrir:function(){ osOpenWindow('projets'); } },
@@ -21,7 +22,7 @@ var ATR_TYPES = {
 };
 // Les communiqués non lus n'y sont plus : ce n'est pas une tâche, et « 42 communiqués non lus » décourageait plus
 // qu'autre chose. Leur pastille reste sur l'appli Communiqués.
-var ATR_ORDRE = ['relire', 'publier', 'suppression', 'projets', 'tableau'];
+var ATR_ORDRE = ['relire', 'publier', 'cps_brouillons', 'suppression', 'projets', 'tableau'];
 
 function _atrAuth(){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') }); }
 function _atrPeutAgir(){ return !(typeof osEstMobile === 'function' && osEstMobile()); }
@@ -38,6 +39,7 @@ function osATraiterCharger(){
   }
   if(role === 'admin'){
     jobs.push(lire('/rest/v1/articles?statut=eq.valide&select=id,titre&order=updated_at.asc&limit=30').then(function(a){ lignes.publier = a.map(function(x){ return x.titre || 'Sans titre'; }); }));
+    jobs.push(lire('/rest/v1/communiques?statut=eq.brouillon&select=id,titre&order=created_at.desc&limit=30').then(function(a){ lignes.cps_brouillons = a.map(function(x){ return x.titre || 'Sans titre'; }); }));
     jobs.push(lire('/rest/v1/annonces?actif=eq.true&redaction_id=is.null&type=eq.alerte&order=created_at.desc&select=message&limit=20').then(function(a){
       lignes.suppression = a.filter(function(x){ return x.message && x.message.indexOf('DEMANDE DE SUPPRESSION') === 0; })
         .map(function(x){ return x.message.replace('DEMANDE DE SUPPRESSION - ', ''); });

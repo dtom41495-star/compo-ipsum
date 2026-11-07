@@ -1491,7 +1491,11 @@ function cpsMakeCard(cp, isAdmin, pourSujet){
 
   var haut = '';
   if(nonLu) haut += '<span class="mac-statut cp-nonlu-dot" style="color:#6B2F8A;background:#F3E8FA;">Nouveau</span>';
-  if(cp.statut === 'brouillon') haut += '<span class="mac-statut" style="color:#92400E;background:#FEF3C7;" title="Pas encore visible par l\'équipe">Brouillon</span>';
+  if(cp.statut === 'brouillon'){
+    haut += '<span class="mac-statut" style="color:#92400E;background:#FEF3C7;" title="Pas encore visible par l\'équipe">Brouillon</span>';
+    var rBro = cp.redaction_id && (window._redactionsData||[]).find(function(r){ return r.id === cp.redaction_id; });
+    haut += '<span class="mac-statut" style="color:#57534E;background:#F1EFEC;">'+(rBro ? esc(rBro.nom) : 'Toutes les rédactions')+'</span>';
+  }
   haut += _cpIaBadge(cp, 'carte');
   haut += '<span class="mac-surtitre"><i class="ti ti-'+(estInvit ? 'microphone' : 'news')+'" style="vertical-align:-2px;"></i> '
     +(estInvit ? 'Invitation presse' : 'Communiqué')+(cp.source ? ' · '+esc(cp.source) : '')+'</span>';
@@ -2579,6 +2583,12 @@ function cpsToggleAbonnementSource(contactId, activer){
 }
 
 // silencieux : rechargement au retour sur la fenêtre — la liste affichée reste en place pendant la mise à jour
+function osCpsOuvrirBrouillons(){
+  window._cpsAdminFiltreActif = 'brouillon';
+  if(_windows['cps-admin']){ osFocusWindow('cps-admin'); cpsAdminCharger(); }
+  else osOpenWindow('cps-admin');
+}
+
 function cpsAdminCharger(silencieux){
   var liste = osGetEl('cps-admin-liste') || document.getElementById('cps-admin-liste');
   if(!liste) return;
@@ -2597,7 +2607,9 @@ function cpsAdminCharger(silencieux){
   // Trié par « Date du communiqué » (saisie à la main), pas par date de saisie dans Compo —
   // même logique que la liste de Ma rédac' (cpsCharger).
   var urlAdmin = SB_URL+'/rest/v1/communiques?order=date_cp.desc.nullslast,created_at.desc&select=*,communique_fichiers(*)';
-  if(window._redacActiveId) urlAdmin += '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId);
+  // Rédaction active + communiqués adressés à toutes les rédactions ; pour l'admin, tous les brouillons à valider
+  // (sinon ceux de la tâche automatique, souvent sans rédaction, n'apparaissaient nulle part)
+  if(window._redacActiveId) urlAdmin += '&or=(redaction_id.eq.'+encodeURIComponent(window._redacActiveId)+',redaction_id.is.null'+(role === 'admin' ? ',statut.eq.brouillon' : '')+')';
   fetch(urlAdmin, { headers: authH })
   .then(function(r){ return r.json(); })
   .then(function(cps){

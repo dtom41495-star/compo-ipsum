@@ -1048,13 +1048,24 @@ body {
   letter-spacing: 0.06em;
   margin-top: 2px;
 }
+/* Téléphone : le visuel de marque remplit l'écran, la connexion est une carte posée en bas, à portée de pouce */
 @media (max-width: 760px) {
-  #os-login { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .os-login-visuel { min-height: 0; padding: 1.6rem 1.4rem 1.8rem; gap: 1.2rem; }
-  .os-login-logo { height: 46px; }
-  .os-login-salut { font-size: 1.3rem; }
-  .os-login-salut-sous { display: none; }
-  .os-login-form { align-items: flex-start; padding: 1.8rem 1.4rem; }
+  #os-login { grid-template-columns: 1fr; grid-template-rows: 1fr auto; min-height: 100vh; min-height: 100dvh; background: #1A1A2E; }
+  .os-login-visuel { min-height: 0; padding: calc(env(safe-area-inset-top) + 2rem) 1.6rem 3.2rem; gap: 1.5rem; justify-content: space-between; }
+  .os-login-logo { height: 52px; }
+  .os-login-message { margin-top: auto; }
+  .os-login-salut { font-size: 1.85rem; line-height: 1.15; }
+  .os-login-salut-sous { display: block; margin-top: .6rem; font-size: .95rem; }
+  .os-login-etiquette { display: none; }
+  .os-login-form { position: relative; z-index: 1; align-items: stretch; margin-top: -1.6rem; padding: 1.7rem 1.4rem calc(env(safe-area-inset-bottom) + 1.4rem);
+    background: #FBF9F6; border-radius: 28px 28px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,0.25); }
+  .os-login-form-in { max-width: none; }
+  .os-login-titre { font-size: 1.35rem; margin-bottom: .35rem; }
+  .os-login-sous { font-size: .92rem; margin-bottom: 1.3rem; }
+  .os-login-google { min-height: 56px; border-radius: 16px; font-size: 1.02rem; }
+  .os-login-attente { min-height: 56px; box-sizing: border-box; border-radius: 16px; justify-content: center; }
+  .os-login-acces { justify-content: center; text-align: center; margin-top: 1rem; }
+  .os-login-contact { text-align: center; margin-top: .9rem; padding-top: .9rem; }
 }
 
 
@@ -7572,3 +7583,11 @@ div.adm-kpi { cursor: default; }
 .cx-reserve { display: flex; gap: 10px; align-items: flex-start; padding: 0.75rem 0.9rem; margin: 0.4rem 0 0.6rem; border-radius: 10px; background: var(--gris-clair, #F3F2F0); border: 1px solid var(--gris-bord); font-size: 0.8rem; line-height: 1.45; color: var(--gris); }
 .cx-reserve i { font-size: 1.1rem; color: var(--encre); margin-top: 1px; }
 .cx-reserve strong { display: block; color: var(--encre); font-size: 0.84rem; margin-bottom: 2px; }
+
+/* Connexion en cours (retour de Google, session déjà ouverte, clic sur « Continuer avec Google ») : pas de bouton
+   à recliquer, un message d'attente à la place (script en tête d'index.html) */
+.os-login-attente { display: none; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; background: #fff; border: 1px solid #E7E5E4; font: 600 0.95rem 'DM Sans', sans-serif; color: #1A1A2E; }
+.os-login-attente-roue { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid #F1D5C9; border-top-color: #E8461E; animation: os-login-tourne .8s linear infinite; flex-shrink: 0; }
+@keyframes os-login-tourne { to { transform: rotate(360deg); } }
+html.connexion-en-cours .os-login-attente { display: flex; }
+html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-error { display: none !important; }
