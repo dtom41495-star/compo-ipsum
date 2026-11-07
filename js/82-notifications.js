@@ -153,6 +153,60 @@ function _nfMarquerLues(liste){
 }
 function osNotifToutLu(){ _nfMarquerLues(_nfTous()); }
 
+// ---- Supprimer une notification (croix sur ordinateur, glisser sur téléphone) ----
+// Un nouveau sujet supprimé est marqué « vu » : il ne revient pas, ni ici ni sur l'autre appareil.
+function osNotifSupprimer(id){
+  id = String(id);
+  var it = _nfTous().find(function(x){ return String(x.id) === id; });
+  if(!it) return;
+  if(it.sujet){
+    _nfMarquerLues([it]);
+    _nf.sujets = _nf.sujets.filter(function(x){ return String(x.id) !== id; });
+  } else {
+    _nf.items = _nf.items.filter(function(x){ return String(x.id) !== id; });
+    fetch(SB_URL+'/rest/v1/notifications?id=eq.'+encodeURIComponent(id), { method:'DELETE', headers:_nfAuth({ 'Prefer':'return=minimal' }) }).catch(function(){});
+  }
+  _nfMaj();
+}
+function _nfSupprimerAnime(ligne, sens){
+  if(!ligne) return;
+  var item = ligne.querySelector('.nf-item');
+  ligne.classList.add('nf-part');
+  if(item) item.style.transform = 'translateX('+(sens < 0 ? '-' : '')+'110%)';
+  ligne.style.maxHeight = ligne.offsetHeight+'px';
+  requestAnimationFrame(function(){ ligne.style.maxHeight = '0px'; ligne.style.marginBottom = '0px'; ligne.style.opacity = '0'; });
+  setTimeout(function(){ osNotifSupprimer(ligne.getAttribute('data-id')); }, 260);
+}
+var _nfGlisse = { vient:false };
+function _nfBrancherGlissement(p){
+  var g = null;
+  p.addEventListener('touchstart', function(e){
+    var ligne = e.target.closest('.nf-ligne'); if(!ligne || e.touches.length !== 1) { g = null; return; }
+    g = { ligne:ligne, item:ligne.querySelector('.nf-item'), x:e.touches[0].clientX, y:e.touches[0].clientY, dx:0, horizontal:null };
+  }, { passive:true });
+  p.addEventListener('touchmove', function(e){
+    if(!g) return;
+    var dx = e.touches[0].clientX - g.x, dy = e.touches[0].clientY - g.y;
+    if(g.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) g.horizontal = Math.abs(dx) > Math.abs(dy);
+    if(!g.horizontal) return;
+    e.preventDefault();   // on glisse la notification, pas la liste
+    g.dx = dx;
+    g.ligne.classList.add('nf-glisse');
+    g.item.style.transition = 'none';
+    g.item.style.transform = 'translateX('+dx+'px)';
+  }, { passive:false });
+  p.addEventListener('touchend', function(){
+    if(!g) return;
+    var fini = g; g = null;
+    if(!fini.horizontal) return;
+    _nfGlisse.vient = true;
+    setTimeout(function(){ _nfGlisse.vient = false; }, 400);
+    fini.item.style.transition = '';
+    if(Math.abs(fini.dx) > Math.min(110, fini.ligne.offsetWidth * 0.3)) _nfSupprimerAnime(fini.ligne, fini.dx);
+    else { fini.item.style.transform = ''; fini.ligne.classList.remove('nf-glisse'); }
+  });
+}
+
 // ---- Ouvrir ce dont parle une notification ----
 function _nfAppDispo(id){
   return !!(window._userAppsAll || []).some(function(a){ return a.id === id; }) || id === 'agenda' || id === 'mes-articles';
@@ -212,8 +266,10 @@ _atrRendrePanneau = function(){
     p.setAttribute('aria-label', 'Notifications');
     document.body.appendChild(p);
     p.addEventListener('click', function(e){
+      if(_nfGlisse.vient){ _nfGlisse.vient = false; return; }   // fin d'un glissement, pas un clic
       var b = e.target.closest('[data-atr]'); if(!b) return;
       var act = b.getAttribute('data-atr'), t = b.getAttribute('data-type');
+      if(act === 'nf-suppr'){ e.stopPropagation(); _nfSupprimerAnime(b.closest('.nf-ligne'), 1); return; }
       if(act === 'basculer'){ _atr.deplies[t] = !_atr.deplies[t]; _atrRendrePanneau(); }
       else if(act === 'ouvrir'){ _atrFermerPanneau(); ATR_TYPES[t].ouvrir(); }
       else if(act === 'info'){ var i = _atr.infos.find(function(x){ return x.id === b.getAttribute('data-id'); }); _atrFermerPanneau(); if(i && i.fn) try{ i.fn(); }catch(er){} }
@@ -227,6 +283,7 @@ _atrRendrePanneau = function(){
       else if(act === 'reglages'){ _atrFermerPanneau(); if(typeof osOuvrirParams === 'function') osOuvrirParams(); }
       else if(act === 'fermer') _atrFermerPanneau();
     });
+    _nfBrancherGlissement(p);
   }
   var tous = _nfTous().slice(0, 30), nonLues = _nfNonLues().length;
   var h = '<div class="atr-tete"><i class="ti ti-bell atr-tete-ic"></i><strong>Notifications</strong>'
@@ -259,13 +316,15 @@ _atrRendrePanneau = function(){
     h += '<div class="atr-section">Nouveau <em>'+(nonLues ? nonLues+' non lue'+(nonLues > 1 ? 's' : '') : 'tout est lu')+'</em></div>';
     tous.forEach(function(it){
       var d = _nfType(it), lu = _nfLu(it), a = _nfAction(it);
-      h += '<button type="button" class="nf-item'+(lu ? '' : ' nl')+'" data-atr="nf" data-id="'+esc(String(it.id))+'">'
+      h += '<div class="nf-ligne" data-id="'+esc(String(it.id))+'"><span class="nf-fond" aria-hidden="true"><i class="ti ti-trash"></i>Supprimer</span>'
+        +'<button type="button" class="nf-item'+(lu ? '' : ' nl')+'" data-atr="nf" data-id="'+esc(String(it.id))+'">'
         +'<span class="atr-ic" style="background:'+d.couleur+'"><i class="ti ti-'+d.icone+'"></i></span>'
         +'<span class="nf-tx"><strong>'+esc(it.titre || d.titre)+'</strong>'
         +(it.texte ? '<span class="nf-texte">'+esc(it.texte)+'</span>' : '')
         +'<small>'+esc([it.redaction, _nfTemps(it.created_at)].filter(Boolean).join(' · '))+'</small></span>'
         +(a ? '<span class="nf-act">'+esc(a.label)+'</span>' : '')
-        +'</button>';
+        +'</button>'
+        +'<button type="button" class="nf-suppr" data-atr="nf-suppr" data-id="'+esc(String(it.id))+'" title="Supprimer" aria-label="Supprimer cette notification"><i class="ti ti-x"></i></button></div>';
     });
   }
 

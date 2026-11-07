@@ -7547,3 +7547,16 @@ div.adm-kpi { cursor: default; }
 /* Un seul lien orange dans le panneau : « Tout marquer comme lu » ; les réglages restent discrets */
 .atr-pied .atr-lien { color: rgba(255,255,255,.55); font-weight: 500; }
 .atr-pied .atr-lien:hover { color: #fff; }
+
+/* Supprimer une notification : croix au survol (ordinateur), glisser sur le côté (téléphone) */
+.nf-ligne { position: relative; margin-bottom: 6px; border-radius: 14px; overflow: hidden; transition: max-height .25s ease, margin .25s ease, opacity .25s ease; }
+.nf-ligne .nf-item { margin-bottom: 0; transition: transform .22s ease; }
+.nf-fond { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 0 18px; background: #B42318; color: #fff; font: 600 .74rem Montserrat, sans-serif; border-radius: 14px; opacity: 0; }
+.nf-ligne.nf-glisse .nf-fond, .nf-ligne.nf-part .nf-fond { opacity: 1; }
+.nf-suppr { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255,255,255,.14); color: #fff; display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.nf-ligne:hover .nf-suppr, .nf-suppr:focus-visible { opacity: 1; }
+.nf-suppr:hover { background: #B42318; }
+.nf-ligne:hover .nf-item.nl::after { opacity: 0; }
+@media (max-width: 768px){
+  .nf-suppr { display: none; }
+}
