@@ -1548,6 +1548,8 @@ function osAgendaJourNow(){ _agendaJourActuel = new Date(); osAgendaRendreJour()
 
 function osAgendaJourDetail(evs){
   var overlay = document.createElement('div');
+  overlay.id = 'agenda-jour-voile';
+  overlay.setAttribute('data-voile', '');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
   var modal = document.createElement('div');
   modal.style.cssText = 'background:white;border-radius:12px;max-width:380px;width:100%;max-height:70vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:1.2rem;';
@@ -1560,6 +1562,8 @@ function osAgendaJourDetail(evs){
 }
 
 function osAgendaOuvrirDetail(ev){
+  // Ouverte depuis la liste d'un jour (vue Mois) : la liste se referme, la fiche prend la place
+  var voileJour = document.getElementById('agenda-jour-voile'); if(voileJour) voileJour.remove();
   // Événement virtuel = invitation presse → ouvrir directement la fiche du CP
   // concerné (avant : ouvrait juste la liste filtrée des communiqués, sans
   // jamais montrer le détail de CETTE invitation précise).
@@ -1622,8 +1626,8 @@ function osAgendaOuvrirDetail(ev){
   overlay.style.cssText = 'max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:0.8rem;';
 
   // Fil d'Ariane — le retour se lit comme une navigation dans l'agenda
-  var html = '<div style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
-    +'<button onclick="osAgendaFermerDetail()" style="'+BTN_SEC+'"><i class="ti ti-arrow-left"></i> Agenda</button>'
+  var html = '<div class="fil-retour" style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
+    +'<button data-retour onclick="osAgendaFermerDetail()" style="'+BTN_SEC+'"><i class="ti ti-arrow-left"></i> Agenda</button>'
     +'<i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>'
     +'<span style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.titre||'')+'</span>'
     +'</div>';
@@ -3024,8 +3028,8 @@ function osAgendaOuvrirFormulaire(ev){
   var html = '<div id="agenda-form-overlay" style="max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:0.8rem;">';
 
   // Fil d'Ariane
-  html += '<div style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
-    +'<button onclick="osAgendaFermerFormulaire()" style="'+BTN+'padding:5px 10px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-arrow-left"></i> Agenda</button>'
+  html += '<div class="fil-retour" style="display:flex;align-items:center;gap:0.45rem;min-width:0;">'
+    +'<button data-retour onclick="osAgendaFermerFormulaire()" style="'+BTN+'padding:5px 10px;font-size:0.72rem;border:1px solid var(--gris-bord);background:white;color:var(--encre);"><i class="ti ti-arrow-left"></i> Agenda</button>'
     +'<i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>'
     +(isEdit ? '<span style="font-size:0.75rem;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.titre||'')+'</span><i class="ti ti-chevron-right" style="font-size:0.8rem;color:var(--gris);flex-shrink:0;"></i>' : '')
     +'<span style="font-size:0.75rem;color:var(--encre);font-weight:600;white-space:nowrap;">'+titrePage+'</span>'

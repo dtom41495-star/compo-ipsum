@@ -106,7 +106,7 @@ function _agDetail(wc, tousArts){
 
   var autres = _redactionsData.map(function(r){ return '<option value="'+esc(r.id)+'"'+(r.id === redac.id ? ' selected' : '')+'>'+esc(r.nom)+'</option>'; }).join('');
   var h = '<div class="ag-page">'+_agBarre()
-    +'<div class="ag-fil"><button type="button" class="ag-retour" onclick="osAdminRetour()"><i class="ti ti-arrow-left"></i> Toutes les rédactions</button>'
+    +'<div class="ag-fil"><button type="button" class="ag-retour" data-retour onclick="osAdminRetour()"><i class="ti ti-arrow-left"></i> Toutes les rédactions</button>'
     +'<select class="ag-saut" onchange="osAdminSelectRedac(this.value)" aria-label="Changer de rédaction">'+autres+'</select></div>';
 
   h += '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:14px;overflow:hidden;">';

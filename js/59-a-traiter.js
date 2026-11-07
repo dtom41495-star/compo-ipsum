@@ -19,7 +19,9 @@ var ATR_TYPES = {
   projets:     { titre:'Tâches de projet',         sous:'qui te sont assignées',      icone:'layout-kanban',couleur:'#0C5460', ouvrir:function(){ osOpenWindow('projets'); } },
   tableau:     { titre:'Annonces à lire',          sous:'sur le tableau d’affichage', icone:'speakerphone', couleur:'#E8461E', ouvrir:function(){ osOpenWindow('tableau'); } }
 };
-var ATR_ORDRE = ['relire', 'publier', 'suppression', 'cps', 'projets', 'tableau'];
+// Les communiqués non lus n'y sont plus : ce n'est pas une tâche, et « 42 communiqués non lus » décourageait plus
+// qu'autre chose. Leur pastille reste sur l'appli Communiqués.
+var ATR_ORDRE = ['relire', 'publier', 'suppression', 'projets', 'tableau'];
 
 function _atrAuth(){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') }); }
 function _atrPeutAgir(){ return !(typeof osEstMobile === 'function' && osEstMobile()); }
