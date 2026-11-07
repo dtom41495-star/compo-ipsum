@@ -380,7 +380,7 @@ function _accueilPreparerFenetre(win){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'acc-btn-accueil';
-    btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+(ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil');
+    btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+esc(_accLibelleRetour(win.dataset.accRetour));
     btn.addEventListener('click', function(e){
       e.stopPropagation();
       // Dans une sous-page (fiche d'un événement, d'un membre…) : on remonte d'un cran, pas à l'accueil
@@ -390,7 +390,7 @@ function _accueilPreparerFenetre(win){
       if(history.state && history.state.compoFenetre){ _accIgnorerRetour = true; history.back(); }
     });
     barre.insertBefore(btn, barre.firstChild);
-    btn.dataset.libelle = ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil';
+    btn.dataset.libelle = _accLibelleRetour(win.dataset.accRetour);
   }
   // Pas d'emoji dans les titres des applis sur téléphone
   var titreFen = win.querySelector('.os-titlebar-title');
@@ -710,10 +710,37 @@ osOpenWindow = function(pageId){
   }
   return res;
 };
+// Où ramène le bouton retour : une appli (« mes-articles »), ou un onglet de Ma rédac' (« redac:cps »)
+function _accLibelleRetour(vers){
+  if(!vers) return 'Accueil';
+  if(vers.indexOf('redac:') === 0) return ACCUEIL_REDAC_TITRES[vers.slice(6)] || 'Ma rédac\'';
+  if(ACCUEIL_RETOUR_VERS[vers]) return ACCUEIL_RETOUR_VERS[vers];
+  var app = (typeof ALL_APPS_CATALOGUE !== 'undefined' ? ALL_APPS_CATALOGUE : []).find(function(a){ return a.id === vers; });
+  return (app && app.label) || 'Retour';
+}
 function _accueilRetourDepuis(pageId, win){
   var vers = win && win.dataset.accRetour;
   osCloseWindow(pageId);
-  if(vers && !_windows[pageId]) setTimeout(function(){ if(!_windows[pageId]){ _accSansHistorique = true; osOpenWindow(vers); } }, 0);
+  if(vers && !_windows[pageId]) setTimeout(function(){
+    if(_windows[pageId]) return;
+    _accSansHistorique = true;
+    if(vers.indexOf('redac:') === 0) osOuvrirMaRedacMobile(vers.slice(6));
+    else osOpenWindow(vers);
+  }, 0);
+}
+
+// La fiche d'un communiqué s'ouvre dans sa propre fenêtre : le retour ramène à la liste d'où on vient
+// (onglet Communiqués de Ma rédac', avec son filtre, ou l'appli qui l'a ouverte : agenda, communiqués admin…)
+if(typeof cpsOuvrirDetail === 'function'){
+  var _cpsOuvrirDetailAvantAccueil = cpsOuvrirDetail;
+  cpsOuvrirDetail = function(cp){
+    var precedente = osEstMobile() ? Object.keys(window._windows||{}).filter(function(id){ return id.indexOf('cp-') !== 0; }).pop() : null;
+    var vers = precedente === 'redactions' ? 'redac:'+(_redacOnglet || 'cps') : precedente;
+    var res = _cpsOuvrirDetailAvantAccueil.apply(this, arguments);
+    var win = cp && document.getElementById('win-cp-'+cp.id);
+    if(win && vers && !win.dataset.accPret) win.dataset.accRetour = vers;
+    return res;
+  };
 }
 
 // Changer d'onglet depuis l'intérieur (ex. « Voir tous » dans le profil) met à jour le titre
