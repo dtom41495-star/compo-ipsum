@@ -1219,7 +1219,7 @@ function renderLecture(){
   var mots = String(doc.corps||'').trim() ? String(doc.corps).trim().split(/\s+/).length : 0;
   var dateArt = doc.cree_le || doc.created_at;
   var a = '';
-  if(estRefuse) a += '<div class="mac-note"><i class="ti ti-message-circle"></i><span><strong>Remarque du SR :</strong> '+esc(doc.note_interne)+'</span></div>';
+  if(estRefuse) a += osRemarqueSRHtml(doc);
   if(surtitre.length) a += '<div class="lx-surtitre">'+surtitre.join(' · ')+'</div>';
   a += '<h1 class="lx-titre">'+esc(doc.titre||'Sans titre')+'</h1>';
   if(doc.chapeau) a += '<p class="lx-chapo">'+esc(doc.chapeau)+'</p>';
@@ -2233,3 +2233,47 @@ setInterval(function(){
   var bandeau = document.getElementById('r-abandon-sujet'), nom = document.getElementById('r-sujet-bandeau-titre');
   if(bandeau && nom && nom.textContent !== (bandeau.dataset.sujetTitre||'')) nom.textContent = bandeau.dataset.sujetTitre||'';
 }, 700);
+
+// ===== REMARQUE DU SR : QUI L'A ÉCRITE, ET COMMENT LUI RÉPONDRE =====
+// Un article renvoyé à son auteur·rice affichait « Remarque du SR » sans dire qui l'avait écrite : impossible
+// de lui répondre (« envoie-moi un message », mais à qui ?). Le nom vient de l'historique de l'article (renvoi_auteur),
+// à défaut du SR attribué ; un bouton ouvre un mail à cette personne, avec le titre de l'article en objet.
+var _srRemarqueCache = {};
+function osRemarqueSRHtml(doc){
+  setTimeout(osRemarqueSRCompleter, 0);
+  return '<div class="mac-note sr-remarque" data-art="'+esc(doc.id||'')+'" data-correcteur="'+esc(doc.correcteur_id||'')+'" data-titre="'+esc(doc.titre||'')+'">'
+    +'<i class="ti ti-message-circle"></i><span class="sr-remarque-corps"><strong class="sr-remarque-qui">Remarque du SR :</strong> '+esc(doc.note_interne||'')
+    +'<span class="sr-remarque-contact"></span></span></div>';
+}
+function _srRemarqueQui(articleId, correcteurId){
+  if(_srRemarqueCache[articleId]) return _srRemarqueCache[articleId];
+  var h = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
+  var lire = function(url){ return fetch(SB_URL+url, { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }); };
+  _srRemarqueCache[articleId] = lire('/rest/v1/historique?article_id=eq.'+encodeURIComponent(articleId)+'&action=eq.renvoi_auteur&select=membre_id,auteur&order=created_at.desc&limit=1')
+    .then(function(rows){
+      var id = (rows[0] && rows[0].membre_id) || correcteurId || null;
+      if(!id) return rows[0] ? { nom:rows[0].auteur } : null;
+      var connu = (window._membresData || []).find(function(m){ return m.id === id; });
+      if(connu && connu.email) return connu;
+      return lire('/rest/v1/membres?id=eq.'+encodeURIComponent(id)+'&select=id,prenom,nom,email').then(function(m){ return m[0] || (rows[0] ? { nom:rows[0].auteur } : null); });
+    });
+  return _srRemarqueCache[articleId];
+}
+function osRemarqueSRCompleter(){
+  document.querySelectorAll('.sr-remarque[data-art]:not([data-fait])').forEach(function(el){
+    el.setAttribute('data-fait', '1');
+    var art = el.getAttribute('data-art'); if(!art) return;
+    _srRemarqueQui(art, el.getAttribute('data-correcteur')).then(function(m){
+      if(!m) return;
+      var nom = m.prenom ? (m.prenom+' '+(m.nom||'')).trim() : (m.nom || '');
+      if(!nom) return;
+      var qui = el.querySelector('.sr-remarque-qui');
+      if(qui) qui.textContent = 'Remarque de '+nom+' (SR) :';
+      var contact = el.querySelector('.sr-remarque-contact');
+      if(contact && m.email && m.id !== getUserId()){
+        var sujet = 'À propos de « '+(el.getAttribute('data-titre') || 'mon article')+' »';
+        contact.innerHTML = '<a class="sr-ecrire" href="mailto:'+esc(m.email)+'?subject='+encodeURIComponent(sujet)+'"><i class="ti ti-mail"></i>Écrire à '+esc(m.prenom || nom)+'</a>';
+      }
+    });
+  });
+}

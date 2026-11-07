@@ -7591,3 +7591,11 @@ div.adm-kpi { cursor: default; }
 @keyframes os-login-tourne { to { transform: rotate(360deg); } }
 html.connexion-en-cours .os-login-attente { display: flex; }
 html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-error { display: none !important; }
+
+/* Remarque du SR : qui l'a écrite et un bouton pour lui écrire (js/01 osRemarqueSRHtml) */
+.sr-remarque-corps { white-space: pre-line; }
+.sr-remarque-contact { display: block; white-space: normal; }
+.sr-ecrire { display: inline-flex; align-items: center; gap: 5px; margin-top: 7px; padding: 4px 11px; border-radius: 999px; background: #fff; border: 1px solid #FCA5A5; color: #991B1B; font-weight: 600; font-size: 0.74rem; text-decoration: none; }
+.sr-ecrire:hover { background: #991B1B; color: #fff; border-color: #991B1B; }
+.sr-remarque-contact-mobile { display: block; margin-top: 6px; font-size: 0.78rem; color: #991B1B; }
+.sr-remarque-contact-mobile .sr-remarque-qui { font-weight: 700; }

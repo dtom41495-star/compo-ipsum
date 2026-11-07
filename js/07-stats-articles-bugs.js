@@ -1647,7 +1647,7 @@ function maOsMakeCard(doc, uid, role){
   actions += '<button class="mac-btn" data-id="'+doc.id+'" onclick="mesArticlesOuvrir(this.dataset.id,\'lecture\')"><i class="ti ti-eye"></i>Lire</button>';
 
   card.innerHTML =
-    (estRefuse && doc.note_interne ? '<div class="mac-note"><i class="ti ti-message-circle"></i><span>'+esc(doc.note_interne)+'</span></div>' : '')
+    (estRefuse && doc.note_interne ? osRemarqueSRHtml(doc) : '')
     +'<div class="mac-haut"><span class="mac-statut" style="color:'+st[1]+';background:'+st[2]+';"'+(st[3]?' title="'+esc(st[3])+'"':'')+'>'+st[0]+'</span>'
     +(surtitre.length ? '<span class="mac-surtitre">'+surtitre.join(' · ')+'</span>' : '')
     +'<span class="mac-date'+(enRetard?' mac-retard':'')+'"'+(enRetard?' title="Pas bougé depuis '+jours+' jours"':'')+'>'+dateTxt+'</span></div>'
