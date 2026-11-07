@@ -1908,7 +1908,9 @@ function osLancer(){
   if(typeof osEcranLienEnAttente === 'function') setTimeout(osEcranLienEnAttente, 1500);
 
   setTimeout(function(){
-    benvMajDerniereConnexion();
+    // Défini dans un fichier chargé plus loin (js/11) : sur une connexion lente ou coupée, il peut manquer, et
+    // l'erreur arrêtait tout le reste de ce démarrage (sujets, notifications, file hors ligne…)
+    if(typeof benvMajDerniereConnexion === 'function') try{ benvMajDerniereConnexion(); }catch(e){}
     osChargerNotifsDemarrage();
     osInitSujets();
     osVerifierPremiereLancement();
