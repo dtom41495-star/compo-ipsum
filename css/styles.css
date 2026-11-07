@@ -7543,3 +7543,7 @@ div.adm-kpi { cursor: default; }
   .nf-item { padding: 11px 10px 11px 12px; }
   .nf-act { display: none; }
 }
+
+/* Un seul lien orange dans le panneau : « Tout marquer comme lu » ; les réglages restent discrets */
+.atr-pied .atr-lien { color: rgba(255,255,255,.55); font-weight: 500; }
+.atr-pied .atr-lien:hover { color: #fff; }
