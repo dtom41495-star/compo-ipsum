@@ -354,6 +354,8 @@ function chargerDepuisURL(){
   if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
 
   if(articleId) osOuvrirArticleParId(articleId);
+  // ?cps=brouillons : lien du mail « Des communiqués attendent ta validation »
+  if(params.get('cps') === 'brouillons' && getUserRole() === 'admin' && typeof osCpsOuvrirBrouillons === 'function') setTimeout(osCpsOuvrirBrouillons, 800);
 
   if(communiqueId){
     db.getCommunique(communiqueId).then(function(cp){
