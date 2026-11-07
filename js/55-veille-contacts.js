@@ -35,10 +35,15 @@ function _vcAliasDe(c){
 function osVeilleContactsCharger(){
   if(_veilleContacts.charge && Date.now() - _veilleContacts.quand < 600000) return Promise.resolve();
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
-  return fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation,poste,email,telephone,categorie&order=nom.asc', { headers:authH })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
+  // Coordonnées : seulement celles qu'on a le droit de voir (osContactsCoordonnees, js/12)
+  return Promise.all([
+    fetch(SB_URL+'/rest/v1/contacts_sources?select=id,nom,organisation,poste,categorie&order=nom.asc', { headers:authH }).then(function(r){ return r.json(); }),
+    typeof osContactsCoordonnees === 'function' ? osContactsCoordonnees(null) : Promise.resolve({})
+  ])
+    .then(function(res){
+      var d = res[0];
       if(!Array.isArray(d)) return;
+      d.forEach(function(c){ if(typeof osContactFusionnerCoordonnees === 'function') osContactFusionnerCoordonnees(c, res[1][c.id]); });
       _veilleContacts.liste = d;
       _veilleContacts.alias = [];
       d.forEach(function(c){ _vcAliasDe(c).forEach(function(a){ _veilleContacts.alias.push({ alias:a, contact:c }); }); });
@@ -119,7 +124,7 @@ function osVeilleContactsOuvrir(a){
         +(c.telephone ? '<a class="vc-btn" href="tel:'+esc(String(c.telephone).replace(/\s+/g, ''))+'"><i class="ti ti-phone"></i> Appeler</a>' : '')
         +(c.email ? '<a class="vc-btn" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i> Écrire</a>' : '')
         +'<button type="button" class="vc-btn" data-action="fiche" data-id="'+esc(c.id)+'"><i class="ti ti-address-book"></i> Fiche</button>'
-        +(!c.telephone && !c.email ? '<span class="vc-aucun">pas de coordonnées</span>' : '')
+        +(!c.telephone && !c.email ? '<span class="vc-aucun">'+(c._aCoord ? 'coordonnées réservées' : 'pas de coordonnées')+'</span>' : '')
         +'</div></div>';
     });
   });

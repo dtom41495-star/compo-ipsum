@@ -497,8 +497,13 @@ function _cpInvitPrevenirGestionnaires(cp, cas, dispos){
 function _cpInvitNotifierMembre(cp, membreId, cas, retenusIds){
   // Coordonnées de la source : seulement pour la personne retenue
   var pContact = (cas === 'retenu' && cp.contact_id)
-    ? fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,poste,organisation,email,telephone',{headers:_cpInvitH()})
-        .then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d[0] : null; }).catch(function(){ return null; })
+    ? Promise.all([
+        fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,poste,organisation',{headers:_cpInvitH()}).then(function(r){ return r.json(); }),
+        typeof osContactsCoordonnees === 'function' ? osContactsCoordonnees([cp.contact_id]) : Promise.resolve({})
+      ]).then(function(res){
+        var c = Array.isArray(res[0]) ? res[0][0] : null;
+        return c ? osContactFusionnerCoordonnees(c, res[1][cp.contact_id]) : null;
+      }).catch(function(){ return null; })
     : Promise.resolve(null);
   Promise.all([_cpInvitChargerMembres([membreId].concat(retenusIds||[])), pContact]).then(function(res){
     var membres = res[0], contact = res[1];
@@ -1870,7 +1875,13 @@ function osCpFenetreRender(winId){
     var pChoisi = !estInvit ? Promise.resolve(false) :
       _cpInvitChargerDispos(cp.id).then(function(ds){ return (ds||[]).some(function(d){ return d.membre_id === uid && d.statut === 'selectionne'; }); }).catch(function(){ return false; });
     Promise.all([
-      fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,organisation,poste,email,telephone',{headers:authH}).then(function(r){return r.json();}),
+      Promise.all([
+        fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(cp.contact_id)+'&select=nom,organisation,poste',{headers:authH}).then(function(r){return r.json();}),
+        typeof osContactsCoordonnees === 'function' ? osContactsCoordonnees([cp.contact_id]) : Promise.resolve({})
+      ]).then(function(res){
+        var c = Array.isArray(res[0]) ? res[0][0] : null;
+        return c ? [osContactFusionnerCoordonnees(c, res[1][cp.contact_id])] : [];
+      }),
       fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid+'&contact_id=eq.'+encodeURIComponent(cp.contact_id)+'&select=contact_id',{headers:authH}).then(function(r){return r.json();}),
       pChoisi
     ]).then(function(results){
@@ -1884,7 +1895,7 @@ function osCpFenetreRender(winId){
       if(voitCoordonnees){
         if(c.email) lignes += '<a class="cpf-coord" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i>'+esc(c.email)+'</a>';
         if(c.telephone) lignes += '<a class="cpf-coord" href="tel:'+esc(String(c.telephone).replace(/\s/g,''))+'"><i class="ti ti-phone"></i>'+esc(c.telephone)+'</a>';
-      } else if(estInvit && (c.email || c.telephone)){
+      } else if(estInvit && (c.email || c.telephone || c._aCoord)){
         lignes += '<div class="cpf-petit"><i class="ti ti-lock"></i> Coordonnées visibles une fois choisi·e pour couvrir l\'invitation</div>';
       }
       el.innerHTML = '<div class="cpf-label">Source</div>'
