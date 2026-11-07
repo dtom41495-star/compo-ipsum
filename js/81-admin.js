@@ -234,7 +234,7 @@ function _admFicheHTML(){
   var fn = fonctionArray(m.fonction);
   var depuis = m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR', { month:'long', year:'numeric' }) : '';
   var h = '<div class="adm-fiche">'
-    +'<button type="button" class="adm-retour" onclick="osAdmFermerFiche()"><i class="ti ti-arrow-left"></i>Tous les membres</button>'
+    +'<button type="button" class="adm-retour" data-retour onclick="osAdmFermerFiche()"><i class="ti ti-arrow-left"></i>Tous les membres</button>'
     +'<div class="adm-f-tete"><span class="adm-av adm-av-l">'+renderAvatarHTML(m, 56, {})+'</span><div class="adm-f-id"><h2>'+esc(_admNom(m))+(susp ? ' <span class="adm-pill adm-r-susp">Suspendu</span>' : '')+'</h2>'
     +'<small>'+esc(m.email || 'sans email')+(depuis ? ' · membre depuis '+esc(depuis) : '')+' · '+(m.derniere_connexion ? 'connecté·e '+_admDepuis(m.derniere_connexion) : 'jamais connecté·e')+'</small></div>'
     +'<div class="adm-f-actions">'

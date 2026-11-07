@@ -186,7 +186,7 @@ function _seEtapeScan(){
     +'<p class="se-aide se-centre">Place le QR code de ta carte dans le cadre.</p>'
     +'<div class="se-actions">'
     +'<label class="se-btn-secondaire"><i class="ti ti-photo"></i> Utiliser une photo de ma carte<input type="file" accept="image/*" id="se-photo" hidden></label>'
-    +'<button class="se-btn-lien" onclick="_seEtapeChoix()"><i class="ti ti-arrow-left"></i> Retour</button>'
+    +'<button class="se-btn-lien" data-retour onclick="_seEtapeChoix()"><i class="ti ti-arrow-left"></i> Retour</button>'
     +'</div>'
   );
   document.getElementById('se-photo').addEventListener('change', function(){
@@ -272,7 +272,7 @@ function _seEtapeCode(canal, erreur){
     +'<div class="se-actions">'
     +'<button class="se-btn-principal" onclick="_seValiderCode()"><i class="ti ti-circle-check"></i> Signer</button>'
     +'<button class="se-btn-lien" onclick="_seDemanderCode()"><i class="ti ti-refresh"></i> Renvoyer un code</button>'
-    +'<button class="se-btn-lien" onclick="_seEtapeChoix()"><i class="ti ti-arrow-left"></i> Retour</button>'
+    +'<button class="se-btn-lien" data-retour onclick="_seEtapeChoix()"><i class="ti ti-arrow-left"></i> Retour</button>'
     +'</div>'
   );
   var inp = document.getElementById('se-code');

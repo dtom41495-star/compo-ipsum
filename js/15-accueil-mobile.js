@@ -373,10 +373,14 @@ function _accueilPreparerFenetre(win){
     btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+(ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil');
     btn.addEventListener('click', function(e){
       e.stopPropagation();
+      // Dans une sous-page (fiche d'un événement, d'un membre…) : on remonte d'un cran, pas à l'accueil
+      var interne = _accBoutonRetourInterne(win);
+      if(interne){ interne.click(); return; }
       _accueilRetourDepuis(pageId, win);
       if(history.state && history.state.compoFenetre){ _accIgnorerRetour = true; history.back(); }
     });
     barre.insertBefore(btn, barre.firstChild);
+    btn.dataset.libelle = ACCUEIL_RETOUR_VERS[win.dataset.accRetour] || 'Accueil';
   }
   // Pas d'emoji dans les titres des applis sur téléphone
   var titreFen = win.querySelector('.os-titlebar-title');
@@ -387,9 +391,64 @@ function _accueilPreparerFenetre(win){
   _accSansHistorique = false;
   if(pageId === 'redactions' && osEstMobile()) setTimeout(_accueilPreparerMaRedac, 0);
 }
+// ---- Revenir d'un cran à l'intérieur d'une appli ----
+// Une sous-page (fiche d'un événement, formulaire, fiche d'un membre…) a son propre bouton retour, marqué
+// data-retour. Le bouton du haut et le retour du téléphone s'en servent avant de fermer l'appli : depuis la
+// fiche d'un événement, on revient à l'agenda, pas à l'accueil. Une fenêtre posée par-dessus (dialogue,
+// liste des événements d'un jour, notifications) se referme d'abord.
+function _accVisible(el){ return !!(el && el.isConnected && el.getClientRects().length); }
+function _accBoutonRetourInterne(racine){
+  if(!racine) return null;
+  var bs = racine.querySelectorAll('[data-retour]');
+  for(var i = bs.length - 1; i >= 0; i--){ if(_accVisible(bs[i]) && !bs[i].disabled) return bs[i]; }
+  return null;
+}
+function _accVoileHaut(){
+  var vs = document.querySelectorAll('.se-overlay, .acc-menu-voile, [data-voile]');
+  for(var i = vs.length - 1; i >= 0; i--){ if(_accVisible(vs[i])) return vs[i]; }
+  return null;
+}
+function _accRetourUnNiveau(){
+  if(window._atr && _atr.ouvert && typeof _atrFermerPanneau === 'function'){ _atrFermerPanneau(); return true; }
+  var voile = _accVoileHaut();
+  if(voile){
+    var etape = _accBoutonRetourInterne(voile);
+    if(etape){ etape.click(); return true; }
+    var fermer = voile.querySelector('.se-fermer, [data-fermer], .acc-installer-fermer');
+    if(fermer && _accVisible(fermer)) fermer.click();
+    else if(voile.hasAttribute('data-voile') || voile.classList.contains('acc-menu-voile')) voile.remove();
+    else voile.click();   // la plupart des dialogues se ferment en touchant à côté
+    return true;
+  }
+  var ouvertes = Object.keys(window._windows||{});
+  if(!ouvertes.length) return false;
+  var interne = _accBoutonRetourInterne(document.getElementById('win-'+ouvertes[ouvertes.length-1]));
+  if(interne){ interne.click(); return true; }
+  return false;
+}
+// Le bouton du haut dit où il ramène : « Agenda » depuis la fiche d'un événement, « Accueil » sinon
+function _accMajBoutonsRetour(){
+  if(!osEstMobile()) return;
+  document.querySelectorAll('#os-workspace > .os-window').forEach(function(win){
+    var btn = win.querySelector('.acc-btn-accueil'); if(!btn) return;
+    var interne = _accBoutonRetourInterne(win);
+    var libelle = interne ? (interne.textContent || '').trim() : (btn.dataset.libelle || 'Accueil');
+    if(!libelle || libelle.length > 22) libelle = 'Retour';
+    if(btn.dataset.affiche !== libelle){ btn.dataset.affiche = libelle; btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+esc(libelle); }
+  });
+}
+// Chaque geste dans une appli garde une entrée d'historique d'avance : le retour du téléphone a toujours
+// quelque chose à « dépiler » sans quitter Compo (une entrée créée sans geste peut être sautée par le navigateur)
+document.addEventListener('click', function(){
+  if(!osEstMobile() || !Object.keys(window._windows||{}).length) return;
+  if(history.state && history.state.compoPas) return;
+  try{ history.pushState({compoPas:true}, ''); }catch(e){}
+}, true);
+
 window.addEventListener('popstate', function(){
   if(_accIgnorerRetour){ _accIgnorerRetour = false; return; }
   if(!osEstMobile()) return;
+  if(_accRetourUnNiveau()) return;
   var ouvertes = Object.keys(window._windows||{});
   if(!ouvertes.length) return;
   var id = ouvertes[ouvertes.length-1];
@@ -442,6 +501,7 @@ function osPanneauMobileOuvrir(panneau, libelleRetour){
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'panneau-mobile-retour';
+  btn.setAttribute('data-retour', '');
   btn.innerHTML = '<i class="ti ti-chevron-left"></i>'+esc(libelleRetour || 'Retour');
   btn.addEventListener('click', function(){ panneau.classList.remove('panneau-mobile-ouvert'); });
   panneau.insertBefore(btn, panneau.firstChild);
@@ -485,6 +545,7 @@ function _accueilAgrandirTexte(racine){
       prevu = false;
       var lot = enAttente; enAttente = [];
       lot.forEach(function(n){ if(n.isConnected) _accueilAgrandirTexte(n); });
+      _accMajBoutonsRetour();
     });
   });
   function brancher(){
