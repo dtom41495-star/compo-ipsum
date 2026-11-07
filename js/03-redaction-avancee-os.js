@@ -412,10 +412,57 @@ function _rPlacerCurseurDans(el){
   sel.removeAllRanges();
   sel.addRange(range);
 }
+// Un « paragraphe » peut contenir plusieurs lignes séparées par de simples retours à la ligne (texte collé, ou tapé
+// avec Maj+Entrée) — parfois tout l'article. Citation ou intertitre ne doivent prendre que la ligne du curseur (ou les
+// lignes sélectionnées) : le bloc est coupé en trois (avant / lignes visées / après). Renvoie l'élément créé, ou null
+// si le bloc n'a qu'une ligne (traitement habituel).
+function _rLigneDuNoeud(bloc, lignes, node, offset){
+  if(node === bloc){ var enfant = bloc.childNodes[Math.min(offset, bloc.childNodes.length - 1)]; node = enfant || bloc.lastChild; }
+  while(node && node.parentNode !== bloc) node = node.parentNode;
+  for(var i = 0; i < lignes.length; i++){ if(lignes[i].indexOf(node) !== -1) return i; }
+  return node && node.nodeName === 'BR' ? Math.max(0, lignes.findIndex(function(l){ return l.br === node; })) : -1;
+}
+function _rDecouperLignes(bloc, tag, live){
+  var lignes = [[]];
+  Array.prototype.slice.call(bloc.childNodes).forEach(function(n){
+    if(n.nodeName === 'BR'){ lignes[lignes.length - 1].br = n; lignes.push([]); }
+    else lignes[lignes.length - 1].push(n);
+  });
+  var pleine = function(l){ return l.some(function(n){ return (n.textContent || '').replace(/\u200B/g, '').trim() !== '' || n.nodeName === 'IMG'; }); };
+  if(lignes.filter(pleine).length < 2) return null;
+  var sel = window.getSelection(); if(!sel.rangeCount) return null;
+  var r = sel.getRangeAt(0);
+  var debut = _rLigneDuNoeud(bloc, lignes, r.startContainer, r.startOffset);
+  var fin = _rLigneDuNoeud(bloc, lignes, r.endContainer, r.endOffset);
+  if(debut < 0) return null;
+  if(fin < debut) fin = debut;
+  var faire = function(t, groupe){
+    var el = document.createElement(t);
+    groupe.forEach(function(l, i){
+      if(i > 0) el.appendChild(document.createElement('BR'));
+      l.forEach(function(n){ el.appendChild(n); });
+    });
+    return el;
+  };
+  var avant = lignes.slice(0, debut).filter(pleine), vise = lignes.slice(debut, fin + 1), apres = lignes.slice(fin + 1).filter(pleine);
+  var cible = faire(tag, vise);
+  if(!cible.firstChild) cible.innerHTML = '<br>';
+  var ref = bloc.nextSibling;
+  live.removeChild(bloc);
+  if(avant.length) live.insertBefore(faire('P', avant), ref);
+  live.insertBefore(cible, ref);
+  if(apres.length) live.insertBefore(faire('P', apres), ref);
+  return cible;
+}
 function _rSetBlockType(tag){
   var bloc = _rBlocCourant();
   var live = document.getElementById('r-corps-live');
   if(!bloc || !live) return;
+  // Paragraphe de plusieurs lignes : seule la ligne visée change (voir _rDecouperLignes)
+  if(bloc.tagName !== tag && tag !== 'P' && (bloc.tagName === 'P' || bloc.tagName === 'DIV') && bloc.querySelector('br')){
+    var cible = _rDecouperLignes(bloc, tag, live);
+    if(cible){ _rPlacerCurseurDans(cible); _rCorpsSync(); return; }
+  }
   // Même bouton une seconde fois : on retire la mise en forme (citation, titre) et le bloc redevient un paragraphe
   if(bloc.tagName === tag) tag = 'P';
   var neuf = document.createElement(tag);
