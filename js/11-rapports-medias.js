@@ -706,6 +706,19 @@ function _benvAppliquerFiltres(){
   });
 }
 
+// Solde de plumes d'un membre dans sa fiche (vie asso, admin)
+function _benvChargerPlumes(membreId){
+  var el = document.getElementById('benv-plumes-'+membreId); if(!el) return;
+  fetch(SB_URL+'/rest/v1/plumes_soldes?membre_id=eq.'+encodeURIComponent(membreId)+'&select=solde', { headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') }) })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(rows){
+      var el2 = document.getElementById('benv-plumes-'+membreId); if(!el2) return;
+      if(!Array.isArray(rows)){ el2.remove(); return; }
+      var n = rows[0] ? rows[0].solde : 0;
+      el2.querySelector('span').innerHTML = '<strong>'+n+'</strong> plume'+(n > 1 ? 's' : '')+' en réserve';
+    }).catch(function(){ var e = document.getElementById('benv-plumes-'+membreId); if(e) e.remove(); });
+}
+
 function osBenevolesOuvrirFiche(membreId){
   var data = window._benvData;
   if(!data) return;
@@ -728,6 +741,7 @@ function osBenevolesOuvrirFiche(membreId){
   var rc = ROLE_COLORS[m.role] || ROLE_COLOR_DEFAUT;
 
   var html = '';
+  setTimeout(function(){ _benvChargerPlumes(m.id); }, 0);
 
   // Header
   html += '<div style="background:var(--encre-fixe);padding:1.3rem 1.5rem;display:flex;align-items:center;gap:1rem;">';
@@ -774,6 +788,8 @@ function osBenevolesOuvrirFiche(membreId){
     html += '<div style="font-size:0.78rem;color:'+(s.joursBreve!==null&&s.joursBreve>7?'#A32D2D':'var(--encre)')+';margin-bottom:2px;">Dernière brève : '+breveTxt+'</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursArticle!==null&&s.joursArticle>30?'#A32D2D':'var(--encre)')+';margin-bottom:6px;">Dernier article : '+articleTxt+'</div>';
     html += (typeof osRegulariteFicheHtml === 'function' ? osRegulariteFicheHtml(s) : '');
+    // Solde de plumes (rempli juste après : lu dans plumes_soldes, réservé admin et vie asso)
+    html += '<div class="benv-plumes" id="benv-plumes-'+esc(m.id)+'"><i class="ti ti-feather"></i><span>Plumes : …</span></div>';
     html += m.dnd
       ? '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;background:#FCEBEB;color:#A32D2D;">Indisponible</span>'
       : '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;background:#EAF3DE;color:#27500A;">Disponible</span>';
