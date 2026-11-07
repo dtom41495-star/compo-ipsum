@@ -2526,6 +2526,40 @@ function _carnetActiviteTexte(c){
 }
 var _carnetRecherche = '';
 var _carnetContacts = [];
+
+// ---- Coordonnées protégées ----
+// L'annuaire (nom, organisation, poste, catégorie, fiabilité) est lisible par tous les membres. Email, téléphone
+// et notes internes passent par la fonction contacts_coordonnees, qui ne les remplit que si on a l'accès complet :
+// admin, relations partenaires, rédac chef, créateur·rice de la fiche, sujet réservé lié à cette source,
+// ou retenu·e sur une de ses invitations presse. La base refuse de les lire directement.
+var CARNET_COLONNES = 'id,nom,organisation,poste,categorie,fiabilite,cree_par,created_at,updated_at,publication_auto';
+function osContactsCoordonnees(ids){
+  var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || ''), 'Content-Type':'application/json' });
+  var parId = function(rows, tousAcces){
+    var m = {};
+    (Array.isArray(rows) ? rows : []).forEach(function(r){
+      m[r.id] = { acces: tousAcces || !!r.acces, email:r.email || null, telephone:r.telephone || null, notes:r.notes || null,
+        aCoord: tousAcces ? !!(r.email || r.telephone) : !!(r.a_email || r.a_telephone) };
+    });
+    return m;
+  };
+  return fetch(SB_URL+'/rest/v1/rpc/contacts_coordonnees', { method:'POST', headers:authH, body:JSON.stringify({ p_ids: ids && ids.length ? ids : null }) })
+    .then(function(r){ if(!r.ok) throw new Error('rpc '+r.status); return r.json(); })
+    .then(function(rows){ return parId(rows, false); })
+    .catch(function(){
+      // Base pas encore à jour (fonction absente) : l'ancienne lecture directe
+      var url = SB_URL+'/rest/v1/contacts_sources?select=id,email,telephone,notes'+(ids && ids.length ? '&id=in.('+ids.map(encodeURIComponent).join(',')+')' : '');
+      return fetch(url, { headers:authH }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){ return parId(rows, true); }).catch(function(){ return {}; });
+    });
+}
+function osContactFusionnerCoordonnees(c, co){
+  co = co || {};
+  c.email = co.email || null; c.telephone = co.telephone || null; c.notes = co.notes || null;
+  c._acces = !!co.acces; c._aCoord = !!co.aCoord;
+  return c;
+}
+// Qui tient le carnet : modifier et supprimer toutes les fiches (sinon, seulement les siennes)
+function _carnetGestionnaire(){ return getUserRole() === 'admin' || (typeof getUserHasFonction === 'function' && getUserHasFonction('relations_partenaires')); }
 var _carnetEditId = null;
 
 function osCarnetRender(){
@@ -2537,9 +2571,13 @@ function osCarnetRender(){
   // Chargé·e des relations partenaires : on arrive directement sur « À relancer » (une fois, ensuite on garde son choix)
   if(!_carnetFiltreChoisi && typeof getUserHasFonction === 'function' && getUserHasFonction('relations_partenaires')) _carnetFiltreCategorie = CARNET_RELANCER;
   _carnetChargerActivite(authH);
-  fetch(SB_URL+'/rest/v1/contacts_sources?select=*&order=nom.asc', { headers:authH })
-  .then(function(r){ return r.json(); })
-  .then(function(contacts){
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/contacts_sources?select='+CARNET_COLONNES+'&order=nom.asc', { headers:authH }).then(function(r){ return r.json(); }),
+    osContactsCoordonnees(null)
+  ])
+  .then(function(res){
+    var contacts = res[0], coords = res[1];
+    if(Array.isArray(contacts)) contacts.forEach(function(c){ osContactFusionnerCoordonnees(c, coords[c.id]); });
     if(!contacts || contacts.code){
       wc.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--rouge);font-size:0.85rem;">Erreur de chargement'+(contacts&&contacts.message?' : '+esc(contacts.message):'')+'.</div>';
       return;
@@ -2679,6 +2717,7 @@ function _rafraichirListeCarnet(){
       +'<div class="cx-ligne-droite">'
       +'<span class="cx-pastille" style="background:'+col.bg+';color:'+col.c+';">'+esc(c.categorie||'Autre')+'</span>'
       +(c.publication_auto ? '<i class="ti ti-bolt" style="color:var(--rouge);font-size:0.9rem;" title="Publication automatique des communiqués"></i>' : '')
+      +(!c._acces ? '<i class="ti ti-lock cx-verrou" title="Coordonnées réservées"></i>' : '')
       +'<span class="cx-fiab cx-fiab-'+fid+'" title="Fiabilité : '+CARNET_FIABILITE[fid]+'"></span>'
       +'</div></div>';
   });
@@ -2697,9 +2736,9 @@ function osCarnetOuvrirFiche(id){
   });
 
   var col = CARNET_CAT_COLORS[c.categorie] || CARNET_CAT_COLORS['Autre'];
-  var peutSupprimer = getUserRole() === 'admin' || (getUserId() && c.cree_par === getUserId());
-  // La personne chargée des relations partenaires tient le carnet à jour : elle modifie toutes les fiches (pas de suppression)
-  var peutModifier = peutSupprimer || getUserHasFonction('relations_partenaires');
+  // Admin et relations partenaires tiennent le carnet : ils modifient et suppriment toutes les fiches ; les autres, les leurs
+  var peutSupprimer = _carnetGestionnaire() || !!(getUserId() && c.cree_par === getUserId());
+  var peutModifier = peutSupprimer;
   var cid = esc(c.id);
 
   var html = '<div class="cx-fiche-contenu" data-fiche-id="'+cid+'">';
@@ -2713,7 +2752,7 @@ function osCarnetOuvrirFiche(id){
   html += '<div class="cx-fiche-actions">';
   if(c.email) html += '<a class="mac-btn" href="mailto:'+esc(c.email)+'"><i class="ti ti-mail"></i>Écrire</a>';
   if(c.telephone) html += '<a class="mac-btn" href="tel:'+esc(c.telephone.replace(/\s+/g,''))+'"><i class="ti ti-phone"></i>Appeler</a>';
-  html += '<button class="mac-btn" data-id="'+cid+'" onclick="osCarnetNouvelEchange(this.dataset.id)"><i class="ti ti-message-plus"></i>Noter un échange</button>';
+  if(c._acces) html += '<button class="mac-btn" data-id="'+cid+'" onclick="osCarnetNouvelEchange(this.dataset.id)"><i class="ti ti-message-plus"></i>Noter un échange</button>';
   if(peutModifier){
     html += '<button class="mac-btn cpc-icone" data-id="'+cid+'" onclick="osCarnetEditerDepuisFiche(this.dataset.id)" title="Modifier" aria-label="Modifier"><i class="ti ti-edit"></i></button>'
       +(peutSupprimer ? '<button class="mac-btn mac-btn-refus cpc-icone" data-id="'+cid+'" onclick="osCarnetSupprimer(this.dataset.id)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>' : '');
@@ -2727,12 +2766,19 @@ function osCarnetOuvrirFiche(id){
       +'</div>';
   }
 
+  if(!c._acces){
+    html += '<div class="cx-reserve"><i class="ti ti-lock"></i><div><strong>Coordonnées réservées</strong>'
+      +'Le mail, le téléphone et les échanges s\'affichent quand tu as réservé un sujet lié à cette source, ou quand tu es retenu·e pour couvrir une de ses invitations presse.</div></div>';
+  }
+
   if(c.notes){
     html += '<div class="cx-section">Notes internes</div><div class="cx-notes">'+esc(c.notes)+'</div>';
   }
 
-  html += '<div class="cx-section">Échanges</div>';
-  html += '<div id="carnet-historique-'+cid+'" class="cx-historique"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
+  if(c._acces){
+    html += '<div class="cx-section">Échanges</div>';
+    html += '<div id="carnet-historique-'+cid+'" class="cx-historique"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
+  }
   html += '<div class="cx-section">Communiqués liés</div>';
   html += '<div id="carnet-cps-'+cid+'"><div class="cx-chargement"><i class="ti ti-loader-2 se-tourne"></i></div></div>';
   html += '</div>';
@@ -2741,7 +2787,7 @@ function osCarnetOuvrirFiche(id){
   card.scrollTop = 0;
   osPanneauMobileOuvrir(card, 'Retour aux contacts');
 
-  osCarnetChargerHistorique(c.id);
+  if(c._acces) osCarnetChargerHistorique(c.id);
   osCarnetChargerCPs(c.id);
 }
 
@@ -2948,13 +2994,17 @@ function osCarnetSauver(){
     method: method,
     headers: Object.assign({}, SB_HEADERS, {
       'Authorization':'Bearer '+(_session&&_session.access_token||''),
-      'Prefer':'return=representation'
+      'Prefer':'return=minimal'
     }),
     body: JSON.stringify(payload)
-  }).then(function(r){ return r.json(); })
-  .then(function(data){
-    var contact = Array.isArray(data) ? data[0] : data;
-    if(contact && contact.code){ notif('Erreur : '+(contact.message||contact.code)); return; }
+  }).then(function(r){
+    // Pas de « return=representation » : la base ne renvoie plus email et téléphone ; on garde ce qu'on a envoyé
+    if(r.ok) return null;
+    return r.json().catch(function(){ return { code:r.status }; });
+  })
+  .then(function(err){
+    if(err){ notif('Erreur : '+(err.message||err.code)); return; }
+    var contact = Object.assign({}, payload, { _acces:true, _aCoord:!!(payload.email || payload.telephone) });
 
     notif(isNew ? 'Contact créé' : 'Contact mis à jour','succes');
     var idEdite = _carnetEditId;
@@ -2996,6 +3046,6 @@ function osCarnetSupprimer(id){
       if(panel){ panel.innerHTML = _carnetFicheVide(); panel.classList.remove('panneau-mobile-ouvert'); }
       _carnetContacts = _carnetContacts.filter(function(c){ return c.id !== id; });
       _rafraichirListeCarnet();
-    }
+    } else notif('Suppression refusée', 'erreur');
   }).catch(function(){ notif('Erreur suppression'); });
 }
