@@ -78,9 +78,19 @@ function _accueilApps(){
 }
 
 function _accueilOuvrir(id){
+  // La tuile Communiqués repart de la liste complète si la carte « invitations » avait posé son filtre
+  if(id === 'redac:cps' && window._cpsFiltreParCarte){ window._cpsFiltreParCarte = false; window._cpsFiltreActif = 'tous'; }
   if(id.indexOf('redac:') === 0){ osOuvrirMaRedacMobile(id.slice(6)); return; }
-  // Carte « invitations à pourvoir » : les communiqués sont un onglet de Ma rédac'
-  if(id === 'cps-invitations'){ osOuvrirMaRedacMobile('cps'); return; }
+  // Carte « invitations presse à pourvoir » : l'onglet Communiqués de Ma rédac', directement sur le filtre
+  // Invitations (sans recherche ni filtre de date qui en cacheraient)
+  if(id === 'cps-invitations'){
+    window._cpsFiltreActif = 'invitation_presse';
+    window._cpsFiltreDateActif = 'tous';
+    window._cpsRecherche = '';
+    window._cpsFiltreParCarte = true;
+    osOuvrirMaRedacMobile('cps');
+    return;
+  }
   if(id === 'tchat'){ window.open('https://chat.google.com/','_blank'); return; }
   if(id === 'substack'){ osOuvrirSubstack(); return; }
   if(id === 'bugs'){ osOuvrirBugs(); return; }
