@@ -2272,7 +2272,14 @@ function osRemarqueSRCompleter(){
       var contact = el.querySelector('.sr-remarque-contact');
       if(contact && m.email && m.id !== getUserId()){
         var sujet = 'À propos de « '+(el.getAttribute('data-titre') || 'mon article')+' »';
-        contact.innerHTML = '<a class="sr-ecrire" href="mailto:'+esc(m.email)+'?subject='+encodeURIComponent(sujet)+'"><i class="ti ti-mail"></i>Écrire à '+esc(m.prenom || nom)+'</a>';
+        // Sur ordinateur : Gmail dans le navigateur, directement sur le compte @ipsummedia.fr de la personne connectée
+        // (un lien « mailto » ouvrait le logiciel de mail par défaut : Outlook, Mail… ou rien). Sur téléphone : le lien
+        // de mail classique, qui ouvre l'appli Gmail.
+        var moiEmail = (_session && _session.user && _session.user.email) || '';
+        var mobile = typeof osEstMobile === 'function' && osEstMobile();
+        var lien = mobile ? 'mailto:'+m.email+'?subject='+encodeURIComponent(sujet)
+          : 'https://mail.google.com/mail/?'+(moiEmail ? 'authuser='+encodeURIComponent(moiEmail)+'&' : '')+'view=cm&fs=1&to='+encodeURIComponent(m.email)+'&su='+encodeURIComponent(sujet);
+        contact.innerHTML = '<a class="sr-ecrire" href="'+esc(lien)+'"'+(mobile ? '' : ' target="_blank" rel="noopener"')+'><i class="ti ti-mail"></i>Écrire à '+esc(m.prenom || nom)+'</a>';
       }
     });
   });
