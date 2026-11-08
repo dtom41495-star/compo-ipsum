@@ -71,9 +71,11 @@ function osCommuneChampHTML(id, valeur){
 
 // Branche le champ : suggestions pendant la frappe, enregistrement au choix, effacement si vidé.
 // Sans `valeur`, la commune actuelle est relue en base.
-function osCommuneBrancher(id, membreId, valeur, apres){
+// `enregistrer(c)` (facultatif) remplace l'enregistrement sur la fiche membre : sert aux articles.
+function osCommuneBrancher(id, membreId, valeur, apres, enregistrer){
   var champ = document.getElementById(id);
   if(!champ || champ._cmBranche || !membreId) return;
+  var sauver = typeof enregistrer === 'function' ? enregistrer : function(c){ return _communeEnregistrer(membreId, c); };
   champ._cmBranche = true;
   var etat = document.getElementById(id+'-etat');
   var actuelle = valeur && valeur.commune ? osCommuneLibelle(valeur) : '';
@@ -83,7 +85,7 @@ function osCommuneBrancher(id, membreId, valeur, apres){
     etat.style.color = couleur || 'var(--gris)';
     if(txt) setTimeout(function(){ if(etat.textContent === txt) etat.textContent = ''; }, 2500);
   }
-  if(!valeur){
+  if(!valeur && !enregistrer){
     fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(membreId)+'&select='+COMMUNE_COLONNES,
       { headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || '') }) })
       .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
@@ -103,9 +105,9 @@ function osCommuneBrancher(id, membreId, valeur, apres){
     fermer();
     champ.value = osCommuneLibelle(c);
     marquer('Enregistrement…');
-    _communeEnregistrer(membreId, c).then(function(){
+    sauver(c).then(function(){
       actuelle = champ.value;
-      marquer('✓ Enregistrée', '#27AE60');
+      marquer(champ._cmTexteOk || '✓ Enregistrée', '#27AE60');
       if(typeof apres === 'function') apres(c);
     }).catch(function(){ champ.value = actuelle; marquer('Pas enregistrée', '#C0392B'); });
   }
@@ -149,9 +151,11 @@ function osCommuneBrancher(id, membreId, valeur, apres){
       fermer();
       var v = champ.value.trim();
       if(v === actuelle) return;
+      // Commune déjà posée par osCommuneProposer (trouvée dans un formulaire) : rien à défaire
+      if(champ._cmChoix && v === osCommuneLibelle(champ._cmChoix)){ actuelle = v; return; }
       if(!v){
         marquer('Enregistrement…');
-        _communeEnregistrer(membreId, null).then(function(){ actuelle = ''; marquer('Commune retirée'); if(typeof apres === 'function') apres(null); })
+        sauver(null).then(function(){ actuelle = ''; marquer('Commune retirée'); if(typeof apres === 'function') apres(null); })
           .catch(function(){ champ.value = actuelle; marquer('Pas enregistrée', '#C0392B'); });
       } else {
         champ.value = actuelle;
@@ -202,7 +206,7 @@ function osCommunesBlocHTML(id, membres, opts){
   return h+'</div>';
 }
 
-function osCommunesCarteDessiner(id, membres){
+function osCommunesCarteDessiner(id, membres, trous){
   var zone = document.getElementById(id);
   if(!zone) return;
   var groupes = osCommunesRegrouper(membres);
@@ -223,6 +227,11 @@ function osCommunesCarteDessiner(id, membres){
       L.marker([g.lat, g.lng], { icon:icone, title:g.commune }).addTo(carte)
         .bindPopup('<div class="cm-popup"><strong>'+esc(g.commune)+'</strong><br>'+g.membres.map(function(m){ return esc(_communeNom(m)); }).join('<br>')+'</div>');
       points.push([g.lat, g.lng]);
+    });
+    // Zones sans bénévole (Vie asso › Carte) : cercle pointillé de 15 km autour de la commune
+    (trous || []).forEach(function(t){
+      L.circle([t.c.lat, t.c.lng], { radius:TROUS_KM * 1000, color:'#C0392B', weight:1.5, dashArray:'5 5', fillColor:'#C0392B', fillOpacity:0.06 })
+        .addTo(carte).bindPopup('<div class="cm-popup"><strong>'+esc(t.c.commune)+'</strong><br>Aucun·e bénévole à moins de '+TROUS_KM+' km</div>');
     });
     if(points.length === 1) carte.setView(points[0], 10);
     else carte.fitBounds(points, { padding:[30, 30], maxZoom:11 });
@@ -355,3 +364,332 @@ function osBadgeDistance(km){
   b.innerHTML = '<i class="ti ti-map-pin"></i> '+esc(osDistanceTexte(km));
   return b;
 }
+
+// ── Couverture : la carte des articles publiés (commune trouvée par articles-localiser, ou posée à la main) ──
+
+var _couvLieux = null, _couvLieuxT = 0, _couvEtat = {};
+
+function osCouvertureLieux(forcer){
+  if(!forcer && _couvLieux && Date.now() - _couvLieuxT < 300000) return _couvLieux;
+  _couvLieuxT = Date.now();
+  _couvLieux = _communeLire('articles_lieux?select=article_id,commune,commune_code,lat,lng,source').then(function(rows){
+    var m = {}; rows.forEach(function(r){ m[r.article_id] = r; }); return m;
+  });
+  return _couvLieux;
+}
+
+var COUV_PERIODES = [['3m', '3 mois', 92], ['12m', '12 mois', 366], ['tout', 'Tout', 0]];
+
+function _couvDate(a){ return new Date(a.publie_le || a.updated_at || a.created_at || 0); }
+
+// Bloc « Ce qu'on a couvert » dans la zone `idZone`. `articles` : ceux de la rédaction (ou de toutes).
+// opts.corriger : true pour proposer de localiser à la main les articles sans commune.
+function osCouvertureAfficher(idZone, articles, opts){
+  opts = opts || {};
+  var zone = document.getElementById(idZone);
+  if(!zone) return;
+  var etat = _couvEtat[idZone] = _couvEtat[idZone] || { periode:'12m' };
+  var publies = (articles || []).filter(function(a){ return a.statut === 'publie'; });
+  zone.innerHTML = '<div class="cm-vide">Chargement de la carte…</div>';
+  osCouvertureLieux().then(function(lieux){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    var per = COUV_PERIODES.find(function(p){ return p[0] === etat.periode; }) || COUV_PERIODES[1];
+    var depuis = per[2] ? Date.now() - per[2] * 86400000 : 0;
+    var dansPeriode = publies.filter(function(a){ return _couvDate(a).getTime() >= depuis; });
+    var parCle = {}, sans = [];
+    dansPeriode.forEach(function(a){
+      var l = lieux[a.id];
+      if(!l || !l.commune || l.lat == null){ sans.push(a); return; }
+      var k = l.commune_code || l.commune;
+      if(!parCle[k]) parCle[k] = { commune:l.commune, lat:+l.lat, lng:+l.lng, articles:[] };
+      parCle[k].articles.push(a);
+    });
+    var groupes = Object.keys(parCle).map(function(k){ return parCle[k]; })
+      .sort(function(a, b){ return b.articles.length - a.articles.length || a.commune.localeCompare(b.commune, 'fr'); });
+    var idCarte = idZone+'-carte';
+    var h = '<div class="couv-periodes">'+COUV_PERIODES.map(function(p){
+      return '<button type="button" class="couv-periode'+(p[0] === etat.periode ? ' actif' : '')+'" data-periode="'+p[0]+'">'+p[1]+'</button>';
+    }).join('')+'</div>';
+    if(!groupes.length){
+      h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
+    } else {
+      h += '<div class="cm-carte" id="'+esc(idCarte)+'"></div>';
+      h += '<div class="cm-resume">'+(dansPeriode.length - sans.length)+' article'+(dansPeriode.length - sans.length > 1 ? 's' : '')+' dans '+groupes.length+' commune'+(groupes.length > 1 ? 's' : '')
+        +(sans.length ? ' · '+sans.length+' sans lieu précis' : '')+'</div>';
+      h += '<div class="cm-liste">'+groupes.slice(0, 12).map(function(g){
+        return '<div class="cm-ligne"><span class="cm-nb couv-nb">'+g.articles.length+'</span><div><strong>'+esc(g.commune)+'</strong>'
+          +'<small>'+g.articles.slice(0, 3).map(function(a){ return esc(a.titre || 'Sans titre'); }).join(' · ')+(g.articles.length > 3 ? ' …' : '')+'</small></div></div>';
+      }).join('')+'</div>';
+    }
+    if(opts.corriger && sans.length){
+      h += '<details class="couv-sans"><summary>'+sans.length+' article'+(sans.length > 1 ? 's' : '')+' sans lieu : indiquer la commune</summary>'
+        +sans.slice().sort(function(a, b){ return _couvDate(b) - _couvDate(a); }).slice(0, 25).map(function(a){
+          return '<div class="couv-sans-ligne"><span>'+esc(a.titre || 'Sans titre')+'</span>'+osCommuneChampHTML(idZone+'-a-'+a.id, null)+'</div>';
+        }).join('')+'</details>';
+    }
+    z.innerHTML = h;
+    z.querySelectorAll('.couv-periode').forEach(function(b){
+      b.onclick = function(){ etat.periode = b.getAttribute('data-periode'); osCouvertureAfficher(idZone, articles, opts); };
+    });
+    if(opts.corriger) sans.slice(0, 25).forEach(function(a){
+      osCommuneBrancher(idZone+'-a-'+a.id, a.id, null, function(){ osCouvertureLieux(true); }, function(c){
+        return fetch(SB_URL+'/rest/v1/rpc/article_definir_commune', {
+          method:'POST',
+          headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || ''), 'Content-Type':'application/json' }),
+          body:JSON.stringify({ p_article:a.id, p_commune:c ? c.commune : null, p_code:c ? (c.commune_code || null) : null, p_lat:c ? c.commune_lat : null, p_lng:c ? c.commune_lng : null })
+        }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); });
+      });
+    });
+    if(groupes.length) _couvDessiner(idCarte, groupes);
+  });
+}
+
+function _couvDessiner(id, groupes){
+  if(_communeCartes[id]){ try{ _communeCartes[id].remove(); }catch(e){} delete _communeCartes[id]; }
+  var charger = typeof _carteChargerLeaflet === 'function' ? _carteChargerLeaflet() : Promise.reject(new Error('Leaflet absent'));
+  charger.then(function(L){
+    var zone = document.getElementById(id);
+    if(!zone) return;
+    zone.innerHTML = '';
+    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true });
+    L.tileLayer(typeof CARTE_TUILES !== 'undefined' ? CARTE_TUILES : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom:18, attribution:'© <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN – cartes.gouv.fr</a>' }).addTo(carte);
+    var points = [];
+    groupes.forEach(function(g){
+      var n = g.articles.length, taille = Math.min(48, 24 + Math.round(Math.sqrt(n - 1) * 7));
+      var icone = L.divIcon({ className:'cm-pastille-wrap', iconSize:[taille, taille], iconAnchor:[taille/2, taille/2],
+        html:'<span class="cm-pastille couv-pastille" style="width:'+taille+'px;height:'+taille+'px;">'+n+'</span>' });
+      L.marker([g.lat, g.lng], { icon:icone, title:g.commune }).addTo(carte)
+        .bindPopup('<div class="cm-popup"><strong>'+esc(g.commune)+'</strong> · '+n+' article'+(n > 1 ? 's' : '')+'<br>'
+          +g.articles.slice(0, 8).map(function(a){ return '• '+esc(a.titre || 'Sans titre'); }).join('<br>')+(n > 8 ? '<br>…' : '')+'</div>');
+      points.push([g.lat, g.lng]);
+    });
+    if(points.length === 1) carte.setView(points[0], 10); else carte.fitBounds(points, { padding:[30, 30], maxZoom:11 });
+    _communeCartes[id] = carte;
+    setTimeout(function(){ try{ carte.invalidateSize(); if(points.length > 1) carte.fitBounds(points, { padding:[30, 30], maxZoom:11 }); }catch(e){} }, 80);
+  }).catch(function(){
+    var zone = document.getElementById(id);
+    if(zone) zone.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
+  });
+}
+
+// ── Commune choisie avant que la fiche membre existe (invitation par un admin, fiche candidat) ──
+
+// Champ qui garde le choix en mémoire au lieu de l'enregistrer ; osCommuneChoix(id) le relit
+// (undefined : pas touché, null : vidé, sinon {commune, commune_code, commune_lat, commune_lng}).
+function osCommuneChampSelection(id, initial){
+  var champ = document.getElementById(id);
+  if(!champ) return;
+  champ._cmTexteOk = '✓ Retenue';
+  if(initial){ champ._cmChoix = initial; champ.value = osCommuneLibelle(initial); }
+  osCommuneBrancher(id, 'selection', initial || null, null, function(c){ champ._cmChoix = c; return Promise.resolve(); });
+}
+function osCommuneChoix(id){
+  var champ = document.getElementById(id);
+  return champ ? champ._cmChoix : undefined;
+}
+// Remplit le champ avec une commune proposée, si personne n'y a encore touché
+function osCommuneProposer(id, c){
+  var champ = document.getElementById(id);
+  if(!champ || !c || champ._cmChoix !== undefined || champ.value.trim()) return;
+  champ._cmChoix = c;
+  champ.value = osCommuneLibelle(c);
+  var etat = document.getElementById(id+'-etat');
+  if(etat){ etat.textContent = 'Trouvée dans le formulaire'; etat.style.color = '#0F6E56'; }
+}
+
+function _communeGeo(params){
+  var base = typeof CARTE_GEOCODAGE !== 'undefined' ? CARTE_GEOCODAGE : 'https://data.geopf.fr/geocodage/search';
+  return fetch(base+'?'+params).then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){ return (d && d.features && d.features[0]) || null; }).catch(function(){ return null; });
+}
+
+// La commune d'une adresse postale (« 12 rue X, 81000 Albi ») : seule la ville est gardée, avec le
+// centre de la commune (jamais le point de l'adresse).
+function osCommuneDepuisAdresse(texte){
+  var q = String(texte || '').replace(/\s+/g, ' ').trim();
+  if(q.length < 3) return Promise.resolve(null);
+  return _communeGeo('q='+encodeURIComponent(q)+'&index=address&limit=1').then(function(f){
+    var p = (f && f.properties) || {};
+    var citycode = p.citycode, ville = p.city || p.municipality;
+    if(!f || (p.score || 0) < 0.4 || !citycode){
+      // Pas d'adresse reconnue : on tente le texte comme nom de commune (« Albi », « 81000 Albi »)
+      return _communeGeo('q='+encodeURIComponent(q)+'&index=address&type=municipality&limit=1').then(function(m){
+        var pm = (m && m.properties) || {};
+        if(!m || (pm.score || 0) < 0.5) return null;
+        return { commune:pm.city || pm.name, commune_code:pm.citycode || '', commune_lng:m.geometry.coordinates[0], commune_lat:m.geometry.coordinates[1] };
+      });
+    }
+    return _communeGeo('q='+encodeURIComponent(ville)+'&index=address&type=municipality&citycode='+encodeURIComponent(citycode)+'&limit=1').then(function(m){
+      if(!m || !m.geometry) return null;
+      var pm = m.properties || {};
+      return { commune:pm.city || pm.name || ville, commune_code:pm.citycode || citycode, commune_lng:m.geometry.coordinates[0], commune_lat:m.geometry.coordinates[1] };
+    });
+  });
+}
+
+// Adresse donnée dans le formulaire d'inscription (Tally) d'un·e candidat·e
+function osCandidatAdresse(c){
+  var rep = Array.isArray(c && c.tally_reponses) ? c.tally_reponses : [];
+  var r = rep.find(function(x){ return /adresse/i.test(x.question || '') && x.reponse; })
+    || rep.find(function(x){ return /\bville\b/i.test(x.question || '') && !/formation/i.test(x.question || '') && x.reponse; });
+  return r ? String(r.reponse) : '';
+}
+
+// ── Vie asso : zones sans bénévole, covoiturage, lieu de réunion le plus central ──
+
+var _communesTarn = null;
+// Communes du Tarn (référentiel officiel geo.api.gouv.fr), avec population et centre
+function osCommunesTarn(){
+  if(_communesTarn) return _communesTarn;
+  _communesTarn = fetch('https://geo.api.gouv.fr/departements/81/communes?fields=nom,code,centre,population')
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(l){
+      return (Array.isArray(l) ? l : []).filter(function(c){ return c.centre && c.centre.coordinates; }).map(function(c){
+        return { commune:c.nom, commune_code:c.code, lat:c.centre.coordinates[1], lng:c.centre.coordinates[0], pop:c.population || 0 };
+      });
+    }).catch(function(){ _communesTarn = null; return []; });
+  return _communesTarn;
+}
+
+function _cmPt(m){ return { lat:+m.commune_lat, lng:+m.commune_lng }; }
+function _cmLocalises(membres){ return (membres || []).filter(function(m){ return m && m.commune && m.commune_lat != null && m.commune_lng != null; }); }
+
+var TROUS_KM = 15, TROUS_POP = 1500;
+
+// Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 15 km,
+// regroupées par secteur (la plus peuplée représente ses voisines à moins de 12 km)
+function osZonesSansBenevole(membres){
+  var loc = _cmLocalises(membres);
+  return osCommunesTarn().then(function(tarn){
+    if(!loc.length || !tarn.length) return [];
+    var trous = tarn.filter(function(c){ return c.pop >= TROUS_POP; }).map(function(c){
+      var plus = null;
+      loc.forEach(function(m){ var km = osDistanceKm(c, _cmPt(m)); if(!plus || km < plus.km) plus = { m:m, km:km }; });
+      return { c:c, plus:plus };
+    }).filter(function(t){ return t.plus && t.plus.km > TROUS_KM; })
+      .sort(function(a, b){ return b.c.pop - a.c.pop; });
+    var secteurs = [];
+    trous.forEach(function(t){
+      var s = secteurs.find(function(x){ return osDistanceKm(x.c, t.c) < 12; });
+      if(s){ s.voisines.push(t.c.commune); s.pop += t.c.pop; } else secteurs.push({ c:t.c, plus:t.plus, voisines:[], pop:t.c.pop });
+    });
+    return secteurs;
+  });
+}
+
+function osZonesSansBenevoleAfficher(idZone, membres, idCarte){
+  var zone = document.getElementById(idZone);
+  if(!zone) return;
+  zone.innerHTML = '<div class="cm-vide">Recherche des zones sans bénévole…</div>';
+  osZonesSansBenevole(membres).then(function(secteurs){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    if(!secteurs.length){
+      z.innerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Toutes les communes du Tarn de plus de '+TROUS_POP.toLocaleString('fr-FR')+' habitants ont un·e bénévole à moins de '+TROUS_KM+' km.</div>';
+      return;
+    }
+    z.innerHTML = '<div class="cm-trous">'+secteurs.map(function(s){
+      return '<div class="cm-trou"><i class="ti ti-map-pin-off"></i><div><strong>'+esc(s.c.commune)+'</strong>'
+        +' <small>'+s.pop.toLocaleString('fr-FR')+' hab.'+(s.voisines.length ? ' avec '+esc(s.voisines.join(', ')) : '')+'</small>'
+        +'<small>Bénévole le plus proche : '+esc(_communeNom(s.plus.m))+' ('+esc(s.plus.m.commune)+', '+osDistanceTexte(s.plus.km)+')</small></div></div>';
+    }).join('')+'</div>';
+    if(idCarte) osCommunesCarteDessiner(idCarte, membres, secteurs);
+  });
+}
+
+// Inscrit·es d'un événement qui habitent à moins de 15 km les un·es des autres (de proche en proche)
+var COVOIT_KM = 15;
+function osCovoiturageGroupes(membres){
+  var loc = _cmLocalises(membres), groupes = [], vus = {};
+  loc.forEach(function(m){
+    if(vus[m.id]) return;
+    var g = [m]; vus[m.id] = true;
+    for(var i = 0; i < g.length; i++){
+      loc.forEach(function(o){
+        if(!vus[o.id] && osDistanceKm(_cmPt(g[i]), _cmPt(o)) <= COVOIT_KM){ vus[o.id] = true; g.push(o); }
+      });
+    }
+    if(g.length >= 2) groupes.push(g);
+  });
+  return groupes;
+}
+
+function osCovoiturageAfficher(idZone, ids, ev){
+  var zone = document.getElementById(idZone);
+  if(!zone || !ids || ids.length < 2) return;
+  var pLieu = (ev && ev.lieu && typeof _carteLocaliser === 'function') ? _carteLocaliser(ev.lieu).catch(function(){ return null; }) : Promise.resolve(null);
+  Promise.all([osCommunesMembres(), pLieu]).then(function(res){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    var parId = {}; ids.forEach(function(id){ parId[id] = true; });
+    var lieu = res[1];
+    var groupes = osCovoiturageGroupes(res[0].filter(function(m){ return parId[m.id]; })).filter(function(g){
+      // Tout le groupe habite sur place : pas besoin de voiture
+      return !lieu || g.some(function(m){ return osDistanceKm(_cmPt(m), lieu) > 5; });
+    });
+    if(!groupes.length){ z.innerHTML = ''; return; }
+    z.innerHTML = '<div class="cm-covoit"><div class="cm-proches-titre"><i class="ti ti-car"></i> Covoiturage possible</div>'
+      +groupes.map(function(g){
+        var noms = g.map(function(m){ return esc(m.prenom || _communeNom(m)); });
+        var communes = g.map(function(m){ return m.commune; }).filter(function(c, i, t){ return t.indexOf(c) === i; });
+        var km = lieu ? Math.round(Math.max.apply(null, g.map(function(m){ return osDistanceKm(_cmPt(m), lieu); }))) : null;
+        return '<div class="cm-covoit-ligne">'+noms.slice(0, -1).join(', ')+' et '+noms[noms.length-1]+' viennent du même coin'
+          +' <small>('+esc(communes.join(', '))+(km ? ' · '+km+' km du lieu' : '')+')</small></div>';
+      }).join('')+'</div>';
+  });
+}
+
+// Formulaire de l'agenda : la commune qui fait le moins de kilomètres au total pour les invité·es
+function osAgendaLieuCentral(ids){
+  var zone = document.getElementById('ag-lieu-central');
+  if(!zone) return;
+  var parId = {}; (ids || []).forEach(function(id){ parId[id] = true; });
+  Promise.all([osCommunesMembres(), osCommunesTarn()]).then(function(res){
+    var z = document.getElementById('ag-lieu-central');
+    if(!z) return;
+    var tous = _cmLocalises(res[0]).filter(function(m){ return parId[m.id]; });
+    // Les invité·es qui habitent loin du groupe (plus de 120 km du point médian) ne comptent pas : elles et ils viendront plutôt en visio
+    function mediane(t){ t = t.slice().sort(function(a, b){ return a - b; }); return t.length ? t[Math.floor(t.length / 2)] : 0; }
+    var centre = { lat:mediane(tous.map(function(m){ return +m.commune_lat; })), lng:mediane(tous.map(function(m){ return +m.commune_lng; })) };
+    var invites = tous.filter(function(m){ return osDistanceKm(centre, _cmPt(m)) <= 120; });
+    var loin = tous.filter(function(m){ return invites.indexOf(m) === -1; });
+    if(invites.length < 2){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    var cand = {};
+    invites.forEach(function(m){ cand[m.commune_code || m.commune] = { commune:m.commune, lat:+m.commune_lat, lng:+m.commune_lng }; });
+    res[1].forEach(function(c){ if(c.pop >= 3000) cand[c.commune_code] = c; });
+    var classement = Object.keys(cand).map(function(k){
+      var c = cand[k], dists = invites.map(function(m){ return osDistanceKm(c, _cmPt(m)); });
+      return { c:c, total:dists.reduce(function(s, d){ return s + d; }, 0), max:Math.max.apply(null, dists) };
+    }).sort(function(a, b){ return a.total - b.total; });
+    var best = classement[0], n = invites.length;
+    var autres = classement.slice(1, 3).map(function(x){ return esc(x.c.commune)+' ('+Math.round(x.total / n)+' km)'; });
+    z.style.display = 'block';
+    z.innerHTML = '<div class="cm-proches-titre"><i class="ti ti-target"></i> Lieu le plus central pour les invité·es</div>'
+      +'<div class="cm-central"><strong>'+esc(best.c.commune)+'</strong> : '+Math.round(best.total / n)+' km en moyenne, '+Math.round(best.max)+' km au plus'
+      +' <small>(calculé sur '+n+' invité·e'+(n > 1 ? 's' : '')+(ids.length > tous.length ? ' ; '+(ids.length - tous.length)+' sans commune connue' : '')+')</small>'
+      +(loin.length ? '<small>Trop loin pour compter : '+loin.map(function(m){ return esc((m.prenom || _communeNom(m))+' ('+m.commune+')'); }).join(', ')+'</small>' : '')
+      +(autres.length ? '<small>Ensuite : '+autres.join(', ')+'</small>' : '')
+      +'<button type="button" class="cm-central-btn" data-commune="'+esc(best.c.commune)+'"><i class="ti ti-map-pin"></i> Mettre « '+esc(best.c.commune)+' » comme lieu</button></div>';
+    var b = z.querySelector('.cm-central-btn');
+    if(b) b.onclick = function(){
+      var champ = document.getElementById('ag-lieu');
+      if(!champ) return;
+      champ.value = b.getAttribute('data-commune');
+      if(typeof osCarteLieuDepuisTexte === 'function') osCarteLieuDepuisTexte('ag-lieu-carte', champ.value);
+      champ.focus();
+    };
+  });
+}
+
+// Le calcul des créneaux de l'agenda reçoit la liste des invité·es à chaque changement : on s'y greffe
+(function(){
+  if(typeof _agendaSuggererCreneaux !== 'function') return;
+  var origine = _agendaSuggererCreneaux;
+  _agendaSuggererCreneaux = function(ids){
+    var r = origine.apply(this, arguments);
+    try{ osAgendaLieuCentral(ids); }catch(e){}
+    return r;
+  };
+})();

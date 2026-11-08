@@ -152,7 +152,7 @@ function _mrAfficher(){
     else if(sous === 'reglages') h += osRedacReglagesForm(d.redac);
     else h += _mrVue(d, chef);
     racine.innerHTML = h;
-    if(sous === 'vue') osCommunesCarteDessiner('mr-carte-communes', d.membres);
+    if(sous === 'vue'){ osCommunesCarteDessiner('mr-carte-communes', d.membres); osCouvertureAfficher('mr-couverture', d.arts, { corriger:chef }); }
     void racine.offsetHeight;
     if(osEstMobile() && typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
   }).catch(function(e){
@@ -212,6 +212,8 @@ function _mrVue(d, chef){
   // Où vivent les membres de la rédaction (commune seule, renseignée dans Mon profil)
   h += '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-map-2" style="color:#0F6E56;"></i> Où vit l’équipe</div>'
     +osCommunesBlocHTML('mr-carte-communes', d.membres, { invitation:true, montrerSans:chef })+'</div>';
+  // Ce que la rédaction a couvert : ses articles publiés, placés sur leur commune (js/83-communes.js)
+  h += '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-map-pin" style="color:#EA5B1C;"></i> Ce qu’on a couvert</div><div id="mr-couverture"></div></div>';
   h += '<div class="mr-bloc"><div class="mr-titre">Articles récents</div>';
   if(!s.recents.length) h += '<div class="mr-vide">Rien de publié pour l’instant.</div>';
   s.recents.forEach(function(a){

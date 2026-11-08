@@ -2014,6 +2014,8 @@ function osInviterMembreModal(){
     +redacs.map(function(r){return '<option value="'+r.id+'">'+esc(r.nom)+'</option>';}).join('')
     +'</select></div>'
     +'</div>'
+    // Commune (ville seule) : pour la carte de l'équipe ; la personne pourra la changer dans son profil
+    +'<div><label style="font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;">Commune</label><div style="margin-top:3px;">'+(typeof osCommuneChampHTML === 'function' ? osCommuneChampHTML('inv-commune', null) : '')+'</div></div>'
     +'<div id="inv-error" style="display:none;font-size:.72rem;color:#DC2626;background:#FEE2E2;border-radius:6px;padding:6px 10px;"></div>'
     +'</div>'
     +'<div style="padding:.8rem 1.5rem;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:.5rem;justify-content:flex-end;">'
@@ -2024,6 +2026,7 @@ function osInviterMembreModal(){
   ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
   document.body.appendChild(ov);
   setTimeout(function(){ var el=document.getElementById('inv-prenom'); if(el)el.focus(); },50);
+  if(typeof osCommuneChampSelection === 'function') osCommuneChampSelection('inv-commune');
 }
 
 function osInviterMembreValider(){
@@ -2066,6 +2069,8 @@ function osInviterMembreValider(){
       return;
     }
     osEmailCompteCompo(email, prenom, true);
+    var commune = typeof osCommuneChoix === 'function' ? osCommuneChoix('inv-commune') : null;
+    if(commune && data.membre_id) _communeEnregistrer(data.membre_id, commune).catch(function(){});
     var ov = document.querySelector('[style*="z-index: 99999"],[style*="z-index:99999"]');
     if(ov) ov.remove();
     notif('Compte créé pour '+email+' !','succes');

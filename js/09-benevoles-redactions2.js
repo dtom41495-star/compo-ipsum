@@ -316,7 +316,7 @@ function osBenevolesDashRender(){
         btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
         if(tid==='recrutement') _osBenvMarquerRecrutementLu();
-        if(tid==='carte') osCommunesCarteDessiner('benv-carte-communes', membres);
+        if(tid==='carte'){ osCommunesCarteDessiner('benv-carte-communes', membres); osZonesSansBenevoleAfficher('benv-trous', membres, 'benv-carte-communes'); osCouvertureAfficher('benv-couverture', articles, { corriger:isAdmin }); }
       };})(t.id,btn);
       rail.appendChild(btn);
     });
@@ -431,7 +431,15 @@ function osBenevolesDashRender(){
     carteDiv.style.cssText='flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1.2rem 1.4rem;';
     carteDiv.innerHTML='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin-bottom:0.3rem;">Carte de couverture</div>'
       +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">La commune de chaque bénévole (ville seule). Chacun·e la renseigne dans Mon profil'+(isVieAsso?', la vie associative peut la corriger depuis la fiche (onglet Équipe)':'')+'.</div>'
-      +osCommunesBlocHTML('benv-carte-communes', membres, { invitation:true, montrerSans:true });
+      +osCommunesBlocHTML('benv-carte-communes', membres, { invitation:true, montrerSans:true })
+      // Recrutement ciblé : les communes du Tarn sans bénévole à proximité (dessinées aussi sur la carte)
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Où recruter</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 15 km (cercles rouges sur la carte). De bons endroits pour une annonce.</div>'
+      +'<div id="benv-trous"></div>'
+      // Les articles publiés, toutes rédactions, placés sur leur commune : où l'on couvre, où sont les trous
+      +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Ce qu’on a couvert</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Les articles et brèves publiés, placés sur la commune dont ils parlent (repérée automatiquement dans le titre, le chapeau, le sujet et le communiqué d’origine).</div>'
+      +'<div id="benv-couverture"></div>';
     tabContents['carte']=carteDiv;
     contentWrap.appendChild(carteDiv);
     // ONGLET COMMISSIONS
