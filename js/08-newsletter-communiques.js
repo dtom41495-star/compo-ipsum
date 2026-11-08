@@ -1321,7 +1321,29 @@ function cpsRendreListe(liste, cps){
     // « Nouveaux » en tête : non lus et ajoutés dans Compo ces 2 derniers jours. Le reste
     // garde le tri par date du communiqué — sans ça, un CP saisi aujourd'hui mais daté d'il
     // y a une semaine se perdait au milieu de la liste.
-    var nouveaux = [], suite = filtres;
+    var nouveaux = [], suite = filtres, prochesMontres = false;
+    // Filtre Invitations : celles à venir, les plus proches de ma commune d'abord (js/83-communes.js)
+    if(filtreType === 'invitation_presse' && !rechercheVal && typeof osCpsProximite === 'function'){
+      var prox = osCpsProximite(cps, function(){
+        if(liste.isConnected && (window._cpsFiltreActif || 'tous') === 'invitation_presse') cpsRendreListe(liste, cps);
+      });
+      if(prox && prox.moi){
+        var maintenant = Date.now();
+        var proches = filtres.filter(function(c){ return prox.d[c.id] != null && c.date_evenement && new Date(c.date_evenement).getTime() >= maintenant; })
+          .sort(function(a, b){ return prox.d[a.id] - prox.d[b.id]; });
+        if(proches.length){
+          liste.appendChild(_cpsTitreSection('ti-map-pin', 'Les plus proches de chez toi', proches.length, 'À venir, distance depuis '+prox.moi.commune));
+          proches.forEach(function(cp){
+            var carte = cpsMakeCard(cp, false);
+            carte.insertBefore(osBadgeDistance(prox.d[cp.id]), carte.firstChild);
+            liste.appendChild(carte);
+          });
+          filtres = suite = filtres.filter(function(c){ return proches.indexOf(c) === -1; });
+          prochesMontres = true;
+          if(filtres.length) liste.appendChild(_cpsTitreSection('ti-calendar', 'Les autres invitations', filtres.length, 'Passées, ou lieu non reconnu'));
+        }
+      }
+    }
     // « Pour tes sujets » : communiqués liés aux sujets que j'ai réservés, puis ceux qui en parlent
     var pourMoi = (filtreType === 'tous' && filtreDate === 'tous' && !rechercheVal) ? _cpsPourMesSujets(filtres) : [];
     if(pourMoi.length){
@@ -1331,7 +1353,7 @@ function cpsRendreListe(liste, cps){
       suite = filtres.filter(function(c){ return dejaMontres.indexOf(c) === -1; });
       filtres = suite;
     }
-    if(filtreType !== 'non_lus' && !rechercheVal){
+    if(filtreType !== 'non_lus' && !rechercheVal && !prochesMontres){
       var depuis = Date.now() - CPS_NOUVEAUX_MS;
       nouveaux = filtres.filter(function(c){ return vus.indexOf(c.id) === -1 && c.created_at && new Date(c.created_at).getTime() >= depuis; })
         .sort(function(a, b){ return new Date(b.created_at) - new Date(a.created_at); });

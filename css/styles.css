@@ -7634,3 +7634,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
   .rp-ligne-commune{flex-wrap:wrap;}
   .rp-ligne-commune .cm-champ{flex:1 1 100%;}
 }
+.cm-proches{margin-top:0.2rem;padding:0.55rem 0.7rem;background:#E8F4F0;border-radius:8px;}
+.cm-proches-titre{font-size:0.74rem;font-weight:600;color:#0F6E56;margin-bottom:0.35rem;display:flex;align-items:center;gap:5px;}
+.cm-proches-liste{display:flex;flex-wrap:wrap;gap:0.3rem;}
+.cm-proche{font-size:0.7rem;color:var(--encre);background:#fff;border-radius:999px;padding:2px 9px;}
+.cm-distance{display:inline-flex;align-items:center;gap:3px;font-family:'Space Mono',monospace;font-size:0.6rem;font-weight:700;color:#0F6E56;background:#E8F4F0;border-radius:999px;padding:2px 8px;margin:0 0 0.35rem;}

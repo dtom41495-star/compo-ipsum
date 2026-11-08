@@ -52,6 +52,7 @@ function _communeEnregistrer(membreId, c){
   }).then(function(rows){
     // Aucune ligne renvoyée : la règle d'accès a refusé la modification
     if(!Array.isArray(rows) || !rows.length) throw new Error('refusé');
+    _communeMoi = null; _communeMembres = null; _cpsProx = null;
     // Les données déjà chargées suivent, pour que les cartes ouvertes ensuite soient à jour
     (window._benvData || []).forEach(function(s){ if(s.membre && s.membre.id === membreId) Object.assign(s.membre, corps); });
     if(typeof _mr !== 'undefined' && _mr && _mr.donnees){
@@ -230,4 +231,127 @@ function osCommunesCarteDessiner(id, membres){
   }).catch(function(){
     zone.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
   });
+}
+
+// ── Proximité : invitations presse les plus proches de chez moi, bénévoles proches d'un lieu ──
+
+var _communeMoi = null, _communeMembres = null;
+
+function _communeLire(chemin){
+  return fetch(SB_URL+'/rest/v1/'+chemin, { headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || '') }) })
+    .then(function(r){ return r.ok ? r.json() : []; }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; });
+}
+
+// Ma commune ({commune, lat, lng}) ou null ; relue si je viens de la changer
+function osMaCommune(){
+  if(_communeMoi) return _communeMoi;
+  var uid = typeof getUserId === 'function' ? getUserId() : null;
+  if(!uid) return Promise.resolve(null);
+  _communeMoi = _communeLire('membres?id=eq.'+encodeURIComponent(uid)+'&select='+COMMUNE_COLONNES).then(function(rows){
+    var m = rows[0];
+    return (m && m.commune && m.commune_lat != null) ? { commune:m.commune, lat:+m.commune_lat, lng:+m.commune_lng } : null;
+  });
+  return _communeMoi;
+}
+
+// Membres actifs avec leur commune (pour « les plus proches d'un lieu »)
+function osCommunesMembres(){
+  if(!_communeMembres) _communeMembres = _communeLire('membres?actif=eq.true&role=neq.interdit&commune_lat=not.is.null&select=id,prenom,nom,'+COMMUNE_COLONNES);
+  return _communeMembres;
+}
+
+function osDistanceKm(a, b){
+  if(!a || !b) return null;
+  var R = 6371, rad = Math.PI / 180;
+  var dLat = (b.lat - a.lat) * rad, dLng = ((b.lng != null ? b.lng : b.lon) - (a.lng != null ? a.lng : a.lon)) * rad;
+  var x = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng/2) * Math.sin(dLng/2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+}
+
+function osDistanceTexte(km){
+  if(km == null) return '';
+  return km < 1 ? 'sur place' : (km < 10 ? 'à '+km.toFixed(1).replace('.', ',')+' km' : 'à '+Math.round(km)+' km');
+}
+
+// Distance de chaque invitation (lieu_evenement géocodé, en cache pour la session) depuis ma commune.
+// Appelle `pret(moi, distances)` tout de suite avec ce qui est déjà connu, puis une seconde fois
+// quand les lieux manquants ont été localisés (si ça change quelque chose).
+function osInvitationsDistances(cps, pret){
+  osMaCommune().then(function(moi){
+    if(!moi) return pret(null, {});
+    var lieux = {};
+    (cps || []).forEach(function(c){ var l = (c.lieu_evenement || '').trim(); if(l.length >= 3) lieux[l] = true; });
+    var manquants = Object.keys(lieux).filter(function(l){ return typeof _carteCache === 'undefined' || _carteCache[l] === undefined; });
+    function calculer(){
+      var d = {};
+      (cps || []).forEach(function(c){
+        var l = (c.lieu_evenement || '').trim();
+        var pt = (typeof _carteCache !== 'undefined') ? _carteCache[l] : null;
+        if(pt) d[c.id] = osDistanceKm(moi, pt);
+      });
+      return d;
+    }
+    pret(moi, calculer());
+    if(manquants.length && typeof _carteLocaliser === 'function'){
+      Promise.all(manquants.map(function(l){ return _carteLocaliser(l).catch(function(){ return null; }); }))
+        .then(function(pts){ if(pts.some(Boolean)) pret(moi, calculer(), true); });
+    }
+  });
+}
+
+// Bénévoles les plus proches d'un point (formulaire de l'agenda)
+function osCommunesProchesAfficher(idZone, pt){
+  var zone = document.getElementById(idZone);
+  if(!zone) return;
+  if(!pt){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
+  osCommunesMembres().then(function(membres){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    var proches = membres.filter(function(m){ return m.commune && m.commune_lat != null && m.commune_lng != null; }).map(function(m){ return { m:m, km:osDistanceKm({ lat:+m.commune_lat, lng:+m.commune_lng }, pt) }; })
+      .filter(function(x){ return x.km != null && isFinite(x.km); })
+      .sort(function(a, b){ return a.km - b.km; }).slice(0, 8);
+    if(!proches.length){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    z.style.display = 'block';
+    z.innerHTML = '<div class="cm-proches-titre"><i class="ti ti-users"></i> Les bénévoles les plus proches</div>'
+      +'<div class="cm-proches-liste">'+proches.map(function(x){
+        return '<span class="cm-proche"><strong>'+esc(_communeNom(x.m))+'</strong> '+esc(x.m.commune)+' · '+osDistanceTexte(x.km)+'</span>';
+      }).join('')+'</div>';
+  });
+}
+
+// La carte du lieu de l'agenda (js/71) prévient la liste des bénévoles proches quand le point change
+(function(){
+  if(typeof osCarteLieuAfficher !== 'function') return;
+  var origine = osCarteLieuAfficher;
+  osCarteLieuAfficher = function(id, pt){
+    var r = origine.apply(this, arguments);
+    if(id === 'ag-lieu-carte') osCommunesProchesAfficher('ag-lieu-proches', pt);
+    return r;
+  };
+})();
+
+// État des distances pour la liste des communiqués (filtre Invitations) : renvoyé tout de suite,
+// et la liste est redessinée une fois quand les distances arrivent ou changent.
+var _cpsProx = null;
+function osCpsProximite(cps, redessiner){
+  var invits = (cps || []).filter(function(c){ return c.type === 'invitation_presse'; });
+  var cle = invits.map(function(c){ return c.id+'|'+(c.lieu_evenement || ''); }).join(',');
+  if(!_cpsProx || _cpsProx.cle !== cle){
+    var etat = _cpsProx = { cle:cle, moi:null, d:{}, sig:'' };
+    osInvitationsDistances(invits, function(moi, d){
+      if(_cpsProx !== etat) return;
+      var sig = JSON.stringify([moi, d]);
+      if(sig === etat.sig) return;
+      etat.moi = moi; etat.d = d; etat.sig = sig;
+      if(typeof redessiner === 'function') redessiner();
+    });
+  }
+  return _cpsProx;
+}
+
+function osBadgeDistance(km){
+  var b = document.createElement('div');
+  b.className = 'cm-distance';
+  b.innerHTML = '<i class="ti ti-map-pin"></i> '+esc(osDistanceTexte(km));
+  return b;
 }
