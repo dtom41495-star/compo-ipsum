@@ -266,10 +266,19 @@ function _cmCarte(id, groupes, opts){
     }
     cadrer();
     if(couche) couche.addTo(carte);
+    // Portée des bénévoles : un disque vert de 30 km autour de chaque commune où vit quelqu'un (le blanc n'est pas couvert)
+    if(opts.portee){
+      var rendu = L.canvas({ padding:0.5 });
+      groupes.forEach(function(g){
+        L.circle([g.lat, g.lng], { radius:opts.portee * 1000, stroke:false, fillColor:'#10B981', fillOpacity:0.13, interactive:false, renderer:rendu }).addTo(carte);
+      });
+    }
+    // Où recruter : un point par commune (orange : on y publie ; rouge : grande commune), sans bénévole à moins de 30 km
     (opts.trous || []).forEach(function(t){
       var coul = t.couvert ? '#D97706' : '#C0392B';
-      L.circle([t.c.lat, t.c.lng], { radius:TROUS_KM * 1000, color:coul, weight:1.5, dashArray:'5 5', fillColor:coul, fillOpacity:0.06 })
-        .addTo(carte).bindTooltip(esc(t.c.commune)+(t.couvert ? ' : on y couvre déjà, sans' : ' : aucun·e')+' bénévole à moins de '+TROUS_KM+' km', { direction:'top' });
+      L.circleMarker([t.c.lat, t.c.lng], { radius:7, color:'#fff', weight:2, fillColor:coul, fillOpacity:1 })
+        .addTo(carte).bindTooltip('<div class="cm-popup"><strong>'+esc(t.c.commune)+'</strong><br>'
+          +(t.couvert ? 'On y publie, mais aucun·e' : 'Grande commune, aucun·e')+' bénévole à moins de '+TROUS_KM+' km</div>', { direction:'top' });
     });
     var marqueurs = {};
     // Mode chaleur (carte des articles, vie asso) : une tache par commune, d'autant plus chaude qu'il y a d'articles
@@ -316,9 +325,28 @@ function _cmCarte(id, groupes, opts){
     var total = groupes.reduce(function(t, g){ return t + g.n; }, 0);
     var h = '<div class="cm-resume">'+total+' '+unite+(total > 1 ? 's' : '')+' · '+groupes.length+' commune'+(groupes.length > 1 ? 's' : '')
       +(opts.extraResume ? ' · '+opts.extraResume : '')+'</div>';
-    if(dedans.length) h += '<div class="cm-puces">'+dedans.map(puce).join('')+'</div>';
+    if(opts.legendeCouleurs){
+      h += '<div class="cm-couleurs">'+opts.legendeCouleurs.map(function(c){
+        return '<span><i class="cm-coul-'+c[0]+'" style="background:'+c[1]+';"></i>'+esc(c[2])+'</span>';
+      }).join('')+'</div>';
+    }
+    if(opts.mode === 'chaleur' && opts.echelle){
+      var deg = opts.degrade || { 0.2:'#FDE68A', 0.45:'#F59E0B', 0.7:'#EA5B1C', 1:'#B91C1C' };
+      h += '<div class="cm-echelle"><span>'+esc(opts.echelle[0])+'</span><span class="cm-echelle-barre" style="background:linear-gradient(90deg,'
+        +Object.keys(deg).map(function(k){ return deg[k]+' '+Math.round(k * 100)+'%'; }).join(',')+');"></span><span>'+esc(opts.echelle[1])+'</span></div>';
+    }
+    if(opts.listeDetaillee){
+      // Une ligne par commune, la plus en manque d'abord
+      h += '<div class="cm-lignes">'+groupes.slice(0, 12).map(function(g, i){
+        return '<button type="button" class="cm-puce cm-ligne-det" data-cle="'+esc(g.cle)+'"><span class="cm-rang">'+(i + 1)+'</span>'
+          +'<span><strong>'+esc(g.nom)+'</strong> : '+g.n+' '+unite+(g.n > 1 ? 's' : '')+'<small>'+esc(g.info || '')+'</small></span></button>';
+      }).join('')+(groupes.length > 12 ? '<div class="cm-vide">et '+(groupes.length - 12)+' autre'+(groupes.length - 12 > 1 ? 's' : '')+'</div>' : '')+'</div>';
+      leg.innerHTML = h;
+      dedans = groupes; dehors = [];
+    }
+    if(!opts.listeDetaillee && dedans.length) h += '<div class="cm-puces">'+dedans.map(puce).join('')+'</div>';
     if(dehors.length) h += '<div class="cm-puces cm-dehors"><span class="cm-puces-titre">Hors '+(nomsDep ? esc(nomsDep) : 'zone')+' :</span>'+dehors.map(puce).join('')+'</div>';
-    leg.innerHTML = h;
+    if(!opts.listeDetaillee) leg.innerHTML = h;
     leg.querySelectorAll('.cm-puce').forEach(function(b){
       b.onclick = function(){
         var g = groupes.find(function(x){ return x.cle === b.getAttribute('data-cle'); }), mk = g && marqueurs[g.cle];
@@ -426,7 +454,10 @@ function osCommunesCarteDessiner(id, membres, trous, redacs){
   });
   if(!groupes.length) return;
   var sans = (membres || []).filter(function(m){ return !m.commune || m.commune_lat == null; }).length;
-  _cmCarte(id, groupes, { redacs:_cmRedacsParCarte[id], trous:trous, unite:'membre', couleur:'#0F6E56' });
+  _cmCarte(id, groupes, { redacs:_cmRedacsParCarte[id], trous:trous, unite:'membre', couleur:'#0F6E56', portee:TROUS_KM,
+    legendeCouleurs:[['zone', '#10B981', 'À moins de '+TROUS_KM+' km d’un·e bénévole'], ['point', '#0F6E56', 'Où vivent les bénévoles']]
+      .concat((trous || []).some(function(t){ return t.couvert; }) ? [['point', '#D97706', 'On y publie, personne à moins de '+TROUS_KM+' km']] : [])
+      .concat((trous || []).some(function(t){ return !t.couvert; }) ? [['point', '#C0392B', 'Grande commune, personne à moins de '+TROUS_KM+' km']] : []) });
 }
 
 // ── Proximité : invitations presse les plus proches de chez moi, bénévoles proches d'un lieu ──
@@ -598,9 +629,17 @@ function osCouvertureAfficher(idZone, articles, opts){
     var h = '<div class="couv-barre"><div class="couv-periodes">'+COUV_PERIODES.map(function(p){
       return '<button type="button" class="couv-periode'+(p[0] === etat.periode ? ' actif' : '')+'" data-periode="'+p[0]+'">'+p[1]+'</button>';
     }).join('')+'</div>'
-      +(opts.chaleur ? '<div class="couv-periodes">'+[['points', 'Points', 'map-pin'], ['chaleur', 'Chaleur', 'flame'], ['manques', 'Sans bénévole', 'user-off']].map(function(m){
+      +(opts.chaleur ? '<div class="couv-periodes">'+[['points', 'Communes', 'map-pin'], ['chaleur', 'Où l’on publie', 'flame'], ['manques', 'Où il manque des bénévoles', 'user-search']].map(function(m){
         return '<button type="button" class="couv-periode couv-mode'+((etat.mode || 'points') === m[0] ? ' actif' : '')+'" data-mode="'+m[0]+'"><i class="ti ti-'+m[2]+'"></i> '+m[1]+'</button>';
       }).join('')+'</div>' : '')+'</div>';
+    if(opts.chaleur){
+      var EXPLIC = {
+        points:'Chaque point est une commune dont parlent nos articles ; le chiffre, le nombre d’articles.',
+        chaleur:'Plus la zone est rouge, plus on a publié d’articles sur ce coin.',
+        manques:'Les coins dont on parle sans avoir de bénévole à côté : plus c’est foncé, plus on y publie et plus le ou la bénévole le plus proche habite loin. Une commune avec un·e bénévole à moins de 30 km n’apparaît pas. De bons endroits où recruter.'
+      };
+      h += '<div class="couv-explication"><i class="ti ti-info-circle"></i> '+EXPLIC[etat.mode || 'points']+'</div>';
+    }
     if(!groupes.length) h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
     else h += '<div class="cm-carte" id="'+esc(idCarte)+'"></div><div class="cm-legende" id="'+esc(idCarte)+'-legende"></div>';
     if(opts.corriger && sans.length){
@@ -633,25 +672,26 @@ function osCouvertureAfficher(idZone, articles, opts){
     var extra = sans.length ? sans.length+' sans lieu précis' : '';
     if(groupes.length && modeCarte === 'manques'){
       // Beaucoup d'actu, personne sur place : poids = articles × éloignement du bénévole le plus proche
-      // (0 à moins de 5 km, plein à 30 km et au-delà)
+      // (0 si un·e bénévole habite à moins de 30 km, plein à 60 km et au-delà)
       osCommunesMembres().then(function(membres){
         var loc = _cmLocalises(membres);
         var liste = grp.map(function(g){
           var plus = _cmPlusProche(g, loc), km = plus ? plus.km : 99;
-          var f = Math.max(0, Math.min(1, (km - 5) / 25));
-          return Object.assign(g, { poids:g.n * f, info:plus ? 'Bénévole le plus proche : '+(plus.m.prenom || _communeNom(plus.m))+', '+osDistanceTexte(plus.km) : 'Aucun·e bénévole localisé·e' });
+          var f = Math.max(0, Math.min(1, (km - TROUS_KM) / TROUS_KM));
+          return Object.assign(g, { poids:g.n * f, info:plus ? 'Bénévole le plus proche : '+_communeNom(plus.m)+' ('+plus.m.commune+'), '+osDistanceTexte(plus.km) : 'Aucun·e bénévole localisé·e' });
         }).filter(function(g){ return g.poids > 0; }).sort(function(a, b){ return b.poids - a.poids; });
         if(!document.getElementById(idCarte)) return;
         if(!liste.length){
-          document.getElementById(idCarte).outerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Partout où l’on publie, un·e bénévole habite à moins de 5 km.</div>';
+          document.getElementById(idCarte).outerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Partout où l’on publie, un·e bénévole habite à moins de 30 km.</div>';
           var lg = document.getElementById(idCarte+'-legende'); if(lg) lg.remove();
           return;
         }
         _cmCarte(idCarte, liste, { redacs:opts.redacs, unite:'article', couleur:'#B91C1C', mode:'chaleur', poidsMin:1,
           degrade:{ 0.2:'#FBCFE8', 0.45:'#F472B6', 0.7:'#DB2777', 1:'#831843' },
-          extraResume:'communes où l’on publie loin des bénévoles' });
+          echelle:['bénévole assez proche', 'beaucoup d’articles, personne à côté'], listeDetaillee:true,
+          extraResume:'loin des bénévoles' });
       });
-    } else if(groupes.length) _cmCarte(idCarte, grp, { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', mode:modeCarte, extraResume:extra });
+    } else if(groupes.length) _cmCarte(idCarte, grp, { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', mode:modeCarte, echelle:modeCarte === 'chaleur' ? ['peu d’articles', 'beaucoup d’articles'] : null, extraResume:extra });
   });
 }
 
@@ -737,9 +777,9 @@ function osCommunesTarn(){
 function _cmPt(m){ return { lat:+m.commune_lat, lng:+m.commune_lng }; }
 function _cmLocalises(membres){ return (membres || []).filter(function(m){ return m && m.commune && m.commune_lat != null && m.commune_lng != null; }); }
 
-var TROUS_KM = 15, TROUS_POP = 1500;
+var TROUS_KM = 30, TROUS_POP = 1500;   // 30 km : on part du principe que les bénévoles ont une voiture
 
-// Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 15 km,
+// Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 30 km,
 // regroupées par secteur (la plus peuplée représente ses voisines à moins de 12 km)
 function osZonesSansBenevole(membres){
   var loc = _cmLocalises(membres);
@@ -753,7 +793,7 @@ function osZonesSansBenevole(membres){
       .sort(function(a, b){ return b.c.pop - a.c.pop; });
     var secteurs = [];
     trous.forEach(function(t){
-      var s = secteurs.find(function(x){ return osDistanceKm(x.c, t.c) < 12; });
+      var s = secteurs.find(function(x){ return osDistanceKm(x.c, t.c) < 20; });
       if(s){ s.voisines.push(t.c.commune); s.pop += t.c.pop; } else secteurs.push({ c:t.c, plus:t.plus, voisines:[], pop:t.c.pop });
     });
     return secteurs;
@@ -794,7 +834,7 @@ function _cmPlusProche(pt, loc){
   return plus;
 }
 
-// Où on couvre déjà sans bénévole à moins de 15 km (le plus actif d'abord)
+// Où on couvre déjà sans bénévole à moins de 30 km (le plus actif d'abord)
 function osZonesCouvertesSansBenevole(membres){
   var loc = _cmLocalises(membres);
   return osCommunesTarn().then(function(tarn){
