@@ -274,19 +274,21 @@ function _cmCarte(id, groupes, opts){
     var marqueurs = {};
     // Mode chaleur (carte des articles, vie asso) : une tache par commune, d'autant plus chaude qu'il y a d'articles
     if(opts.mode === 'chaleur'){
-      var maxN = Math.max.apply(null, groupes.map(function(g){ return g.n; }).concat([1]));
+      var poidsDe = function(g){ return g.poids != null ? g.poids : g.n; };
+      var maxN = Math.max.apply(null, groupes.map(poidsDe).concat([1]));
       _cmChargerChaleur(L).then(function(L2){
         if(_communeCartes[id] !== carte) return;
-        L2.heatLayer(groupes.map(function(g){ return [g.lat, g.lng, g.n]; }),
-          { radius:32, blur:26, maxZoom:10, max:Math.max(2, maxN * 0.6), minOpacity:0.35,
-            gradient:{ 0.2:'#FDE68A', 0.45:'#F59E0B', 0.7:'#EA5B1C', 1:'#B91C1C' } }).addTo(carte);
+        L2.heatLayer(groupes.filter(function(g){ return poidsDe(g) > 0; }).map(function(g){ return [g.lat, g.lng, poidsDe(g)]; }),
+          { radius:32, blur:26, maxZoom:10, max:Math.max(opts.poidsMin || 2, maxN * 0.6), minOpacity:0.35,
+            gradient:opts.degrade || { 0.2:'#FDE68A', 0.45:'#F59E0B', 0.7:'#EA5B1C', 1:'#B91C1C' } }).addTo(carte);
       }).catch(function(){ var leg = document.getElementById(id+'-legende'); if(leg) leg.insertAdjacentHTML('afterbegin', '<div class="cm-vide">Carte de chaleur indisponible pour le moment.</div>'); });
     }
     groupes.forEach(function(g){
       if(opts.mode === 'chaleur'){
         // Pas de pastille, mais un point invisible qui garde le survol et le clic depuis la légende
         marqueurs[g.cle] = L.circleMarker([g.lat, g.lng], { radius:10, opacity:0, fillOpacity:0 }).addTo(carte)
-          .bindTooltip('<div class="cm-popup"><strong>'+esc(g.nom)+'</strong> · '+g.n+' '+(opts.unite || 'membre')+(g.n > 1 ? 's' : '')+'</div>', { direction:'top' });
+          .bindTooltip('<div class="cm-popup"><strong>'+esc(g.nom)+'</strong> · '+g.n+' '+(opts.unite || 'membre')+(g.n > 1 ? 's' : '')
+            +(g.info ? '<br>'+esc(g.info) : '')+'</div>', { direction:'top' });
         return;
       }
       var n = g.n, taille = n > 1 ? Math.min(30, 18 + Math.round(Math.sqrt(n - 1) * 5)) : 12;
@@ -596,7 +598,7 @@ function osCouvertureAfficher(idZone, articles, opts){
     var h = '<div class="couv-barre"><div class="couv-periodes">'+COUV_PERIODES.map(function(p){
       return '<button type="button" class="couv-periode'+(p[0] === etat.periode ? ' actif' : '')+'" data-periode="'+p[0]+'">'+p[1]+'</button>';
     }).join('')+'</div>'
-      +(opts.chaleur ? '<div class="couv-periodes">'+[['points', 'Points', 'map-pin'], ['chaleur', 'Chaleur', 'flame']].map(function(m){
+      +(opts.chaleur ? '<div class="couv-periodes">'+[['points', 'Points', 'map-pin'], ['chaleur', 'Chaleur', 'flame'], ['manques', 'Sans bénévole', 'user-off']].map(function(m){
         return '<button type="button" class="couv-periode couv-mode'+((etat.mode || 'points') === m[0] ? ' actif' : '')+'" data-mode="'+m[0]+'"><i class="ti ti-'+m[2]+'"></i> '+m[1]+'</button>';
       }).join('')+'</div>' : '')+'</div>';
     if(!groupes.length) h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
@@ -623,10 +625,33 @@ function osCouvertureAfficher(idZone, articles, opts){
         }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); });
       });
     });
-    if(groupes.length) _cmCarte(idCarte, groupes.map(function(g){
+    var modeCarte = opts.chaleur ? (etat.mode || 'points') : 'points';
+    var grp = groupes.map(function(g){
       return { cle:String(g.code || g.commune), nom:g.commune, lat:g.lat, lng:g.lng, n:g.articles.length,
         lignes:g.articles.map(function(a){ return a.titre || 'Sans titre'; }) };
-    }), { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', mode:opts.chaleur ? (etat.mode || 'points') : 'points', extraResume:sans.length ? sans.length+' sans lieu précis' : '' });
+    });
+    var extra = sans.length ? sans.length+' sans lieu précis' : '';
+    if(groupes.length && modeCarte === 'manques'){
+      // Beaucoup d'actu, personne sur place : poids = articles × éloignement du bénévole le plus proche
+      // (0 à moins de 5 km, plein à 30 km et au-delà)
+      osCommunesMembres().then(function(membres){
+        var loc = _cmLocalises(membres);
+        var liste = grp.map(function(g){
+          var plus = _cmPlusProche(g, loc), km = plus ? plus.km : 99;
+          var f = Math.max(0, Math.min(1, (km - 5) / 25));
+          return Object.assign(g, { poids:g.n * f, info:plus ? 'Bénévole le plus proche : '+(plus.m.prenom || _communeNom(plus.m))+', '+osDistanceTexte(plus.km) : 'Aucun·e bénévole localisé·e' });
+        }).filter(function(g){ return g.poids > 0; }).sort(function(a, b){ return b.poids - a.poids; });
+        if(!document.getElementById(idCarte)) return;
+        if(!liste.length){
+          document.getElementById(idCarte).outerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Partout où l’on publie, un·e bénévole habite à moins de 5 km.</div>';
+          var lg = document.getElementById(idCarte+'-legende'); if(lg) lg.remove();
+          return;
+        }
+        _cmCarte(idCarte, liste, { redacs:opts.redacs, unite:'article', couleur:'#B91C1C', mode:'chaleur', poidsMin:1,
+          degrade:{ 0.2:'#FBCFE8', 0.45:'#F472B6', 0.7:'#DB2777', 1:'#831843' },
+          extraResume:'communes où l’on publie loin des bénévoles' });
+      });
+    } else if(groupes.length) _cmCarte(idCarte, grp, { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', mode:modeCarte, extraResume:extra });
   });
 }
 
