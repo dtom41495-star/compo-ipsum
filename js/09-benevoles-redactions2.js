@@ -434,7 +434,7 @@ function osBenevolesDashRender(){
       +osCommunesBlocHTML('benv-carte-communes', membres, { invitation:true, montrerSans:true })
       // Recrutement ciblé : les communes du Tarn sans bénévole à proximité (dessinées aussi sur la carte)
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Où recruter</div>'
-      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Là où l’on publie ou reçoit des invitations presse sans bénévole à moins de 15 km (cercles orange sur la carte), puis les communes du Tarn de plus de 1 500 habitants dans le même cas (cercles rouges). De bons endroits pour une annonce.</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Sur la carte ci-dessus, la zone verte est à moins de 30 km d’un·e bénévole (on suppose qu’ils et elles ont une voiture). Hors du vert : en orange, là où l’on publie ou reçoit des invitations presse ; en rouge, les communes du Tarn de plus de 1 500 habitants. De bons endroits pour une annonce.</div>'
       +'<div id="benv-trous"></div>'
       // Les articles publiés, toutes rédactions, placés sur leur commune : où l'on couvre, où sont les trous
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Ce qu’on a couvert</div>'
