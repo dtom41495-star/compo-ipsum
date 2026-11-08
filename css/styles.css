@@ -7649,3 +7649,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .couv-sans-ligne{display:flex;align-items:center;gap:0.6rem;justify-content:space-between;padding:0.35rem 0;border-bottom:1px dashed var(--gris-bord);}
 .couv-sans-ligne > span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @media (max-width:700px){ .couv-sans-ligne{flex-wrap:wrap;} .couv-sans-ligne .cm-champ{flex:1 1 100%;} }
+.oobe-commune{margin-bottom:0.9rem;}
+.oobe-commune .cm-champ{flex:1 1 auto;max-width:none;}
+.oobe-commune .cm-input{padding:0.6rem 0.8rem;font-size:0.9rem;}
+.cand-champ .cm-champ{flex:1 1 auto;}
+.cand-champ .cm-etat{text-transform:none;letter-spacing:0;font-family:"DM Sans",sans-serif;}

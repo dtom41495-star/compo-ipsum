@@ -497,6 +497,9 @@ function _oobeRendre(){
   var inv = document.getElementById('oobe-invite-par');
   if(inv) inv.textContent = c.invitePar ? 'Invitation de '+c.invitePar : '';
 
+  // Commune : enregistrée dès qu'elle est choisie, préremplie si l'admin ou la candidature l'a déjà donnée
+  if(typeof osCommuneBrancher === 'function' && getUserId()) osCommuneBrancher('oobe-commune', getUserId(), null);
+
   // 2. Avatars
   var avGrid = document.getElementById('oobe-avatar-grid');
   if(avGrid) oobeRenderGrilleAvatars(avGrid);

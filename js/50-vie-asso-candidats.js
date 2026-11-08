@@ -420,6 +420,11 @@ function osCandidatOuvrir(id){
   };
   var creer = ov.querySelector('#cand-creer-compte');
   if(creer) creer.onclick = function(){ osCandidatCreerCompte(c, lireChamps(), creer); };
+  if(ov.querySelector('#cand-commune') && typeof osCommuneChampSelection === 'function'){
+    osCommuneChampSelection('cand-commune');
+    var adresse = osCandidatAdresse(c);
+    if(adresse) osCommuneDepuisAdresse(adresse).then(function(com){ osCommuneProposer('cand-commune', com); });
+  }
 }
 
 // Le bouton qui fait avancer d'une étape, et le bloc « compte Compo » quand c'est le moment
@@ -434,6 +439,8 @@ function _candActionsHtml(c){
       +'<p class="se-aide">1. Crée l’adresse dans la console Google Workspace et envoie les codes à la personne (Compo ne voit jamais de mot de passe).<br>'
       +'2. Crée ici son compte Compo avec cette adresse : elle reçoit l’email « Ton compte Compo est prêt » et sa période d’essai de '+CAND_ESSAI_JOURS+' jours commence.</p>'
       +'<div class="cand-ligne-adresse"><input id="cand-google" type="email" value="'+esc(_candAdresseGoogle(c))+'"><button type="button" class="cand-icone" id="cand-copier-adresse" title="Copier l’adresse"><i class="ti ti-copy"></i></button></div>'
+      // Commune (ville seule) pour la carte de l'équipe : trouvée dans l'adresse du formulaire, modifiable
+      +'<label class="cand-champ"><span>Commune (carte de l’équipe)</span>'+(typeof osCommuneChampHTML === 'function' ? osCommuneChampHTML('cand-commune', null) : '')+'</label>'
       +'<label class="cand-champ"><span>Rôle dans Compo</span><select id="cand-role"><option value="redacteur">Rédacteur·rice</option><option value="communicant">Communicant·e</option><option value="correcteur">SR</option></select></label>'
       +'<button type="button" class="se-btn-principal" id="cand-creer-compte"><i class="ti ti-user-plus"></i> Créer le compte et démarrer l’essai</button>'
       +'</div>';
@@ -514,6 +521,9 @@ function osCandidatCreerCompte(c, champs, btn){
   }).then(function(r){ return r.json(); }).then(function(d){
     if(!d || d.error || !d.membre_id) throw new Error((d && d.error) || 'Création du compte impossible');
     osEmailCompteCompo(email, prenom, true);
+    // Commune choisie (ou trouvée dans le formulaire) : posée tout de suite sur la fiche du nouveau membre
+    var commune = typeof osCommuneChoix === 'function' ? osCommuneChoix('cand-commune') : null;
+    if(commune) _communeEnregistrer(d.membre_id, commune).catch(function(){});
     var commission = champs.commission_id || c.commission_id;
     if(commission){
       fetch(SB_URL+'/rest/v1/commission_membres', { method:'POST', headers:_candAuth({ 'Prefer':'return=minimal' }), body:JSON.stringify({ commission_id:commission, membre_id:d.membre_id }) })

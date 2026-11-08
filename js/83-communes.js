@@ -107,7 +107,7 @@ function osCommuneBrancher(id, membreId, valeur, apres, enregistrer){
     marquer('Enregistrement…');
     sauver(c).then(function(){
       actuelle = champ.value;
-      marquer('✓ Enregistrée', '#27AE60');
+      marquer(champ._cmTexteOk || '✓ Enregistrée', '#27AE60');
       if(typeof apres === 'function') apres(c);
     }).catch(function(){ champ.value = actuelle; marquer('Pas enregistrée', '#C0392B'); });
   }
@@ -151,6 +151,8 @@ function osCommuneBrancher(id, membreId, valeur, apres, enregistrer){
       fermer();
       var v = champ.value.trim();
       if(v === actuelle) return;
+      // Commune déjà posée par osCommuneProposer (trouvée dans un formulaire) : rien à défaire
+      if(champ._cmChoix && v === osCommuneLibelle(champ._cmChoix)){ actuelle = v; return; }
       if(!v){
         marquer('Enregistrement…');
         sauver(null).then(function(){ actuelle = ''; marquer('Commune retirée'); if(typeof apres === 'function') apres(null); })
@@ -465,4 +467,67 @@ function _couvDessiner(id, groupes){
     var zone = document.getElementById(id);
     if(zone) zone.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
   });
+}
+
+// ── Commune choisie avant que la fiche membre existe (invitation par un admin, fiche candidat) ──
+
+// Champ qui garde le choix en mémoire au lieu de l'enregistrer ; osCommuneChoix(id) le relit
+// (undefined : pas touché, null : vidé, sinon {commune, commune_code, commune_lat, commune_lng}).
+function osCommuneChampSelection(id, initial){
+  var champ = document.getElementById(id);
+  if(!champ) return;
+  champ._cmTexteOk = '✓ Retenue';
+  if(initial){ champ._cmChoix = initial; champ.value = osCommuneLibelle(initial); }
+  osCommuneBrancher(id, 'selection', initial || null, null, function(c){ champ._cmChoix = c; return Promise.resolve(); });
+}
+function osCommuneChoix(id){
+  var champ = document.getElementById(id);
+  return champ ? champ._cmChoix : undefined;
+}
+// Remplit le champ avec une commune proposée, si personne n'y a encore touché
+function osCommuneProposer(id, c){
+  var champ = document.getElementById(id);
+  if(!champ || !c || champ._cmChoix !== undefined || champ.value.trim()) return;
+  champ._cmChoix = c;
+  champ.value = osCommuneLibelle(c);
+  var etat = document.getElementById(id+'-etat');
+  if(etat){ etat.textContent = 'Trouvée dans le formulaire'; etat.style.color = '#0F6E56'; }
+}
+
+function _communeGeo(params){
+  var base = typeof CARTE_GEOCODAGE !== 'undefined' ? CARTE_GEOCODAGE : 'https://data.geopf.fr/geocodage/search';
+  return fetch(base+'?'+params).then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){ return (d && d.features && d.features[0]) || null; }).catch(function(){ return null; });
+}
+
+// La commune d'une adresse postale (« 12 rue X, 81000 Albi ») : seule la ville est gardée, avec le
+// centre de la commune (jamais le point de l'adresse).
+function osCommuneDepuisAdresse(texte){
+  var q = String(texte || '').replace(/\s+/g, ' ').trim();
+  if(q.length < 3) return Promise.resolve(null);
+  return _communeGeo('q='+encodeURIComponent(q)+'&index=address&limit=1').then(function(f){
+    var p = (f && f.properties) || {};
+    var citycode = p.citycode, ville = p.city || p.municipality;
+    if(!f || (p.score || 0) < 0.4 || !citycode){
+      // Pas d'adresse reconnue : on tente le texte comme nom de commune (« Albi », « 81000 Albi »)
+      return _communeGeo('q='+encodeURIComponent(q)+'&index=address&type=municipality&limit=1').then(function(m){
+        var pm = (m && m.properties) || {};
+        if(!m || (pm.score || 0) < 0.5) return null;
+        return { commune:pm.city || pm.name, commune_code:pm.citycode || '', commune_lng:m.geometry.coordinates[0], commune_lat:m.geometry.coordinates[1] };
+      });
+    }
+    return _communeGeo('q='+encodeURIComponent(ville)+'&index=address&type=municipality&citycode='+encodeURIComponent(citycode)+'&limit=1').then(function(m){
+      if(!m || !m.geometry) return null;
+      var pm = m.properties || {};
+      return { commune:pm.city || pm.name || ville, commune_code:pm.citycode || citycode, commune_lng:m.geometry.coordinates[0], commune_lat:m.geometry.coordinates[1] };
+    });
+  });
+}
+
+// Adresse donnée dans le formulaire d'inscription (Tally) d'un·e candidat·e
+function osCandidatAdresse(c){
+  var rep = Array.isArray(c && c.tally_reponses) ? c.tally_reponses : [];
+  var r = rep.find(function(x){ return /adresse/i.test(x.question || '') && x.reponse; })
+    || rep.find(function(x){ return /\bville\b/i.test(x.question || '') && !/formation/i.test(x.question || '') && x.reponse; });
+  return r ? String(r.reponse) : '';
 }
