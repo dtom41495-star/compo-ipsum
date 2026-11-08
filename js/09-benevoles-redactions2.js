@@ -316,7 +316,7 @@ function osBenevolesDashRender(){
         btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
         if(tid==='recrutement') _osBenvMarquerRecrutementLu();
-        if(tid==='carte'){ osCommunesCarteDessiner('benv-carte-communes', membres); osZonesSansBenevoleAfficher('benv-trous', membres, 'benv-carte-communes'); osCouvertureAfficher('benv-couverture', articles, { corriger:isAdmin }); }
+        if(tid==='carte'){ var rc=window._redactionsData||[]; osCommunesCarteDessiner('benv-carte-communes', membres, null, rc); osZonesSansBenevoleAfficher('benv-trous', membres, 'benv-carte-communes'); osCouvertureAfficher('benv-couverture', articles, { corriger:isAdmin, redacs:rc }); }
       };})(t.id,btn);
       rail.appendChild(btn);
     });
@@ -434,7 +434,7 @@ function osBenevolesDashRender(){
       +osCommunesBlocHTML('benv-carte-communes', membres, { invitation:true, montrerSans:true })
       // Recrutement ciblé : les communes du Tarn sans bénévole à proximité (dessinées aussi sur la carte)
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Où recruter</div>'
-      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 15 km (cercles rouges sur la carte). De bons endroits pour une annonce.</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">Là où l’on publie ou reçoit des invitations presse sans bénévole à moins de 15 km (cercles orange sur la carte), puis les communes du Tarn de plus de 1 500 habitants dans le même cas (cercles rouges). De bons endroits pour une annonce.</div>'
       +'<div id="benv-trous"></div>'
       // Les articles publiés, toutes rédactions, placés sur leur commune : où l'on couvre, où sont les trous
       +'<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin:1.6rem 0 0.3rem;">Ce qu’on a couvert</div>'

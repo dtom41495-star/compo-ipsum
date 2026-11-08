@@ -153,7 +153,7 @@ function _mrAfficher(){
     else if(sous === 'reglages') h += osRedacReglagesForm(d.redac);
     else h += _mrVue(d, chef);
     racine.innerHTML = h;
-    if(sous === 'vue'){ osCommunesCarteDessiner('mr-carte-communes', d.membres); osCouvertureAfficher('mr-couverture', d.arts, { corriger:chef }); }
+    if(sous === 'vue'){ osCommunesCarteDessiner('mr-carte-communes', d.membres, null, [d.redac]); osCouvertureAfficher('mr-couverture', d.arts, { corriger:chef, redacs:[d.redac] }); }
     void racine.offsetHeight;
     if(osEstMobile() && typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
   }).catch(function(e){
