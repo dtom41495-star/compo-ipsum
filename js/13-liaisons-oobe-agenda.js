@@ -1751,6 +1751,9 @@ function osAgendaOuvrirDetail(ev){
       if(inscrConfirmes.length > 10) iz += '<span style="font-family:DM Sans,sans-serif;font-size:0.62rem;color:var(--gris);margin-left:6px;">+'+(inscrConfirmes.length-10)+'</span>';
       iz += '</div>';
     }
+    // Covoiturage : les inscrit·es confirmé·es qui habitent le même coin (pas pour un événement seulement en visio)
+    var visioSeule = !!ev.lien_visio && (!ev.lieu || /^\s*(en\s+)?(visio|visioconf[ée]rence|en ligne|distanciel)\s*$/i.test(ev.lieu));
+    if(nbConfirmes >= 2 && !visioSeule && ev.statut !== 'annule') iz += '<div id="ag-covoit"></div>';
     // Inscription sur une partie du temps : heures couvertes et trous
     if(ev.inscription_partielle && typeof agendaCouvertureHTML === 'function') iz += agendaCouvertureHTML(ev, inscriptions);
 
@@ -1877,6 +1880,8 @@ function osAgendaOuvrirDetail(ev){
       iz += '</div>';
     }
     zone.innerHTML = iz;
+    if(document.getElementById('ag-covoit') && typeof osCovoiturageAfficher === 'function')
+      osCovoiturageAfficher('ag-covoit', inscriptions.filter(function(i){ return i.statut === 'confirme'; }).map(function(i){ return i.membre_id; }), ev);
 
     var btnI = document.getElementById('agenda-inscr-btn');
     if(btnI && !complet) btnI.onclick = function(){ if(ev.inscription_partielle && typeof osAgendaChoisirCreneauInscription === 'function') osAgendaChoisirCreneauInscription(ev.id); else osAgendaSInscrire(ev.id); };
@@ -3078,6 +3083,8 @@ function osAgendaOuvrirFormulaire(ev){
     +'<div id="ag-lieu-carte" class="carte-lieu" style="display:none;"></div>'
     // Les bénévoles qui habitent le plus près du lieu (communes, js/83-communes.js)
     +'<div id="ag-lieu-proches" class="cm-proches" style="display:none;"></div>'
+    // Pour une réunion en présentiel : la commune la plus centrale pour les invité·es (js/83-communes.js)
+    +'<div id="ag-lieu-central" class="cm-proches" style="display:none;"></div>'
     // Option : lieu et lien visibles seulement par les inscrit·es confirmé·es (et ceux qui gèrent l'événement)
     +interrupteur('ag-infos-reservees', 'Lieu et lien réservés aux inscrit·es', 'Les autres voient « Communiqué aux inscrit·es » dans Compo, les invitations et le lien public.', ev&&ev.infos_reservees, 'lock');
   html += '</div>';

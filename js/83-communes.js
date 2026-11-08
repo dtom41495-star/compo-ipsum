@@ -206,7 +206,7 @@ function osCommunesBlocHTML(id, membres, opts){
   return h+'</div>';
 }
 
-function osCommunesCarteDessiner(id, membres){
+function osCommunesCarteDessiner(id, membres, trous){
   var zone = document.getElementById(id);
   if(!zone) return;
   var groupes = osCommunesRegrouper(membres);
@@ -227,6 +227,11 @@ function osCommunesCarteDessiner(id, membres){
       L.marker([g.lat, g.lng], { icon:icone, title:g.commune }).addTo(carte)
         .bindPopup('<div class="cm-popup"><strong>'+esc(g.commune)+'</strong><br>'+g.membres.map(function(m){ return esc(_communeNom(m)); }).join('<br>')+'</div>');
       points.push([g.lat, g.lng]);
+    });
+    // Zones sans bénévole (Vie asso › Carte) : cercle pointillé de 15 km autour de la commune
+    (trous || []).forEach(function(t){
+      L.circle([t.c.lat, t.c.lng], { radius:TROUS_KM * 1000, color:'#C0392B', weight:1.5, dashArray:'5 5', fillColor:'#C0392B', fillOpacity:0.06 })
+        .addTo(carte).bindPopup('<div class="cm-popup"><strong>'+esc(t.c.commune)+'</strong><br>Aucun·e bénévole à moins de '+TROUS_KM+' km</div>');
     });
     if(points.length === 1) carte.setView(points[0], 10);
     else carte.fitBounds(points, { padding:[30, 30], maxZoom:11 });
@@ -531,3 +536,160 @@ function osCandidatAdresse(c){
     || rep.find(function(x){ return /\bville\b/i.test(x.question || '') && !/formation/i.test(x.question || '') && x.reponse; });
   return r ? String(r.reponse) : '';
 }
+
+// ── Vie asso : zones sans bénévole, covoiturage, lieu de réunion le plus central ──
+
+var _communesTarn = null;
+// Communes du Tarn (référentiel officiel geo.api.gouv.fr), avec population et centre
+function osCommunesTarn(){
+  if(_communesTarn) return _communesTarn;
+  _communesTarn = fetch('https://geo.api.gouv.fr/departements/81/communes?fields=nom,code,centre,population')
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(l){
+      return (Array.isArray(l) ? l : []).filter(function(c){ return c.centre && c.centre.coordinates; }).map(function(c){
+        return { commune:c.nom, commune_code:c.code, lat:c.centre.coordinates[1], lng:c.centre.coordinates[0], pop:c.population || 0 };
+      });
+    }).catch(function(){ _communesTarn = null; return []; });
+  return _communesTarn;
+}
+
+function _cmPt(m){ return { lat:+m.commune_lat, lng:+m.commune_lng }; }
+function _cmLocalises(membres){ return (membres || []).filter(function(m){ return m && m.commune && m.commune_lat != null && m.commune_lng != null; }); }
+
+var TROUS_KM = 15, TROUS_POP = 1500;
+
+// Les communes du Tarn de plus de 1 500 habitants sans bénévole à moins de 15 km,
+// regroupées par secteur (la plus peuplée représente ses voisines à moins de 12 km)
+function osZonesSansBenevole(membres){
+  var loc = _cmLocalises(membres);
+  return osCommunesTarn().then(function(tarn){
+    if(!loc.length || !tarn.length) return [];
+    var trous = tarn.filter(function(c){ return c.pop >= TROUS_POP; }).map(function(c){
+      var plus = null;
+      loc.forEach(function(m){ var km = osDistanceKm(c, _cmPt(m)); if(!plus || km < plus.km) plus = { m:m, km:km }; });
+      return { c:c, plus:plus };
+    }).filter(function(t){ return t.plus && t.plus.km > TROUS_KM; })
+      .sort(function(a, b){ return b.c.pop - a.c.pop; });
+    var secteurs = [];
+    trous.forEach(function(t){
+      var s = secteurs.find(function(x){ return osDistanceKm(x.c, t.c) < 12; });
+      if(s){ s.voisines.push(t.c.commune); s.pop += t.c.pop; } else secteurs.push({ c:t.c, plus:t.plus, voisines:[], pop:t.c.pop });
+    });
+    return secteurs;
+  });
+}
+
+function osZonesSansBenevoleAfficher(idZone, membres, idCarte){
+  var zone = document.getElementById(idZone);
+  if(!zone) return;
+  zone.innerHTML = '<div class="cm-vide">Recherche des zones sans bénévole…</div>';
+  osZonesSansBenevole(membres).then(function(secteurs){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    if(!secteurs.length){
+      z.innerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Toutes les communes du Tarn de plus de '+TROUS_POP.toLocaleString('fr-FR')+' habitants ont un·e bénévole à moins de '+TROUS_KM+' km.</div>';
+      return;
+    }
+    z.innerHTML = '<div class="cm-trous">'+secteurs.map(function(s){
+      return '<div class="cm-trou"><i class="ti ti-map-pin-off"></i><div><strong>'+esc(s.c.commune)+'</strong>'
+        +' <small>'+s.pop.toLocaleString('fr-FR')+' hab.'+(s.voisines.length ? ' avec '+esc(s.voisines.join(', ')) : '')+'</small>'
+        +'<small>Bénévole le plus proche : '+esc(_communeNom(s.plus.m))+' ('+esc(s.plus.m.commune)+', '+osDistanceTexte(s.plus.km)+')</small></div></div>';
+    }).join('')+'</div>';
+    if(idCarte) osCommunesCarteDessiner(idCarte, membres, secteurs);
+  });
+}
+
+// Inscrit·es d'un événement qui habitent à moins de 15 km les un·es des autres (de proche en proche)
+var COVOIT_KM = 15;
+function osCovoiturageGroupes(membres){
+  var loc = _cmLocalises(membres), groupes = [], vus = {};
+  loc.forEach(function(m){
+    if(vus[m.id]) return;
+    var g = [m]; vus[m.id] = true;
+    for(var i = 0; i < g.length; i++){
+      loc.forEach(function(o){
+        if(!vus[o.id] && osDistanceKm(_cmPt(g[i]), _cmPt(o)) <= COVOIT_KM){ vus[o.id] = true; g.push(o); }
+      });
+    }
+    if(g.length >= 2) groupes.push(g);
+  });
+  return groupes;
+}
+
+function osCovoiturageAfficher(idZone, ids, ev){
+  var zone = document.getElementById(idZone);
+  if(!zone || !ids || ids.length < 2) return;
+  var pLieu = (ev && ev.lieu && typeof _carteLocaliser === 'function') ? _carteLocaliser(ev.lieu).catch(function(){ return null; }) : Promise.resolve(null);
+  Promise.all([osCommunesMembres(), pLieu]).then(function(res){
+    var z = document.getElementById(idZone);
+    if(!z) return;
+    var parId = {}; ids.forEach(function(id){ parId[id] = true; });
+    var lieu = res[1];
+    var groupes = osCovoiturageGroupes(res[0].filter(function(m){ return parId[m.id]; })).filter(function(g){
+      // Tout le groupe habite sur place : pas besoin de voiture
+      return !lieu || g.some(function(m){ return osDistanceKm(_cmPt(m), lieu) > 5; });
+    });
+    if(!groupes.length){ z.innerHTML = ''; return; }
+    z.innerHTML = '<div class="cm-covoit"><div class="cm-proches-titre"><i class="ti ti-car"></i> Covoiturage possible</div>'
+      +groupes.map(function(g){
+        var noms = g.map(function(m){ return esc(m.prenom || _communeNom(m)); });
+        var communes = g.map(function(m){ return m.commune; }).filter(function(c, i, t){ return t.indexOf(c) === i; });
+        var km = lieu ? Math.round(Math.max.apply(null, g.map(function(m){ return osDistanceKm(_cmPt(m), lieu); }))) : null;
+        return '<div class="cm-covoit-ligne">'+noms.slice(0, -1).join(', ')+' et '+noms[noms.length-1]+' viennent du même coin'
+          +' <small>('+esc(communes.join(', '))+(km ? ' · '+km+' km du lieu' : '')+')</small></div>';
+      }).join('')+'</div>';
+  });
+}
+
+// Formulaire de l'agenda : la commune qui fait le moins de kilomètres au total pour les invité·es
+function osAgendaLieuCentral(ids){
+  var zone = document.getElementById('ag-lieu-central');
+  if(!zone) return;
+  var parId = {}; (ids || []).forEach(function(id){ parId[id] = true; });
+  Promise.all([osCommunesMembres(), osCommunesTarn()]).then(function(res){
+    var z = document.getElementById('ag-lieu-central');
+    if(!z) return;
+    var tous = _cmLocalises(res[0]).filter(function(m){ return parId[m.id]; });
+    // Les invité·es qui habitent loin du groupe (plus de 120 km du point médian) ne comptent pas : elles et ils viendront plutôt en visio
+    function mediane(t){ t = t.slice().sort(function(a, b){ return a - b; }); return t.length ? t[Math.floor(t.length / 2)] : 0; }
+    var centre = { lat:mediane(tous.map(function(m){ return +m.commune_lat; })), lng:mediane(tous.map(function(m){ return +m.commune_lng; })) };
+    var invites = tous.filter(function(m){ return osDistanceKm(centre, _cmPt(m)) <= 120; });
+    var loin = tous.filter(function(m){ return invites.indexOf(m) === -1; });
+    if(invites.length < 2){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    var cand = {};
+    invites.forEach(function(m){ cand[m.commune_code || m.commune] = { commune:m.commune, lat:+m.commune_lat, lng:+m.commune_lng }; });
+    res[1].forEach(function(c){ if(c.pop >= 3000) cand[c.commune_code] = c; });
+    var classement = Object.keys(cand).map(function(k){
+      var c = cand[k], dists = invites.map(function(m){ return osDistanceKm(c, _cmPt(m)); });
+      return { c:c, total:dists.reduce(function(s, d){ return s + d; }, 0), max:Math.max.apply(null, dists) };
+    }).sort(function(a, b){ return a.total - b.total; });
+    var best = classement[0], n = invites.length;
+    var autres = classement.slice(1, 3).map(function(x){ return esc(x.c.commune)+' ('+Math.round(x.total / n)+' km)'; });
+    z.style.display = 'block';
+    z.innerHTML = '<div class="cm-proches-titre"><i class="ti ti-target"></i> Lieu le plus central pour les invité·es</div>'
+      +'<div class="cm-central"><strong>'+esc(best.c.commune)+'</strong> : '+Math.round(best.total / n)+' km en moyenne, '+Math.round(best.max)+' km au plus'
+      +' <small>(calculé sur '+n+' invité·e'+(n > 1 ? 's' : '')+(ids.length > tous.length ? ' ; '+(ids.length - tous.length)+' sans commune connue' : '')+')</small>'
+      +(loin.length ? '<small>Trop loin pour compter : '+loin.map(function(m){ return esc((m.prenom || _communeNom(m))+' ('+m.commune+')'); }).join(', ')+'</small>' : '')
+      +(autres.length ? '<small>Ensuite : '+autres.join(', ')+'</small>' : '')
+      +'<button type="button" class="cm-central-btn" data-commune="'+esc(best.c.commune)+'"><i class="ti ti-map-pin"></i> Mettre « '+esc(best.c.commune)+' » comme lieu</button></div>';
+    var b = z.querySelector('.cm-central-btn');
+    if(b) b.onclick = function(){
+      var champ = document.getElementById('ag-lieu');
+      if(!champ) return;
+      champ.value = b.getAttribute('data-commune');
+      if(typeof osCarteLieuDepuisTexte === 'function') osCarteLieuDepuisTexte('ag-lieu-carte', champ.value);
+      champ.focus();
+    };
+  });
+}
+
+// Le calcul des créneaux de l'agenda reçoit la liste des invité·es à chaque changement : on s'y greffe
+(function(){
+  if(typeof _agendaSuggererCreneaux !== 'function') return;
+  var origine = _agendaSuggererCreneaux;
+  _agendaSuggererCreneaux = function(ids){
+    var r = origine.apply(this, arguments);
+    try{ osAgendaLieuCentral(ids); }catch(e){}
+    return r;
+  };
+})();

@@ -7654,3 +7654,14 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .oobe-commune .cm-input{padding:0.6rem 0.8rem;font-size:0.9rem;}
 .cand-champ .cm-champ{flex:1 1 auto;}
 .cand-champ .cm-etat{text-transform:none;letter-spacing:0;font-family:"DM Sans",sans-serif;}
+.cm-trous{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0.4rem;}
+.cm-trou{display:flex;gap:0.5rem;align-items:flex-start;font-size:0.78rem;color:var(--encre);padding:0.45rem 0.6rem;background:#FDF0EE;border-radius:8px;}
+.cm-trou > i{color:#C0392B;font-size:1rem;margin-top:1px;}
+.cm-trou small{display:block;color:var(--gris);font-size:0.7rem;line-height:1.35;}
+.cm-covoit{margin-top:0.7rem;padding:0.55rem 0.7rem;background:#E8F4F0;border-radius:8px;}
+.cm-covoit-ligne{font-size:0.76rem;color:var(--encre);line-height:1.45;}
+.cm-covoit-ligne small{color:var(--gris);}
+.cm-central{font-size:0.76rem;color:var(--encre);line-height:1.5;}
+.cm-central small{display:block;color:var(--gris);font-size:0.7rem;}
+.cm-central-btn{margin-top:0.4rem;display:inline-flex;align-items:center;gap:5px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid #0F6E56;background:#fff;color:#0F6E56;cursor:pointer;}
+#ag-lieu-central{margin-top:0.4rem;}
