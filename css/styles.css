@@ -7639,3 +7639,13 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .cm-proches-liste{display:flex;flex-wrap:wrap;gap:0.3rem;}
 .cm-proche{font-size:0.7rem;color:var(--encre);background:#fff;border-radius:999px;padding:2px 9px;}
 .cm-distance{display:inline-flex;align-items:center;gap:3px;font-family:'Space Mono',monospace;font-size:0.6rem;font-weight:700;color:#0F6E56;background:#E8F4F0;border-radius:999px;padding:2px 8px;margin:0 0 0.35rem;}
+.couv-periodes{display:flex;gap:0.3rem;}
+.couv-periode{font-family:'DM Sans',sans-serif;font-size:0.7rem;padding:3px 10px;border-radius:999px;border:1px solid var(--gris-bord);background:var(--md-surface,#fff);color:var(--encre);cursor:pointer;}
+.couv-periode.actif{background:var(--encre);color:#fff;border-color:var(--encre);}
+.couv-pastille{background:#EA5B1C;}
+.couv-nb{background:#EA5B1C;}
+.couv-sans{font-size:0.74rem;color:var(--encre);}
+.couv-sans summary{cursor:pointer;color:var(--gris);padding:0.2rem 0;}
+.couv-sans-ligne{display:flex;align-items:center;gap:0.6rem;justify-content:space-between;padding:0.35rem 0;border-bottom:1px dashed var(--gris-bord);}
+.couv-sans-ligne > span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media (max-width:700px){ .couv-sans-ligne{flex-wrap:wrap;} .couv-sans-ligne .cm-champ{flex:1 1 100%;} }
