@@ -250,7 +250,7 @@ function _cmCarte(id, groupes, opts){
     if(_communeCartes[id]){ try{ _communeCartes[id].remove(); }catch(e){} delete _communeCartes[id]; }
     zone = document.getElementById(id);
     zone.innerHTML = '';
-    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true, zoomSnap:0.25 });
+    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true, zoomSnap:0.5, zoomDelta:1 });
     L.tileLayer(typeof CARTE_TUILES !== 'undefined' ? CARTE_TUILES : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom:18, attribution:'© <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN – cartes.gouv.fr</a>' }).addTo(carte);
     var couche = contours.length ? L.geoJSON(contours, { style:{ color:'#1A1A2E', weight:2, opacity:0.75, fillColor:'#1A1A2E', fillOpacity:0.035 }, interactive:false }) : null;
@@ -272,7 +272,25 @@ function _cmCarte(id, groupes, opts){
         .addTo(carte).bindTooltip(esc(t.c.commune)+(t.couvert ? ' : on y couvre déjà, sans' : ' : aucun·e')+' bénévole à moins de '+TROUS_KM+' km', { direction:'top' });
     });
     var marqueurs = {};
+    // Mode chaleur (carte des articles, vie asso) : une tache par commune, d'autant plus chaude qu'il y a d'articles
+    if(opts.mode === 'chaleur'){
+      var poidsDe = function(g){ return g.poids != null ? g.poids : g.n; };
+      var maxN = Math.max.apply(null, groupes.map(poidsDe).concat([1]));
+      _cmChargerChaleur(L).then(function(L2){
+        if(_communeCartes[id] !== carte) return;
+        L2.heatLayer(groupes.filter(function(g){ return poidsDe(g) > 0; }).map(function(g){ return [g.lat, g.lng, poidsDe(g)]; }),
+          { radius:32, blur:26, maxZoom:10, max:Math.max(opts.poidsMin || 2, maxN * 0.6), minOpacity:0.35,
+            gradient:opts.degrade || { 0.2:'#FDE68A', 0.45:'#F59E0B', 0.7:'#EA5B1C', 1:'#B91C1C' } }).addTo(carte);
+      }).catch(function(){ var leg = document.getElementById(id+'-legende'); if(leg) leg.insertAdjacentHTML('afterbegin', '<div class="cm-vide">Carte de chaleur indisponible pour le moment.</div>'); });
+    }
     groupes.forEach(function(g){
+      if(opts.mode === 'chaleur'){
+        // Pas de pastille, mais un point invisible qui garde le survol et le clic depuis la légende
+        marqueurs[g.cle] = L.circleMarker([g.lat, g.lng], { radius:10, opacity:0, fillOpacity:0 }).addTo(carte)
+          .bindTooltip('<div class="cm-popup"><strong>'+esc(g.nom)+'</strong> · '+g.n+' '+(opts.unite || 'membre')+(g.n > 1 ? 's' : '')
+            +(g.info ? '<br>'+esc(g.info) : '')+'</div>', { direction:'top' });
+        return;
+      }
       var n = g.n, taille = n > 1 ? Math.min(30, 18 + Math.round(Math.sqrt(n - 1) * 5)) : 12;
       var icone = L.divIcon({ className:'cm-point-wrap', iconSize:[taille, taille], iconAnchor:[taille/2, taille/2],
         html:'<span class="cm-point'+(n > 1 ? ' cm-point-nb' : '')+'" style="width:'+taille+'px;height:'+taille+'px;background:'+couleur+';">'+(n > 1 ? n : '')+'</span>' });
@@ -283,6 +301,8 @@ function _cmCarte(id, groupes, opts){
     });
     _communeCartes[id] = carte;
     setTimeout(cadrer, 80);
+    _cmSuivreTaille(carte, zone);
+    _cmBoutonPleinEcran(L, carte, zone);
 
     // Légende : communes cliquables, celles du ou des départements d'abord, les autres à part
     var leg = document.getElementById(id+'-legende');
@@ -314,6 +334,72 @@ function _cmCarte(id, groupes, opts){
     var z = document.getElementById(id);
     if(z) z.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
   });
+}
+
+// Module « carte de chaleur » de Leaflet, chargé au premier besoin (cdnjs, sinon jsDelivr)
+var _cmChaleur = null;
+function _cmChargerChaleur(L){
+  if(L && L.heatLayer) return Promise.resolve(L);
+  if(_cmChaleur) return _cmChaleur;
+  var sources = ['https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js', 'https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js'];
+  function essai(i){
+    return new Promise(function(ok, ko){
+      var sc = document.createElement('script');
+      sc.src = sources[i];
+      sc.onload = function(){ window.L && window.L.heatLayer ? ok(window.L) : ko(new Error('module absent')); };
+      sc.onerror = function(){ ko(new Error('chargement impossible')); };
+      document.head.appendChild(sc);
+    }).catch(function(e){ if(i + 1 < sources.length) return essai(i + 1); throw e; });
+  }
+  _cmChaleur = essai(0).catch(function(e){ _cmChaleur = null; throw e; });
+  return _cmChaleur;
+}
+
+// La carte suit la taille de son cadre (fenêtre redimensionnée, agrandie, plein écran) :
+// sans ça, Leaflet garde l'ancienne taille, laisse une bande grise et zoome de travers
+function _cmSuivreTaille(carte, zone){
+  if(typeof ResizeObserver === 'undefined') return;
+  var minuterie = null;
+  var ro = new ResizeObserver(function(){
+    clearTimeout(minuterie);
+    minuterie = setTimeout(function(){
+      if(!document.body.contains(zone)){ ro.disconnect(); return; }
+      try{ carte.invalidateSize({ pan:false }); }catch(e){}
+    }, 60);
+  });
+  ro.observe(zone);
+  carte.on('unload', function(){ ro.disconnect(); });
+}
+
+// Bouton plein écran (sous le zoom) ; Échap pour sortir
+function _cmBoutonPleinEcran(L, carte, zone){
+  var Bouton = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd:function(){
+      var div = L.DomUtil.create('div', 'leaflet-bar cm-plein-btn');
+      div.innerHTML = '<a href="#" role="button" title="Plein écran"><i class="ti ti-maximize"></i></a>';
+      L.DomEvent.disableClickPropagation(div);
+      var lien = div.querySelector('a');
+      function basculer(plein){
+        var avant = carte.getBounds();
+        // Sortie de la fenêtre le temps du plein écran (une fenêtre transformée bornerait le position:fixed)
+        if(plein && !zone._cmPlace){ zone._cmPlace = { parent:zone.parentNode, suivant:zone.nextSibling }; document.body.appendChild(zone); }
+        else if(!plein && zone._cmPlace){ var pl = zone._cmPlace; zone._cmPlace = null; if(pl.parent && document.body.contains(pl.parent)) pl.parent.insertBefore(zone, pl.suivant && pl.suivant.parentNode === pl.parent ? pl.suivant : null); else zone.remove(); }
+        zone.classList.toggle('cm-carte-plein', plein);
+        document.body.classList.toggle('cm-plein-actif', plein);
+        lien.innerHTML = '<i class="ti ti-'+(plein ? 'minimize' : 'maximize')+'"></i>';
+        lien.title = plein ? 'Quitter le plein écran (Échap)' : 'Plein écran';
+        setTimeout(function(){ try{ carte.invalidateSize({ pan:false }); carte.fitBounds(avant); }catch(e){} }, 60);
+        if(plein){ carte.scrollWheelZoom.enable(); document.addEventListener('keydown', echap); }
+        else { carte.scrollWheelZoom.disable(); document.removeEventListener('keydown', echap); }
+      }
+      function echap(e){ if(e.key === 'Escape') basculer(false); }
+      lien.onclick = function(e){ e.preventDefault(); basculer(!zone.classList.contains('cm-carte-plein')); };
+      carte.on('unload', function(){ document.removeEventListener('keydown', echap); document.body.classList.remove('cm-plein-actif'); });
+      return div;
+    }
+  });
+  new Bouton().addTo(carte);
 }
 
 // Bloc bénévoles : carte (remplie par osCommunesCarteDessiner) + légende + qui n'a rien indiqué
@@ -509,9 +595,12 @@ function osCouvertureAfficher(idZone, articles, opts){
     var groupes = Object.keys(parCle).map(function(k){ return parCle[k]; })
       .sort(function(a, b){ return b.articles.length - a.articles.length || a.commune.localeCompare(b.commune, 'fr'); });
     var idCarte = idZone+'-carte';
-    var h = '<div class="couv-periodes">'+COUV_PERIODES.map(function(p){
+    var h = '<div class="couv-barre"><div class="couv-periodes">'+COUV_PERIODES.map(function(p){
       return '<button type="button" class="couv-periode'+(p[0] === etat.periode ? ' actif' : '')+'" data-periode="'+p[0]+'">'+p[1]+'</button>';
-    }).join('')+'</div>';
+    }).join('')+'</div>'
+      +(opts.chaleur ? '<div class="couv-periodes">'+[['points', 'Points', 'map-pin'], ['chaleur', 'Chaleur', 'flame'], ['manques', 'Sans bénévole', 'user-off']].map(function(m){
+        return '<button type="button" class="couv-periode couv-mode'+((etat.mode || 'points') === m[0] ? ' actif' : '')+'" data-mode="'+m[0]+'"><i class="ti ti-'+m[2]+'"></i> '+m[1]+'</button>';
+      }).join('')+'</div>' : '')+'</div>';
     if(!groupes.length) h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
     else h += '<div class="cm-carte" id="'+esc(idCarte)+'"></div><div class="cm-legende" id="'+esc(idCarte)+'-legende"></div>';
     if(opts.corriger && sans.length){
@@ -522,7 +611,10 @@ function osCouvertureAfficher(idZone, articles, opts){
     }
     z.innerHTML = h;
     z.querySelectorAll('.couv-periode').forEach(function(b){
-      b.onclick = function(){ etat.periode = b.getAttribute('data-periode'); osCouvertureAfficher(idZone, articles, opts); };
+      b.onclick = function(){
+        if(b.getAttribute('data-mode')) etat.mode = b.getAttribute('data-mode'); else etat.periode = b.getAttribute('data-periode');
+        osCouvertureAfficher(idZone, articles, opts);
+      };
     });
     if(opts.corriger) sans.slice(0, 25).forEach(function(a){
       osCommuneBrancher(idZone+'-a-'+a.id, a.id, null, function(){ osCouvertureLieux(true); }, function(c){
@@ -533,10 +625,33 @@ function osCouvertureAfficher(idZone, articles, opts){
         }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); });
       });
     });
-    if(groupes.length) _cmCarte(idCarte, groupes.map(function(g){
+    var modeCarte = opts.chaleur ? (etat.mode || 'points') : 'points';
+    var grp = groupes.map(function(g){
       return { cle:String(g.code || g.commune), nom:g.commune, lat:g.lat, lng:g.lng, n:g.articles.length,
         lignes:g.articles.map(function(a){ return a.titre || 'Sans titre'; }) };
-    }), { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', extraResume:sans.length ? sans.length+' sans lieu précis' : '' });
+    });
+    var extra = sans.length ? sans.length+' sans lieu précis' : '';
+    if(groupes.length && modeCarte === 'manques'){
+      // Beaucoup d'actu, personne sur place : poids = articles × éloignement du bénévole le plus proche
+      // (0 à moins de 5 km, plein à 30 km et au-delà)
+      osCommunesMembres().then(function(membres){
+        var loc = _cmLocalises(membres);
+        var liste = grp.map(function(g){
+          var plus = _cmPlusProche(g, loc), km = plus ? plus.km : 99;
+          var f = Math.max(0, Math.min(1, (km - 5) / 25));
+          return Object.assign(g, { poids:g.n * f, info:plus ? 'Bénévole le plus proche : '+(plus.m.prenom || _communeNom(plus.m))+', '+osDistanceTexte(plus.km) : 'Aucun·e bénévole localisé·e' });
+        }).filter(function(g){ return g.poids > 0; }).sort(function(a, b){ return b.poids - a.poids; });
+        if(!document.getElementById(idCarte)) return;
+        if(!liste.length){
+          document.getElementById(idCarte).outerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Partout où l’on publie, un·e bénévole habite à moins de 5 km.</div>';
+          var lg = document.getElementById(idCarte+'-legende'); if(lg) lg.remove();
+          return;
+        }
+        _cmCarte(idCarte, liste, { redacs:opts.redacs, unite:'article', couleur:'#B91C1C', mode:'chaleur', poidsMin:1,
+          degrade:{ 0.2:'#FBCFE8', 0.45:'#F472B6', 0.7:'#DB2777', 1:'#831843' },
+          extraResume:'communes où l’on publie loin des bénévoles' });
+      });
+    } else if(groupes.length) _cmCarte(idCarte, grp, { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', mode:modeCarte, extraResume:extra });
   });
 }
 

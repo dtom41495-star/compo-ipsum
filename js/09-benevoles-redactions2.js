@@ -316,7 +316,7 @@ function osBenevolesDashRender(){
         btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
         if(tid==='recrutement') _osBenvMarquerRecrutementLu();
-        if(tid==='carte'){ var rc=window._redactionsData||[]; osCommunesCarteDessiner('benv-carte-communes', membres, null, rc); osZonesSansBenevoleAfficher('benv-trous', membres, 'benv-carte-communes'); osCouvertureAfficher('benv-couverture', articles, { corriger:isAdmin, redacs:rc }); }
+        if(tid==='carte'){ var rc=window._redactionsData||[]; osCommunesCarteDessiner('benv-carte-communes', membres, null, rc); osZonesSansBenevoleAfficher('benv-trous', membres, 'benv-carte-communes'); osCouvertureAfficher('benv-couverture', articles, { corriger:isAdmin, redacs:rc, chaleur:true }); }
       };})(t.id,btn);
       rail.appendChild(btn);
     });

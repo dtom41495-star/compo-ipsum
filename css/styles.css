@@ -7681,3 +7681,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .cm-trous-titre:first-child{margin-top:0;}
 .cm-trou-couvert{background:#FEF6E7;}
 .cm-trou-couvert > i{color:#D97706;}
+/* Carte en plein écran (bouton sous le zoom) */
+.cm-carte.cm-carte-plein{position:fixed !important;inset:0;height:auto !important;z-index:100000;border-radius:0;border:none;}
+.cm-plein-btn a{display:flex !important;align-items:center;justify-content:center;font-size:1rem;color:var(--encre,#1A1A2E);}
+.couv-barre{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;align-items:center;}
+.couv-mode{display:inline-flex;align-items:center;gap:4px;}
