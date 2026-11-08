@@ -84,7 +84,7 @@ function _mrCharger(){
     var ids = liens.map(function(l){ return l.membre_id; });
     var inIds = ids.length ? ids.map(encodeURIComponent).join(',') : null;
     return Promise.all([
-      inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,email,avatar_id,created_at,fonction,'+COMMUNE_COLONNES) : Promise.resolve([]),
+      inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,actif,email,avatar_id,created_at,fonction,'+COMMUNE_COLONNES) : Promise.resolve([]),
       _mrLireTout('articles?redaction_id=eq.'+enc+'&select=id,titre,type,statut,auteur,auteur_id,urgence,updated_at,created_at,publie_le,correcteur,correcteur_id,note_interne,sujet_id'),
       inIds ? _mrLire('agenda_inscriptions?membre_id=in.('+inIds+')&created_at=gte.'+encodeURIComponent(debutMois.toISOString())+'&select=membre_id,statut').catch(function(){ return []; }) : Promise.resolve([]),
       chef ? _mrLire('briefing?redaction_id=eq.'+enc+'&statut=eq.en_cours&select=*').catch(function(){ return []; }) : Promise.resolve([]),
@@ -95,7 +95,8 @@ function _mrCharger(){
       var parId = {};
       res[0].forEach(function(m){ parId[m.id] = m; });
       // Les membres de la rédaction, chefs d'abord, puis par prénom
-      var membres = liens.filter(function(l){ return parId[l.membre_id] && parId[l.membre_id].role !== 'interdit'; }).map(function(l){
+      // Ni les comptes bloqués, ni les comptes désactivés (parti·es de l'asso, encore rattaché·es à la rédaction)
+      var membres = liens.filter(function(l){ var m = parId[l.membre_id]; return m && m.role !== 'interdit' && m.actif !== false; }).map(function(l){
         return Object.assign({}, parId[l.membre_id], { roleRedac:l.role_redac || 'redacteur', aussiSr:!!l.aussi_sr });
       }).sort(function(a, b){
         return ((b.roleRedac === 'redac_chef') - (a.roleRedac === 'redac_chef')) || (a.prenom || '').localeCompare(b.prenom || '', 'fr');
