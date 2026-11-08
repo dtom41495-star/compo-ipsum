@@ -750,6 +750,7 @@ function osBenevolesOuvrirFiche(membreId){
   html += '<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-family:Poppins,sans-serif;font-weight:700;font-size:1.05rem;color:white;">'+esc(m.prenom||'')+' '+esc(m.nom||'')+'</span><span style="font-family:Space Mono,monospace;font-size:0.58rem;padding:2px 7px;border-radius:10px;background:'+(osEstEnLigne(m.id)?'rgba(39,174,96,0.2)':'rgba(255,255,255,0.08)')+';color:'+(osEstEnLigne(m.id)?'#5DCA8A':'rgba(255,255,255,0.4)')+';">'+(osEstEnLigne(m.id)?'En ligne':'Hors ligne')+'</span></div>';
   html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.55);margin-top:2px;">'+esc(m.email||'')+'</div>';
   html += '<div class="benv-identifiant" title="Identifiant imprimé sur sa carte d\'adhérent" style="font-family:Space Mono,monospace;font-size:0.68rem;color:rgba(255,255,255,0.75);margin-top:3px;"><i class="ti ti-id"></i> '+osIdentifiantMembre(m.id)+'</div>';
+  if(m.commune) html += '<div class="benv-commune"><i class="ti ti-map-pin"></i> '+esc(osCommuneLibelle(m))+'</div>';
   html += '</div>';
   html += '</div>';
 
@@ -787,6 +788,9 @@ function osBenevolesOuvrirFiche(membreId){
     html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris);margin-bottom:0.4rem;">Fraîcheur de publication</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursBreve!==null&&s.joursBreve>7?'#A32D2D':'var(--encre)')+';margin-bottom:2px;">Dernière brève : '+breveTxt+'</div>';
     html += '<div style="font-size:0.78rem;color:'+(s.joursArticle!==null&&s.joursArticle>30?'#A32D2D':'var(--encre)')+';margin-bottom:6px;">Dernier article : '+articleTxt+'</div>';
+    // Commune : la vie asso peut la renseigner ou la corriger (sert à la carte de couverture)
+    html += '<div class="benv-commune-edit"><span>Commune</span>'+osCommuneChampHTML('benv-commune-'+m.id, m)+'</div>';
+    setTimeout(function(){ osCommuneBrancher('benv-commune-'+m.id, m.id, m); }, 0);
     html += (typeof osRegulariteFicheHtml === 'function' ? osRegulariteFicheHtml(s) : '');
     // Solde de plumes (rempli juste après : lu dans plumes_soldes, réservé admin et vie asso)
     html += '<div class="benv-plumes" id="benv-plumes-'+esc(m.id)+'"><i class="ti ti-feather"></i><span>Plumes : …</span></div>';

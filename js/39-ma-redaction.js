@@ -84,7 +84,7 @@ function _mrCharger(){
     var ids = liens.map(function(l){ return l.membre_id; });
     var inIds = ids.length ? ids.map(encodeURIComponent).join(',') : null;
     return Promise.all([
-      inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,email,avatar_id,created_at,fonction') : Promise.resolve([]),
+      inIds ? _mrLire('membres?id=in.('+inIds+')&select=id,prenom,nom,role,email,avatar_id,created_at,fonction,'+COMMUNE_COLONNES) : Promise.resolve([]),
       _mrLireTout('articles?redaction_id=eq.'+enc+'&select=id,titre,type,statut,auteur,auteur_id,urgence,updated_at,created_at,publie_le,correcteur,correcteur_id,note_interne,sujet_id'),
       inIds ? _mrLire('agenda_inscriptions?membre_id=in.('+inIds+')&created_at=gte.'+encodeURIComponent(debutMois.toISOString())+'&select=membre_id,statut').catch(function(){ return []; }) : Promise.resolve([]),
       chef ? _mrLire('briefing?redaction_id=eq.'+enc+'&statut=eq.en_cours&select=*').catch(function(){ return []; }) : Promise.resolve([]),
@@ -152,6 +152,7 @@ function _mrAfficher(){
     else if(sous === 'reglages') h += osRedacReglagesForm(d.redac);
     else h += _mrVue(d, chef);
     racine.innerHTML = h;
+    if(sous === 'vue') osCommunesCarteDessiner('mr-carte-communes', d.membres);
     void racine.offsetHeight;
     if(osEstMobile() && typeof _accueilPreparerMaRedac === 'function') _accueilPreparerMaRedac();
   }).catch(function(e){
@@ -208,6 +209,9 @@ function _mrVue(d, chef){
           +(m.roleRedac === 'redac_chef' ? '<em class="mr-chef">chef</em>' : '')+'</button>';
       }).join('')+(d.membres.length ? '' : '<span class="mr-vide">Aucun membre</span>')+'</div></div>';
   }
+  // Où vivent les membres de la rédaction (commune seule, renseignée dans Mon profil)
+  h += '<div class="mr-bloc"><div class="mr-titre"><i class="ti ti-map-2" style="color:#0F6E56;"></i> Où vit l’équipe</div>'
+    +osCommunesBlocHTML('mr-carte-communes', d.membres, { invitation:true, montrerSans:chef })+'</div>';
   h += '<div class="mr-bloc"><div class="mr-titre">Articles récents</div>';
   if(!s.recents.length) h += '<div class="mr-vide">Rien de publié pour l’instant.</div>';
   s.recents.forEach(function(a){

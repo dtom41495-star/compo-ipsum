@@ -7604,3 +7604,38 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .benv-plumes { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 0.8rem; color: #6B2F8A; }
 .benv-plumes i { font-size: 1rem; }
 .benv-plumes strong { font-family: Poppins, sans-serif; font-size: 0.95rem; }
+
+/* ===== Communes des bénévoles et cartes de couverture (js/83-communes.js) ===== */
+.cm-champ{display:flex;align-items:center;gap:6px;min-width:0;flex:0 1 240px;}
+.cm-champ > i{color:var(--gris);font-size:0.95rem;flex-shrink:0;}
+.cm-input{flex:1;min-width:0;font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:5px 9px;border:1px solid var(--gris-bord);border-radius:8px;background:var(--md-surface,#fff);color:var(--encre);outline:none;}
+.cm-input:focus{border-color:var(--rouge);}
+.cm-etat{position:absolute;right:2px;top:100%;margin-top:2px;font-size:0.62rem;white-space:nowrap;pointer-events:none;}
+.cm-sugg{min-width:220px;}
+.cm-bloc{display:flex;flex-direction:column;gap:0.6rem;}
+.cm-carte{height:320px;border-radius:10px;overflow:hidden;border:1px solid var(--gris-bord);background:var(--gris-clair);z-index:0;}
+.cm-resume{font-family:'Space Mono',monospace;font-size:0.62rem;color:var(--gris);}
+.cm-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0.4rem;}
+.cm-ligne{display:flex;gap:0.5rem;align-items:flex-start;font-size:0.78rem;color:var(--encre);padding:0.35rem 0.5rem;background:var(--gris-clair);border-radius:8px;}
+.cm-ligne small{display:block;color:var(--gris);font-size:0.7rem;line-height:1.3;}
+.cm-nb{flex-shrink:0;min-width:22px;height:22px;border-radius:11px;background:#0F6E56;color:#fff;font-weight:700;font-size:0.7rem;display:inline-flex;align-items:center;justify-content:center;}
+.cm-sans{font-size:0.72rem;color:var(--gris);}
+.cm-sans span{font-weight:600;}
+.cm-vide{font-size:0.78rem;color:var(--gris);padding:0.6rem 0;}
+.cm-pastille-wrap{background:none;border:none;}
+.cm-pastille{display:flex;align-items:center;justify-content:center;border-radius:50%;background:#0F6E56;color:#fff;font:700 0.78rem 'DM Sans',sans-serif;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);box-sizing:border-box;}
+.cm-popup{font-family:'DM Sans',sans-serif;font-size:0.78rem;line-height:1.45;}
+.rp-ligne-commune .cm-champ{flex:0 1 220px;}
+.benv-commune{font-size:0.7rem;color:rgba(255,255,255,0.75);margin-top:3px;}
+.benv-commune-edit{display:flex;align-items:center;gap:0.6rem;margin:0.5rem 0;font-size:0.72rem;color:var(--gris);}
+.benv-commune-edit > span{font-family:'Space Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;}
+@media (max-width:700px){
+  .cm-carte{height:260px;}
+  .rp-ligne-commune{flex-wrap:wrap;}
+  .rp-ligne-commune .cm-champ{flex:1 1 100%;}
+}
+.cm-proches{margin-top:0.2rem;padding:0.55rem 0.7rem;background:#E8F4F0;border-radius:8px;}
+.cm-proches-titre{font-size:0.74rem;font-weight:600;color:#0F6E56;margin-bottom:0.35rem;display:flex;align-items:center;gap:5px;}
+.cm-proches-liste{display:flex;flex-wrap:wrap;gap:0.3rem;}
+.cm-proche{font-size:0.7rem;color:var(--encre);background:#fff;border-radius:999px;padding:2px 9px;}
+.cm-distance{display:inline-flex;align-items:center;gap:3px;font-family:'Space Mono',monospace;font-size:0.6rem;font-weight:700;color:#0F6E56;background:#E8F4F0;border-radius:999px;padding:2px 8px;margin:0 0 0.35rem;}

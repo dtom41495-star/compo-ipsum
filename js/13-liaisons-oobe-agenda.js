@@ -3073,6 +3073,8 @@ function osAgendaOuvrirFormulaire(ev){
     +'</div>'
     // Carte du lieu (cartes.gouv.fr), affichée dès qu'une adresse est reconnue
     +'<div id="ag-lieu-carte" class="carte-lieu" style="display:none;"></div>'
+    // Les bénévoles qui habitent le plus près du lieu (communes, js/83-communes.js)
+    +'<div id="ag-lieu-proches" class="cm-proches" style="display:none;"></div>'
     // Option : lieu et lien visibles seulement par les inscrit·es confirmé·es (et ceux qui gèrent l'événement)
     +interrupteur('ag-infos-reservees', 'Lieu et lien réservés aux inscrit·es', 'Les autres voient « Communiqué aux inscrit·es » dans Compo, les invitations et le lien public.', ev&&ev.infos_reservees, 'lock');
   html += '</div>';

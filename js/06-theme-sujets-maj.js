@@ -928,6 +928,14 @@ function osParamsRenderSection(section, container){
       + '<div class="params-action" style="font-family:\'DM Sans\',sans-serif;font-size:0.82rem;color:var(--encre);">'+esc(emailActuel)+'</div>';
     container.appendChild(rowEmail);
 
+    // Commune (ville seule) : visible de toute l'équipe, sert aux cartes de couverture
+    var rowCommune = document.createElement('div');
+    rowCommune.className = 'params-row';
+    rowCommune.innerHTML = '<div><div class="params-label">Ma commune</div><div class="params-label-sub">La ville où tu habites, sans adresse. Visible par l\'équipe sur la carte de Ma rédac\' et de la vie associative.</div></div>'
+      + osCommuneChampHTML('params-commune', null);
+    container.appendChild(rowCommune);
+    osCommuneBrancher('params-commune', getUserId(), null);
+
     // Choisir mon avatar
     var rowAvatar = document.createElement('div');
     rowAvatar.className = 'params-row';
