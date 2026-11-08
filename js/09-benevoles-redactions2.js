@@ -229,7 +229,7 @@ function osBenevolesDashRender(){
   wc.innerHTML = osLoadingHtml('osBenevolesDashRender');
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
-    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at,'+COMMUNE_COLONNES+'&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     // rattache_le : date d'arrivée dans la rédaction (SQL date-rattachement) ; sans lui on retombe sur la liste simple
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,rattache_le',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r2){return r2.json();});}),
@@ -291,6 +291,7 @@ function osBenevolesDashRender(){
     app.style.cssText='display:flex;height:100%;overflow:hidden;';
     var tabDefs=[{id:'equipe',icon:'ti-users',label:'Équipe'},{id:'organigramme',icon:'ti-sitemap',label:'Organigramme'}];
     if(isVieAsso) tabDefs.push({id:'regularite',icon:'ti-calendar-stats',label:'Régularité'});
+    tabDefs.push({id:'carte',icon:'ti-map-2',label:'Carte'});
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
     // Futur·es bénévoles, du premier appel à l'adhésion (js/50-vie-asso-candidats.js)
     if(isVieAsso && typeof osCandidatsRendre==='function') tabDefs.push({id:'candidats',icon:'ti-user-plus',label:'Candidats'});
@@ -315,6 +316,7 @@ function osBenevolesDashRender(){
         btnEl.style.background='var(--rouge)';btnEl.style.color='white';
         Object.keys(tabContents).forEach(function(k){tabContents[k].style.display=k===tid?'flex':'none';});
         if(tid==='recrutement') _osBenvMarquerRecrutementLu();
+        if(tid==='carte') osCommunesCarteDessiner('benv-carte-communes', membres);
       };})(t.id,btn);
       rail.appendChild(btn);
     });
@@ -423,6 +425,15 @@ function osBenevolesDashRender(){
       contentWrap.appendChild(regDiv);
       if(typeof osRegulariteRendreOnglet==='function') osRegulariteRendreOnglet(regDiv, statsMembres);
     }
+    // ONGLET CARTE : la commune de chaque membre actif (dessinée à l'ouverture de l'onglet, Leaflet a besoin de sa taille)
+    var carteDiv=document.createElement('div');
+    carteDiv.className='benv-carte-onglet';
+    carteDiv.style.cssText='flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1.2rem 1.4rem;';
+    carteDiv.innerHTML='<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.85rem;color:var(--encre);margin-bottom:0.3rem;">Carte de couverture</div>'
+      +'<div style="font-size:0.75rem;color:var(--gris);margin-bottom:0.8rem;">La commune de chaque bénévole (ville seule). Chacun·e la renseigne dans Mon profil'+(isVieAsso?', la vie associative peut la corriger depuis la fiche (onglet Équipe)':'')+'.</div>'
+      +osCommunesBlocHTML('benv-carte-communes', membres, { invitation:true, montrerSans:true });
+    tabContents['carte']=carteDiv;
+    contentWrap.appendChild(carteDiv);
     // ONGLET COMMISSIONS
     var commissionsDiv = document.createElement('div');
     commissionsDiv.style.cssText = 'flex:1;overflow-y:auto;display:none;flex-direction:column;padding:1rem 1.4rem;';
@@ -1629,6 +1640,8 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     +'<div class="rp-seg" id="rp-dnd"><button type="button" data-v="0" onclick="if(_dndActif) osToggleDND()">Disponible</button><button type="button" data-v="1" onclick="if(!_dndActif) osToggleDND()">Indispo</button></div></div>';
   h += '<div class="rp-ligne"><div>Mes notifications<small>Où je reçois les alertes</small></div>'
     +'<div class="rp-seg" id="rp-canal"><button type="button" data-v="email" onclick="osRpChoisirCanal(\'email\')">Mail</button><button type="button" data-v="chat" onclick="osRpChoisirCanal(\'chat\')">Chat</button></div></div>';
+  h += '<div class="rp-ligne rp-ligne-commune"><div>Ma commune<small>La ville seule, visible par l\'équipe (carte)</small></div>'+osCommuneChampHTML('rp-commune', null)+'</div>';
+  setTimeout(function(){ osCommuneBrancher('rp-commune', uid, null); }, 0);
   h += '</div>';
   h += '</div>';
 
