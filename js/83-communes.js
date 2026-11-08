@@ -180,66 +180,167 @@ function osCommunesRegrouper(membres){
 
 function _communeNom(m){ return ((m.prenom || '')+' '+(m.nom || '')).trim() || 'Membre'; }
 
-// Bloc complet : carte + liste des communes + qui n'a rien indiqué. Le contenu de la carte
-// est posé ensuite par osCommunesCarteDessiner(id, membres).
+// ── Dessin des cartes (bénévoles, couverture) : contour des départements des rédactions, points
+// discrets (chiffre seulement s'il y a plusieurs personnes ou articles), communes cliquables en dessous ──
+
+var _cmDepListe = null, _cmContours = {}, _cmRedacsParCarte = {}, _cmJetons = {};
+
+function _cmNormNom(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase(); }
+
+// Codes des départements des rédactions (champ « département » : « 31 » ou « Tarn », « Haute Garonne »…)
+function _cmDepCodes(redacs){
+  if(!_cmDepListe) _cmDepListe = fetch('https://geo.api.gouv.fr/departements?fields=nom,code')
+    .then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ _cmDepListe = null; return []; });
+  return _cmDepListe.then(function(liste){
+    var codes = [];
+    (redacs || []).forEach(function(r){
+      var v = String((r && (r.departement || r.nom)) || '').trim();
+      var code = /^(\d{2,3}|2[AB])$/i.test(v) ? v.toUpperCase() : null;
+      if(!code){ var d = (liste || []).find(function(x){ return _cmNormNom(x.nom) === _cmNormNom(v); }); if(d) code = d.code; }
+      if(code && codes.indexOf(code) === -1) codes.push(code);
+    });
+    return codes;
+  });
+}
+
+// Contour officiel d'un département (IGN, ADMIN EXPRESS), gardé pour la session
+function _cmContour(code){
+  if(!_cmContours[code]) _cmContours[code] = fetch('https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature'
+    +'&TYPENAMES=ADMINEXPRESS-COG-CARTO.LATEST:departement&outputFormat=application/json&srsName=EPSG:4326'
+    +'&CQL_FILTER='+encodeURIComponent("code_insee='"+code+"'"))
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){ return (d && d.features && d.features[0]) || null; })
+    .catch(function(){ delete _cmContours[code]; return null; });
+  return _cmContours[code];
+}
+
+function osCartesDepartements(redacs){
+  return _cmDepCodes(redacs).then(function(codes){ return Promise.all(codes.map(_cmContour)); })
+    .then(function(l){ return l.filter(Boolean); }).catch(function(){ return []; });
+}
+
+function _cmDansAnneau(pt, anneau){
+  var x = pt.lng, y = pt.lat, dedans = false;
+  for(var i = 0, j = anneau.length - 1; i < anneau.length; j = i++){
+    var xi = anneau[i][0], yi = anneau[i][1], xj = anneau[j][0], yj = anneau[j][1];
+    if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) dedans = !dedans;
+  }
+  return dedans;
+}
+function _cmDansContours(pt, contours){
+  return (contours || []).some(function(f){
+    var g = f.geometry || {}, polys = g.type === 'Polygon' ? [g.coordinates] : (g.type === 'MultiPolygon' ? g.coordinates : []);
+    return polys.some(function(p){ return _cmDansAnneau(pt, p[0]) && !p.slice(1).some(function(t){ return _cmDansAnneau(pt, t); }); });
+  });
+}
+
+// Carte + légende. groupes : [{cle, nom, lat, lng, n, lignes:[texte…]}]
+// opts : redacs (contours), couleur, unite ('membre'|'article'), trous (zones sans bénévole), vide
+function _cmCarte(id, groupes, opts){
+  opts = opts || {};
+  var zone = document.getElementById(id);
+  if(!zone) return;
+  // Seul le dernier dessin demandé pour cette carte compte (deux dessins rapprochés se marcheraient dessus)
+  var jeton = _cmJetons[id] = (_cmJetons[id] || 0) + 1;
+  var couleur = opts.couleur || '#0F6E56', unite = opts.unite || 'membre';
+  var charger = typeof _carteChargerLeaflet === 'function' ? _carteChargerLeaflet() : Promise.reject(new Error('Leaflet absent'));
+  Promise.all([charger, osCartesDepartements(opts.redacs)]).then(function(res){
+    var L = res[0], contours = res[1];
+    if(_cmJetons[id] !== jeton || !document.getElementById(id)) return;
+    if(_communeCartes[id]){ try{ _communeCartes[id].remove(); }catch(e){} delete _communeCartes[id]; }
+    zone = document.getElementById(id);
+    zone.innerHTML = '';
+    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true, zoomSnap:0.25 });
+    L.tileLayer(typeof CARTE_TUILES !== 'undefined' ? CARTE_TUILES : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom:18, attribution:'© <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN – cartes.gouv.fr</a>' }).addTo(carte);
+    var couche = contours.length ? L.geoJSON(contours, { style:{ color:'#1A1A2E', weight:2, opacity:0.75, fillColor:'#1A1A2E', fillOpacity:0.035 }, interactive:false }) : null;
+    // Cadrage AVANT d'ajouter les tracés : Leaflet plante sur un cercle posé sur une carte encore sans vue
+    function cadrer(){
+      try{
+        carte.invalidateSize();
+        if(couche) carte.fitBounds(couche.getBounds(), { padding:[12, 12] });
+        else if(groupes.length === 1) carte.setView([groupes[0].lat, groupes[0].lng], 10);
+        else if(groupes.length) carte.fitBounds(groupes.map(function(g){ return [g.lat, g.lng]; }), { padding:[30, 30], maxZoom:11 });
+        else carte.setView(typeof CARTE_CENTRE !== 'undefined' ? CARTE_CENTRE : [43.93, 2.15], 9);
+      }catch(e){}
+    }
+    cadrer();
+    if(couche) couche.addTo(carte);
+    (opts.trous || []).forEach(function(t){
+      var coul = t.couvert ? '#D97706' : '#C0392B';
+      L.circle([t.c.lat, t.c.lng], { radius:TROUS_KM * 1000, color:coul, weight:1.5, dashArray:'5 5', fillColor:coul, fillOpacity:0.06 })
+        .addTo(carte).bindTooltip(esc(t.c.commune)+(t.couvert ? ' : on y couvre déjà, sans' : ' : aucun·e')+' bénévole à moins de '+TROUS_KM+' km', { direction:'top' });
+    });
+    var marqueurs = {};
+    groupes.forEach(function(g){
+      var n = g.n, taille = n > 1 ? Math.min(30, 18 + Math.round(Math.sqrt(n - 1) * 5)) : 12;
+      var icone = L.divIcon({ className:'cm-point-wrap', iconSize:[taille, taille], iconAnchor:[taille/2, taille/2],
+        html:'<span class="cm-point'+(n > 1 ? ' cm-point-nb' : '')+'" style="width:'+taille+'px;height:'+taille+'px;background:'+couleur+';">'+(n > 1 ? n : '')+'</span>' });
+      var corps = '<strong>'+esc(g.nom)+'</strong>'+(unite === 'article' ? ' · '+n+' article'+(n > 1 ? 's' : '') : '')
+        +'<br>'+g.lignes.slice(0, 8).map(esc).join('<br>')+(g.lignes.length > 8 ? '<br>…' : '');
+      marqueurs[g.cle] = L.marker([g.lat, g.lng], { icon:icone, riseOnHover:true }).addTo(carte)
+        .bindTooltip('<div class="cm-popup">'+corps+'</div>', { direction:'top', offset:[0, -taille/2] });
+    });
+    _communeCartes[id] = carte;
+    setTimeout(cadrer, 80);
+
+    // Légende : communes cliquables, celles du ou des départements d'abord, les autres à part
+    var leg = document.getElementById(id+'-legende');
+    if(!leg) return;
+    var dedans = contours.length ? groupes.filter(function(g){ return _cmDansContours(g, contours); }) : groupes;
+    var dehors = groupes.filter(function(g){ return dedans.indexOf(g) === -1; });
+    var nomsDep = contours.map(function(f){ return (f.properties && f.properties.nom_officiel) || ''; }).filter(Boolean).join(' et ');
+    function puce(g){
+      return '<button type="button" class="cm-puce" data-cle="'+esc(g.cle)+'" title="'+esc(g.lignes.slice(0, 6).join(', '))+'">'+esc(g.nom)+(g.n > 1 ? ' <b>'+g.n+'</b>' : '')+'</button>';
+    }
+    var total = groupes.reduce(function(t, g){ return t + g.n; }, 0);
+    var h = '<div class="cm-resume">'+total+' '+unite+(total > 1 ? 's' : '')+' · '+groupes.length+' commune'+(groupes.length > 1 ? 's' : '')
+      +(opts.extraResume ? ' · '+opts.extraResume : '')+'</div>';
+    if(dedans.length) h += '<div class="cm-puces">'+dedans.map(puce).join('')+'</div>';
+    if(dehors.length) h += '<div class="cm-puces cm-dehors"><span class="cm-puces-titre">Hors '+(nomsDep ? esc(nomsDep) : 'zone')+' :</span>'+dehors.map(puce).join('')+'</div>';
+    leg.innerHTML = h;
+    leg.querySelectorAll('.cm-puce').forEach(function(b){
+      b.onclick = function(){
+        var g = groupes.find(function(x){ return x.cle === b.getAttribute('data-cle'); }), mk = g && marqueurs[g.cle];
+        if(!mk) return;
+        carte.setView([g.lat, g.lng], Math.max(carte.getZoom(), 10));
+        mk.openTooltip();
+        zone.scrollIntoView({ block:'nearest', behavior:'smooth' });
+      };
+    });
+  }).catch(function(e){
+    if(window.console) console.warn('Carte '+id+' :', e && e.message);
+    if(_cmJetons[id] !== jeton) return;
+    var z = document.getElementById(id);
+    if(z) z.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
+  });
+}
+
+// Bloc bénévoles : carte (remplie par osCommunesCarteDessiner) + légende + qui n'a rien indiqué
 function osCommunesBlocHTML(id, membres, opts){
   opts = opts || {};
   var groupes = osCommunesRegrouper(membres);
   var sans = (membres || []).filter(function(m){ return !m.commune || m.commune_lat == null; });
-  var avec = (membres || []).length - sans.length;
   var h = '<div class="cm-bloc">';
   if(!groupes.length){
-    h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Personne n’a encore indiqué sa commune.'
-      +(opts.invitation ? ' Ajoute la tienne dans <b>Mon profil</b>.' : '')+'</div>';
-    return h+'</div>';
+    return h+'<div class="cm-vide"><i class="ti ti-map-off"></i> Personne n’a encore indiqué sa commune.'
+      +(opts.invitation ? ' Ajoute la tienne dans <b>Mon profil</b>.' : '')+'</div></div>';
   }
-  h += '<div class="cm-carte" id="'+esc(id)+'"></div>';
-  h += '<div class="cm-resume">'+avec+' membre'+(avec > 1 ? 's' : '')+' dans '+groupes.length+' commune'+(groupes.length > 1 ? 's' : '')
-    +(sans.length ? ' · '+sans.length+' sans commune indiquée' : '')+'</div>';
-  h += '<div class="cm-liste">'+groupes.map(function(g){
-    return '<div class="cm-ligne"><span class="cm-nb">'+g.membres.length+'</span><div><strong>'+esc(g.commune)+'</strong>'
-      +'<small>'+g.membres.map(function(m){ return esc(_communeNom(m)); }).join(', ')+'</small></div></div>';
-  }).join('')+'</div>';
-  if(sans.length && opts.montrerSans){
-    h += '<div class="cm-sans"><span>Sans commune :</span> '+sans.map(function(m){ return esc(_communeNom(m)); }).join(', ')+'</div>';
-  }
+  h += '<div class="cm-carte" id="'+esc(id)+'"></div><div class="cm-legende" id="'+esc(id)+'-legende"></div>';
+  if(sans.length && opts.montrerSans) h += '<div class="cm-sans"><span>Sans commune :</span> '+sans.map(function(m){ return esc(_communeNom(m)); }).join(', ')+'</div>';
   return h+'</div>';
 }
 
-function osCommunesCarteDessiner(id, membres, trous){
-  var zone = document.getElementById(id);
-  if(!zone) return;
-  var groupes = osCommunesRegrouper(membres);
-  if(_communeCartes[id]){ try{ _communeCartes[id].remove(); }catch(e){} delete _communeCartes[id]; }
-  if(!groupes.length) return;
-  var charger = typeof _carteChargerLeaflet === 'function' ? _carteChargerLeaflet() : Promise.reject(new Error('Leaflet absent'));
-  charger.then(function(L){
-    if(!document.getElementById(id)) return;
-    zone.innerHTML = '';
-    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true });
-    L.tileLayer(typeof CARTE_TUILES !== 'undefined' ? CARTE_TUILES : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom:18, attribution:'© <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN – cartes.gouv.fr</a>' }).addTo(carte);
-    var points = [];
-    groupes.forEach(function(g){
-      var n = g.membres.length, taille = Math.min(44, 24 + (n - 1) * 4);
-      var icone = L.divIcon({ className:'cm-pastille-wrap', iconSize:[taille, taille], iconAnchor:[taille/2, taille/2],
-        html:'<span class="cm-pastille" style="width:'+taille+'px;height:'+taille+'px;">'+n+'</span>' });
-      L.marker([g.lat, g.lng], { icon:icone, title:g.commune }).addTo(carte)
-        .bindPopup('<div class="cm-popup"><strong>'+esc(g.commune)+'</strong><br>'+g.membres.map(function(m){ return esc(_communeNom(m)); }).join('<br>')+'</div>');
-      points.push([g.lat, g.lng]);
-    });
-    // Zones sans bénévole (Vie asso › Carte) : cercle pointillé de 15 km autour de la commune
-    (trous || []).forEach(function(t){
-      L.circle([t.c.lat, t.c.lng], { radius:TROUS_KM * 1000, color:'#C0392B', weight:1.5, dashArray:'5 5', fillColor:'#C0392B', fillOpacity:0.06 })
-        .addTo(carte).bindPopup('<div class="cm-popup"><strong>'+esc(t.c.commune)+'</strong><br>Aucun·e bénévole à moins de '+TROUS_KM+' km</div>');
-    });
-    if(points.length === 1) carte.setView(points[0], 10);
-    else carte.fitBounds(points, { padding:[30, 30], maxZoom:11 });
-    _communeCartes[id] = carte;
-    setTimeout(function(){ try{ carte.invalidateSize(); if(points.length > 1) carte.fitBounds(points, { padding:[30, 30], maxZoom:11 }); }catch(e){} }, 80);
-  }).catch(function(){
-    zone.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
+// `redacs` : rédactions dont on trace le département (gardées pour les redessins, ex. zones sans bénévole)
+function osCommunesCarteDessiner(id, membres, trous, redacs){
+  if(redacs) _cmRedacsParCarte[id] = redacs;
+  var groupes = osCommunesRegrouper(membres).map(function(g){
+    return { cle:String(g.membres[0].commune_code || g.commune), nom:g.membres[0].commune, lat:g.lat, lng:g.lng, n:g.membres.length,
+      lignes:g.membres.map(_communeNom) };
   });
+  if(!groupes.length) return;
+  var sans = (membres || []).filter(function(m){ return !m.commune || m.commune_lat == null; }).length;
+  _cmCarte(id, groupes, { redacs:_cmRedacsParCarte[id], trous:trous, unite:'membre', couleur:'#0F6E56' });
 }
 
 // ── Proximité : invitations presse les plus proches de chez moi, bénévoles proches d'un lieu ──
@@ -402,7 +503,7 @@ function osCouvertureAfficher(idZone, articles, opts){
       var l = lieux[a.id];
       if(!l || !l.commune || l.lat == null){ sans.push(a); return; }
       var k = l.commune_code || l.commune;
-      if(!parCle[k]) parCle[k] = { commune:l.commune, lat:+l.lat, lng:+l.lng, articles:[] };
+      if(!parCle[k]) parCle[k] = { commune:l.commune, code:l.commune_code, lat:+l.lat, lng:+l.lng, articles:[] };
       parCle[k].articles.push(a);
     });
     var groupes = Object.keys(parCle).map(function(k){ return parCle[k]; })
@@ -411,17 +512,8 @@ function osCouvertureAfficher(idZone, articles, opts){
     var h = '<div class="couv-periodes">'+COUV_PERIODES.map(function(p){
       return '<button type="button" class="couv-periode'+(p[0] === etat.periode ? ' actif' : '')+'" data-periode="'+p[0]+'">'+p[1]+'</button>';
     }).join('')+'</div>';
-    if(!groupes.length){
-      h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
-    } else {
-      h += '<div class="cm-carte" id="'+esc(idCarte)+'"></div>';
-      h += '<div class="cm-resume">'+(dansPeriode.length - sans.length)+' article'+(dansPeriode.length - sans.length > 1 ? 's' : '')+' dans '+groupes.length+' commune'+(groupes.length > 1 ? 's' : '')
-        +(sans.length ? ' · '+sans.length+' sans lieu précis' : '')+'</div>';
-      h += '<div class="cm-liste">'+groupes.slice(0, 12).map(function(g){
-        return '<div class="cm-ligne"><span class="cm-nb couv-nb">'+g.articles.length+'</span><div><strong>'+esc(g.commune)+'</strong>'
-          +'<small>'+g.articles.slice(0, 3).map(function(a){ return esc(a.titre || 'Sans titre'); }).join(' · ')+(g.articles.length > 3 ? ' …' : '')+'</small></div></div>';
-      }).join('')+'</div>';
-    }
+    if(!groupes.length) h += '<div class="cm-vide"><i class="ti ti-map-off"></i> Aucun article localisé sur cette période.</div>';
+    else h += '<div class="cm-carte" id="'+esc(idCarte)+'"></div><div class="cm-legende" id="'+esc(idCarte)+'-legende"></div>';
     if(opts.corriger && sans.length){
       h += '<details class="couv-sans"><summary>'+sans.length+' article'+(sans.length > 1 ? 's' : '')+' sans lieu : indiquer la commune</summary>'
         +sans.slice().sort(function(a, b){ return _couvDate(b) - _couvDate(a); }).slice(0, 25).map(function(a){
@@ -441,36 +533,10 @@ function osCouvertureAfficher(idZone, articles, opts){
         }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); });
       });
     });
-    if(groupes.length) _couvDessiner(idCarte, groupes);
-  });
-}
-
-function _couvDessiner(id, groupes){
-  if(_communeCartes[id]){ try{ _communeCartes[id].remove(); }catch(e){} delete _communeCartes[id]; }
-  var charger = typeof _carteChargerLeaflet === 'function' ? _carteChargerLeaflet() : Promise.reject(new Error('Leaflet absent'));
-  charger.then(function(L){
-    var zone = document.getElementById(id);
-    if(!zone) return;
-    zone.innerHTML = '';
-    var carte = L.map(zone, { scrollWheelZoom:false, attributionControl:true });
-    L.tileLayer(typeof CARTE_TUILES !== 'undefined' ? CARTE_TUILES : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom:18, attribution:'© <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN – cartes.gouv.fr</a>' }).addTo(carte);
-    var points = [];
-    groupes.forEach(function(g){
-      var n = g.articles.length, taille = Math.min(48, 24 + Math.round(Math.sqrt(n - 1) * 7));
-      var icone = L.divIcon({ className:'cm-pastille-wrap', iconSize:[taille, taille], iconAnchor:[taille/2, taille/2],
-        html:'<span class="cm-pastille couv-pastille" style="width:'+taille+'px;height:'+taille+'px;">'+n+'</span>' });
-      L.marker([g.lat, g.lng], { icon:icone, title:g.commune }).addTo(carte)
-        .bindPopup('<div class="cm-popup"><strong>'+esc(g.commune)+'</strong> · '+n+' article'+(n > 1 ? 's' : '')+'<br>'
-          +g.articles.slice(0, 8).map(function(a){ return '• '+esc(a.titre || 'Sans titre'); }).join('<br>')+(n > 8 ? '<br>…' : '')+'</div>');
-      points.push([g.lat, g.lng]);
-    });
-    if(points.length === 1) carte.setView(points[0], 10); else carte.fitBounds(points, { padding:[30, 30], maxZoom:11 });
-    _communeCartes[id] = carte;
-    setTimeout(function(){ try{ carte.invalidateSize(); if(points.length > 1) carte.fitBounds(points, { padding:[30, 30], maxZoom:11 }); }catch(e){} }, 80);
-  }).catch(function(){
-    var zone = document.getElementById(id);
-    if(zone) zone.innerHTML = '<div class="cm-vide"><i class="ti ti-wifi-off"></i> Carte indisponible pour le moment.</div>';
+    if(groupes.length) _cmCarte(idCarte, groupes.map(function(g){
+      return { cle:String(g.code || g.commune), nom:g.commune, lat:g.lat, lng:g.lng, n:g.articles.length,
+        lignes:g.articles.map(function(a){ return a.titre || 'Sans titre'; }) };
+    }), { redacs:opts.redacs, unite:'article', couleur:'#EA5B1C', extraResume:sans.length ? sans.length+' sans lieu précis' : '' });
   });
 }
 
@@ -579,23 +645,79 @@ function osZonesSansBenevole(membres){
   });
 }
 
+// Ce qu'on couvre déjà (articles publiés localisés, invitations presse des 12 derniers mois),
+// ramené à la commune du Tarn la plus proche : [{c, articles, invitations}]
+function _cmActiviteTarn(tarn){
+  var depuis = new Date(Date.now() - 366 * 86400000).toISOString();
+  var pInvit = _communeLire('communiques?type=eq.invitation_presse&date_evenement=gte.'+encodeURIComponent(depuis)+'&lieu_evenement=not.is.null&select=id,lieu_evenement')
+    .then(function(cps){
+      var lieux = {};
+      cps.forEach(function(c){ var l = String(c.lieu_evenement || '').trim(); if(l.length >= 3) lieux[l] = (lieux[l] || 0) + 1; });
+      var cles = Object.keys(lieux).slice(0, 40);
+      if(typeof _carteLocaliser !== 'function') return [];
+      return Promise.all(cles.map(function(l){ return _carteLocaliser(l).catch(function(){ return null; }).then(function(pt){ return pt ? { lat:pt.lat, lng:pt.lon, n:lieux[l] } : null; }); }))
+        .then(function(l){ return l.filter(Boolean); });
+    }).catch(function(){ return []; });
+  return Promise.all([osCouvertureLieux(), pInvit]).then(function(res){
+    var parCode = {};
+    function ajouter(pt, champ, n){
+      var plus = null;
+      tarn.forEach(function(c){ var km = osDistanceKm(c, pt); if(!plus || km < plus.km) plus = { c:c, km:km }; });
+      if(!plus || plus.km > 8) return;   // hors du Tarn
+      var e = parCode[plus.c.commune_code] = parCode[plus.c.commune_code] || { c:plus.c, articles:0, invitations:0 };
+      e[champ] += n;
+    }
+    Object.keys(res[0]).forEach(function(k){ var l = res[0][k]; if(l.commune && l.lat != null) ajouter({ lat:+l.lat, lng:+l.lng }, 'articles', 1); });
+    res[1].forEach(function(p){ ajouter(p, 'invitations', p.n); });
+    return Object.keys(parCode).map(function(k){ return parCode[k]; });
+  });
+}
+
+function _cmPlusProche(pt, loc){
+  var plus = null;
+  loc.forEach(function(m){ var km = osDistanceKm(pt, _cmPt(m)); if(!plus || km < plus.km) plus = { m:m, km:km }; });
+  return plus;
+}
+
+// Où on couvre déjà sans bénévole à moins de 15 km (le plus actif d'abord)
+function osZonesCouvertesSansBenevole(membres){
+  var loc = _cmLocalises(membres);
+  return osCommunesTarn().then(function(tarn){
+    if(!loc.length || !tarn.length) return [];
+    return _cmActiviteTarn(tarn).then(function(act){
+      return act.map(function(a){ return Object.assign(a, { plus:_cmPlusProche(a.c, loc) }); })
+        .filter(function(a){ return a.plus && a.plus.km > TROUS_KM; })
+        .sort(function(x, y){ return (y.articles + y.invitations) - (x.articles + x.invitations) || y.c.pop - x.c.pop; })
+        .slice(0, 10);
+    });
+  });
+}
+
 function osZonesSansBenevoleAfficher(idZone, membres, idCarte){
   var zone = document.getElementById(idZone);
   if(!zone) return;
   zone.innerHTML = '<div class="cm-vide">Recherche des zones sans bénévole…</div>';
-  osZonesSansBenevole(membres).then(function(secteurs){
+  Promise.all([osZonesSansBenevole(membres), osZonesCouvertesSansBenevole(membres).catch(function(){ return []; })]).then(function(res){
+    var couvertes = res[1];
+    // Une grande commune déjà citée parce qu'on la couvre n'est pas répétée
+    var secteurs = res[0].filter(function(sc){ return !couvertes.some(function(a){ return osDistanceKm(a.c, sc.c) < 5; }); });
     var z = document.getElementById(idZone);
     if(!z) return;
-    if(!secteurs.length){
-      z.innerHTML = '<div class="cm-vide"><i class="ti ti-circle-check" style="color:#27AE60;"></i> Toutes les communes du Tarn de plus de '+TROUS_POP.toLocaleString('fr-FR')+' habitants ont un·e bénévole à moins de '+TROUS_KM+' km.</div>';
-      return;
-    }
-    z.innerHTML = '<div class="cm-trous">'+secteurs.map(function(s){
+    function plusProche(p){ return '<small>Bénévole le plus proche : '+esc(_communeNom(p.m))+' ('+esc(p.m.commune)+', '+osDistanceTexte(p.km)+')</small>'; }
+    var h = '<div class="cm-trous-titre"><i class="ti ti-news"></i> Là où l’on couvre déjà, sans bénévole à moins de '+TROUS_KM+' km</div>';
+    h += couvertes.length ? '<div class="cm-trous">'+couvertes.map(function(a){
+      var quoi = [];
+      if(a.articles) quoi.push(a.articles+' article'+(a.articles > 1 ? 's' : ''));
+      if(a.invitations) quoi.push(a.invitations+' invitation'+(a.invitations > 1 ? 's' : '')+' presse');
+      return '<div class="cm-trou cm-trou-couvert"><i class="ti ti-map-pin-exclamation"></i><div><strong>'+esc(a.c.commune)+'</strong> <small>'+quoi.join(', ')+'</small>'+plusProche(a.plus)+'</div></div>';
+    }).join('')+'</div>' : '<div class="cm-vide">Partout où l’on a publié ou été invité, un·e bénévole habite à moins de '+TROUS_KM+' km.</div>';
+    h += '<div class="cm-trous-titre"><i class="ti ti-building-community"></i> Grandes communes sans bénévole à moins de '+TROUS_KM+' km</div>';
+    h += secteurs.length ? '<div class="cm-trous">'+secteurs.map(function(s){
       return '<div class="cm-trou"><i class="ti ti-map-pin-off"></i><div><strong>'+esc(s.c.commune)+'</strong>'
-        +' <small>'+s.pop.toLocaleString('fr-FR')+' hab.'+(s.voisines.length ? ' avec '+esc(s.voisines.join(', ')) : '')+'</small>'
-        +'<small>Bénévole le plus proche : '+esc(_communeNom(s.plus.m))+' ('+esc(s.plus.m.commune)+', '+osDistanceTexte(s.plus.km)+')</small></div></div>';
-    }).join('')+'</div>';
-    if(idCarte) osCommunesCarteDessiner(idCarte, membres, secteurs);
+        +' <small>'+s.pop.toLocaleString('fr-FR')+' hab.'+(s.voisines.length ? ' avec '+esc(s.voisines.join(', ')) : '')+'</small>'+plusProche(s.plus)+'</div></div>';
+    }).join('')+'</div>' : '<div class="cm-vide">Toutes les communes du Tarn de plus de '+TROUS_POP.toLocaleString('fr-FR')+' habitants ont un·e bénévole à moins de '+TROUS_KM+' km.</div>';
+    z.innerHTML = h;
+    if(idCarte) osCommunesCarteDessiner(idCarte, membres, secteurs.concat(couvertes.map(function(a){ return { c:a.c, couvert:true }; })));
   });
 }
 
