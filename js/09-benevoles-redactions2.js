@@ -295,6 +295,8 @@ function osBenevolesDashRender(){
     tabDefs.push({id:'commissions',icon:'ti-building-bank',label:'Commissions'},{id:'recrutement',icon:'ti-speakerphone',label:'Recrutement'});
     // Futur·es bénévoles, du premier appel à l'adhésion (js/50-vie-asso-candidats.js)
     if(isVieAsso && typeof osCandidatsRendre==='function') tabDefs.push({id:'candidats',icon:'ti-user-plus',label:'Candidats'});
+    // Qui fait la com : générale (toutes rédactions) ou d'une rédaction (js/86-equipe-com.js)
+    if(isVieAsso && typeof osEquipeComRendre==='function') tabDefs.push({id:'com',icon:'ti-microphone-2',label:'Équipe com'});
     // Les demandes d'accès sont de l'administration pure — elles vivent dans l'appli
     // Admin, pas ici : cette appli est dédiée à la vie associative.
     var rail=document.createElement('div');
@@ -533,6 +535,15 @@ function osBenevolesDashRender(){
       tabContents['candidats']=candDiv;
       contentWrap.appendChild(candDiv);
       osCandidatsRendre(candDiv);
+    }
+
+    if(isVieAsso && typeof osEquipeComRendre==='function'){
+      var comDiv=document.createElement('div');
+      comDiv.id='benv-equipe-com';
+      comDiv.style.cssText='flex:1;min-height:0;overflow:auto;display:none;flex-direction:column;';
+      tabContents['com']=comDiv;
+      contentWrap.appendChild(comDiv);
+      osEquipeComRendre(comDiv);
     }
 
     wc.innerHTML='';

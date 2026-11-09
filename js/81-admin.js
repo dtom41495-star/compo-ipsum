@@ -13,7 +13,7 @@ var _adm = { onglet:'ensemble', donnees:null, membreId:null, filtre:'tous', rech
 var ADM_ROLES = [
   ['redacteur', 'Membre', 'Écrit, relit ou dirige selon son rôle dans chaque rédaction.'],
   ['correcteur', 'SR toutes rédactions', 'Relit les articles de toutes les rédactions, même sans en être membre.'],
-  ['communicant', 'Communication', 'Com générale : visuels, publications et réseaux pour toutes les rédactions, sans écrire d\'articles. Pour la com d\'une seule rédaction, voir l\'onglet Équipe com.'],
+  ['communicant', 'Communication', 'Com générale : visuels, publications et réseaux pour toutes les rédactions, sans écrire d\'articles. Pour la com d\'une seule rédaction, voir l\'appli Vie asso, onglet Équipe com.'],
   ['admin', 'Admin', 'Tous les droits sur Compo, dont cette appli.']
 ];
 var ADM_ROLE_LIB = { redacteur:'Membre', correcteur:'SR toutes rédac.', communicant:'Communication', admin:'Admin', interdit:'Suspendu' };
@@ -56,7 +56,7 @@ function _admAFaire(d){
 
 function _admRendre(wc){
   var d = _adm.donnees, af = _admAFaire(d);
-  var onglets = [['ensemble','layout-dashboard','Vue d\'ensemble', af.total], ['membres','users','Membres', 0], ['rapports','file-text','Rapports', 0], ['com','speakerphone','Équipe com', 0], ['maintenance','tool','Maintenance', 0], ['usage','chart-bar','Usage', 0]];
+  var onglets = [['ensemble','layout-dashboard','Vue d\'ensemble', af.total], ['membres','users','Membres', 0], ['rapports','file-text','Rapports', 0], ['maintenance','tool','Maintenance', 0], ['usage','chart-bar','Usage', 0]];
   wc.innerHTML = '<div class="adm">'
     +'<nav class="adm-rail"><div class="adm-rail-t">Administration</div>'
     +onglets.map(function(o){ return '<button type="button" class="'+(_adm.onglet === o[0] ? 'on' : '')+'" onclick="osAdmOnglet(\''+o[0]+'\')"><i class="ti ti-'+o[1]+'"></i><span>'+o[2]+'</span>'+(o[3] ? '<em>'+o[3]+'</em>' : '')+'</button>'; }).join('')
@@ -75,7 +75,6 @@ function _admRendreCorps(){
   c.scrollTop = 0;
   var d = _adm.donnees;
   if(_adm.onglet === 'rapports' && typeof _osGestionRapportsRender === 'function'){ c.innerHTML = ''; _osGestionRapportsRender(c, d.membres.filter(function(m){ return !_admSuspendu(m); }), d.redacs); return; }
-  if(_adm.onglet === 'com' && typeof osEquipeComRendre === 'function'){ c.innerHTML = ''; osEquipeComRendre(c); return; }
   if(_adm.onglet === 'usage' && typeof osUsageRendre === 'function'){ c.innerHTML = ''; osUsageRendre(c); return; }
   if(_adm.onglet === 'maintenance' && typeof osMaintenanceAdminRendre === 'function'){ c.innerHTML = ''; osMaintenanceAdminRendre(c); return; }
   if(_adm.onglet === 'membres'){ c.innerHTML = _adm.membreId ? _admFicheHTML() : _admMembresHTML(); _admApresRendu(); return; }
