@@ -2682,6 +2682,9 @@ function osAppComCharger(){
   zone.innerHTML = osLoadingHtml();
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // La com d'une seule rédaction ne voit que les articles de sa rédaction (la com générale et les admins voient tout)
+  var mesRedacsCom = typeof _relaisMesRedacs === 'function' ? _relaisMesRedacs() : null;
+  var filtreRedac = Array.isArray(mesRedacsCom) && mesRedacsCom.length ? '&redaction_id=in.('+mesRedacsCom.map(encodeURIComponent).join(',')+')' : '';
   // Récupérer les articles selon le statut visuel com
   // On utilise statut_com sur articles ou on filtre les validés/publiés
   // Onglet À faire = articles validés sans statut_com
@@ -2699,7 +2702,7 @@ function osAppComCharger(){
   // qu'il ait besoin d'un visuel ou non — la com devait trier elle-même.
   // Un admin voit aussi les publications que personne n'a demandées à la com
   var filtreBesoin = getUserRole()==='admin' ? '' : '&besoin_visuel=eq.true';
-  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreBesoin+filtreCom+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id,besoin_visuel';
+  var url = SB_URL+'/rest/v1/articles?statut=in.(valide,publie)'+filtreBesoin+filtreCom+''+filtreRedac+'&order=updated_at.desc&select=id,titre,auteur,rubrique,updated_at,statut,chapeau,image,corps,statut_com,redaction_id,besoin_visuel';
 
   fetch(url,{headers:authH})
   .then(function(r){return r.json();})
@@ -2722,11 +2725,12 @@ function osAppComCharger(){
     );
 
     if(!arts.length){
-      zone.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--gris);font-size:0.85rem;">'
+      zone.innerHTML = '<div class="com-vide" style="text-align:center;padding:3rem;color:var(--gris);font-size:0.85rem;">'
         +(_comOnglet==='afaire'?'Aucun article à illustrer pour le moment.':
           _comOnglet==='encours'?'Aucun visuel en cours.':
           'Aucun visuel traité.')
         +'</div>';
+      if(typeof osRelaisInserer === 'function') osRelaisInserer(zone);
       return;
     }
 
@@ -2790,6 +2794,7 @@ function osAppComCharger(){
     });
     h += '</div>';
     zone.innerHTML = h;
+    if(typeof osRelaisInserer === 'function') osRelaisInserer(zone);
   }).catch(function(){ zone.innerHTML = osErreurHtml('osAppComCharger'); });
 }
 
@@ -3163,7 +3168,12 @@ function osNotifierComArticleValide(article){
   .then(function(r){return r.json();})
   .then(function(membres){
     membres = (!membres||membres.code)?[]:membres;
-    var membresCom = membres.filter(osMembreCom);
+    // Com générale + com rattachée à la rédaction de l'article
+    return fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(article.redaction_id||'')+'&or=(role_redac.eq.communication,aussi_com.is.true)&select=membre_id',{headers:authH})
+    .then(function(r){ return r.json(); }).catch(function(){ return []; })
+    .then(function(liens){
+    var idsComRedac = (Array.isArray(liens)?liens:[]).map(function(l){ return l.membre_id; });
+    var membresCom = membres.filter(function(m){ return osMembreCom(m) || idsComRedac.indexOf(m.id) !== -1; });
     if(!membresCom.length) return;
 
     // Construire le brief HTML
@@ -3190,6 +3200,7 @@ function osNotifierComArticleValide(article){
     });
     // Pas de téléchargement automatique du brief — le bouton dédié dans l'app Com
     // (osAppComBrief) permet toujours de le télécharger à la demande.
+    });
   }).catch(function(){});
 }
 

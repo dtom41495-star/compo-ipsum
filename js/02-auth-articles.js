@@ -2142,6 +2142,8 @@ function osAppDubRaccourcir(){
 function osDemanderBesoinVisuel(){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
   var titre = (document.getElementById('r-titre')&&document.getElementById('r-titre').value)||currentDoc.titre||'Sans titre';
+  // Article de la rédaction nationale : pas de compte national, c'est la com des rédactions locales qui publie (js/88)
+  if(typeof osRedacEstNationale === 'function' && osRedacEstNationale(currentDoc.redaction_id)){ osRelaisDialogue(currentDoc.id, titre); return; }
   var overlay = document.createElement('div');
   overlay.className = 'se-overlay dlg-overlay';
   overlay.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="besoin-visuel-titre"><div class="se-corps">'
