@@ -19,13 +19,13 @@ var ACCES_RESPONSABILITES = {
   'cockpit':        [['f:tresorier', 'trésorerie'], ['admin', 'admin']],
   'benevoles':      [['f:vie_asso', 'vie asso'], ['admin', 'admin']],
   'app-courrier':   [['f:secretaire', 'secrétariat'], ['f:president', 'présidence'], ['f:vice_president', 'vice-présidence'], ['admin', 'admin']],
-  'app-com':        [['communicant', 'communication'], ['admin', 'admin']],
+  'app-com':        [['communicant', 'communication'], ['com', 'communication de rédaction'], ['admin', 'admin']],
   'gestion-apps':   [['admin', 'admin']],
   'nettoyage':      [['admin', 'admin']],
   'stats-dashboard':[['admin', 'admin']]
 };
 
-// ctx : { role, fonctions:[], chef:bool, sr:bool, dansUneRedac:bool, installees:[app_id] }
+// ctx : { role, fonctions:[], chef:bool, sr:bool, com:bool (com d'une rédaction), dansUneRedac:bool, installees:[app_id] }
 // Renvoie { visibles:{id:true}, groupes:{ id:'base'|'resp'|'store' }, raisons:{ id:'rédac chef' }, auChoix:[id] }
 function osAccesCalculer(ctx){
   ctx = ctx || {};
@@ -39,7 +39,7 @@ function osAccesCalculer(ctx){
     if(a.id === 'boutique' && role !== 'admin' && ctx.dansUneRedac === false) return false;
     if(!a.roles) return true;
     // « redac_chef » / « correcteur » s'ajoutent au rôle Compo quand on l'est dans une rédaction, sans le remplacer
-    var ok = a.roles.indexOf(role) !== -1 || (ctx.chef && a.roles.indexOf('redac_chef') !== -1) || (ctx.sr && a.roles.indexOf('correcteur') !== -1);
+    var ok = a.roles.indexOf(role) !== -1 || (ctx.com && a.roles.indexOf('communicant') !== -1) || (ctx.chef && a.roles.indexOf('redac_chef') !== -1) || (ctx.sr && a.roles.indexOf('correcteur') !== -1);
     if(!ok) return false;
     if(a.fonctions_requises && a.fonctions_requises.length && role !== 'admin')
       return a.fonctions_requises.some(function(f){ return fonctions.indexOf(f) !== -1; });
@@ -50,7 +50,7 @@ function osAccesCalculer(ctx){
     if(!r) return null;
     for(var i = 0; i < r.length; i++){
       var c = r[i][0];
-      if((c === 'chef' && ctx.chef) || (c === 'sr' && ctx.sr) || c === role || (c.indexOf('f:') === 0 && fonctions.indexOf(c.slice(2)) !== -1)) return r[i][1];
+      if((c === 'chef' && ctx.chef) || (c === 'com' && ctx.com) || (c === 'sr' && ctx.sr) || c === role || (c.indexOf('f:') === 0 && fonctions.indexOf(c.slice(2)) !== -1)) return r[i][1];
     }
     return null;
   }
@@ -79,6 +79,7 @@ function osAccesContexteMembre(m, liens, installees){
     role: m.role,
     fonctions: typeof fonctionArray === 'function' ? fonctionArray(m.fonction) : (m.fonction || []),
     chef: liens.some(function(l){ return l.role_redac === 'redac_chef'; }),
+    com: liens.some(function(l){ return l.role_redac === 'communication'; }),
     sr: liens.some(function(l){ return typeof osLienEstSR === 'function' ? osLienEstSR(l) : l.role_redac === 'correcteur'; }),
     dansUneRedac: liens.length > 0,
     installees: installees || []

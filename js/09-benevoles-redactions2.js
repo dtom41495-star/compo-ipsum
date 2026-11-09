@@ -1278,7 +1278,7 @@ function osRedactionsRender(silencieux){
 }
 
 // ---- SÉLECTEUR MULTI-RÉDACTIONS ----
-var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur·rice', correcteur:'SR', admin:'Admin'};
+var ROLE_REDAC_LABELS = {redac_chef:'Rédac chef', redacteur:'Rédacteur·rice', correcteur:'SR', communication:'Communication', admin:'Admin'};
 
 function osRedactionsRenderSelecteur(wc, uid, liens){
   var h = '<div style="padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;">';

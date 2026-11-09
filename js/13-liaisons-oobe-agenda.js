@@ -468,7 +468,7 @@ function _oobePrenom(){
   return p && p !== 'null' && !/^[a-z0-9._-]+$/.test(p) ? p : '';
 }
 
-var OOBE_ROLES_REDAC = { redacteur:'rédaction', correcteur:'SR', redac_chef:'rédac chef' };
+var OOBE_ROLES_REDAC = { redacteur:'rédaction', correcteur:'SR', redac_chef:'rédac chef', communication:'communication' };
 
 function _oobeRendre(){
   if(!_oobeCtx) return;

@@ -1646,7 +1646,9 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     // Membre d'au moins une rédaction ? La Boutique n'est accessible qu'à celles et ceux qui en font partie
     fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
     // SR dans au moins une rédaction ? (Newsletter…)
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    // Communication d'une rédaction ? (applis de la com, comme la com générale)
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.communication&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ])
   .then(function(resultats){
     var data = resultats[0];
@@ -1675,7 +1677,7 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     var roleEffectif = roleOverride || getUserRole();
     var fonctionsEffectives = fonctionFraiche || getUserFonction();
     var estSRQuelquePart = !!(resultats[4] && !resultats[4].code && resultats[4].length);
-    var acces = osAccesCalculer({ role:roleEffectif, fonctions:fonctionsEffectives, chef:estChefQuelquePart, sr:estSRQuelquePart, dansUneRedac:estDansUneRedac, installees:data.map(function(d){ return d.app_id; }) });
+    var acces = osAccesCalculer({ role:roleEffectif, fonctions:fonctionsEffectives, chef:estChefQuelquePart, sr:estSRQuelquePart, com:!!(resultats[5] && !resultats[5].code && resultats[5].length), dansUneRedac:estDansUneRedac, installees:data.map(function(d){ return d.app_id; }) });
     window._accesCourant = acces;
     window._userAppsAll = ALL_APPS_CATALOGUE.filter(function(a){ return acces.visibles[a.id]; });
     var epinglesIds = data.filter(function(d){ return d.epingle && acces.visibles[d.app_id]; }).map(function(d){ return d.app_id; });
@@ -2311,7 +2313,7 @@ function osChangerEmailMembreEnvoyer(membreId){
 function _osGestionAppsBodyRender(zone, membres, appsData, liensRedac, redacs){
   liensRedac = liensRedac || [];
   var nomRedac = {}; (redacs||[]).forEach(function(r){ nomRedac[r.id] = r.nom; });
-  var LIB_RR = { redac_chef:'chef', correcteur:'SR', redacteur:'' };
+  var LIB_RR = { redac_chef:'chef', correcteur:'SR', communication:'com', redacteur:'' };
   var parApp = {}; ALL_APPS_CATALOGUE.forEach(function(a){ parApp[a.id] = a; });
   var h = '<div class="acx">'
     +'<div class="acx-aide"><i class="ti ti-info-circle"></i><span>Ce que chaque membre voit dans Compo, <b>calculé</b> à partir de son rôle, de ses rédactions et de ses fonctions. Pour donner une appli à quelqu\'un, donne-lui le rôle ou la fonction qui va avec (onglet Membres, ou Ma rédac\' pour les rôles dans une rédaction).</span></div>';

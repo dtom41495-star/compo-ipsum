@@ -30,10 +30,12 @@ var ROLE_COLOR_DEFAUT = ['#D3D1C7','#444441'];
 // Avatars illustrés disponibles (voir le sprite <symbol id="avatar-X"> juste après
 // <body>) — clé + libellé pour le sélecteur dans Réglages > Mon profil.
 // SR dans cette rédaction ? Rôle « SR », ou « Rédac chef + SR » (rédac chef qui relit aussi : aussi_sr)
+// Communication d'une rédaction (en plus de la com générale, qui est le rôle Compo « communicant »)
+function osLienEstCom(l){ return !!l && l.role_redac === 'communication'; }
 function osLienEstSR(l){ return !!l && (l.role_redac === 'correcteur' || (l.role_redac === 'redac_chef' && !!l.aussi_sr)); }
 // Valeur à afficher dans les menus de rôle : 'redac_chef_sr' pour un rédac chef qui est aussi SR
 function osRoleRedacValeur(l){ return (l && l.role_redac === 'redac_chef' && l.aussi_sr) ? 'redac_chef_sr' : ((l && l.role_redac) || 'redacteur'); }
-var ROLES_REDAC_MENU = [['redacteur','Rédacteur·rice'], ['correcteur','SR'], ['redac_chef','Rédac chef'], ['redac_chef_sr','Rédac chef + SR']];
+var ROLES_REDAC_MENU = [['redacteur','Rédacteur·rice'], ['correcteur','SR'], ['redac_chef','Rédac chef'], ['redac_chef_sr','Rédac chef + SR'], ['communication','Communication']];
 var AVATARS_DISPONIBLES = [
   {id:'renard',   label:'Renard'},
   {id:'hibou',    label:'Hibou'},

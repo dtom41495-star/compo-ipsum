@@ -7718,3 +7718,7 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .usg-vides { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 0.4rem; }
 .usg-vides span { background: #F1EFEC; border-radius: 99px; padding: 2px 10px; font-size: 0.74rem; color: var(--gris); }
 @media (max-width: 640px) { .usg-l { grid-template-columns: 1fr 44px 56px; } .usg-b { display: none; } }
+
+/* Équipe com (Admin) */
+.ec-ajout { gap: 8px; background: #FAFAF9; }
+.ec-ajout select { flex: 1; min-width: 0; max-width: 360px; padding: 6px 8px; border: 1px solid var(--gris-bord); border-radius: 8px; font: 0.8rem 'DM Sans', sans-serif; background: #fff; }
