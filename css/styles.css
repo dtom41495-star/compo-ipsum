@@ -7704,3 +7704,17 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .nlx-hist-temps{font-size:0.68rem;color:#0F6E56;margin-top:3px;display:flex;align-items:center;gap:4px;}
 .nlx-hist-temps:empty{display:none;}
 .nlx-temps-art{color:#0F6E56 !important;}
+
+/* Usage de Compo (Admin) */
+.usg-barre { display: flex; gap: 6px; margin: 0.8rem 0; }
+.usg-barre .adm-btn.on { background: var(--rouge); color: #fff; border-color: var(--rouge); }
+.usg-liste { padding: 0.35rem 0.95rem 0.6rem; }
+.usg-l { display: grid; grid-template-columns: minmax(120px, 2fr) 3fr 44px 62px; align-items: center; gap: 10px; padding: 0.28rem 0; font-size: 0.78rem; }
+.usg-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--encre); }
+.usg-b { height: 8px; background: #F1EFEC; border-radius: 4px; overflow: hidden; }
+.usg-b i { display: block; height: 100%; background: var(--rouge); border-radius: 4px; }
+.usg-l b { text-align: right; }
+.usg-l small { color: var(--gris); }
+.usg-vides { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 0.4rem; }
+.usg-vides span { background: #F1EFEC; border-radius: 99px; padding: 2px 10px; font-size: 0.74rem; color: var(--gris); }
+@media (max-width: 640px) { .usg-l { grid-template-columns: 1fr 44px 56px; } .usg-b { display: none; } }
