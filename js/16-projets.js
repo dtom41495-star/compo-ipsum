@@ -61,7 +61,7 @@ function osProjetsRender(){
   wc.innerHTML = '<div class="ipj">'
     +'<div class="ipj-lay">'
       +'<div class="ipj-sb">'
-        +'<div class="ipj-sb-hdr"><div class="ipj-sb-titre">Projets</div>'
+        +'<div class="ipj-sb-hdr"><div class="ipj-sb-titre">Tâches</div>'
         +(_ipjEstAdmin() ? '<button class="ipj-btn ipj-btn-rouge" data-ipj="nouveau-projet"><i class="ti ti-plus"></i>Nouveau</button>' : '')
         +'</div>'
         +'<div class="ipj-nav">'
@@ -811,7 +811,8 @@ function _ipjChargerAujourdhui(){
   var debutJour = new Date(); debutJour.setHours(0,0,0,0);
   Promise.all([
     _ipjLire('/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=neq.fait&order=date_limite.asc.nullslast&select=*'),
-    _ipjLire('/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=eq.fait&updated_at=gte.'+encodeURIComponent(debutJour.toISOString())+'&select=*')
+    _ipjLire('/rest/v1/projets_taches?assignes=cs.{'+uid+'}&statut=eq.fait&updated_at=gte.'+encodeURIComponent(debutJour.toISOString())+'&select=*'),
+    typeof osTachesAutoCharger === 'function' ? osTachesAutoCharger() : Promise.resolve([])
   ]).then(function(r){
     var corps = document.getElementById('ipj-aj-corps');
     if(!corps) return;
@@ -830,7 +831,8 @@ function _ipjChargerAujourdhui(){
       groupes.filter(function(x){ return x.id === g; })[0].t.push(t);
     });
     faites.forEach(function(t){ t._fait = true; groupes[1].t.push(t); });
-    var aFaire = groupes[0].t.length + groupes[1].t.filter(function(t){ return !t._fait; }).length;
+    var auto = r[2] || [];
+    var aFaire = groupes[0].t.length + groupes[1].t.filter(function(t){ return !t._fait; }).length + auto.length;
     _ipjMajBadgeNav(aFaire);
     var sous = document.getElementById('ipj-aj-sous');
     if(sous){
@@ -838,12 +840,13 @@ function _ipjChargerAujourdhui(){
       sous.textContent = jour.charAt(0).toUpperCase()+jour.slice(1)+' · '+(aFaire ? aFaire+' tâche'+(aFaire>1?'s':'')+' pour toi' : 'rien d\'urgent')+(groupes[0].t.length ? ', '+groupes[0].t.length+' en retard' : '');
     }
     corps.innerHTML = '';
-    if(!ouvertes.length && !faites.length){
+    if(!ouvertes.length && !faites.length && !auto.length){
       corps.innerHTML = '<div class="ipj-aj-vide"><i class="ti ti-circle-check"></i><div>Aucune tâche pour toi.</div><small>Ajoute-en une avec la barre ci-dessus.</small></div>';
       return;
     }
     var carte = document.createElement('div');
     carte.className = 'ipj-aj-carte';
+    if(auto.length && typeof osTachesAutoSection === 'function') carte.appendChild(osTachesAutoSection(auto));
     groupes.forEach(function(g){
       if(!g.t.length) return;
       var sec = document.createElement('div');

@@ -354,7 +354,7 @@ function _osOpenWindowExecuter(pageId){
     lecture:'Lecture',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', tickets:'Assistance', log:'Journal', 
-    newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Projets',
+    newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Tâches',
     snake:'Presse Express', substack:'Articles publiés', signatures:'Signatures',
     'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'transcrire':'Transcrire', 'salles':'Salles', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie', veille:'Veille'
   };
