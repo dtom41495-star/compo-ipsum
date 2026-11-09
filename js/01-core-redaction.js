@@ -1838,7 +1838,7 @@ function nlChargerHistorique(){
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Tout en une requête (dont le titre de chaque contenu) — les archives ne sont pas
   // assez volumineuses pour justifier un aller-retour réseau par carte ouverte.
-  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&order=date_envoi.desc&limit=30&select=id,titre,date_envoi,newsletter_articles(position,articles(titre,auteur))',{headers:authH})
+  fetch(SB_URL+'/rest/v1/newsletters?redaction_id=eq.'+encodeURIComponent(redactionId)+'&order=date_envoi.desc&limit=30&select=id,titre,date_envoi,newsletter_articles(position,article_id,articles(titre,auteur))',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(rows){
     rows = (rows && !rows.code) ? rows : [];
@@ -1855,9 +1855,11 @@ function nlChargerHistorique(){
       h += '<div id="'+cardId+'" class="nlx-hist" onclick="nlToggleCarteHistorique(\''+cardId+'\')">'
         +'<div class="nlx-hist-titre">'+esc(n.titre||'Sans titre')+'</div>'
         +'<div class="nlx-hist-meta">'+new Date(n.date_envoi).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+nb+' contenu'+(nb>1?'s':'')+'</div>'
+        // Temps passé à écrire et relire ces contenus (rempli juste après, js/84-temps-redaction.js)
+        +'<div class="nlx-hist-temps" data-ids="'+esc(contenus.map(function(c){ return c.article_id; }).filter(Boolean).join(','))+'"></div>'
         +'<ul class="nl-hist-sujets" style="display:none;">'
         +(contenus.length
-            ? contenus.map(function(c){ return c.articles ? '<li>'+esc(c.articles.titre||'Sans titre')+(c.articles.auteur?' <span>'+esc(c.articles.auteur)+'</span>':'')+'</li>' : ''; }).join('')
+            ? contenus.map(function(c){ return c.articles ? '<li>'+esc(c.articles.titre||'Sans titre')+(c.articles.auteur?' <span>'+esc(c.articles.auteur)+'</span>':'')+'<span class="nlx-temps-art" data-art="'+esc(c.article_id||'')+'"></span></li>' : ''; }).join('')
             : '<li><span>Aucun contenu enregistré</span></li>')
         +'</ul>'
         +'<div class="nl-hist-hint">Voir le contenu</div>'
@@ -1865,6 +1867,23 @@ function nlChargerHistorique(){
     });
     h += '</div>';
     hist.innerHTML = h;
+    // Temps d'écriture et de relecture de chaque newsletter (mesuré depuis le 9 novembre 2026)
+    if(typeof osTempsCharger === 'function'){
+      var tousIds = [];
+      rows.forEach(function(n){ (n.newsletter_articles||[]).forEach(function(c){ if(c.article_id) tousIds.push(c.article_id); }); });
+      osTempsCharger(tousIds).then(function(t){
+        hist.querySelectorAll('.nlx-hist-temps').forEach(function(el){
+          var total = { ecriture:0, relecture:0 };
+          (el.getAttribute('data-ids')||'').split(',').filter(Boolean).forEach(function(id){ if(t[id]){ total.ecriture += t[id].ecriture; total.relecture += t[id].relecture; } });
+          var txt = osTempsResume(total);
+          if(txt) el.innerHTML = '<i class="ti ti-clock-hour-4"></i> '+esc(txt);
+        });
+        hist.querySelectorAll('.nlx-temps-art').forEach(function(el){
+          var txt = osTempsResume(t[el.getAttribute('data-art')]);
+          if(txt) el.textContent = ' · '+txt;
+        });
+      });
+    }
   }).catch(function(){
     hist.innerHTML = '<div style="color:var(--rouge);font-size:0.72rem;">Erreur de chargement</div>';
   });
