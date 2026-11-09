@@ -7699,3 +7699,5 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .cm-couleurs i{display:inline-block;flex-shrink:0;}
 .cm-coul-zone{width:16px;height:10px;border-radius:3px;opacity:0.45;}
 .cm-coul-point{width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);}
+/* Réglages de la rédaction : les cases à cocher ne prennent pas le style global des labels (capitales, petite police) */
+.redac-reglages label{text-transform:none;letter-spacing:normal;font-family:'DM Sans',sans-serif;font-size:inherit;font-weight:inherit;color:inherit;}
