@@ -23,7 +23,7 @@ function _usageCle(el){
   var id;
   if(m){
     id = m[1] + (m[2] !== undefined || m[3] !== undefined ? (_usageArg(m[2] || m[3] || '') ? ':' + (m[2] || m[3]) : '') : '');
-    if(m[1] === 'osOpenWindow') lieu = 'dock';   // le lancement d'une appli compte pour l'appli elle-même
+    if(m[1] === 'osOpenWindow') return null;   // les ouvertures d'applis sont comptées à la source (ci-dessous), pas au clic
   } else {
     var ico = cible.querySelector && cible.querySelector('i[class*="ti-"]');
     var icone = ico ? (ico.className.match(/ti-([a-z0-9-]+)/) || [])[1] : '';
@@ -41,6 +41,23 @@ document.addEventListener('click', function(e){
     if(cle) _usage.file[cle] = (_usage.file[cle] || 0) + 1;
   }catch(err){}
 }, { capture:true, passive:true });
+
+// Ouverture d'une appli (dock, menu, bureau, bouton, cloche…) : comptée dans osOpenWindow lui-même, quel que soit le geste.
+// Le dock et les icônes du bureau n'ont pas d'attribut onclick (écouteurs), donc le suivi par clic ne les voyait pas.
+(function(){
+  var ouvrir = window.osOpenWindow;
+  if(typeof ouvrir !== 'function' || ouvrir._usage) return;
+  window.osOpenWindow = function(id){
+    try{
+      if(typeof id === 'string' && _usageArg(id)){
+        var cle = 'dock › osOpenWindow:'+id;
+        _usage.file[cle] = (_usage.file[cle] || 0) + 1;
+      }
+    }catch(err){}
+    return ouvrir.apply(this, arguments);
+  };
+  window.osOpenWindow._usage = true;
+})();
 
 function _usageEnvoyer(garder){
   var lots = Object.keys(_usage.file).map(function(c){ return { cle:c, nb:_usage.file[c] }; });
