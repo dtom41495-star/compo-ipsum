@@ -48,7 +48,7 @@ function osSrContexteClassement(){
     typeof osSrStatsDelais === 'function' ? osSrStatsDelais().catch(function(){ return null; }) : Promise.resolve(null),
     // Rôles de tous les membres dans les rédactions, relus ici : la mémoire du navigateur peut
     // ne contenir que ceux de la personne connectée, et les SR d'une rédaction disparaissaient
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr,aussi_com', {headers:authH}).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(res){
     if(Array.isArray(res[4]) && res[4].length){
       var connus = {};

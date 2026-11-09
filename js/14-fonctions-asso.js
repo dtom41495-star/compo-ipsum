@@ -4,7 +4,8 @@ var FONCTIONS_LABELS = {
   vie_asso:'Vie associative',
   secretaire:'Secrétaire', president:'Président·e',
   vice_president:'Vice-président·e',
-  relations_partenaires:'Relations partenaires'
+  relations_partenaires:'Relations partenaires',
+  communication:'Communication'
 };
 var FONCTIONS_LIST_GLOBAL = [
   {id:'tresorier',     label:'Trésorier·ère'},
@@ -14,7 +15,9 @@ var FONCTIONS_LIST_GLOBAL = [
   {id:'vice_president',label:'Vice-président·e'},
   // Chargé·e des relations partenaires : fait connaître le média aux assos, mairies, salles…
   // pour être dans leur liste presse (voir « À relancer » dans l'appli Sources)
-  {id:'relations_partenaires',label:'Relations partenaires'}
+  {id:'relations_partenaires',label:'Relations partenaires'},
+  // Com générale (toutes les rédactions), cumulable avec n'importe quel rôle : une personne peut être SR et faire la com
+  {id:'communication',label:'Communication'}
 ];
 
 // Normalise m.fonction en tableau (compatibilité string legacy)
@@ -35,7 +38,7 @@ function fonctionArray(val){
 // à une rédaction est normal pour eux, pas un oubli à signaler.
 function osSansRedactionVoulu(m){
   if(!m) return false;
-  return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('vie_asso') !== -1;
+  return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('vie_asso') !== -1 || fonctionArray(m.fonction).indexOf('communication') !== -1;
 }
 
 // Profil communicant : c'est le rôle « communicant » (il n'y a plus de fonctions de communication à part).
@@ -45,10 +48,30 @@ function osSansRedactionVoulu(m){
 // Un communicant marqué inactif par la vie associative ne compte pas non plus : s'il n'y en a plus d'actif,
 // l'appli Visuels s'ouvre aux autres membres.
 function osMembreCom(m){
-  return !!m && m.role === 'communicant' && !m.marque_inactif && fonctionArray(m.fonction).indexOf('vie_asso') === -1;
+  if(!m || m.marque_inactif) return false;
+  var fn = fonctionArray(m.fonction);
+  // Com générale : la fonction « communication » (cumulable avec tout rôle) ou le rôle Compo « communicant » (hors vie asso)
+  return fn.indexOf('communication') !== -1 || (m.role === 'communicant' && fn.indexOf('vie_asso') === -1);
 }
 function osEstCommunicant(){
-  return osMembreCom({ role:getUserRole(), fonction:getUserFonction() });
+  return osMembreCom({ role:getUserRole(), fonction:getUserFonction() }) || osEstComRedac();
+}
+// Communication d'une rédaction (ou de la rédaction donnée) : rôle « communication » dans ses rédactions
+function osEstComRedac(redacId){
+  var uid = typeof getUserId === 'function' ? getUserId() : null;
+  return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && (l.role_redac === 'communication' || l.aussi_com) && (!redacId || l.redaction_id === redacId); });
+}
+// Qui fait la com d'une rédaction : la com générale (toutes rédactions) + la com rattachée à cette rédaction.
+// membres : lignes membres ; liens : lignes membres_redactions. Renvoie [{ membre, portee:'generale'|'redaction' }]
+function osComDeRedaction(redacId, membres, liens){
+  var out = [], vus = {};
+  (membres || []).forEach(function(m){ if(osMembreCom(m) && m.actif !== false && m.role !== 'interdit'){ vus[m.id] = 1; out.push({ membre:m, portee:'generale' }); } });
+  (liens || []).forEach(function(l){
+    if(l.redaction_id !== redacId || !(l.role_redac === 'communication' || l.aussi_com) || vus[l.membre_id]) return;
+    var m = (membres || []).find(function(x){ return x.id === l.membre_id; });
+    if(m && m.actif !== false && m.role !== 'interdit' && !m.marque_inactif){ vus[m.id] = 1; out.push({ membre:m, portee:'redaction' }); }
+  });
+  return out;
 }
 // L'appli Visuels est-elle ouverte pour moi ? (communicant, ou ouverture automatique/forcée)
 function osVisuelsOuvert(){

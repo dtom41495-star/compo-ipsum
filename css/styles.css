@@ -7718,3 +7718,65 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .usg-vides { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 0.4rem; }
 .usg-vides span { background: #F1EFEC; border-radius: 99px; padding: 2px 10px; font-size: 0.74rem; color: var(--gris); }
 @media (max-width: 640px) { .usg-l { grid-template-columns: 1fr 44px 56px; } .usg-b { display: none; } }
+
+/* Équipe com (Admin) */
+.ec-ajout { gap: 8px; background: #FAFAF9; }
+.ec-ajout select { flex: 1; min-width: 0; max-width: 360px; padding: 6px 8px; border: 1px solid var(--gris-bord); border-radius: 8px; font: 0.8rem 'DM Sans', sans-serif; background: #fff; }
+
+/* Errata de communiqués */
+.ert-bandeau { display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 0.8rem; line-height: 1.5; }
+.ert-bandeau > i { font-size: 1.05rem; margin-top: 1px; flex: none; }
+.ert-attente { background: #FFF3D6; border: 1px solid #F0D58A; color: #6B4E00; }
+.ert-valide { background: #E6F4EC; border: 1px solid #A9D8BB; color: #17613A; }
+.ert-diff, .ert-cit { display: block; margin-top: 3px; }
+.ert-cit { font-style: italic; }
+.ert-diff s { color: #B42318; }
+.ert-lien { background: none; border: 0; padding: 0; margin-top: 4px; display: block; color: inherit; font: 600 0.78rem 'DM Sans', sans-serif; text-decoration: underline; cursor: pointer; }
+.ert-boite { max-width: 680px; width: calc(100vw - 24px); max-height: calc(100vh - 40px); overflow: auto; }
+.ert-tete { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.ert-ico { width: 38px; height: 38px; border-radius: 50%; background: #FFF3D6; color: #8A6400; display: grid; place-items: center; font-size: 1.2rem; flex: none; }
+.ert-t { font: 700 1.02rem Poppins, sans-serif; color: var(--encre); }
+.ert-s { font-size: 0.78rem; color: var(--gris); }
+.ert-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+@media (max-width: 560px) { .ert-cols { grid-template-columns: 1fr; } }
+.ert-col { border: 1px solid var(--gris-bord); border-radius: 10px; padding: 10px 12px; font-size: 0.8rem; }
+.ert-col-e { border-color: #F0D58A; background: #FFFBF0; }
+.ert-lab { font: 700 0.66rem 'DM Sans', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); margin-bottom: 3px; }
+.ert-tit { font: 700 0.86rem Arial, sans-serif; color: var(--encre); margin-bottom: 4px; }
+.ert-ev { display: flex; gap: 6px; align-items: center; padding: 1px 0; }
+.ert-chg { color: #17613A; font-weight: 700; }
+.ert-bloc { border: 1px solid var(--gris-bord); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.82rem; }
+.ert-bloc select { width: 100%; margin: 6px 0; padding: 7px 8px; border: 1px solid var(--gris-bord); border-radius: 8px; font: 0.8rem 'DM Sans', sans-serif; }
+.ert-aide { margin: 4px 0 0; font-size: 0.76rem; color: var(--gris); }
+.ert-citbox, .ert-diffbox { margin-top: 6px; background: #FAFAF9; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; line-height: 1.6; max-height: 220px; overflow: auto; }
+.ert-diffbox ins { background: #D7F0E0; color: #17613A; text-decoration: none; }
+.ert-diffbox del { background: #FBDADA; color: #B42318; }
+.ert-opts { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; font-size: 0.82rem; }
+.ert-opts label { display: flex; gap: 8px; align-items: flex-start; }
+.ert-opts small { color: var(--gris); }
+.ert-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ert-non { margin-left: auto; color: var(--gris); }
+.ert-opts label { text-transform: none; letter-spacing: 0; font: 400 0.82rem 'DM Sans', sans-serif; color: var(--encre); }
+.ert-opts small { text-transform: none; letter-spacing: 0; }
+.ert-actions .se-btn-principal, .ert-actions .se-btn-secondaire { flex: 1 1 auto; width: auto; }
+
+/* Relais réseaux (appli Com) */
+.rel-liste { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 14px; }
+.rel-liste label { display: flex; gap: 8px; align-items: center; text-transform: none; letter-spacing: 0; font: 400 0.85rem 'DM Sans', sans-serif; color: var(--encre); }
+.rel-bloc { margin-bottom: 1rem; padding: 0.7rem; background: #F7F0FB; border: 1px solid #E5D3F2; border-radius: 12px; }
+.rel-titre { display: flex; align-items: center; gap: 8px; font: 700 0.8rem 'DM Sans', sans-serif; color: #5B2C6F; margin-bottom: 0.5rem; }
+.rel-titre small { font-weight: 400; color: #7D3C98; }
+.rel-carte { background: #fff; border: 1px solid var(--gris-bord); border-radius: 10px; padding: 0.8rem 0.9rem; margin-bottom: 0.5rem; }
+.rel-corps { display: flex; gap: 0.8rem; align-items: flex-start; }
+.rel-corps img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; flex: none; }
+.rel-tx { flex: 1; min-width: 0; }
+.rel-badge { display: inline-flex; gap: 5px; align-items: center; font: 700 0.62rem 'DM Sans', sans-serif; background: #F3E8FA; color: #6B2F8A; padding: 2px 8px; border-radius: 99px; }
+.rel-t { font-size: 0.9rem; font-weight: 600; color: var(--encre); margin-top: 4px; }
+.rel-m { font-size: 0.66rem; color: var(--gris); margin-top: 2px; }
+.rel-ch { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 4px; }
+.rel-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--gris-bord); }
+.rel-btn { font: 0.68rem 'DM Sans', sans-serif; padding: 5px 12px; border: 1px solid var(--gris-bord); border-radius: 6px; background: transparent; color: var(--gris); cursor: pointer; text-decoration: none; }
+.rel-btn-p { background: linear-gradient(135deg, #ea5b1c, #ec5b67); color: #fff; border: none; font-weight: 600; }
+.rel-statut { margin-left: auto; font-size: 0.68rem; padding: 4px 8px; border: 1px solid var(--gris-bord); border-radius: 6px; background: #fff; color: var(--encre); }
+.rel-fait { margin-top: 0.5rem; font-size: 0.72rem; color: #17613A; display: flex; gap: 6px; align-items: center; }
+.rel-fait a { color: inherit; }

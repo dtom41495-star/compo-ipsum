@@ -13,7 +13,7 @@ var _adm = { onglet:'ensemble', donnees:null, membreId:null, filtre:'tous', rech
 var ADM_ROLES = [
   ['redacteur', 'Membre', 'Écrit, relit ou dirige selon son rôle dans chaque rédaction.'],
   ['correcteur', 'SR toutes rédactions', 'Relit les articles de toutes les rédactions, même sans en être membre.'],
-  ['communicant', 'Communication', 'Visuels, publications et réseaux : n\'écrit pas d\'articles.'],
+  ['communicant', 'Communication', 'Com générale : visuels, publications et réseaux pour toutes les rédactions, sans écrire d\'articles. Pour la com d\'une seule rédaction, voir l\'appli Vie asso, onglet Équipe com.'],
   ['admin', 'Admin', 'Tous les droits sur Compo, dont cette appli.']
 ];
 var ADM_ROLE_LIB = { redacteur:'Membre', correcteur:'SR toutes rédac.', communicant:'Communication', admin:'Admin', interdit:'Suspendu' };
@@ -32,7 +32,7 @@ function _admCharger(){
     lire('/rest/v1/membres?select=id,prenom,nom,email,role,fonction,avatar_id,actif,derniere_connexion,created_at,marque_inactif&order=prenom.asc'),
     lire('/rest/v1/membres_apps?select=membre_id,app_id'),
     lire('/rest/v1/redactions?select=id,nom,couleur,pas_lancee&order=nom.asc'),
-    lire('/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr')
+    lire('/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr,aussi_com')
   ]).then(function(r){
     _adm.donnees = { membres:r[0], apps:r[1], redacs:r[2], liens:r[3] };
     return _adm.donnees;
@@ -162,11 +162,11 @@ function _admFiltrerMembre(m, f, d){
   if(_admSuspendu(m)) return false;
   switch(f){
     case 'membres': return m.role === 'redacteur';
-    case 'com': return m.role === 'communicant';
+    case 'com': return m.role === 'communicant' || fonctionArray(m.fonction).indexOf('communication') !== -1 || liens.some(osLienEstCom);
     case 'admins': return m.role === 'admin';
     case 'chefs': return liens.some(function(l){ return l.role_redac === 'redac_chef'; });
     case 'sr': return m.role === 'correcteur' || liens.some(osLienEstSR);
-    case 'bureau': return fonctionArray(m.fonction).length > 0;
+    case 'bureau': return fonctionArray(m.fonction).filter(function(f){ return f !== 'communication'; }).length > 0;
     case 'jamais': return _admJamais(m);
   }
   return true;

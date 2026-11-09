@@ -1518,6 +1518,7 @@ function cpsMakeCard(cp, isAdmin, pourSujet){
     var rBro = cp.redaction_id && (window._redactionsData||[]).find(function(r){ return r.id === cp.redaction_id; });
     haut += '<span class="mac-statut" style="color:#57534E;background:#F1EFEC;">'+(rBro ? esc(rBro.nom) : 'Toutes les rédactions')+'</span>';
   }
+  if(typeof osErratumEnAttente === 'function' && osErratumEnAttente(cp)) haut += '<span class="mac-statut" style="color:#6B4E00;background:#FFF3D6;"><i class="ti ti-alert-triangle" style="vertical-align:-2px;"></i> Erratum</span>';
   haut += _cpIaBadge(cp, 'carte');
   haut += '<span class="mac-surtitre"><i class="ti ti-'+(estInvit ? 'microphone' : 'news')+'" style="vertical-align:-2px;"></i> '
     +(estInvit ? 'Invitation presse' : 'Communiqué')+(cp.source ? ' · '+esc(cp.source) : '')+'</span>';
@@ -1571,7 +1572,8 @@ function cpsMakeCard(cp, isAdmin, pourSujet){
     // Séparé des actions d'écriture, et avec une autre icône que le crayon d'« Écrire » : on ne confond plus les deux
     actions += '<span class="cpc-sep" aria-hidden="true"></span><button class="mac-btn cpc-icone cpc-modifier" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminEditer(this.dataset.cpid)" title="Modifier le communiqué" aria-label="Modifier le communiqué"><i class="ti ti-file-settings"></i></button>'
       +'<button class="mac-btn mac-btn-refus cpc-icone" data-cpid="'+esc(cp.id)+'" onclick="cpsAdminSupprimer(this.dataset.cpid)" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>';
-    if(cp.statut === 'brouillon') actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="cpsAdminPublier(this.dataset.cpid)"><i class="ti ti-world-upload"></i>Publier</button>';
+    if(typeof osErratumEnAttente === 'function' && osErratumEnAttente(cp)) actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="osErratumOuvrir(this.dataset.cpid)"><i class="ti ti-alert-triangle"></i>Traiter l’erratum</button>';
+    else if(cp.statut === 'brouillon') actions += '<button class="mac-btn mac-btn-principal" data-sombre-ignore data-cpid="'+esc(cp.id)+'" onclick="cpsAdminPublier(this.dataset.cpid)"><i class="ti ti-world-upload"></i>Publier</button>';
   }
 
   var extrait = (cp.corps||'').replace(/\s+/g,' ').trim();
@@ -1580,6 +1582,7 @@ function cpsMakeCard(cp, isAdmin, pourSujet){
     (pourSujet ? '<div class="cpc-raison"><i class="ti ti-'+(pourSujet.raison === 'lie' ? 'link' : 'bulb')+'"></i><span>'+(pourSujet.raison === 'lie' ? 'Lié à ton sujet' : 'Peut servir pour ton sujet')+' « '+esc(pourSujet.sujet || '')+' »</span></div>' : '')
     +'<div class="mac-haut">'+haut+'</div>'
     +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
+    +(typeof osErratumBandeauHTML === 'function' ? osErratumBandeauHTML(cp, false) : '')
     +evInfos
     +(extrait ? '<div class="cpc-extrait">'+esc(extrait)+'</div>' : '')
     +'<div class="mac-bas cpc-bas">'
@@ -1816,12 +1819,14 @@ function osCpFenetreRender(winId){
     +'<h1 class="cpf-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</h1>'
     +(metas.length ? '<div class="cpf-metas">'+metas.join('')+'</div>' : '')
     +(_cpEstAuto(cp) ? '<div class="cpf-ia-note"><i class="ti ti-info-circle"></i>'+esc(CP_IA_INFO)+'</div>' : '')
+    +(typeof osErratumBandeauHTML === 'function' ? osErratumBandeauHTML(cp, true) : '')
     +'<div class="cpf-actions">'
       +'<button class="cpf-btn cpf-btn-principal" data-cpid="'+esc(cp.id)+'" onclick="cpsCréerArticle(this.dataset.cpid)"><i class="ti ti-pencil"></i>Écrire un article</button>'
       +(cp.corps ? '<button class="cpf-btn" onclick="osCpCopierTexte(\''+esc(winId)+'\')"><i class="ti ti-copy"></i>Copier le texte</button>' : '')
       +'<button class="cpf-btn" onclick="copierLien(\''+esc(cp.id)+'\',\'communique\')"><i class="ti ti-link"></i>Copier le lien</button>'
       +_cpsEtoileHTML(cp.id, 'cpf-btn cpf-fav')
-      +(isAdmin && cp.statut === 'brouillon' ? '<button class="cpf-btn" onclick="cpsAdminPublier(\''+cp.id+'\')"><i class="ti ti-world-upload"></i>Publier</button>' : '')
+      +(isAdmin && typeof osErratumEnAttente === 'function' && osErratumEnAttente(cp) ? '<button class="cpf-btn cpf-btn-principal" onclick="osErratumOuvrir(\''+cp.id+'\')"><i class="ti ti-alert-triangle"></i>Traiter l’erratum</button>' : '')
+      +(isAdmin && cp.statut === 'brouillon' && !(cp.erratum && cp.erratum_etat === 'attente') ? '<button class="cpf-btn" onclick="cpsAdminPublier(\''+cp.id+'\')"><i class="ti ti-world-upload"></i>Publier</button>' : '')
       +(isAdmin ? '<button class="cpf-btn" onclick="cpsAdminEditer(\''+cp.id+'\')"><i class="ti ti-pencil-cog"></i>Modifier</button>' : '')
     +'</div>';
   page.appendChild(entete);
@@ -2640,6 +2645,7 @@ function cpsAdminCharger(silencieux){
       return;
     }
 
+    if(typeof osErratumTraite === 'function') cps = cps.filter(function(c){ return !osErratumTraite(c); });
     var invitations = cps.filter(function(c){ return c.type === 'invitation_presse'; });
     var communiques = cps.filter(function(c){ return c.type !== 'invitation_presse'; });
     var filtreActif = window._cpsAdminFiltreActif || 'tous';
