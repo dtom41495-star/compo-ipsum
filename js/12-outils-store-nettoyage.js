@@ -1648,7 +1648,7 @@ function _chargerAppsUtilisateur(userId, callback, roleOverride, _retryCount){
     // SR dans au moins une rédaction ? (Newsletter…)
     fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; }),
     // Communication d'une rédaction ? (applis de la com, comme la com générale)
-    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&role_redac=eq.communication&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(userId)+'&or=(role_redac.eq.communication,aussi_com.is.true)&select=redaction_id&limit=1', { headers:authHApps }).then(function(r){ return r.json(); }).catch(function(){ return null; })
   ])
   .then(function(resultats){
     var data = resultats[0];
@@ -1776,7 +1776,7 @@ function osGestionAppsRender(){
     fetch(SB_URL+'/rest/v1/membres_apps?select=membre_id,app_id', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/redactions?select=id,nom&order=nom.asc', {headers:SB_HEADERS}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/membres_demandes?statut=eq.en_attente&select=id,membre_id,apps_demandees,created_at&order=created_at.asc', {headers:authHGA}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr', {headers:authHGA}).then(function(r){return r.json();}).catch(function(){ return []; })
+    fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,redaction_id,role_redac,aussi_sr,aussi_com', {headers:authHGA}).then(function(r){return r.json();}).catch(function(){ return []; })
   ]).then(function(results){
     var membres   = (!results[0]||results[0].code) ? [] : results[0];
     var appsData  = (!results[1]||results[1].code) ? [] : results[1];

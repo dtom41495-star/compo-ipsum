@@ -86,7 +86,7 @@ function _srNotifierFile(doc, rendu){
   Promise.all([
     fetch(SB_URL+'/rest/v1/membres?actif=not.is.false&select=id,prenom,email,role,canal_notif,dnd,marque_inactif', {headers:_srAuth()}).then(function(r){ return r.json(); }),
     doc.redaction_id
-      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=membre_id,redaction_id,role_redac,aussi_sr', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
+      ? fetch(SB_URL+'/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(doc.redaction_id)+'&or=(role_redac.eq.correcteur,aussi_sr.is.true)&select=membre_id,redaction_id,role_redac,aussi_sr,aussi_com', {headers:_srAuth()}).then(function(r){ return r.json(); }).catch(function(){ return []; })
       : Promise.resolve([])
   ])
   .then(function(res){

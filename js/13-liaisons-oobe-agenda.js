@@ -490,7 +490,7 @@ function _oobeRendre(){
       if(c.role === 'communicant') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-speakerphone"></i></span><div><b>Équipe communication</b><small>Tu fais connaître les articles du média</small></div></div>';
       else if(c.role === 'correcteur') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-pencil-check"></i></span><div><b>SR de toutes les rédactions</b><small>Tu relis les articles de chaque rédaction</small></div></div>';
       else if(c.role === 'admin') html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-shield-check"></i></span><div><b>Administration</b><small>Tu as la main sur tout Compo</small></div></div>';
-      else if(c.fonctions.length) html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-heart-handshake"></i></span><div><b>Bureau de l\'association</b><small>'+esc(c.fonctions.map(function(f){ return (typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[f]) || f; }).join(', '))+'</small></div></div>';
+      else if(c.fonctions.filter(function(f){ return f !== 'communication'; }).length) html = '<div class="oobe-redac"><span class="oobe-redac-ic"><i class="ti ti-heart-handshake"></i></span><div><b>Bureau de l\'association</b><small>'+esc(c.fonctions.map(function(f){ return (typeof FONCTIONS_LABELS !== 'undefined' && FONCTIONS_LABELS[f]) || f; }).join(', '))+'</small></div></div>';
     }
     redacs.innerHTML = html;
   }

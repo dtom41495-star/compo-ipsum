@@ -31,7 +31,7 @@ var ROLE_COLOR_DEFAUT = ['#D3D1C7','#444441'];
 // <body>) — clé + libellé pour le sélecteur dans Réglages > Mon profil.
 // SR dans cette rédaction ? Rôle « SR », ou « Rédac chef + SR » (rédac chef qui relit aussi : aussi_sr)
 // Communication d'une rédaction (en plus de la com générale, qui est le rôle Compo « communicant »)
-function osLienEstCom(l){ return !!l && l.role_redac === 'communication'; }
+function osLienEstCom(l){ return !!l && (l.role_redac === 'communication' || !!l.aussi_com); }
 function osLienEstSR(l){ return !!l && (l.role_redac === 'correcteur' || (l.role_redac === 'redac_chef' && !!l.aussi_sr)); }
 // Valeur à afficher dans les menus de rôle : 'redac_chef_sr' pour un rédac chef qui est aussi SR
 function osRoleRedacValeur(l){ return (l && l.role_redac === 'redac_chef' && l.aussi_sr) ? 'redac_chef_sr' : ((l && l.role_redac) || 'redacteur'); }
@@ -2060,7 +2060,7 @@ function preremplirAuteur(){
     var authH0 = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session.access_token||'')});
     Promise.all([
       fetch(SB_URL+'/rest/v1/redactions?select=*&order=nom.asc',{headers:authH0}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac,aussi_sr',{headers:authH0}).then(function(r){return r.json();})
+      fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac,aussi_sr,aussi_com',{headers:authH0}).then(function(r){return r.json();})
     ]).then(function(res){
       if(res[0]&&!res[0].code) window._redactionsData=res[0];
       if(res[1]&&!res[1].code){
@@ -2099,7 +2099,7 @@ function preremplirAuteur(){
   }
 
   // Fallback fetch si vraiment rien en cache
-  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac,aussi_sr',{headers:authH})
+  fetch(SB_URL+'/rest/v1/membres_redactions?membre_id=eq.'+encodeURIComponent(uid)+'&select=redaction_id,role_redac,aussi_sr,aussi_com',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(liens){
     var monLien = (liens && !liens.code && liens.length) ? liens[0] : null;

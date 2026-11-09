@@ -19,7 +19,7 @@ var ACCES_RESPONSABILITES = {
   'cockpit':        [['f:tresorier', 'trésorerie'], ['admin', 'admin']],
   'benevoles':      [['f:vie_asso', 'vie asso'], ['admin', 'admin']],
   'app-courrier':   [['f:secretaire', 'secrétariat'], ['f:president', 'présidence'], ['f:vice_president', 'vice-présidence'], ['admin', 'admin']],
-  'app-com':        [['communicant', 'communication'], ['com', 'communication de rédaction'], ['admin', 'admin']],
+  'app-com':        [['communicant', 'communication'], ['f:communication', 'communication'], ['com', 'communication de rédaction'], ['admin', 'admin']],
   'gestion-apps':   [['admin', 'admin']],
   'nettoyage':      [['admin', 'admin']],
   'stats-dashboard':[['admin', 'admin']]
@@ -33,6 +33,8 @@ function osAccesCalculer(ctx){
   var fonctions = ctx.fonctions || [];
   var installees = ctx.installees || [];
   var res = { visibles:{}, groupes:{}, raisons:{}, auChoix:[] };
+  // La fonction « communication » donne les applis de la com, avec n'importe quel rôle
+  if(fonctions.indexOf('communication') !== -1) ctx.com = true;
   if(role === 'interdit') return res;
   function autorisee(a){
     // Boutique : pour les membres d'une rédaction (les admins la gèrent, ils l'ont toujours)
@@ -79,7 +81,7 @@ function osAccesContexteMembre(m, liens, installees){
     role: m.role,
     fonctions: typeof fonctionArray === 'function' ? fonctionArray(m.fonction) : (m.fonction || []),
     chef: liens.some(function(l){ return l.role_redac === 'redac_chef'; }),
-    com: liens.some(function(l){ return l.role_redac === 'communication'; }),
+    com: liens.some(function(l){ return typeof osLienEstCom === 'function' ? osLienEstCom(l) : l.role_redac === 'communication'; }),
     sr: liens.some(function(l){ return typeof osLienEstSR === 'function' ? osLienEstSR(l) : l.role_redac === 'correcteur'; }),
     dansUneRedac: liens.length > 0,
     installees: installees || []
