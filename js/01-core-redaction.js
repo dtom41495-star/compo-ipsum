@@ -2163,10 +2163,8 @@ function _preremplirAuteurSuite(uid, role, n, elAuteur, elSelect, elRedaction, m
     var nomEl   = document.getElementById('r-redaction-nom');
     var hiddenEl = document.getElementById('r-redaction');
     var btnChg  = document.getElementById('r-redaction-changer');
-    console.log('[badge] maRedacId=', maRedacId, '_redactionsData=', (window._redactionsData||[]).length, '_redacActiveId=', window._redacActiveId);
     if(maRedacId){
       var redacInfo = (window._redactionsData||[]).find(function(r){ return r.id===maRedacId; });
-      console.log('[badge] redacInfo=', redacInfo);
       if(redacInfo){
         if(nomEl) nomEl.textContent = redacInfo.nom;
         if(hiddenEl){ hiddenEl.value = redacInfo.nom; hiddenEl.dataset.redacId = redacInfo.id; }

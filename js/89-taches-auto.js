@@ -19,9 +19,13 @@ var TACHES_TYPES = {
 var TACHES_ORDRE = ['relire', 'erratum', 'cps_brouillons', 'publier', 'sujets_proposes', 'relais', 'visuels', 'file_sr', 'sujet_a_finir'];
 
 // Charge mes tâches automatiques : [{ type, ref_id, titre, sous, depuis, jours }], les plus anciennes d'abord
+var _tachesAutoEnCours = null, _tachesAutoLe = 0;
 function osTachesAutoCharger(){
   if(!_session || !_session.access_token) return Promise.resolve([]);
-  return fetch(SB_URL+'/rest/v1/rpc/taches_auto_moi', { method:'POST', headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+_session.access_token, 'Content-Type':'application/json' }), body:'{}' })
+  // Appelée par l'appli, la pastille, la cloche et l'annonce : une seule requête pour 5 secondes
+  if(_tachesAutoEnCours && Date.now() - _tachesAutoLe < 5000) return _tachesAutoEnCours;
+  _tachesAutoLe = Date.now();
+  return _tachesAutoEnCours = fetch(SB_URL+'/rest/v1/rpc/taches_auto_moi', { method:'POST', headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+_session.access_token, 'Content-Type':'application/json' }), body:'{}' })
     .then(function(r){ return r.ok ? r.json() : []; })
     .then(function(rows){
       rows = (Array.isArray(rows) ? rows : []).filter(function(x){ return TACHES_TYPES[x.type]; });
