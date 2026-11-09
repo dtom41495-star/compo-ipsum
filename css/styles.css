@@ -7701,3 +7701,6 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .cm-coul-point{width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.15);}
 /* Réglages de la rédaction : les cases à cocher ne prennent pas le style global des labels (capitales, petite police) */
 .redac-reglages label{text-transform:none;letter-spacing:normal;font-family:'DM Sans',sans-serif;font-size:inherit;font-weight:inherit;color:inherit;}
+.nlx-hist-temps{font-size:0.68rem;color:#0F6E56;margin-top:3px;display:flex;align-items:center;gap:4px;}
+.nlx-hist-temps:empty{display:none;}
+.nlx-temps-art{color:#0F6E56 !important;}
