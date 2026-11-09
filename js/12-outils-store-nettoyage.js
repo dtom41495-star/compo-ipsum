@@ -1601,7 +1601,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
-  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Projets',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Tes tâches du jour, tes projets et leur avancement — ajout rapide, kanban, échéances.' },
+  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Tâches',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Ce qu'+"'"+'il y a à faire pour toi, selon ton rôle (relire, valider, publier…), tes tâches et tes projets : ajout rapide, kanban, échéances.' },
   { id:'notes-frais',    icon:'<i class="ti ti-receipt-2"></i>', label:'Notes de frais',  color:'#0F6E56', desc:'Dépose une dépense avec la photo du ticket : le trésorier la valide puis te rembourse.' },
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];

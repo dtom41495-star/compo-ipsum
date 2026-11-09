@@ -141,7 +141,7 @@ function _gdChapitreHtml(id){
     +'<h2>Trouver des idées et s’organiser</h2>'
     +_gdAppCarte('ti-rss', '#0C5460', 'Veille', 'Les articles des autres médias que l’équipe suit. Repère un sujet et crée-le directement, avec sa source.', 'veille')
     +_gdAppCarte('ti-calendar', '#C0392B', 'Agenda', 'Les événements à couvrir, les réunions et les invitations presse.', 'agenda')
-    +_gdAppCarte('ti-clipboard-list', '#2C3E70', 'Projets', 'Tes tâches du jour et tes projets en cours.', 'projets')
+    +_gdAppCarte('ti-clipboard-list', '#2C3E70', 'Tâches', 'Ce qu\'il y a à faire pour toi selon ton rôle, tes tâches et tes projets.', 'projets')
     +'<h2>Fichiers, son et images</h2>'
     +_gdAppCarte('ti-folder', '#1A5276', 'Fichiers', 'Les fichiers de ta rédaction sur le Drive : rushs, vidéos, photos, communiqués.', 'upload-medias')
     +_gdAppCarte('ti-microphone', '#A32D2D', 'Enregistrer', 'Enregistre un son depuis ton téléphone, il part directement sur le Drive de ta rédaction.', 'magneto')

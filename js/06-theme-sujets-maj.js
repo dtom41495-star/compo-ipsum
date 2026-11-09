@@ -701,6 +701,21 @@ function osOuvrirSujets(){
   }
 }
 
+function osChargerRappelTaches(){
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid+'&select=rappel_taches', { headers:Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}) })
+    .then(function(r){ return r.json(); }).then(function(d){
+      var c = document.getElementById('params-rappel-taches');
+      if(c) c.checked = !(d && d[0] && d[0].rappel_taches === false);
+    }).catch(function(){});
+}
+function osChoisirRappelTaches(actif){
+  var uid = getUserId(); if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+uid, { method:'PATCH', headers:Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json', 'Prefer':'return=minimal'}), body:JSON.stringify({ rappel_taches:!!actif }) })
+    .then(function(r){ notif(r.ok ? (actif ? 'Rappels de tâches activés' : 'Rappels de tâches coupés') : 'Erreur mise à jour', r.ok ? 'succes' : 'erreur'); })
+    .catch(function(){ notif('Erreur réseau', 'erreur'); });
+}
+
 function osSujetsChargerNotifEtat(){
   var uid = getUserId();
   if(!uid) return;
@@ -964,6 +979,14 @@ function osParamsRenderSection(section, container){
       + '</div>';
     container.appendChild(rowCanal);
     _osChargerCanalNotifActuel();
+
+    // Rappels de tâches : un message (même canal) quand des tâches attendent depuis plusieurs jours ou arrivent à échéance
+    var rowRappel = document.createElement('div');
+    rowRappel.className = 'params-row';
+    rowRappel.innerHTML = '<div><div class="params-label">Rappels de tâches</div><div class="params-label-sub">Un message, au plus tous les trois jours, quand des tâches t\'attendent depuis plus de deux jours ou arrivent à échéance</div></div>'
+      + '<label class="compo-toggle"><input type="checkbox" id="params-rappel-taches" onchange="osChoisirRappelTaches(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
+    container.appendChild(rowRappel);
+    osChargerRappelTaches();
 
     // Changer mon mot de passe
     var rowPass = document.createElement('div');

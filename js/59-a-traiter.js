@@ -22,7 +22,17 @@ var ATR_TYPES = {
 };
 // Les communiqués non lus n'y sont plus : ce n'est pas une tâche, et « 42 communiqués non lus » décourageait plus
 // qu'autre chose. Leur pastille reste sur l'appli Communiqués.
-var ATR_ORDRE = ['relire', 'publier', 'cps_brouillons', 'suppression', 'projets', 'tableau'];
+var ATR_ORDRE = ['relire', 'erratum', 'publier', 'cps_brouillons', 'sujets_proposes', 'relais', 'visuels', 'file_sr', 'sujet_a_finir', 'suppression', 'projets', 'tableau'];
+
+// Les types venus de js/89 (TACHES_TYPES) rejoignent les cartes de la cloche, avec la même action
+function _atrCompleterTypes(){
+  if(typeof TACHES_TYPES === 'undefined') return;
+  Object.keys(TACHES_TYPES).forEach(function(k){
+    if(ATR_TYPES[k]) return;
+    var t = TACHES_TYPES[k];
+    ATR_TYPES[k] = { titre:t.titre, sous:'', icone:t.icone, couleur:t.couleur, ouvrir:function(){ t.ouvrir((_atr.refs || {})[k]); } };
+  });
+}
 
 function _atrAuth(){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') }); }
 function _atrPeutAgir(){ return !(typeof osEstMobile === 'function' && osEstMobile()); }
@@ -33,13 +43,17 @@ function osATraiterCharger(){
   var role = getUserRole(), uid = getUserId(), nom = getUserNomComplet();
   var h = _atrAuth(), jobs = [], lignes = {};
   var lire = function(url){ return fetch(SB_URL+url, { headers:h }).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; }); };
-  if(role === 'correcteur' || role === 'admin'){
-    var q = '/rest/v1/articles?statut=in.(en-relecture,corrige)&or=(correcteur_id.eq.'+uid+',correcteur.eq.'+encodeURIComponent(nom)+')&select=id,titre&order=updated_at.asc&limit=30';
-    jobs.push(lire(q).then(function(a){ lignes.relire = a.map(function(x){ return x.titre || 'Sans titre'; }); }));
+  // Tâches selon le rôle : une seule liste, calculée par la fonction SQL taches_auto (js/89-taches-auto.js)
+  if(typeof osTachesAutoCharger === 'function'){
+    jobs.push(osTachesAutoCharger().then(function(rows){
+      _atr.refs = {};
+      rows.forEach(function(x){
+        (lignes[x.type] = lignes[x.type] || []).push(x.titre || 'Sans titre');
+        if(!_atr.refs[x.type]) _atr.refs[x.type] = x.ref_id;
+      });
+    }));
   }
   if(role === 'admin'){
-    jobs.push(lire('/rest/v1/articles?statut=eq.valide&select=id,titre&order=updated_at.asc&limit=30').then(function(a){ lignes.publier = a.map(function(x){ return x.titre || 'Sans titre'; }); }));
-    jobs.push(lire('/rest/v1/communiques?statut=eq.brouillon&select=id,titre&order=created_at.desc&limit=30').then(function(a){ lignes.cps_brouillons = a.map(function(x){ return x.titre || 'Sans titre'; }); }));
     jobs.push(lire('/rest/v1/annonces?actif=eq.true&redaction_id=is.null&type=eq.alerte&order=created_at.desc&select=message&limit=20').then(function(a){
       lignes.suppression = a.filter(function(x){ return x.message && x.message.indexOf('DEMANDE DE SUPPRESSION') === 0; })
         .map(function(x){ return x.message.replace('DEMANDE DE SUPPRESSION - ', ''); });
@@ -54,6 +68,7 @@ function osATraiterCharger(){
 
 // Les groupes sans liste détaillée viennent des pastilles du dock (osMajBadge) : cps, projets, annonces
 function _atrRecalculer(){
+  _atrCompleterTypes();
   var nl = window._bureauNonLus || {};
   var lignes = _atr.lignes || {};
   var cpsId = nl['cps-admin'] !== undefined ? 'cps-admin' : 'cps';

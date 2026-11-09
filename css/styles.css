@@ -7780,3 +7780,16 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .rel-statut { margin-left: auto; font-size: 0.68rem; padding: 4px 8px; border: 1px solid var(--gris-bord); border-radius: 6px; background: #fff; color: var(--encre); }
 .rel-fait { margin-top: 0.5rem; font-size: 0.72rem; color: #17613A; display: flex; gap: 6px; align-items: center; }
 .rel-fait a { color: inherit; }
+
+/* Tâches automatiques (appli Tâches) */
+.tau-sec { margin-bottom: 14px; }
+.tau-sec .ipj-aj-sec-t em { font-style: normal; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--gris); margin-left: 6px; }
+.tau-ligne { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid #F1EFEC; padding: 8px 2px; cursor: pointer; font-family: inherit; }
+.tau-sec .ipj-aj-sec-t + .tau-ligne { border-top: none; }
+.tau-ligne:hover { background: #FAFAF9; }
+.tau-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex: none; font-size: 1rem; }
+.tau-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tau-tx b { font-size: 0.84rem; font-weight: 600; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tau-tx small { font-size: 0.7rem; color: var(--gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tau-age { font-size: 0.68rem; color: var(--gris); flex: none; }
+.tau-age.vieux { color: #C0392B; font-weight: 600; }

@@ -316,7 +316,7 @@ function osWidgetPastilles(){
     function ajouter(ico, etiquette, texte, action, chaud){ items.push({ico:ico, etiquette:etiquette, texte:texte, action:action, chaud:!!chaud}); }
     if(taches.length){
       var nRet = taches.filter(function(t){ return String(t.date_limite).slice(0,10) < aujIso; }).length;
-      ajouter('ti-checkbox', nRet ? 'Projets · '+nRet+' en retard' : 'Projets', taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui', "osOpenWindow('projets')", nRet > 0);
+      ajouter('ti-checkbox', nRet ? 'Tâches · '+nRet+' en retard' : 'Tâches', taches.length+' tâche'+(taches.length>1?'s':'')+' pour aujourd\'hui', "osOpenWindow('projets')", nRet > 0);
     }
     if(file.length) ajouter('ti-eye-check', 'File du SR', file.length+' article'+(file.length>1?'s':'')+' à relire', "_maOnglet='corriger';osOpenWindow('mes-articles')", true);
     if(evt && evt.date_debut){
