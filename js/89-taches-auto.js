@@ -52,3 +52,14 @@ function osTachesAutoSection(rows){
   });
   return sec;
 }
+
+// Annonce de l'appli Tâches : une seule fois par personne et par navigateur
+function osTachesAnnonce(){
+  var cle = 'ipsum_taches_annonce_v1';
+  try{ if(localStorage.getItem(cle)) return; localStorage.setItem(cle, '1'); }catch(e){ return; }
+  if(typeof notifPersistante !== 'function') return;
+  osTachesAutoCharger().then(function(rows){
+    var n = rows.length;
+    notifPersistante('Nouveau : l’appli Tâches rassemble ce qu’il y a à faire pour toi, selon ton rôle'+(n ? ' ('+n+' en ce moment)' : '')+'. Elle disparaît d’elle-même quand c’est fait.', 'info', 'Ouvrir', function(){ osOpenWindow('projets'); }, 'checklist');
+  });
+}

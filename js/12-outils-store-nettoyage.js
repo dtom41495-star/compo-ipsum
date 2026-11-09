@@ -1572,6 +1572,7 @@ function osNettoyageSupprimerSujet(id){
 var ALL_APPS_CATALOGUE = [
   { id:'redaction',      icon:'<i class="ti ti-pencil"></i>', label:'Rédiger',        color:'#E8461E', roles:['redacteur','correcteur','admin'] },
   { id:'mes-articles',   icon:'<i class="ti ti-article"></i>', label:'Articles',       color:'#993C1D', roles:['redacteur','correcteur','admin'] },
+  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Tâches',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Ce qu'+"'"+'il y a à faire pour toi, selon ton rôle (relire, valider, publier…), tes tâches et tes projets : ajout rapide, kanban, échéances.' },
   { id:'notes',          icon:'<i class="ti ti-notes"></i>', label:'Notes',           color:'#856404', roles:['redacteur','correcteur','admin'] },
   { id:'carnet',         icon:'<i class="ti ti-address-book"></i>', label:'Sources',        color:'#0C5460', roles:['redacteur','correcteur','admin'] },
   { id:'cps-admin',      icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',    color:'#4A235A', roles:['admin','redac_chef'] },
@@ -1601,7 +1602,6 @@ var ALL_APPS_CATALOGUE = [
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
-  { id:'projets',        icon:'<i class="ti ti-clipboard-list"></i>', label:'Tâches',         color:'#2C3E70', roles:['redacteur','correcteur','redac_chef','communicant','admin'], desc:'Ce qu'+"'"+'il y a à faire pour toi, selon ton rôle (relire, valider, publier…), tes tâches et tes projets : ajout rapide, kanban, échéances.' },
   { id:'notes-frais',    icon:'<i class="ti ti-receipt-2"></i>', label:'Notes de frais',  color:'#0F6E56', desc:'Dépose une dépense avec la photo du ticket : le trésorier la valide puis te rembourse.' },
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
@@ -1610,13 +1610,13 @@ var ALL_APPS_CATALOGUE = [
 // Stats n'y sont pas : leurs icônes sont toujours sur le bureau. Les autres applis
 // s'ajoutent depuis le Compo Store.
 var PROFILS_PREDEFINIS = {
-  redacteur:  ['redaction','mes-articles','redactions','upload-medias','magneto','flouter','notes','compo-store'],
-  correcteur: ['redaction','mes-articles','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
-  redac_chef: ['redaction','mes-articles','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
-  admin:      ['redaction','mes-articles','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','cockpit','benevoles','gestion-apps','nettoyage','signatures','agenda','projets','boutique','mail','tresorerie','veille'],
+  redacteur:  ['redaction','mes-articles','projets','redactions','upload-medias','magneto','flouter','notes','compo-store'],
+  correcteur: ['redaction','mes-articles','projets','redactions','upload-medias','magneto','notes','newsletter','compo-store'],
+  redac_chef: ['redaction','mes-articles','projets','redactions','cps-admin','upload-medias','magneto','newsletter','compo-store'],
+  admin:      ['redaction','mes-articles','projets','redactions','notes','compo-store','cps-admin','visuels-pro','newsletter','stats-dashboard','cockpit','benevoles','gestion-apps','nettoyage','signatures','agenda','boutique','mail','tresorerie','veille'],
   // Communication uniquement — pas de redaction/mes-articles/redactions (donc pas de
   // communiqués de presse non plus, ils vivent dans l'onglet Communiqués de Ma Rédac').
-  communicant: ['app-com','visuels-pro','redactions','notes','compo-store','boutique','mail','signatures'],
+  communicant: ['app-com','projets','visuels-pro','redactions','notes','compo-store','boutique','mail','signatures'],
 };
 
 window._userApps = null;

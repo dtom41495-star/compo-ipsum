@@ -78,6 +78,7 @@ function _atrRecalculer(){
     var n, rows = null;
     if(lignes[t]){ rows = lignes[t]; n = rows.length; }
     else if(t === 'cps') n = (nl['cps-admin'] || 0) + (nl['cps'] || 0);
+    else if(t === 'projets' && window._tachesManuelles !== undefined) n = window._tachesManuelles;   // les tâches automatiques ont leurs propres cartes
     else if(t === 'projets' || t === 'tableau') n = nl[t] || 0;
     else n = 0;
     if(n > 0) taches.push({ type:t, n:n, rows:rows });
