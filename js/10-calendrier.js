@@ -1959,9 +1959,14 @@ function osRedacReglagesForm(redac){
   }
 
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
-  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap hebdomadaire <span class="badge-beta">Bêta</span></div>';
-  h += '<div style="font-size:0.68rem;color:var(--gris);margin-bottom:0.7rem;">Envoie à toute l\'équipe un résumé des 7 derniers jours : communiqués, sujets à réserver, articles publiés, prochains événements, nouveaux bénévoles et heures de bénévolat. Manuel pour l\'instant — à toi de cliquer quand tu veux l\'envoyer.</div>';
-  h += '<button id="redac-recap-btn" onclick="osRedacEnvoyerRecapHebdo(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap à l\'équipe</button>';
+  h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap de la semaine</div>';
+  if('recap_hebdo' in redac){
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:0.7rem;"><input type="checkbox" id="redac-reg-recap_hebdo" '+(redac.recap_hebdo!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
+      +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Envoyer le récap chaque lundi matin</span>'
+      +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">à toute l\'équipe, par mail ou Chat selon le choix de chacun : articles publiés, sujets à réserver, communiqués reçus, prochains événements, nouveaux bénévoles et heures de bénévolat des 7 derniers jours'
+      +(redac.recap_hebdo_envoye_le ? '. Dernier envoi : '+new Date(redac.recap_hebdo_envoye_le).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '')+'</span></span></label>';
+  }
+  h += '<button id="redac-recap-btn" onclick="osRedacEnvoyerRecapHebdo(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap maintenant</button>';
   h += '</div>';
 
   if(redac.est_centrale){
@@ -1978,14 +1983,14 @@ function osRedacChefEnregistrerReglages(redacId){
   var couleur = (document.getElementById('redac-reg-couleur')||{}).value;
   var substack = ((document.getElementById('redac-reg-substack')||{}).value||'').trim();
   if(!nom){ notif('Nom requis'); return; }
-  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','article_attend_sujet','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie'];
+  var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','article_attend_sujet','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie','recap_hebdo'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
     // en base, sinon tout l'enregistrement serait refusé
-    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee' || cle === 'article_attend_sujet') && !(cle in redacAvant)) return;
+    if((cle.indexOf('sujets_') === 0 || cle.indexOf('relance_') === 0 || cle === 'notif_sujet_libere' || cle === 'pas_lancee' || cle === 'article_attend_sujet' || cle === 'recap_hebdo') && !(cle in redacAvant)) return;
     if(el) payload[cle] = !!el.checked;
   });
   if('mode_sr' in redacAvant){
@@ -2017,122 +2022,23 @@ function osRedacChefEnregistrerReglages(redacId){
   });
 }
 
-// Récap hebdomadaire envoyé par le rédac chef à toute son équipe — reprend le même
-// périmètre de données que osRapportRedaction() (articles/sujets/membres scopés à la
-// rédaction) mais sur les 7 derniers jours plutôt que l'année civile, et sous forme
-// d'email/Chat plutôt que de document imprimable. Manuel pour l'instant (bouton dans
-// Réglages) : pas de planification serveur, Compo n'a pas cette brique aujourd'hui.
+// Récap de la semaine : envoyé chaque lundi matin par le serveur (fonction recap-hebdo, réglage
+// « Récap de la semaine » de la rédaction). Ce bouton déclenche le même envoi tout de suite.
 function osRedacEnvoyerRecapHebdo(redacId){
+  if(!osConfirmerPuis('Envoyer maintenant le récap des 7 derniers jours à toute l\'équipe ?', null, osRedacEnvoyerRecapHebdo, this, arguments)) return;
   var btn = document.getElementById('redac-recap-btn');
-  var btnLabelRepos = '<i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap à l\'équipe';
-  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="vertical-align:-2px;margin-right:4px;"></i>Préparation…'; }
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  var depuis7 = new Date(Date.now() - 7*24*60*60*1000).toISOString();
-  var maintenant = new Date().toISOString();
-
-  function get(url){
-    return fetch(SB_URL+url,{headers:authH}).then(function(r){return r.json();}).then(function(d){ return (!d||d.code)?[]:d; }).catch(function(){ return []; });
-  }
-
-  Promise.all([
-    get('/rest/v1/membres_redactions?redaction_id=eq.'+encodeURIComponent(redacId)+'&select=membre_id'),
-    get('/rest/v1/articles?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.publie&updated_at=gte.'+encodeURIComponent(depuis7)+'&select=id,titre,type,auteur_id&order=updated_at.desc'),
-    get('/rest/v1/briefing?redaction_id=eq.'+encodeURIComponent(redacId)+'&statut=eq.ouvert&select=id,titre,priorite&order=created_at.desc'),
-    get('/rest/v1/communiques?statut=eq.publie&created_at=gte.'+encodeURIComponent(depuis7)+'&select=id,titre,source,type,redaction_id&order=created_at.desc'),
-    get('/rest/v1/agenda_evenements?date_debut=gte.'+encodeURIComponent(maintenant)+'&statut=neq.annule&order=date_debut.asc&limit=5&select=id,titre,type,date_debut,lieu'),
-    get('/rest/v1/heures_benevolat?created_at=gte.'+encodeURIComponent(depuis7)+'&select=membre_id,duree_minutes')
-  ]).then(function(res){
-    var liens = res[0], artsSemaine = res[1], sujetsOuverts = res[2], cpsRecents = res[3], evenements = res[4], heures = res[5];
-    var idsEquipe = liens.map(function(l){ return l.membre_id; });
-    var equipe = (_membresData||[]).filter(function(m){ return idsEquipe.indexOf(m.id)!==-1; });
-    var redac = (_redactionsData||[]).find(function(r){ return r.id===redacId; });
-    var nomRedac = redac ? redac.nom : 'ta rédaction';
-
-    var cpsConcernes = cpsRecents.filter(function(cp){ return !cp.redaction_id || cp.redaction_id===redacId; });
-    var nouveaux = equipe.filter(function(m){ return m.created_at && m.created_at >= depuis7; });
-    var minutesEquipe = heures.filter(function(h){ return idsEquipe.indexOf(h.membre_id)!==-1; })
-      .reduce(function(s,h){ return s+(h.duree_minutes||0); },0);
-    var destinataires = equipe.filter(function(m){ return m.actif!==false && m.email && m.email.includes('@'); });
-
-    if(!destinataires.length){
-      notif('Aucun destinataire dans cette rédaction');
-      if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
-      return;
-    }
-
-    function auteurNom(id){
-      var m = equipe.find(function(x){ return x.id===id; });
-      return m ? ((m.prenom||'')+' '+(m.nom||'')).trim() : '';
-    }
-
-    // ---- Corps HTML (email) ----
-    var kpiHtml = '<div style="display:flex;gap:0.6rem;margin-bottom:1.2rem;">'
-      + [
-          [artsSemaine.length,'Publiés'],
-          [sujetsOuverts.length,'Sujets à prendre'],
-          [_osRapportHeures(minutesEquipe),'Bénévolat']
-        ].map(function(kv){
-          return '<div style="flex:1;background:white;border-radius:8px;padding:0.8rem;text-align:center;">'
-            +'<div style="font-family:Poppins,sans-serif;font-size:1.15rem;font-weight:800;color:#1A1A2E;">'+esc(String(kv[0]))+'</div>'
-            +'<div style="font-family:Space Mono,monospace;font-size:0.5rem;text-transform:uppercase;color:#9CA3AF;margin-top:2px;">'+kv[1]+'</div></div>';
-        }).join('')
-      + '</div>';
-
-    function section(titre, listeHtml){
-      return '<div style="margin-bottom:1.3rem;">'
-        +'<div style="font-family:Space Mono,monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:0.5rem;">'+titre+'</div>'
-        +listeHtml+'</div>';
-    }
-    function ligne(titre, sousTexte){
-      return '<div style="background:white;border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.4rem;">'
-        +'<div style="font-size:0.84rem;font-weight:600;color:#1A1A2E;">'+titre+'</div>'
-        +(sousTexte?'<div style="font-size:0.72rem;color:#6B7280;margin-top:1px;">'+sousTexte+'</div>':'')
-        +'</div>';
-    }
-    function vide(texte){ return '<div style="font-size:0.78rem;color:#9CA3AF;font-style:italic;">'+texte+'</div>'; }
-
-    var corps = '<p style="font-size:0.85rem;color:#374151;margin:0 0 1.2rem;">Voici ce qui s\'est passé cette semaine à '+esc(nomRedac)+'.</p>'
-      + kpiHtml
-      + section('📰 Communiqués reçus', cpsConcernes.length
-          ? cpsConcernes.map(function(cp){ return ligne(esc(cp.titre||'Sans titre'), esc(cp.source||'')); }).join('')
-          : vide('Aucun communiqué cette semaine.'))
-      + section('📌 Sujets à réserver ('+sujetsOuverts.length+')', sujetsOuverts.length
-          ? sujetsOuverts.slice(0,6).map(function(s){ return ligne(esc(s.titre||'Sans titre'), s.priorite||''); }).join('')
-          : vide('Aucun sujet ouvert en ce moment.'))
-      + section('✅ Articles publiés', artsSemaine.length
-          ? artsSemaine.map(function(a){ return ligne(esc(a.titre||'Sans titre'), auteurNom(a.auteur_id) ? esc(auteurNom(a.auteur_id)) : ''); }).join('')
-          : vide('Aucun article publié cette semaine.'))
-      + section('📅 Prochains événements', evenements.length
-          ? evenements.map(function(e){ return ligne(esc(e.titre||''), new Date(e.date_debut).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(_agLieu(e, null, true)?' — '+esc(_agLieu(e, null, true)):'')); }).join('')
-          : vide('Rien de prévu pour le moment.'))
-      + (nouveaux.length ? section('👋 Nouveaux bénévoles', nouveaux.map(function(m){ return ligne(esc(((m.prenom||'')+' '+(m.nom||'')).trim()), 'Bienvenue dans l\'équipe !'); }).join('')) : '')
-      + '<div style="margin-top:0.4rem;text-align:center;"><a href="https://compo.ipsummedia.fr" style="background:#E8461E;color:white;padding:0.6rem 1.4rem;text-decoration:none;border-radius:6px;font-size:0.8rem;font-weight:600;">Ouvrir Compo OS →</a></div>';
-
-    var html = _osCpEmailShell('📊 Récap de la semaine — '+esc(nomRedac), corps);
-
-    // ---- Équivalent texte (Chat) ----
-    var chatTexte = '📊 *Récap de la semaine — '+nomRedac+'*\n'
-      + artsSemaine.length+' article(s) publié(s), '+sujetsOuverts.length+' sujet(s) à réserver, '+_osRapportHeures(minutesEquipe)+' de bénévolat.'
-      + (cpsConcernes.length ? '\n\n📰 Communiqués : '+cpsConcernes.slice(0,3).map(function(cp){return cp.titre||'Sans titre';}).join(', ') : '')
-      + (sujetsOuverts.length ? '\n📌 À réserver : '+sujetsOuverts.slice(0,3).map(function(s){return s.titre||'Sans titre';}).join(', ') : '')
-      + (evenements.length ? '\n📅 Prochain événement : '+esc(evenements[0].titre||'')+' le '+new Date(evenements[0].date_debut).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) : '')
-      + '\n<https://compo.ipsummedia.fr|Ouvrir Compo>';
-
-    var nb = 0;
-    destinataires.forEach(function(m){
-      if(m.canal_notif === 'chat'){
-        notifierChatDM(m.id, chatTexte, 'recap_hebdo');
-      } else {
-        envoyerEmailResend(m.email, '[Compo] Récap de la semaine — '+nomRedac, html, 'recap_hebdo');
-      }
-      nb++;
-    });
-    notif(nb+' notification(s) envoyée(s) à l\'équipe','succes');
-    if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
-  }).catch(function(){
-    notif('Erreur lors de la génération du récap','erreur');
-    if(btn){ btn.disabled=false; btn.innerHTML=btnLabelRepos; }
-  });
+  var repos = '<i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap maintenant';
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 se-tourne" style="vertical-align:-2px;margin-right:4px;"></i>Envoi…'; }
+  fetch(SB_URL+'/functions/v1/recap-hebdo', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+((_session && _session.access_token) || '') },
+    body:JSON.stringify({ redaction_id:redacId })
+  }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); }).then(function(res){
+    if(!res.ok || !res.d || res.d.error) throw new Error((res.d && res.d.error) || 'envoi impossible');
+    var rc = (res.d.recaps || [])[0];
+    notif(rc ? 'Récap envoyé à '+rc.envoyes+' personne'+(rc.envoyes > 1 ? 's' : '') : 'Récap envoyé', 'succes');
+  }).catch(function(e){ notif('Récap non envoyé : '+e.message, 'erreur'); })
+    .then(function(){ if(btn){ btn.disabled = false; btn.innerHTML = repos; } });
 }
 
 function osRedactionsRenderAvecOnglets(wc, uid, redacId, roleRedac){
