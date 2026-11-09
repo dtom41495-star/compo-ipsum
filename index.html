@@ -35,7 +35,7 @@
   setTimeout(function(){ document.documentElement.classList.remove('connexion-en-cours'); }, 30000);
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -1337,6 +1337,7 @@
 
 <!-- PATCH NOTE v1.2 -->
 
+<script src="js/00-requetes.js"></script>
 <script src="js/01-core-redaction.js"></script>
 <script src="js/02-auth-articles.js"></script>
 <script src="js/03-redaction-avancee-os.js"></script>

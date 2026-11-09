@@ -206,30 +206,12 @@ var db = {
       headers: SB_HEADERS
     })
     .then(function(r){
-      console.log('listerArticles status:', r.status);
       if(!r.ok){ return r.json().then(function(e){ console.error('listerArticles error:', e); throw new Error(e.message||e.hint||r.status); }); }
       return r.json();
     })
     .then(function(data){
-      console.log('listerArticles data:', data);
       return data;
     });
-  },
-
-  // Sauvegarder un communique
-  sauvegarderCommunique: function(cp){
-    return fetch(SB_URL + '/rest/v1/communiques', {
-      method: 'POST',
-      headers: Object.assign({}, SB_HEADERS, {'Prefer': 'resolution=merge-duplicates,return=representation'}),
-      body: JSON.stringify({
-        id: cp.id, objet: cp.objet, organisation: cp.organisation,
-        type_actu: cp.type_actu, contact_nom: cp.contact ? cp.contact.nom : '',
-        contact_email: cp.contact ? cp.contact.email : '',
-        contact_tel: cp.contact ? cp.contact.tel : '',
-        embargo: cp.embargo, date_reception: cp.date_reception,
-        fichier_b64: cp.fichier_b64 || null
-      })
-    }).then(function(r){ return r.json(); });
   },
 
   // Récupérer un communique par ID
