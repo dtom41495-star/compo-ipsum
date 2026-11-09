@@ -1843,7 +1843,7 @@ function osRedacChangerSousOngletRedac(id){
 // hors de ce formulaire : ça affecte les autres rédactions (validation obligatoire),
 // donc ça reste dans Gestion rédactions, admin uniquement.
 function osRedacReglagesForm(redac){
-  var h = '<div style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;padding:1.2rem;display:flex;flex-direction:column;gap:0.9rem;max-width:420px;">';
+  var h = '<div class="redac-reglages" style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;padding:1.2rem;display:flex;flex-direction:column;gap:0.9rem;max-width:420px;">';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-reg-nom" type="text" value="'+esc(redac.nom)+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-reg-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-reg-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>';
@@ -1962,8 +1962,8 @@ function osRedacReglagesForm(redac){
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Récap de la semaine</div>';
   if('recap_hebdo' in redac){
     h += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:0.7rem;"><input type="checkbox" id="redac-reg-recap_hebdo" '+(redac.recap_hebdo!==false?'checked':'')+' style="margin-top:3px;flex-shrink:0;">'
-      +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Envoyer le récap chaque lundi matin</span>'
-      +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">à toute l\'équipe, par mail ou Chat selon le choix de chacun : articles publiés, sujets à réserver, communiqués reçus, prochains événements, nouveaux bénévoles et heures de bénévolat des 7 derniers jours'
+      +'<span><span style="display:block;font-size:0.78rem;color:var(--encre);font-weight:600;">Envoyer le récap chaque mardi matin</span>'
+      +'<span style="display:block;font-family:Space Mono,monospace;font-size:0.6rem;color:var(--gris);margin-top:1px;">à toute l\'équipe, par mail ou Chat selon le choix de chacun : articles publiés, sujets à réserver, communiqués reçus, prochains événements, nouveaux bénévoles et heures de bénévolat des 7 derniers jours (la semaine de brèves qui se termine)'
       +(redac.recap_hebdo_envoye_le ? '. Dernier envoi : '+new Date(redac.recap_hebdo_envoye_le).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : '')+'</span></span></label>';
   }
   h += '<button id="redac-recap-btn" onclick="osRedacEnvoyerRecapHebdo(\''+redac.id+'\')" style="font-family:Space Mono,monospace;font-size:0.7rem;padding:8px 16px;background:white;color:var(--encre);border:0.5px solid var(--gris-bord);border-radius:6px;cursor:pointer;font-weight:600;"><i class="ti ti-mail" style="vertical-align:-2px;margin-right:4px;"></i>Envoyer le récap maintenant</button>';
@@ -2022,7 +2022,7 @@ function osRedacChefEnregistrerReglages(redacId){
   });
 }
 
-// Récap de la semaine : envoyé chaque lundi matin par le serveur (fonction recap-hebdo, réglage
+// Récap de la semaine : envoyé chaque mardi matin par le serveur (fonction recap-hebdo, réglage
 // « Récap de la semaine » de la rédaction). Ce bouton déclenche le même envoi tout de suite.
 function osRedacEnvoyerRecapHebdo(redacId){
   if(!osConfirmerPuis('Envoyer maintenant le récap des 7 derniers jours à toute l\'équipe ?', null, osRedacEnvoyerRecapHebdo, this, arguments)) return;
