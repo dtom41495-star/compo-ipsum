@@ -3527,6 +3527,9 @@ function osProjetsInitBadge(){
   .then(function(r){return r.json();})
   .then(function(data){
     var n = (!data||data.code)?0:data.length;
-    osMajBadge('projets', n);
+    window._tachesManuelles = n;   // la cloche « À traiter » compte les tâches automatiques à part
+    // La pastille de l'appli Tâches : mes tâches ajoutées + ce qui m'attend selon mon rôle
+    var auto = typeof osTachesAutoCharger === 'function' ? osTachesAutoCharger() : Promise.resolve([]);
+    return auto.then(function(rows){ osMajBadge('projets', n + rows.length); });
   }).catch(function(){});
 }

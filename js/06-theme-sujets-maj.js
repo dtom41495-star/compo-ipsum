@@ -381,6 +381,7 @@ function osChargerNotifsDemarrage(){
   setTimeout(cpsChargerBadge, 1500);
   // Badge Projets tâches assignées
   setTimeout(osProjetsInitBadge, 2500);
+  setTimeout(function(){ if(typeof osTachesAnnonce === 'function') osTachesAnnonce(); }, 7000);
   // Migration brouillons locaux vers la base
   setTimeout(osMigrerBrouillonsLocaux, 3000);
   // Crédit automatique des heures agenda / invitations presse passées
