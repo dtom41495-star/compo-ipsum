@@ -7793,3 +7793,6 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .tau-tx small { font-size: 0.7rem; color: var(--gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tau-age { font-size: 0.68rem; color: var(--gris); flex: none; }
 .tau-age.vieux { color: #C0392B; font-weight: 600; }
+
+/* Agenda : sur ordinateur, les filtres passent à la ligne au lieu de sortir de la fenêtre (défilement invisible) */
+@media (min-width: 769px) { #agenda-filtres { flex-wrap: wrap !important; overflow: visible !important; } }

@@ -514,9 +514,9 @@ function osCompteurRender(){
   var wc = document.getElementById('wincontent-compteur');
   if(!wc) return;
   wc.innerHTML =
-    '<div style="display:flex;flex-direction:column;height:100%;padding:1rem 1.2rem;gap:0.8rem;">'
+    '<div style="display:flex;flex-direction:column;height:100%;box-sizing:border-box;padding:1rem 1.2rem;gap:0.8rem;">'
     + '<textarea id="cpt-texte" oninput="osCompteurMaj()" placeholder="Colle ou tape ton texte ici…" style="flex:1;resize:none;border:1.5px solid var(--gris-bord);border-radius:8px;padding:0.8rem;font-family:DM Sans,sans-serif;font-size:0.88rem;line-height:1.75;outline:none;"></textarea>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.6rem;" id="cpt-stats">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0.6rem;" id="cpt-stats">'
     + _cptStatCard('0','Mots')
     + _cptStatCard('0','Caractères (avec espaces)')
     + _cptStatCard('0','Caractères (sans espaces)')

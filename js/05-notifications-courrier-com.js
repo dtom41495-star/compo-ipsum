@@ -360,7 +360,10 @@ function _osOpenWindowExecuter(pageId){
   };
   // Titres dynamiques (ex: fenêtres CP)
   var title = (window._osTitlesOverride && window._osTitlesOverride[pageId])
-    || titles[pageId] || pageId;
+    || titles[pageId]
+    // Pas de titre prévu : le nom de l'appli (catalogue), jamais l'identifiant technique (« boutique », « tutos »…)
+    || ((typeof ALL_APPS_CATALOGUE !== 'undefined' ? ALL_APPS_CATALOGUE : []).find(function(a){ return a.id === pageId; }) || {}).label
+    || pageId;
   
   // Titlebar
   var tb = document.createElement('div');
@@ -481,8 +484,16 @@ function _osOpenWindowExecuter(pageId){
     var petite = { 'notes-frais':[400, 300] }[pageId];
     var w = petite ? petite[0] : Math.min(860, wsW - 80);
     var h = petite ? petite[1] : Math.min(600, wsH - 80);
-    var x = Math.random() * Math.max(0, wsW - w - 40) + 20;
-    var y = Math.random() * Math.max(0, wsH - h - 60) + 10;
+    // Au centre, avec un léger décalage par fenêtre déjà ouverte (plus de position au hasard), et toujours entièrement
+    // au-dessus de la barre du bas : sur un petit écran (1366 × 768), le bas des fenêtres passait dessous.
+    var dockEl = document.getElementById('os-dock');
+    var wsRect = ws ? ws.getBoundingClientRect() : { top:0 };
+    var basVisible = dockEl ? Math.min(wsH, dockEl.getBoundingClientRect().top - wsRect.top) : wsH;
+    if(!(basVisible > 200)) basVisible = wsH;
+    if(!petite) h = Math.min(h, basVisible - 24);
+    var decalage = (Object.keys(_windows).length % 6) * 26;
+    var x = Math.max(12, Math.min((wsW - w) / 2 + decalage, wsW - w - 12));
+    var y = Math.max(8, Math.min((basVisible - h) / 2 + decalage, basVisible - h - 8));
     win.style.width = w+'px';
     win.style.height = h+'px';
     win.style.left = x+'px';
