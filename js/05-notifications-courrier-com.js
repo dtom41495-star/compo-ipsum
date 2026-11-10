@@ -482,8 +482,10 @@ function _osOpenWindowExecuter(pageId){
   } else {
     // Fenêtres qui n'ont pas besoin d'être grandes : elles s'ouvrent à la taille minimale (celle du redimensionnement)
     var petite = { 'notes-frais':[400, 300] }[pageId];
-    var w = petite ? petite[0] : Math.min(860, wsW - 80);
-    var h = petite ? petite[1] : Math.min(600, wsH - 80);
+    // … et celles qui montrent beaucoup à la fois (Ma rédac' : sujets, équipe, communiqués côte à côte) s'ouvrent plus grandes
+    var grande = { 'redactions':[1080, 700] }[pageId];
+    var w = petite ? petite[0] : Math.min(grande ? grande[0] : 860, wsW - 80);
+    var h = petite ? petite[1] : Math.min(grande ? grande[1] : 600, wsH - 80);
     // Au centre, avec un léger décalage par fenêtre déjà ouverte (plus de position au hasard), et toujours entièrement
     // au-dessus de la barre du bas : sur un petit écran (1366 × 768), le bas des fenêtres passait dessous.
     var dockEl = document.getElementById('os-dock');
@@ -498,6 +500,12 @@ function _osOpenWindowExecuter(pageId){
     win.style.height = h+'px';
     win.style.left = x+'px';
     win.style.top = y+'px';
+    // Les bulles du bureau (« Les apps ont déménagé », « Bon retour ») ne restent pas par-dessus la fenêtre qu'on vient d'ouvrir
+    try {
+      var bulleApps = document.getElementById('os-apps-moved-tooltip');
+      if(bulleApps && bulleApps.style.display === 'block' && typeof osDismissAppsMovedTooltip === 'function') osDismissAppsMovedTooltip();
+      document.querySelectorAll('.atr-resume.nf-resume').forEach(function(c){ c.classList.remove('visible'); setTimeout(function(){ c.remove(); }, 300); });
+    } catch(e){}
   }
   
   // Sur mobile : fermer toutes les autres fenêtres
