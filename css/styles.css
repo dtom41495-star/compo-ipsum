@@ -5195,6 +5195,9 @@ a.sjap-src .sjap-btn { pointer-events: none; }
 .rp-serie { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: #fff; border: 1px solid var(--gris-bord); border-radius: 16px; padding: .9rem 1.1rem; font-family: 'DM Sans', sans-serif; }
 .rp-serie-flamme { width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; color: #fff; background: radial-gradient(circle at 35% 30%, #FFC800, #FF9600 55%, #EA5B1C); box-shadow: 0 4px 12px rgba(234,91,28,.3); }
 .rp-serie-flamme.eteinte { background: #F1EDE8; color: #B8B2A8; box-shadow: none; }
+/* Série en cours mais brève de la semaine pas encore envoyée : la flamme vacille (elle n'est pas éteinte) */
+.rp-serie-flamme.vacille { background: radial-gradient(circle at 35% 30%, #FFE3B0, #FFB45A 55%, #F08A3A); color: rgba(255,255,255,.9); box-shadow: 0 3px 10px rgba(240,138,58,.25); opacity: .85; animation: serie-vacille 2.2s ease-in-out infinite; }
+@keyframes serie-vacille { 0%,100% { transform: scale(1) rotate(0); opacity: .85; } 30% { transform: scale(.96) rotate(-3deg); opacity: .7; } 55% { transform: scale(1.03) rotate(2deg); opacity: .95; } 80% { transform: scale(.98) rotate(-1deg); opacity: .78; } }
 .rp-serie-corps { flex: 1; min-width: 190px; }
 .rp-serie-titre { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--encre); margin-bottom: 3px; }
 .rp-serie-ligne { display: flex; align-items: flex-start; gap: 6px; font-size: .76rem; line-height: 1.35; color: var(--gris); margin-top: 2px; }
@@ -5222,7 +5225,7 @@ a.sjap-src .sjap-btn { pointer-events: none; }
 @keyframes serie-fache-halo { 0% { box-shadow: 0 0 0 0 rgba(214,57,30,.45); } 100% { box-shadow: 0 0 0 14px rgba(214,57,30,0); } }
 @keyframes serie-yeux { 0%,88%,100% { transform: scaleY(1); } 92% { transform: scaleY(.1); } }
 @keyframes serie-givre { 0%,100% { box-shadow: 0 4px 14px rgba(28,176,246,.4); } 50% { box-shadow: 0 4px 22px rgba(28,176,246,.7); } }
-@media (prefers-reduced-motion: reduce) { .rp-serie-flamme.fachee, .rp-serie-flamme.gelee, .rp-serie-visage .yeux { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .rp-serie-flamme.vacille, .rp-serie-flamme.fachee, .rp-serie-flamme.gelee, .rp-serie-visage .yeux { animation: none !important; } }
 
 /* Pastille de série dans l'accueil mobile (js/33-serie.js) */
 .acc-pill-serie { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; background: #fff; border: 1px solid #E7E5E4; font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif; color: #1A1A2E; }
@@ -5230,6 +5233,8 @@ a.sjap-src .sjap-btn { pointer-events: none; }
 .acc-pill-serie.allumee { border-color: #FFD9A8; background: #FFF7EC; }
 .acc-pill-serie.allumee i { color: #FF9600; }
 .acc-pill-serie.eteinte i { color: #B8B2A8; }
+.acc-pill-serie.vacille { border-color: #FFD9A8; background: #FFF7EC; }
+.acc-pill-serie.vacille i { color: #F0A050; }
 .acc-pill-serie.gelee { border-color: #BFE3FA; background: #EEF8FF; color: #1B6FB5; }
 .acc-pill-serie.gelee i { color: #1CB0F6; }
 .acc-pill-serie.fachee { border-color: #F4B8A8; background: #FFF1ED; color: #B3261E; }

@@ -340,13 +340,13 @@ function osSerieCarteHtml(e, x){
   else if(e.gel0) breve = 'Semaine gelée : série protégée, pas de brève à envoyer';
   else if(e.faite) breve = 'Brève de la semaine : faite';
   else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), encore '+jours+' jour'+(jours > 1 ? 's' : '');
-  else breve = e.serie > 0 ? 'Une brève avant mercredi pour garder ta série (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : (e.nouveau ? 'Bienvenue ! Une brève cette semaine et ta série démarre' : 'Envoie une brève cette semaine pour lancer ta série');
+  else breve = e.serie > 0 ? 'Ta flamme vacille : une brève avant mercredi pour la rallumer (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : (e.nouveau ? 'Bienvenue ! Une brève cette semaine et ta série démarre' : 'Envoie une brève cette semaine pour lancer ta série');
   var art = e.articleMois
     ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
     : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
   var fachee = !e.faite && e.serie === 0 && !e.nouveau;
-  var etatFlamme = (e.gel0 || e.pause0) ? ' gelee' : (e.faite ? '' : (fachee ? ' fachee' : ' eteinte'));
-  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'"'+(etatFlamme === '' ? _serieFlammeStyle() : '')+' title="'+(e.pause0 ? 'Rédaction en pause' : e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme attend ta brève' : (e.nouveau ? 'La flamme attend ta première brève' : 'La flamme n\'est pas contente'))))+'">'
+  var etatFlamme = (e.gel0 || e.pause0) ? ' gelee' : (e.faite ? '' : (fachee ? ' fachee' : (e.serie > 0 ? ' vacille' : ' eteinte')));
+  var flamme = '<div class="rp-serie-flamme'+etatFlamme+'"'+(etatFlamme === '' ? _serieFlammeStyle() : '')+' title="'+(e.pause0 ? 'Rédaction en pause' : e.gel0 ? 'Semaine gelée' : (e.faite ? 'Série en route' : (e.serie > 0 ? 'La flamme vacille : une brève pour la rallumer' : (e.nouveau ? 'La flamme attend ta première brève' : 'La flamme n\'est pas contente'))))+'">'
     +'<i class="ti ti-flame"></i>'+(fachee ? _SERIE_FLAMME_FACHEE : '')+(e.gel0 ? '<i class="ti ti-snowflake rp-serie-givre"></i>' : '')+'</div>';
   // Gel : réservé aux semaines pas encore faites ; coût et solde viennent du serveur
   var gel = '';
@@ -450,7 +450,7 @@ function osSerieChargerPastille(el){
   if(window._seriePastilleLe && Date.now() - window._seriePastilleLe < 60000 && window._seriePastilleEtat) return;
   Promise.all([_serieCharger(uid), _serieGels(uid)]).then(function(res){
     var e = osSerieCalculer(res[0], _serieArrivee(uid), null, res[1].set);
-    var classe = (e.gel0 || e.pause0) ? 'gelee' : (e.faite ? 'allumee' : ((e.serie > 0 || e.nouveau) ? 'eteinte' : 'fachee'));
+    var classe = (e.gel0 || e.pause0) ? 'gelee' : (e.faite ? 'allumee' : (e.serie > 0 ? 'vacille' : (e.nouveau ? 'eteinte' : 'fachee')));
     var titre = e.serie > 0 ? 'Série de '+e.serie+' semaine'+(e.serie > 1 ? 's' : '') : 'Pas de série en cours';
     if(e.pause0) titre += ', rédaction en pause';
     else if(e.gel0) titre += ', semaine gelée';
