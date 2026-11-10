@@ -710,7 +710,7 @@ function osBuildDock(){
       // Fenêtres dynamiques (fiche d'un CP "cp-XXX"...) : leur vrai titre plutôt que l'id brut
       var titreFen = (window._osTitlesOverride||{})[pid];
       if(titreFen) titreFen = titreFen.replace(/^[^\p{L}\p{N}]+/u, '').trim();
-      var app = appInfo || { id:pid, icon:'<i class="ti ti-'+(pid.indexOf('cp-')===0?'news':'app-window')+'"></i>', label:titreFen||pid, color:'#444' };
+      var app = appInfo || { id:pid, icon:'<i class="ti ti-'+(pid.indexOf('cp-')===0?'news':(pid === 'params' ? 'settings' : 'app-window'))+'"></i>', label:titreFen || ({ params:'Paramètres', tutos:'Guide' })[pid] || pid, color:'#444' };
       dock.appendChild(_creerIconeDock(app, false));
      } catch(e){ console.warn('[dock] icône (ouverte) ignorée', pid, e); }
     });
@@ -1028,6 +1028,8 @@ function osOpenWindow(pageId){
     return;
   }
   if(appDef && appDef.external){ window.open(appDef.external,'_blank'); return; }
+  // Le Guide n'est pas une fenêtre : sans ce renvoi, son icône dans la barre ouvrait une fenêtre vide
+  if(pageId === 'tutos' && typeof osOuvrirTutos === 'function'){ osOuvrirTutos(); return; }
   if(pageId === 'visuels-pro' && !osVisuelsVerifierAcces()) return;
   if(pageId === 'redaction') osChronoStart('redaction');
   if(pageId === 'app-correction') osChronoStart('correction');

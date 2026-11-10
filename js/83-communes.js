@@ -65,7 +65,7 @@ function _communeEnregistrer(membreId, c){
 // Champ « commune » avec suggestions. `valeur` : le membre (ou ses colonnes commune*), si déjà connu.
 function osCommuneChampHTML(id, valeur){
   return '<div class="cm-champ"><i class="ti ti-map-pin"></i>'
-    +'<input type="text" id="'+esc(id)+'" class="cm-input" placeholder="Ta commune (ville seule)" autocomplete="off" value="'+esc(osCommuneLibelle(valeur))+'">'
+    +'<input type="text" id="'+esc(id)+'" class="cm-input" placeholder="Ta commune" title="La ville seule, sans adresse" autocomplete="off" value="'+esc(osCommuneLibelle(valeur))+'">'
     +'<span class="cm-etat" id="'+esc(id)+'-etat"></span></div>';
 }
 
