@@ -400,6 +400,8 @@ _atrResume = function(){
     var taches = _atrTotal();
     if(taches) lignes.push({ ic:'checklist', couleur:'#0F6E56', label:'À traiter', n:taches });
     if(!lignes.length) return;
+    // Une fenêtre est déjà ouverte : pas de bulle par-dessus, la cloche porte le même compte
+    if(document.querySelector('.os-window:not(.minimized)')) return;
     var prenom = (typeof getUserPrenom === 'function' ? getUserPrenom() : (getUserNomComplet() || '').split(' ')[0]) || '';
     var c = document.createElement('div');
     c.className = 'atr-resume nf-resume';
