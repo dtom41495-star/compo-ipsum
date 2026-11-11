@@ -2498,6 +2498,7 @@ function cpsAfficherAbonnement(){
     var abonneGlobal = res[0] && res[0].length > 0;
     var abonneSources = (!res[1]||res[1].code) ? [] : res[1].map(function(r){return r.contact_id;});
     var contacts = (!res[2]||res[2].code) ? [] : res[2];
+    var mode = abonneGlobal ? 'tous' : ((abonneSources.length || window._cpsModeSources) ? 'sources' : 'aucun');
     var CATS = {'Élu·e':{'bg':'#FAEEDA','c':'#633806'},'Institutionnel':{'bg':'#E6F1FB','c':'#0C447C'},'Association':{'bg':'#EEEDFE','c':'#3C3489'},'Entreprise':{'bg':'#F1EFE8','c':'#444441'},'Média':{'bg':'#E1F5EE','c':'#085041'},'Expert·e':{'bg':'#FBEAF0','c':'#72243E'},'Autre':{'bg':'#F1EFE8','c':'#5F5E5A'}};
     var html = '';
     html += '<div style="margin-bottom:1rem;">';
@@ -2506,14 +2507,25 @@ function cpsAfficherAbonnement(){
     // (osRedactionsMembre_OngletSujets) : carte blanche, icône dans un badge de
     // couleur fixe, et un interrupteur pour l'abonnement plutôt qu'un bouton texte
     // dont le libellé change selon l'état.
-    html += '<div style="display:flex;align-items:center;gap:0.7rem;background:white;border:0.5px solid var(--gris-bord);border-radius:10px;padding:0.6rem 0.8rem;">';
-    html += '<div style="width:32px;height:32px;border-radius:8px;background:#FCEBEB;color:#A32D2D;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;"><i class="ti ti-mail"></i></div>';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-weight:600;font-size:0.78rem;color:var(--encre);">'+(abonneGlobal?'Résumé des communiqués par mail : activé':'Résumé des communiqués par mail : désactivé')+'</div>';
-    html += '<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">'+(abonneGlobal?'Tu reçois par mail le résumé des nouveaux communiqués de presse.':'Tu ne reçois pas le résumé des communiqués de presse. Active-le, ou choisis des sources précises ci-dessous.')+'</div></div>';
-    html += '<label class="compo-toggle"><input type="checkbox" '+(abonneGlobal?'checked':'')+' onchange="cpsToggleAbonnementGlobal(!this.checked)"><span class="track"></span><span class="thumb"></span></label>';
+    // Un seul choix, trois états (les deux listes en base restent : abonnements_cp = « tous »,
+    // abonnements_sources = « mes sources »). Le même choix vaut pour le bouton « Suivre cette
+    // source » d'un communiqué, qui écrit dans la même liste de sources.
+    var OPTIONS = [
+      {k:'tous', icone:'ti-mail-fast', titre:'Tous les communiqués', txt:'Tu reçois le résumé de tous les nouveaux communiqués.'},
+      {k:'sources', icone:'ti-bell', titre:'Seulement mes sources', txt:abonneSources.length ? 'Tu reçois les communiqués de '+abonneSources.length+' source'+(abonneSources.length>1?'s':'')+', choisies ci-dessous ou depuis un communiqué.' : 'Coche ci-dessous les sources qui t\'intéressent, ou suis-les depuis un communiqué.'},
+      {k:'aucun', icone:'ti-bell-off', titre:'Aucun', txt:'Tu ne reçois aucun communiqué par mail.'}
+    ];
+    html += '<div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:1rem;">';
+    OPTIONS.forEach(function(o){
+      var actif = o.k === mode;
+      html += '<label style="display:flex;align-items:center;gap:0.7rem;background:'+(actif?'var(--gris-clair)':'white')+';border:0.5px solid '+(actif?'var(--rouge)':'var(--gris-bord)')+';border-radius:10px;padding:0.55rem 0.8rem;cursor:pointer;">'
+        +'<input type="radio" name="cps-mode" '+(actif?'checked':'')+' onchange="cpsChoisirMode(\''+o.k+'\')" style="accent-color:var(--rouge);flex-shrink:0;">'
+        +'<i class="ti '+o.icone+'" style="font-size:1rem;color:'+(actif?'var(--rouge)':'var(--gris)')+';flex-shrink:0;"></i>'
+        +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.78rem;color:var(--encre);">'+o.titre+'</div>'
+        +'<div style="font-size:0.65rem;color:var(--gris);margin-top:1px;">'+o.txt+'</div></div></label>';
+    });
     html += '</div>';
-    if(contacts.length){
+    if(contacts.length && mode === 'sources'){
       html += '<div>';
       html += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gris);margin-bottom:0.4rem;">Par source <span style="opacity:0.6;">('+(abonneGlobal?contacts.length:abonneSources.length)+'/'+contacts.length+')</span></div>';
       html += '<div style="font-size:0.72rem;color:var(--gris);margin-bottom:0.7rem;">'+(abonneGlobal
@@ -2581,6 +2593,25 @@ function cpsBasculeAbonnementSource(contactId, estAbonne, btnEl){
       }
     });
   }
+}
+
+// Choix unique pour les communiqués par mail : tous / seulement mes sources / aucun
+function cpsChoisirMode(mode){
+  var uid = getUserId(); if(!uid) return;
+  var headers = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session&&_session.access_token||'') });
+  var H = Object.assign({}, headers, {'Prefer':'return=minimal,resolution=ignore-duplicates'});
+  window._cpsModeSources = (mode === 'sources');
+  var etapes;
+  if(mode === 'tous'){
+    etapes = fetch(SB_URL+'/rest/v1/abonnements_cp', {method:'POST', headers:H, body:JSON.stringify({membre_id:uid})});
+  } else {
+    etapes = fetch(SB_URL+'/rest/v1/abonnements_cp?membre_id=eq.'+uid, {method:'DELETE', headers:headers});
+    if(mode === 'aucun') etapes = etapes.then(function(){ return fetch(SB_URL+'/rest/v1/abonnements_sources?membre_id=eq.'+uid, {method:'DELETE', headers:headers}); });
+  }
+  etapes.then(function(){
+    notif(mode==='tous' ? 'Tu reçois tous les communiqués' : mode==='sources' ? 'Tu reçois seulement tes sources' : 'Tu ne reçois plus de communiqués par mail');
+    cpsAfficherAbonnement();
+  });
 }
 
 function cpsToggleAbonnementGlobal(estAbonne){
