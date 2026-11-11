@@ -29,11 +29,7 @@ function osSerieEcheance(maintenant){
   return 'dès que possible (la newsletter n\'est pas encore partie)';
 }
 function _serieH(){ return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}); }
-function _serieDate(a){
-  var d = a.publie_le || a.envoye_sr_le || a.updated_at;
-  var t = d ? new Date(d) : null;
-  return t && !isNaN(t) ? t : null;
-}
+function _serieDate(a){ return _regDateCompte(a); }
 
 // Calcule l'état de la semaine, de la série et de l'article du mois. `items` : [{id,type,date}]
 function _serieCle(d){
@@ -92,11 +88,11 @@ function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn, redacIds){
 
 // Articles du membre (brèves et articles envoyés au SR ou publiés, toutes rédactions confondues)
 function _serieCharger(uid, ajout){
-  var cols = window._srColsDispo === true ? ',envoye_sr_le' : '';
-  return osRegulariteChargerPeriodes().catch(function(){}).then(function(){ return fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide,publie)&select=id,type,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
+  var cols = window._srColsDispo === true ? ',envoye_sr_le,premier_envoi_sr_le' : '';
+  return osRegulariteChargerPeriodes().catch(function(){}).then(function(){ return fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&or=(statut.in.(en-relecture,corrige,valide,publie),and(statut.eq.brouillon,premier_envoi_sr_le.not.is.null,note_interne.not.is.null))&select=id,type,statut,note_interne,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
     .then(function(r){ return r.json(); })
     .then(function(rows){
-      var items = (Array.isArray(rows) ? rows : []).map(function(a){ return { id:a.id, type:a.type, date:_serieDate(a) }; }).filter(function(i){ return i.date; });
+      var items = (Array.isArray(rows) ? rows : []).filter(_regEstCompte).map(function(a){ return { id:a.id, type:a.type, date:_serieDate(a) }; }).filter(function(i){ return i.date; });
       if(ajout){
         items = items.filter(function(i){ return i.id !== ajout.id; });
         items.push({ id:ajout.id, type:ajout.type, date:new Date() });
@@ -295,7 +291,11 @@ function osSerieApresEnvoi(doc){
     if(doc.auteur_id && doc.auteur_id !== uid) return;       // on relit l'article de quelqu'un d'autre : pas de fête
     var vus = [];
     try{ vus = JSON.parse(localStorage.getItem('ipsum_serie_vus_'+uid) || '[]'); }catch(e){}
-    if(vus.indexOf(doc.id) !== -1) return;                   // cet envoi a déjà été fêté
+    if(vus.indexOf(doc.id) !== -1){                          // cet envoi a déjà été fêté (renvoi après une correction du SR : pas de deuxième fête)
+      if(doc.type === 'breve' && !doc._sansCoec && typeof osShowToast === 'function')
+        osShowToast('Renvoyée au SR : ta brève compte toujours pour ta série.', 'info', {icon:'flame'});
+      return;
+    }
     Promise.all([_serieCharger(uid, doc), _serieGels(uid)])
       .then(function(res){
         var items = res[0], gels = res[1].set;
