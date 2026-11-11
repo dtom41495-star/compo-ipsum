@@ -1202,6 +1202,44 @@ function osVeilleRender(){
   }).catch(function(){ wc.innerHTML = osErreurHtml(); });
 }
 
+// « Mes alertes » : la liste générale ne charge que les 200 derniers articles, alors que Compo garde 60 jours de veille
+// (veille_menage, chaque nuit). Sans cela, un mot-clé retrouvait de moins en moins d'articles à mesure que d'autres arrivaient.
+// On charge donc tous les articles des 60 derniers jours (par pages de 1000), une fois toutes les 5 minutes au plus.
+var VEILLE_CONSERVATION_JOURS = 60;
+window._veilleArticlesAlertes = null;
+var _veilleAlertesChargeLe = 0, _veilleAlertesEnCours = null;
+function osVeilleAlertesArticles(){
+  if(_veilleAlertesEnCours) return _veilleAlertesEnCours;
+  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  // Seulement depuis l'ajout du plus ancien mot-clé (jamais plus de 60 jours : au-delà, la veille efface)
+  var limite60 = new Date(Date.now() - VEILLE_CONSERVATION_JOURS * 86400000), ajout = typeof osVeilleAlertesDepuisMin === 'function' ? osVeilleAlertesDepuisMin() : null;
+  var depuis = (ajout && ajout > limite60 ? ajout : limite60).toISOString();
+  var base = SB_URL+'/rest/v1/veille_articles?select=id,flux_id,titre,lien,resume,image,date_publication&date_publication=gte.'+encodeURIComponent(depuis)+'&order=date_publication.desc,id.asc&limit=1000';
+  var tout = [];
+  function page(debut){
+    return fetch(base+'&offset='+debut, { headers:authH }).then(function(r){ return r.json(); }).then(function(d){
+      if(!Array.isArray(d)) throw new Error('veille');
+      tout = tout.concat(d);
+      return d.length === 1000 && debut < 9000 ? page(debut + 1000) : tout;
+    });
+  }
+  _veilleAlertesEnCours = page(0).then(function(rows){
+    window._veilleArticlesAlertes = osVeilleSansDoublons(rows);
+    _veilleAlertesChargeLe = Date.now();
+    _veilleAlertesEnCours = null;
+    return true;
+  }).catch(function(){
+    _veilleAlertesChargeLe = Date.now() - 270000;   // échec : nouvel essai dans 30 s
+    _veilleAlertesEnCours = null;
+    return false;
+  });
+  return _veilleAlertesEnCours;
+}
+// Un article de la liste générale ou de la vue « Mes alertes »
+function osVeilleChercherArticle(id){
+  return (window._veilleArticles || []).concat(window._veilleArticlesAlertes || []).find(function(a){ return a.id === id; });
+}
+
 function osVeilleEstGestionnaire(){
   var role = getUserRole();
   if(role === 'admin') return true;
@@ -1224,7 +1262,9 @@ function osVeilleMarquerVu(articleId){
 
 function osVeilleToutMarquerLu(){
   var vus = osVeilleVus();
-  var ids = (window._veilleArticles||[]).map(function(a){ return a.id; });
+  var ids = (_veilleSourceActive === 'alertes' && window._veilleArticlesAlertes && typeof osVeilleAlerteMot === 'function'
+    ? window._veilleArticlesAlertes.filter(function(a){ return osVeilleAlerteMot(a, true); })
+    : (window._veilleArticles||[])).map(function(a){ return a.id; });
   localStorage.setItem('ipsum_veille_vus', JSON.stringify(vus.concat(ids.filter(function(id){ return vus.indexOf(id)===-1; }))));
   osVeilleChargerBadge();
   var wc = document.getElementById('wincontent-veille');
@@ -1254,7 +1294,7 @@ function osVeilleOuvrirArticle(articleId, lien){
 // rédaction normale — non bloquant, juste un avertissement).
 function osVeilleCreerSujet(articleId){
   // Depuis l'appli, depuis le widget du bureau (js/53-veille-widget.js) ou depuis les idées de l'onglet Sujets (js/57-veille-idees.js)
-  var article = (window._veilleArticles||[]).concat(window._veilleWidgetArticles||[], window._veilleIdeesArticles||[]).find(function(a){ return a.id===articleId; });
+  var article = (window._veilleArticles||[]).concat(window._veilleArticlesAlertes||[], window._veilleWidgetArticles||[], window._veilleIdeesArticles||[]).find(function(a){ return a.id===articleId; });
   if(!article) return;
   _doublonsCharger().then(function(cache){
     var proches = _doublonsChercher(article.titre, cache);
@@ -1374,6 +1414,17 @@ function osVeilleRendreListe(wc){
   var flux = window._veilleFlux || [];
   var tous = window._veilleArticles || [];
   var vueAlertes = _veilleSourceActive === 'alertes' && typeof osVeilleAlerteMot === 'function';
+  // Mes alertes : tous les articles des 60 derniers jours, pas seulement les 200 derniers (les 200 s'affichent en attendant)
+  // (les compteurs du rail restent ceux de la liste générale : seule la liste affichée change)
+  var alertesEnChargement = false, aAfficher = tous;
+  if(vueAlertes && _veilleAlertes.mots.length){
+    if(window._veilleArticlesAlertes) aAfficher = window._veilleArticlesAlertes; else alertesEnChargement = true;
+    if(!window._veilleArticlesAlertes || Date.now() - _veilleAlertesChargeLe > 300000){
+      osVeilleAlertesArticles().then(function(ok){
+        if(ok && _veilleSourceActive === 'alertes' && document.getElementById('wincontent-veille') === wc) osVeilleRendreListe(wc);
+      });
+    }
+  }
   var mediaActif = /^media:/.test(_veilleSourceActive || '') ? _veilleSourceActive.slice(6) : null;
   var vueContacts = _veilleSourceActive === 'contacts' && typeof osVeilleContactsPour === 'function';
   if(_veilleSourceActive && !vueAlertes && !vueContacts && !mediaActif && !flux.some(function(f){ return f.id === _veilleSourceActive; })) _veilleSourceActive = null;
@@ -1381,9 +1432,9 @@ function osVeilleRendreListe(wc){
   flux.forEach(function(f){ fluxParId[f.id] = f; });
   var nonLu = function(a){ return vus.indexOf(a.id) === -1; };
   var q = _veilleNorm(_veilleRecherche.trim());
-  var articles = tous.filter(function(a){
+  var articles = aAfficher.filter(function(a){
     return (_veilleFiltreActif !== 'non_lus' || nonLu(a))
-      && (!_veilleSourceActive || (vueContacts ? osVeilleContactsPour(a).length : vueAlertes ? osVeilleAlerteMot(a) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
+      && (!_veilleSourceActive || (vueContacts ? osVeilleContactsPour(a).length : vueAlertes ? osVeilleAlerteMot(a, true) : mediaActif ? _veilleMedia(a.flux_id) === mediaActif : a.flux_id === _veilleSourceActive))
       && (!q || _veilleNorm(a.titre + ' ' + (a.resume || '')).indexOf(q) !== -1);
   });
   var piecesVeille = [];
@@ -1395,7 +1446,7 @@ function osVeilleRendreListe(wc){
   var r = '<nav class="vl-rail mobile-onglets"><div class="vl-rail-titre">Sources</div>'
     +'<button type="button" class="vl-src'+(!_veilleSourceActive ? ' active' : '')+'" data-action="source" data-id=""><i class="ti ti-stack-2"></i><span class="vl-src-nom">Toutes</span>'+(nonLusTotal ? '<span class="vl-src-nb">'+nonLusTotal+'</span>' : '')+'</button>';
   if(typeof osVeilleAlerteMot === 'function'){
-    var nbAlertes = tous.filter(function(a){ return nonLu(a) && osVeilleAlerteMot(a); }).length;
+    var nbAlertes = (window._veilleArticlesAlertes || tous).filter(function(a){ return nonLu(a) && osVeilleAlerteMot(a, true); }).length;
     r += '<button type="button" class="vl-src vl-src-alertes'+(vueAlertes ? ' active' : '')+'" data-action="alertes"><i class="ti ti-bell-ringing"></i><span class="vl-src-nom">Mes alertes</span>'+(nbAlertes ? '<span class="vl-src-nb">'+nbAlertes+'</span>' : '')+'</button>';
   }
   // Un journal à plusieurs flux (La Dépêche par commune) : une seule entrée, dépliable
@@ -1442,7 +1493,8 @@ function osVeilleRendreListe(wc){
   // Mes alertes : les mots suivis, et de quoi les changer
   if(vueAlertes){
     var mesMots = _veilleAlertes.mots;
-    c += '<div class="vl-alertes-tete"><div><strong><i class="ti ti-bell-ringing"></i> Mes alertes</strong><span>Rien qu’à toi : les articles qui contiennent un de tes mots-clés.</span></div>'
+    c += '<div class="vl-alertes-tete"><div><strong><i class="ti ti-bell-ringing"></i> Mes alertes</strong><span>Rien qu’à toi : les articles parus depuis que tu as ajouté un de tes mots-clés.</span>'
+      +'<span class="vl-alertes-note"><i class="ti ti-clock"></i> Les articles de plus de 60 jours s’effacent tout seuls de la veille, et donc de cette liste : garde le lien ou fais-en un sujet avant.'+(alertesEnChargement ? ' · Recherche en cours…' : '')+'</span></div>'
       +'<div class="vl-alertes-mots">'+(mesMots.length ? mesMots.map(function(m){ return '<span class="vl-alertes-mot">'+esc(m)+'</span>'; }).join('') : '')+'</div>'
       +'<button type="button" class="vl-btn" data-action="alertes-regler"><i class="ti ti-adjustments"></i> '+(mesMots.length ? 'Modifier' : 'Choisir mes mots-clés')+'</button></div>';
   }
@@ -1472,7 +1524,7 @@ function osVeilleRendreListe(wc){
   if(!flux.length){
     c += '<div class="vl-vide"><i class="ti ti-rss"></i><strong>Aucune source suivie pour l’instant.</strong>'+(gestion ? '<button type="button" class="vl-btn" data-action="gerer">Ajouter une source</button>' : '<span>Un·e admin ou un·e rédac chef peut en ajouter.</span>')+'</div>';
   } else if(!articles.length){
-    if(vueAlertes) c += '<div class="vl-vide"><i class="ti ti-bell-off"></i><strong>'+(_veilleAlertes.mots.length ? 'Aucun article récent ne contient tes mots-clés.' : 'Choisis des mots-clés pour être prévenu·e quand un média en parle.')+'</strong></div>';
+    if(vueAlertes) c += '<div class="vl-vide"><i class="ti ti-bell-off"></i><strong>'+(_veilleAlertes.mots.length ? 'Aucun article paru depuis l’ajout de tes mots-clés ne les contient pour l’instant.' : 'Choisis des mots-clés pour être prévenu·e quand un média en parle.')+'</strong></div>';
     else c += '<div class="vl-vide"><i class="ti ti-mood-empty"></i><strong>'+(q ? 'Rien ne correspond à « '+esc(_veilleRecherche.trim())+' ».' : 'Rien à lire ici pour l’instant.')+'</strong></div>';
   } else {
     // Les cartes sont dessinées par lots au défilement (osProgressif) : tout afficher d'un coup alourdissait la fenêtre.
@@ -1523,7 +1575,7 @@ function osVeilleRendreListe(wc){
     wc.addEventListener('click', function(e){
       var b = e.target.closest('[data-action]'); if(!b || !wc.contains(b)) return;
       var id = b.getAttribute('data-id'), act = b.getAttribute('data-action');
-      var art = (window._veilleArticles || []).find(function(a){ return a.id === id; });
+      var art = osVeilleChercherArticle(id);
       if(act === 'alertes'){
         _veilleSourceActive = 'alertes';
         if(!_veilleAlertes.mots.length) osVeilleAlertesOuvrir();
@@ -1534,7 +1586,7 @@ function osVeilleRendreListe(wc){
         _veilleSourceActive = 'contacts'; osVeilleRendreListe(wc); var cc = wc.querySelector('.vl-corps'); if(cc) cc.scrollTop = 0;
       }
       else if(act === 'contacts-voir'){
-        var arCt = (window._veilleArticles || []).find(function(a){ return a.id === id; });
+        var arCt = osVeilleChercherArticle(id);
         if(arCt) osVeilleContactsOuvrir(arCt);
       }
       else if(act === 'media'){

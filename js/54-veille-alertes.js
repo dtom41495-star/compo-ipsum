@@ -6,21 +6,38 @@
 // pendant les horaires de ses rédactions, envoyé par veille-recuperer-flux.
 // Même règle de correspondance des deux côtés : mots entiers, sans accents ni majuscules.
 
-var _veilleAlertes = { mots:[], prevenir:true, charge:false };
+var _veilleAlertes = { mots:[], depuis:{}, prevenir:true, charge:false };   // depuis : date d'ajout de chaque mot-clé (colonne mots_depuis)
 
 function _veilleAlerteNorm(s){
   return ' '+String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()+' ';
 }
 
-// Le mot-clé que contient l'article (titre ou résumé), ou null
-function osVeilleAlerteMot(a){
+// Le mot-clé que contient l'article (titre ou résumé), ou null.
+// depuisAjout : seulement si l'article est paru après l'ajout du mot-clé (liste « Mes alertes » : on ne montre pas ce qui est
+// paru avant que l'alerte existe).
+function osVeilleAlerteMot(a, depuisAjout){
   if(!a || !_veilleAlertes.mots.length) return null;
   var texte = _veilleAlerteNorm(a.titre+' '+(a.resume || ''));
   for(var i = 0; i < _veilleAlertes.mots.length; i++){
     var n = _veilleAlerteNorm(_veilleAlertes.mots[i]);
-    if(n.trim().length >= 3 && texte.indexOf(n) !== -1) return _veilleAlertes.mots[i];
+    if(n.trim().length < 3 || texte.indexOf(n) === -1) continue;
+    if(depuisAjout){
+      var dep = _veilleAlertes.depuis[_veilleAlertes.mots[i]];
+      if(dep && a.date_publication && new Date(a.date_publication) < new Date(dep)) continue;
+    }
+    return _veilleAlertes.mots[i];
   }
   return null;
+}
+// Le plus ancien « depuis » des mots-clés (null si un mot n'a pas de date : on ne borne pas)
+function osVeilleAlertesDepuisMin(){
+  var min = null;
+  for(var i = 0; i < _veilleAlertes.mots.length; i++){
+    var d = _veilleAlertes.depuis[_veilleAlertes.mots[i]];
+    if(!d || isNaN(new Date(d))) return null;
+    if(min === null || new Date(d) < min) min = new Date(d);
+  }
+  return min;
 }
 
 function osVeilleAlerteBadge(a){
@@ -30,11 +47,12 @@ function osVeilleAlerteBadge(a){
 
 function osVeilleAlertesCharger(){
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
-  return fetch(SB_URL+'/rest/v1/veille_alertes?select=mots,prevenir&membre_id=eq.'+getUserId(), { headers:authH })
+  return fetch(SB_URL+'/rest/v1/veille_alertes?select=mots,prevenir,mots_depuis&membre_id=eq.'+getUserId(), { headers:authH })
     .then(function(r){ return r.json(); })
     .then(function(d){
       var l = Array.isArray(d) && d[0];
       _veilleAlertes.mots = l && Array.isArray(l.mots) ? l.mots : [];
+      _veilleAlertes.depuis = l && l.mots_depuis && typeof l.mots_depuis === 'object' ? l.mots_depuis : {};
       _veilleAlertes.prevenir = l ? l.prevenir !== false : true;
       _veilleAlertes.charge = true;
     }).catch(function(){});
@@ -112,12 +130,15 @@ function osVeilleAlertesOuvrir(){
       if(champ.value.trim()) ajouter();
       var prevenir = ov.querySelector('#va-prevenir').checked;
       b.disabled = true;
+      var maintenant = new Date().toISOString(), depuis = {};
+      mots.forEach(function(m){ depuis[m] = _veilleAlertes.depuis[m] || maintenant; });   // un mot déjà là garde sa date d'ajout
       var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || ''), 'Prefer':'return=minimal,resolution=merge-duplicates' });
       fetch(SB_URL+'/rest/v1/veille_alertes?on_conflict=membre_id', { method:'POST', headers:authH,
-        body:JSON.stringify({ membre_id:getUserId(), mots:mots, prevenir:prevenir, updated_at:new Date().toISOString() }) })
+        body:JSON.stringify({ membre_id:getUserId(), mots:mots, mots_depuis:depuis, prevenir:prevenir, updated_at:maintenant }) })
         .then(function(r){
           if(!r.ok) throw new Error();
-          _veilleAlertes.mots = mots; _veilleAlertes.prevenir = prevenir;
+          _veilleAlertes.mots = mots; _veilleAlertes.depuis = depuis; _veilleAlertes.prevenir = prevenir;
+          window._veilleArticlesAlertes = null;   // la liste « Mes alertes » est rechargée avec les nouveaux mots-clés
           notif(mots.length ? 'Alertes enregistrées' : 'Plus aucune alerte', 'succes');
           ov.remove();
           var wc = document.getElementById('wincontent-veille'); if(wc && typeof osVeilleRendreListe === 'function') osVeilleRendreListe(wc);
