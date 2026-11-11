@@ -2899,7 +2899,7 @@ function _osGenererOrdreMission(ev, membre, win){
 
   // 1. En-tête discret : qui émet, référence
   var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
-  html += '<div class="entete"><div class="entete-marque">'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '<b>IPSUM MÉDIA</b>')+'<span>Association loi 1901<br>du Tarn</span></div>'
+  html += '<div class="entete"><div class="entete-marque">'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '<b>IPSUM MÉDIA</b>')+'<span>Association loi 1901 du Tarn<br>SIRET 100 238 435 00018</span></div>'
     +'<div class="entete-ref">Réf. '+ref+'<br>Émis le '+dateEmis+'</div></div>';
 
   // 2. Titre du document, puis une phrase : qui est missionné·e
@@ -2926,7 +2926,7 @@ function _osGenererOrdreMission(ev, membre, win){
     +'<div class="sign-box"><div class="qui-signe">La personne missionnée · '+esc(nomMembre)+'</div><div class="mention">Signature et date</div></div>'
     +'</div>';
 
-  html += '<div class="pied"><span>Ipsum Média · contact@ipsummedia.fr · Association loi 1901 du Tarn</span><span>'+ref+'</span></div>';
+  html += '<div class="pied"><span>Ipsum Média · contact@ipsummedia.fr · Association loi 1901 du Tarn · SIRET 100 238 435 00018</span><span>'+ref+'</span></div>';
   html += '</div></body></html>';
   win.document.write(html);
   win.document.close();
