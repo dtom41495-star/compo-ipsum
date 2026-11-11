@@ -4,7 +4,7 @@
 // ou directement en SQL (update public.maintenance set active = true, debut = now() + interval '2 minutes').
 // Compo relit cette ligne toutes les 30 s et au retour sur l'onglet :
 // - avant la fermeture (préavis) : bandeau avec compte à rebours, l'article ouvert est enregistré juste avant ;
-// - pendant : écran « Compo est en maintenance » pour tout le monde ; un admin peut « Entrer quand même » (bandeau ensuite) ;
+// - pendant : écran « Compo est actuellement en maintenance » (logo, phrase, barre de chargement) pour tout le monde ; un admin peut « Entrer quand même » (bandeau ensuite) ;
 // - à la réouverture : la page se recharge toute seule.
 // La base refuse de toute façon les écritures des non-admins pendant la maintenance.
 // Même mécanisme pour les VACANCES TOTALES (Gestion des rédactions, js/61) : motif 'vacances' et une date de fin (colonne fin),
@@ -152,23 +152,22 @@ function _maintBandeau(m, admin){
   }, 15000);
 }
 
-// La ligne « Compo » en caractères de plomb, comme à l'écran de lancement : pendant la maintenance,
-// le « p » est sorti du composteur et y revient sans cesse ; à la réouverture, toute la ligne s'encre
-function _maintCasse(complete){
-  return '<div class="maint-casse'+(complete ? ' complete' : '')+'" aria-hidden="true">'
-    +['C','o','m','p','o'].map(function(l, i){ return '<span class="maint-sorte'+(i === 3 && !complete ? ' sortie' : '')+'" style="--i:'+i+'"><span>'+l+'</span></span>'; }).join('')
-    +'</div>';
-}
+// Le logo Ipsum Média, en haut de l'écran (version claire ou version blanche selon le thème)
 function _maintLogo(){
   return '<div class="maint-logo"><img class="maint-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="maint-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>';
 }
 
-// Le titre : un jeu de mots d'imprimerie, tiré au sort une fois par maintenance (le même pour tout le monde)
-var MAINT_TITRES = ['On chasse les coquilles', 'Compo est sous presse', 'Arrêtez les rotatives !', 'Compo refait sa mise en page'];
-function _maintTitre(m){
+// La petite phrase sous le titre : tirée au sort une fois par maintenance (la même pour tout le monde)
+var MAINT_PHRASES = [
+  'Reviens un peu plus tard, on range les coquilles.',
+  'Reviens plus tard : Compo se refait une beauté.',
+  'Reviens plus tard, les rotatives chauffent.',
+  'Reviens dans un moment, le temps que Compo finisse son café.'
+];
+function _maintPhrase(m){
   var cle = _maintCle(m), h = 0;
   for(var i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) >>> 0;
-  return MAINT_TITRES[h % MAINT_TITRES.length];
+  return MAINT_PHRASES[h % MAINT_PHRASES.length];
 }
 
 function _maintEcran(m, admin){
@@ -187,25 +186,19 @@ function _maintEcran(m, admin){
     e.setAttribute('data-sombre-ignore', '');
     document.body.appendChild(e);
   }
+  var vac = _maintVacances(m);
   e.innerHTML = '<div class="maint-boite">'
-    +_maintCasse(false)
-    +'<div class="maint-surtitre">'+(_maintVacances(m) ? 'Vacances' : 'Maintenance en cours')+'</div>'
-    +'<h1>'+esc(_maintVacances(m) ? 'Compo est en vacances' : _maintTitre(m))+'</h1>'
-    +'<p>'+(m && m.message ? esc(m.message) : (_maintVacances(m) ? 'Toute l\'équipe fait une vraie pause. Ce que tu as écrit est enregistré.' : 'Quelques réglages en cours. Ce que tu as écrit est enregistré.'))+'</p>'
-    +(_maintVacances(m) && m.fin ? '<p class="maint-petit"><b>'+esc(_maintRepriseTexte(m))+'</b></p>' : '')
+    +_maintLogo()
+    +'<h1>'+(vac ? 'Compo est en vacances' : 'Compo est actuellement en maintenance')+'</h1>'
+    +'<p>'+(m && m.message ? esc(m.message) : (vac ? 'Toute l\'équipe fait une vraie pause.' : esc(_maintPhrase(m))))+'</p>'
+    +(vac && m.fin ? '<p><b>'+esc(_maintRepriseTexte(m))+'</b></p>' : '')
     +'<div class="maint-reglette"><span></span></div>'
-    +'<p class="maint-petit">'+(_maintVacances(m) && m.fin ? 'Fermé jusqu\'au '+esc(_maintDernierJour(m))+' inclus' : 'Fermé depuis '+esc(_maintHeure(m.debut || m.activee_le || new Date())))+' · la page se rechargera toute seule</p>'
-    +'<button type="button" id="maint-verifier"><i class="ti ti-refresh"></i> Vérifier maintenant</button>'
+    +'<p class="maint-petit">'+(vac && m.fin ? 'Fermé jusqu\'au '+esc(_maintDernierJour(m))+' inclus · ' : '')+'Ce que tu as écrit est enregistré · la page se rechargera toute seule</p>'
     +(admin ? '<div class="maint-admin-acces"><span>Admin</span>'
       +'<button type="button" id="maint-entrer"><i class="ti ti-door-enter"></i> Entrer quand même</button>'
       +'<button type="button" id="maint-rouvrir-ecran"><i class="ti ti-lock-open"></i> Rouvrir Compo</button></div>' : '')
-    +_maintLogo()
     +'</div>';
   e.setAttribute('data-signature', signature);
-  e.querySelector('#maint-verifier').onclick = function(){
-    var btn = this; btn.disabled = true;
-    osMaintenanceVerifier().then(function(){ btn.disabled = false; });
-  };
   var entrer = e.querySelector('#maint-entrer');
   if(entrer) entrer.onclick = osMaintenanceContourner;
   var rouvrir = e.querySelector('#maint-rouvrir-ecran');
@@ -214,7 +207,7 @@ function _maintEcran(m, admin){
 
 function _maintReouverture(){
   var e = document.getElementById('maint-ecran');
-  if(e) e.innerHTML = '<div class="maint-boite">'+_maintCasse(true)+'<div class="maint-surtitre">C’est reparti</div><h1>Compo est rouvert</h1><p>Rechargement…</p>'+_maintLogo()+'</div>';
+  if(e) e.innerHTML = '<div class="maint-boite">'+_maintLogo()+'<h1>Compo est rouvert</h1><p>Rechargement…</p><div class="maint-reglette"><span></span></div></div>';
   setTimeout(function(){ location.reload(); }, 1600);
 }
 
