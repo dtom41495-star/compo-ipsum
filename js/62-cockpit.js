@@ -62,7 +62,8 @@ function osCockpitCharger(){
     _ckLire('tres_categories?select=id,nom,sens,systeme'),                                                                                                                              // 21
     _ckLire('tres_exercices?select=id,nom,debut,fin&order=debut.asc'),                                                                                                                  // 22
     _ckLire('tres_notes_frais?select=statut,montant'),                                                                                                                                  // 23
-    _ckLire('tres_comptes?select=id,type,solde_ouverture')                                                                                                                              // 24
+    _ckLire('tres_comptes?select=id,type,solde_ouverture'),                                                                                                                             // 24
+    typeof osRegulariteChargerPeriodes === 'function' ? pr(osRegulariteChargerPeriodes()) : Promise.resolve(),                                                                         // 25 : périodes de brèves (newsletters)
   ]).then(function(r){
     return { membres:r[0], articles:r[1], heures:r[2], cps:r[3], dispos:r[4], newsletters:r[5], evenements:r[6], inscriptions:r[7], stats:r[8],
       tres:r[9], candidats:r[10], satisfaction:r[11], sujets:r[12], plumes:r[13], commandes:r[14], gels:r[15], presence:r[16], liens:r[17],
@@ -116,7 +117,7 @@ function _ckCalculer(D, P){
   tenus.forEach(function(m){
     var arrivee = rattache[m.id] || (m.created_at ? new Date(m.created_at) : null);
     var items = (envoyees[m.id] || []).filter(function(i){ return i.date; });
-    var e = osSerieCalculer(items, arrivee, null, gels[m.id] || new Set(), function(d){ return typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(m.id, d); });
+    var e = osSerieCalculer(items, arrivee, null, gels[m.id] || new Set(), function(d, f){ return typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(m.id, d, f); }, _regRedacsDe(m.id));
     if(e.pause0) enPause++; else if(e.faite) enRegle++;
     if(e.serie > 0) nbSeries++;
     record = Math.max(record, e.serie);
@@ -218,7 +219,7 @@ function _ckCalculer(D, P){
   var avantGels = window._gelsSerie, avantRat = window._rattacheLe;
   window._gelsSerie = Object.create(null); Object.keys(gels).forEach(function(k){ window._gelsSerie[k] = gels[k]; });
   window._rattacheLe = rattache;
-  var parAuteur = {}; publies.forEach(function(a){ if(a.auteur_id) (parAuteur[a.auteur_id] = parAuteur[a.auteur_id] || []).push(a); });
+  var parAuteur = {}; D.articles.filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).forEach(function(a){ if(a.auteur_id) (parAuteur[a.auteur_id] = parAuteur[a.auteur_id] || []).push(a); });
   var lignes = tenus.map(function(m){ return { m:m, reg:osRegulariteCalculer(m, parAuteur[m.id] || []) }; });
   window._gelsSerie = avantGels; window._rattacheLe = avantRat;
   lignes.sort(function(a, b){ return (b.reg.serie * 10 + b.reg.manquesBreve * 2) - (a.reg.serie * 10 + a.reg.manquesBreve * 2); });

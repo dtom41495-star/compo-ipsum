@@ -39,11 +39,14 @@ function _pauseConcerne(p, redacId){ return !p.redaction_id || p.redaction_id ==
 // Seuil : la semaine n'est neutre que si la pause en couvre au moins PAUSE_JOURS_MIN jours sur 7
 // (une pause de 1 ou 2 jours ne dispense pas d'envoyer la brève de la semaine).
 var PAUSE_JOURS_MIN = 4;
-function osPauseRedacSemaine(redacId, debutSem){
+// finSem (facultatif) : fin de la période quand elle n'a pas 7 jours (période entre deux newsletters) ; au plus 4 semaines regardées
+function osPauseRedacSemaine(redacId, debutSem, finSem){
   var pauses = (window._pausesRedac || []).filter(function(p){ return _pauseConcerne(p, redacId); });
   if(!pauses.length) return false;
-  var couverts = 0;
-  for(var i = 0; i < 7; i++){
+  var couverts = 0, nb = 7;
+  // Période en cours (sans fin) : 7 jours seulement, une pause prévue plus tard ne la neutralise pas d'avance
+  if(finSem) nb = (finSem - debutSem > 40*86400000) ? 7 : Math.max(1, Math.min(28, Math.round((finSem - debutSem) / 86400000)));
+  for(var i = 0; i < nb; i++){
     var j = new Date(debutSem); j.setDate(j.getDate() + i);
     var cle = _pauseCle(j);
     if(pauses.some(function(p){ return p.debut <= cle && p.fin >= cle; })) couverts++;
@@ -51,13 +54,13 @@ function osPauseRedacSemaine(redacId, debutSem){
   return couverts >= PAUSE_JOURS_MIN;
 }
 // Pour un membre : toutes ses rédactions lancées sont en pause cette semaine-là (pause générale incluse)
-function osPauseMembreSemaine(membreId, debutSem){
+function osPauseMembreSemaine(membreId, debutSem, finSem){
   if(!(window._pausesRedac || []).length) return false;
   var lancees = (window._membresRedactionsData || []).filter(function(l){ return l.membre_id === membreId; })
     .map(function(l){ return l.redaction_id; })
     .filter(function(id){ return !(typeof osRedacPasLancee === 'function' && osRedacPasLancee(id)); });
-  if(!lancees.length) return osPauseRedacSemaine(null, debutSem);
-  return lancees.every(function(id){ return osPauseRedacSemaine(id, debutSem); });
+  if(!lancees.length) return osPauseRedacSemaine(null, debutSem, finSem);
+  return lancees.every(function(id){ return osPauseRedacSemaine(id, debutSem, finSem); });
 }
 // Pause en cours aujourd'hui (jour de Paris) pour cette rédaction : la plus longue si plusieurs, ou null
 function osPauseRedacEnCours(redacId, quand){

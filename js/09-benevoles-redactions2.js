@@ -230,13 +230,14 @@ function osBenevolesDashRender(){
   var depuis = new Date(); depuis.setDate(depuis.getDate()-30);
   var fetches = [
     fetch(SB_URL+'/rest/v1/membres?actif=eq.true&select=id,prenom,nom,role,email,fonction,redaction,derniere_activite,derniere_connexion,dnd,marque_inactif,avatar_id,canal_notif,created_at,'+COMMUNE_COLONNES+'&order=prenom.asc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
-    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
+    fetch(SB_URL+'/rest/v1/articles?select=id,titre,auteur,auteur_id,statut,type,urgence,rubrique,updated_at,created_at,publie_le,correcteur'+(window._srColsDispo===true?',envoye_sr_le':'')+'&order=updated_at.desc',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     // rattache_le : date d'arrivée dans la rédaction (SQL date-rattachement) ; sans lui on retombe sur la liste simple
     fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id,rattache_le',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():fetch(SB_URL+'/rest/v1/membres_redactions?select=membre_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r2){return r2.json();});}),
     fetch(SB_URL+'/rest/v1/boutique_commandes?statut=eq.valide&select=membre_id,article_id',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     fetch(SB_URL+'/rest/v1/boutique_articles?select=id,nom',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.json();}),
     // Semaines gelées (table créée par le SQL des gels : sans elle, la liste reste vide)
     fetch(SB_URL+'/rest/v1/gels_serie?select=membre_id,semaine',{headers:Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')})}).then(function(r){return r.ok?r.json():[];}).catch(function(){return [];})
+    ,typeof osRegulariteChargerPeriodes==='function' ? osRegulariteChargerPeriodes().catch(function(){}) : Promise.resolve()   // périodes de brèves (newsletters)
   ];
   Promise.all(fetches).then(function(results){
     var membres=(!results[0]||results[0].code)?[]:results[0];
