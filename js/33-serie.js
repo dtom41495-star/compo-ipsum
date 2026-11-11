@@ -7,9 +7,10 @@
 var SERIE_SEMAINES = 26;      // semaines relues pour calculer la série
 var SERIE_JOURS_ARTICLE = 28; // « un article par mois » : mêmes périodes de 28 jours que l'onglet Régularité
 
-// Échéance affichée aux bénévoles : le mercredi soir, dernier délai avant la newsletter du jeudi. Un envoi de newsletter (clic sur
-// « Marquer comme envoyée ») lance la semaine suivante : on a jusqu'au mercredi d'après. Tant que la newsletter n'est pas marquée
-// comme envoyée, une brève y entre encore. Retourne un morceau de phrase.
+// Échéance affichée aux bénévoles : idéalement le mardi soir (les secrétaires de rédaction ont besoin de temps pour corriger),
+// au plus tard le mercredi soir, dernier délai avant la newsletter du jeudi. Un envoi de newsletter (clic sur « Marquer comme envoyée »)
+// lance la semaine suivante. Tant que la newsletter n'est pas marquée comme envoyée, une brève y entre encore.
+// Retourne un morceau de phrase.
 function _serieJeudiSuivant(apres){
   var d = new Date(apres.getFullYear(), apres.getMonth(), apres.getDate() + 1);
   while(d.getDay() !== 4) d.setDate(d.getDate() + 1);
@@ -19,8 +20,10 @@ function osSerieEcheance(maintenant){
   var now = maintenant || new Date(), clics = _regClics(_regRedacsDe(getUserId()));
   var jeudi = _serieJeudiSuivant(clics.length ? new Date(clics[0]) : new Date(now.getTime() - 86400000));
   var mercredi = new Date(jeudi); mercredi.setDate(mercredi.getDate() - 1);
+  var mardi = new Date(jeudi); mardi.setDate(mardi.getDate() - 2);
   var auj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if(auj < mercredi) return 'avant mercredi '+mercredi.getDate()+'/'+(mercredi.getMonth()+1)+' au soir';
+  if(auj < mardi) return 'avant mardi '+mardi.getDate()+'/'+(mardi.getMonth()+1)+' au soir (dernier délai : mercredi soir)';
+  if(auj.getTime() === mardi.getTime()) return 'avant ce soir (dernier délai : demain soir)';
   if(auj.getTime() === mercredi.getTime()) return 'avant ce soir (dernier délai)';
   if(auj.getTime() === jeudi.getTime()) return 'dès maintenant (la newsletter part aujourd\'hui)';
   return 'dès que possible (la newsletter n\'est pas encore partie)';
