@@ -44,7 +44,8 @@ function osPauseRedacSemaine(redacId, debutSem, finSem){
   var pauses = (window._pausesRedac || []).filter(function(p){ return _pauseConcerne(p, redacId); });
   if(!pauses.length) return false;
   var couverts = 0, nb = 7;
-  if(finSem) nb = Math.max(1, Math.min(28, Math.round((finSem - debutSem) / 86400000)));
+  // Période en cours (sans fin) : 7 jours seulement, une pause prévue plus tard ne la neutralise pas d'avance
+  if(finSem) nb = (finSem - debutSem > 40*86400000) ? 7 : Math.max(1, Math.min(28, Math.round((finSem - debutSem) / 86400000)));
   for(var i = 0; i < nb; i++){
     var j = new Date(debutSem); j.setDate(j.getDate() + i);
     var cle = _pauseCle(j);
