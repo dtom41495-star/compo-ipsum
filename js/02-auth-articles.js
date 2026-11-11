@@ -2194,7 +2194,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     // Série : un auteur qui valide ou publie lui-même son texte, sans passer par « Envoyer au SR », a aussi droit à la carte
     // de félicitations (osSerieApresEnvoi ignore les textes d'autrui et ceux déjà fêtés à l'envoi au SR)
     if((nouveauStatut==='publie' || nouveauStatut==='valide') && (!statutAvant || statutAvant === 'brouillon') && typeof osSerieApresEnvoi === 'function'){
-      var docSerie = Object.assign({}, currentDoc);
+      var docSerie = Object.assign({}, currentDoc, { _sansCoec:true });   // publication directe : pas un envoi au SR
       setTimeout(function(){ osSerieApresEnvoi(docSerie); }, 1200);
     }
     if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);

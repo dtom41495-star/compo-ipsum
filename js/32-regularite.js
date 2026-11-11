@@ -115,6 +115,19 @@ function _regDateEff(id, d){
   var t = id ? _regNL.dans[id] : undefined;
   return (t !== undefined && d.getTime() >= t) ? new Date(t - 1) : d;
 }
+// Texte compté pour la série : envoyé au SR, corrigé, validé ou publié ; ou renvoyé par le SR (brouillon avec sa remarque) après un
+// premier envoi : l'auteur n'est pas pénalisé pour une correction, le texte garde sa place.
+function _regEstCompte(a){
+  return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'
+    || (a.statut === 'brouillon' && !!a.premier_envoi_sr_le && !!a.note_interne);
+}
+// Date retenue : mise en ligne pour un texte publié ; sinon le PREMIER envoi au SR (envoye_sr_le change à chaque renvoi), sinon la dernière modification
+function _regDateCompte(a){
+  var d = a.statut === 'publie' ? (a.publie_le || a.premier_envoi_sr_le || a.envoye_sr_le || a.updated_at)
+                                : (a.premier_envoi_sr_le || a.publie_le || a.envoye_sr_le || a.updated_at);
+  var t = d ? new Date(d) : null;
+  return t && !isNaN(t) ? t : null;
+}
 function _regDatePub(a){
   var d = a.publie_le || a.updated_at;
   var t = d ? new Date(d) : null;
@@ -135,9 +148,8 @@ function osRegulariteCalculer(membre, arts){
   var arrivee = membre && window._rattacheLe && window._rattacheLe[membre.id] ? window._rattacheLe[membre.id] : (membre && membre.created_at ? new Date(membre.created_at) : null);
   var redacs = _regRedacsDe(membre && membre.id);
   // Envoyé au SR ou publié, comme la carte « Ma série » et les rappels : date de mise en ligne, sinon d'envoi au SR, sinon de modification
-  var envoyes = (arts || []).filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).map(function(a){
-    var d = a.publie_le || a.envoye_sr_le || a.updated_at, t = d ? new Date(d) : null;
-    return { id:a.id, type:a.type, date:(t && !isNaN(t)) ? t : null };
+  var envoyes = (arts || []).filter(_regEstCompte).map(function(a){
+    return { id:a.id, type:a.type, date:_regDateCompte(a) };
   }).filter(function(i){ return i.date; });
   var publis = envoyes.map(function(i){ return { date:_regDateEff(i.id, i.date), breve:i.type === 'breve' }; });
   // Série (la flamme) : même calcul que la carte « Ma série » de la personne

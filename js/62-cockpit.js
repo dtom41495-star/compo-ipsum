@@ -39,7 +39,7 @@ function osCockpitCharger(){
   var pr = function(p){ return p.catch(function(){ return []; }); };
   return Promise.all([
     _ckLire('membres?actif=eq.true&select=id,prenom,nom,role,created_at,dnd,marque_inactif,fonction,derniere_connexion,adhesion_echeance,adhesion_exemptee'),                                                          // 0
-    _ckLire('articles?select=id,titre,type,statut,auteur,auteur_id,redaction_id,correcteur,correcteur_id,created_at,updated_at,publie_le,envoye_sr_le,relu_le,sujet_id,cp_id,note_interne'), // 1
+    _ckLire('articles?select=id,titre,type,statut,auteur,auteur_id,redaction_id,correcteur,correcteur_id,created_at,updated_at,publie_le,envoye_sr_le,premier_envoi_sr_le,relu_le,sujet_id,cp_id,note_interne'), // 1
     _ckLire('heures_benevolat?select=membre_id,type,duree_minutes,created_at'),                                                                                                         // 2
     _ckLire('communiques?select=id,titre,type,statut,created_at,date_evenement,redaction_id'),                                                                                          // 3
     _ckLire('invitations_disponibilites?select=communique_id,statut,heures_minutes'),                                                                                                   // 4
@@ -107,7 +107,7 @@ function _ckCalculer(D, P){
     if(l.rattache_le){ var d = new Date(l.rattache_le); if(!rattache[l.membre_id] || d < rattache[l.membre_id]) rattache[l.membre_id] = d; }
   });
   var envoyees = {}; D.articles.forEach(function(a){
-    if(a.type === 'breve' && a.auteur_id && ['en-relecture', 'corrige', 'valide', 'publie'].indexOf(a.statut) !== -1)
+    if(a.type === 'breve' && a.auteur_id && _regEstCompte(a))
       (envoyees[a.auteur_id] = envoyees[a.auteur_id] || []).push({ id:a.id, type:'breve', date:_serieDate(a) });
   });
   var tenus = suivis.filter(function(m){
@@ -219,7 +219,7 @@ function _ckCalculer(D, P){
   var avantGels = window._gelsSerie, avantRat = window._rattacheLe;
   window._gelsSerie = Object.create(null); Object.keys(gels).forEach(function(k){ window._gelsSerie[k] = gels[k]; });
   window._rattacheLe = rattache;
-  var parAuteur = {}; D.articles.filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).forEach(function(a){ if(a.auteur_id) (parAuteur[a.auteur_id] = parAuteur[a.auteur_id] || []).push(a); });
+  var parAuteur = {}; D.articles.filter(_regEstCompte).forEach(function(a){ if(a.auteur_id) (parAuteur[a.auteur_id] = parAuteur[a.auteur_id] || []).push(a); });
   var lignes = tenus.map(function(m){ return { m:m, reg:osRegulariteCalculer(m, parAuteur[m.id] || []) }; });
   window._gelsSerie = avantGels; window._rattacheLe = avantRat;
   lignes.sort(function(a, b){ return (b.reg.serie * 10 + b.reg.manquesBreve * 2) - (a.reg.serie * 10 + a.reg.manquesBreve * 2); });

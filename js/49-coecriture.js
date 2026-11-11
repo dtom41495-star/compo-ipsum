@@ -402,7 +402,8 @@ if(typeof osChangerRelecteur === 'function'){
 if(typeof osSerieApresEnvoi === 'function'){
   var _coecApresEnvoiAvant = osSerieApresEnvoi;
   osSerieApresEnvoi = function(doc){
-    _coecPrevenirTous('au_sr', doc);
+    // _sansCoec : publication directe, pas d'envoi au SR : les co-auteur·rices n'ont pas à être prévenu·es « au SR »
+    if(!(doc && doc._sansCoec)) _coecPrevenirTous('au_sr', doc);
     return _coecApresEnvoiAvant.apply(this, arguments);
   };
 }

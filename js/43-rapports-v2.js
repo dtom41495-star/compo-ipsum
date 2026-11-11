@@ -92,7 +92,7 @@ function _rapSectionRegularite(redacId){
     liens,
     _rapLireTout('membres?select=id,prenom,nom,role,created_at,marque_inactif,dnd'),
     _rapLireTout('gels_serie?select=membre_id,semaine'),
-    _rapLireTout('articles?statut=in.(publie,en-relecture,corrige,valide)&select=id,type,statut,auteur_id,publie_le,updated_at'+(window._srColsDispo === true ? ',envoye_sr_le' : '')),
+    _rapLireTout('articles?or=(statut.in.(publie,en-relecture,corrige,valide),and(statut.eq.brouillon,premier_envoi_sr_le.not.is.null,note_interne.not.is.null))&select=id,type,statut,note_interne,auteur_id,publie_le,updated_at'+(window._srColsDispo === true ? ',envoye_sr_le,premier_envoi_sr_le' : '')),
     typeof osRegulariteChargerPeriodes === 'function' ? osRegulariteChargerPeriodes().catch(function(){}) : Promise.resolve()
   ]).then(function(r){
     var liensL = r[0], parM = {}; r[1].forEach(function(m){ parM[m.id] = m; });

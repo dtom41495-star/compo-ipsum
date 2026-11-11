@@ -887,13 +887,20 @@ function _publierArticleReel(id){
       }).catch(function(){});
 
       // Email au rédacteur via auteur_id
-      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=id,titre,auteur,auteur_id,sujet_id,redaction_id,rubrique,corps,lien_publication', {
+      fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=id,titre,type,created_at,auteur,auteur_id,sujet_id,redaction_id,rubrique,corps,lien_publication', {
         headers: SB_HEADERS
       })
       .then(function(r){ return r.json(); })
       .then(function(data){
         var article = data && data[0] ? data[0] : null;
         if(!article) return;
+        // Série : un texte de la personne connectée, écrit puis publié depuis une liste sans passer par « Envoyer au SR »,
+        // a aussi droit à la carte de félicitations (déjà fêtée à l'envoi au SR : osSerieApresEnvoi l'ignore). Seulement s'il est récent :
+        // publier un vieux texte ne doit pas compter pour la semaine en cours.
+        if(typeof osSerieApresEnvoi === 'function' && article.auteur_id && article.auteur_id === getUserId() && article.created_at
+          && Date.now() - new Date(article.created_at).getTime() < 3*86400000){
+          setTimeout(function(){ osSerieApresEnvoi({ id:article.id, type:article.type, auteur_id:article.auteur_id, _sansCoec:true }); }, 1200);
+        }
         // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié
         if(article.sujet_id){
           fetch(SB_URL+'/rest/v1/briefing?id=eq.'+encodeURIComponent(article.sujet_id), {
