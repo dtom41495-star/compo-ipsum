@@ -5,7 +5,7 @@
 //  - Date, heure, lieu d'une invitation : comparés et appliqués en un clic (l'événement de l'agenda suit).
 //  - Erratum « annule et remplace » : différences mot à mot, remplacement du texte en un clic.
 //  - Simple phrase de correction : affichée telle quelle, rien n'est deviné ; on corrige à la main si besoin.
-// Valider prévient les personnes concernées (auteur·rice, sujet, inscrit·es, abonné·es à la source) : fonction
+// Valider prévient les personnes concernées (auteur·rice d'un article lié, responsable d'un sujet lié) : fonction
 // communiques-auto-notifier. Fonction SQL erratum_traiter (js ← RPC), colonnes erratum_* de communiques.
 
 function _ertH(extra){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') }, extra || {}); }
@@ -110,7 +110,7 @@ function _ertDessiner(e, o, recents){
       +(dateChange ? '<label><input type="checkbox" id="ert-date" checked> Appliquer la nouvelle date et heure <small>(l’événement de l’agenda suit)</small></label>' : '')
       +(lieuChange ? '<label><input type="checkbox" id="ert-lieu" checked> Appliquer le nouveau lieu</label>' : '')
       +(corpsE && remplace ? '<label><input type="checkbox" id="ert-texte" checked> Remplacer le texte du communiqué d’origine <small>(l’ancien est gardé)</small></label>' : '')
-      +'<label><input type="checkbox" id="ert-prev" checked> Prévenir les personnes concernées <small>(auteur·rice, sujet, inscrit·es, abonné·es à la source)</small></label>'
+      +'<label><input type="checkbox" id="ert-prev" checked> Prévenir les personnes concernées <small>(celles qui écrivent un article ou un sujet lié à ce communiqué)</small></label>'
       +'</div>';
   }
   h += '<div class="ert-actions">'
