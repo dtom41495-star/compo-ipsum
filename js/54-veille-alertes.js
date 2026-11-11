@@ -23,9 +23,24 @@ function osVeilleAlerteMot(a){
   return null;
 }
 
+// Les articles de plus de 60 jours sont effacés chaque nuit (veille_menage) : le dernier avertissement part sur les articles
+// qui approchent de la limite, pour qu'on ait le temps de garder le lien ou d'en faire un sujet.
+function osVeilleAlerteExpire(a){
+  var d = a && a.date_publication ? new Date(a.date_publication) : null;
+  if(!d || isNaN(d)) return '';
+  var jours = typeof VEILLE_CONSERVATION_JOURS === 'number' ? VEILLE_CONSERVATION_JOURS : 60;
+  // Le ménage passe chaque nuit à 3 h 40 (UTC) : l'article part au premier passage qui suit son 60e jour
+  var fin = new Date(d.getTime() + jours * 86400000);
+  var passage = Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth(), fin.getUTCDate(), 3, 40);
+  if(passage < fin.getTime()) passage += 86400000;
+  var restant = Math.ceil((passage - Date.now()) / 86400000);
+  if(restant > 7) return '';
+  return '<span class="vl-alerte-expire" title="Les articles de plus de 60 jours s’effacent de la veille"><i class="ti ti-clock"></i> '
+    +(restant <= 1 ? 'effacé d’ici demain' : 'effacé dans '+restant+' j')+'</span>';
+}
 function osVeilleAlerteBadge(a){
   var mot = osVeilleAlerteMot(a);
-  return mot ? '<span class="vl-alerte" title="Contient un de tes mots-clés"><i class="ti ti-bell-ringing"></i> '+esc(mot)+'</span>' : '';
+  return mot ? '<span class="vl-alerte" title="Contient un de tes mots-clés"><i class="ti ti-bell-ringing"></i> '+esc(mot)+'</span>'+osVeilleAlerteExpire(a) : '';
 }
 
 function osVeilleAlertesCharger(){
