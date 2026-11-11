@@ -542,6 +542,9 @@ function _histRendre(doc, lignes, membres, versions){
       .replace('{auteur}', esc(prenomAuteur))
       .replace('{coauteur}', esc((e.details && e.details.coauteur) || 'un·e membre'));
     if(e.action === 'statut' && e.details && e.details.vers) texte += ' ('+esc(e.details.vers)+')';
+    // Changement de relecteur en cours de route (admin, rédac chef) : on dit à qui la relecture a été retirée
+    if(e.action === 'sr_designe' && e.details && e.details.ancien_sr) texte += ' (à la place de '+esc(e.details.ancien_sr)+')';
+    if(e.action === 'rendu_file' && e.details && e.details.sr && e.details.sr_id !== e.membre_id) texte = 'a remis l\'article dans la file du SR (relecture retirée à '+esc(e.details.sr)+')';
     var date = new Date(e.created_at);
     h += '<li class="hist-etape hist-'+conf.ton+'"><span class="hist-pastille"><i class="ti ti-'+conf.icone+'"></i></span><div class="hist-contenu">'
       +'<div class="hist-ligne"><strong>'+esc(qui)+'</strong>'+(role ? ' <span class="hist-role">'+esc(role)+'</span>' : '')+' '+texte+'</div>'
