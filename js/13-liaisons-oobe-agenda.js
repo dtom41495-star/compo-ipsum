@@ -2808,11 +2808,13 @@ function osAgendaOrdreMission(evId, membreId){
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = membreId || getUserId();
+  var inscritLe = null;   // date d'inscription de la personne à l'événement (valeur de signature électronique)
 
   // Un ordre de mission n'existe que pour une inscription confirmée, même pour un admin
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id,created_at',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(ins){
+    if(Array.isArray(ins) && ins.length) inscritLe = ins[0].created_at || null;
     if(!Array.isArray(ins) || !ins.length){
       try{ win.close(); }catch(e){}
       notif('Pas d\'ordre de mission : cette personne n\'est pas inscrite à l\'événement (inscription confirmée).','alerte');
@@ -2824,6 +2826,7 @@ function osAgendaOrdreMission(evId, membreId){
   .then(function(data){
     if(data===null) return;
     var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
+    m.inscrit_le = inscritLe;
     _osGenererOrdreMission(ev, m, win);
   }).catch(function(){
     // Sans vérification de l'inscription, pas de document
@@ -2832,7 +2835,18 @@ function osAgendaOrdreMission(evId, membreId){
   });
 }
 
+// Signature du président : une seule ligne en base (signature_president), chargée une fois puis gardée en mémoire
+var _omSignature;   // undefined = pas encore chargée ; '' = aucune
+function _osChargerSignaturePresident(){
+  var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/signature_president?id=eq.1&select=data', {headers:h})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _omSignature = (Array.isArray(d) && d[0] && /^data:image\/png;base64,/.test(d[0].data||'')) ? d[0].data : ''; })
+    .catch(function(){ _omSignature = ''; });
+}
+
 function _osGenererOrdreMission(ev, membre, win){
+  if(_omSignature === undefined){ _osChargerSignaturePresident().then(function(){ _osGenererOrdreMission(ev, membre, win); }); return; }
   var debut = new Date(ev.date_debut);
   var fin   = ev.date_fin ? new Date(ev.date_fin) : null;
   var today = new Date();
@@ -2845,120 +2859,96 @@ function _osGenererOrdreMission(ev, membre, win){
   var nomMembre = ((membre.prenom||'')+' '+(membre.nom||'')).trim() || 'Membre';
   var fonctions = [];
   try{ fonctions = Array.isArray(membre.fonction) ? membre.fonction : JSON.parse(membre.fonction||'[]'); }catch(e){}
-  var fonctionLabel = fonctions.length ? fonctions.join(', ') : membre.role||'Rédacteur';
+  var ROLES_LIBELLES = {admin:'Administrateur·rice', redac_chef:'Rédacteur·rice en chef', redacteur:'Rédacteur·rice', correcteur:'Correcteur·rice'};
+  var fonctionLabel = fonctions.length ? fonctions.join(', ') : (ROLES_LIBELLES[membre.role] || membre.role || 'Rédacteur·rice');
 
   var t = AGENDA_TYPES[ev.type]||AGENDA_TYPES.autre;
 
   if(!win || win.closed){ notif('Autorise les popups pour générer l\'ordre de mission','alerte'); return; }
 
+  // Document simple, lisible d'un coup d'œil : la mission en grand, puis qui / quand / où, puis le secondaire en petit.
   var css = [
     '*{margin:0;padding:0;box-sizing:border-box;}',
-    'body{font-family:Arial,sans-serif;background:#f0f0f0;padding:24px 16px;color:#1A1A2E;}',
-    '.doc{max-width:760px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.12);}',
+    '@page{size:A4;margin:14mm;}',
+    'body{font-family:Arial,sans-serif;background:#f0f0f0;padding:24px 16px;color:#1A1A2E;font-size:15px;line-height:1.5;}',
+    '.doc{max-width:760px;margin:0 auto;background:white;border-radius:8px;padding:40px 48px;box-shadow:0 2px 20px rgba(0,0,0,0.12);}',
     '.no-print{max-width:760px;margin:0 auto 12px;display:flex;gap:8px;}',
     '.btn-print{background:#E8461E;color:white;border:none;padding:8px 18px;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:600;}',
     '.btn-close{background:#E5E7EB;color:#374151;border:none;padding:8px 14px;border-radius:6px;font-size:.85rem;cursor:pointer;}',
-    // Header
-    '.header{background:#1A1A2E;padding:28px 36px 20px;}',
-    '.header-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}',
-    '.org-name{font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:#E8461E;margin-bottom:4px;}',
-    '.doc-title{font-size:1.5rem;font-weight:800;color:white;letter-spacing:-.01em;}',
-    '.doc-ref{font-size:.62rem;color:rgba(255,255,255,.35);margin-top:4px;}',
-    '.header-badge{background:rgba(232,70,30,.15);border:1px solid rgba(232,70,30,.4);border-radius:8px;padding:8px 14px;text-align:center;}',
-    '.header-badge-icon{font-size:1.4rem;}',
-    '.header-badge-label{font-size:.58rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}',
-    '.header-divider{height:2px;background:linear-gradient(90deg,#E8461E,transparent);margin-top:16px;}',
-    // Sections
-    '.section{padding:20px 36px;border-bottom:1px solid #F3F4F6;}',
-    '.section-title{font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:#9CA3AF;margin-bottom:12px;font-weight:600;}',
-    '.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}',
-    '.field{background:#F9FAFB;border-radius:6px;padding:10px 14px;}',
-    '.field-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:4px;}',
-    '.field-value{font-size:.88rem;color:#1A1A2E;font-weight:600;}',
-    '.field-value.large{font-size:1rem;}',
-    '.field-value.highlight{color:#E8461E;}',
-    // Objet
-    '.objet-box{background:#1A1A2E;border-radius:8px;padding:16px 20px;margin:0 36px 20px;}',
-    '.objet-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:6px;}',
-    '.objet-text{font-size:.95rem;color:white;font-weight:700;line-height:1.4;}',
-    // Signature
-    '.sign-zone{padding:20px 36px 28px;}',
-    '.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;}',
-    '.sign-box{border:1.5px solid #E5E7EB;border-radius:8px;padding:16px;min-height:90px;}',
-    '.sign-box-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:12px;}',
-    '.sign-name{font-size:.78rem;color:#374151;margin-top:auto;}',
-    // Footer
-    '.footer{background:#F9FAFB;padding:12px 36px;display:flex;justify-content:space-between;border-top:1px solid #F3F4F6;}',
-    '.footer-text{font-size:.58rem;color:#D1D5DB;}',
-    '@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;}.no-print{display:none;}}'
+    '.entete{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:12px;color:#6B7280;padding-bottom:14px;border-bottom:2px solid #E8461E;}',
+    '.entete-marque{display:flex;align-items:center;gap:14px;}',
+    '.entete-marque img{height:100px;width:auto;display:block;margin:-14px 0 -14px -14px;}',
+    '.entete-marque span{font-size:12px;color:#6B7280;line-height:1.4;}',
+    '.entete-ref{text-align:right;line-height:1.5;}',
+    '.titre-doc{font-size:30px;font-weight:800;letter-spacing:-.01em;margin:28px 0 4px;}',
+    '.qui{font-size:16px;color:#374151;margin-bottom:26px;}',
+    '.qui b{color:#1A1A2E;}',
+    '.mission{background:#F9FAFB;border-left:5px solid #E8461E;border-radius:0 8px 8px 0;padding:16px 22px;margin-bottom:24px;}',
+    '.mission .type{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#6B7280;margin-bottom:4px;}',
+    '.mission .nom{font-size:22px;font-weight:800;line-height:1.3;}',
+    '.infos{width:100%;border-collapse:collapse;margin-bottom:8px;}',
+    '.infos th{width:120px;text-align:left;vertical-align:top;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#6B7280;font-weight:600;padding:12px 0;border-bottom:1px solid #F3F4F6;}',
+    '.infos td{font-size:18px;font-weight:700;padding:9px 0;border-bottom:1px solid #F3F4F6;}',
+    '.infos td small{display:block;font-size:14px;font-weight:400;color:#374151;margin-top:2px;}',
+    '.infos tr.petit th,.infos tr.petit td{font-size:14px;font-weight:400;color:#374151;padding:7px 0;}',
+    '.infos tr.petit th{font-size:11px;font-weight:600;color:#9CA3AF;padding-top:10px;}',
+    '.notes{margin-top:18px;font-size:14px;color:#374151;white-space:pre-wrap;}',
+    '.notes b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#6B7280;margin-bottom:4px;}',
+    '.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:36px;}',
+    '.sign-box{border:1.5px solid #D1D5DB;border-radius:8px;padding:14px 16px;min-height:120px;display:flex;flex-direction:column;justify-content:space-between;}',
+    '.sign-box .qui-signe{font-size:13px;font-weight:700;}',
+    '.sign-box .mention{font-size:12px;color:#9CA3AF;}',
+    '.sign-img{max-height:70px;max-width:100%;object-fit:contain;object-position:left;mix-blend-mode:multiply;margin:4px 0;}',
+    '.sign-elec{font-size:13px;color:#374151;line-height:1.5;margin:6px 0;}',
+    '.sign-elec b{display:block;color:#15803D;font-size:14px;}',
+    '.pied{margin-top:26px;font-size:11px;color:#9CA3AF;display:flex;justify-content:space-between;}',
+    '@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;padding:0;max-width:none;}.no-print{display:none;}}'
   ].join('\n');
 
   var ref = 'OM-'+today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+ev.id.replace(/[^A-Z0-9]/gi,'').substring(0,6).toUpperCase();
+  var jourMaj = dateEv.charAt(0).toUpperCase()+dateEv.slice(1);
+  var hh = function(h){ return h.replace(':', ' h '); };   // 14:00 -> 14 h 00
+  var horaires = heureFinEv ? 'de '+hh(heureEv)+' à '+hh(heureFinEv) : 'à partir de '+hh(heureEv);
 
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Ordre de mission — '+nomMembre+'</title><style>'+css+'</style></head><body>';
-
-  // Boutons
   html += '<div class="no-print"><button class="btn-print" onclick="window.print()"><i class="ti ti-printer"></i> Imprimer / PDF</button><button class="btn-close" onclick="window.close()">Fermer</button></div>';
-
   html += '<div class="doc">';
 
-  // Header
-  html += '<div class="header">'
-    +'<div class="header-top">'
-    +'<div><div class="org-name">Ipsum Média · Association loi 1901</div>'
-    +'<div class="doc-title">Ordre de mission</div>'
-    +'<div class="doc-ref">Réf. '+ref+' · Émis le '+dateEmis+'</div></div>'
-    +'<div class="header-badge">'
-    +'<div class="header-badge-icon">'+t.icon+'</div>'
-    +'<div class="header-badge-label">'+t.l+'</div>'
-    +'</div></div>'
-    +'<div class="header-divider"></div></div>';
+  // 1. En-tête discret : qui émet, référence
+  var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
+  html += '<div class="entete"><div class="entete-marque">'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '<b>IPSUM MÉDIA</b>')+'<span>Association loi 1901 du Tarn · SIRET 100 238 435 00018<br>07 82 21 81 17 · contact@ipsummedia.fr</span></div>'
+    +'<div class="entete-ref">Réf. '+ref+'<br>Émis le '+dateEmis+'</div></div>';
 
-  // Objet
-  html += '<div style="padding:20px 36px 0;">'
-    +'<div class="objet-box">'
-    +'<div class="objet-label">Objet de la mission</div>'
-    +'<div class="objet-text">'+esc(ev.titre||'')+'</div>'
-    +'</div></div>';
+  // 2. Titre du document, puis une phrase : qui est missionné·e
+  html += '<div class="titre-doc">Ordre de mission</div>'
+    +'<div class="qui">Ipsum Média charge <b>'+esc(nomMembre)+'</b> ('+esc(fonctionLabel)+') de la mission suivante :</div>';
 
-  // Bénéficiaire
-  html += '<div class="section"><div class="section-title">Bénéficiaire de l\'ordre de mission</div>'
-    +'<div class="grid-2">'
-    +'<div class="field"><div class="field-label">Nom et prénom</div><div class="field-value large">'+esc(nomMembre)+'</div></div>'
-    +'<div class="field"><div class="field-label">Fonction</div><div class="field-value">'+esc(fonctionLabel)+'</div></div>'
-    +(membre.email?'<div class="field"><div class="field-label">Email</div><div class="field-value">'+esc(membre.email)+'</div></div>':'')
-    +'<div class="field"><div class="field-label">Organisation</div><div class="field-value">Ipsum Média</div></div>'
-    +'</div></div>';
+  // 3. La mission, en grand
+  html += '<div class="mission">'+(ev.type && ev.type !== 'autre' ? '<div class="type">'+esc(t.l)+'</div>' : '')+'<div class="nom">'+esc(ev.titre||'')+'</div></div>';
 
-  // Détails de la mission
-  html += '<div class="section"><div class="section-title">Détails de la mission</div>'
-    +'<div class="grid-2">'
-    +'<div class="field"><div class="field-label">Date</div><div class="field-value highlight">'+dateEv+'</div></div>'
-    +'<div class="field"><div class="field-label">Horaires</div><div class="field-value">'+heureEv+(heureFinEv?' → '+heureFinEv:'')+'</div></div>'
-    +(ev.lieu?'<div class="field" style="grid-column:1/-1"><div class="field-label">Lieu</div><div class="field-value">'+esc(ev.lieu)+'</div></div>':'')
-    +(ev.organisateur?'<div class="field"><div class="field-label">Organisateur</div><div class="field-value">'+esc(ev.organisateur)+'</div></div>':'')
-    +(ev.lien_visio?'<div class="field"><div class="field-label">Lien visio</div><div class="field-value" style="font-size:.75rem;word-break:break-all;">'+esc(ev.lien_visio)+'</div></div>':'')
-    +'</div></div>';
-
-  // Description si présente
+  // 4. Quand et où (gros), puis le secondaire (petit)
+  html += '<table class="infos">'
+    +'<tr><th>Quand</th><td>'+esc(jourMaj)+'<small>'+esc(horaires)+'</small></td></tr>'
+    +(ev.lieu?'<tr><th>Où</th><td>'+esc(ev.lieu)+'</td></tr>':'')
+    +(ev.organisateur?'<tr class="petit"><th>Organisateur</th><td>'+esc(ev.organisateur)+'</td></tr>':'')
+    +(ev.lien_visio?'<tr class="petit"><th>Lien visio</th><td style="word-break:break-all;">'+esc(ev.lien_visio)+'</td></tr>':'')
+    +'</table>';
   if(ev.description){
-    html += '<div class="section"><div class="section-title">Notes de mission</div>'
-      +'<div style="font-size:.82rem;color:#374151;line-height:1.6;white-space:pre-wrap;">'+esc(ev.description)+'</div></div>';
+    html += '<div class="notes"><b>Notes</b>'+esc(ev.description)+'</div>';
   }
 
-  // Signatures
-  html += '<div class="sign-zone"><div class="section-title">Signatures</div>'
-    +'<div class="sign-grid">'
-    +'<div class="sign-box"><div class="sign-box-title">Le président · Tom Duez</div><div style="flex:1;min-height:50px;"></div><div class="sign-name">Signature et date</div></div>'
-    +'<div class="sign-box"><div class="sign-box-title">L\'intéressé · '+esc(nomMembre)+'</div><div style="flex:1;min-height:50px;"></div><div class="sign-name">Signature et date</div></div>'
-    +'</div></div>';
-
-  // Footer
-  html += '<div class="footer">'
-    +'<span class="footer-text">Ipsum Média · contact@ipsummedia.fr · Association loi 1901 du Tarn</span>'
-    +'<span class="footer-text">'+ref+'</span>'
+  // 5. Signatures : le président (signature enregistrée) ; la personne missionnée (signature électronique = son inscription à l'événement)
+  var inscritLe = membre.inscrit_le ? new Date(membre.inscrit_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  html += '<div class="sign-grid">'
+    +'<div class="sign-box"><div class="qui-signe">Le président · Tom Duez</div>'
+    +(_omSignature ? '<img class="sign-img" src="'+_omSignature+'" alt="Signature">' : '<div style="flex:1;"></div>')
+    +'<div class="mention">'+(_omSignature ? 'Fait le '+esc(dateEmis) : 'Signature et date')+'</div></div>'
+    +'<div class="sign-box"><div class="qui-signe">La personne missionnée · '+esc(nomMembre)+'</div>'
+    +'<div class="sign-elec"><b>✓ Signé électroniquement</b>par '+esc(nomMembre)+'<br>à son inscription à l\'événement'+(inscritLe ? ', le '+esc(inscritLe) : '')+'</div>'
+    +'<div class="mention">&nbsp;</div></div>'
     +'</div>';
 
+  html += '<div class="pied"><span>Ipsum Média · Association loi 1901 du Tarn</span><span style="white-space:nowrap;">'+ref+'</span></div>';
   html += '</div></body></html>';
   win.document.write(html);
   win.document.close();
