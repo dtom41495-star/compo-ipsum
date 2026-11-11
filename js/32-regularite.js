@@ -20,6 +20,101 @@ function _regDebutSemaine(d){
   x.setDate(x.getDate() - ((x.getDay() - REG_JOUR_DEBUT + 7) % 7));
   return x;
 }
+// ===== PÉRIODES DE BRÈVES : d'une newsletter « marquée comme envoyée » à la suivante =====
+// Une période de brèves va du clic sur « Marquer comme envoyée » (appli Newsletter : une ligne est créée dans `newsletters`)
+// jusqu'au clic suivant. Une brève écrite avant l'envoi compte pour cette newsletter, même le jour J (le mercredi pour le
+// jeudi) ; la série de la newsletter d'après démarre quand la précédente est partie. Un article rangé dans une newsletter
+// compte pour elle même s'il a été publié après le clic (la publication automatique suit l'enregistrement).
+// Sans newsletter enregistrée, ou avant la première : repli sur les semaines du mercredi. Tant que la newsletter n'est pas
+// partie (retard, vacances), la période continue : personne n'est pénalisé.
+var REG_PERIODE_LOIN = 400;      // jours : la période en cours n'a pas de fin
+var _regNL = { promesse:null, chargeLe:0, nls:[], dans:{} };   // nls : [{redac, t}] ; dans : article_id -> instant de sa newsletter
+// Instant retenu pour une newsletter : le clic, sauf envoi rattrapé après coup (date d'envoi saisie bien avant le clic)
+function _regNLInstant(n){
+  var cree = new Date(n.created_at).getTime(), envoi = n.date_envoi ? new Date(n.date_envoi).getTime() : NaN;
+  return (!isNaN(envoi) && cree - envoi > 2*86400000) ? envoi : cree;
+}
+function _regLireTout(chemin){
+  var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  var res = [];
+  function page(debut){
+    return fetch(SB_URL+'/rest/v1/'+chemin, {headers:Object.assign({}, h, {Range:debut+'-'+(debut+999)})})
+      .then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+      .then(function(rows){
+        if(!Array.isArray(rows)) return res;
+        res = res.concat(rows);
+        return (rows.length < 1000 || debut >= 4000) ? res : page(debut + 1000);
+      });
+  }
+  return page(0);
+}
+// À appeler avant tout calcul de série ou de régularité (mis en cache 5 min ; sans réponse, les semaines du mercredi servent)
+function osRegulariteChargerPeriodes(force){
+  if(_regNL.promesse && !force && Date.now() - _regNL.chargeLe < 300000) return _regNL.promesse;
+  _regNL.chargeLe = Date.now();
+  _regNL.promesse = Promise.all([
+    _regLireTout('newsletters?select=id,redaction_id,created_at,date_envoi&order=created_at.desc'),
+    _regLireTout('newsletter_articles?select=article_id,newsletter_id')
+  ]).then(function(res){
+    var parId = {}, nls = [];
+    res[0].forEach(function(n){
+      if(!n.created_at) return;
+      var t = _regNLInstant(n); parId[n.id] = t; nls.push({ redac:n.redaction_id, t:t });
+    });
+    var dans = {};
+    res[1].forEach(function(x){
+      var t = parId[x.newsletter_id];
+      if(t !== undefined && (dans[x.article_id] === undefined || t < dans[x.article_id])) dans[x.article_id] = t;
+    });
+    _regNL.nls = nls; _regNL.dans = dans;
+  });
+  return _regNL.promesse;
+}
+// Rédactions « lancées » d'un membre (celles dont les newsletters rythment sa série) ; null = toutes
+function _regRedacsDe(membreId){
+  var l = (window._membresRedactionsData || []).filter(function(x){ return x.membre_id === membreId; })
+    .map(function(x){ return x.redaction_id; })
+    .filter(function(id){ return !(typeof osRedacPasLancee === 'function' && osRedacPasLancee(id)); });
+  return l.length ? l : null;
+}
+// Instants d'envoi des newsletters (les plus récents d'abord) ; deux envois à moins de 36 h comptent pour un seul
+function _regClics(redacIds){
+  var l = _regNL.nls.filter(function(n){ return !redacIds || redacIds.indexOf(n.redac) !== -1; }).map(function(n){ return n.t; })
+    .sort(function(a, b){ return b - a; });
+  var res = [];
+  l.forEach(function(t){ if(!res.length || res[res.length-1] - t > 36*3600000) res.push(t); });
+  return res;
+}
+// Bornes de la période k (0 = en cours, 1 = la précédente…) : { debut, fin } avec debut <= date < fin
+function _regBornes(k, redacIds){
+  var clics = _regClics(redacIds), n = clics.length;
+  function B(i){
+    if(i === 0) return Date.now() + REG_PERIODE_LOIN*86400000;
+    if(i <= n) return clics[i-1];
+    if(n === 0){ var d = _regDebutSemaine(new Date()); d.setDate(d.getDate() - 7*(i-1)); return d.getTime(); }
+    return clics[n-1] - (i-n)*7*86400000;           // avant la première newsletter enregistrée : semaines de 7 jours
+  }
+  return { debut:new Date(B(k+1)), fin:new Date(B(k)) };
+}
+function _regMemeJour(a, b){ return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+// Une semaine gelée est repérée par un jour (AAAA-MM-JJ) : le jour où commence sa période, ou à défaut le mercredi d'avant
+// (anciens gels) qui tombe dans la période. Un jour de début de période ne sert pas à la période d'avant.
+function _regGelDans(gels, debut, fin){
+  if(!gels) return false;
+  var trouve = false;
+  gels.forEach(function(cle){
+    var t = String(cle).split('-'); if(t.length < 3) return;
+    var jour = new Date(+t[0], +t[1]-1, +t[2]), midi = new Date(+t[0], +t[1]-1, +t[2], 12);
+    var finReelle = fin.getTime() < Date.now() + 86400000*(REG_PERIODE_LOIN-1);
+    if(_regMemeJour(jour, debut) || (midi >= debut && midi < fin && !(finReelle && _regMemeJour(jour, fin)))) trouve = true;
+  });
+  return trouve;
+}
+// Date d'une brève pour ranger dans une période : celle de sa newsletter si elle y est déjà (jamais après l'envoi)
+function _regDateEff(id, d){
+  var t = id ? _regNL.dans[id] : undefined;
+  return (t !== undefined && d.getTime() >= t) ? new Date(t - 1) : d;
+}
 function _regDatePub(a){
   var d = a.publie_le || a.updated_at;
   var t = d ? new Date(d) : null;
@@ -36,21 +131,22 @@ function _regCle(d){
 // qu'elles-mêmes : elles ne rattrapent pas la semaine vide qui les précède.
 function osRegulariteCalculer(membre, arts){
   var gels = membre && window._gelsSerie ? window._gelsSerie[membre.id] : null;
-  var debutCourant = _regDebutSemaine(new Date());
   // Arrivée : rattachement à une rédaction si connu (anciens : création du compte, via le SQL), sinon création du compte
   var arrivee = membre && window._rattacheLe && window._rattacheLe[membre.id] ? window._rattacheLe[membre.id] : (membre && membre.created_at ? new Date(membre.created_at) : null);
-  var publis = (arts || []).filter(function(a){ return a.statut === 'publie'; }).map(function(a){
-    return { date:_regDatePub(a), breve:a.type === 'breve' };
+  var redacs = _regRedacsDe(membre && membre.id);
+  // Envoyé au SR ou publié, comme la carte « Ma série » et les rappels : date de mise en ligne, sinon d'envoi au SR, sinon de modification
+  var publis = (arts || []).filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).map(function(a){
+    var d = a.publie_le || a.envoye_sr_le || a.updated_at, t = d ? new Date(d) : null;
+    return { date:(t && !isNaN(t)) ? _regDateEff(a.id, t) : null, breve:a.type === 'breve' };
   }).filter(function(p){ return p.date; });
 
   var semaines = [];
   for(var k = REG_SEMAINES; k >= 0; k--){            // k = 0 : semaine en cours
-    var debut = new Date(debutCourant); debut.setDate(debut.getDate() - 7*k);
-    var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
+    var bo = _regBornes(k, redacs), debut = bo.debut, fin = bo.fin;
     var dans = publis.filter(function(p){ return p.date >= debut && p.date < fin; });
     semaines.push({
-      debut:debut, courante:k === 0, gel:!!(gels && gels.has(_regCle(debut))),
-      pause: !!(membre && typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(membre.id, debut)),   // toutes ses rédactions en pause (js/61)
+      debut:debut, courante:k === 0, gel:_regGelDans(gels, debut, fin),
+      pause: !!(membre && typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(membre.id, debut, fin)),   // toutes ses rédactions en pause (js/61)
       breves:dans.filter(function(p){ return p.breve; }).length,
       articles:dans.filter(function(p){ return !p.breve; }).length,
       avant: !!(arrivee && fin <= arrivee)           // semaine terminée avant l'arrivée du membre

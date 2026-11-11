@@ -7,6 +7,23 @@
 var SERIE_SEMAINES = 26;      // semaines relues pour calculer la série
 var SERIE_JOURS_ARTICLE = 28; // « un article par mois » : mêmes périodes de 28 jours que l'onglet Régularité
 
+// Échéance affichée aux bénévoles : le mardi soir avant la prochaine newsletter (elle sort le jeudi). Le mercredi reste possible,
+// et tant que la newsletter n'est pas marquée comme envoyée, une brève y entre encore. Retourne un morceau de phrase.
+function _serieJeudiSuivant(apres){
+  var d = new Date(apres.getFullYear(), apres.getMonth(), apres.getDate() + 1);
+  while(d.getDay() !== 4) d.setDate(d.getDate() + 1);
+  return d;
+}
+function osSerieEcheance(maintenant){
+  var now = maintenant || new Date(), clics = _regClics(_regRedacsDe(getUserId()));
+  var jeudi = _serieJeudiSuivant(clics.length ? new Date(clics[0]) : new Date(now.getTime() - 86400000));
+  var mardi = new Date(jeudi); mardi.setDate(mardi.getDate() - 2);
+  var auj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if(auj <= mardi) return 'avant mardi '+mardi.getDate()+'/'+(mardi.getMonth()+1)+' au soir';
+  if(auj < jeudi) return 'avant ce soir (la newsletter part demain)';
+  if(auj.getTime() === jeudi.getTime()) return 'dès maintenant (la newsletter part aujourd\'hui)';
+  return 'dès que possible (la newsletter n\'est pas encore partie)';
+}
 function _serieH(){ return Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}); }
 function _serieDate(a){
   var d = a.publie_le || a.envoye_sr_le || a.updated_at;
@@ -26,21 +43,24 @@ function _serieCle(d){
 // Une semaine de pause (js/61-pause-redactions.js : toutes les rédactions de la personne en pause) compte comme une semaine gelée,
 // mais gratuite : série en veille, pas de brève due, pas de +1 sauf si une brève est quand même envoyée.
 // `pauseFn(debutSemaine)` : vrai si la semaine est en pause ; par défaut, celle de la personne connectée.
-function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn){
-  var pf = pauseFn || (typeof osPauseMembreSemaine === 'function' ? function(d){ return osPauseMembreSemaine(getUserId(), d); } : null);
-  var debutSem = _regDebutSemaine(new Date());
-  var breves = items.filter(function(i){ return i.type === 'breve' && i.id !== ignorerId; });
+// Les « semaines » sont les périodes entre deux newsletters marquées comme envoyées (js/32 : _regBornes) ; `redacIds` : les rédactions
+// dont les newsletters rythment la personne (par défaut celles de la personne connectée).
+function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn, redacIds){
+  var pf = pauseFn || (typeof osPauseMembreSemaine === 'function' ? function(d, f){ return osPauseMembreSemaine(getUserId(), d, f); } : null);
+  var redacs = redacIds !== undefined ? redacIds : _regRedacsDe(getUserId());
+  // Une brève rangée dans une newsletter compte pour elle, même publiée après le clic d'envoi
+  var breves = items.filter(function(i){ return i.type === 'breve' && i.id !== ignorerId; })
+    .map(function(i){ return { id:i.id, date:_regDateEff(i.id, i.date) }; });
   var n = [], avant = [], comp = [], gel = [], pause = [], gelP = [];
   for(var k = 0; k <= SERIE_SEMAINES; k++){
-    var debut = new Date(debutSem); debut.setDate(debut.getDate() - 7*k);
-    var fin = new Date(debut); fin.setDate(fin.getDate() + 7);
+    var bo = _regBornes(k, redacs), debut = bo.debut, fin = bo.fin;
     n[k] = breves.filter(function(b){ return b.date >= debut && b.date < fin; }).length;
     // Semaine d'avant l'arrivée : rien n'était dû. La semaine pendant laquelle on est arrivé non plus, si elle est restée
     // vide (on ne demande pas à un nouveau de « rattraper » la semaine où il nous a rejoints) ; une brève écrite cette
     // semaine-là compte quand même. La semaine en cours compte toujours.
     avant[k] = !!(arrivee && (fin <= arrivee || (k > 0 && debut < arrivee && n[k] === 0)));
-    gelP[k] = !!(gels && gels.has(_serieCle(debut)));
-    pause[k] = !avant[k] && !!(pf && pf(debut));
+    gelP[k] = _regGelDans(gels, debut, fin);
+    pause[k] = !avant[k] && !!(pf && pf(debut, fin));
     gel[k] = gelP[k] || pause[k];
   }
   for(k = 0; k <= SERIE_SEMAINES; k++) comp[k] = k >= 1 && !avant[k] && !gel[k] && n[k] === 0 && n[k-1] >= 2;
@@ -60,7 +80,7 @@ function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn){
   var joursArticle = dernierArticle ? Math.max(0, Math.floor((Date.now() - dernierArticle.getTime()) / 86400000)) : null;
   var pastilles = [];
   for(k = 6; k >= 0; k--){
-    var debutK = new Date(debutSem); debutK.setDate(debutK.getDate() - 7*k);
+    var debutK = _regBornes(k, redacs).debut;
     pastilles.push({ debut:debutK, etat: avant[k] ? 'avant' : (pause[k] ? 'pause' : (gel[k] ? 'gel' : ((k === 0 ? faite : (n[k] >= 1)) ? 'ok' : (comp[k] ? 'comp' : (k === 0 ? 'attente' : 'vide'))))), courante:k === 0 });
   }
   return { nouveau:!!avant[1], n0:n[0], besoin:besoin, faite:faite, gel0:gelP[0] && !pause[0], pause0:pause[0], serie:serie, articleMois:articleMois, joursArticle:joursArticle, pastilles:pastilles };
@@ -69,7 +89,7 @@ function osSerieCalculer(items, arrivee, ignorerId, gels, pauseFn){
 // Articles du membre (brèves et articles envoyés au SR ou publiés, toutes rédactions confondues)
 function _serieCharger(uid, ajout){
   var cols = window._srColsDispo === true ? ',envoye_sr_le' : '';
-  return fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide,publie)&select=id,type,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
+  return osRegulariteChargerPeriodes().catch(function(){}).then(function(){ return fetch(SB_URL+'/rest/v1/articles?auteur_id=eq.'+encodeURIComponent(uid)+'&statut=in.(en-relecture,corrige,valide,publie)&select=id,type,publie_le,updated_at'+cols+'&order=updated_at.desc&limit=500', {headers:_serieH()})
     .then(function(r){ return r.json(); })
     .then(function(rows){
       var items = (Array.isArray(rows) ? rows : []).map(function(a){ return { id:a.id, type:a.type, date:_serieDate(a) }; }).filter(function(i){ return i.date; });
@@ -78,7 +98,7 @@ function _serieCharger(uid, ajout){
         items.push({ id:ajout.id, type:ajout.type, date:new Date() });
       }
       return items;
-    });
+    }); });
 }
 // Semaines gelées du membre (table créée par le SQL des gels : sans elle, tout fonctionne comme avant)
 function _serieGels(uid){
@@ -114,10 +134,10 @@ function _serieSolde(){
 }
 // Peut-on geler cette semaine ? (le serveur revérifie tout)
 function _serieGelPossible(gels, cfg, solde){
-  var debutSem = _regDebutSemaine(new Date());
-  var prec = new Date(debutSem); prec.setDate(prec.getDate() - 7);
-  if(gels.set.has(_serieCle(debutSem))) return { ok:false, raison:'Cette semaine est déjà gelée.' };
-  if(gels.set.has(_serieCle(prec))) return { ok:false, raison:'Pas deux semaines gelées de suite.' };
+  var redacs = _regRedacsDe(getUserId()), b0 = _regBornes(0, redacs), b1 = _regBornes(1, redacs);
+  var debutSem = b0.debut;
+  if(_regGelDans(gels.set, b0.debut, b0.fin)) return { ok:false, raison:'Cette semaine est déjà gelée.' };
+  if(_regGelDans(gels.set, b1.debut, b1.fin)) return { ok:false, raison:'Pas deux semaines gelées de suite.' };
   var dernier = null;
   gels.liste.forEach(function(d){ var t = new Date(d+'T00:00:00'); if(!dernier || t > dernier) dernier = t; });
   if(dernier){
@@ -333,14 +353,14 @@ var _SERIE_FLAMME_FACHEE = '<svg class="rp-serie-visage" viewBox="0 0 52 52" ari
 
 function osSerieCarteHtml(e, x){
   x = x || {};
-  var jours = 7 - ((new Date().getDay() - REG_JOUR_DEBUT + 7) % 7);   // jours restants, aujourd'hui compris, jusqu'à mardi
+  var echeance = osSerieEcheance();
   var titre = e.serie > 0 ? e.serie+' semaine'+(e.serie > 1 ? 's' : '')+' de série' : (e.nouveau ? 'Ta série commence ici' : 'Pas de série en cours');
   var breve, brevOk = e.faite;
   if(e.pause0) breve = 'Rédaction en pause : ta série est en veille, pas de brève à envoyer';
   else if(e.gel0) breve = 'Semaine gelée : série protégée, pas de brève à envoyer';
   else if(e.faite) breve = 'Brève de la semaine : faite';
-  else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), encore '+jours+' jour'+(jours > 1 ? 's' : '');
-  else breve = e.serie > 0 ? 'Ta flamme vacille : une brève avant mercredi pour la rallumer (encore '+jours+' jour'+(jours > 1 ? 's' : '')+')' : (e.nouveau ? 'Bienvenue ! Une brève cette semaine et ta série démarre' : 'Envoie une brève cette semaine pour lancer ta série');
+  else if(e.besoin === 2) breve = 'Semaine d\'avant vide : 2 brèves à envoyer pour la rattraper ('+e.n0+'/2), '+echeance;
+  else breve = e.serie > 0 ? 'Ta flamme vacille : une brève '+echeance+' pour la rallumer' : (e.nouveau ? 'Bienvenue ! Une brève cette semaine et ta série démarre' : 'Envoie une brève cette semaine pour lancer ta série');
   var art = e.articleMois
     ? 'Article du mois : fait'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jour'+(e.joursArticle > 1 ? 's' : '')+')' : '')
     : 'Article du mois : à envoyer'+(e.joursArticle !== null ? ' (le dernier remonte à '+e.joursArticle+' jours)' : ' (aucun récemment)');
@@ -454,7 +474,7 @@ function osSerieChargerPastille(el){
     var titre = e.serie > 0 ? 'Série de '+e.serie+' semaine'+(e.serie > 1 ? 's' : '') : 'Pas de série en cours';
     if(e.pause0) titre += ', rédaction en pause';
     else if(e.gel0) titre += ', semaine gelée';
-    else if(!e.faite) titre += e.serie > 0 ? ' : une brève avant mercredi pour la garder' : ' : envoie une brève pour la lancer';
+    else if(!e.faite) titre += e.serie > 0 ? ' : une brève '+osSerieEcheance()+' pour la garder' : ' : envoie une brève pour la lancer';
     window._seriePastilleEtat = { classe:classe, texte:e.serie+' sem.', titre:titre };
     window._seriePastilleLe = Date.now();
     _seriePastilleAppliquer(document.getElementById('acc-serie') || el, window._seriePastilleEtat);
