@@ -2861,8 +2861,11 @@ function _osGenererOrdreMission(ev, membre, win){
     '.no-print{max-width:760px;margin:0 auto 12px;display:flex;gap:8px;}',
     '.btn-print{background:#E8461E;color:white;border:none;padding:8px 18px;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:600;}',
     '.btn-close{background:#E5E7EB;color:#374151;border:none;padding:8px 14px;border-radius:6px;font-size:.85rem;cursor:pointer;}',
-    '.entete{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#6B7280;padding-bottom:10px;border-bottom:2px solid #E8461E;}',
-    '.entete b{color:#1A1A2E;font-size:13px;letter-spacing:.03em;}',
+    '.entete{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:12px;color:#6B7280;padding-bottom:14px;border-bottom:2px solid #E8461E;}',
+    '.entete-marque{display:flex;align-items:center;gap:14px;}',
+    '.entete-marque img{height:100px;width:auto;display:block;margin:-14px 0 -14px -14px;}',
+    '.entete-marque span{font-size:12px;color:#6B7280;line-height:1.4;}',
+    '.entete-ref{text-align:right;line-height:1.5;}',
     '.titre-doc{font-size:30px;font-weight:800;letter-spacing:-.01em;margin:28px 0 4px;}',
     '.qui{font-size:16px;color:#374151;margin-bottom:26px;}',
     '.qui b{color:#1A1A2E;}',
@@ -2895,7 +2898,9 @@ function _osGenererOrdreMission(ev, membre, win){
   html += '<div class="doc">';
 
   // 1. En-tête discret : qui émet, référence
-  html += '<div class="entete"><b>IPSUM MÉDIA · Association loi 1901</b><span>Réf. '+ref+' · Émis le '+dateEmis+'</span></div>';
+  var logo = typeof _osLogoIpsum === 'function' ? _osLogoIpsum() : '';
+  html += '<div class="entete"><div class="entete-marque">'+(logo ? '<img src="'+logo+'" alt="Ipsum Média">' : '<b>IPSUM MÉDIA</b>')+'<span>Association loi 1901<br>du Tarn</span></div>'
+    +'<div class="entete-ref">Réf. '+ref+'<br>Émis le '+dateEmis+'</div></div>';
 
   // 2. Titre du document, puis une phrase : qui est missionné·e
   html += '<div class="titre-doc">Ordre de mission</div>'
