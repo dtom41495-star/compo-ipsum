@@ -1864,8 +1864,10 @@ function osCpFenetreRender(winId){
 
   // Pièces jointes : une ligne par fichier (Ouvrir, Aperçu) au lieu d'un grand cadre vide
   var fichiers = (cp.communique_fichiers||[]).slice().sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); })
-    .map(function(f){ return { nom:f.nom||'Fichier', type:f.type === 'image' ? 'image' : 'pdf', url:f.url }; });
-  if(cp.fichier_pdf) fichiers.push({ nom:'Document PDF', type:'pdf', url:cp.fichier_pdf });
+    .map(function(f){ return { nom:f.nom||'Fichier', type:f.type === 'image' ? 'image' : 'pdf', url:f.url, etat:f.etat || null }; });
+  // Erratum validé avec un nouveau PDF : le PDF corrigé est en tête et mis en avant, l'ancien reste, marqué « Ancienne version »
+  var aFichierCorrige = fichiers.some(function(f){ return f.etat === 'corrige'; });
+  if(cp.fichier_pdf) fichiers.push({ nom:'Document PDF', type:'pdf', url:cp.fichier_pdf, etat:aFichierCorrige ? 'ancien' : null });
   else if(cp.fichier_b64) fichiers.push({ nom:'Document PDF', type:'b64', url:cp.fichier_b64 });
   window._cpFichiersFiche = window._cpFichiersFiche || {};
   window._cpFichiersFiche[winId] = fichiers;
@@ -1875,8 +1877,9 @@ function osCpFenetreRender(winId){
     pj.innerHTML = '<div class="cpf-label">Pièces jointes · '+fichiers.length+'</div>'
       + fichiers.map(function(f, i){
         var ouvrir = f.type === 'b64' ? '' : '<a class="cpf-mini" href="'+esc(_driveLienAuthuser(f.url))+'" target="_blank" rel="noopener" title="Ouvrir dans un nouvel onglet"><i class="ti ti-external-link"></i></a>';
-        return '<div class="cpf-fichier"><i class="ti ti-'+(f.type === 'image' ? 'photo' : 'file-type-pdf')+' cpf-fichier-ico"></i>'
+        return '<div class="cpf-fichier'+(f.etat === 'corrige' ? ' cpf-fichier-corrige' : f.etat === 'ancien' ? ' cpf-fichier-ancien' : '')+'"><i class="ti ti-'+(f.type === 'image' ? 'photo' : 'file-type-pdf')+' cpf-fichier-ico"></i>'
           +'<span class="cpf-fichier-nom" title="'+esc(f.nom)+'">'+esc(f.nom)+'</span>'
+          +(f.etat === 'corrige' ? '<span class="cpf-fichier-badge">PDF corrigé</span>' : f.etat === 'ancien' ? '<span class="cpf-fichier-badge ancien">Ancienne version</span>' : '')
           +'<button class="cpf-mini" title="Aperçu" onclick="osCpApercu(\''+esc(winId)+'\','+i+')"><i class="ti ti-eye"></i></button>'+ouvrir+'</div>';
       }).join('');
     cote.appendChild(pj);
