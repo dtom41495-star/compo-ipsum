@@ -2808,11 +2808,13 @@ function osAgendaOrdreMission(evId, membreId){
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   var uid = membreId || getUserId();
+  var inscritLe = null;   // date d'inscription de la personne à l'événement (valeur de signature électronique)
 
   // Un ordre de mission n'existe que pour une inscription confirmée, même pour un admin
-  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id',{headers:authH})
+  fetch(SB_URL+'/rest/v1/agenda_inscriptions?evenement_id=eq.'+encodeURIComponent(evId)+'&membre_id=eq.'+encodeURIComponent(uid)+'&statut=eq.confirme&select=membre_id,created_at',{headers:authH})
   .then(function(r){return r.json();})
   .then(function(ins){
+    if(Array.isArray(ins) && ins.length) inscritLe = ins[0].created_at || null;
     if(!Array.isArray(ins) || !ins.length){
       try{ win.close(); }catch(e){}
       notif('Pas d\'ordre de mission : cette personne n\'est pas inscrite à l\'événement (inscription confirmée).','alerte');
@@ -2824,6 +2826,7 @@ function osAgendaOrdreMission(evId, membreId){
   .then(function(data){
     if(data===null) return;
     var m = data&&data[0] ? data[0] : {prenom:'',nom:'',role:'',email:'',fonction:[]};
+    m.inscrit_le = inscritLe;
     _osGenererOrdreMission(ev, m, win);
   }).catch(function(){
     // Sans vérification de l'inscription, pas de document
@@ -2832,7 +2835,18 @@ function osAgendaOrdreMission(evId, membreId){
   });
 }
 
+// Signature du président : une seule ligne en base (signature_president), chargée une fois puis gardée en mémoire
+var _omSignature;   // undefined = pas encore chargée ; '' = aucune
+function _osChargerSignaturePresident(){
+  var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
+  return fetch(SB_URL+'/rest/v1/signature_president?id=eq.1&select=data', {headers:h})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _omSignature = (Array.isArray(d) && d[0] && /^data:image\/png;base64,/.test(d[0].data||'')) ? d[0].data : ''; })
+    .catch(function(){ _omSignature = ''; });
+}
+
 function _osGenererOrdreMission(ev, membre, win){
+  if(_omSignature === undefined){ _osChargerSignaturePresident().then(function(){ _osGenererOrdreMission(ev, membre, win); }); return; }
   var debut = new Date(ev.date_debut);
   var fin   = ev.date_fin ? new Date(ev.date_fin) : null;
   var today = new Date();
@@ -2884,6 +2898,9 @@ function _osGenererOrdreMission(ev, membre, win){
     '.sign-box{border:1.5px solid #D1D5DB;border-radius:8px;padding:14px 16px;min-height:120px;display:flex;flex-direction:column;justify-content:space-between;}',
     '.sign-box .qui-signe{font-size:13px;font-weight:700;}',
     '.sign-box .mention{font-size:12px;color:#9CA3AF;}',
+    '.sign-img{max-height:70px;max-width:100%;object-fit:contain;object-position:left;mix-blend-mode:multiply;margin:4px 0;}',
+    '.sign-elec{font-size:13px;color:#374151;line-height:1.5;margin:6px 0;}',
+    '.sign-elec b{display:block;color:#15803D;font-size:14px;}',
     '.pied{margin-top:26px;font-size:11px;color:#9CA3AF;display:flex;justify-content:space-between;}',
     '@media print{body{background:white;padding:0;}.doc{box-shadow:none;border-radius:0;padding:0;max-width:none;}.no-print{display:none;}}'
   ].join('\n');
@@ -2920,10 +2937,15 @@ function _osGenererOrdreMission(ev, membre, win){
     html += '<div class="notes"><b>Notes</b>'+esc(ev.description)+'</div>';
   }
 
-  // 5. Signatures
+  // 5. Signatures : le président (signature enregistrée) ; la personne missionnée (signature électronique = son inscription à l'événement)
+  var inscritLe = membre.inscrit_le ? new Date(membre.inscrit_le).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
   html += '<div class="sign-grid">'
-    +'<div class="sign-box"><div class="qui-signe">Le président · Tom Duez</div><div class="mention">Signature et date</div></div>'
-    +'<div class="sign-box"><div class="qui-signe">La personne missionnée · '+esc(nomMembre)+'</div><div class="mention">Signature et date</div></div>'
+    +'<div class="sign-box"><div class="qui-signe">Le président · Tom Duez</div>'
+    +(_omSignature ? '<img class="sign-img" src="'+_omSignature+'" alt="Signature">' : '<div style="flex:1;"></div>')
+    +'<div class="mention">'+(_omSignature ? 'Fait le '+esc(dateEmis) : 'Signature et date')+'</div></div>'
+    +'<div class="sign-box"><div class="qui-signe">La personne missionnée · '+esc(nomMembre)+'</div>'
+    +'<div class="sign-elec"><b>✓ Signé électroniquement</b>par '+esc(nomMembre)+'<br>à son inscription à l\'événement'+(inscritLe ? ', le '+esc(inscritLe) : '')+'</div>'
+    +'<div class="mention">&nbsp;</div></div>'
     +'</div>';
 
   html += '<div class="pied"><span>Ipsum Média · Association loi 1901 du Tarn</span><span style="white-space:nowrap;">'+ref+'</span></div>';
