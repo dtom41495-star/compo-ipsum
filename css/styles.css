@@ -7228,6 +7228,12 @@ button.trx-temps:hover { background: #E0D0EC; }
 .cpf-label + .cpf-fichier { border-top: none; padding-top: 0; }
 .cpf-fichier-ico { font-size: 1.15rem; color: #C0392B; flex-shrink: 0; }
 .cpf-fichier-nom { flex: 1; min-width: 0; font-size: 0.78rem; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpf-fichier-corrige { background: #E6F4EC; border-radius: 8px; padding-left: 0.4rem; padding-right: 0.3rem; box-shadow: inset 3px 0 0 #17613A; }
+.cpf-fichier-corrige .cpf-fichier-nom { font-weight: 700; color: #17613A; }
+.cpf-fichier-ancien .cpf-fichier-nom { color: var(--gris); text-decoration: line-through; }
+.cpf-fichier-ancien .cpf-fichier-ico { opacity: .45; }
+.cpf-fichier-badge { flex: none; padding: 1px 7px; border-radius: 999px; background: #17613A; color: #fff; font-size: 0.6rem; font-weight: 700; white-space: nowrap; }
+.cpf-fichier-badge.ancien { background: #E5E2DD; color: #6B6760; }
 .cpf-apercu { padding: 0.8rem; }
 .cpf-apercu-tete { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
 .cpf-apercu-tete .cpf-label { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

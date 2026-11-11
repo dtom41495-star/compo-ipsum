@@ -36,6 +36,7 @@ function osErratumBandeauHTML(cp, complet){
     var texte = String(cp.erratum_texte || '').trim();
     return '<div class="ert-bandeau ert-valide"><i class="ti ti-pencil-check"></i><span><b>Corrigé'+(cp.erratum_le ? ' le '+esc(_ertJour(cp.erratum_le)) : '')+'</b> par un erratum de l’auteur.'
       +(lignes.length ? '<span class="ert-diff">'+lignes.join('<br>')+'</span>' : '')
+      +((cp.communique_fichiers || []).some(function(f){ return f.etat === 'corrige'; }) ? '<span class="ert-diff"><i class="ti ti-file-type-pdf"></i> <b>Nouveau PDF</b> en pièce jointe, en premier. L’ancien reste disponible, marqué « Ancienne version ».</span>' : '')
       +(texte ? '<span class="ert-cit">« '+esc(complet ? texte : _ertCourt(texte, 220))+' »</span>' : '')
       +(complet && r && (r.date || r.lieu || r.texte) ? '<button type="button" class="ert-lien" onclick="osErratumHistorique(\''+esc(cp.id)+'\')">Voir l’ancien texte</button>' : '')
       +'</span></div>';
