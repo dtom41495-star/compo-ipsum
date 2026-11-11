@@ -2926,7 +2926,7 @@ function _osGenererOrdreMission(ev, membre, win){
     +'<div class="sign-box"><div class="qui-signe">La personne missionnée · '+esc(nomMembre)+'</div><div class="mention">Signature et date</div></div>'
     +'</div>';
 
-  html += '<div class="pied"><span>Ipsum Média · Association loi 1901 du Tarn · SIRET 100 238 435 00018 · 07 82 21 81 17 · contact@ipsummedia.fr</span><span>'+ref+'</span></div>';
+  html += '<div class="pied"><span>Ipsum Média · Association loi 1901 du Tarn</span><span style="white-space:nowrap;">'+ref+'</span></div>';
   html += '</div></body></html>';
   win.document.write(html);
   win.document.close();
