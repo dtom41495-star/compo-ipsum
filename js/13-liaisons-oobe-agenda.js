@@ -2841,8 +2841,43 @@ function _osChargerSignaturePresident(){
   var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   return fetch(SB_URL+'/rest/v1/signature_president?id=eq.1&select=data', {headers:h})
     .then(function(r){ return r.json(); })
-    .then(function(d){ _omSignature = (Array.isArray(d) && d[0] && /^data:image\/png;base64,/.test(d[0].data||'')) ? d[0].data : ''; })
+    .then(function(d){
+      var data = (Array.isArray(d) && d[0] && /^data:image\/png;base64,/.test(d[0].data||'')) ? d[0].data : '';
+      return data ? _osRognerSignature(data) : '';
+    })
+    .then(function(data){ _omSignature = data; })
     .catch(function(){ _omSignature = ''; });
+}
+// L'image enregistrée garde de grandes marges vides autour du tracé : on les retire pour que la signature
+// remplisse sa case (fond blanc ou transparent). En cas de souci, on garde l'image telle quelle.
+function _osRognerSignature(data){
+  return new Promise(function(resolve){
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        var ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+        var px = ctx.getImageData(0, 0, w, h).data;
+        var x0 = w, y0 = h, x1 = -1, y1 = -1;
+        for(var y = 0; y < h; y++){
+          for(var x = 0; x < w; x++){
+            var i = (y*w + x)*4;
+            var encre = px[i+3] > 24 && (px[i] < 235 || px[i+1] < 235 || px[i+2] < 235);
+            if(encre){ if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+          }
+        }
+        if(x1 < 0){ resolve(data); return; }
+        var m = 6;   // petite marge
+        x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(w - 1, x1 + m); y1 = Math.min(h - 1, y1 + m);
+        var c2 = document.createElement('canvas'); c2.width = x1 - x0 + 1; c2.height = y1 - y0 + 1;
+        c2.getContext('2d').drawImage(c, x0, y0, c2.width, c2.height, 0, 0, c2.width, c2.height);
+        resolve(c2.toDataURL('image/png'));
+      }catch(e){ resolve(data); }
+    };
+    img.onerror = function(){ resolve(data); };
+    img.src = data;
+  });
 }
 
 function _osGenererOrdreMission(ev, membre, win){
@@ -2898,7 +2933,7 @@ function _osGenererOrdreMission(ev, membre, win){
     '.sign-box{border:1.5px solid #D1D5DB;border-radius:8px;padding:14px 16px;min-height:120px;display:flex;flex-direction:column;justify-content:space-between;}',
     '.sign-box .qui-signe{font-size:13px;font-weight:700;}',
     '.sign-box .mention{font-size:12px;color:#9CA3AF;}',
-    '.sign-img{max-height:70px;max-width:100%;object-fit:contain;object-position:left;mix-blend-mode:multiply;margin:4px 0;}',
+    '.sign-img{height:90px;max-width:100%;object-fit:contain;object-position:left;mix-blend-mode:multiply;margin:4px 0;}',
     '.sign-elec{font-size:13px;color:#374151;line-height:1.5;margin:6px 0;}',
     '.sign-elec b{display:block;color:#15803D;font-size:14px;}',
     '.pied{margin-top:26px;font-size:11px;color:#9CA3AF;display:flex;justify-content:space-between;}',
