@@ -7801,3 +7801,7 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 
 /* Agenda : sur ordinateur, les filtres passent à la ligne au lieu de sortir de la fenêtre (défilement invisible) */
 @media (min-width: 769px) { #agenda-filtres { flex-wrap: wrap !important; overflow: visible !important; } }
+.reg-tableau .reg-flamme { text-align: center; white-space: nowrap; font-weight: 700; padding: 0 8px; }
+.reg-tableau td.reg-flamme i { color: #FF9600; }
+.reg-tableau td.reg-flamme.zero { color: #B8B2A8; font-weight: 600; }
+.reg-tableau td.reg-flamme.zero i { color: #D6D0C7; }

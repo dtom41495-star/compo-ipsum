@@ -135,10 +135,15 @@ function osRegulariteCalculer(membre, arts){
   var arrivee = membre && window._rattacheLe && window._rattacheLe[membre.id] ? window._rattacheLe[membre.id] : (membre && membre.created_at ? new Date(membre.created_at) : null);
   var redacs = _regRedacsDe(membre && membre.id);
   // Envoyé au SR ou publié, comme la carte « Ma série » et les rappels : date de mise en ligne, sinon d'envoi au SR, sinon de modification
-  var publis = (arts || []).filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).map(function(a){
+  var envoyes = (arts || []).filter(function(a){ return a.statut === 'publie' || a.statut === 'en-relecture' || a.statut === 'corrige' || a.statut === 'valide'; }).map(function(a){
     var d = a.publie_le || a.envoye_sr_le || a.updated_at, t = d ? new Date(d) : null;
-    return { date:(t && !isNaN(t)) ? _regDateEff(a.id, t) : null, breve:a.type === 'breve' };
-  }).filter(function(p){ return p.date; });
+    return { id:a.id, type:a.type, date:(t && !isNaN(t)) ? t : null };
+  }).filter(function(i){ return i.date; });
+  var publis = envoyes.map(function(i){ return { date:_regDateEff(i.id, i.date), breve:i.type === 'breve' }; });
+  // Série (la flamme) : même calcul que la carte « Ma série » de la personne
+  var flamme = typeof osSerieCalculer === 'function'
+    ? osSerieCalculer(envoyes, arrivee, null, gels, function(d, f){ return !!(membre && typeof osPauseMembreSemaine === 'function' && osPauseMembreSemaine(membre.id, d, f)); }, redacs)
+    : null;
 
   var semaines = [];
   for(var k = REG_SEMAINES; k >= 0; k--){            // k = 0 : semaine en cours
@@ -179,6 +184,7 @@ function osRegulariteCalculer(membre, arts){
   var alerteBreve = serie >= REG_SEUIL_INACTIF ? 'rouge' : (serie >= 1 ? 'orange' : '');
   var alerteArticle = (!articleRecent.avant && articleRecent.articles === 0) ? ((blocs.length > 1 && blocs[blocs.length-2].articles === 0 && !blocs[blocs.length-2].avant) ? 'rouge' : 'orange') : '';
   return { semaines:semaines, blocs:blocs, manquesBreve:manquesBreve, compensees:compensees, nbSemainesCompte:quatre.length, serie:serie,
+           flamme:flamme ? flamme.serie : null, flammeFaite:flamme ? flamme.faite : false,
            joursArticle:joursArticle, alerteBreve:alerteBreve, alerteArticle:alerteArticle };
 }
 
@@ -206,6 +212,11 @@ function _regTexteBreve(r){
   if(r.alerteBreve === 'orange') return r.serie === 1 ? 'Pas de brève la semaine dernière : à compenser' : r.serie+' semaines sans brève';
   return '';
 }
+// Série en cours (semaines d'affilée en règle), comme sur la carte « Ma série » de la personne
+function _regFlammeTexte(r){
+  if(r.flamme === null || r.flamme === undefined) return '';
+  return r.flamme === 0 ? 'Pas de série en cours' : r.flamme+' semaine'+(r.flamme > 1 ? 's' : '')+' de série'+(r.flammeFaite ? '' : ' (brève de la semaine à envoyer)');
+}
 function _regTexteArticle(r){
   if(r.alerteArticle === 'rouge') return 'Pas d\'article depuis plus de 8 semaines';
   if(r.alerteArticle === 'orange') return 'Pas d\'article ces 4 dernières semaines';
@@ -226,6 +237,7 @@ function osRegulariteFicheHtml(s){
   var b = _regAlerteBadge(r.alerteBreve, _regTexteBreve(r)) + _regAlerteBadge(r.alerteArticle, _regTexteArticle(r));
   var enRegle = r.nbSemainesCompte - r.manquesBreve;
   var okBreve = r.nbSemainesCompte ? enRegle+' semaine'+(enRegle > 1 ? 's' : '')+' en règle sur les '+r.nbSemainesCompte+' dernières'+(r.compensees ? ' (dont '+r.compensees+' compensée'+(r.compensees > 1 ? 's' : '')+')' : '') : 'Arrivé·e il y a moins d\'une semaine';
+  if(_regFlammeTexte(r)) h += '<div style="font-size:0.82rem;font-weight:700;margin-top:6px;"><i class="ti ti-flame" style="color:'+(r.flamme > 0 ? '#FF9600' : '#B8B2A8')+';"></i> '+esc(_regFlammeTexte(r))+'</div>';
   h += '<div style="font-size:0.78rem;margin-top:6px;">'+esc(okBreve)+'</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'+(b || '<span class="reg-badge" style="background:#D4EDDA;color:#155724;">Rien à signaler</span>')+'</div>';
   h += '<div class="reg-legende" style="margin-top:8px;">Articles par période de 4 semaines (de la plus ancienne à la plus récente)</div><div class="reg-ligne-sem">';
@@ -256,13 +268,15 @@ function osRegulariteRendreOnglet(div, stats){
     +'<div class="reg-outils"><label><input type="checkbox" '+(_regInclureInactifs ? 'checked ' : '')+'onchange="_regInclureInactifs=this.checked;osRegulariteRafraichir()"> Inclure les inactifs et indisponibles</label>'
       +'<span class="reg-legende">Règlement : une brève par semaine. Une semaine vide se compense la semaine suivante avec 2 brèves (✓), ou se gèle avec des heures de bénévolat (❄). Rouge : '+REG_SEUIL_INACTIF+' semaines vides d\'affilée, à passer inactif ?</span></div>'
     +'<div class="reg-tableau-zone"><table class="reg-tableau"><thead><tr><th class="reg-nom">Bénévole</th>';
+  h = h.replace('<th class="reg-nom">Bénévole</th>', '<th class="reg-nom">Bénévole</th><th class="reg-flamme" title="Semaines de série en cours">Série</th>');
   sem.forEach(function(w){ h += '<th>'+w.debut.getDate()+'/'+(w.debut.getMonth()+1)+(w.courante ? '<small>en cours</small>' : '')+'</th>'; });
   h += '<th class="reg-sep">Articles<small>par 4 sem.</small></th><th>À signaler</th></tr></thead><tbody>';
-  if(!liste.length) h += '<tr><td colspan="'+(sem.length+3)+'" style="padding:1.5rem;text-align:center;color:var(--gris);">Aucun membre à suivre.</td></tr>';
+  if(!liste.length) h += '<tr><td colspan="'+(sem.length+4)+'" style="padding:1.5rem;text-align:center;color:var(--gris);">Aucun membre à suivre.</td></tr>';
   liste.forEach(function(s){
     var m = s.membre, r = s.reg;
     h += '<tr onclick="osRegulariteOuvrirFiche(\''+esc(m.id)+'\')"><td class="reg-nom"><span class="reg-av">'+renderAvatarHTML(m, 26, {})+'</span>'
-      +'<span>'+esc(((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—')+(s.inactif ? '<small>'+(m.marque_inactif ? 'Inactif (vie asso)' : 'Indisponible')+'</small>' : '')+'</span></td>';
+      +'<span>'+esc(((m.prenom||'')+' '+(m.nom||'')).trim() || m.email || '—')+(s.inactif ? '<small>'+(m.marque_inactif ? 'Inactif (vie asso)' : 'Indisponible')+'</small>' : '')+'</span></td>'
+      +'<td class="reg-flamme'+(r.flamme > 0 ? '' : ' zero')+'" title="'+esc(_regFlammeTexte(r))+'"><i class="ti ti-flame"></i> '+(r.flamme === null || r.flamme === undefined ? '–' : r.flamme)+'</td>';
     r.semaines.forEach(function(w){ h += '<td>'+_regCellule(w.breves, w)+'</td>'; });
     h += '<td class="reg-sep">'+r.blocs.map(function(bl){ return _regCellule(bl.articles, {avant:bl.avant, courante:false}); }).join('')+'</td>';
     h += '<td class="reg-signal">'+(_regAlerteBadge(r.alerteBreve, _regTexteBreve(r)) + _regAlerteBadge(r.alerteArticle, _regTexteArticle(r)) || '<span class="reg-ok"><i class="ti ti-check"></i></span>')+'</td></tr>';
