@@ -6187,9 +6187,7 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 /* Mes alertes (js/54-veille-alertes.js) */
 .vl-alerte { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: rgba(232,70,30,0.12); color: var(--rouge); font-weight: 700; font-size: 0.6rem; }
 .os-w-veille-meta .vl-alerte { background: rgba(232,70,30,0.3); color: #fff; font-size: 0.58rem; padding: 0 6px; }
-.vl-alerte-expire { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: rgba(217,130,43,0.16); color: #9A5512; font-weight: 700; font-size: 0.6rem; white-space: nowrap; }
-.os-w-veille-meta .vl-alerte-expire { background: rgba(255,255,255,0.2); color: #fff; font-size: 0.58rem; padding: 0 6px; }
-.vl-alertes-tete > div:first-child .vl-alertes-note { color: #9A5512; }
+.os-w-veille-meta .vl-alertes-tete > div:first-child .vl-alertes-note { color: #9A5512; }
 .vl-alertes-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 0.8rem 1rem; margin-bottom: 1rem; border-radius: 12px; background: rgba(232,70,30,0.06); border: 1px solid rgba(232,70,30,0.18); }
 .vl-alertes-tete > div:first-child { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; font-size: 0.84rem; }
 .vl-alertes-tete > div:first-child span { font-size: 0.7rem; color: var(--gris); }
