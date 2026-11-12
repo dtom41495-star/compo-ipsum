@@ -7785,6 +7785,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .tau-ligne { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid #F1EFEC; padding: 8px 2px; cursor: pointer; font-family: inherit; }
 .tau-sec .ipj-aj-sec-t + .tau-ligne { border-top: none; }
 .tau-ligne:hover { background: #FAFAF9; }
+:root.theme-dark .tau-ligne { border-top-color: rgba(255,255,255,0.08); }
+:root.theme-dark .tau-ligne:hover { background: rgba(255,255,255,0.06); }
 .tau-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex: none; font-size: 1rem; }
 .tau-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .tau-tx b { font-size: 0.84rem; font-weight: 600; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
