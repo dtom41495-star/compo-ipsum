@@ -1219,7 +1219,7 @@ function osNettoyageRender(moisLimite){
     // Répartition par type ce mois
     var typesCount = {};
     emailsMois.forEach(function(e){ typesCount[e.type||'autre'] = (typesCount[e.type||'autre']||0)+1; });
-    var typeLabels = {cp:'CPs',correction:'Relectures (SR)',publication:'Mises en ligne',ticket:'Tickets',autre:'Autres'};
+    var typeLabels = {cp:'CPs',correction:'Relectures (SR)',publication:'Mises en ligne',autre:'Autres'};
 
     html += '<div style="background:'+(pctJour>=90?'#FCEBEB':pctJour>=70?'#FAEEDA':'white')+';border:0.5px solid var(--gris-bord);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1rem;">';
     html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.7rem;">';

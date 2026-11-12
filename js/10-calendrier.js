@@ -34,10 +34,10 @@ function osRedacPublierAnnonce(){
   if(!msg.trim()){ notif('Saisis un message'); return; }
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
   // redaction_id : ce bouton vit dans l'écran d'UNE rédaction, mais postait jusqu'ici dans
-  // la même table que le Tableau/Tchap général sans aucune distinction — le message était
+  // la même table que le Tableau général sans aucune distinction — le message était
   // en réalité diffusé à toute l'association. Marquer explicitement la rédaction d'origine
   // permet à osRedacChargerAnnonces de n'afficher que les messages de SA propre équipe, et
-  // aux flux généraux (Tableau, Tchap...) de continuer à exclure ces messages d'équipe.
+  // aux flux généraux (Tableau...) de continuer à exclure ces messages d'équipe.
   fetch(SB_URL+'/rest/v1/annonces',{method:'POST',headers:authH,body:JSON.stringify({message:msg.trim(),type:type,lien:lien||null,auteur:getUserNomComplet(),actif:true,redaction_id:window._redacActiveId||null})})
   .then(function(r){
     if(r.ok){
@@ -194,7 +194,7 @@ function osRedacChargerAlertes(zone){
 function osRedacChargerAnnonces(zone){
   if(!zone) return;
   // Uniquement les messages d'équipe de LA rédaction active — jamais toute l'association
-  // (les annonces association-wide, redaction_id=null, restent visibles via le Tableau/Tchap).
+  // (les annonces association-wide, redaction_id=null, restent visibles via le Tableau).
   var uRedacAnn = SB_URL+'/rest/v1/annonces?actif=eq.true&order=created_at.desc&select=*';
   uRedacAnn += window._redacActiveId ? '&redaction_id=eq.'+encodeURIComponent(window._redacActiveId) : '&redaction_id=is.null';
   fetch(uRedacAnn,{headers:SB_HEADERS})

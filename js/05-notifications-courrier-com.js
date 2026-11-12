@@ -353,7 +353,7 @@ function _osOpenWindowExecuter(pageId){
     cockpit:'Cockpit', 'notes-frais':'Notes de frais', bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'titres':'Générateur de titres', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
     lecture:'Lecture',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
-    guide:'Manuel', tickets:'Assistance', log:'Journal', 
+    guide:'Manuel', log:'Journal', 
     newsletter:'Newsletter', communique:'Nouveau communiqué', projets:'Tâches',
     snake:'Presse Express', substack:'Articles publiés', signatures:'Signatures',
     'upload-medias':'Fichiers', 'magneto':'Enregistrer', 'flouter':'Flouter une photo', 'transcrire':'Transcrire', 'salles':'Salles', 'app-dub':'Raccourcisseur', tresorerie:'Trésorerie', veille:'Veille'
@@ -2201,7 +2201,7 @@ function osRenderNotifCenter(){
   }
   content.innerHTML = '';
 
-  var types = { ticket:'<i class="ti ti-urgent"></i> Assistance', correction:'<i class="ti ti-search"></i> Relecture (SR)', publication:'<i class="ti ti-circle-check"></i> Mise en ligne', sujet:'<i class="ti ti-pin"></i> Sujets à rédiger', suppression:'<i class="ti ti-trash"></i> Demandes de suppression', info:'<i class="ti ti-info-circle"></i> Info' };
+  var types = { correction:'<i class="ti ti-search"></i> Relecture (SR)', publication:'<i class="ti ti-circle-check"></i> Mise en ligne', sujet:'<i class="ti ti-pin"></i> Sujets à rédiger', suppression:'<i class="ti ti-trash"></i> Demandes de suppression', info:'<i class="ti ti-info-circle"></i> Info' };
   var grouped = {};
   _ncItems.forEach(function(item, idx){
     var t = item.type || 'info';
