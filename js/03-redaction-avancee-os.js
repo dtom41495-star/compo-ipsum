@@ -1237,7 +1237,7 @@ function _reserverSujetCreerBrouillonEtOuvrir(sujet){
 }
 
 
-// ===== TICKETS =====
+// Adresse de contact de l'association
 var ADMIN_EMAIL = 'contact@ipsummedia.fr';
 
 // ===== PRÉSENCE EN LIGNE =====

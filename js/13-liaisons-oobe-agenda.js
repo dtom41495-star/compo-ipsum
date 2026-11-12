@@ -1656,10 +1656,17 @@ function osAgendaOuvrirDetail(ev){
   html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">';
   if(!isAnnule) html += '<span style="display:inline-flex;"><button onclick="event.stopPropagation();osAgendaMenuAjouterAgenda(this,\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-calendar-plus"></i> Ajouter à mon agenda</button></span>';
   html += '<button onclick="osAgendaCopierLien(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-link"></i> Copier le lien</button>';
-  if(isAdmin && !isAnnule){
+  // Qui gère l'agenda : admin, vie asso, rédac chefs. Tout faire sur ses propres événements (et l'admin sur tous) ;
+  // sur ceux des autres : seulement changer l'horaire ou annuler, jamais modifier le reste ni supprimer (la base le vérifie aussi).
+  var gereAgenda = isAdmin || osAgendaGere();
+  var estCreateur = !!ev.cree_par && ev.cree_par === getUserId();
+  if(!isAnnule && (isAdmin || (gereAgenda && estCreateur))){
     html += '<button onclick="osAgendaEditer(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-pencil"></i> Modifier</button>';
     html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" title="Annuler l\'événement" style="'+BTN_DANGER+'"><i class="ti ti-ban"></i> Annuler</button>';
     html += '<button onclick="osAgendaSupprimer(\''+ev.id+'\')" title="Supprimer définitivement" style="'+BTN_DANGER+'"><i class="ti ti-trash"></i></button>';
+  } else if(!isAnnule && gereAgenda){
+    html += '<button onclick="osAgendaChangerHoraire(\''+ev.id+'\')" style="'+BTN_SEC+'"><i class="ti ti-clock-edit"></i> Changer l\'horaire</button>';
+    html += '<button onclick="osAgendaAnnuler(\''+ev.id+'\')" title="Annuler l\'événement" style="'+BTN_DANGER+'"><i class="ti ti-ban"></i> Annuler</button>';
   }
   html += '</div>';
   html += '</div>';
@@ -2755,6 +2762,63 @@ function osAgendaAnnuler(evId){
       osAgendaCharger();
     }
   });
+}
+
+// Gère l'agenda (en plus de l'admin) : la vie asso et les rédac chefs, de n'importe quelle rédaction (comme la base)
+function osAgendaGere(){
+  if(getUserRole() === 'admin' || getUserHasFonction('vie_asso')) return true;
+  var moi = getUserId();
+  return (_membresRedactionsData||[]).some(function(mr){ return mr.membre_id === moi && mr.role_redac === 'redac_chef'; });
+}
+
+// Changer seulement l'horaire d'un événement (date, début, fin), y compris d'un événement créé par quelqu'un d'autre.
+// Les inscrits sont prévenus comme pour une modification (ancienne date ou heure barrée).
+function osAgendaChangerHoraire(evId){
+  var ev = (_agendaEvenements||[]).find(function(e){ return e.id === evId; });
+  if(!ev) return;
+  var p2 = function(n){ return (n < 10 ? '0' : '')+n; };
+  var jourDe = function(d){ return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); };
+  var heureDe = function(d){ return p2(d.getHours())+':'+p2(d.getMinutes()); };
+  var d0 = new Date(ev.date_debut), f0 = ev.date_fin ? new Date(ev.date_fin) : null;
+  var ov = document.createElement('div');
+  ov.className = 'se-overlay dlg-overlay';
+  ov.innerHTML = '<div class="se-boite dlg-boite" role="dialog" aria-modal="true" aria-labelledby="ach-question"><div class="se-corps">'
+    +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-clock-edit"></i></span><div>'
+    +'<div id="ach-question" class="dlg-question">Changer l\'horaire</div>'
+    +'<p class="se-aide dlg-details">'+esc(ev.titre||'Événement')+'</p></div></div>'
+    +'<label class="sren-lbl">Date</label><input class="dlg-champ ach-jour" type="date" value="'+jourDe(d0)+'">'
+    +'<label class="sren-lbl">Début</label><input class="dlg-champ ach-debut" type="time" value="'+heureDe(d0)+'">'
+    +'<label class="sren-lbl">Fin (facultatif)</label><input class="dlg-champ ach-fin" type="time" value="'+(f0 ? heureDe(f0) : '')+'">'
+    +'<label class="sren-lbl" style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" class="ach-prevenir" checked> Prévenir les inscrit·es</label>'
+    +'<div class="dlg-actions"><button type="button" class="se-btn-secondaire dlg-non">Fermer</button>'
+    +'<button type="button" class="se-btn-principal dlg-oui"><i class="ti ti-check"></i> Enregistrer</button></div></div></div>';
+  document.body.appendChild(ov);
+  var fermer = function(){ document.removeEventListener('keydown', clavier, true); ov.remove(); };
+  var clavier = function(e){ if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); fermer(); } };
+  document.addEventListener('keydown', clavier, true);
+  ov.addEventListener('click', function(e){ if(e.target === ov) fermer(); });
+  ov.querySelector('.dlg-non').onclick = fermer;
+  ov.querySelector('.dlg-oui').onclick = function(){
+    var jour = ov.querySelector('.ach-jour').value, deb = ov.querySelector('.ach-debut').value, fin = ov.querySelector('.ach-fin').value;
+    if(!jour || !deb){ notif('Indique la date et l\'heure de début', 'erreur'); return; }
+    var debut = new Date(jour+'T'+deb), finD = fin ? new Date(jour+'T'+fin) : null;
+    if(finD && finD <= debut){ notif('La fin doit être après le début', 'erreur'); return; }
+    var charge = { date_debut:debut.toISOString(), date_fin:finD ? finD.toISOString() : null };
+    var prevenir = ov.querySelector('.ach-prevenir').checked;
+    var avant = Object.assign({}, ev);
+    var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
+    fetch(SB_URL+'/rest/v1/agenda_evenements?id=eq.'+encodeURIComponent(evId),{method:'PATCH',headers:authH,body:JSON.stringify(charge)})
+    .then(function(r){
+      if(!r.ok){ notif('Impossible de changer l\'horaire de cet événement', 'erreur'); return; }
+      fermer();
+      notif('Horaire modifié', 'succes');
+      if(prevenir && debut > new Date()) _osAgendaPrevenirModification(avant, Object.assign({}, ev, charge));
+      osAgendaCharger(function(){
+        var frais = (_agendaEvenements||[]).find(function(e){ return e.id === evId; });
+        if(frais) osAgendaOuvrirDetail(frais); else osAgendaRendreVue();
+      });
+    }).catch(function(){ notif('Impossible de changer l\'horaire de cet événement', 'erreur'); });
+  };
 }
 
 function osAgendaSupprimer(evId){

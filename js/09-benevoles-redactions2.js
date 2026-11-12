@@ -86,7 +86,7 @@ function _osBenvOrganigrammeHTML(membres){
     var srRedac = !estChef && !estCorrecteur && liens.some(function(l){ return l.membre_id===m.id && l.redaction_id===redacId && osLienEstSR(l); });
     var taille = estChef?52:40;
     // Le rôle Compo (admin/correcteur/...) garde toujours sa couleur habituelle —
-    // celle qu'on retrouve partout ailleurs dans l'app (Tchap, listes de membres...).
+    // celle qu'on retrouve partout ailleurs dans l'app (listes de membres...).
     // "Chef" est une position sur CETTE rédaction (role_redac), pas un rôle : on la
     // signale par un liseré corail additif plutôt qu'en recolorant l'avatar, pour ne
     // pas désynchroniser ce badge du reste de l'app (un chef qui est aussi admin doit

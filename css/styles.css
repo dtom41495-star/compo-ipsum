@@ -3357,22 +3357,6 @@ input:focus,select:focus,textarea:focus{
 .sujet-card-footer { padding:0 1.4rem 1.4rem;display:flex;gap:0.6rem; }
 
 
-/* TICKETS */
-.ticket-card {
-  background:white;
-  border:1.5px solid var(--gris-bord);
-  padding:1rem 1.2rem;
-  margin-bottom:0.7rem;
-  transition:border-color 0.14s;
-}
-.ticket-card:hover { border-color:var(--rouge); }
-.ticket-card-header { display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;margin-bottom:0.5rem; }
-.ticket-titre { font-weight:700;font-size:0.92rem;color:var(--encre);flex:1; }
-.ticket-badges { display:flex;gap:0.4rem;flex-wrap:wrap;flex-shrink:0; }
-.ticket-meta { font-family:Space Mono,monospace;font-size:0.62rem;color:var(--gris);margin-bottom:0.5rem; }
-.ticket-desc { font-size:0.85rem;color:var(--gris);line-height:1.5;margin-bottom:0.8rem; }
-.ticket-reponse { background:#EAF3DE;border-left:3px solid #155724;padding:0.7rem 0.9rem;font-size:0.85rem;margin-top:0.6rem; }
-.ticket-reponse-label { font-family:Space Mono,monospace;font-size:0.6rem;color:#155724;text-transform:uppercase;margin-bottom:0.3rem; }
 
 
 /* SCREENSAVER — montre qui écrit en ce moment. Protégé pour les écrans OLED (js/03, ssDeriver) :
@@ -7785,6 +7769,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .tau-ligne { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid #F1EFEC; padding: 8px 2px; cursor: pointer; font-family: inherit; }
 .tau-sec .ipj-aj-sec-t + .tau-ligne { border-top: none; }
 .tau-ligne:hover { background: #FAFAF9; }
+:root.theme-dark .tau-ligne { border-top-color: rgba(255,255,255,0.08); }
+:root.theme-dark .tau-ligne:hover { background: rgba(255,255,255,0.06); }
 .tau-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex: none; font-size: 1rem; }
 .tau-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .tau-tx b { font-size: 0.84rem; font-weight: 600; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

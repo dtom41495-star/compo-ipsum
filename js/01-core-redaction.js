@@ -51,7 +51,7 @@ var AVATARS_DISPONIBLES = [
 ];
 
 // Rendu partagé d'un avatar membre — utilisé partout où un membre est représenté par
-// un rond (Tchap, organigramme, listes admin, fiche bénévole...). Si le membre a choisi
+// un rond (organigramme, listes admin, fiche bénévole...). Si le membre a choisi
 // un avatar illustré (membre.avatar_id), on l'affiche ; sinon on retombe sur le rond
 // couleur de rôle + initiales habituel, donc zéro changement visuel pour qui n'a rien
 // choisi. opts permet de préserver les variantes déjà existantes site par site :
@@ -92,7 +92,7 @@ function osDevModeAppliquer(){
     osDevModeScanner();
     if(!_devModeObserver){
       _devModeObserver = new MutationObserver(function(){
-        // L'app re-rend des listes entières très souvent (Tchap, Ma Rédac'...) — on
+        // L'app re-rend des listes entières très souvent (Ma Rédac'...) — on
         // regroupe les rebalayages plutôt que d'en lancer un par mutation.
         clearTimeout(_devModeScanTimer);
         _devModeScanTimer = setTimeout(osDevModeScanner, 200);

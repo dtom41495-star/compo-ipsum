@@ -171,6 +171,17 @@ function _verifTous(texte, re, filtre){
   return r;
 }
 
+// Texte de l'éditeur SANS les notes du correcteur : elles sont posées dans l'éditeur (encarts .r-comment-marker) mais ne font pas
+// partie de l'article (jamais enregistrées, js/02 _rBlocVersMd), donc elles ne doivent pas être vérifiées comme du texte.
+// On les masque le temps de la lecture : innerText ignore ce qui est masqué et garde les retours à la ligne entre paragraphes.
+function _verifTexteSansNotes(el){
+  var notes = el.querySelectorAll('.r-comment-marker'), avant = [];
+  notes.forEach(function(n){ avant.push(n.style.display); n.style.display = 'none'; });
+  var texte = el.innerText || '';
+  notes.forEach(function(n, i){ n.style.display = avant[i]; });
+  return texte;
+}
+
 // Les champs vérifiés, tels qu'ils sont dans l'éditeur à cet instant
 function _verifChamps(){
   var live = _srEl('r-corps-live');
@@ -181,7 +192,7 @@ function _verifChamps(){
     { cle:'chapeau', nom:'Chapô', el:_srEl('r-chapeau') },
     { cle:'corps',   nom:'Texte', el:corps }
   ].filter(function(c){ return c.el; }).map(function(c){
-    c.texte = c.el.isContentEditable ? (c.el.innerText || '') : (c.el.value || '');
+    c.texte = c.el.isContentEditable ? _verifTexteSansNotes(c.el) : (c.el.value || '');
     return c;
   });
 }
@@ -318,6 +329,7 @@ function _verifTrouverDansNoeuds(racine, cherche, rang){
   if(!cherche) return null;
   var w = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT), n, vu = 0;
   while((n = w.nextNode())){
+    if(n.parentElement && n.parentElement.closest('.r-comment-marker')) continue;   // une note du correcteur n'est pas du texte de l'article
     var k = -1;
     while((k = n.nodeValue.indexOf(cherche, k + 1)) !== -1){
       if(vu === rang) return { noeud:n, debut:k, longueur:cherche.length };
