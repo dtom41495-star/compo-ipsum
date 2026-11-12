@@ -246,6 +246,18 @@ function osRegulariteFicheHtml(s){
     h += '<div class="reg-col-sem"><small>'+w.debut.getDate()+'/'+(w.debut.getMonth()+1)+'</small>'+_regCellule(w.breves, w)+'</div>';
   });
   h += '</div><div class="reg-legende">Brèves publiées par semaine (la dernière colonne est la semaine en cours). ✓ : semaine vide compensée par la suivante, ❄ : semaine gelée, ⏸ : rédaction en pause</div>';
+  // Admin : rallumer la flamme en gelant gratuitement une semaine vide (dérogation), semaine par semaine
+  if(typeof getUserRole === 'function' && getUserRole() === 'admin' && s.membre){
+    var vides = r.semaines.filter(function(w){ return !w.avant && !w.pause && !w.gel && !w.comp && w.breves === 0; });
+    if(vides.length){
+      h += '<div class="reg-rallumer"><div class="reg-rallumer-t"><i class="ti ti-flame"></i> Rallumer la flamme (admin) : geler gratuitement une semaine vide</div><div class="reg-rallumer-b">'
+        + vides.map(function(w){
+            var lib = w.debut.getDate()+'/'+(w.debut.getMonth()+1)+(w.courante ? ' (en cours)' : '');
+            return '<button type="button" class="reg-rallumer-bt" onclick="osRegulariteAccorderGel(\''+esc(s.membre.id)+'\',\''+_serieCle(w.debut)+'\',\''+lib+'\')"><i class="ti ti-snowflake"></i> '+lib+'</button>';
+          }).join('')
+        + '</div></div>';
+    }
+  }
   var b = _regAlerteBadge(r.alerteBreve, _regTexteBreve(r)) + _regAlerteBadge(r.alerteArticle, _regTexteArticle(r));
   var enRegle = r.nbSemainesCompte - r.manquesBreve;
   var okBreve = r.nbSemainesCompte ? enRegle+' semaine'+(enRegle > 1 ? 's' : '')+' en règle sur les '+r.nbSemainesCompte+' dernières'+(r.compensees ? ' (dont '+r.compensees+' compensée'+(r.compensees > 1 ? 's' : '')+')' : '') : 'Arrivé·e il y a moins d\'une semaine';
@@ -296,6 +308,38 @@ function osRegulariteRendreOnglet(div, stats){
   h += '</tbody></table></div></div>';
   div.innerHTML = h;
 }
+// Admin : gèle gratuitement UNE semaine vide d'une personne (dérogation). La série reste en vie, sans +1, et la semaine n'est plus relancée.
+// Le serveur revérifie tout (réservé admin, semaine pas dans le futur, pas plus vieille que la série relue) : fonction gel_serie_accorder.
+var _REG_ERREURS_GEL = {
+  reserve_admin:'Réservé aux administrateurs.', deja_gelee:'Cette semaine est déjà gelée.',
+  semaine_future:'Cette semaine n\'a pas encore commencé.', semaine_trop_ancienne:'Cette semaine est trop ancienne (la série relit 26 semaines).',
+  membre_inconnu:'Membre introuvable.'
+};
+function osRegulariteAccorderGel(membreId, cle, libelle){
+  var st = (window._benvData || []).find(function(d){ return d.membre.id === membreId; });
+  var prenom = st && st.membre.prenom ? st.membre.prenom : 'cette personne';
+  osConfirmer('Rallumer la flamme de '+prenom+' ? La semaine du '+libelle+' sera gelée gratuitement : sa série est protégée (sans +1) et elle ne sera plus relancée pour cette semaine.', { oui:'Geler ❄', icone:'snowflake' }).then(function(ok){
+    if(!ok) return;
+    var h = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session && _session.access_token || ''), 'Content-Type':'application/json'});
+    fetch(SB_URL+'/rest/v1/rpc/gel_serie_accorder', { method:'POST', headers:h, body:JSON.stringify({ p_membre:membreId, p_debut:cle }) })
+      .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        if(!res.ok){
+          var m = res.d && res.d.message ? String(res.d.message) : '';
+          osShowToast(Object.prototype.hasOwnProperty.call(_REG_ERREURS_GEL, m) ? _REG_ERREURS_GEL[m] : 'Impossible de geler cette semaine pour le moment.', 'erreur');
+          return;
+        }
+        if(!window._gelsSerie) window._gelsSerie = Object.create(null);
+        if(!window._gelsSerie[membreId]) window._gelsSerie[membreId] = new Set();
+        window._gelsSerie[membreId].add(cle);
+        if(st && st._arts) st.reg = osRegulariteCalculer(st.membre, st._arts);
+        osShowToast('Flamme rallumée ❄', 'succes', {icon:'snowflake'});
+        if(typeof osBenevolesOuvrirFiche === 'function') osBenevolesOuvrirFiche(membreId);
+        osRegulariteRafraichir();
+      }).catch(function(){ osShowToast('Impossible de geler cette semaine pour le moment.', 'erreur'); });
+  });
+}
+
 function osRegulariteRafraichir(){
   var div = document.getElementById('benv-regularite');
   if(div) osRegulariteRendreOnglet(div, window._benevolesStats);

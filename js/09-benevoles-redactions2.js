@@ -281,7 +281,7 @@ function osBenevolesDashRender(){
       // Le dernier article OU brève publié, quel que soit le type — pour le rapport
       // d'équipe : ce que la personne a produit en dernier, pas seulement quand.
       var dernierPublie=publis.length?publis.reduce(function(a,b){return new Date(a.updated_at)>new Date(b.updated_at)?a:b;}):null;
-      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,reg:(typeof osRegulariteCalculer==='function'?osRegulariteCalculer(m,arts):null),articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]&&!osSansRedactionVoulu(m),sansRedactionVoulu:!membresAvecRedac[m.id]&&osSansRedactionVoulu(m),recompenses:recompensesParMembre[m.id]||[]};
+      return{membre:m,total:arts.length,duMois:artsMois.length,publies:publis.length,delai:delai,derniereAct:dernAct,derniereConnexion:derniereConnexion,dernierPublie:dernierPublie,inactif:inactif,reg:(typeof osRegulariteCalculer==='function'?osRegulariteCalculer(m,arts):null),articles:arts.slice(0,5),joursBreve:joursBreve,joursArticle:joursArticle,sansRedaction:!membresAvecRedac[m.id]&&!osSansRedactionVoulu(m),sansRedactionVoulu:!membresAvecRedac[m.id]&&osSansRedactionVoulu(m),recompenses:recompensesParMembre[m.id]||[],_arts:arts};
     });
     window._benevolesStats = statsMembres; // utilisé par l'export PDF de l'équipe
     var maxDuMois=Math.max.apply(null,statsMembres.map(function(s){return s.duMois;}).concat([1]));
