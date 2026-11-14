@@ -1360,8 +1360,11 @@ function cpsRendreListe(liste, cps){
       suite = filtres.filter(function(c){ return nouveaux.indexOf(c) === -1; });
     }
     var rendre = function(lot){
-      if(filtreVue==='liste') cpsvListe(liste, lot, vus);
-      else lot.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+      // Par lots, au fil du défilement : tout afficher d'un coup (des milliers d'éléments) faisait ramer la fenêtre
+      _cpsRendreParLots(liste, lot, function(morceau){
+        if(filtreVue==='liste') cpsvListe(liste, morceau, vus);
+        else morceau.forEach(function(cp){ liste.appendChild(cpsMakeCard(cp, false)); });
+      });
     };
     if(nouveaux.length){
       liste.appendChild(_cpsTitreSection('ti-sparkles', 'Nouveaux', nouveaux.length, 'Ajoutés ces 2 derniers jours, pas encore lus'));
@@ -1375,6 +1378,40 @@ function cpsRendreListe(liste, cps){
 }
 
 var CPS_NOUVEAUX_MS = 2 * 24 * 3600 * 1000;
+
+// Affiche `lot` par paquets de CPS_LOT : le paquet suivant arrive quand on approche du bas de la liste
+// (ou d'un clic sur « Afficher plus », si le navigateur ne sait pas détecter le défilement).
+// La recherche, les filtres et les compteurs portent toujours sur toute la liste, déjà en mémoire.
+var CPS_LOT = 30;
+function _cpsRendreParLots(liste, lot, rendreMorceau){
+  var i = 0;
+  function suivant(){
+    rendreMorceau(lot.slice(i, i + CPS_LOT));
+    i += CPS_LOT;
+    if(i >= lot.length) return;
+    var plus = document.createElement('div');
+    plus.className = 'cps-plus';
+    plus.innerHTML = '<button type="button" class="mac-btn"><i class="ti ti-chevrons-down"></i>Afficher plus <span>('+(lot.length - i)+')</span></button>';
+    liste.appendChild(plus);
+    var obs = null, fait = false;
+    function charger(){
+      if(fait) return;
+      fait = true;
+      if(obs) obs.disconnect();
+      if(!plus.isConnected) return;      // liste reconstruite entre-temps (filtre, recherche…)
+      plus.remove();
+      suivant();
+    }
+    plus.querySelector('button').onclick = charger;
+    if(typeof IntersectionObserver === 'function'){
+      obs = new IntersectionObserver(function(entrees){
+        if(entrees.some(function(e){ return e.isIntersecting; })) charger();
+      }, { rootMargin:'0px 0px 300px 0px' });
+      obs.observe(plus);
+    }
+  }
+  suivant();
+}
 function _cpsTitreSection(icone, titre, n, aide){
   var h = document.createElement('div');
   h.className = 'cps-section';
