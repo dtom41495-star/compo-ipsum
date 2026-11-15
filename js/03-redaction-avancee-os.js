@@ -850,22 +850,29 @@ function _osArticlePubliable(article){
 }
 
 function publierArticle(id){
-  if(!osConfirmerPuis('Marquer cet article comme publie sur Substack ?', {oui:'Marquer publié'}, publierArticle, this, arguments)) return;
+  // Un article part sur ipsummedia.fr ; une brève est seulement marquée publiée (elle part dans la newsletter)
+  if(!osConfirmerPuis('Mettre en ligne ? Un article part sur ipsummedia.fr, une brève est marquée publiée.', {oui:'Mettre en ligne'}, publierArticle, this, arguments)) return;
   var authHChk = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id', {headers:authHChk})
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id,type', {headers:authHChk})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var art = data && data[0];
-    if(art && art.statut!=='publie' && !_osArticlePubliable(art)){
+    if(!art){ notif('Article introuvable', 'erreur'); return; }
+    if(art.statut!=='publie' && !_osArticlePubliable(art)){
       notif('La validation de la rédaction centrale est requise avant de publier cet article.', 'erreur');
       return;
     }
-    _publierArticleReel(id);
-  }).catch(function(){ _publierArticleReel(id); });
+    _publierArticleReel(id, art.type);
+  }).catch(function(){ notif('Erreur reseau', 'erreur'); });
 }
 
-function _publierArticleReel(id){
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
+function _publierArticleReel(id, type){
+  var versLeSite = type === 'article' && typeof osSitePublier === 'function';
+  var miseEnLigne = versLeSite
+    // Article : copie des photos, passage « publié » et mise en ligne sur le site (js/90-site-publier.js)
+    ? osSitePublier(id).then(function(res){ _sitMajEditeur(id, res); return { ok:true, url:res.url }; },
+                             function(e){ notif('Mise en ligne impossible : '+((e && e.message) || e), 'erreur'); return { ok:false, signale:true }; })
+    : fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
     // Jeton de la personne connectée + lignes renvoyées : sinon un refus de la base
     // passait inaperçu et on annonçait « mis en ligne » sans que rien ne change.
@@ -873,17 +880,18 @@ function _publierArticleReel(id){
     body: JSON.stringify({statut:'publie', publie_le: new Date().toISOString()})
   }).then(function(r){
     return r.json().catch(function(){ return null; }).then(function(rows){ return { ok: r.ok && Array.isArray(rows) && rows.length > 0 }; });
-  }).then(function(r){
+  });
+  miseEnLigne.then(function(r){
     if(r.ok){
       if(typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger();
-      notif('Article mis en ligne','succes');
+      notif(r.url ? 'Article en ligne : '+r.url : 'Article mis en ligne','succes');
       benvMajActivite();
       if(typeof osFeliciterPremierArticle === 'function') osFeliciterPremierArticle(id);
       // Ajouter dans historique
       fetch(SB_URL+'/rest/v1/historique', {
         method: 'POST',
         headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')}),
-        body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note:'Publie sur Substack'})
+        body: JSON.stringify({article_id:id, action:'publication', auteur:getUserNomComplet(), note: versLeSite ? 'Mis en ligne sur ipsummedia.fr' : 'Marqué publié'})
       }).catch(function(){});
 
       // Email au rédacteur via auteur_id
@@ -950,7 +958,7 @@ function _publierArticleReel(id){
           }
         }).catch(function(e){ console.error('Email pub membres:', e); });
       }).catch(function(e){ console.error('Email pub article:', e); });
-    } else {
+    } else if(!r.signale){
       notif('Erreur lors de la publication');
     }
   }).catch(function(){ notif('Erreur reseau'); });
