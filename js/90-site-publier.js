@@ -53,6 +53,11 @@ function _sitAdresseLibre(titre, articleId){
   return essai(1);
 }
 
+// « Voir sur le site » pour une adresse ipsummedia.fr, « Voir en ligne » pour un ancien lien (Substack)
+function _sitLibelleLien(url){
+  return /^https:\/\/(www\.)?ipsummedia\.fr\//i.test(String(url || '')) ? 'Voir sur le site' : 'Voir en ligne';
+}
+
 function _sitEstDrive(url){ return /drive\.google\.com\//.test(String(url || '')); }
 
 // Liens Drive à copier : la photo principale et les images du texte (Markdown ![légende](lien))
@@ -232,11 +237,11 @@ function _sitMajBoutonCarte(doc){
     btn.id = 'r-site-carte-nl';
     btn.type = 'button';
     btn.className = 'btn sec';
-    btn.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;margin-top:0.5rem;';
+    btn.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;';
     btn.innerHTML = '<i class="ti ti-mail-forward"></i> Carte pour la newsletter';
     btn.title = 'Copie un bloc (photo, titre, chapô, lien vers le site) à coller dans la newsletter Substack';
     btn.onclick = function(){ osSiteCarteNewsletter(); };
-    zone.appendChild(btn);
+    (document.getElementById('r-lien-publication-actions') || zone).appendChild(btn);
   }
   btn.style.display = visible ? '' : 'none';
 }
@@ -248,3 +253,43 @@ if(typeof rWorkflowMajInterface === 'function'){
     return r;
   };
 }
+
+// ===== Vues des articles du site, lues dans Umami (fonction serveur umami-vues, secret UMAMI_API_KEY) =====
+// Remplace la saisie à la main des « vues Substack » : le chiffre est celui de la page ipsummedia.fr/articles/<adresse>.
+// Chargé une seule fois (la fonction serveur garde 10 minutes en mémoire) ; si Umami ne répond pas, rien n'est affiché.
+var _sitVuesCache = null, _sitVuesEnCours = false, _sitVuesDernierEssai = 0;
+
+// Adresse de l'article sur le site : celle de l'article, ou celle de son lien « ipsummedia.fr/articles/… »
+function _sitSlugDe(doc){
+  if(!doc) return '';
+  if(doc.site_slug) return String(doc.site_slug).toLowerCase();
+  var m = String(doc.lien_publication || '').match(/^https:\/\/(?:www\.)?ipsummedia\.fr\/articles\/([a-z0-9-]+)\/?$/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function osSiteVuesCharger(){
+  if(_sitVuesCache || _sitVuesEnCours || Date.now() - _sitVuesDernierEssai < 60000) return;
+  if(typeof _session === 'undefined' || !_session || !_session.access_token) return;
+  _sitVuesEnCours = true; _sitVuesDernierEssai = Date.now();
+  fetch(SB_URL+'/functions/v1/umami-vues', {
+    method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+_session.access_token }, body:'{}'
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      _sitVuesEnCours = false;
+      if(!(d && d.ok && d.vues)) { console.warn('[site] vues Umami indisponibles :', d && d.raison); return; }
+      _sitVuesCache = d.vues;
+      // Une liste « Mes articles » déjà affichée est redessinée une fois, avec les chiffres
+      if(typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger();
+    })
+    .catch(function(e){ _sitVuesEnCours = false; console.warn('[site] vues Umami :', e); });
+}
+
+// Texte « 12 vues » d'un article en ligne sur le site, ou '' (pas de chiffre pour l'instant, ou aucune vue).
+// À défaut de vue sur le site, l'ancien chiffre saisi à la main (vues Substack) reste affiché s'il existe.
+function osSiteVuesTexte(doc){
+  var n = null, slug = _sitSlugDe(doc);
+  if(slug){ if(!_sitVuesCache) osSiteVuesCharger(); else n = _sitVuesCache[slug] || null; }
+  if(!(n > 0) && doc && doc.vues_substack != null) n = doc.vues_substack;
+  return n > 0 ? n.toLocaleString('fr-FR') + ' vue' + (n > 1 ? 's' : '') : '';
+}
+if(typeof setTimeout === 'function') setTimeout(osSiteVuesCharger, 5000);

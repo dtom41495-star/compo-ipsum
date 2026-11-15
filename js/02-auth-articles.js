@@ -601,10 +601,11 @@ function maFiltrerListe(){
 
     // Lien de publication + vues (article publié)
     var lienPubHtml = '';
-    if(s==='publie' && (doc.lien_publication || doc.vues_substack!=null)){
+    var vuesSiteV2 = s==='publie' ? osSiteVuesTexte(doc) : '';
+    if(s==='publie' && (doc.lien_publication || vuesSiteV2)){
       lienPubHtml = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.62rem;color:var(--gris);margin-top:2px;">'
-        +(doc.lien_publication ? '<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:#27500A;text-decoration:none;font-weight:600;"><i class="ti ti-external-link"></i> Voir en ligne</a>' : '')
-        +(doc.vues_substack!=null ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-eye"></i> '+doc.vues_substack.toLocaleString('fr-FR')+' vues</span>' : '')
+        +(doc.lien_publication ? '<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:#27500A;text-decoration:none;font-weight:600;"><i class="ti ti-external-link"></i> '+_sitLibelleLien(doc.lien_publication)+'</a>' : '')
+        +(vuesSiteV2 ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-eye"></i> '+vuesSiteV2+'</span>' : '')
         +'</div>';
     }
 
@@ -1846,26 +1847,15 @@ function rWorkflowMajInterface(doc){
     if(typeof osRemarqueSRCompleter === 'function') osRemarqueSRCompleter();
   } else if(cc){ cc.style.display='none'; }
 
-  // Lien de publication + vues — une fois l'article publié. Ne touche pas les champs
-  // si l'utilisateur est en train d'y taper (rWorkflowMajInterface peut être rappelée
-  // entre-temps par d'autres événements).
+  // En ligne : lien en lecture seule vers l'article (site ipsummedia.fr pour les articles mis en ligne depuis Compo)
   var zLien = document.getElementById('r-lien-publication');
   if(zLien){
-    if(statut==='publie'){
+    if(statut==='publie' && doc.lien_publication){
       zLien.style.display='block';
-      var lpInput = document.getElementById('r-lien-publication-input');
-      if(lpInput && document.activeElement!==lpInput) lpInput.value = doc.lien_publication||'';
-      var lpVues = document.getElementById('r-lien-publication-vues');
-      if(lpVues && document.activeElement!==lpVues) lpVues.value = (doc.vues_substack!=null ? doc.vues_substack : '');
       var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
-      if(lpOuvrir) lpOuvrir.style.display = doc.lien_publication ? '' : 'none';
-      var lpDub = document.getElementById('r-lien-publication-dub');
-      if(lpDub) lpDub.style.display = (role==='admin' || (window._userAppsAll||[]).some(function(a){return a.id==='app-dub';})) ? '' : 'none';
-      var lpClics = document.getElementById('r-lien-publication-clics');
-      if(lpClics){
-        if(doc.dub_link_id){ lpClics.style.display=''; _osChargerClicsDub(doc.dub_link_id, doc.id); }
-        else lpClics.style.display='none';
-      }
+      if(lpOuvrir) lpOuvrir.href = doc.lien_publication;
+      var lpLib = document.getElementById('r-lien-publication-libelle');
+      if(lpLib) lpLib.textContent = _sitLibelleLien(doc.lien_publication);
     } else {
       zLien.style.display='none';
     }
@@ -1921,90 +1911,6 @@ function rWorkflowMajInterface(doc){
     var peutPublier = (articleEstCentral && statut==='valide') || (attenteCentrale && statut==='valide_central');
     if(btnPublier)    btnPublier.style.display    = peutPublier ? '' : 'none';
   }
-}
-
-// Enregistre le lien de publication externe (Substack, etc.) et/ou le nombre de vues,
-// depuis la boîte affichée dans l'éditeur une fois l'article publié — une alternative
-// rapide à l'import PDF de l'appli Stats (qui reste utile pour un chiffre officiel précis,
-// les deux écrivent dans les mêmes colonnes donc restent synchronisés).
-function rEnregistrerLienPublication(dubLinkId){
-  if(!currentDoc || !currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
-  var input = document.getElementById('r-lien-publication-input');
-  var vuesInput = document.getElementById('r-lien-publication-vues');
-  var val = input ? input.value.trim() : '';
-  var vuesVal = (vuesInput && vuesInput.value.trim()!=='') ? parseInt(vuesInput.value,10) : null;
-
-  // vues_substack_maj sert de repère "dernière mise à jour" pour Le Rattrapage même
-  // quand seul le lien change (pas les vues) — on l'horodate systématiquement ici.
-  var payload = { lien_publication: val||null, vues_substack_maj: new Date().toISOString() };
-  if(vuesVal!==null && !isNaN(vuesVal)) payload.vues_substack = vuesVal;
-  if(dubLinkId){
-    payload.dub_link_id = dubLinkId;
-  } else if(val !== (currentDoc.lien_publication||'')){
-    // Le lien a changé à la main (pas via le bouton Dub) — l'ancien dub_link_id
-    // référence un lien différent, on l'efface pour ne pas afficher des clics
-    // qui ne correspondent plus à rien.
-    payload.dub_link_id = null;
-  }
-
-  var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(currentDoc.id), {
-    method:'PATCH', headers:authH, body:JSON.stringify(payload)
-  }).then(function(r){
-    if(r.ok){
-      currentDoc.lien_publication = val||null;
-      if(payload.vues_substack!=null) currentDoc.vues_substack = payload.vues_substack;
-      if('dub_link_id' in payload) currentDoc.dub_link_id = payload.dub_link_id;
-      notif('Enregistré','succes');
-      var lpOuvrir = document.getElementById('r-lien-publication-ouvrir');
-      if(lpOuvrir) lpOuvrir.style.display = val ? '' : 'none';
-      rWorkflowMajInterface(currentDoc);
-    } else notif('Erreur lors de l\'enregistrement','erreur');
-  }).catch(function(){ notif('Erreur réseau','erreur'); });
-}
-
-// Raccourcit le lien de publication via Dub (passe par une Edge Function — la clé
-// Dub ne doit jamais vivre côté client) puis enregistre directement le résultat.
-function rRaccourcirAvecDub(){
-  var input = document.getElementById('r-lien-publication-input');
-  var val = input ? input.value.trim() : '';
-  if(!val){ notif('Renseigne d\'abord le lien de publication'); return; }
-  var btn = document.getElementById('r-lien-publication-dub');
-  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i>'; }
-
-  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
-    method:'POST',
-    headers: Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'}),
-    body: JSON.stringify({ action:'raccourcir', url: val })
-  }).then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
-  .then(function(res){
-    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-scissors"></i>'; }
-    if(!res.ok || !res.data.shortLink){
-      notif('Erreur Dub : '+(res.data&&res.data.error||'inconnue'), 'erreur');
-      return;
-    }
-    input.value = res.data.shortLink;
-    rEnregistrerLienPublication(res.data.linkId||null);
-  }).catch(function(){
-    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-scissors"></i>'; }
-    notif('Erreur réseau — la fonction Dub est-elle déployée ?', 'erreur');
-  });
-}
-
-// Nombre de clics du lien raccourci — appel en lecture, ne consomme pas le quota
-// de création de liens. articleId sert de garde-fou si l'utilisateur a changé
-// d'article pendant que la requête était en vol.
-function _osChargerClicsDub(linkId, articleId){
-  var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
-  fetch(SB_URL+'/functions/v1/dub-raccourcir', {
-    method:'POST', headers:authH, body:JSON.stringify({ action:'stats', linkId:linkId })
-  }).then(function(r){ return r.json(); })
-  .then(function(data){
-    if(!currentDoc || currentDoc.id!==articleId) return;
-    var el = document.getElementById('r-lien-publication-clics');
-    if(!el) return;
-    if(data && data.clicks!=null) el.innerHTML = '<i class="ti ti-cursor-text"></i> '+data.clicks+' clic'+(data.clicks>1?'s':'');
-  }).catch(function(){});
 }
 
 // Quota Dub restant — affiché dans la fiche bénévole, à côté du bouton qui

@@ -99,7 +99,7 @@ function _statsRenderLiensRaccourcis(zone){
       return;
     }
     // Récupérer le nombre de clics de chaque lien en parallèle (même fonction que
-    // le compteur affiché dans l'éditeur — _osChargerClicsDub — mais pour tous les
+    // le compteur d'un seul article — mais pour tous les
     // articles d'un coup plutôt qu'un seul).
     var authH2 = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
     Promise.all(arts.map(function(a){
@@ -1624,7 +1624,8 @@ function maOsMakeCard(doc, uid, role){
   var nl = _maNewsletterMap[doc.id];
   if(nl) infos.push('<i class="ti ti-mail"></i>Envoyé dans la newsletter du '+new Date(nl.date_envoi).toLocaleDateString('fr-FR'));
   else if(doc.redaction_id && (s==='valide'||s==='publie')) infos.push('<i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
-  if(doc.vues_substack!=null) infos.push('<i class="ti ti-eye"></i>'+doc.vues_substack.toLocaleString('fr-FR')+' vues');
+  var vuesSite = osSiteVuesTexte(doc);
+  if(vuesSite) infos.push('<i class="ti ti-eye"></i>'+vuesSite);
 
   // Date : discrète, en rouge seulement quand un papier non publié traîne
   var dateRef = doc.updated_at||doc.created_at;
@@ -1700,7 +1701,8 @@ function _maCarteMobile(doc, uid, role){
   if(doc.rubrique) infos.push(esc(doc.rubrique));
   if(doc.type==='breve') infos.push('Brève');
   if(doc.auteur && !estAuteur) infos.push(esc(doc.auteur));
-  if(doc.vues_substack!=null) infos.push(doc.vues_substack.toLocaleString('fr-FR')+' vues');
+  var vuesSite2 = osSiteVuesTexte(doc);
+  if(vuesSite2) infos.push(vuesSite2);
   var signes = _maNbSignes(doc.corps);
   if(signes) infos.push(signes.toLocaleString('fr-FR')+' signes');
 
