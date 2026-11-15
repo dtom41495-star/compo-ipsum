@@ -254,10 +254,11 @@ if(typeof rWorkflowMajInterface === 'function'){
   };
 }
 
-// ===== Vues des articles du site, lues dans Umami (fonction serveur umami-vues, secret UMAMI_API_KEY) =====
-// Remplace la saisie à la main des « vues Substack » : le chiffre est celui de la page ipsummedia.fr/articles/<adresse>.
-// Chargé une seule fois (la fonction serveur garde 10 minutes en mémoire) ; si Umami ne répond pas, rien n'est affiché.
-var _sitVuesCache = null, _sitVuesEnCours = false, _sitVuesDernierEssai = 0;
+// ===== Vues (Umami) et « J'aime » des articles du site =====
+// Vues : fonction serveur umami-vues (secret UMAMI_API_KEY), qui remplace la saisie à la main des « vues Substack ».
+// « J'aime » : table site_likes, lisible par tous (le site la lit aussi).
+// Chargés ensemble une seule fois (la fonction serveur garde 10 minutes en mémoire) ; si l'un ne répond pas, il n'est pas affiché.
+var _sitVuesCache = null, _sitLikesCache = null, _sitVuesEnCours = false, _sitVuesDernierEssai = 0;
 
 // Adresse de l'article sur le site : celle de l'article, ou celle de son lien « ipsummedia.fr/articles/… »
 function _sitSlugDe(doc){
@@ -268,28 +269,45 @@ function _sitSlugDe(doc){
 }
 
 function osSiteVuesCharger(){
-  if(_sitVuesCache || _sitVuesEnCours || Date.now() - _sitVuesDernierEssai < 60000) return;
+  if(_sitVuesCache || _sitLikesCache || _sitVuesEnCours || Date.now() - _sitVuesDernierEssai < 60000) return;
   if(typeof _session === 'undefined' || !_session || !_session.access_token) return;
   _sitVuesEnCours = true; _sitVuesDernierEssai = Date.now();
-  fetch(SB_URL+'/functions/v1/umami-vues', {
-    method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+_session.access_token }, body:'{}'
-  }).then(function(r){ return r.json(); })
-    .then(function(d){
-      _sitVuesEnCours = false;
-      if(!(d && d.ok && d.vues)) { console.warn('[site] vues Umami indisponibles :', d && d.raison); return; }
-      _sitVuesCache = d.vues;
-      // Une liste « Mes articles » déjà affichée est redessinée une fois, avec les chiffres
-      if(typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger();
+  var entetes = { 'apikey':SB_KEY, 'Authorization':'Bearer '+_session.access_token };
+  var vues = fetch(SB_URL+'/functions/v1/umami-vues', { method:'POST', headers:Object.assign({ 'Content-Type':'application/json' }, entetes), body:'{}' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d && d.ok && d.vues) return d.vues; console.warn('[site] vues Umami indisponibles :', d && d.raison); return null; })
+    .catch(function(e){ console.warn('[site] vues Umami :', e); return null; });
+  var likes = fetch(SB_URL+'/rest/v1/site_likes?select=slug,nb&limit=1000', { headers:entetes })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(rows){
+      if(!Array.isArray(rows)) return null;
+      var m = {}; rows.forEach(function(l){ m[l.slug] = l.nb; }); return m;
     })
-    .catch(function(e){ _sitVuesEnCours = false; console.warn('[site] vues Umami :', e); });
+    .catch(function(e){ console.warn('[site] likes :', e); return null; });
+  Promise.all([vues, likes]).then(function(res){
+    _sitVuesEnCours = false;
+    if(res[0]) _sitVuesCache = res[0];
+    if(res[1]) _sitLikesCache = res[1];
+    // Une liste « Mes articles » déjà affichée est redessinée une fois, avec les chiffres
+    if((res[0] || res[1]) && typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger();
+  });
 }
 
 // Texte « 12 vues » d'un article en ligne sur le site, ou '' (pas de chiffre pour l'instant, ou aucune vue).
 // À défaut de vue sur le site, l'ancien chiffre saisi à la main (vues Substack) reste affiché s'il existe.
 function osSiteVuesTexte(doc){
   var n = null, slug = _sitSlugDe(doc);
-  if(slug){ if(!_sitVuesCache) osSiteVuesCharger(); else n = _sitVuesCache[slug] || null; }
+  if(slug){ if(!_sitVuesCache && !_sitLikesCache) osSiteVuesCharger(); else if(_sitVuesCache) n = _sitVuesCache[slug] || null; }
   if(!(n > 0) && doc && doc.vues_substack != null) n = doc.vues_substack;
   return n > 0 ? n.toLocaleString('fr-FR') + ' vue' + (n > 1 ? 's' : '') : '';
+}
+
+// Texte « 3 j’aime » (invariable) d'un article en ligne sur le site, ou '' s'il n'en a aucun
+function osSiteLikesTexte(doc){
+  var slug = _sitSlugDe(doc);
+  if(!slug) return '';
+  if(!_sitVuesCache && !_sitLikesCache){ osSiteVuesCharger(); return ''; }
+  var n = _sitLikesCache && _sitLikesCache[slug];
+  return n > 0 ? n.toLocaleString('fr-FR') + ' j’aime' : '';
 }
 if(typeof setTimeout === 'function') setTimeout(osSiteVuesCharger, 5000);

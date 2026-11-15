@@ -1196,6 +1196,7 @@ function renderLecture(){
   var dateRef = doc.modifie_le || doc.updated_at || doc.cree_le;
   if(dateRef) etat.push((s === 'publie' ? 'Publié ' : 'Modifié ')+_maDateCourte(dateRef).replace(/^([A-Z])/, function(c){ return c.toLowerCase(); }));
   if(s === 'publie' && typeof osSiteVuesTexte === 'function' && osSiteVuesTexte(doc)) etat.push('<i class="ti ti-eye"></i> '+osSiteVuesTexte(doc));
+  if(s === 'publie' && typeof osSiteLikesTexte === 'function' && osSiteLikesTexte(doc)) etat.push('<i class="ti ti-heart"></i> '+osSiteLikesTexte(doc));
   if(s === 'publie' && doc.lien_publication) etat.push('<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> '+_sitLibelleLien(doc.lien_publication)+'</a>');
 
   // Historique (étapes, relectures, texte à chaque étape) : aussi depuis la lecture, sinon il n'était accessible
