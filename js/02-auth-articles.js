@@ -601,10 +601,11 @@ function maFiltrerListe(){
 
     // Lien de publication + vues (article publié)
     var lienPubHtml = '';
-    if(s==='publie' && (doc.lien_publication || doc.vues_substack!=null)){
+    var vuesSiteV2 = s==='publie' ? osSiteVuesTexte(doc) : '';
+    if(s==='publie' && (doc.lien_publication || vuesSiteV2)){
       lienPubHtml = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.62rem;color:var(--gris);margin-top:2px;">'
         +(doc.lien_publication ? '<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:#27500A;text-decoration:none;font-weight:600;"><i class="ti ti-external-link"></i> '+_sitLibelleLien(doc.lien_publication)+'</a>' : '')
-        +(doc.vues_substack!=null ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-eye"></i> '+doc.vues_substack.toLocaleString('fr-FR')+' vues</span>' : '')
+        +(vuesSiteV2 ? '<span style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-eye"></i> '+vuesSiteV2+'</span>' : '')
         +'</div>';
     }
 
