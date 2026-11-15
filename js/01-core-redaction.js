@@ -1195,7 +1195,7 @@ function renderLecture(){
   if(doc.urgence === 'urgent') etat.push('<span class="lx-urgent"><i class="ti ti-flame"></i> Urgent</span>');
   var dateRef = doc.modifie_le || doc.updated_at || doc.cree_le;
   if(dateRef) etat.push((s === 'publie' ? 'Publié ' : 'Modifié ')+_maDateCourte(dateRef).replace(/^([A-Z])/, function(c){ return c.toLowerCase(); }));
-  if(s === 'publie' && doc.lien_publication) etat.push('<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Voir en ligne</a>');
+  if(s === 'publie' && doc.lien_publication) etat.push('<a href="'+esc(doc.lien_publication)+'" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> '+_sitLibelleLien(doc.lien_publication)+'</a>');
 
   // Historique (étapes, relectures, texte à chaque étape) : aussi depuis la lecture, sinon il n'était accessible
   // qu'en édition, qui n'est plus possible pour l'auteur·rice une fois l'article parti au SR

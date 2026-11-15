@@ -53,6 +53,11 @@ function _sitAdresseLibre(titre, articleId){
   return essai(1);
 }
 
+// « Voir sur le site » pour une adresse ipsummedia.fr, « Voir en ligne » pour un ancien lien (Substack)
+function _sitLibelleLien(url){
+  return /^https:\/\/(www\.)?ipsummedia\.fr\//i.test(String(url || '')) ? 'Voir sur le site' : 'Voir en ligne';
+}
+
 function _sitEstDrive(url){ return /drive\.google\.com\//.test(String(url || '')); }
 
 // Liens Drive à copier : la photo principale et les images du texte (Markdown ![légende](lien))
@@ -232,11 +237,11 @@ function _sitMajBoutonCarte(doc){
     btn.id = 'r-site-carte-nl';
     btn.type = 'button';
     btn.className = 'btn sec';
-    btn.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;margin-top:0.5rem;';
+    btn.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;';
     btn.innerHTML = '<i class="ti ti-mail-forward"></i> Carte pour la newsletter';
     btn.title = 'Copie un bloc (photo, titre, chapô, lien vers le site) à coller dans la newsletter Substack';
     btn.onclick = function(){ osSiteCarteNewsletter(); };
-    zone.appendChild(btn);
+    (document.getElementById('r-lien-publication-actions') || zone).appendChild(btn);
   }
   btn.style.display = visible ? '' : 'none';
 }

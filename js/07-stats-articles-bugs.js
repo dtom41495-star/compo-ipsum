@@ -99,7 +99,7 @@ function _statsRenderLiensRaccourcis(zone){
       return;
     }
     // Récupérer le nombre de clics de chaque lien en parallèle (même fonction que
-    // le compteur affiché dans l'éditeur — _osChargerClicsDub — mais pour tous les
+    // le compteur d'un seul article — mais pour tous les
     // articles d'un coup plutôt qu'un seul).
     var authH2 = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||''), 'Content-Type':'application/json'});
     Promise.all(arts.map(function(a){
