@@ -6,13 +6,18 @@ via la fonction serveur Supabase `dub-raccourcir` (secret `DUB_API_KEY`), pour 4
 
 **Statut** : pas commencé. À faire depuis le réseau de la maison (ou via le VPN).
 
-## Points à décider avec Tom avant de lancer
+## Domaine et anciens liens
 
-- **Domaine des liens courts** : quel domaine utilise-t-on aujourd'hui sur dub.co (dub.sh ou un domaine
-  à nous) ? Pour le nouveau, un sous-domaine court du type `go.ipsummedia.fr`, ou un domaine court dédié.
-- **Anciens liens** : ils restent sur dub.co. Tant que le compte dub.co existe, ils marchent. Pour les
-  garder à vie, il faut soit garder le compte gratuit, soit les importer dans le nouvel outil (export depuis
-  dub.co, à vérifier) **et** que leur domaine pointe vers notre serveur — impossible si c'est dub.sh.
+- **Domaine des liens courts : `link.ipsummedia.fr`** (déjà utilisé avec dub.co). On le garde.
+- Comme le domaine est à nous, **tous les anciens liens peuvent être conservés** sans garder dub.co :
+  1. exporter tous les liens depuis dub.co (format d'export à vérifier : CSV ou API) ;
+  2. les importer dans le nouvel outil **avec les mêmes codes courts** (`link.ipsummedia.fr/<code>`) ;
+  3. vérifier quelques anciens liens sur le nouvel outil (avant la bascule, via une adresse de test) ;
+  4. **seulement ensuite**, faire pointer `link.ipsummedia.fr` vers notre serveur (DNS, par Tom), puis
+     brancher Compo dessus.
+- Les compteurs de clics passés restent sur dub.co (l'historique ne suit pas forcément) : les noter
+  ou les exporter avant de fermer le compte, si on y tient.
+- Ne fermer le compte dub.co qu'une fois la bascule vérifiée.
 
 ## Message à coller dans la session qui a accès au serveur
 
@@ -32,14 +37,17 @@ Règles :
    - Mémoire et disque nécessaires, comparés à ce qui est libre sur le serveur (free -h, df -h, docker stats --no-stream).
    - Ton avis : faisable entièrement chez nous, faisable avec des dépendances externes, ou pas raisonnable.
 2. Même étude, plus courte, pour Shlink (repli) : services nécessaires, mémoire, API (création de lien, nombre de clics, liste des liens).
-3. ARRÊTE-TOI et donne-moi le résultat. J'aurai à choisir : Dub ou Shlink, et le domaine des liens courts.
+3. Pour l'outil retenu : peut-il importer des liens existants en gardant leurs codes courts (link.ipsummedia.fr/<code>) ? Comment (fichier CSV, API) ?
+4. ARRÊTE-TOI et donne-moi le résultat. J'aurai à choisir : Dub ou Shlink. Le domaine des liens courts reste link.ipsummedia.fr.
 
 Après mon choix (consignes complétées à ce moment-là) :
-4. Installation dans ~/ipsum/<outil>/, données dans ./data, port lié à 127.0.0.1, bloc Caddy pour le domaine choisi.
-5. Création d'une clé d'API : c'est moi qui la crée dans l'interface et la saisis comme secret Supabase (jamais dans le chat).
-6. Tests : création d'un lien, redirection, comptage d'un clic.
-7. Sauvegarde : ajoute ./data (et la base si à part) à la sauvegarde de nuit ; propose une sonde Uptime Kuma.
-8. Résumé final : ce qui tourne, le domaine, la mémoire utilisée.
+5. Installation dans ~/ipsum/<outil>/, données dans ./data, port lié à 127.0.0.1. Bloc Caddy sur une adresse de TEST (pas encore link.ipsummedia.fr, qui pointe toujours vers dub.co).
+6. Import des anciens liens (export dub.co fourni par moi), avec les mêmes codes ; tests sur l'adresse de test.
+7. Création d'une clé d'API : c'est moi qui la crée dans l'interface et la saisis comme secret Supabase (jamais dans le chat).
+8. Tests : création d'un lien, redirection, comptage d'un clic.
+9. Bascule : je fais pointer link.ipsummedia.fr vers le serveur ; tu ajoutes le bloc Caddy correspondant, puis tu vérifies 5 anciens liens et un nouveau.
+10. Sauvegarde : ajoute ./data (et la base si à part) à la sauvegarde de nuit ; propose une sonde Uptime Kuma.
+11. Résumé final : ce qui tourne, le domaine, le nombre de liens importés, la mémoire utilisée.
 ```
 
 ## Côté Compo (session cloud, après l'installation)

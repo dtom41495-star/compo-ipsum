@@ -38,7 +38,9 @@ avec des systèmes de secours.
    Avant d'installer, **vérifier la faisabilité** : le guide officiel d'auto-hébergement de Dub s'appuie
    (à confirmer dans sa version à jour) sur des services en ligne (base MySQL type PlanetScale, Redis
    Upstash, Tinybird pour les statistiques), ce qui irait contre l'objectif d'indépendance s'ils ne peuvent
-   pas tous tourner sur la machine. **Repli** si c'est trop lourd ou trop dépendant : **Shlink** (libre,
+   pas tous tourner sur la machine. Domaine : **`link.ipsummedia.fr`** (déjà le nôtre), donc les anciens liens
+   sont conservés en les important avec les mêmes codes avant de faire pointer le domaine vers la machine.
+   **Repli** si c'est trop lourd ou trop dépendant : **Shlink** (libre,
    un conteneur Docker, API avec clé, domaine personnalisé, comptage des clics). Consignes :
    [`docs/serveur/raccourcisseur-liens.md`](serveur/raccourcisseur-liens.md).
 
