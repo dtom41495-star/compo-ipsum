@@ -44,6 +44,17 @@ avec des systèmes de secours.
    un conteneur Docker, API avec clé, domaine personnalisé, comptage des clics). Consignes :
    [`docs/serveur/raccourcisseur-liens.md`](serveur/raccourcisseur-liens.md).
 
+10. **« J'aime » et commentaires sur le site** (souhait de Tom, novembre 2026). Ils remplacent ce que les lecteurs avaient sur Substack.
+    - **« J'aime » : fait ✅.** Bouton sous chaque article du site ; un second clic le retire. Compté par notre fonction serveur `site-like`,
+      sans compte ni cookie. L'adresse IP n'est jamais gardée, seulement une empreinte non réversible conservée 2 jours (limite de 20 actions
+      par heure). Les nombres sont affichés dans Compo, à côté des vues.
+    - **Commentaires : à faire plus tard (étape 8).** Outil externe auto-hébergé, **Isso** (libre, léger, un conteneur Docker, base dans un
+      seul fichier) ; repli : **Remark42**. Pas de Disqus (publicité, suivi, contraire à l'indépendance) ni de Giscus (compte GitHub obligatoire).
+      Décisions de Tom : **chaque commentaire est validé avant publication** (les admins et les rédac chefs modèrent) ; **les anciens commentaires
+      de Substack ne sont pas repris** : un seul endroit, le site, pour tous les articles. Choix fait sans pouvoir lire la documentation d'Isso depuis
+      la session cloud : **contrôler chaque point dans les consignes** avant l'installation (modération avant publication, mails de validation,
+      anonymisation des IP, traduction française, réglages d'affichage).
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -59,6 +70,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. | Compo et le site répondent depuis la machine ; Uptime Kuma au vert. |
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). |
+| 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/serveur/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
 
 ## 4. Étape 2 en détail : Compo → site
 
@@ -70,7 +82,11 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
   Substack pour les copies. Code commun dans `lib/compo.js`.
 - ✅ **Compo** (`js/90-site-publier.js`) : « Mettre en ligne » envoie un article sur le site et copie ses photos Drive
   dans `site-images` (WebP 1600 px). Il ajoute aussi le bouton « Carte pour la newsletter ».
-- À faire : tester la carte sur un vrai brouillon Substack ; supprimer les 4 anciennes photos JPEG en double dans `site-images`.
+- ✅ **Vues** (fonction `umami-vues`) : le site compte les vues dans Umami (stats.ipsummedia.fr), Compo les affiche à la place de la saisie
+  à la main. Le champ « lien de publication » n'est plus à remplir : un lien « Voir sur le site » apparaît tout seul.
+- ✅ **« J'aime »** (fonction `site-like`, tables `site_likes` et `site_likes_limites`), affichés aussi dans Compo.
+- ✅ Les 4 anciennes photos JPEG en double ont été supprimées de `site-images`.
+- À faire : tester la carte sur un vrai brouillon Substack ; mettre en ligne un premier vrai article depuis Compo.
 
 **Dans Compo**
 - Un bouton **« Mettre en ligne sur le site »** (à côté du statut « publié »).

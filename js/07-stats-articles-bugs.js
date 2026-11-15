@@ -1626,6 +1626,8 @@ function maOsMakeCard(doc, uid, role){
   else if(doc.redaction_id && (s==='valide'||s==='publie')) infos.push('<i class="ti ti-calendar-event"></i>Prévu pour la newsletter du '+nlProchainJeudi().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
   var vuesSite = osSiteVuesTexte(doc);
   if(vuesSite) infos.push('<i class="ti ti-eye"></i>'+vuesSite);
+  var likesSite = osSiteLikesTexte(doc);
+  if(likesSite) infos.push('<i class="ti ti-heart"></i>'+likesSite);
 
   // Date : discrète, en rouge seulement quand un papier non publié traîne
   var dateRef = doc.updated_at||doc.created_at;
@@ -1703,6 +1705,8 @@ function _maCarteMobile(doc, uid, role){
   if(doc.auteur && !estAuteur) infos.push(esc(doc.auteur));
   var vuesSite2 = osSiteVuesTexte(doc);
   if(vuesSite2) infos.push(vuesSite2);
+  var likesSite2 = osSiteLikesTexte(doc);
+  if(likesSite2) infos.push(likesSite2);
   var signes = _maNbSignes(doc.corps);
   if(signes) infos.push(signes.toLocaleString('fr-FR')+' signes');
 
