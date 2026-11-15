@@ -23,7 +23,7 @@ avec des systèmes de secours.
 3. **Les anciens articles restent sur Substack.** Les liens déjà partagés (`ipsummedia.fr/articles/<slug>`)
    doivent continuer de marcher (copie du flux ou redirection vers Substack, comme aujourd'hui).
 4. **Tout sera hébergé sur la machine de l'asso** : Supabase (auto-hébergé), Compo, le site,
-   Vaultwarden ✅, Umami ✅, Uptime Kuma ✅, puis Listmonk.
+   Vaultwarden ✅, Umami ✅, Uptime Kuma ✅, le raccourcisseur de liens (Dub), puis Listmonk.
 5. **Newsletters** : plus tard, une instance **Listmonk** sur la machine (une liste par rédaction),
    envoi via le SMTP de **Mailjet** (choisi ; limites de l'offre gratuite à vérifier au moment de la mise
    en place). 160 abonnés à ce jour.
@@ -32,6 +32,15 @@ avec des systèmes de secours.
    une fois que des articles exclusifs au site sont en ligne depuis quelques semaines.
 7. Postiz est abandonné et désinstallé ✅.
 8. Google Workspace reste pour l'instant (pas d'alternative décidée).
+9. **Raccourcisseur de liens : Dub auto-hébergé** (souhait de Tom : plus de quota, l'offre gratuite de dub.co
+   limite le nombre de liens). Compo l'utilise via la fonction serveur `dub-raccourcir` pour 4 actions :
+   créer un lien court, compter les clics d'un lien, lister les 25 derniers liens, afficher le quota.
+   Avant d'installer, **vérifier la faisabilité** : le guide officiel d'auto-hébergement de Dub s'appuie
+   (à confirmer dans sa version à jour) sur des services en ligne (base MySQL type PlanetScale, Redis
+   Upstash, Tinybird pour les statistiques), ce qui irait contre l'objectif d'indépendance s'ils ne peuvent
+   pas tous tourner sur la machine. **Repli** si c'est trop lourd ou trop dépendant : **Shlink** (libre,
+   un conteneur Docker, API avec clé, domaine personnalisé, comptage des clics). Consignes :
+   [`docs/serveur/raccourcisseur-liens.md`](serveur/raccourcisseur-liens.md).
 
 ## 3. Ordre des étapes
 
@@ -46,7 +55,8 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. | Compo et le site répondent depuis la machine ; Uptime Kuma au vert. |
-| 6 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). |
+| 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
+| 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). |
 
 ## 4. Étape 2 en détail : Compo → site
 
