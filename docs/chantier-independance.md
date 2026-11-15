@@ -62,6 +62,16 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 
 ## 4. Étape 2 en détail : Compo → site
 
+**Où on en est (15 novembre 2026)**
+- ✅ **Base** : modèle « interrupteur » (pas de copie). L'article reste dans `articles`, avec `site_slug` / `site_en_ligne`,
+  et la fonction `site_publier` le met en ligne. Le site lit `site_publications()`. Les 52 anciens articles Substack
+  (depuis janvier 2026, sans les newsletters) sont importés dans `site_articles` (photos dans `site-images`).
+- ✅ **Site** (dépôt `ipsummediasite`, PR 22) : pages article, listes, plan du site dynamique, balise canonical vers
+  Substack pour les copies. Code commun dans `lib/compo.js`.
+- ✅ **Compo** (`js/90-site-publier.js`) : « Mettre en ligne » envoie un article sur le site et copie ses photos Drive
+  dans `site-images` (WebP 1600 px). Il ajoute aussi le bouton « Carte pour la newsletter ».
+- À faire : tester la carte sur un vrai brouillon Substack ; supprimer les 4 anciennes photos JPEG en double dans `site-images`.
+
 **Dans Compo**
 - Un bouton **« Mettre en ligne sur le site »** (à côté du statut « publié »).
 - Il copie l'article dans une **table protégée** (`site_articles` ou équivalent) : titre, chapô, texte,

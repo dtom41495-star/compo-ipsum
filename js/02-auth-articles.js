@@ -2181,7 +2181,23 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   var srDessaisi = (currentDoc.statut === 'en-relecture' && currentDoc.correcteur_id && currentDoc.correcteur_id !== getUserId()
     && ['corrige','valide','valide_central','publie'].indexOf(nouveauStatut) !== -1) ? currentDoc.correcteur_id : null;
   var statutAvant = currentDoc.statut;
+  // Un ARTICLE mis en ligne part sur ipsummedia.fr (js/90-site-publier.js) : on enregistre d'abord le texte sans
+  // changer son statut, puis site_publier copie les photos, le passe « publié » et l'allume sur le site.
+  var versLeSite = nouveauStatut === 'publie' && doc.type === 'article' && typeof osSitePublier === 'function';
+  if(versLeSite) doc.statut = statutAvant;
   db.sauvegarderArticle(doc).then(function(){
+    if(!versLeSite) return;
+    return osSitePublier(doc.id).then(function(res){
+      doc.statut = 'publie';
+      doc.corps = res.corps != null ? res.corps : doc.corps;
+      if(res.image) doc.image = res.image;
+      doc.site_slug = res.slug; doc.site_en_ligne = true;
+      doc.lien_publication = res.lien_publication || res.url;
+      if(res.publie_le) doc.publie_le = res.publie_le;
+      _sitMajEditeur(doc.id, res);
+      notif('Article en ligne : '+res.url, 'succes');
+    });
+  }).then(function(){
     if(srDessaisi) _osPrevenirSRDessaisi(srDessaisi, doc, nouveauStatut);
     currentDoc = doc;
     rWorkflowMajInterface(currentDoc);
