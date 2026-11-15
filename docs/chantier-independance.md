@@ -25,7 +25,8 @@ avec des systèmes de secours.
 4. **Tout sera hébergé sur la machine de l'asso** : Supabase (auto-hébergé), Compo, le site,
    Vaultwarden ✅, Umami ✅, Uptime Kuma ✅, puis Listmonk.
 5. **Newsletters** : plus tard, une instance **Listmonk** sur la machine (une liste par rédaction),
-   envoi via un SMTP (Mailjet envisagé, limites gratuites à vérifier). 160 abonnés à ce jour.
+   envoi via le SMTP de **Mailjet** (choisi ; limites de l'offre gratuite à vérifier au moment de la mise
+   en place). 160 abonnés à ce jour.
 6. **Publicité** (AdSense) sur le site, placée sans gêner la lecture. Le code AdSense, `ads.txt`,
    le bandeau tarteaucitron et les encarts maison sont déjà en place ✅. Redemander l'examen AdSense
    une fois que des articles exclusifs au site sont en ligne depuis quelques semaines.
@@ -43,7 +44,7 @@ Chaque étape se termine par une vérification, et rien ne passe en production s
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. | Compo et le site répondent depuis la machine ; Uptime Kuma au vert. |
-| 6 | **Listmonk + SMTP** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). |
+| 6 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). |
 
 ## 4. Étape 2 en détail : Compo → site
 
