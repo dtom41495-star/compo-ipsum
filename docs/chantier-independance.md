@@ -30,12 +30,14 @@ avec des systèmes de secours.
 6. **Publicité** (AdSense) sur le site, placée sans gêner la lecture. Le code AdSense, `ads.txt`,
    le bandeau tarteaucitron et les encarts maison sont déjà en place ✅. Redemander l'examen AdSense
    une fois que des articles exclusifs au site sont en ligne depuis quelques semaines.
-7. Postiz est abandonné (à désinstaller proprement du serveur, avec archive de ses données avant).
+7. Postiz est abandonné et désinstallé ✅.
 8. Google Workspace reste pour l'instant (pas d'alternative décidée).
 
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
+Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/README.md) (dont le VPN WireGuard,
+à installer pour accéder au serveur depuis l'extérieur).
 
 | # | Étape | Fait quand… |
 |---|-------|-------------|
