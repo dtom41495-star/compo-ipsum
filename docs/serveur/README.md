@@ -8,6 +8,7 @@ sur le réseau de la maison les exécute.
 |---------|---------|--------|
 | [vaultwarden.md](vaultwarden.md) | Gestionnaire de mots de passe | ✅ installé ; copie des sauvegardes hors du PC à faire |
 | [vpn-wireguard.md](vpn-wireguard.md) | VPN pour accéder au réseau de la maison depuis l'extérieur | à faire (depuis la maison) |
+| [raccourcisseur-liens.md](raccourcisseur-liens.md) | Raccourcisseur de liens (Dub auto-hébergé, repli Shlink) | à étudier puis installer |
 
 Déjà en place sans fiche ici : Caddy, Uptime Kuma (statut.ipsummedia.fr), Umami (stats.ipsummedia.fr).
 Postiz : abandonné et désinstallé.
