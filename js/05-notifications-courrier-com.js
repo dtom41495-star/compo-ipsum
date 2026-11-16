@@ -1735,7 +1735,7 @@ function osLoginValider(){
     },100);
   })
   .catch(function(){
-    if(errEl){errEl.textContent='Erreur réseau';errEl.classList.add('visible');}
+    if(errEl){errEl.innerHTML='Erreur réseau · '+osStatutLienHtml();errEl.classList.add('visible');}
     if(btn){btn.disabled=false;btn.textContent='Se connecter';}
   });
 }
@@ -3368,7 +3368,9 @@ function osShowToast(msg, type, opts){
   type = type || 'info';
   var ICONS = { succes:'circle-check', erreur:'alert-circle', alerte:'alert-triangle', info:'info-circle' };
   var COLORS = { succes:'#27500A', erreur:'#A32D2D', alerte:'#633806', info:'#185FA5' };
-  var DUREE  = opts.persistent ? 0 : 4000;
+  // Une erreur qui peut venir du serveur propose la page de statut ; le message reste un peu plus longtemps pour pouvoir cliquer
+  var avecStatut = type === 'erreur' && !opts.sansStatut && typeof osErreurVientDuServeur === 'function' && osErreurVientDuServeur(msg);
+  var DUREE  = opts.persistent ? 0 : (avecStatut ? 9000 : 4000);
 
   // Groupement — sauf si persistent
   if(!opts.persistent){
@@ -3417,6 +3419,16 @@ function osShowToast(msg, type, opts){
   msgEl.style.cssText = 'font-size:.80rem;color:rgba(255,255,255,.92);line-height:1.45;word-break:break-word;';
   msgEl.textContent = msg;
   textWrap.appendChild(msgEl);
+  if(avecStatut){
+    var statutEl = document.createElement('a');
+    statutEl.className = 'os-toast-statut';
+    statutEl.href = STATUT_SERVEUR_URL;
+    statutEl.target = '_blank';
+    statutEl.rel = 'noopener';
+    statutEl.style.cssText = 'display:inline-block;margin-top:5px;font-size:.68rem;font-weight:600;color:#93C5FD;text-decoration:underline;';
+    statutEl.innerHTML = '<i class="ti ti-activity"></i> Vérifier l\'état du serveur';
+    textWrap.appendChild(statutEl);
+  }
 
   // Bouton action (optionnel)
   if(opts.action){

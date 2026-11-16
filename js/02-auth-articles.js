@@ -794,7 +794,7 @@ function loginValider(){
     location.reload();
   })
   .catch(function(){
-    errEl.textContent = 'Erreur de connexion. Vérifie ta connexion internet.';
+    errEl.innerHTML = 'Erreur de connexion. Vérifie ta connexion internet. · '+osStatutLienHtml();
     errEl.classList.add('visible');
     btn.disabled = false;
     btn.textContent = 'Se connecter';
