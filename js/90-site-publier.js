@@ -137,6 +137,69 @@ function _sitCopierPhotos(liens, articleId, progression){
   }, Promise.resolve()).then(function(){ return { remplacements:remplacements, echecs:echecs }; });
 }
 
+// Avant la PREMIÈRE mise en ligne d'un texte étiqueté « article » : « C'est bien un article ? ». Les brèves étiquetées article par
+// erreur finissaient sur le site. Trois issues : « Oui » (mise en ligne), « C'est une brève » (le texte passe en brève, rien ne part
+// sur le site), « Annuler ». Une republication d'un article déjà en ligne (adresse existante) n'est pas redemandée.
+// Même signature que osSitePublier ; si rien n'est mis en ligne, la promesse est rejetée avec e.annule = true (e.breve = true si passé en brève).
+function osSitePublierConfirme(articleId){
+  return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId)+'&select=type,titre,corps,site_slug', { headers:_sitH() })
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      var a = Array.isArray(rows) && rows[0];
+      if(!a || a.type !== 'article' || a.site_slug) return osSitePublier(articleId);   // introuvable / brève / déjà en ligne : osSitePublier tranche
+      return _sitDemanderArticle(a).then(function(choix){
+        if(choix === 'article') return osSitePublier(articleId);
+        if(choix !== 'breve'){ var e = new Error('Mise en ligne annulée.'); e.annule = true; throw e; }
+        return fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(articleId), {
+          method:'PATCH', headers:_sitH({ 'Content-Type':'application/json', 'Prefer':'return=representation' }), body:JSON.stringify({ type:'breve' })
+        }).then(function(r){ return r.json().catch(function(){ return null; }).then(function(d){
+          if(!r.ok || !Array.isArray(d) || !d.length) throw new Error('Impossible de passer le texte en brève (droits ?).');
+          if(typeof currentDoc !== 'undefined' && currentDoc && currentDoc.id === articleId){
+            currentDoc.type = 'breve';
+            if(typeof setType === 'function') setType('breve');
+          }
+          var e = new Error('Passé en brève.'); e.annule = true; e.breve = true; throw e;
+        }); });
+      });
+    });
+}
+
+// Fenêtre « C'est bien un article ? » : renvoie 'article', 'breve' ou null (annulé)
+function _sitDemanderArticle(a){
+  return new Promise(function(resolve){
+    var mots = String(a.corps || '').trim() ? String(a.corps).trim().split(/\s+/).length : 0;
+    var ov = document.createElement('div');
+    ov.className = 'se-overlay dlg-overlay';
+    ov.innerHTML = '<div class="se-boite dlg-boite" role="alertdialog" aria-modal="true" aria-labelledby="sit-art-titre"><div class="se-corps">'
+      +'<div class="dlg-tete"><span class="dlg-icone"><i class="ti ti-world-upload"></i></span><div>'
+      +'<div id="sit-art-titre" class="dlg-question">C\'est bien un article ?</div>'
+      +'<p class="se-texte">« '+esc(a.titre || 'Sans titre')+' »</p>'
+      +'<p class="se-aide dlg-details">'+mots+' mot'+(mots > 1 ? 's' : '')+'. Un article est publié tout de suite sur ipsummedia.fr, visible de tout le monde. '
+      +'Une brève ne va pas sur le site : elle part dans la newsletter.</p>'
+      +'</div></div>'
+      +'<div class="dlg-actions">'
+      +'<button type="button" class="se-btn-secondaire" id="sit-art-non">Annuler</button>'
+      +'<button type="button" class="se-btn-secondaire" id="sit-art-breve">C\'est une brève</button>'
+      +'<button type="button" class="se-btn-principal" id="sit-art-oui"><i class="ti ti-world-upload"></i> Oui, mettre en ligne</button>'
+      +'</div></div></div>';
+    document.body.appendChild(ov);
+    var fini = false;
+    function fermer(v){
+      if(fini) return; fini = true;
+      document.removeEventListener('keydown', clavier, true);
+      ov.remove(); resolve(v);
+    }
+    // Pas de touche Entrée = « oui » ici : une mise en ligne se clique, elle ne part pas d'un réflexe
+    function clavier(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fermer(null); } }
+    document.addEventListener('keydown', clavier, true);
+    ov.addEventListener('click', function(ev){ if(ev.target === ov) fermer(null); });
+    document.getElementById('sit-art-non').onclick = function(){ fermer(null); };
+    document.getElementById('sit-art-breve').onclick = function(){ fermer('breve'); };
+    document.getElementById('sit-art-oui').onclick = function(){ fermer('article'); };
+    setTimeout(function(){ var b = document.getElementById('sit-art-non'); if(b) b.focus(); }, 30);
+  });
+}
+
 // Met l'article en ligne sur le site. Renvoie { slug, url, corps, image, echecs } (article relu après la mise en ligne).
 // L'article doit être un article validé (bon à publier, et de la rédaction centrale si besoin) : la base le vérifie.
 function osSitePublier(articleId){

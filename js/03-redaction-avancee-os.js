@@ -870,8 +870,13 @@ function _publierArticleReel(id, type){
   var versLeSite = type === 'article' && typeof osSitePublier === 'function';
   var miseEnLigne = versLeSite
     // Article : copie des photos, passage « publié » et mise en ligne sur le site (js/90-site-publier.js)
-    ? osSitePublier(id).then(function(res){ _sitMajEditeur(id, res); return { ok:true, url:res.url }; },
-                             function(e){ notif('Mise en ligne impossible : '+((e && e.message) || e), 'erreur'); return { ok:false, signale:true }; })
+    ? osSitePublierConfirme(id).then(function(res){ _sitMajEditeur(id, res); return { ok:true, url:res.url }; },
+                             function(e){
+                               if(e && e.annule){   // « Annuler » ou « C'est une brève » dans la fenêtre : rien n'est mis en ligne
+                                 if(e.breve){ notif('Passé en brève : il ne va pas sur le site.', 'succes'); if(typeof osMesArticlesCharger === 'function' && document.getElementById('ma-os-list')) osMesArticlesCharger(); }
+                                 return { ok:false, signale:true };
+                               }
+                               notif('Mise en ligne impossible : '+((e && e.message) || e), 'erreur'); return { ok:false, signale:true }; })
     : fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id), {
     method: 'PATCH',
     // Jeton de la personne connectée + lignes renvoyées : sinon un refus de la base

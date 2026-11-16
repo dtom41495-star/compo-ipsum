@@ -2095,7 +2095,7 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   if(versLeSite) doc.statut = statutAvant;
   db.sauvegarderArticle(doc).then(function(){
     if(!versLeSite) return;
-    return osSitePublier(doc.id).then(function(res){
+    return osSitePublierConfirme(doc.id).then(function(res){
       doc.statut = 'publie';
       doc.corps = res.corps != null ? res.corps : doc.corps;
       if(res.image) doc.image = res.image;
@@ -2133,7 +2133,13 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
         method:'PATCH', headers:authHSujet, body:JSON.stringify({statut:'publie'})
       }).catch(function(){});
     }
-  }).catch(function(err){ notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur'); });
+  }).catch(function(err){
+    if(err && err.annule){   // fenêtre « C'est bien un article ? » : annulé, ou passé en brève (rien n'est mis en ligne)
+      if(err.breve){ notif('Passé en brève : il ne va pas sur le site.', 'succes'); _osRafraichirMesArticles(); }
+      return;
+    }
+    notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur');
+  });
 }
 
 // Le SR désigné n'a plus à relire : un admin ou un rédac chef l'a fait à sa place.
