@@ -199,6 +199,8 @@ function _maintEcran(m, admin){
     +(vac && m.fin ? '<p><b>'+esc(_maintRepriseTexte(m))+'</b></p>' : '')
     +'<div class="maint-reglette"><span></span></div>'
     +'<p class="maint-petit">'+(vac && m.fin ? 'Fermé jusqu\'au '+esc(_maintDernierJour(m))+' inclus · ' : '')+'Ce que tu as écrit est enregistré · la page se rechargera toute seule</p>'
+    // Une maintenance (pas les vacances) : lien vers la page de statut, qui affiche aussi la maintenance planifiée dans Uptime Kuma
+    +(!vac && typeof osStatutLienHtml === 'function' ? '<p class="maint-statut">'+osStatutLienHtml()+'</p>' : '')
     +(admin ? '<div class="maint-admin-acces"><span>Admin</span>'
       +'<button type="button" id="maint-entrer"><i class="ti ti-door-enter"></i> Entrer quand même</button>'
       +'<button type="button" id="maint-rouvrir-ecran"><i class="ti ti-lock-open"></i> Rouvrir Compo</button></div>' : '')
