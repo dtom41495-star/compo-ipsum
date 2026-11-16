@@ -163,12 +163,24 @@ function osLoadingHtml(retryFnName, timeoutMs){
     +'<div class="os-loading-label">Communication en cours avec le serveur</div>'
     +'</div>';
 }
+// Page de statut des serveurs d'Ipsum Média : quand quelque chose ne charge pas, on peut y voir si le serveur répond
+var STATUT_SERVEUR_URL = 'https://statut.ipsummedia.fr/status/infra';
+function osStatutLienHtml(){
+  return '<a class="os-statut-lien" href="'+STATUT_SERVEUR_URL+'" target="_blank" rel="noopener"><i class="ti ti-activity"></i> Vérifier l\'état du serveur</a>';
+}
+// Un message d'erreur qui peut venir du serveur (réseau, chargement, enregistrement…), pas un refus de droits ni une erreur de saisie
+function osErreurVientDuServeur(msg){
+  var m = String(msg || '');
+  if(/droit|autoris|permission|invalide|obligatoire|requis/i.test(m)) return false;
+  return /^erreur|r[ée]seau|serveur|connexion|charg|injoignable|indisponible|délai|timeout|expir|éch(?:ec|ou)|n'a pas pu|a pas marché|non (?:enregistr|envoy)/i.test(m);
+}
 function osErreurHtml(retryCb, message){
   var cbStr = retryCb ? 'onclick="'+retryCb+'()"' : '';
   return '<div class="os-error">'
     +'<div class="os-error-icon"><i class="ti ti-plug-connected-x"></i></div>'
     +'<div class="os-error-msg">'+(message || 'Uh oh, ça n\'a pas marché')+'</div>'
     +(retryCb ? '<button class="os-error-btn" '+cbStr+'><i class="ti ti-refresh"></i> Réessayer</button>' : '')
+    +osStatutLienHtml()
     +'</div>';
 }
 

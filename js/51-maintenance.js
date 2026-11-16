@@ -7,6 +7,9 @@
 // - pendant : écran « Compo est actuellement en maintenance » (logo, phrase, barre de chargement) pour tout le monde ; un admin peut « Entrer quand même » (bandeau ensuite) ;
 // - à la réouverture : la page se recharge toute seule.
 // La base refuse de toute façon les écritures des non-admins pendant la maintenance.
+// Une maintenance peut aussi venir d'Uptime Kuma (motif 'kuma') : quand le moniteur « Compo » y est en maintenance, la fonction
+// serveur maintenance-kuma ferme Compo, avec une date de fin courte qu'elle repousse tant que Kuma confirme (et qui rouvre
+// Compo toute seule si Kuma se tait). Une maintenance lancée à la main n'est jamais touchée par Kuma.
 // Même mécanisme pour les VACANCES TOTALES (Gestion des rédactions, js/61) : motif 'vacances' et une date de fin (colonne fin),
 // la réouverture est automatique à cette date.
 
@@ -172,7 +175,9 @@ function _maintPhrase(m){
 
 function _maintEcran(m, admin){
   // Relu toutes les 30 s : on ne redessine que si quelque chose a changé (sinon l'animation repartait de zéro)
-  var signature = _maintCle(m)+'|'+(m.message || '')+'|'+(m.motif || '')+'|'+(m.fin || '')+'|'+(admin ? 1 : 0);
+  // La date de fin ne compte que pour les vacances : une maintenance venue d'Uptime Kuma la repousse toutes les quelques minutes
+  // (motif 'kuma', fonction maintenance-kuma) sans que l'écran ait à se redessiner.
+  var signature = _maintCle(m)+'|'+(m.message || '')+'|'+(m.motif || '')+'|'+(_maintVacances(m) ? (m.fin || '') : '')+'|'+(admin ? 1 : 0);
   var dejaLa = document.getElementById('maint-ecran');
   if(dejaLa && dejaLa.getAttribute('data-signature') === signature) return;
   var e = dejaLa;
