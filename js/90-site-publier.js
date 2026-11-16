@@ -311,3 +311,27 @@ function osSiteLikesTexte(doc){
   return n > 0 ? n.toLocaleString('fr-FR') + ' j’aime' : '';
 }
 if(typeof setTimeout === 'function') setTimeout(osSiteVuesCharger, 5000);
+
+// ===== Page « À propos » du site : apparaître dans la liste des journalistes (Paramètres > Mon profil) =====
+// Colonne membres.apparait_site (vrai d'office). La fonction SQL site_equipe() ne présente que les membres qui n'ont pas décoché.
+function osSiteChargerApparait(){
+  var uid = (typeof getUserId === 'function') ? getUserId() : null; if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid)+'&select=apparait_site', { headers:_sitH() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var c = document.getElementById('params-apparait-site');
+      if(c) c.checked = !(d && d[0] && d[0].apparait_site === false);
+    }).catch(function(){});
+}
+function osSiteChoisirApparait(actif){
+  var uid = (typeof getUserId === 'function') ? getUserId() : null; if(!uid) return;
+  fetch(SB_URL+'/rest/v1/membres?id=eq.'+encodeURIComponent(uid), {
+    method:'PATCH', headers:_sitH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify({ apparait_site: !!actif })
+  }).then(function(r){
+    notif(r.ok ? (actif ? 'Tu apparais sur la page À propos du site' : 'Tu n\'apparais plus sur la page À propos du site') : 'Erreur de mise à jour', r.ok ? 'succes' : 'erreur');
+    if(!r.ok){ var c = document.getElementById('params-apparait-site'); if(c) c.checked = !actif; }
+  }).catch(function(){
+    notif('Erreur réseau', 'erreur');
+    var c = document.getElementById('params-apparait-site'); if(c) c.checked = !actif;
+  });
+}

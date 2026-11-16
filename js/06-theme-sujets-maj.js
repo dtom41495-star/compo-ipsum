@@ -989,6 +989,14 @@ function osParamsRenderSection(section, container){
     container.appendChild(rowRappel);
     osChargerRappelTaches();
 
+    // Page « À propos » du site ipsummedia.fr : apparaître d'office dans la liste des journalistes, avec possibilité de se retirer
+    var rowSite = document.createElement('div');
+    rowSite.className = 'params-row';
+    rowSite.innerHTML = '<div><div class="params-label">Apparaître sur la page À propos du site</div><div class="params-label-sub">Ton prénom, ton nom, ta rédaction et ton adresse @ipsummedia.fr figurent dans la liste des journalistes de la page À propos d\'ipsummedia.fr. Décoche pour ne plus y apparaître : la page est mise à jour en quelques minutes.</div></div>'
+      + '<label class="compo-toggle"><input type="checkbox" id="params-apparait-site" onchange="osSiteChoisirApparait(this.checked)"><span class="track"></span><span class="thumb"></span></label>';
+    container.appendChild(rowSite);
+    osSiteChargerApparait();
+
     // Changer mon mot de passe
     var rowPass = document.createElement('div');
     rowPass.className = 'params-row';
