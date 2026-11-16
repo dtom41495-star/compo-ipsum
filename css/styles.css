@@ -443,6 +443,8 @@ body {
 .os-statut-lien { margin-top:0.5rem; font-family:Arial,sans-serif; font-size:0.62rem; color:var(--gris); text-decoration:underline; cursor:pointer; }
 .os-statut-lien:hover { color:var(--encre); }
 .os-login-error .os-statut-lien { margin:0; font-size:inherit; color:inherit; }
+.maint-statut { margin:0.6rem 0 0; text-align:center; }
+.maint-statut .os-statut-lien { margin:0; font-size:0.78rem; }
 
 
 #os-workspace {
