@@ -7800,3 +7800,44 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .reg-tableau td.reg-flamme i { color: #FF9600; }
 .reg-tableau td.reg-flamme.zero { color: #B8B2A8; font-weight: 600; }
 .reg-tableau td.reg-flamme.zero i { color: #D6D0C7; }
+
+/* Onglet « Brèves » : une ligne par brève, en cours d'écriture puis déjà validées */
+.mr-breves { display: flex; flex-direction: column; }
+.mr-bsec { margin-bottom: 16px; }
+.mr-bsec-t { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid var(--encre); font-family: Space Mono, monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.mr-bsec-t strong { margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--gris-clair); }
+.mr-bl { display: flex; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--gris-bord); }
+.mr-bl .mr-etiquette { flex: none; min-width: 96px; text-align: center; }
+.mr-bl-texte { flex: 1; min-width: 0; }
+.mr-bl-titre { font-size: 0.88rem; font-weight: 600; color: var(--encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mr-bl-meta { font-size: 0.7rem; color: var(--gris); }
+.mr-bvide { padding: 8px 2px; font-size: 0.78rem; color: var(--gris); }
+@media (max-width: 640px) { .mr-bl { flex-wrap: wrap; } .mr-bl .mr-etiquette { min-width: 0; } .mr-bl-titre { white-space: normal; } }
+
+/* Aperçu de la newsletter (onglet Brèves) : même dessin que la maquette — en-tête dégradé, édito vide, « Le brief » */
+.nlp-zone { margin-top: 8px; }
+.nlp-titre-zone { margin-bottom: 8px; font-family: Space Mono, monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.nlp { max-width: 600px; background: #fff; border: 1px solid var(--gris-bord); border-radius: 12px; overflow: hidden; }
+.nlp-entete { padding: 18px 22px 20px; background: linear-gradient(135deg, #EE802F 0%, #E7436E 100%); color: #fff; }
+.nlp-marque { font: 700 1.15rem/1 Poppins, sans-serif; } .nlp-marque span { font-weight: 600; opacity: 0.85; }
+.nlp-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.nlp-nom { font: 800 1.3rem/1.15 Poppins, sans-serif; }
+.nlp-date { font: 600 0.68rem/1.3 Poppins, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.95; }
+.nlp-corps { padding: 18px 22px 22px; }
+.nlp-etiquette { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #FDECE3; color: #EA5B1C; font: 700 0.62rem/1 Poppins, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.nlp-edito { display: flex; gap: 10px; align-items: center; min-height: 84px; margin-top: 10px; padding: 14px 16px; border: 2px dashed #E3CFC2; border-radius: 10px; background: #FFFCFA; color: var(--gris); font-size: 0.8rem; }
+.nlp-edito i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #FDECE3; color: #EA5B1C; }
+.nlp-brief { margin-top: 20px; padding-top: 16px; border-top: 3px solid #201A17; }
+.nlp-brief-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.nlp-brief-tete strong { font: 800 1.2rem/1 Poppins, sans-serif; }
+.nlp-brief-tete b { background: linear-gradient(135deg, #EE802F, #E7436E); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.nlp-brief-tete span { font-size: 0.72rem; color: var(--gris); }
+.nlp-element { padding: 12px 0; border-bottom: 1px solid #EEE1D8; }
+.nlp-element:last-child { border-bottom: 0; }
+.nlp-kicker { font: 700 0.62rem/1 Poppins, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #EA5B1C; }
+.nlp-element h4 { margin: 5px 0 4px; font: 700 0.98rem/1.3 Bitter, Georgia, serif; color: #201A17; }
+.nlp-element p { margin: 0; font-size: 0.82rem; line-height: 1.5; color: #3a312c; }
+.nlp-vide { padding: 14px 0 4px; font-size: 0.78rem; color: var(--gris); }
+.nlp-encours { opacity: 0.78; }
+.nlp-encours h4 { color: #5A5049; }
+.nlp-pastille { display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px; background: #FFF3CD; color: #856404; font: 600 0.62rem/1.4 Space Mono, monospace; }
