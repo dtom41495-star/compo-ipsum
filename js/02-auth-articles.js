@@ -2472,23 +2472,29 @@ function rFormat(type){
 function mdVersHtml(md){
   if(!md) return '';
   var html = esc(md);
+  // Images et liens sont mis à l'abri (marqueurs) pendant le gras et l'italique : un « _ » dans l'adresse d'une image Drive
+  // (« …/d/1Pu0QnKUQlB_23XvjC1w_ojv… ») devenait <em>, l'image était cassée, et la mauvaise adresse était ensuite enregistrée dans le texte.
+  var reserve = [];
+  var garder = function(h){ reserve.push(h); return '\u0000'+(reserve.length - 1)+'\u0000'; };
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url){
-    return '<img src="'+_driveImgSrc(url)+'" data-md-url="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">';
+    return garder('<img src="'+_driveImgSrc(url)+'" data-md-url="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:6px;margin:0.6rem 0;display:block;">');
   });
   // Seuls les liens web, mail et internes sont gardés : un lien « javascript: » glissé dans un
   // article ou une annonce s'exécuterait dans la session de qui clique (SR, admin…).
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, txt, url){
     var u = String(url).trim();
     if(!/^(https?:|mailto:|\/|#)/i.test(u)) return txt;
-    return '<a href="'+u+'" target="_blank" rel="noopener">'+txt+'</a>';
+    return garder('<a href="'+u+'" target="_blank" rel="noopener">'+txt+'</a>');
   });
   html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+  // Italique _texte_ : seulement quand le « _ » ne touche pas un mot (pas dans un identifiant, une adresse ou un nom_de_fichier)
+  html = html.replace(/(^|[^\w])_([^_\n]+?)_(?![\w])/g, '$1<em>$2</em>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>.*<\/li>\n?)+/g, function(m){ return '<ul>'+m.replace(/\n+$/,'')+'</ul>\n\n'; });
+  html = html.replace(/\u0000(\d+)\u0000/g, function(m, i){ return reserve[+i]; });
   html = html.split(/\n{2,}/).map(function(bloc){
     if(/^<(h2|h3|blockquote|ul|img)/.test(bloc.trim())) return bloc;
     return bloc.trim() ? '<p>'+bloc.replace(/\n/g,'<br>')+'</p>' : '';
