@@ -1364,6 +1364,7 @@ var _assignCorrecteurId = null;
 var _assignFile = false; // true = file d'attente du SR (pas de relecteur désigné)
 
 var _sujetVerifiePourEnvoi = false;   // vrai pendant le second passage, une fois le sujet contrôlé
+var _imageSiteVerifiee = false;
 function ouvrirAssignation(){
   var auteur = document.getElementById('r-auteur').value.trim();
   var titre = document.getElementById('r-titre').value.trim();
@@ -1380,6 +1381,23 @@ function ouvrirAssignation(){
       if(b){ osSujetBloqueMessage(b); return; }
       _sujetVerifiePourEnvoi = true;
       try{ ouvrirAssignation(); } finally { _sujetVerifiePourEnvoi = false; }
+    });
+    return;
+  }
+
+  // Plusieurs photos : choisir celle mise en avant sur le site, avant le choix du correcteur
+  if(!_imageSiteVerifiee && typeof osImageSiteChoisir === 'function'){
+    var _dImg = buildDoc();
+    osImageSiteChoisir(_dImg).then(function(ok){
+      if(!ok) return;
+      if(currentDoc){
+        if(_dImg.image){
+          currentDoc.image = _dImg.image; currentDoc.image_legende = _dImg.image_legende;
+          _rImgAfficherEnregistree(_dImg.image, _dImg.image_legende);
+        } else if(_dImg.image_retiree && typeof removeImg === 'function'){ removeImg(); }
+      }
+      _imageSiteVerifiee = true;
+      try{ ouvrirAssignation(); } finally { _imageSiteVerifiee = false; }
     });
     return;
   }
@@ -1593,6 +1611,14 @@ function ouvrirAssignationDepuisDoc(doc){
       if(b){ osSujetBloqueMessage(b); return; }
       _sujetVerifiePourEnvoi = true;
       try{ ouvrirAssignationDepuisDoc(doc); } finally { _sujetVerifiePourEnvoi = false; }
+    });
+    return;
+  }
+  if(!_imageSiteVerifiee && typeof osImageSiteChoisir === 'function'){
+    osImageSiteChoisir(doc).then(function(ok){
+      if(!ok) return;
+      _imageSiteVerifiee = true;
+      try{ ouvrirAssignationDepuisDoc(doc); } finally { _imageSiteVerifiee = false; }
     });
     return;
   }
