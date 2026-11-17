@@ -325,6 +325,20 @@ function osSiteRetirer(){
     .catch(function(e){ notif('Impossible de retirer l\'article : '+e.message, 'erreur'); });
 }
 
+// Admin : article déjà en ligne dont on a changé des photos (liens Drive) ou l'image en avant : recopie les photos vers le site.
+function osSiteMettreAJour(){
+  var doc = currentDoc;
+  if(!doc || !doc.id || getUserRole() !== 'admin') return;
+  var btn = document.getElementById('r-site-maj');
+  if(btn) btn.disabled = true;
+  osSitePublier(doc.id).then(function(res){
+    _sitMajEditeur(doc.id, res);
+    if(typeof rWorkflowMajInterface === 'function') rWorkflowMajInterface(currentDoc);
+    notif('Site mis à jour : photos copiées', 'succes');
+  }).catch(function(e){ notif('Mise à jour du site impossible : '+e.message, 'erreur'); })
+  .then(function(){ if(btn) btn.disabled = false; });
+}
+
 function _sitMajBoutonRetirer(doc){
   var zone = document.getElementById('r-lien-publication');
   if(!zone) return;
@@ -343,6 +357,19 @@ function _sitMajBoutonRetirer(doc){
     (document.getElementById('r-lien-publication-actions') || zone).appendChild(btn);
   }
   btn.style.display = visible ? '' : 'none';
+  var maj = document.getElementById('r-site-maj');
+  if(!maj && visible){
+    maj = document.createElement('button');
+    maj.id = 'r-site-maj';
+    maj.type = 'button';
+    maj.className = 'btn sec';
+    maj.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;';
+    maj.innerHTML = '<i class="ti ti-refresh"></i> Mettre à jour le site (photos)';
+    maj.title = 'Admin : copie vers le site les photos ajoutées ou changées depuis la mise en ligne. Le texte, lui, est déjà à jour après « Sauvegarder ».';
+    maj.onclick = osSiteMettreAJour;
+    (document.getElementById('r-lien-publication-actions') || zone).appendChild(maj);
+  }
+  if(maj) maj.style.display = visible ? '' : 'none';
 }
 if(typeof rWorkflowMajInterface === 'function'){
   var _rWorkflowMajInterfaceAvantSite = rWorkflowMajInterface;
