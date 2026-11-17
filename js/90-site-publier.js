@@ -308,11 +308,48 @@ function _sitMajBoutonCarte(doc){
   }
   btn.style.display = visible ? '' : 'none';
 }
+// Admin : retirer un article du site. Il repasse « au SR » (même correcteur) : la base le décroche du site tout de suite,
+// il garde son adresse, et « Mettre en ligne » le remettra au même endroit une fois relu.
+function osSiteRetirer(){
+  var doc = currentDoc;
+  if(!doc || !doc.id || getUserRole() !== 'admin') return;
+  if(!confirm('Retirer cet article du site ?\n\nIl repasse au SR (correcteur : '+(doc.correcteur || 'non désigné')+'). Son adresse est gardée : « Mettre en ligne » le remettra au même endroit.')) return;
+  var h = Object.assign({}, _sitH(), { 'Content-Type':'application/json', 'Prefer':'return=representation' });
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(doc.id)+'&select=id,statut,site_en_ligne', { method:'PATCH', headers:h, body:JSON.stringify({ statut:'en-relecture' }) })
+    .then(function(r){ return r.json().catch(function(){ return null; }).then(function(d){ if(!r.ok || !d || !d.length) throw new Error((d && d.message) || 'Refusé'); return d[0]; }); })
+    .then(function(a){
+      doc.statut = a.statut; doc.site_en_ligne = !!a.site_en_ligne;
+      if(typeof rWorkflowMajInterface === 'function') rWorkflowMajInterface(doc);
+      notif(a.site_en_ligne ? 'Renvoyé au SR, mais le site l\'affiche encore : vérifie' : 'Article retiré du site, renvoyé au SR', a.site_en_ligne ? 'erreur' : 'succes');
+    })
+    .catch(function(e){ notif('Impossible de retirer l\'article : '+e.message, 'erreur'); });
+}
+
+function _sitMajBoutonRetirer(doc){
+  var zone = document.getElementById('r-lien-publication');
+  if(!zone) return;
+  var btn = document.getElementById('r-site-retirer');
+  var visible = !!(doc && doc.type === 'article' && doc.statut === 'publie' && doc.site_slug && doc.site_en_ligne && getUserRole() === 'admin');
+  if(!btn){
+    if(!visible) return;
+    btn = document.createElement('button');
+    btn.id = 'r-site-retirer';
+    btn.type = 'button';
+    btn.className = 'btn sec';
+    btn.style.cssText = 'padding:0.3rem 0.7rem;font-size:0.65rem;';
+    btn.innerHTML = '<i class="ti ti-eye-off"></i> Retirer du site (renvoyer au SR)';
+    btn.title = 'Admin : l\'article quitte le site et repasse au SR';
+    btn.onclick = osSiteRetirer;
+    (document.getElementById('r-lien-publication-actions') || zone).appendChild(btn);
+  }
+  btn.style.display = visible ? '' : 'none';
+}
 if(typeof rWorkflowMajInterface === 'function'){
   var _rWorkflowMajInterfaceAvantSite = rWorkflowMajInterface;
   rWorkflowMajInterface = function(doc){
     var r = _rWorkflowMajInterfaceAvantSite.apply(this, arguments);
     try{ _sitMajBoutonCarte(doc); }catch(e){}
+    try{ _sitMajBoutonRetirer(doc); }catch(e){}
     return r;
   };
 }
