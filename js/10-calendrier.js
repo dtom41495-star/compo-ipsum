@@ -1894,12 +1894,29 @@ function osRedacChangerSousOngletRedac(id){
 // Substack de SA rédaction, sans passer par un admin. est_centrale reste volontairement
 // hors de ce formulaire : ça affecte les autres rédactions (validation obligatoire),
 // donc ça reste dans Gestion rédactions, admin uniquement.
+// Jour où part la newsletter de la rédaction (1 = lundi … 7 = dimanche ; vide = pas encore décidé). Affiché aussi sur le site.
+var OS_JOURS_NEWSLETTER = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+function _osJourNewsletterChamp(id, valeur){
+  var h = '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Jour d\'envoi de la newsletter</div>'
+    +'<select id="'+id+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;background:white;">'
+    +'<option value="">Pas encore décidé</option>';
+  for(var i = 1; i <= 7; i++) h += '<option value="'+i+'"'+(Number(valeur) === i ? ' selected' : '')+'>'+OS_JOURS_NEWSLETTER[i]+'</option>';
+  return h+'</select><div style="font-size:0.66rem;color:var(--gris);margin-top:3px;">Affiché sur le site, à côté du bouton d\'abonnement.</div></div>';
+}
+function _osJourNewsletterLire(id, racine){
+  var el = (racine || document).querySelector('#'+id);
+  return el && el.value ? Number(el.value) : null;
+}
+
 function osRedacReglagesForm(redac){
   var h = '<div class="redac-reglages" style="background:white;border:0.5px solid var(--gris-bord);border-radius:12px;padding:1.2rem;display:flex;flex-direction:column;gap:0.9rem;max-width:420px;">';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Nom</div><input id="redac-reg-nom" type="text" value="'+esc(redac.nom)+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-reg-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-reg-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-reg-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
+
+  // Réglage d'admin : le rédac chef ne le voit ni ne le modifie
+  if(getUserRole() === 'admin' && 'jour_newsletter' in redac) h += _osJourNewsletterChamp('redac-reg-jour', redac.jour_newsletter);
 
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Notifications automatiques</div>';
@@ -2038,6 +2055,7 @@ function osRedacChefEnregistrerReglages(redacId){
   var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','article_attend_sujet','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie','recap_hebdo'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
+  if(getUserRole() === 'admin' && 'jour_newsletter' in redacAvant && document.getElementById('redac-reg-jour')) payload.jour_newsletter = _osJourNewsletterLire('redac-reg-jour');
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
@@ -2549,6 +2567,7 @@ function osRedactionCreerModal(){
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-new-dept" type="text" placeholder="Ex : 31" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-new-couleur" type="color" value="#EA5B1C" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-new-substack" type="text" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +_osJourNewsletterChamp('redac-new-jour', null)
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="document.body.removeChild(this.closest(\'[style*=fixed]\'))" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;border:0.5px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;">Annuler</button>'
     +'<button id="redac-new-submit" style="flex:1;font-family:Space Mono,monospace;font-size:0.7rem;padding:8px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Créer</button>'
@@ -2564,7 +2583,7 @@ function osRedactionCreerModal(){
     if(!nom){ notif('Nom requis'); return; }
     var slug = nom.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||''),'Prefer':'return=minimal'});
-    fetch(SB_URL+'/rest/v1/redactions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,slug:slug,couleur:couleur,lien_substack:substack||null})})
+    fetch(SB_URL+'/rest/v1/redactions',{method:'POST',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,slug:slug,couleur:couleur,lien_substack:substack||null,jour_newsletter:_osJourNewsletterLire('redac-new-jour', modal)})})
     .then(function(r){
       if(r.ok){ notif('Rédaction créée','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
@@ -2590,6 +2609,7 @@ function osRedactionEditerModal(redacId){
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Département</div><input id="redac-edit-dept" type="text" value="'+(redac.departement?esc(redac.departement):'')+'" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-edit-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>'
     +'<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-edit-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>'
+    +_osJourNewsletterChamp('redac-edit-jour', redac.jour_newsletter)
     +'<label style="display:flex;align-items:flex-start;gap:8px;padding:10px;background:var(--gris-clair);border-radius:8px;cursor:pointer;">'
     +'<input id="redac-edit-centrale" type="checkbox" '+(redac.est_centrale?'checked':'')+' style="margin-top:2px;accent-color:var(--rouge);">'
     +'<span><div style="font-family:Space Mono,monospace;font-size:0.68rem;font-weight:700;color:var(--encre);">Rédaction centrale</div>'
@@ -2621,7 +2641,7 @@ function osRedactionEditerModal(redacId){
       ? fetch(SB_URL+'/rest/v1/redactions?id=neq.'+encodeURIComponent(redacId), {method:'PATCH',headers:authH,body:JSON.stringify({est_centrale:false})})
       : Promise.resolve();
     etape1.then(function(){
-      return fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null,est_centrale:centrale})});
+      return fetch(SB_URL+'/rest/v1/redactions?id=eq.'+encodeURIComponent(redacId),{method:'PATCH',headers:authH,body:JSON.stringify({nom:nom,departement:dept||null,couleur:couleur,lien_substack:substack||null,est_centrale:centrale,jour_newsletter:_osJourNewsletterLire('redac-edit-jour', modal)})});
     }).then(function(r){
       if(r.ok){ notif('Rédaction mise à jour','succes'); document.body.removeChild(overlay); osRedactionsRender(); }
       else{ r.json().then(function(e){ notif('Erreur : '+(e.message||r.status)); }); }
