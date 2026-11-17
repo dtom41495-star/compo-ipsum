@@ -27,6 +27,15 @@ avec des systèmes de secours.
 5. **Newsletters** : plus tard, une instance **Listmonk** sur la machine (une liste par rédaction),
    envoi via le SMTP de **Mailjet** (choisi ; limites de l'offre gratuite à vérifier au moment de la mise
    en place). 160 abonnés à ce jour.
+   **Décision du 17 novembre 2026 (quotas)** : 168 abonnés, avec une newsletter nationale et une de Haute-Garonne
+   à venir. **Mailjet seul, pas de bascule automatique vers Brevo** : une newsletter part d'un coup, donc c'est la
+   limite par jour de l'offre gratuite qui compte (environ 200 chez Mailjet, 300 chez Brevo : chiffres de mémoire, à
+   confirmer avant la mise en place), pas la limite mensuelle. 168 passe, avec peu de marge. Règles : **jamais deux
+   newsletters le même jour** (2 × 168 dépasserait la limite ; celle du Tarn part le jeudi) ; si une liste approche
+   200 abonnés, forfait payant chez Mailjet ou répartition de la liste entre Mailjet et Brevo (listes ou segments
+   Listmonk). Listmonk répartirait entre plusieurs SMTP plutôt qu'il ne basculerait quand l'un est plein, et un envoi
+   refusé pour quota serait réessayé puis marqué en échec (à vérifier dans sa documentation, non lisible depuis la
+   session cloud).
 6. **Publicité** (AdSense) sur le site, placée sans gêner la lecture. Le code AdSense, `ads.txt`,
    le bandeau tarteaucitron et les encarts maison sont déjà en place ✅. Redemander l'examen AdSense
    une fois que des articles exclusifs au site sont en ligne depuis quelques semaines.
