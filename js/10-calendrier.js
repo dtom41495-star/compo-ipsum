@@ -1915,7 +1915,8 @@ function osRedacReglagesForm(redac){
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Couleur</div><input id="redac-reg-couleur" type="color" value="'+(redac.couleur||'#EA5B1C')+'" style="width:100%;height:36px;border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;padding:2px;"></div>';
   h += '<div><div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:4px;">Lien Substack (optionnel)</div><input id="redac-reg-substack" type="text" value="'+esc(redac.lien_substack||'')+'" placeholder="Ex : hautegaronne.substack.com" style="width:100%;font-family:Space Mono,monospace;font-size:0.8rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;"></div>';
 
-  if('jour_newsletter' in redac) h += _osJourNewsletterChamp('redac-reg-jour', redac.jour_newsletter);
+  // Réglage d'admin : le rédac chef ne le voit ni ne le modifie
+  if(getUserRole() === 'admin' && 'jour_newsletter' in redac) h += _osJourNewsletterChamp('redac-reg-jour', redac.jour_newsletter);
 
   h += '<div style="border-top:0.5px solid var(--gris-bord);padding-top:0.9rem;">';
   h += '<div style="font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;color:var(--gris);margin-bottom:2px;">Notifications automatiques</div>';
@@ -2054,7 +2055,7 @@ function osRedacChefEnregistrerReglages(redacId){
   var notifCles = ['pas_lancee','notif_statut_article','notif_refus_article','notif_correction','notif_sujet_attribue','notif_validation_centrale_ok','notif_sujet_libere','sujets_proposes_membres','sujets_validation','article_attend_sujet','relance_articles','relance_sujets','relance_invitations','relance_inactifs','relance_breves','rappel_serie','recap_hebdo'];
   var payload = {nom:nom, departement:dept||null, couleur:couleur, lien_substack:substack||null};
   var redacAvant = (window._redactionsData||[]).find(function(x){ return x.id===redacId; }) || {};
-  if('jour_newsletter' in redacAvant && document.getElementById('redac-reg-jour')) payload.jour_newsletter = _osJourNewsletterLire('redac-reg-jour');
+  if(getUserRole() === 'admin' && 'jour_newsletter' in redacAvant && document.getElementById('redac-reg-jour')) payload.jour_newsletter = _osJourNewsletterLire('redac-reg-jour');
   notifCles.forEach(function(cle){
     var el = document.getElementById('redac-reg-'+cle);
     // Réglages des propositions de sujets : envoyés seulement une fois les colonnes créées
