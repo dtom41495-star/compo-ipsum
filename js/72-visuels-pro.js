@@ -517,19 +517,20 @@ function osImagesArticle(doc){
 }
 
 // Fenêtre de choix de la photo. Promesse : l'adresse choisie, '' pour « sans photo », null si annulé.
-function _vproChoisirImage(images){
+function _vproChoisirImage(images, opts){
+  opts = opts || {};
   return new Promise(function(ok){
     var ov = document.createElement('div');
     ov.className = 'vpro-choix-voile';
     ov.innerHTML = '<div class="vpro-choix" role="dialog" aria-label="Choisir la photo du visuel">'
-      +'<div class="vpro-choix-titre">Quelle photo pour le visuel ?</div>'
-      +'<div class="vpro-choix-sous">L\'article en contient '+images.length+'. Touche celle que tu veux.</div>'
+      +'<div class="vpro-choix-titre">'+(opts.titre || 'Quelle photo pour le visuel ?')+'</div>'
+      +'<div class="vpro-choix-sous">'+(opts.sous || 'L\'article en contient '+images.length+'. Touche celle que tu veux.')+'</div>'
       +'<div class="vpro-choix-grille">'+images.map(function(im, i){
           var src = typeof _driveImgSrc === 'function' ? _driveImgSrc(im.url) : im.url;
           return '<button type="button" class="vpro-choix-img" data-i="'+i+'"><img src="'+_vproEsc(src)+'" alt="" loading="lazy">'
             +'<span>'+(im.source === 'couverture' ? 'Couverture' : (im.legende ? _vproEsc(im.legende) : 'Photo '+(i + 1)))+'</span></button>';
         }).join('')+'</div>'
-      +'<div class="vpro-choix-pied"><button type="button" data-a="annuler">Annuler</button><button type="button" data-a="sans">Sans photo</button></div>'
+      +'<div class="vpro-choix-pied"><button type="button" data-a="annuler">Annuler</button><button type="button" data-a="sans">'+(opts.sansLabel || 'Sans photo')+'</button></div>'
       +'</div>';
     var fin = function(v){ ov.remove(); document.removeEventListener('keydown', echap); ok(v); };
     var echap = function(e){ if(e.key === 'Escape') fin(null); };
@@ -543,6 +544,26 @@ function _vproChoisirImage(images){
       else fin(images[+b.dataset.i].url);
     });
     document.body.appendChild(ov);
+  });
+}
+
+// Envoi au SR : si l'article a plusieurs photos, la personne choisit celle mise en avant sur le site
+// (bandeau de la une + image de l'article : la même). Promesse : true pour continuer, false si annulé.
+function osImageSiteChoisir(doc){
+  if(!doc || doc.type !== 'article') return Promise.resolve(true);
+  var images = osImagesArticle(doc);
+  if(images.length < 2) return Promise.resolve(true);
+  return _vproChoisirImage(images, {
+    titre:'Quelle photo en avant sur le site ?',
+    sous:'L\'article contient '+images.length+' photos. Celle que tu touches sera le bandeau de la une et l\'image de l\'article.',
+    sansLabel:'Aucune en avant'
+  }).then(function(url){
+    if(url === null) return false;
+    if(url === ''){ doc.image = null; doc.image_retiree = true; return true; }
+    var im = images.filter(function(i){ return i.url === url; })[0];
+    doc.image = url; doc.image_retiree = false;
+    if(im && im.legende && !doc.image_legende) doc.image_legende = im.legende;
+    return true;
   });
 }
 
