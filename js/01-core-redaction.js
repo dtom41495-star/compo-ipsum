@@ -791,11 +791,14 @@ function buildDoc(){
   var docId = (currentDoc && currentDoc.id) ? currentDoc.id : genId();
   var docStatut = (currentDoc && currentDoc.statut) ? currentDoc.statut : 'brouillon';
 
-  // Lire la rédaction depuis _redacActiveId (source de vérité)
-  // ou depuis le dataset de l'input caché si modifié manuellement
+  // Un article déjà enregistré GARDE sa rédaction, quelle que soit la rédaction sélectionnée dans l'espace de travail : « Mes
+  // articles » liste les textes de toutes les rédactions d'une personne (admin, rédac chef, membre de plusieurs rédactions), et ouvrir
+  // un article du Tarn pendant que la Nationale est sélectionnée le faisait passer à la Nationale à l'enregistrement (avec, à la
+  // clé, la validation centrale et le relais réseaux de la Nationale). La rédaction sélectionnée ne sert que pour un NOUVEL article
+  // (ou, à défaut, l'input caché).
   var hiddenRedac = document.getElementById('r-redaction');
   var redacIdFromHidden = hiddenRedac ? hiddenRedac.dataset.redacId || null : null;
-  var redacId = window._redacActiveId || redacIdFromHidden || (currentDoc && currentDoc.redaction_id) || null;
+  var redacId = (currentDoc && currentDoc.id && currentDoc.redaction_id) || window._redacActiveId || redacIdFromHidden || null;
 
   // Lire l'auteur
   var elSelect = document.getElementById('r-auteur-select');
