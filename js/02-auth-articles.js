@@ -14,6 +14,11 @@ var db = {
     if(typeof osRedacBloqueePourMoi === 'function' && osRedacBloqueePourMoi(doc.redaction_id, true)){
       return Promise.reject(new Error('Cette rédaction n\'est pas encore lancée : impossible d\'y enregistrer un article pour l\'instant.'));
     }
+    // Garde-fou : un enregistrement sans titre ni texte efface l'article (éditeur vide ou pas encore chargé
+    // au moment d'un bouton du workflow). On le refuse plutôt que de vider l'article en base.
+    if(!String(doc.titre || '').trim() && !String(doc.corps || '').trim()){
+      return Promise.reject(new Error('Enregistrement refusé : titre et texte vides. Rouvre l\'article depuis Mes articles puis réessaie.'));
+    }
     // Choc-point de tous les enregistrements d'article (manuel, auto-save, workflow,
     // resync hors-ligne...) — un seul endroit pour montrer l'animation "en cours".
     if(typeof osSaveIndicateur === 'function') osSaveIndicateur('encours');
