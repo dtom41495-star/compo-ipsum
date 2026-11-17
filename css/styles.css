@@ -7263,6 +7263,13 @@ button.trx-temps:hover { background: #E0D0EC; }
 .cpa-filtre .cps-filtre-etoile, .cps-filtre-etoile { color: #E0A21B !important; font-size: 0.9rem; margin-right: 3px; }
 .cpc-raison { display: flex; align-items: center; gap: 6px; margin: -0.1rem 0 0.45rem; font-size: 0.72rem; font-weight: 600; color: #1E7A45; }
 .cpc-raison i { font-size: 0.95rem; flex-shrink: 0; }
+/* « Traité » : très visible, en haut de la carte (et en pastille dans la liste compacte) */
+.cpc-traite { display: flex; align-items: center; gap: 8px; margin: -0.1rem 0 0.6rem; padding: 7px 12px; border-radius: 8px; background: #1E7A45; color: #fff; font-size: 0.74rem; }
+.cpc-traite i { font-size: 1.15rem; flex-shrink: 0; }
+.cpc-traite strong { font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.cpc-traite span { margin-left: auto; opacity: 0.92; font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpc-traite-pastille { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 9px; border-radius: 999px; background: #1E7A45; color: #fff; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.cpc-traite-pastille i { font-size: 0.85rem; }
 .cpc-raison span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :root.theme-dark .cpc-fav.actif, :root.theme-dark .cpf-fav.actif { background: rgba(224,162,27,0.15); border-color: rgba(224,162,27,0.4); color: #F3C969; }
 :root.theme-dark .cpc-raison { color: #8FD9AE; }
