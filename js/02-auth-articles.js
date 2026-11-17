@@ -2572,18 +2572,27 @@ function _rBlocVersMd(node){
   }
 }
 function _rInlineVersMd(node){
-  var out = '';
+  var out = '', dernier = '';   // dernier : marque (« _ » ou « ** ») qui vient de fermer un gras/italique, pour fusionner deux morceaux collés
+  var ajouterStyle = function(marque, interieur){
+    if(!interieur) return;
+    // L'éditeur coupe un italique en plusieurs morceaux à chaque retouche (<em>O</em><em>n veut</em>) : sans fusion, ça donnait « _O__n veut_ »,
+    // que la relecture ne comprend pas (traits de soulignement qui traînent dans le texte, « reconnai_ssances »).
+    if(dernier === marque && out.slice(-marque.length) === marque) out = out.slice(0, -marque.length) + interieur + marque;
+    else out += marque + interieur + marque;
+    dernier = marque;
+  };
   Array.prototype.forEach.call(node.childNodes, function(child){
-    if(child.nodeType === 3){ out += child.textContent; return; }
+    if(child.nodeType === 3){ if(child.textContent !== ''){ out += child.textContent; dernier = ''; } return; }
     if(child.nodeType !== 1) return;
     switch(child.tagName){
-      case 'STRONG': case 'B': out += '**'+_rInlineVersMd(child)+'**'; break;
-      case 'EM': case 'I':     out += '_'+_rInlineVersMd(child)+'_'; break;
+      case 'STRONG': case 'B': ajouterStyle('**', _rInlineVersMd(child)); return;
+      case 'EM': case 'I':     ajouterStyle('_', _rInlineVersMd(child)); return;
       case 'A':  out += '['+_rInlineVersMd(child)+']('+(child.getAttribute('href')||'')+')'; break;
       case 'IMG': out += _rImgVersMd(child); break;
       case 'BR': out += '\n'; break;
       default: out += _rInlineVersMd(child); // dépouille le tag inconnu
     }
+    dernier = '';
   });
   return out;
 }
