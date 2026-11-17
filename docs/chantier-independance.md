@@ -27,8 +27,8 @@ avec des systèmes de secours.
 5. **Newsletters** : plus tard, une instance **Listmonk** sur la machine (une liste par rédaction),
    envoi via le SMTP de **Mailjet** (choisi ; limites de l'offre gratuite à vérifier au moment de la mise
    en place). 160 abonnés à ce jour.
-   **Décision du 17 novembre 2026 (quotas)** : 168 abonnés, avec une newsletter nationale et une de Haute-Garonne
-   à venir. **Mailjet seul, pas de bascule automatique vers Brevo** : une newsletter part d'un coup, donc c'est la
+   **Décision du 17 novembre 2026 (quotas)** : 168 abonnés, et trois newsletters en tout : deux locales
+   (Tarn, Haute-Garonne) et une nationale (celles de Haute-Garonne et nationale restent à lancer). **Mailjet seul, pas de bascule automatique vers Brevo** : une newsletter part d'un coup, donc c'est la
    limite par jour de l'offre gratuite qui compte (environ 200 chez Mailjet, 300 chez Brevo : chiffres de mémoire, à
    confirmer avant la mise en place), pas la limite mensuelle. 168 passe, avec peu de marge. Règles : **jamais deux
    newsletters le même jour** (2 × 168 dépasserait la limite ; celle du Tarn part le jeudi) ; si une liste approche
