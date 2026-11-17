@@ -8,7 +8,7 @@ function osEstMobile(){ return window.innerWidth <= 768; }
 
 // Rangement des tuiles par thème. Une appli absente de ces listes va dans « Outils ».
 var ACCUEIL_RUBRIQUES = [
-  { titre:'Ma rédaction',   ids:['redac:sujets','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
+  { titre:'Ma rédaction',   ids:['redac:sujets','redac:breves','redac:cps','redac:redac','redac:recrutement','mes-articles','app-correction'] },
   { titre:'Ressources',     ids:['notes','carnet','veille','substack','stats-dashboard'] },
   { titre:'Sur le terrain', ids:['agenda','salles','magneto','upload-medias','visuels-pro','mail','tchat','app-com','app-courrier'] },
   { titre:'Association',    ids:['benevoles','tresorerie','notes-frais','boutique','newsletter','signatures','projets','tableau'] },
@@ -19,11 +19,12 @@ var ACCUEIL_RUBRIQUES = [
 // plein écran (voir osOuvrirMaRedacMobile). Le profil s'ouvre depuis le haut de l'accueil.
 var ACCUEIL_REDAC_TUILES = [
   { id:'redac:sujets',      onglet:'sujets',      icon:'<i class="ti ti-pin"></i>',          label:'Sujets',       color:'#E8461E' },
+  { id:'redac:breves',      onglet:'breves',      icon:'<i class="ti ti-list-details"></i>', label:'Brèves',       color:'#B9770E' },
   { id:'redac:cps',         onglet:'cps',         icon:'<i class="ti ti-speakerphone"></i>', label:'Communiqués',  color:'#4A235A' },
   { id:'redac:redac',       onglet:'redac',       icon:'<i class="ti ti-users-group"></i>',  label:'Ma rédaction', color:'#1A5276' },
   { id:'redac:recrutement', onglet:'recrutement', icon:'<i class="ti ti-user-plus"></i>',    label:'Recrutement',  color:'#7D3C98' }
 ];
-var ACCUEIL_REDAC_TITRES = { profil:'Mon profil', sujets:'Sujets', recrutement:'Recrutement', redac:'Ma rédaction',
+var ACCUEIL_REDAC_TITRES = { profil:'Mon profil', sujets:'Sujets', breves:'Brèves', recrutement:'Recrutement', redac:'Ma rédaction',
   cps:'Communiqués', 'cps-abonnements':'Alertes communiqués', admin:'Gestion rédactions' };
 // En bas de l'accueil, pas en tuile
 var ACCUEIL_HORS_TUILES = ['tutos','params'];

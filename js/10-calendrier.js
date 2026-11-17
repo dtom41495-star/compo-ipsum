@@ -2214,6 +2214,7 @@ function _osRedacOngletsListe(){
   var onglets = [
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
+    {id:'breves',      icon:'<i class="ti ti-list-details"></i>', label:'Brèves'},
     {id:'recrutement', icon:'<i class="ti ti-speakerphone"></i>', label:'Recrutement'},
     {id:'redac',       icon:'<i class="ti ti-news"></i>', label:'Ma rédaction'},
     // Communiqués + son sous-menu — rendus à part dans un encadré blanc (voir
@@ -2295,6 +2296,8 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     h += osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArticles, mesPublies, mesDuMois, mesParticipations, redac, couleurRedac);
   } else if(_redacOnglet === 'sujets'){
     h += osRedactionsMembre_OngletSujets(uid, roleRedac);
+  } else if(_redacOnglet === 'breves'){
+    h += osRedactionsMembre_OngletBreves(redacId);
   } else if(_redacOnglet === 'recrutement'){
     h += '<div id="redac-recrutement-zone">'+osLoadingHtml()+'</div>';
   } else if(_redacOnglet === 'redac'){
@@ -2371,6 +2374,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     osSujetsChargerNotifEtat();
   }
   if(_redacOnglet === 'redac') osMaRedacDemarrer(uid, redacId, roleRedac);
+  if(_redacOnglet === 'breves') osBrevesDemarrer(uid, redacId, roleRedac);
   if(_redacOnglet === 'admin'){
     var zone = document.getElementById('redac-admin-zone');
     if(zone) osRedactionsRenderAdmin(zone, uid);

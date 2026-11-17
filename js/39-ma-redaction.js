@@ -135,22 +135,21 @@ function _mrStats(d, debutMois){
 function _mrAfficher(){
   var racine = document.getElementById('mr-racine');
   if(!racine) return;
+  if(typeof _redacOnglet !== 'undefined' && _redacOnglet === 'breves'){ _mrAfficherBreves(); return; }   // onglet « Brèves » du menu : même conteneur
   var jeton = ++_mr.jeton;
   if(!_mr.donnees) racine.innerHTML = osLoadingHtml();
   _mrCharger().then(function(d){
     // La vue Relecture a besoin des dates d'envoi et de relecture (colonnes facultatives), lues une fois
-    if(_redacSousOnglet === 'breves' && typeof osRegulariteChargerPeriodes === 'function') return osRegulariteChargerPeriodes().catch(function(){}).then(function(){ return d; });   // dates des newsletters envoyées
     return (_redacSousOnglet === 'relecture' && _mrEstChef() && d.relecture === undefined) ? _mrChargerRelecture(d).then(function(){ return d; }) : d;
   }).then(function(d){
     if(jeton !== _mr.jeton || !document.getElementById('mr-racine')) return;     // un affichage plus récent a pris le relais
     var chef = _mrEstChef();
-    var sous = chef ? _redacSousOnglet : (_redacSousOnglet === 'breves' ? 'breves' : 'vue');   // hors rédac chef : Vue d'ensemble et Brèves
-    if(['vue', 'membres', 'edito', 'breves', 'relecture', 'reglages'].indexOf(sous) === -1) sous = 'vue';
+    var sous = chef ? _redacSousOnglet : 'vue';
+    if(['vue', 'membres', 'edito', 'relecture', 'reglages'].indexOf(sous) === -1) sous = 'vue';
     var h = _mrBandeau(d);
-    h += _mrSousOnglets(sous, chef);
+    if(chef) h += _mrSousOnglets(sous);
     if(sous === 'membres') h += _mrMembres(d);
     else if(sous === 'edito') h += _mrEdito(d);
-    else if(sous === 'breves') h += _mrBreves(d);
     else if(sous === 'relecture') h += _mrRelecture(d);
     else if(sous === 'reglages') h += osRedacReglagesForm(d.redac);
     else h += _mrVue(d, chef);
@@ -172,12 +171,10 @@ function _mrBandeau(d){
     +'<span class="mr-bandeau-nb">'+d.membres.length+' membre'+(d.membres.length > 1 ? 's' : '')+'</span></div>';
 }
 
-function _mrSousOnglets(actif, chef){
-  var liste = chef ? [
+function _mrSousOnglets(actif){
+  var liste = [
     ['vue', 'Vue d’ensemble', 'layout-dashboard'], ['membres', 'Membres', 'users'],
-    ['edito', 'Suivi éditorial', 'clipboard-list'], ['breves', 'Brèves', 'news'], ['relecture', 'Relecture', 'eye-check'], ['reglages', 'Réglages', 'settings']
-  ] : [
-    ['vue', 'Vue d’ensemble', 'layout-dashboard'], ['breves', 'Brèves', 'news']
+    ['edito', 'Suivi éditorial', 'clipboard-list'], ['relecture', 'Relecture', 'eye-check'], ['reglages', 'Réglages', 'settings']
   ];
   return '<div class="mr-sous">'+liste.map(function(o){
     return '<button type="button" class="mr-sous-btn'+(actif === o[0] ? ' actif' : '')+'" data-act="sous" data-id="'+o[0]+'"><i class="ti ti-'+o[2]+'"></i>'+o[1]+'</button>';
@@ -374,50 +371,114 @@ function _mrProchainEnvoi(jour){
   while((d.getDay() || 7) !== jour) d.setDate(d.getDate() + 1);
   return d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
 }
+// Une ligne par brève : d'abord celles en cours d'écriture (en écriture, au SR, relues), puis celles déjà validées (bon à publier, en ligne)
+var MR_BREVES_EN_COURS = ['brouillon', 'en-relecture', 'corrige'];
 function _mrBreves(d){
   var liste = _mrBrevesDeLaPeriode(d);
   var prochain = _mrProchainEnvoi(d.redac.jour_newsletter);
-  var h = '<div class="mr-edito mr-breves">';
-  h += '<div class="mr-alerte"><i class="ti ti-news"></i> <strong>Brèves de la prochaine newsletter</strong>'+(prochain ? ' (envoi '+esc(prochain)+')' : '')
+  var h = '<div class="mr-breves">';
+  h += '<div class="mr-alerte"><i class="ti ti-list-details"></i> <strong>Brèves de la prochaine newsletter</strong>'+(prochain ? ' (envoi '+esc(prochain)+')' : '')
     +'<br><small>Toutes les brèves de la rédaction partent dans sa newsletter. Regarde cette liste avant d’écrire une brève : Compo te prévient aussi si un titre ressemble à une brève déjà proposée.</small></div>';
-  var filtres = ['brouillon', 'en-relecture', 'corrige', 'valide', 'valide_central', 'publie'].map(function(st){
-    var n = liste.filter(function(x){ return x.a.statut === st; }).length;
-    return n ? '<button type="button" class="mr-filtre" data-act="filtre-breves" data-f="'+st+'" style="background:'+MR_STATUTS[st].bg+';color:'+MR_STATUTS[st].c+';">'+MR_STATUTS[st].l+' <strong>'+n+'</strong></button>' : '';
-  }).join('');
-  h += '<div class="mr-filtres re-filtres"><button type="button" class="mr-filtre actif" data-act="filtre-breves" data-f="tous" style="background:var(--gris-clair);color:var(--encre);">Toutes <strong>'+liste.length+'</strong></button>'+filtres+'</div>';
-  h += '<input type="search" id="mr-breves-q" placeholder="Chercher une brève (titre, auteur)…" autocomplete="off" style="width:100%;max-width:420px;margin:0 0 10px;font-family:inherit;font-size:0.82rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;">';
-  if(!liste.length) return h+'<div class="mr-vide">Aucune brève proposée pour cette newsletter pour l’instant.</div></div>';
-  var actions = function(a){ return '<button type="button" class="mr-mini" data-act="ouvrir" data-id="'+esc(a.id)+'">Ouvrir</button>'; };
-  var cle = function(x){ return esc(((x.a.titre || '')+' '+(x.a.auteur || '')).toLowerCase()); };
-  if(osEstMobile()){
-    return h+'<div id="redac-edito-table" class="re-liste">'+liste.map(function(x){
-      var st = MR_STATUTS[x.a.statut] || { l:x.a.statut, bg:'#eee', c:'#333' };
-      return '<div class="re-carte" data-statut="'+esc(x.a.statut || '')+'" data-q="'+cle(x)+'">'
-        +'<div class="re-haut"><span class="re-statut" style="background:'+st.bg+';color:'+st.c+';">'+st.l+'</span><span class="re-date">'+_mrFraicheur(x.ref)+'</span></div>'
-        +'<div class="re-titre">'+esc(x.a.titre || 'Sans titre')+'</div><div class="re-auteur">'+esc(x.a.auteur || 'Auteur inconnu')+'</div>'
-        +'<div class="re-actions">'+actions(x.a)+'</div></div>';
-    }).join('')+'</div></div>';
-  }
-  h += '<div class="mr-defile"><table class="mr-table" id="redac-edito-table"><thead><tr><th>Titre</th><th>Auteur</th><th>Statut</th><th>Dernière activité</th><th></th></tr></thead><tbody>';
-  liste.forEach(function(x){
+  h += '<input type="search" id="mr-breves-q" placeholder="Chercher une brève (titre, auteur)…" autocomplete="off" style="width:100%;max-width:420px;margin:0 0 12px;font-family:inherit;font-size:0.82rem;padding:8px 10px;border:1px solid var(--gris-bord);border-radius:6px;outline:none;box-sizing:border-box;">';
+  var ligne = function(x){
     var st = MR_STATUTS[x.a.statut] || { l:x.a.statut, bg:'#eee', c:'#333' };
-    h += '<tr data-statut="'+esc(x.a.statut || '')+'" data-q="'+cle(x)+'"><td class="mr-td-titre"><div>'+esc(x.a.titre || 'Sans titre')+'</div></td>'
-      +'<td class="mr-gris">'+esc(x.a.auteur || '—')+'</td>'
-      +'<td><span class="mr-etiquette" style="background:'+st.bg+';color:'+st.c+';">'+st.l+'</span></td>'
-      +'<td class="mr-gris">'+_mrFraicheur(x.ref)+'</td><td class="mr-actions">'+actions(x.a)+'</td></tr>';
-  });
-  return h+'</tbody></table></div></div>';
+    return '<div class="mr-bl" data-statut="'+esc(x.a.statut || '')+'" data-q="'+esc(((x.a.titre || '')+' '+(x.a.auteur || '')).toLowerCase())+'">'
+      +'<span class="mr-etiquette" style="background:'+st.bg+';color:'+st.c+';">'+st.l+'</span>'
+      +'<div class="mr-bl-texte"><div class="mr-bl-titre">'+esc(x.a.titre || 'Sans titre')+'</div>'
+      +'<div class="mr-bl-meta">'+esc(x.a.auteur || 'Auteur inconnu')+' · '+_mrFraicheur(x.ref)+'</div></div>'
+      +'<button type="button" class="mr-mini" data-act="ouvrir" data-id="'+esc(x.a.id)+'">Ouvrir</button></div>';
+  };
+  var section = function(titre, l){
+    return '<div class="mr-bsec"><div class="mr-bsec-t">'+titre+' <strong>'+l.length+'</strong></div>'
+      +(l.length ? l.map(ligne).join('') : '<div class="mr-bvide">Aucune pour l’instant.</div>')+'</div>';
+  };
+  var enCours = liste.filter(function(x){ return MR_BREVES_EN_COURS.indexOf(x.a.statut) !== -1; });
+  var validees = liste.filter(function(x){ return MR_BREVES_EN_COURS.indexOf(x.a.statut) === -1; });
+  if(!liste.length) return h+'<div class="mr-vide">Aucune brève proposée pour cette newsletter pour l’instant.</div></div>';
+  return h+section('En cours d’écriture', enCours)+section('Déjà validées', validees)+'</div>';
 }
-// Filtre par statut + recherche (sans argument : on garde le statut actif)
-function _mrBrevesFiltrer(statut){
+// Simulation de la newsletter : l'édito (laissé vide, c'est l'introduction à écrire avant l'envoi), puis « Le brief » avec TOUTES les
+// brèves de la période : les validées d'abord, puis celles encore en cours d'écriture (repérées, elles peuvent encore changer).
+function _mrApercuNewsletter(d, lesBreves, corps){
+  var validees = lesBreves.filter(function(x){ return MR_BREVES_EN_COURS.indexOf(x.a.statut) === -1; });
+  var enCours = lesBreves.filter(function(x){ return MR_BREVES_EN_COURS.indexOf(x.a.statut) !== -1; });
+  var ordre = validees.concat(enCours);
+  var jour = _mrProchainEnvoi(d.redac.jour_newsletter);
+  var extrait = function(t){
+    var c = String(t || '').replace(/[*_#>`]/g, '').replace(/\s+/g, ' ').trim();
+    return c.length > 280 ? c.slice(0, 280).replace(/\s+\S*$/, '')+'…' : c;
+  };
+  var h = '<div class="nlp-zone"><div class="nlp-titre-zone"><i class="ti ti-eye"></i> Aperçu de la newsletter</div>'
+    +'<div class="nlp"><div class="nlp-entete"><div class="nlp-marque">ipsum <span>média</span></div>'
+    +'<div class="nlp-ligne"><div class="nlp-nom">La newsletter · '+esc(d.redac.nom)+'</div><div class="nlp-date">'+(jour ? esc(jour) : 'Date d’envoi à définir')+'</div></div></div>'
+    +'<div class="nlp-corps">'
+    +'<span class="nlp-etiquette">L’édito</span><div class="nlp-edito" role="note"><i class="ti ti-pencil" aria-hidden="true"></i><span>Espace réservé à l’édito : quelques lignes d’introduction, écrites par la rédaction avant l’envoi, qui ouvrent la newsletter.</span></div>'
+    +'<div class="nlp-brief"><div class="nlp-brief-tete"><strong>Le <b>brief</b></strong><span>'+ordre.length+' brève'+(ordre.length > 1 ? 's' : '')+(enCours.length ? ' dont '+enCours.length+' en cours d’écriture' : '')+'</span></div>';
+  if(!ordre.length) h += '<div class="nlp-vide">Aucune brève pour l’instant : elles apparaissent ici dès qu’elles sont proposées.</div>';
+  ordre.forEach(function(x){
+    var c = corps[x.a.id] || {}, pasFinie = MR_BREVES_EN_COURS.indexOf(x.a.statut) !== -1;
+    h += '<div class="nlp-element'+(pasFinie ? ' nlp-encours' : '')+'">'+(c.rubrique ? '<div class="nlp-kicker">'+esc(c.rubrique)+'</div>' : '')
+      +'<h4>'+esc(x.a.titre || 'Sans titre')+'</h4>'+(c.corps ? '<p>'+esc(extrait(c.corps))+'</p>' : '')
+      +(pasFinie ? '<span class="nlp-pastille">En cours d’écriture · '+esc(x.a.auteur || 'auteur inconnu')+'</span>' : '')+'</div>';
+  });
+  return h+'</div></div></div></div>';
+}
+
+// Recherche : cache les lignes qui ne correspondent pas, et les titres de section devenus vides
+function _mrBrevesFiltrer(){
   var racine = document.getElementById('mr-racine');
   if(!racine) return;
-  if(statut === undefined){ var actif = racine.querySelector('.mr-filtre.actif'); statut = actif ? actif.dataset.f : 'tous'; }
   var q = ((document.getElementById('mr-breves-q') || {}).value || '').trim().toLowerCase();
-  racine.querySelectorAll('#redac-edito-table [data-statut]').forEach(function(r){
-    r.style.display = ((statut === 'tous' || r.dataset.statut === statut) && (!q || (r.dataset.q || '').indexOf(q) !== -1)) ? '' : 'none';
+  racine.querySelectorAll('.mr-bsec').forEach(function(sec){
+    var lignes = sec.querySelectorAll('.mr-bl'), visibles = 0;
+    lignes.forEach(function(r){
+      var ok = !q || (r.dataset.q || '').indexOf(q) !== -1;
+      r.style.display = ok ? '' : 'none';
+      if(ok) visibles++;
+    });
+    var vide = sec.querySelector('.mr-bvide');
+    if(vide) vide.style.display = (q && lignes.length === 0) ? 'none' : '';
+    sec.style.display = (q && lignes.length && !visibles) ? 'none' : '';
   });
-  racine.querySelectorAll('.mr-filtre').forEach(function(b){ b.classList.toggle('actif', b.dataset.f === statut); });
+}
+
+// ── Onglet « Brèves » du menu de Ma rédac (sous « Sujets ») : même liste, sans le bandeau ni les sous-onglets ──
+function osRedactionsMembre_OngletBreves(redacId){
+  if(!redacId) return '<div class="mr-vide-page">Aucune rédaction assignée.</div>';
+  return '<div id="mr-racine" class="mr">'+osLoadingHtml()+'</div>';
+}
+function osBrevesDemarrer(uid, redacId, roleRedac){
+  if(!redacId) return;
+  _mr.uid = uid; _mr.redacId = redacId; _mr.roleRedac = roleRedac;
+  _mr.donnees = null;                       // chaque ouverture repart de données fraîches
+  var racine = document.getElementById('mr-racine');
+  if(racine && !racine.dataset.branche){ racine.dataset.branche = '1'; _mrBrancher(racine); }
+  _mrAfficherBreves();
+}
+function _mrAfficherBreves(){
+  var racine = document.getElementById('mr-racine');
+  if(!racine) return;
+  var jeton = ++_mr.jeton;
+  if(!_mr.donnees) racine.innerHTML = osLoadingHtml();
+  _mrCharger().then(function(d){
+    // Dates des newsletters envoyées : elles bornent la période en cours
+    return (typeof osRegulariteChargerPeriodes === 'function' ? osRegulariteChargerPeriodes().catch(function(){}) : Promise.resolve()).then(function(){ return d; });
+  }).then(function(d){
+    // Textes des brèves (pour l'aperçu de la newsletter) : lus à part, la liste ne les charge pas
+    var lesBreves = _mrBrevesDeLaPeriode(d);
+    var lire = lesBreves.length
+      ? _mrLire('articles?id=in.('+lesBreves.map(function(x){ return encodeURIComponent(x.a.id); }).join(',')+')&select=id,corps,rubrique').catch(function(){ return []; })
+      : Promise.resolve([]);
+    return lire.then(function(rows){
+      if(jeton !== _mr.jeton || !document.getElementById('mr-racine')) return;
+      var corps = {}; (Array.isArray(rows) ? rows : []).forEach(function(r){ corps[r.id] = r; });
+      racine.innerHTML = _mrBreves(d) + _mrApercuNewsletter(d, lesBreves, corps);
+    });
+  }).catch(function(){
+    if(jeton !== _mr.jeton) return;
+    racine.innerHTML = '<div class="mr-erreur"><i class="ti ti-wifi-off"></i> Impossible de charger les brèves.'
+      +'<button type="button" data-act="recharger">Réessayer</button></div>';
+  });
 }
 
 // ── Relecture : charge par correcteur et textes qui attendent (rédac chef, admin) ──
@@ -538,12 +599,11 @@ function _mrBrancher(racine){
     if(el.dataset.act === 'fiche' && e.target.closest('select, button[data-act="retirer"]')) return;
     var act = el.dataset.act;
     if(act === 'sous') osMaRedacSousOnglet(el.dataset.id);
-    else if(act === 'recharger'){ _mr.donnees = null; _mrAfficher(); }
+    else if(act === 'recharger'){ _mr.donnees = null; _mrAfficher(); }   // _mrAfficher aiguille vers les brèves quand c'est l'onglet ouvert
     else if(act === 'fiche') osRedacOuvrirFicheMembre(el.dataset.mid, _mr.redacId);
     else if(act === 'ajouter') osRedacChefAjouterMembre(_mr.redacId);
     else if(act === 'retirer') osRedacChefRetirerMembre(el.dataset.mid, _mr.redacId);
     else if(act === 'filtre') _mrFiltrer(el.dataset.f);
-    else if(act === 'filtre-breves') _mrBrevesFiltrer(el.dataset.f);
     else if(act === 'relancer-sr') osMrRelancerSr();
     else if(act === 'ouvrir') benvOuvrirArticle(el.dataset.id);
     else if(act === 'publier'){
