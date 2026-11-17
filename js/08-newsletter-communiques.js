@@ -1006,8 +1006,49 @@ function _cpInvitCouvertureHTML(cp, dispos, membres, gerer, sujet){
   return h;
 }
 
+// ===== « TRAITÉ » : un communiqué dont quelqu'un s'est déjà occupé, quelle que soit sa rédaction =====
+// Traité = relié à un sujet réservé (en cours), proposé ou publié, ou à un article (écrit depuis le communiqué). Un sujet seulement
+// créé et pas encore réservé ne compte pas. Tous les membres lisent tous les sujets et articles : le badge est le même partout.
+var _CPS_TRAITE_RANG = { publie:3, en_cours:2, propose:1, article:0 };
+function _cpsChargerTraites(cpIds, callback){
+  window._cpsTraites = {};
+  if(!cpIds || !cpIds.length){ if(callback) callback(); return; }
+  var h = _cpsH(), liste = cpIds.map(function(id){ return encodeURIComponent(id); }).join(',');
+  var lire = function(url){ return fetch(SB_URL+'/rest/v1/'+url, {headers:h}).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }).then(function(rows){ return Array.isArray(rows) ? rows : []; }); };
+  var STATUTS = 'statut=in.(en_cours,propose,publie)';
+  Promise.all([
+    lire('briefing?cp_id=in.('+liste+')&'+STATUTS+'&select=id,cp_id,statut,responsable'),
+    lire('briefing_communiques?communique_id=in.('+liste+')&select=briefing_id,communique_id'),
+    lire('articles?cp_id=in.('+liste+')&select=id,cp_id,statut,auteur')
+  ]).then(function(res){
+    var liens = res[1];
+    var ids = liens.map(function(l){ return encodeURIComponent(l.briefing_id); });
+    return (ids.length ? lire('briefing?id=in.('+ids.join(',')+')&'+STATUTS+'&select=id,statut,responsable') : Promise.resolve([])).then(function(lies){
+      var traites = {};
+      var noter = function(cpId, etat, qui){
+        if(!cpId) return;
+        var ex = traites[cpId];
+        if(!ex || _CPS_TRAITE_RANG[etat] > _CPS_TRAITE_RANG[ex.etat]) traites[cpId] = { etat:etat, qui:qui || '' };
+      };
+      res[0].forEach(function(s){ noter(s.cp_id, s.statut, s.responsable); });
+      var parId = {}; lies.forEach(function(s){ parId[s.id] = s; });
+      liens.forEach(function(l){ var s = parId[l.briefing_id]; if(s) noter(l.communique_id, s.statut, s.responsable); });
+      res[2].forEach(function(a){ noter(a.cp_id, a.statut === 'publie' ? 'publie' : 'article', a.auteur); });
+      window._cpsTraites = traites;
+    });
+  }).catch(function(){ window._cpsTraites = {}; }).then(function(){ if(callback) callback(); });
+}
+// Le repère « Traité » : bandeau vert en haut de la carte, ou pastille dans la liste compacte ; '' si le communiqué n'est pas traité
+function _cpsTraiteHTML(cpId, compact){
+  var t = (window._cpsTraites || {})[cpId];
+  if(!t) return '';
+  var detail = t.etat === 'publie' ? 'article publié' : (t.etat === 'article' ? 'article en cours'+(t.qui ? ' · '+t.qui : '') : 'sujet '+(t.etat === 'propose' ? 'proposé' : 'réservé')+(t.qui ? ' par '+t.qui : ''));
+  if(compact) return '<span class="cpc-traite-pastille" title="'+esc(detail)+'"><i class="ti ti-circle-check"></i>Traité</span>';
+  return '<div class="cpc-traite"><i class="ti ti-circle-check"></i><strong>Traité</strong><span>'+esc(detail)+'</span></div>';
+}
+
 function _cpsChargerSujetsParCp(cpIds, callback){
-  if(!cpIds || !cpIds.length){ window._cpsSujetsParCp = {}; if(callback) callback(); return; }
+  if(!cpIds || !cpIds.length){ window._cpsSujetsParCp = {}; window._cpsTraites = {}; if(callback) callback(); return; }
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/briefing?cp_id=in.('+cpIds.map(function(id){return encodeURIComponent(id);}).join(',')+')&statut=neq.refuse&select=id,cp_id,statut,responsable', {headers:authH})
   .then(function(r){return r.json();})
@@ -1038,8 +1079,8 @@ function _cpsChargerSujetsParCp(cpIds, callback){
     });
   }).then(function(map){
     window._cpsSujetsParCp = map || {};
-    if(callback) callback();
-  }).catch(function(){ window._cpsSujetsParCp = {}; if(callback) callback(); });
+    _cpsChargerTraites(cpIds, callback);
+  }).catch(function(){ window._cpsSujetsParCp = {}; _cpsChargerTraites(cpIds, callback); });
 }
 
 // ===== FAVORIS ET COMMUNIQUÉS « POUR TES SUJETS » =====
@@ -1432,6 +1473,7 @@ function cpsvListe(liste, cps, vus){
     var badgeInvit = cp.type === 'invitation_presse'
       ? '<span style="background:#FDEBD0;color:#784212;font-family:Space Mono,monospace;font-size:0.58rem;padding:1px 6px;border-radius:3px;flex-shrink:0;"><i class="ti ti-microphone" style="vertical-align:-1px;"></i> Invitation</span>'
       : '';
+    badgeInvit = _cpsTraiteHTML(cp.id, true) + badgeInvit;
     badgeInvit += _cpIaBadge(cp, 'ligne');
     // Ma situation sur l'invitation, en toutes lettres (Tu couvres / Disponible...)
     if(cp.type === 'invitation_presse'){
@@ -1617,6 +1659,7 @@ function cpsMakeCard(cp, isAdmin, pourSujet){
 
   card.innerHTML =
     (pourSujet ? '<div class="cpc-raison"><i class="ti ti-'+(pourSujet.raison === 'lie' ? 'link' : 'bulb')+'"></i><span>'+(pourSujet.raison === 'lie' ? 'Lié à ton sujet' : 'Peut servir pour ton sujet')+' « '+esc(pourSujet.sujet || '')+' »</span></div>' : '')
+    +_cpsTraiteHTML(cp.id)
     +'<div class="mac-haut">'+haut+'</div>'
     +'<div class="mac-titre">'+esc(cp.titre||cp.objet||'Sans titre')+'</div>'
     +(typeof osErratumBandeauHTML === 'function' ? osErratumBandeauHTML(cp, false) : '')
