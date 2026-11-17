@@ -102,9 +102,12 @@ function _rImgCadreMontrer(img){
     c.style.cssText = 'position:fixed;z-index:99990;pointer-events:none;border:2px solid #E8461E;border-radius:6px;display:none;';
     c.innerHTML = '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;pointer-events:auto;">'
       +'<button type="button" data-sens="-1" title="Monter l\'image" aria-label="Monter l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#1A1A2E;"><i class="ti ti-arrow-up"></i></button>'
-      +'<button type="button" data-sens="1" title="Descendre l\'image" aria-label="Descendre l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#1A1A2E;"><i class="ti ti-arrow-down"></i></button></div>';
+      +'<button type="button" data-sens="1" title="Descendre l\'image" aria-label="Descendre l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#1A1A2E;"><i class="ti ti-arrow-down"></i></button>'
+      +'<button type="button" data-suppr="1" title="Retirer l\'image du texte" aria-label="Retirer l\'image du texte" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#C0341D;"><i class="ti ti-trash"></i></button></div>';
     c.addEventListener('mousedown', function(e){ e.preventDefault(); });
     c.addEventListener('click', function(e){
+      var s = e.target.closest && e.target.closest('button[data-suppr]');
+      if(s){ _rImgSupprimer(); return; }
       var b = e.target.closest && e.target.closest('button[data-sens]');
       if(b) _rImgDeplacer(+b.getAttribute('data-sens'));
     });
@@ -118,6 +121,19 @@ function _rImgCadrePlacer(){
   var r = _rImgSel.getBoundingClientRect(), c = _rImgCadre;
   c.style.display = 'block';
   c.style.left = r.left+'px'; c.style.top = r.top+'px'; c.style.width = r.width+'px'; c.style.height = r.height+'px';
+}
+// Retire l'image sélectionnée du texte (« Annuler » la remet). Le bloc qui la contient n'est supprimé que s'il ne reste rien d'autre dedans.
+function _rImgSupprimer(){
+  var l = _rHLive();
+  if(!l || !_rImgSel) return;
+  var img = _rImgSel, bloc = _rImgBloc(img);
+  var lien = img.parentNode && img.parentNode.tagName === 'A' && img.parentNode !== bloc ? img.parentNode : null;
+  (lien || img).remove();
+  if(bloc && bloc.parentNode === l && !bloc.querySelector('img') && !String(bloc.textContent || '').trim()) bloc.remove();
+  _rImgCadreCacher();
+  if(typeof _rCorpsSync === 'function') _rCorpsSync();
+  _rHPousser();
+  if(typeof notif === 'function') notif('Image retirée du texte (Ctrl+Z pour la remettre)');
 }
 function _rImgDeplacer(sens){
   var l = _rHLive();
