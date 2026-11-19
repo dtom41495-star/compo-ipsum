@@ -952,6 +952,14 @@ function osCloseWindowForce(pageId){
     if(_redacOnglet === 'recrutement') _osRedacMarquerRecrutementLu();
   }
   delete _windows[pageId];
+  // Fenêtre de l'éditeur fermée (croix, envoi au SR…) : l'article qu'elle contenait ne doit pas survivre en mémoire. Sinon la fenêtre
+  // rouverte pour un autre texte gardait l'identifiant, l'auteur et les photos de l'article précédent, et le nouveau texte s'enregistrait
+  // dessus (cas Rose / Tom, IPM-2611-AAKZ). Le chrono ci-dessus a déjà servi : on peut remettre à zéro.
+  if(pageId === 'redaction'){
+    try{ if(typeof resetRedaction === 'function') resetRedaction(); }catch(e){}
+    osClearAutosave();
+    if(typeof _docModifie !== 'undefined') _docModifie = false;
+  }
   if(pageId === 'redactions') osRedacMajClignotement();
   // Corriger/envoyer un article change l'état "à corriger" : le vérifier tout de suite
   // à la fermeture de l'éditeur ou de Mes articles plutôt qu'au prochain passage du minuteur.
