@@ -67,7 +67,8 @@ function _ctlAfficher(id, t){
   ov.id = 'ctl-voile'; ov.className = 'ctl-voile';
   var notes = {};
   ov.innerHTML = '<div class="ctl-boite" role="dialog" aria-label="Avis de lecture">'
-    +'<div class="ctl-tete"><div><div class="ctl-titre">Avis de lecture</div><div class="ctl-sous">Lis ce texte comme un lecteur et dis-nous ce que tu en penses. Quelques minutes suffisent.</div></div>'
+    +'<div class="ctl-tete"><div><div class="ctl-titre">Avis de lecture</div><div class="ctl-sous">Lis ce texte comme un lecteur et dis-nous ce que tu en penses. Quelques minutes suffisent.</div>'
+      +'<div class="ctl-anonyme"><i class="ti ti-eye-off"></i> Ton avis est anonyme : ton nom n\'est montré à personne (ni au rédac chef, ni à l\'auteur, ni aux admins).</div></div>'
       +'<button type="button" class="ctl-x" data-a="plus-tard" aria-label="Fermer">×</button></div>'
     +'<div class="ctl-texte lx-article"><h2>'+esc(t.titre || 'Sans titre')+'</h2>'+(t.chapeau ? '<p><em>'+esc(t.chapeau)+'</em></p>' : '')
       +'<div class="art-corps lx-corps">'+mdVersHtml(t.corps || '')+'</div></div>'
@@ -130,7 +131,7 @@ function osControlesAdminRendre(c){
       var date = new Date(l.cree_le).toLocaleDateString('fr-FR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
       return '<div class="ctl-carte"><div class="ctl-carte-t"><a href="#" onclick="osOuvrirArticleParId(\''+esc(l.article_id)+'\');return false;">'+esc(l.titre || 'Sans titre')+'</a>'
         +'<span class="ctl-pastille" style="background:'+s.bg+';color:'+s.c+';">'+s.l+'</span></div>'
-        +'<div class="ctl-carte-i">'+esc(l.redaction || '')+' · validé par <strong>'+esc(l.valideur || '?')+'</strong> · avis demandé à <strong>'+esc(l.relecteur || '?')+'</strong> · '+date+'</div>'
+        +'<div class="ctl-carte-i">'+esc(l.redaction || '')+' · validé par <strong>'+esc(l.valideur || '?')+'</strong> · avis anonyme · '+date+'</div>'
         +(l.note_faits != null ? '<div class="ctl-carte-n">Faits '+l.note_faits+'/5 · Sources '+l.note_sources+'/5 · Forme '+l.note_forme+'/5</div>' : '')
         +(l.commentaire ? '<div class="ctl-carte-c">« '+esc(l.commentaire)+' »</div>' : '')
         +((l.statut === 'en_attente' || l.statut === 'alerte') ? '<button type="button" class="ctl-lib" onclick="osControleLiberer(\''+esc(l.id)+'\')"><i class="ti ti-lock-open"></i> Libérer la mise en ligne</button>' : '')

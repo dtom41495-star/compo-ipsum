@@ -7883,3 +7883,4 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .ctl-carte-n { font-size: .8rem; font-weight: 600; }
 .ctl-carte-c { font-size: .8rem; font-style: italic; color: #374151; }
 .ctl-lib { justify-self: start; margin-top: .2rem; border: 1.5px solid #D1D5DB; border-radius: 8px; background: #fff; padding: .35rem .8rem; font-size: .75rem; font-weight: 700; cursor: pointer; }
+.ctl-anonyme { margin-top: .5rem; display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 600; color: #065F46; background: #D1FAE5; border-radius: 8px; padding: .3rem .6rem; }
