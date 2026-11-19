@@ -776,7 +776,11 @@ function osChronoStop(type){
   // créditer le vrai auteur — pas celui qui a la fenêtre ouverte
   var membreCredit = uid;
   if(type === 'redaction' && currentDoc && currentDoc.auteur_id && currentDoc.auteur_id !== uid){
-    membreCredit = currentDoc.auteur_id;
+    if(typeof getUserRole === 'function' && getUserRole() === 'admin'){
+      membreCredit = currentDoc.auteur_id;      // seul un admin peut créditer quelqu'un d'autre (règle de la base)
+    } else {
+      type = 'correction';                      // SR, rédac chef… qui travaille sur le texte d'un autre : c'est sa relecture, à son nom
+    }
   }
   fetch(SB_URL+'/rest/v1/heures_benevolat',{
     method:'POST',
