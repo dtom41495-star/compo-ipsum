@@ -1875,7 +1875,7 @@ function rWorkflowMajInterface(doc){
     var ccInfo = cc.querySelector('.sr-remarque-contact-mobile');
     if(!ccInfo){ ccInfo = document.createElement('div'); ccInfo.className = 'sr-remarque sr-remarque-contact-mobile'; cc.appendChild(ccInfo); }
     ccInfo.innerHTML = '<span class="sr-remarque-qui"></span><span class="sr-remarque-contact"></span>';
-    ccInfo.setAttribute('data-art', doc.id || ''); ccInfo.setAttribute('data-correcteur', doc.correcteur_id || ''); ccInfo.setAttribute('data-titre', doc.titre || '');
+    ccInfo.setAttribute('data-art', doc.id || ''); ccInfo.setAttribute('data-correcteur', doc.correcteur_id || ''); ccInfo.setAttribute('data-note', doc.note_interne || ''); ccInfo.setAttribute('data-titre', doc.titre || '');
     ccInfo.removeAttribute('data-fait');
     if(typeof osRemarqueSRCompleter === 'function') osRemarqueSRCompleter();
   } else if(cc){ cc.style.display='none'; }
