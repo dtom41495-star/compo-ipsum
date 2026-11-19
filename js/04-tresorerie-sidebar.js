@@ -1244,23 +1244,34 @@ function osVerifierNotifsWorkflow(){
     var aCentrale    = redacCentrale ? aCentraleCandidats.filter(function(a){ return a.redaction_id !== redacCentrale.id; }) : [];
 
     var nouveauxVus = [];
-    function afficher(kind, article, titre, action){
+    // Les notifications nouvelles sont d'abord rangées par famille : plusieurs de la même famille donnent UNE seule notification
+    // (« 5 articles bons à publier »), sinon elles s'empilaient sur tout l'écran du téléphone.
+    var nouveaux = { correction:[], file:[], publication:[], centrale:[] };
+    function afficher(kind, article, titre, action, groupe){
       var cle = kind+':'+article.id;
       nouveauxVus.push(cle);
       if(vus.indexOf(cle)===-1 && !premiereFois){
-        osToastUrgent(kind, titre, article.titre||'Sans titre', action);
+        nouveaux[groupe || kind].push({ kind:kind, article:article, titre:titre, action:action });
       }
+    }
+    function ouvrirOnglet(onglet){
+      _maOnglet = onglet;
+      if(_windows['mes-articles']){ osFocusWindow('mes-articles'); if(typeof osMesArticlesChangerOnglet === 'function') osMesArticlesChangerOnglet(onglet); }
+      else osOpenWindow('mes-articles');
+    }
+    function emettre(groupe, titreGroupe, onglet){
+      var l = nouveaux[groupe];
+      if(!l.length) return;
+      if(l.length === 1){ osToastUrgent(l[0].kind, l[0].titre, l[0].article.titre||'Sans titre', l[0].action); return; }
+      var titres = l.slice(0, 3).map(function(x){ return x.article.titre || 'Sans titre'; }).join(' · ') + (l.length > 3 ? ' …' : '');
+      osToastUrgent(l[0].kind, titreGroupe(l.length), titres, { label:'Voir', fn:function(){ ouvrirOnglet(onglet); } });
     }
 
     aCorrections.forEach(function(a){
       afficher('correction', a, 'Article à relire (SR)', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
     aFile.forEach(function(a){
-      afficher('correction', {id:'file-'+a.id, titre:a.titre}, 'Un article attend dans la file du SR', {label:'Voir la file', fn:function(){
-        _maOnglet = 'corriger';
-        if(_windows['mes-articles']){ osFocusWindow('mes-articles'); if(typeof osMesArticlesChangerOnglet === 'function') osMesArticlesChangerOnglet('corriger'); }
-        else osOpenWindow('mes-articles');
-      }});
+      afficher('correction', {id:'file-'+a.id, titre:a.titre}, 'Un article attend dans la file du SR', {label:'Voir la file', fn:function(){ ouvrirOnglet('corriger'); }}, 'file');
     });
     aPublication.forEach(function(a){
       afficher('publication', a, 'Bon à publier : à mettre en ligne', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
@@ -1268,6 +1279,10 @@ function osVerifierNotifsWorkflow(){
     aCentrale.forEach(function(a){
       afficher('centrale', a, 'Bon à publier de la centrale attendu', {label:'Ouvrir', fn:function(){ mesArticlesOuvrir(a.id,'edition'); }});
     });
+    emettre('correction', function(n){ return n+' articles à relire (SR)'; }, 'corriger');
+    emettre('file', function(n){ return n+' articles attendent dans la file du SR'; }, 'corriger');
+    emettre('publication', function(n){ return n+' articles bons à publier, à mettre en ligne'; }, 'a-publier');
+    emettre('centrale', function(n){ return n+' articles attendent le bon à publier de la centrale'; }, 'validation-centrale');
 
     try{ localStorage.setItem('compo_workflow_vus_ids', JSON.stringify(nouveauxVus.slice(-150))); }catch(e){}
   }).catch(function(){});
