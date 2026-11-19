@@ -2164,6 +2164,11 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
         method:'PATCH', headers:authHSujet, body:JSON.stringify({statut:'publie'})
       }).catch(function(){});
     }
+    // Relu ou bon à publier sur le texte de QUELQU'UN D'AUTRE : on vide l'éditeur. Sinon il restait ouvert sur cet article, et la brève ou
+    // l'article écrit juste après s'enregistrait dessus, au nom de son auteur·rice (cas Rose / Tom, IPM-2611-AAKZ).
+    if(doc.auteur_id && doc.auteur_id !== getUserId() && ['corrige','valide','valide_central'].indexOf(nouveauStatut) !== -1 && typeof resetRedaction === 'function'){
+      try{ resetRedaction(); _docModifie = false; notif('Article de '+(doc.auteur || 'son auteur·rice')+' traité : l\'éditeur est vide, tu peux écrire ton texte.', 'succes'); }catch(e){}
+    }
   }).catch(function(err){
     if(err && err.annule){   // fenêtre « C'est bien un article ? » : annulé, ou passé en brève (rien n'est mis en ligne)
       if(err.breve){ notif('Passé en brève : il ne va pas sur le site.', 'succes'); _osRafraichirMesArticles(); }
