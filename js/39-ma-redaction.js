@@ -76,7 +76,8 @@ function _mrLireTout(chemin){
 }
 
 function _mrCharger(){
-  if(_mr.donnees) return Promise.resolve(_mr.donnees);
+  // Les données gardées en mémoire ne servent que si elles sont bien celles de la rédaction affichée
+  if(_mr.donnees && _mr.donnees.redac && _mr.donnees.redac.id === _mr.redacId) return Promise.resolve(_mr.donnees);
   var redacId = _mr.redacId, enc = encodeURIComponent(redacId);
   var debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0,0,0,0);
   var chef = _mrEstChef();
@@ -103,7 +104,9 @@ function _mrCharger(){
       });
       var d = { redac:redac, membres:membres, parId:parId, arts:res[1], inscriptions:res[2], sujets:res[3], pipeline:res[4] };
       d.stats = _mrStats(d, debutMois);
-      _mr.donnees = d;
+      // Chargements qui se croisent (changement de rédaction pendant qu'un autre est en route) : le plus lent, devenu périmé,
+      // ne doit pas remplacer les données de la rédaction affichée (la Nationale montrait alors les articles de la Tarn)
+      if(redacId === _mr.redacId) _mr.donnees = d;
       return d;
     });
   });
