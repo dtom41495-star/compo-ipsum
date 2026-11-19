@@ -67,7 +67,7 @@ function _ctlAfficher(id, t){
   ov.id = 'ctl-voile'; ov.className = 'ctl-voile';
   var notes = {};
   ov.innerHTML = '<div class="ctl-boite" role="dialog" aria-label="Avis de lecture">'
-    +'<div class="ctl-tete"><div><div class="ctl-titre">Avis de lecture</div><div class="ctl-sous">Lis ce texte comme un·e lecteur·rice et dis-nous ce que tu en penses. Quelques minutes suffisent.</div></div>'
+    +'<div class="ctl-tete"><div><div class="ctl-titre">Avis de lecture</div><div class="ctl-sous">Lis ce texte comme un lecteur et dis-nous ce que tu en penses. Quelques minutes suffisent.</div></div>'
       +'<button type="button" class="ctl-x" data-a="plus-tard" aria-label="Fermer">×</button></div>'
     +'<div class="ctl-texte lx-article"><h2>'+esc(t.titre || 'Sans titre')+'</h2>'+(t.chapeau ? '<p><em>'+esc(t.chapeau)+'</em></p>' : '')
       +'<div class="art-corps lx-corps">'+mdVersHtml(t.corps || '')+'</div></div>'
