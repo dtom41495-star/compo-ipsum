@@ -1377,6 +1377,30 @@ function _copierPourSubstack(md, msgSucces){
   navigator.clipboard.writeText(md).then(function(){ notif(msgSucces||'Texte copié - colle-le dans Substack'); });
 }
 
+// Lecture d'un article : copier, couper, clic droit, glisser et sélection sont bloqués dans le texte (le bouton « Copier » passe par
+// l'API du presse-papiers et n'est pas touché). L'éditeur n'est pas concerné : seul ce qui est dans .lx-article l'est.
+(function(){
+  function dansLecture(n){ var el = n && (n.nodeType === 1 ? n : n.parentElement); return !!(el && el.closest && el.closest('.lx-article')); }
+  function selectionDansLecture(){
+    var sel = window.getSelection && window.getSelection();
+    if(!sel || !sel.rangeCount || sel.isCollapsed) return false;
+    if(dansLecture(sel.anchorNode) || dansLecture(sel.focusNode)) return true;
+    var art = document.querySelector('.lx-article');
+    return !!(art && sel.containsNode && sel.containsNode(art, true));
+  }
+  ['copy', 'cut'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      if(!selectionDansLecture()) return;
+      e.preventDefault();
+      try{ if(e.clipboardData) e.clipboardData.setData('text/plain', ''); }catch(x){}
+      if(typeof notif === 'function') notif('Copie du texte : utilise le bouton « Copier » (articles validés)', 'alerte');
+    }, true);
+  });
+  ['contextmenu', 'dragstart', 'selectstart'].forEach(function(t){
+    document.addEventListener(t, function(e){ if(dansLecture(e.target)) e.preventDefault(); }, true);
+  });
+})();
+
 // Le texte d'un article ne se copie qu'une fois validé (bon à publier) : avant, il peut encore changer, ou ne pas partir.
 function osCopieArticlePermise(doc){
   return !!doc && ['valide', 'valide_central', 'publie'].indexOf(doc.statut) !== -1;
