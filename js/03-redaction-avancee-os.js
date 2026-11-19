@@ -866,7 +866,11 @@ function publierArticle(id){
       notif('La validation de la rédaction centrale est requise avant de publier cet article.', 'erreur');
       return;
     }
-    _publierArticleReel(id, art.type);
+    var bloque = typeof osMiseEnLigneBloquee === 'function' ? osMiseEnLigneBloquee(id) : Promise.resolve(false);
+    return bloque.then(function(b){
+      if(b){ notif('La mise en ligne de cet article n\'est pas encore disponible. Réessaie un peu plus tard.', 'alerte'); return; }
+      _publierArticleReel(id, art.type);
+    });
   }).catch(function(){ notif('Erreur reseau', 'erreur'); });
 }
 

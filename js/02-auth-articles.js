@@ -341,6 +341,8 @@ function chargerDepuisURL(){
   if(sujetRelance) setTimeout(function(){ osSujetRepondreRelance(sujetRelance, params.get('choix')); }, 1500);
 
   if(articleId) osOuvrirArticleParId(articleId);
+  // ?controle=… : lien du mail / du chat « Un avis de lecture, s'il te plaît ? »
+  if(params.get('controle') && typeof osControleOuvrir === 'function') setTimeout(function(){ osControleOuvrir(params.get('controle')); }, 1800);
   // ?cps=brouillons : lien du mail « Des communiqués attendent ta validation »
   if(params.get('cps') === 'brouillons' && getUserRole() === 'admin' && typeof osCpsOuvrirBrouillons === 'function') setTimeout(osCpsOuvrirBrouillons, 800);
 
@@ -2185,7 +2187,8 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
       if(err.breve){ notif('Passé en brève : il ne va pas sur le site.', 'succes'); _osRafraichirMesArticles(); }
       return;
     }
-    notif('Erreur lors de la sauvegarde : '+(err&&err.message||err),'erreur');
+    var neutre = typeof osMessageMiseEnLigne === 'function' ? osMessageMiseEnLigne(err) : null;
+    notif(neutre || ('Erreur lors de la sauvegarde : '+(err&&err.message||err)), neutre ? 'alerte' : 'erreur');
   });
 }
 
