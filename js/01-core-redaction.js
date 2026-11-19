@@ -1212,7 +1212,9 @@ function renderLecture(){
       +'<span class="lx-etat-infos">'+etat.join('<span class="lx-sep"> · </span>')+'</span></div>'
     +'<div class="lx-actions">'
       +(peutEcrire ? '<button class="mac-btn mac-btn-principal" data-sombre-ignore onclick="chargerDansRedaction(currentDoc)"><i class="ti ti-pencil"></i><span>'+libModifier+'</span></button>' : '')
-      +'<button class="mac-btn" onclick="genMd(\'lect\')" title="Copier le texte pour Substack"><i class="ti ti-copy"></i><span>Copier</span></button>'
+      +(osCopieArticlePermise(doc)
+        ? '<button class="mac-btn" onclick="genMd(\'lect\')" title="Copier le texte pour Substack"><i class="ti ti-copy"></i><span>Copier</span></button>'
+        : '<button class="mac-btn" disabled style="opacity:.5;cursor:not-allowed;" title="La copie est possible une fois l\'article validé (bon à publier)"><i class="ti ti-copy-off"></i><span>Copier</span></button>')
       +'<button class="mac-btn" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i><span>Visuels</span></button>'
       +(peutHistorique ? '<button class="mac-btn" onclick="osHistoriqueOuvrir(currentDoc)" title="Étapes, relectures et versions du texte"><i class="ti ti-history"></i><span>Historique</span></button>' : '')
       +'<button class="mac-btn" onclick="exporterPDF()" title="Télécharger l\'article en PDF"><i class="ti ti-file-type-pdf"></i><span>PDF</span></button>'
@@ -1375,8 +1377,14 @@ function _copierPourSubstack(md, msgSucces){
   navigator.clipboard.writeText(md).then(function(){ notif(msgSucces||'Texte copié - colle-le dans Substack'); });
 }
 
+// Le texte d'un article ne se copie qu'une fois validé (bon à publier) : avant, il peut encore changer, ou ne pas partir.
+function osCopieArticlePermise(doc){
+  return !!doc && ['valide', 'valide_central', 'publie'].indexOf(doc.statut) !== -1;
+}
+
 function genMd(src){
   if(!currentDoc)return;
+  if(!osCopieArticlePermise(currentDoc)){ notif('Copie impossible : l\'article n\'est pas encore validé (bon à publier)', 'alerte'); return; }
   let md='# '+currentDoc.titre+'\n\n';
   if(currentDoc.chapeau)md+='*'+currentDoc.chapeau+'*\n\n';
   md+='---\n\n'+currentDoc.corps+'\n\n---\n*Par '+(typeof osSignature === 'function' ? osSignature(currentDoc) : currentDoc.auteur);

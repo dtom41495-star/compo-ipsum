@@ -1904,8 +1904,9 @@ function rWorkflowMajInterface(doc){
 
   // Zone chef : le chef local (statuts habituels) OU le validateur central (uniquement
   // quand une validation centrale est effectivement en attente sur cet article).
-  var zoneChefIsChef  = isChef && !enTantQueSR && (statut==='corrige'||statut==='valide'||statut==='valide_central'||statut==='en-relecture');
-  var zoneChefCentral = estValCentral && !enTantQueSR && attenteCentrale && (statut==='valide'||statut==='valide_central');
+  var autoVal = osAutoValidationInterdite(doc);   // son propre texte : pas de boutons de validation
+  var zoneChefIsChef  = isChef && !enTantQueSR && !autoVal && (statut==='corrige'||statut==='valide'||statut==='valide_central'||statut==='en-relecture');
+  var zoneChefCentral = estValCentral && !enTantQueSR && !autoVal && attenteCentrale && (statut==='valide'||statut==='valide_central');
 
   if(zoneChefIsChef || zoneChefCentral){
     if(zChef) zChef.style.display='flex';
@@ -1921,7 +1922,7 @@ function rWorkflowMajInterface(doc){
 
   // Bypass admin/chef : toujours pouvoir valider/publier directement (ex: article retranscrit
   // pour quelqu'un d'autre depuis un gdoc externe), même depuis un brouillon.
-  if(isChef && !enTantQueSR && statut!=='publie' && zChef && zChef.style.display!=='flex'){
+  if(isChef && !enTantQueSR && !autoVal && statut!=='publie' && zChef && zChef.style.display!=='flex'){
     zChef.style.display='flex';
   }
 
@@ -2093,8 +2094,18 @@ function _osRafraichirMesArticles(){
   if(document.getElementById('ma-os-list') && typeof osMesArticlesCharger === 'function') osMesArticlesCharger();
 }
 
+// Hors admin, personne ne relit, ne valide ni ne publie son propre texte (la base le refuse aussi : article_statut_controler)
+function osAutoValidationInterdite(doc){
+  return !!(doc && doc.auteur_id && doc.auteur_id === getUserId() && getUserRole() !== 'admin');
+}
+var OS_STATUTS_VALIDATION = ['corrige', 'valide', 'valide_central', 'publie'];
+
 function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   if(!currentDoc||!currentDoc.id){ notif('Sauvegarde d\'abord l\'article dans le cloud'); return; }
+  if(OS_STATUTS_VALIDATION.indexOf(nouveauStatut) !== -1 && osAutoValidationInterdite(currentDoc)){
+    notif('Tu ne peux pas valider ton propre texte : demande à un autre rédac chef ou à un admin.', 'alerte');
+    return;
+  }
   // Pas d'avancée (SR, bon à publier, en ligne) tant que le sujet proposé n'est pas validé
   if(nouveauStatut !== 'brouillon' && !_sujetVerifiePourEnvoi){
     osSujetBloqueArticle(currentDoc.sujet_id || currentDoc._sujet_id, currentDoc.type).then(function(b){
