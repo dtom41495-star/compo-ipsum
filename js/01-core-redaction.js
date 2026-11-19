@@ -2265,15 +2265,17 @@ setInterval(function(){
 var _srRemarqueCache = {};
 function osRemarqueSRHtml(doc){
   setTimeout(osRemarqueSRCompleter, 0);
-  return '<div class="mac-note sr-remarque" data-art="'+esc(doc.id||'')+'" data-correcteur="'+esc(doc.correcteur_id||'')+'" data-titre="'+esc(doc.titre||'')+'">'
+  return '<div class="mac-note sr-remarque" data-art="'+esc(doc.id||'')+'" data-correcteur="'+esc(doc.correcteur_id||'')+'" data-note="'+esc(doc.note_interne||'')+'" data-titre="'+esc(doc.titre||'')+'">'
     +'<i class="ti ti-message-circle"></i><span class="sr-remarque-corps"><strong class="sr-remarque-qui">Remarque du SR :</strong> '+esc(doc.note_interne||'')
     +'<span class="sr-remarque-contact"></span></span></div>';
 }
-function _srRemarqueQui(articleId, correcteurId){
-  if(_srRemarqueCache[articleId]) return _srRemarqueCache[articleId];
+function _srRemarqueQui(articleId, correcteurId, note){
+  // Clé = article + texte de la remarque : un nouveau refus (autre SR, autre remarque) ne doit pas reprendre le nom du refus précédent
+  var cle = articleId+'|'+(note || '');
+  if(_srRemarqueCache[cle]) return _srRemarqueCache[cle];
   var h = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session && _session.access_token || '') });
   var lire = function(url){ return fetch(SB_URL+url, { headers:h }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }); };
-  _srRemarqueCache[articleId] = lire('/rest/v1/historique?article_id=eq.'+encodeURIComponent(articleId)+'&action=eq.renvoi_auteur&select=membre_id,auteur&order=created_at.desc&limit=1')
+  _srRemarqueCache[cle] = lire('/rest/v1/historique?article_id=eq.'+encodeURIComponent(articleId)+'&action=eq.renvoi_auteur&select=membre_id,auteur&order=created_at.desc&limit=1')
     .then(function(rows){
       var id = (rows[0] && rows[0].membre_id) || correcteurId || null;
       if(!id) return rows[0] ? { nom:rows[0].auteur } : null;
@@ -2281,13 +2283,13 @@ function _srRemarqueQui(articleId, correcteurId){
       if(connu && connu.email) return connu;
       return lire('/rest/v1/membres?id=eq.'+encodeURIComponent(id)+'&select=id,prenom,nom,email').then(function(m){ return m[0] || (rows[0] ? { nom:rows[0].auteur } : null); });
     });
-  return _srRemarqueCache[articleId];
+  return _srRemarqueCache[cle];
 }
 function osRemarqueSRCompleter(){
   document.querySelectorAll('.sr-remarque[data-art]:not([data-fait])').forEach(function(el){
     el.setAttribute('data-fait', '1');
     var art = el.getAttribute('data-art'); if(!art) return;
-    _srRemarqueQui(art, el.getAttribute('data-correcteur')).then(function(m){
+    _srRemarqueQui(art, el.getAttribute('data-correcteur'), el.getAttribute('data-note')).then(function(m){
       if(!m) return;
       var nom = m.prenom ? (m.prenom+' '+(m.nom||'')).trim() : (m.nom || '');
       if(!nom) return;
