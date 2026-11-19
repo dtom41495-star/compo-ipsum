@@ -853,11 +853,15 @@ function publierArticle(id){
   // Un article part sur ipsummedia.fr ; une brève est seulement marquée publiée (elle part dans la newsletter)
   if(!osConfirmerPuis('Mettre en ligne ? Un article part sur ipsummedia.fr, une brève est marquée publiée.', {oui:'Mettre en ligne'}, publierArticle, this, arguments)) return;
   var authHChk = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
-  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id,type', {headers:authHChk})
+  fetch(SB_URL+'/rest/v1/articles?id=eq.'+encodeURIComponent(id)+'&select=statut,redaction_id,type,auteur_id', {headers:authHChk})
   .then(function(r){ return r.json(); })
   .then(function(data){
     var art = data && data[0];
     if(!art){ notif('Article introuvable', 'erreur'); return; }
+    if(art.statut!=='publie' && typeof osAutoValidationInterdite === 'function' && osAutoValidationInterdite(art)){
+      notif('Tu ne peux pas publier ton propre texte : demande à un autre rédac chef ou à un admin.', 'alerte');
+      return;
+    }
     if(art.statut!=='publie' && !_osArticlePubliable(art)){
       notif('La validation de la rédaction centrale est requise avant de publier cet article.', 'erreur');
       return;

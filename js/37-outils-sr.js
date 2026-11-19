@@ -597,6 +597,10 @@ function _histRendre(doc, lignes, membres, versions){
 // ───────────────────────────────────────────────────────────────────────────────
 function osMarquerRelu(){
   if(!currentDoc || !currentDoc.id){ rWorkflowAvancer('corrige'); return; }
+  if(typeof osAutoValidationInterdite === 'function' && osAutoValidationInterdite(currentDoc)){
+    notif('Tu ne peux pas relire ton propre texte : demande à un autre rédac chef ou à un admin.', 'alerte');
+    return;
+  }
   var doc = currentDoc;
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   // Seulement les commentaires de cette relecture (depuis l'envoi au SR), pas ceux d'un

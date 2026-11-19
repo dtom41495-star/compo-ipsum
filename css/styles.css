@@ -7845,6 +7845,10 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .nlp-encours h4 { color: #5A5049; }
 .nlp-pastille { display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px; background: #FFF3CD; color: #856404; font: 600 0.62rem/1.4 Space Mono, monospace; }
 
+/* Lecture d'un article : le texte ne se sélectionne ni ne se copie à la main (seul le bouton « Copier », réservé aux articles validés,
+   le copie). Ne vaut pas pour l'éditeur. */
+.lx-article, .lx-article * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.lx-article img { -webkit-user-drag: none; }
 /* Contrôles de lecture : formulaire d'avis (personne tirée) et vue admin */
 .ctl-voile { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .ctl-boite { background: #fff; color: var(--encre, #1A1A2E); border-radius: 16px; width: 100%; max-width: 720px; max-height: 92vh; overflow: auto; padding: 1.2rem 1.4rem; box-shadow: 0 16px 48px rgba(0,0,0,.35); font-family: 'DM Sans', sans-serif; }
