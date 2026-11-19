@@ -7844,3 +7844,43 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .nlp-encours { opacity: 0.78; }
 .nlp-encours h4 { color: #5A5049; }
 .nlp-pastille { display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px; background: #FFF3CD; color: #856404; font: 600 0.62rem/1.4 Space Mono, monospace; }
+
+/* Contrôles de lecture : formulaire d'avis (personne tirée) et vue admin */
+.ctl-voile { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.ctl-boite { background: #fff; color: var(--encre, #1A1A2E); border-radius: 16px; width: 100%; max-width: 720px; max-height: 92vh; overflow: auto; padding: 1.2rem 1.4rem; box-shadow: 0 16px 48px rgba(0,0,0,.35); font-family: 'DM Sans', sans-serif; }
+.ctl-tete { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.ctl-titre { font: 700 1.1rem 'Poppins', sans-serif; }
+.ctl-sous { font-size: .8rem; color: #6B7280; margin-top: .2rem; }
+.ctl-x { border: none; background: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #6B7280; }
+.ctl-texte { margin: 1rem 0; padding: 1rem 1.1rem; border: 1px solid #E5E7EB; border-radius: 12px; max-height: 38vh; overflow: auto; background: #FAFAF9; }
+.ctl-texte h2 { font: 700 1.2rem 'Bitter', Georgia, serif; margin: 0 0 .6rem; }
+.ctl-ligne { display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap; padding: .5rem 0; border-bottom: 1px solid #F3F4F6; }
+.ctl-q { display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.ctl-q span { font-size: .74rem; color: #6B7280; }
+.ctl-etoiles { display: flex; gap: .3rem; }
+.ctl-etoiles button { width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 1.5px solid #D1D5DB; background: #fff; font-weight: 700; cursor: pointer; }
+.ctl-etoiles button.on { background: var(--rouge, #E8461E); border-color: var(--rouge, #E8461E); color: #fff; }
+.ctl-legende { display: flex; justify-content: space-between; font-size: .68rem; color: #9CA3AF; padding-top: .3rem; }
+.ctl-com { width: 100%; box-sizing: border-box; margin-top: .8rem; border: 1.5px solid #D1D5DB; border-radius: 10px; padding: .6rem .7rem; font: inherit; resize: vertical; }
+.ctl-pied { display: flex; justify-content: flex-end; gap: .6rem; margin-top: .9rem; }
+.ctl-pied button { border-radius: 10px; padding: .6rem 1.1rem; font-weight: 700; cursor: pointer; border: 1.5px solid #D1D5DB; background: #fff; }
+.ctl-pied .ctl-ok { background: var(--rouge, #E8461E); border-color: var(--rouge, #E8461E); color: #fff; }
+.ctl-pied .ctl-ok:disabled { opacity: .45; cursor: not-allowed; }
+.ctl-admin { padding: 1.2rem 1.4rem; font-family: 'DM Sans', sans-serif; }
+.ctl-admin h2 { font: 700 1.15rem 'Poppins', sans-serif; margin: 0 0 .3rem; }
+.ctl-admin h3 { font: 700 .85rem 'Poppins', sans-serif; margin: 1.2rem 0 .5rem; }
+.ctl-aide, .ctl-vide { font-size: .8rem; color: #6B7280; }
+.ctl-stats { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .8rem; }
+.ctl-stats div { background: #F3F4F6; border-radius: 10px; padding: .6rem 1rem; display: grid; text-align: center; min-width: 90px; }
+.ctl-stats b { font: 700 1.3rem 'Poppins', sans-serif; }
+.ctl-stats span { font-size: .68rem; color: #6B7280; text-transform: uppercase; letter-spacing: .05em; }
+.ctl-table { border-collapse: collapse; width: 100%; font-size: .8rem; }
+.ctl-table th, .ctl-table td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #E5E7EB; }
+.ctl-carte { border: 1px solid #E5E7EB; border-radius: 12px; padding: .7rem .9rem; margin-bottom: .6rem; display: grid; gap: .3rem; }
+.ctl-carte-t { display: flex; justify-content: space-between; gap: .6rem; align-items: center; font-weight: 700; }
+.ctl-pastille { font-size: .66rem; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.ctl-carte-i { font-size: .74rem; color: #6B7280; }
+.ctl-carte-n { font-size: .8rem; font-weight: 600; }
+.ctl-carte-c { font-size: .8rem; font-style: italic; color: #374151; }
+.ctl-lib { justify-self: start; margin-top: .2rem; border: 1.5px solid #D1D5DB; border-radius: 8px; background: #fff; padding: .35rem .8rem; font-size: .75rem; font-weight: 700; cursor: pointer; }
+.ctl-anonyme { margin-top: .5rem; display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 600; color: #065F46; background: #D1FAE5; border-radius: 8px; padding: .3rem .6rem; }
