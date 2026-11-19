@@ -3409,6 +3409,9 @@ input:focus,select:focus,textarea:focus{
 #screensaver.visible { display: flex; }
 #screensaver.ss-tamise { filter: brightness(.55); }
 #screensaver > *:not(#ss-aide) { translate: var(--ss-dx, 0) var(--ss-dy, 0); transition: translate 4s ease-in-out; }
+/* Mode repos (après 30 min de veille) : plus aucune animation, seule l'heure change, une fois par minute */
+#screensaver.ss-repos .ss-point, #screensaver.ss-repos .ss-bandeau-piste { animation: none; }
+#screensaver.ss-repos > *:not(#ss-aide) { transition: none; }
 #ss-aide { transition: opacity 3s ease; }   /* ne glisse pas (sortirait de l'écran) : elle s'efface */
 #ss-aide.ss-cache { opacity: 0; }
 

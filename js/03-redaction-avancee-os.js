@@ -1646,6 +1646,11 @@ var _SS_TAMISE = 20 * 60 * 1000;
 var _ssDeriveInterval = null;
 var _ssAideTimer = null;
 var _ssTamiseTimer = null;
+// Mode repos : après 30 minutes d'écran de veille (onglet laissé ouvert des heures, la nuit), tout s'arrête sauf l'heure, mise à jour
+// une fois par minute : plus d'animations, plus de défilement, plus de dérive. Évite qu'un onglet laissé en veille ne gonfle en mémoire.
+var _SS_REPOS = 30 * 60 * 1000;
+var _ssReposTimer = null;
+var _ssRepos = false;
 
 function ssDeriver(){
   var el = document.getElementById('screensaver');
@@ -1731,7 +1736,7 @@ function _ssRedacNom(){
 }
 
 function ssAfficherSlide(){
-  if(!_ssActive) return;
+  if(!_ssActive || _ssRepos) return;
   var writer = document.getElementById('ss-writer');
   if(!writer){ return; }
 
@@ -1740,7 +1745,7 @@ function ssAfficherSlide(){
   writer.style.opacity = '0';
 
   setTimeout(function(){
-    if(!_ssActive) return;
+    if(!_ssActive || _ssRepos) return;
 
     // Toujours mettre à jour l'horloge et la date
     var now = new Date();
@@ -1801,6 +1806,7 @@ function ssAfficher(){
   _ssDeriveInterval = setInterval(ssDeriver, _SS_DERIVE);
   _ssAideTimer = setTimeout(function(){ if(aide) aide.classList.add('ss-cache'); }, 15000);
   _ssTamiseTimer = setTimeout(function(){ if(el) el.classList.add('ss-tamise'); }, _SS_TAMISE);
+  _ssReposTimer = setTimeout(ssReposer, _SS_REPOS);
   // Mettre à jour l'horloge toutes les secondes pendant la veille
   _ssClockInterval = setInterval(function(){
     if(!_ssActive){ clearInterval(_ssClockInterval); return; }
@@ -1811,9 +1817,29 @@ function ssAfficher(){
   ssAfficherSlide();
 }
 
+function ssReposer(){
+  if(!_ssActive || _ssRepos) return;
+  _ssRepos = true;
+  clearTimeout(_ssSlideTimer);
+  clearInterval(_ssClockInterval);
+  clearInterval(_ssDeriveInterval);
+  var el = document.getElementById('screensaver');
+  if(el) el.classList.add('ss-repos');
+  var maj = function(){
+    var now = new Date(), clockEl = document.getElementById('ss-clock');
+    if(clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  };
+  maj();
+  _ssClockInterval = setInterval(function(){ if(!_ssActive){ clearInterval(_ssClockInterval); return; } maj(); }, 60000);
+}
+
 function ssMasquer(){
   if(!_ssActive) return;
   _ssActive = false;
+  _ssRepos = false;
+  clearTimeout(_ssReposTimer);
+  var elRepos = document.getElementById('screensaver');
+  if(elRepos) elRepos.classList.remove('ss-repos');
   clearTimeout(_ssSlideTimer);
   clearInterval(_ssClockInterval);
   clearInterval(_ssDeriveInterval);
