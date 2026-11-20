@@ -3044,7 +3044,10 @@ function osCarnetSupprimer(id){
   fetch(SB_URL+'/rest/v1/contacts_sources?id=eq.'+encodeURIComponent(id), {
     method: 'DELETE',
     headers: Object.assign({}, SB_HEADERS, {
-      'Authorization':'Bearer '+(_session&&_session.access_token||'')
+      'Authorization':'Bearer '+(_session&&_session.access_token||''),
+      // Sans ça, la requête demandait à la base de renvoyer la ligne supprimée, donc aussi l'e-mail, le téléphone et les notes, que la base
+      // ne lit qu'à travers contacts_coordonnees : « permission denied for table contacts_sources » et le contact n'était jamais supprimé.
+      'Prefer':'return=minimal'
     })
   }).then(function(r){
     if(r.ok){
