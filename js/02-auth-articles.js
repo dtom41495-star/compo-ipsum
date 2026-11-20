@@ -1696,7 +1696,7 @@ function osStartAutosave(){
     if(!doc.id) return;
     _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
-      currentDoc = doc;
+      osSynchroDoc(doc);
       _autosaveHash = hash; // seulement une fois réellement enregistré (sinon un échec
                             // réseau bloquait toute nouvelle tentative sur le même texte)
       osSaveIndicateur('sauvegarde');

@@ -1248,6 +1248,7 @@ function osMesArticlesChangerOnglet(id){
   osMesArticlesCharger();
 }
 
+var _maJeton = 0;
 function osMesArticlesCharger(){
   var uid   = getUserId();
   var nom   = getUserNomComplet();
@@ -1300,9 +1301,11 @@ function osMesArticlesCharger(){
       : SB_URL+'/rest/v1/articles?auteur=eq.'+encodeURIComponent(nom)+'&select=*&order=updated_at.desc.nullslast';
   }
 
+  var jetonMa = ++_maJeton;   // un changement d'onglet pendant le chargement rend cette réponse périmée
   fetch(q,{headers:authH})
   .then(function(r){return r.json();})
   .then(function(arts){
+    if(jetonMa !== _maJeton) return;
     arts = (!arts||arts.code) ? [] : arts;
     if(_maOnglet === 'a-publier') arts = _maFiltrePubliables(arts);
     if(_maOnglet === 'validation-centrale'){
@@ -1313,9 +1316,10 @@ function osMesArticlesCharger(){
     var pFile = (_maOnglet === 'corriger' && typeof _srChargerFile === 'function')
       ? _srChargerFile().then(function(f){ window._srFile = f; })
       : Promise.resolve(window._srFile = []);
-    Promise.all([maOsChargerNewsletters(arts), maOsChargerCommentaires(arts), pFile]).then(maOsFiltre);
+    Promise.all([maOsChargerNewsletters(arts), maOsChargerCommentaires(arts), pFile]).then(function(){ if(jetonMa === _maJeton) maOsFiltre(); });
   })
   .catch(function(){
+    if(jetonMa !== _maJeton) return;
     var list=document.getElementById('ma-os-list');
     if(list) list.innerHTML='<div style="padding:2rem;text-align:center;color:#DC2626;font-size:.78rem;">Erreur de chargement.</div>';
   });

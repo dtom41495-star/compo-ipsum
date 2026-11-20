@@ -867,7 +867,7 @@ function exporterArticle(){
       var shareUrl=document.getElementById('r-share-url');
       if(shareDiv) shareDiv.style.display='flex';
       if(shareUrl) shareUrl.textContent=lien;
-      currentDoc = doc;
+      osSynchroDoc(doc);
       notif('Article sauvegardé !', 'succes');
       // Supprimer du localStorage si présent
       var drafts=JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');
@@ -943,6 +943,14 @@ function rToutEffacer(){
   resetRedaction();
 }
 
+// Appelé quand un enregistrement se termine : l'article enregistré redevient l'article courant SEULEMENT s'il l'est encore (ou si l'éditeur
+// est ouvert sur un nouvel article encore sans identifiant). Sinon, un enregistrement lent qui finissait après l'ouverture d'un autre article
+// (ou la fermeture de la fenêtre) remettait l'ancien article en mémoire, et le texte suivant s'enregistrait dessus.
+function osSynchroDoc(doc){
+  if((currentDoc && currentDoc.id === doc.id) || (!currentDoc && window._windows && window._windows['redaction'])){ currentDoc = doc; return true; }
+  return false;
+}
+
 function resetRedaction(){
   osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
@@ -1003,7 +1011,7 @@ function sauvegarderBrouillon(){
       var idx=drafts.findIndex(function(d){return d.id===doc.id;});
       if(idx>=0){drafts.splice(idx,1);localStorage.setItem('ipsum_drafts',JSON.stringify(drafts));}
     }catch(e){}
-    currentDoc = doc; // synchroniser pour autosave et osRedactionADesModifs
+    osSynchroDoc(doc); // synchroniser pour autosave et osRedactionADesModifs
     notif('Brouillon sauvegardé : '+titre,'succes');
     osSaveIndicateur('sauvegarde');
   }).catch(function(){
@@ -1270,6 +1278,7 @@ function rLectureAfficherCommentaires(doc){
     +'&select=id,bloc_index,texte,membres(prenom,nom)&order=bloc_index.asc', {headers:authH})
   .then(function(r){ return r.json(); })
   .then(function(rows){
+    if(!currentDoc || currentDoc.id !== doc.id) return;   // un autre article est affiché entre-temps : ces commentaires ne sont pas pour lui
     var corpsEl = document.querySelector('#art-preview .art-corps');
     _rInsererMarqueursCommentaires(corpsEl, (rows&&!rows.code)?rows:[], false);
   }).catch(function(){});

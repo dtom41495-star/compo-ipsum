@@ -113,7 +113,7 @@ function _maintSauverEditeur(){
     var doc = buildDoc();
     if(!doc || !doc.id) return;
     db.sauvegarderArticle(doc).then(function(){
-      currentDoc = doc;
+      if(typeof osSynchroDoc === 'function') osSynchroDoc(doc); else currentDoc = doc;
       if(typeof _autosaveClearLocalDraft === 'function') _autosaveClearLocalDraft(doc.id);
       if(typeof osSaveIndicateur === 'function') osSaveIndicateur('sauvegarde');
     }).catch(function(){

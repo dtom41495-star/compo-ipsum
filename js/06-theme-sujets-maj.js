@@ -844,7 +844,7 @@ function sauvegarderCloud(){
     // Bloquer le base64 — jamais en base Supabase
     if(doc.image && typeof doc.image === 'string' && doc.image.startsWith('data:')) doc.image = null;
     db.sauvegarderArticle(doc).then(function(){
-      currentDoc = doc; // Synchroniser pour que osRedactionADesModifs détecte correctement
+      osSynchroDoc(doc); // Synchroniser pour que osRedactionADesModifs détecte correctement
       notif('Article sauvegardé dans le cloud','succes');
       benvMajActivite();
       var drafts = JSON.parse(localStorage.getItem('ipsum_drafts')||'[]');

@@ -997,7 +997,7 @@ document.addEventListener('input', function(e){
     var doc = buildDoc();
     _autosaveInFlight = true;
     db.sauvegarderArticle(doc).then(function(){
-      currentDoc = doc; // Synchroniser — sinon la sauvegarde suivante crée un nouvel article
+      osSynchroDoc(doc); // Synchroniser — sinon la sauvegarde suivante crée un nouvel article
       _autoSaveLastHash = hash; // seulement une fois réellement enregistré côté cloud
       osSaveIndicateur('sauvegarde');
       _autosaveClearLocalDraft(doc.id);
