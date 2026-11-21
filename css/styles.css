@@ -7941,3 +7941,6 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .ma-chip.actif{background:var(--encre);border-color:var(--encre);color:#fff}
 .ma-chip.actif b{color:#fff}
 .ma-voir-autres{display:block;margin:.4rem auto 1rem}
+
+/* Légende d'une image dans l'éditeur : affichée sous la photo, sans entrer dans le texte enregistré */
+#r-corps-live [data-leg]::after{content:attr(data-leg);display:block;font-style:italic;font-size:.85rem;color:var(--gris);text-align:center;margin:-.2rem 0 .8rem}
