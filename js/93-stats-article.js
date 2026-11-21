@@ -46,6 +46,14 @@ function _stArtListe(lignes, cle, unite){
 }
 
 function _stArtRendre(corps, d, doc){
+  // Consultations depuis Compo (l'équipe qui relit son article) : écartées des provenances et des pages vues affichées.
+  // Approximatif : seules les visites arrivées par un lien de Compo sont reconnues ; visiteurs et durée restent ceux d'Umami.
+  var interne = 0;
+  var sources = (d.sources || []).filter(function(x){
+    if(/(^|\.)compo\.ipsummedia\.fr$/i.test(String(x.nom || ''))){ interne += x.vues; return false; }
+    return true;
+  });
+  d = Object.assign({}, d, { sources: sources, vues: Math.max(0, d.vues - interne) });
   var likes = _sitLikesCache && _sitLikesCache[d.slug];
   var peu = d.vues < 50 ? '<div class="stat-art-note"><i class="ti ti-info-circle"></i> Avec peu de visites, ces chiffres ne dessinent pas une tendance.</div>' : '';
   corps.innerHTML = '<div class="stat-art-kpis">'
@@ -56,6 +64,7 @@ function _stArtRendre(corps, d, doc){
     +'<h4 class="stat-art-titre">Pages vues par jour (30 derniers jours)</h4>'+_stArtCourbe(d.serie)
     +'<div class="stat-art-cols"><div><h4 class="stat-art-titre">D’où viennent les lecteurs</h4>'+_stArtListe(d.sources, 'vues')+'</div>'
     +'<div><h4 class="stat-art-titre">Appareils</h4>'+_stArtListe(d.appareils, 'visites')+'</div></div>'
+    +(interne ? '<div class="stat-art-note"><i class="ti ti-info-circle"></i> '+interne+' consultation'+(interne > 1 ? 's' : '')+' depuis Compo écartée'+(interne > 1 ? 's' : '')+' des pages vues et des provenances.</div>' : '')
     +peu
     +'<div class="stat-art-pied">Chiffres Umami depuis la mise en ligne'+(d.maj ? ', lus à '+new Date(d.maj).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '')+'. La partie newsletter viendra avec Listmonk.</div>';
 }
