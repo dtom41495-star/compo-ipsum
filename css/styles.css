@@ -7922,3 +7922,10 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .stat-art-jauge-v{height:100%;border-radius:4px;background:var(--orange,#e8590c)}
 .stat-art-jauge-m{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--encre,#222)}
 .stat-art-cmp-bas{font-size:.7rem;color:var(--gris)}
+.stat-art-seg{display:flex;height:26px;border-radius:7px;overflow:hidden;gap:2px;margin:.3rem 0 .6rem}
+.stat-art-seg>div{display:grid;place-items:center;font-size:.7rem;color:#fff;min-width:0;overflow:hidden;white-space:nowrap}
+.stat-art-leg{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.76rem}
+.stat-art-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.stat-art-pastilles{display:flex;flex-wrap:wrap;gap:.45rem}
+.stat-art-pastille{background:var(--fond2,#f5f3ef);border-radius:999px;padding:.22rem .7rem;font-size:.78rem}
+.stat-art-pastille b{margin-left:.4rem;color:var(--orange,#e8590c);font-variant-numeric:tabular-nums}

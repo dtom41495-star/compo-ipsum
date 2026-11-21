@@ -98,6 +98,24 @@ avec des systèmes de secours.
     - **Limite à afficher dans la fenêtre** : avec peu de visites (≈ 340 pages vues par semaine pour tout le site mi-novembre), les chiffres
       par article restent petits et ne dessinent pas une tendance.
 
+13. **Robots et fausses visites : filtrage chez nous, pas chez une plateforme américaine** (échange du 21 novembre 2026). Constat : sur 101 visites
+    géolocalisées d'Umami (14–21 novembre), 24 viennent des États-Unis, avec des villes (Wylie, Santa Clara, Ashburn) qui hébergent de gros
+    centres de données. Ce sont très probablement des robots (navigateurs automatisés, analyseurs de sécurité, outils d'aperçu de liens,
+    aspirateurs de contenu) : **déduit des villes, pas vérifié**. Ils faussent les statistiques ; ils ne gênent pas encore le site.
+    - **Ne pas tout bloquer** : les robots de Google et de Bing référencent les articles, et les aperçus de liens (Facebook, Substack,
+      messageries) servent à la diffusion. Bloquer tout ce qui vient d'un centre de données couperait ces usages. Il faut un filtre qui laisse
+      passer les robots connus et utiles.
+    - **Cloudflare écarté par principe** : service de filtrage américain, contraire à la décision 1 (plateformes américaines à éviter). À ne
+      reprendre que par un choix explicite de Tom.
+    - **Piste retenue pour le déménagement (étape 5)** : sur la machine de l'asso, **Caddy** (qui servira le site) limite le nombre de requêtes
+      par adresse, et **CrowdSec** (libre) bloque les adresses connues comme malveillantes. Demande plus de réglage ; à contrôler à l'installation
+      (non lisible depuis la session cloud) : compatibilité avec Caddy, réglage pour laisser passer Googlebot, Bingbot et les aperçus de liens,
+      consommation de mémoire sur la machine.
+    - **Avant ça, côté statistiques seulement** (option légère, sans rien bloquer) : écarter les centres de données connus du comptage Umami,
+      ou isoler ces visites dans les statistiques d'article (bloc « Où sont les lecteurs » : ligne « Étranger, souvent des robots »).
+    - Tant que ce n'est pas fait, lire les pays et les villes avec prudence : la région française est plus fiable que la ville, et la ville
+      peut être celle de l'opérateur mobile.
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -112,7 +130,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 2 ter | **Bouton « Statistiques » par article dans Compo** (décision 12, partie Umami et « J'aime »). | La fenêtre s'ouvre sur un article en ligne avec ses vraies vues ; un article sans visite affiche zéro sans erreur ; Tom valide qui la voit. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
-| 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. | Compo et le site répondent depuis la machine ; Uptime Kuma au vert. |
+| 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. Filtrage des robots avec Caddy et CrowdSec (décision 13). | Compo et le site répondent depuis la machine ; Uptime Kuma au vert ; Googlebot, Bingbot et les aperçus de liens passent toujours. |
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
 | 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/serveur/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
