@@ -60,7 +60,7 @@ function _stArtComparaison(c){
   return tete+'<div class="stat-art-cmp"><div class="stat-art-cmp-haut"><span class="stat-art-verdict '+lib[1]+'">'+lib[0]+'</span>'
     +'<span class="stat-art-cmp-txt">'+c.vues.toLocaleString('fr-FR')+' vue'+(c.vues > 1 ? 's' : '')+' en 3 jours, contre '+String(c.mediane).replace('.', ',')+' pour l’article habituel</span></div>'
     +'<div class="stat-art-jauge" role="img" aria-label="'+c.vues+' vues, médiane '+c.mediane+'"><div class="stat-art-jauge-v" style="width:'+Math.round(100*c.vues/max)+'%"></div><div class="stat-art-jauge-m" style="left:'+Math.round(100*c.mediane/max)+'%" title="Médiane"></div></div>'
-    +'<div class="stat-art-cmp-bas">'+(c.rang === 1 ? '1er' : c.rang+'e')+' sur '+c.n+' articles publiés depuis Compo · repère : médiane des 3 premiers jours, visites depuis Compo comprises, brèves et articles ensemble.</div></div>';
+    +'<div class="stat-art-cmp-bas">'+(c.rang === 1 ? '1er' : c.rang+'e')+' sur '+c.n+' articles publiés depuis Compo · repère : médiane des 3 premiers jours, visites depuis Compo comprises.</div></div>';
 }
 
 function _stArtRendre(corps, d, doc){
