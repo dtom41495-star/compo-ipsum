@@ -45,6 +45,24 @@ function _stArtListe(lignes, cle, unite){
   }).join('');
 }
 
+// Comparaison avec les autres articles publiés depuis Compo, sur les 3 premiers jours en ligne (calculée par la fonction serveur).
+// Aucun verdict tant qu'il n'y a pas assez d'articles comparables : mieux vaut dire « pas encore » qu'un classement qui ne veut rien dire.
+function _stArtComparaison(c){
+  if(!c || c.etat === 'non_comparable' || c.etat === 'indisponible') return '';
+  var tete = '<h4 class="stat-art-titre">Par rapport aux autres articles</h4>';
+  if(c.etat === 'trop_recent')
+    return tete+'<div class="stat-art-cmp stat-art-cmp-att">Comparaison possible dans '+c.heures+' h, une fois les 3 premiers jours écoulés.</div>';
+  if(c.etat === 'pas_assez')
+    return tete+'<div class="stat-art-cmp stat-art-cmp-att">Pas encore assez d’articles pour comparer : '+c.n+' publié'+(c.n > 1 ? 's' : '')+' depuis Compo sur '+c.requis+' nécessaires.</div>';
+  if(c.etat !== 'ok') return '';
+  var lib = { au_dessus:['Au-dessus de la moyenne','stat-art-v-haut'], dans_la_moyenne:['Dans la moyenne','stat-art-v-moy'], en_dessous:['En dessous de la moyenne','stat-art-v-bas'] }[c.verdict] || ['', ''];
+  var max = Math.max(c.vues, c.mediane * 2, 1);
+  return tete+'<div class="stat-art-cmp"><div class="stat-art-cmp-haut"><span class="stat-art-verdict '+lib[1]+'">'+lib[0]+'</span>'
+    +'<span class="stat-art-cmp-txt">'+c.vues.toLocaleString('fr-FR')+' vue'+(c.vues > 1 ? 's' : '')+' en 3 jours, contre '+String(c.mediane).replace('.', ',')+' pour l’article habituel</span></div>'
+    +'<div class="stat-art-jauge" role="img" aria-label="'+c.vues+' vues, médiane '+c.mediane+'"><div class="stat-art-jauge-v" style="width:'+Math.round(100*c.vues/max)+'%"></div><div class="stat-art-jauge-m" style="left:'+Math.round(100*c.mediane/max)+'%" title="Médiane"></div></div>'
+    +'<div class="stat-art-cmp-bas">'+(c.rang === 1 ? '1er' : c.rang+'e')+' sur '+c.n+' articles publiés depuis Compo · repère : médiane des 3 premiers jours, visites depuis Compo comprises, brèves et articles ensemble.</div></div>';
+}
+
 function _stArtRendre(corps, d, doc){
   // Consultations depuis Compo (l'équipe qui relit son article) : écartées des provenances et des pages vues affichées.
   // Approximatif : seules les visites arrivées par un lien de Compo sont reconnues ; visiteurs et durée restent ceux d'Umami.
@@ -61,6 +79,7 @@ function _stArtRendre(corps, d, doc){
       +'<div><b>'+(d.visiteurs != null ? d.visiteurs.toLocaleString('fr-FR') : '—')+'</b><span>Visiteurs</span></div>'
       +'<div><b>'+(likes > 0 ? likes.toLocaleString('fr-FR') : '0')+'</b><span>J’aime</span></div>'
       +'<div><b>'+_stArtDuree(d.secondes)+'</b><span>Durée moyenne par visite</span></div></div>'
+    +_stArtComparaison(d.comparaison)
     +'<h4 class="stat-art-titre">Pages vues par jour (30 derniers jours)</h4>'+_stArtCourbe(d.serie)
     +'<div class="stat-art-cols"><div><h4 class="stat-art-titre">D’où viennent les lecteurs</h4>'+_stArtListe(d.sources, 'vues')+'</div>'
     +'<div><h4 class="stat-art-titre">Appareils</h4>'+_stArtListe(d.appareils, 'visites')+'</div></div>'

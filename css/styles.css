@@ -7909,3 +7909,15 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .stat-art-piste>div{height:100%;border-radius:3px;background:var(--orange,#e8590c)}
 .stat-art-vide{font-size:.78rem;color:var(--gris)}
 .stat-art-note,.stat-art-pied{font-size:.72rem;color:var(--gris);margin-top:.9rem}
+.stat-art-cmp{background:var(--fond2,#f5f3ef);border-radius:10px;padding:.8rem .9rem}
+.stat-art-cmp-att{font-size:.8rem;color:var(--gris)}
+.stat-art-cmp-haut{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .7rem}
+.stat-art-verdict{font-size:.75rem;font-weight:700;padding:.2rem .6rem;border-radius:999px}
+.stat-art-v-haut{background:#D1FAE5;color:#047857}
+.stat-art-v-moy{background:#DBEAFE;color:#1D4ED8}
+.stat-art-v-bas{background:#FFEDD5;color:#C2410C}
+.stat-art-cmp-txt{font-size:.8rem}
+.stat-art-jauge{position:relative;height:8px;border-radius:4px;background:var(--bordure,#e5e0d8);margin:.7rem 0 .45rem}
+.stat-art-jauge-v{height:100%;border-radius:4px;background:var(--orange,#e8590c)}
+.stat-art-jauge-m{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--encre,#222)}
+.stat-art-cmp-bas{font-size:.7rem;color:var(--gris)}
