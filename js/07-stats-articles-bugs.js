@@ -1208,6 +1208,11 @@ function osMesArticlesRender(){
     +'<button onclick="osMesArticlesCharger()" title="Rafraîchir" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-refresh"></i></button>'
     +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;"><i class="ti ti-plus" style="vertical-align:-1px;"></i> Nouveau</button>';
   hdr.appendChild(l1);
+  var barreFiltres = document.createElement('div');
+  barreFiltres.id = 'ma-filtres';
+  barreFiltres.className = 'ma-filtres';
+  barreFiltres.style.display = 'none';
+  hdr.appendChild(barreFiltres);
   main.appendChild(hdr);
 
   var list = document.createElement('div');
@@ -1365,6 +1370,105 @@ function maOsChargerCommentaires(arts){
 var MA_STATUTS_ORDRE  = ['brouillon','en-relecture','corrige','valide','valide_central','publie'];
 var MA_STATUTS_LABELS = {brouillon:'En écriture','en-relecture':'Au SR',corrige:'Relu par le SR',valide:'Bon à publier',valide_central:'Bon à publier (centrale)',publie:'En ligne'};
 
+// ===== « Tous les articles » (admin) : filtres, ordre par urgence, « En ligne » replié =====
+// Ordre : d'abord ce qui attend une action de l'admin (bon à publier, relu par le SR, au SR), puis les textes à reprendre,
+// puis ceux en écriture, enfin les articles en ligne (112 sur 124 mi-novembre : seuls les plus récents sont montrés d'office).
+var MA_TOUS_GROUPES = [['valide_central','Bon à publier (centrale)'], ['valide','Bon à publier'], ['corrige','Relu par le SR'],
+  ['en-relecture','Au SR'], ['refuse','À reprendre'], ['brouillon','En écriture'], ['publie','En ligne']];
+var MA_TOUS_EN_LIGNE_VISIBLES = 10;
+var _maTous = (function(){
+  var d = { redac:'', statuts:[], tout:false, q:'' };
+  try{
+    var s = JSON.parse(localStorage.getItem('ipsum_ma_tous') || 'null');
+    if(s){ d.redac = s.redac || ''; d.statuts = Array.isArray(s.statuts) ? s.statuts : []; }
+  }catch(e){}
+  return d;
+})();
+function _maTousSauver(){ try{ localStorage.setItem('ipsum_ma_tous', JSON.stringify({ redac:_maTous.redac, statuts:_maTous.statuts })); }catch(e){} }
+function _maClasseTous(a){ var s = a.statut || 'brouillon'; return (s === 'brouillon' && a.note_interne) ? 'refuse' : s; }
+
+function _maFiltresTousInit(){
+  var f = document.getElementById('ma-filtres');
+  if(!f || f.dataset.init) return;
+  f.dataset.init = '1';
+  var redacs = (window._redactionsData || []).slice().sort(function(a, b){ return String(a.nom).localeCompare(String(b.nom), 'fr'); });
+  f.innerHTML = '<div class="ma-filtres-ligne">'
+      +'<select id="ma-f-redac" class="ma-f-champ" aria-label="Rédaction"><option value="">Toutes les rédactions</option>'
+        +redacs.map(function(r){ return '<option value="'+esc(r.id)+'">'+esc(r.nom)+'</option>'; }).join('')+'</select>'
+      +'<input id="ma-f-q" class="ma-f-champ ma-f-q" type="search" placeholder="Titre ou auteur·rice" aria-label="Rechercher">'
+    +'</div><div class="ma-filtres-chips" id="ma-f-chips"></div>';
+  document.getElementById('ma-f-redac').onchange = function(){ _maTous.redac = this.value; _maTous.tout = false; _maTousSauver(); maOsFiltre(); };
+  document.getElementById('ma-f-q').oninput = function(){ _maTous.q = this.value; _maTous.tout = false; maOsFiltre(); };
+  f.querySelector('#ma-f-chips').onclick = function(e){
+    var b = e.target.closest('[data-st]'); if(!b) return;
+    var k = b.dataset.st, i = _maTous.statuts.indexOf(k);
+    if(k === '') _maTous.statuts = [];
+    else if(i === -1) _maTous.statuts.push(k); else _maTous.statuts.splice(i, 1);
+    _maTous.tout = false; _maTousSauver(); maOsFiltre();
+  };
+}
+
+function _maFiltresTousMaj(comptes, total){
+  _maFiltresTousInit();
+  var sr = document.getElementById('ma-f-redac');
+  if(sr){
+    // La liste des rédactions peut arriver après la première ouverture : on complète les choix si besoin
+    var redacs = (window._redactionsData || []).slice().sort(function(a, b){ return String(a.nom).localeCompare(String(b.nom), 'fr'); });
+    if(sr.options.length - 1 !== redacs.length)
+      sr.innerHTML = '<option value="">Toutes les rédactions</option>'+redacs.map(function(r){ return '<option value="'+esc(r.id)+'">'+esc(r.nom)+'</option>'; }).join('');
+    sr.value = _maTous.redac;
+  }
+  var chips = document.getElementById('ma-f-chips'); if(!chips) return;
+  var h = '<button type="button" data-st="" class="ma-chip'+(_maTous.statuts.length ? '' : ' actif')+'">Tous <b>'+total+'</b></button>';
+  MA_TOUS_GROUPES.forEach(function(g){
+    var n = comptes[g[0]] || 0;
+    if(!n && _maTous.statuts.indexOf(g[0]) === -1) return;
+    h += '<button type="button" data-st="'+g[0]+'" class="ma-chip'+(_maTous.statuts.indexOf(g[0]) !== -1 ? ' actif' : '')+'">'+g[1]+' <b>'+n+'</b></button>';
+  });
+  chips.innerHTML = h;
+}
+
+function _maRendreTous(list, count, arts, uid, role){
+  var q = _maTous.q.trim().toLowerCase();
+  var base = arts.filter(function(a){
+    if(_maTous.redac && a.redaction_id !== _maTous.redac) return false;
+    if(q && ((a.titre || '')+' '+(a.auteur || '')).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+  var comptes = {};
+  base.forEach(function(a){ var k = _maClasseTous(a); comptes[k] = (comptes[k] || 0) + 1; });
+  _maFiltresTousMaj(comptes, base.length);
+  var sel = _maTous.statuts;
+  var vus = sel.length ? base.filter(function(a){ return sel.indexOf(_maClasseTous(a)) !== -1; }) : base;
+  if(count) count.textContent = (vus.length === arts.length ? arts.length : vus.length+' sur '+arts.length)+' article'+(arts.length > 1 ? 's' : '');
+  list.innerHTML = '';
+  if(!vus.length){
+    list.innerHTML = '<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun article ne correspond à ces filtres.</div>';
+    return;
+  }
+  var pieces = [];   // dessinées par lots au défilement (osProgressif, js/66-liste-progressive.js)
+  var filtre = sel.length > 0 || q !== '' || _maTous.redac !== '';
+  MA_TOUS_GROUPES.forEach(function(g){
+    var groupe = vus.filter(function(a){ return _maClasseTous(a) === g[0]; });
+    if(!groupe.length) return;
+    var titreGroupe = document.createElement('div');
+    titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
+    titreGroupe.textContent = g[1]+' · '+groupe.length;
+    pieces.push(function(){ return titreGroupe; });
+    // « En ligne » : les plus récents seulement, tant qu'aucun filtre n'est posé et que « Voir les autres » n'a pas été cliqué
+    var limite = (g[0] === 'publie' && !filtre && !_maTous.tout) ? MA_TOUS_EN_LIGNE_VISIBLES : groupe.length;
+    groupe.slice(0, limite).forEach(function(doc){ pieces.push(function(){ return maOsMakeCard(doc, uid, role); }); });
+    if(groupe.length > limite){
+      var plus = document.createElement('button');
+      plus.type = 'button'; plus.className = 'nlx-lien ma-voir-autres';
+      plus.innerHTML = '<i class="ti ti-chevron-down"></i> Voir les '+(groupe.length - limite)+' autres articles en ligne';
+      plus.onclick = function(){ _maTous.tout = true; maOsFiltre(); };
+      pieces.push(function(){ return plus; });
+    }
+  });
+  osProgressif(list, pieces);
+}
+
 function maOsFiltre(){
   var list   = document.getElementById('ma-os-list');
   var count  = document.getElementById('ma-os-count');
@@ -1372,6 +1476,8 @@ function maOsFiltre(){
   var uid    = getUserId();
   var role   = getUserRole();
 
+  var barreF = document.getElementById('ma-filtres');
+  if(barreF) barreF.style.display = _maOnglet === 'tous' ? '' : 'none';
   if(_maOnglet === 'secours'){ _maRenderBrouillonsLocaux(list, count); return; }
   if(_maOnglet === 'tableau-sr') return;   // le tableau de bord se dessine seul
 
@@ -1417,19 +1523,7 @@ function maOsFiltre(){
   // un volume qui couvre toutes les rédactions, savoir où en est chaque article compte
   // plus que l'ordre chronologique brut.
   var pieces = [];   // dessinées par lots au défilement (osProgressif, js/66-liste-progressive.js)
-  if(_maOnglet === 'tous'){
-    MA_STATUTS_ORDRE.forEach(function(st){
-      var groupe = arts.filter(function(a){ return (a.statut||'brouillon')===st; });
-      if(!groupe.length) return;
-      var titreGroupe = document.createElement('div');
-      titreGroupe.style.cssText = 'font-family:Space Mono,monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);margin:.4rem 0 .45rem;';
-      titreGroupe.textContent = (MA_STATUTS_LABELS[st]||st)+' · '+groupe.length;
-      pieces.push(function(){ return titreGroupe; });
-      groupe.forEach(function(doc){ pieces.push(function(){ return maOsMakeCard(doc,uid,role); }); });
-    });
-    osProgressif(list, pieces);
-    return;
-  }
+  if(_maOnglet === 'tous'){ _maRendreTous(list, count, arts, uid, role); return; }
 
   // Ailleurs (Mes articles, Mes brouillons, À corriger, Validation centrale) : regroupé
   // mois par mois, du mois en cours vers les plus anciens — arts est déjà trié du plus
