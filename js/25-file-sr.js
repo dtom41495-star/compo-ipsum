@@ -132,7 +132,7 @@ function _srRenderFile(list, file){
     var depuis = a.updated_at ? _srDepuis(a.updated_at) : '';
     el.innerHTML = '<div class="sr-file-rang">'+(i+1)+'</div>'
       +'<div class="sr-file-infos"><div class="sr-file-titre">'+(a.express ? '<span class="sr-express" title="Relecture express">⚡ Express</span> ' : '')+esc(a.titre||'Sans titre')+'</div>'
-      +'<div class="sr-file-meta">'+(a.urgence==='urgent' ? '<b>Urgent</b> · ' : '')+esc(a.auteur||'')+(a.redaction ? ' · '+esc(a.redaction) : '')+(depuis ? ' · en attente '+depuis : '')+'</div></div>'
+      +'<div class="sr-file-meta">'+(a.urgence==='urgent' ? '<b>Urgent</b> · ' : '')+esc(a.auteur||'')+(function(n){ return n ? ' · '+esc(n) : ''; })(a.redaction || (typeof _nomRedac === 'function' ? _nomRedac(a.redaction_id) : ''))+(depuis ? ' · en attente '+depuis : '')+'</div></div>'
       +'<button class="mac-btn mac-btn-principal" data-id="'+esc(a.id)+'" onclick="osSrPrendre(this.dataset.id,this)"><i class="ti ti-hand-grab"></i> Je prends</button>';
     list.appendChild(el);
   });
