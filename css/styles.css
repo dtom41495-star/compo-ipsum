@@ -7890,8 +7890,11 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .ctl-anonyme { margin-top: .5rem; display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 600; color: #065F46; background: #D1FAE5; border-radius: 8px; padding: .3rem .6rem; }
 
 /* ===== Statistiques d'un article (vue lecture) ===== */
-.stat-art-boite{max-width:640px}
-.stat-art-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:1rem}
+.stat-art-fil{display:flex;align-items:center;gap:.6rem;min-width:0;margin-bottom:1rem}
+.stat-art-fil-t{font-size:.8rem;color:var(--gris);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat-art-fil-t span{color:var(--encre)}
+.stat-art-corps{max-width:760px}
+.stat-art-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin-bottom:1rem}
 .stat-art-kpis>div{background:var(--fond2,#f5f3ef);border-radius:10px;padding:.7rem .8rem;min-width:0}
 .stat-art-kpis b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
 .stat-art-kpis span{font-size:.7rem;color:var(--gris)}

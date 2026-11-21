@@ -69,24 +69,28 @@ function _stArtRendre(corps, d, doc){
     +'<div class="stat-art-pied">Chiffres Umami depuis la mise en ligne'+(d.maj ? ', lus à '+new Date(d.maj).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '')+'. La partie newsletter viendra avec Listmonk.</div>';
 }
 
+// Affichée dans la fenêtre de lecture elle-même, à la place de l'article, avec un bouton « Article » pour y revenir
+// (même principe que le retour « Agenda » de la fiche d'un événement). Le jeton évite qu'une réponse qui arrive
+// en retard s'affiche sur un autre article ou après le retour à l'article.
+var _stArtJeton = 0;
+function osStatsArticleFermer(){
+  _stArtJeton++;
+  if(typeof renderLecture === 'function' && currentDoc) renderLecture();
+}
+
 function osStatsArticleOuvrir(docArg){
   var doc = (docArg && docArg.id) ? docArg : currentDoc;
   if(!osStatsArticlePeut(doc)) return;
+  var cont = document.getElementById('lect-content');
+  if(!cont) return;
   var slug = _sitSlugDe(doc);
-  var mo = document.createElement('div');
-  mo.className = 'renvoi-voile';
-  mo.innerHTML = '<div class="renvoi-boite stat-art-boite" role="dialog" aria-labelledby="stat-art-t">'
-    +'<div class="renvoi-entete"><div class="renvoi-icone hist-icone"><i class="ti ti-chart-bar"></i></div><div>'
-      +'<div id="stat-art-t" class="renvoi-titre">Statistiques de l’article</div>'
-      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' »</div></div>'
-      +'<button type="button" class="verif-btn-icone hist-fermer" data-a="fermer" title="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="renvoi-corps stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div></div>';
-  document.body.appendChild(mo);
-  var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
-  var touche = function(e){ if(e.key === 'Escape') fermer(); };
-  document.addEventListener('keydown', touche);
-  mo.addEventListener('click', function(e){ if(e.target === mo || e.target.closest('[data-a="fermer"]')) fermer(); });
-  var corps = mo.querySelector('.stat-art-corps');
+  var jeton = ++_stArtJeton;
+  cont.innerHTML = '<div class="fil-retour stat-art-fil">'
+      +'<button type="button" class="mac-btn" data-retour onclick="osStatsArticleFermer()"><i class="ti ti-arrow-left"></i><span>Article</span></button>'
+      +'<div class="stat-art-fil-t"><i class="ti ti-chart-bar"></i> Statistiques · <span>'+esc(doc.titre || 'Sans titre')+'</span></div></div>'
+    +'<div class="stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div>';
+  var corps = cont.querySelector('.stat-art-corps');
+  var actif = function(){ return jeton === _stArtJeton && corps.isConnected && currentDoc && currentDoc.id === doc.id; };
   var panne = function(texte){ corps.innerHTML = '<div class="verif-vide">'+esc(texte)+'</div>'; };
 
   var c = _stArtCache[slug];
@@ -97,10 +101,10 @@ function osStatsArticleOuvrir(docArg){
       body: JSON.stringify({ slug: slug }) })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!mo.isConnected) return;
+      if(!actif()) return;
       if(!d || !d.ok){ panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', d && d.raison); return; }
       _stArtCache[slug] = { le: Date.now(), donnees: d };
       _stArtRendre(corps, d, doc);
     })
-    .catch(function(e){ if(mo.isConnected) panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', e); });
+    .catch(function(e){ if(actif()) panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', e); });
 }
