@@ -1597,6 +1597,14 @@ function _maActionsEtape(doc, uid, role){
   return [];
 }
 
+// Nom de la rédaction à afficher sur une carte. Visible dans les vues « de rôle » (À relire,
+// À valider, À publier, Tous…) où l'on voit des articles de plusieurs rédactions ; pas dans
+// ses propres brouillons, où ça n'apprend rien.
+function _maNomRedacCarte(doc){
+  if(['corriger','a-valider','a-publier','tous','validation-centrale'].indexOf(_maOnglet) === -1) return '';
+  return doc.redaction || (typeof _nomRedac === 'function' ? _nomRedac(doc.redaction_id) : '') || '';
+}
+
 function maOsMakeCard(doc, uid, role){
   if(osEstMobile()) return _maCarteMobile(doc, uid, role);
   var s   = doc.statut||'brouillon';
@@ -1614,6 +1622,8 @@ function maOsMakeCard(doc, uid, role){
 
   // Surtitre : statut, puis rubrique et auteur, comme dans un sommaire de journal
   var surtitre = [];
+  var _nr = _maNomRedacCarte(doc);
+  if(_nr) surtitre.push('<b>'+esc(_nr)+'</b>');
   if(doc.rubrique) surtitre.push(esc(doc.rubrique));
   if(doc.type==='breve') surtitre.push('Brève');
   if(doc.auteur && !estAuteur) surtitre.push('par '+esc(doc.auteur));
@@ -1704,6 +1714,8 @@ function _maCarteMobile(doc, uid, role){
   card.onclick = function(e){ if(e.target.closest('button')) return; mesArticlesOuvrir(doc.id, actionParDefaut); };
 
   var infos = [];
+  var _nr2 = _maNomRedacCarte(doc);
+  if(_nr2) infos.push('<b>'+esc(_nr2)+'</b>');
   if(doc.rubrique) infos.push(esc(doc.rubrique));
   if(doc.type==='breve') infos.push('Brève');
   if(doc.auteur && !estAuteur) infos.push(esc(doc.auteur));
