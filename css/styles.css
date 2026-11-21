@@ -7929,3 +7929,15 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .stat-art-pastilles{display:flex;flex-wrap:wrap;gap:.45rem}
 .stat-art-pastille{background:var(--fond2,#f5f3ef);border-radius:999px;padding:.22rem .7rem;font-size:.78rem}
 .stat-art-pastille b{margin-left:.4rem;color:var(--orange,#e8590c);font-variant-numeric:tabular-nums}
+
+/* Vue « Tous les articles » : barre de filtres */
+.ma-filtres{padding:0 1rem .6rem;display:flex;flex-direction:column;gap:.5rem}
+.ma-filtres-ligne{display:flex;gap:.5rem;flex-wrap:wrap}
+.ma-f-champ{font:inherit;font-size:.78rem;padding:6px 9px;border:1px solid var(--gris-bord);border-radius:8px;background:#fff;color:var(--encre);min-width:0}
+.ma-f-q{flex:1;min-width:150px}
+.ma-filtres-chips{display:flex;gap:.35rem;flex-wrap:wrap}
+.ma-chip{font:inherit;font-size:.72rem;padding:4px 10px;border:1px solid var(--gris-bord);border-radius:999px;background:#fff;color:var(--encre);cursor:pointer}
+.ma-chip b{margin-left:.3rem;color:var(--gris);font-variant-numeric:tabular-nums}
+.ma-chip.actif{background:var(--encre);border-color:var(--encre);color:#fff}
+.ma-chip.actif b{color:#fff}
+.ma-voir-autres{display:block;margin:.4rem auto 1rem}
