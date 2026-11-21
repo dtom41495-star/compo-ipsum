@@ -1225,6 +1225,7 @@ function renderLecture(){
         : '<button class="mac-btn" disabled style="opacity:.5;cursor:not-allowed;" title="La copie est possible une fois l\'article validé (bon à publier)"><i class="ti ti-copy-off"></i><span>Copier</span></button>')
       +'<button class="mac-btn" onclick="genererVisuelsDepuisLecture()"><i class="ti ti-palette"></i><span>Visuels</span></button>'
       +(peutHistorique ? '<button class="mac-btn" onclick="osHistoriqueOuvrir(currentDoc)" title="Étapes, relectures et versions du texte"><i class="ti ti-history"></i><span>Historique</span></button>' : '')
+      +(typeof osStatsArticlePeut === 'function' && osStatsArticlePeut(doc) ? '<button class="mac-btn" onclick="osStatsArticleOuvrir(currentDoc)" title="Vues, provenance et appareils de cet article"><i class="ti ti-chart-bar"></i><span>Statistiques</span></button>' : '')
       +'<button class="mac-btn" onclick="exporterPDF()" title="Télécharger l\'article en PDF"><i class="ti ti-file-type-pdf"></i><span>PDF</span></button>'
     +'</div></div>';
 
