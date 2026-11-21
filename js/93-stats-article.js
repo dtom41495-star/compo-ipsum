@@ -24,16 +24,17 @@ function _stArtCourbe(serie){
   if(!serie || !serie.length) return '<div class="stat-art-vide">Pas encore de visite sur les 30 derniers jours.</div>';
   var W = 520, H = 130, m = {t:14, r:6, b:22, l:26};
   var max = Math.max.apply(null, serie.map(function(p){ return p.vues; })) || 1;
-  var bw = (W - m.l - m.r) / serie.length;
+  var pas = Math.min(44, (W - m.l - m.r) / serie.length);   // peu de jours : des barres fines, pas de gros blocs
+  var bw = pas;
   var barres = serie.map(function(p, i){
     var h = Math.round((H - m.t - m.b) * p.vues / max);
-    return '<rect x="'+(m.l + i*bw + 1).toFixed(1)+'" y="'+(H - m.b - h)+'" width="'+Math.max(1, bw - 2).toFixed(1)+'" height="'+h+'" rx="2" class="stat-art-barre"><title>'+esc(p.date)+' : '+p.vues+'</title></rect>';
+    return '<rect x="'+(m.l + i*pas + 2).toFixed(1)+'" y="'+(H - m.b - h)+'" width="'+Math.max(1, pas - 4).toFixed(1)+'" height="'+h+'" rx="2" class="stat-art-barre"><title>'+esc(p.date)+' : '+p.vues+'</title></rect>';
   }).join('');
   var d0 = serie[0].date.slice(8,10)+'/'+serie[0].date.slice(5,7), d1 = serie[serie.length-1].date.slice(8,10)+'/'+serie[serie.length-1].date.slice(5,7);
   return '<svg class="stat-art-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Pages vues par jour sur les 30 derniers jours">'
     +'<text x="'+(m.l-4)+'" y="'+(m.t+4)+'" text-anchor="end">'+max+'</text><text x="'+(m.l-4)+'" y="'+(H-m.b)+'" text-anchor="end">0</text>'
     +barres
-    +'<text x="'+m.l+'" y="'+(H-6)+'">'+d0+'</text><text x="'+(W-m.r)+'" y="'+(H-6)+'" text-anchor="end">'+d1+'</text></svg>';
+    +'<text x="'+(m.l + 2)+'" y="'+(H-6)+'">'+d0+'</text><text x="'+(m.l + serie.length*pas - 2)+'" y="'+(H-6)+'" text-anchor="end">'+d1+'</text></svg>';
 }
 
 function _stArtListe(lignes, cle, unite){
@@ -104,10 +105,10 @@ function osStatsArticleOuvrir(docArg){
   if(!cont) return;
   var slug = _sitSlugDe(doc);
   var jeton = ++_stArtJeton;
-  cont.innerHTML = '<div class="fil-retour stat-art-fil">'
+  cont.innerHTML = '<div class="stat-art-page"><div class="fil-retour stat-art-fil">'
       +'<button type="button" class="mac-btn" data-retour onclick="osStatsArticleFermer()"><i class="ti ti-arrow-left"></i><span>Article</span></button>'
       +'<div class="stat-art-fil-t"><i class="ti ti-chart-bar"></i> Statistiques · <span>'+esc(doc.titre || 'Sans titre')+'</span></div></div>'
-    +'<div class="stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div>';
+    +'<div class="stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div></div>';
   var corps = cont.querySelector('.stat-art-corps');
   var actif = function(){ return jeton === _stArtJeton && corps.isConnected && currentDoc && currentDoc.id === doc.id; };
   var panne = function(texte){ corps.innerHTML = '<div class="verif-vide">'+esc(texte)+'</div>'; };
