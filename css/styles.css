@@ -7893,7 +7893,8 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .stat-art-fil{display:flex;align-items:center;gap:.6rem;min-width:0;margin-bottom:1rem}
 .stat-art-fil-t{font-size:.8rem;color:var(--gris);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stat-art-fil-t span{color:var(--encre)}
-.stat-art-corps{max-width:760px}
+.stat-art-page{max-width:720px;margin:0 auto;padding:1.5rem 1.5rem 2.2rem;box-sizing:border-box;font-family:'DM Sans',sans-serif;color:var(--encre)}
+@media (max-width:768px){ .stat-art-page{padding:1rem 1rem 1.6rem} }
 .stat-art-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin-bottom:1rem}
 .stat-art-kpis>div{background:var(--fond2,#f5f3ef);border-radius:10px;padding:.7rem .8rem;min-width:0}
 .stat-art-kpis b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
