@@ -103,9 +103,12 @@ function _rImgCadreMontrer(img){
     c.innerHTML = '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;pointer-events:auto;">'
       +'<button type="button" data-sens="-1" title="Monter l\'image" aria-label="Monter l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#1A1A2E;"><i class="ti ti-arrow-up"></i></button>'
       +'<button type="button" data-sens="1" title="Descendre l\'image" aria-label="Descendre l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#1A1A2E;"><i class="ti ti-arrow-down"></i></button>'
+      +'<button type="button" data-leg="1" title="Légende de l\'image" aria-label="Légende de l\'image" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:.95rem;display:grid;place-items:center;"><i class="ti ti-forms"></i></button>'
       +'<button type="button" data-suppr="1" title="Retirer l\'image du texte" aria-label="Retirer l\'image du texte" style="width:30px;height:30px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-size:1rem;color:#C0341D;"><i class="ti ti-trash"></i></button></div>';
     c.addEventListener('mousedown', function(e){ e.preventDefault(); });
     c.addEventListener('click', function(e){
+      var lg = e.target.closest && e.target.closest('button[data-leg]');
+      if(lg){ _rImgLegendeEditer(); return; }
       var s = e.target.closest && e.target.closest('button[data-suppr]');
       if(s){ _rImgSupprimer(); return; }
       var b = e.target.closest && e.target.closest('button[data-sens]');
@@ -151,8 +154,68 @@ function _rImgDeplacer(sens){
 document.addEventListener('click', function(e){
   var t = e.target;
   if(t && t.tagName === 'IMG' && t.closest && t.closest('#r-corps-live')){ _rImgCadreMontrer(t); return; }
-  if(t && t.closest && t.closest('#r-img-cadre')) return;
+  if(t && t.closest && (t.closest('#r-img-cadre') || t.closest('#r-img-leg-panel'))) return;
+  _rImgLegendeFermer();
   _rImgCadreCacher();
 });
-document.addEventListener('scroll', function(){ if(_rImgSel) _rImgCadrePlacer(); }, true);
+document.addEventListener('scroll', function(e){ if(e.target && e.target.closest && e.target.closest('#r-img-leg-panel')) return; _rImgLegendeFermer(); if(_rImgSel) _rImgCadrePlacer(); }, true);
 window.addEventListener('resize', function(){ if(_rImgSel) _rImgCadrePlacer(); });
+
+// ---- Légende d'une image du texte ----
+// Dans le texte enregistré, la légende est le texte entre crochets : ![ma légende](adresse). L'éditeur posait toujours « Légende de
+// l'image » (texte d'exemple, qui n'apparaît ni dans Compo ni sur le site) sans moyen de le changer. Le bouton du cadre ouvre un champ ;
+// la légende s'affiche sous l'image dans l'éditeur (CSS, attribut data-leg du bloc : elle n'entre pas dans le texte enregistré).
+var _R_LEG_EXEMPLE = /^l[ée]gende de l['’]image$/i;
+function _rImgLegendeActuelle(img){
+  var a = String(img.getAttribute('alt') || '').trim();
+  return _R_LEG_EXEMPLE.test(a) || a === 'image' ? '' : a;
+}
+function _rImgLegendeNettoyer(t){ return String(t || '').replace(/[\[\]\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200); }
+function _rImgLegendesMaj(){
+  var l = _rHLive();
+  if(!l) return;
+  l.querySelectorAll('[data-leg]').forEach(function(b){ b.removeAttribute('data-leg'); });
+  l.querySelectorAll('img').forEach(function(img){
+    var leg = _rImgLegendeActuelle(img), bloc = _rImgBloc(img);
+    if(leg && bloc && bloc.parentNode === l) bloc.setAttribute('data-leg', leg);
+  });
+}
+function _rImgLegendeFermer(){ var p = document.getElementById('r-img-leg-panel'); if(p) p.remove(); }
+function _rImgLegendeEditer(){
+  var img = _rImgSel;
+  if(!img || !img.isConnected) return;
+  _rImgLegendeFermer();
+  var r = img.getBoundingClientRect();
+  var p = document.createElement('div');
+  p.id = 'r-img-leg-panel';
+  p.style.cssText = 'position:fixed;z-index:99991;left:'+Math.max(8, Math.min(r.left, window.innerWidth - 340))+'px;top:'+Math.min(window.innerHeight - 90, r.bottom + 8)+'px;width:330px;max-width:calc(100vw - 16px);box-sizing:border-box;background:#fff;border:1px solid var(--gris-bord);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.22);padding:10px;font-family:DM Sans,sans-serif;';
+  p.innerHTML = '<label for="r-img-leg-champ" style="display:block;font-size:.7rem;color:var(--gris);margin-bottom:5px;">Légende de l’image (affichée sous la photo sur le site)</label>'
+    +'<input id="r-img-leg-champ" type="text" maxlength="200" style="width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--gris-bord);border-radius:7px;font:inherit;font-size:.82rem;" placeholder="Ex. : Les musiciennes de 81 BPM en répétition">'
+    +'<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;"><button type="button" data-a="vider" class="mac-btn" style="font-size:.72rem;">Sans légende</button><button type="button" data-a="ok" class="mac-btn mac-btn-principal" style="font-size:.72rem;">Enregistrer</button></div>';
+  document.body.appendChild(p);
+  var champ = p.querySelector('#r-img-leg-champ');
+  champ.value = _rImgLegendeActuelle(img);
+  var appliquer = function(texte){
+    var t = _rImgLegendeNettoyer(texte);
+    img.setAttribute('alt', t || 'Légende de l\'image');
+    _rImgLegendeFermer();
+    _rImgLegendesMaj();
+    if(typeof _rCorpsSync === 'function') _rCorpsSync();
+    _rHPousser();
+    _rImgCadrePlacer();
+  };
+  p.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('button[data-a]'); if(!b) return;
+    appliquer(b.getAttribute('data-a') === 'vider' ? '' : champ.value);
+  });
+  champ.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); appliquer(champ.value); }
+    else if(e.key === 'Escape'){ e.preventDefault(); _rImgLegendeFermer(); }
+  });
+  champ.focus(); champ.select();
+}
+// À l'ouverture d'un article, la légende déjà enregistrée s'affiche sous l'image
+if(typeof rCorpsSetValeur === 'function'){
+  var _rCorpsSetValeurAvantLeg = rCorpsSetValeur;
+  rCorpsSetValeur = function(){ var r = _rCorpsSetValeurAvantLeg.apply(this, arguments); _rImgLegendesMaj(); return r; };
+}

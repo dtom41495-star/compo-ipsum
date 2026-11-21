@@ -280,12 +280,11 @@ function copierLien(id, type){
 }
 
 // Charger article/communique depuis URL au démarrage
-var _docFromURL = null;
 
 // Un lien d'article partagé n'ouvre pas les portes à tout le monde : correction réservée
 // aux correcteur·rices/admin, édition réservée à l'auteur·rice, au rédac chef de la
 // rédaction de l'article, ou à un·e admin. Centralisé ici pour que l'affichage des
-// boutons (chargerDepuisURL) et la vérification au clic (modalActionChoisir) ne
+// boutons de la lecture (renderLecture) et la vérification à l'ouverture ne
 // puissent pas diverger.
 function _osPermissionsModalAction(doc){
   var role = getUserRole();
@@ -298,35 +297,11 @@ function _osPermissionsModalAction(doc){
   };
 }
 
-// Ouvre un article par son identifiant (lien ?article=…, recherche du menu, récents)
+// Ouvre un article par son identifiant (lien ?article=…, recherche du menu, récents, notifications) : directement en lecture.
+// Plus de fenêtre de choix : « Modifier » et « Corriger » sont dans la barre de la lecture, proposés selon les droits de chacun
+// (mêmes droits qu'avant, voir _osPermissionsModalAction) ; la base refuse de toute façon une modification non autorisée.
 function osOuvrirArticleParId(articleId){
-    db.getArticle(articleId).then(function(doc){
-      if(!doc){ notif('Article introuvable'); return; }
-      if(typeof osRecentAjouter === 'function') osRecentAjouter('article', doc.id, doc.titre || 'Sans titre', 'Article');
-      // Repartir de la ligne complète (pas d'un sous-ensemble de champs) — sinon auteur_id,
-      // redaction_id etc. se perdent silencieusement, et ils sont nécessaires ci-dessous
-      // pour savoir qui a le droit de corriger/modifier cet article précis.
-      var docCompo = Object.assign({}, doc, {
-        tags: doc.tags||[], sources: doc.sources||[],
-        cree_le: doc.created_at, modifie_le: doc.updated_at
-      });
-      _docFromURL = docCompo;
-      currentDoc = docCompo;
-      // Afficher la modale de choix
-      var t = document.getElementById('modal-action-titre');
-      var m = document.getElementById('modal-action-meta');
-      if(t) t.textContent = doc.titre || 'Sans titre';
-      if(m) m.textContent = (doc.auteur||'?') + ' · ' + (doc.redaction||'') + ' · ' + bStat(doc.statut).replace(/<[^>]+>/g,'');
-      var perm = _osPermissionsModalAction(docCompo);
-      var peutCorriger = perm.peutCorriger, peutModifier = perm.peutModifier;
-      var btnC = document.getElementById('modal-action-btn-correction');
-      var btnE = document.getElementById('modal-action-btn-edition');
-      var noteRestreint = document.getElementById('modal-action-restreint');
-      if(btnC) btnC.style.display = peutCorriger ? '' : 'none';
-      if(btnE) btnE.style.display = peutModifier ? '' : 'none';
-      if(noteRestreint) noteRestreint.style.display = (!peutCorriger || !peutModifier) ? 'block' : 'none';
-      document.getElementById('modal-action').classList.add('visible');
-    }).catch(function(){ notif('Erreur chargement article'); });
+  mesArticlesOuvrir(articleId, 'lecture');
 }
 
 function chargerDepuisURL(){
@@ -391,34 +366,6 @@ function chargerDepuisURL(){
     }, 1500); // attendre que la session soit chargée
   }
 }
-
-function modalActionChoisir(action){
-  document.getElementById('modal-action').classList.remove('visible');
-  if(!_docFromURL) return;
-  // Re-vérifié ici (pas seulement à l'affichage des boutons) au cas où cette fonction
-  // serait déclenchée autrement qu'en cliquant sur le bouton correspondant.
-  var perm = _osPermissionsModalAction(_docFromURL);
-  if(action === 'correction' && !perm.peutCorriger){
-    notif('Réservé au secrétariat de rédaction', 'erreur'); return;
-  }
-  if(action === 'edition' && !perm.peutModifier){
-    notif('Réservé à l\'auteur·rice, au rédac chef ou à un·e admin', 'erreur'); return;
-  }
-  if(action === 'lecture'){
-    go('lecture');
-    setTimeout(function(){ renderLecture(_docFromURL); }, 100);
-  } else if(action === 'correction'){
-    chargerDansRedaction(_docFromURL);
-  } else if(action === 'edition'){
-    chargerDansRedaction(_docFromURL);
-  }
-}
-
-function modalActionFermer(){
-  document.getElementById('modal-action').classList.remove('visible');
-  _docFromURL = null;
-}
-
 
 // Charger statut depuis Supabase
 
@@ -678,6 +625,7 @@ function mesArticlesOuvrir(id, action){
   notif('Chargement...');
   db.getArticle(id).then(function(doc){
     if(!doc){ notif('Article introuvable'); return; }
+    if(action === 'lecture' && typeof osRecentAjouter === 'function') osRecentAjouter('article', doc.id, doc.titre || 'Sans titre', 'Article');
     // L'ancien mode Diff est remplacé par l'historique de l'article (étapes, qui, messages, texte à chaque étape) :
     // on l'ouvre sans toucher à l'article en cours d'édition.
     if(action === 'historique' || action === 'diff'){ osHistoriqueOuvrir(doc); return; }
