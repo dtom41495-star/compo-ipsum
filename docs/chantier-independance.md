@@ -64,6 +64,25 @@ avec des systèmes de secours.
       la session cloud : **contrôler chaque point dans les consignes** avant l'installation (modération avant publication, mails de validation,
       anonymisation des IP, traduction française, réglages d'affichage).
 
+11. **Sortir de Netlify : pages écrites d'avance, servies par GitHub Pages** (idée de Tom, 21 novembre 2026, après l'épuisement des crédits
+    Netlify). Aujourd'hui Netlify fait trois choses : héberger les fichiers, gérer l'adresse et le HTTPS, et lancer à chaque visite les
+    8 fonctions du site (`netlify/functions` : article, liste, commune et rubrique, auteur, équipe, plan du site, flux Substack et YouTube).
+    Ces fonctions sont ce qui consomme les crédits. Principe : à chaque mise en ligne depuis Compo, une fonction Supabase **écrit une seule
+    fois** les pages concernées (article, communes, rubriques, accueil) comme de vrais fichiers HTML et les envoie dans le dépôt
+    `ipsummediasite` par l'API GitHub. **GitHub Pages** les sert gratuitement ; Netlify n'a plus rien à faire. Le même dossier de fichiers
+    pourra ensuite être servi par Caddy sur la machine de l'asso (étape 5), sans réécriture : cette décision prépare le déménagement.
+    - **Ce qu'il faut prévoir** : un fichier réel pour chaque adresse (GitHub Pages n'a pas les redirections de `netlify.toml` : `/tarn`,
+      `/commune/albi`…, avec une page 404 propre) ; un **jeton GitHub limité à ce seul dépôt** (écriture du contenu uniquement), rangé dans
+      les secrets Supabase par Tom, **jamais dans le code** (le dépôt est public) ; désactiver le déploiement automatique Netlify ; repointer
+      le domaine `ipsummedia.fr` seulement après des tests sur l'adresse provisoire GitHub.
+    - **Points délicats** : un article dépublié ou corrigé (erratum) doit aussi mettre à jour ou supprimer ses fichiers, sinon l'ancienne
+      page reste visible ; les flux Substack et YouTube et la météo bougent sans mise en ligne, donc il faut les rafraîchir à intervalle
+      régulier (cron Supabase) ou les charger depuis le navigateur ; délai de une à deux minutes entre le clic et la page visible (non mesuré).
+    - **À vérifier avant de s'engager** (non lisible depuis la session cloud) : taille et nombre de fichiers que le dépôt supportera ; limites
+      actuelles de GitHub Pages ; ce que Supabase affiche pour une page HTML (non retenu : d'après mes connaissances, non vérifiées, il la
+      renvoie en texte brut sur son adresse par défaut, donc il ne remplace pas un hébergeur de pages).
+    - Retour en arrière : chaque envoi est un commit GitHub, et l'ancien site Netlify reste en place tant que le nouveau n'a pas fait ses preuves.
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -74,6 +93,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 |---|-------|-------------|
 | 1 | **Sauvegarde de la base Compo chaque nuit sur la machine** (pg_dump), puis copie hors de la maison (avec les sauvegardes de Vaultwarden). | Une restauration d'essai réussit. |
 | 2 | **Compo → site** (détail section 4). | Un article fictif publié en un clic apparaît sur l'adresse de test Netlify ; Tom a ouvert une dizaine de vrais liens anciens qui marchent tous. |
+| 2 bis | **Site sans Netlify** (décision 11) : générateur de pages dans une fonction Supabase, envoi dans le dépôt, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse de test ; un erratum et une dépublication d'essai mettent bien à jour ou retirent les pages ; Tom valide avant le changement de domaine. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. | Compo et le site répondent depuis la machine ; Uptime Kuma au vert. |
