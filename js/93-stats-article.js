@@ -45,6 +45,24 @@ function _stArtListe(lignes, cle, unite){
   }).join('');
 }
 
+// Comparaison avec les autres articles publiés depuis Compo, sur les 3 premiers jours en ligne (calculée par la fonction serveur).
+// Aucun verdict tant qu'il n'y a pas assez d'articles comparables : mieux vaut dire « pas encore » qu'un classement qui ne veut rien dire.
+function _stArtComparaison(c){
+  if(!c || c.etat === 'non_comparable' || c.etat === 'indisponible') return '';
+  var tete = '<h4 class="stat-art-titre">Par rapport aux autres articles</h4>';
+  if(c.etat === 'trop_recent')
+    return tete+'<div class="stat-art-cmp stat-art-cmp-att">Comparaison possible dans '+c.heures+' h, une fois les 3 premiers jours écoulés.</div>';
+  if(c.etat === 'pas_assez')
+    return tete+'<div class="stat-art-cmp stat-art-cmp-att">Pas encore assez d’articles pour comparer : '+c.n+' publié'+(c.n > 1 ? 's' : '')+' depuis Compo sur '+c.requis+' nécessaires.</div>';
+  if(c.etat !== 'ok') return '';
+  var lib = { au_dessus:['Au-dessus de la moyenne','stat-art-v-haut'], dans_la_moyenne:['Dans la moyenne','stat-art-v-moy'], en_dessous:['En dessous de la moyenne','stat-art-v-bas'] }[c.verdict] || ['', ''];
+  var max = Math.max(c.vues, c.mediane * 2, 1);
+  return tete+'<div class="stat-art-cmp"><div class="stat-art-cmp-haut"><span class="stat-art-verdict '+lib[1]+'">'+lib[0]+'</span>'
+    +'<span class="stat-art-cmp-txt">'+c.vues.toLocaleString('fr-FR')+' vue'+(c.vues > 1 ? 's' : '')+' en 3 jours, contre '+String(c.mediane).replace('.', ',')+' pour l’article habituel</span></div>'
+    +'<div class="stat-art-jauge" role="img" aria-label="'+c.vues+' vues, médiane '+c.mediane+'"><div class="stat-art-jauge-v" style="width:'+Math.round(100*c.vues/max)+'%"></div><div class="stat-art-jauge-m" style="left:'+Math.round(100*c.mediane/max)+'%" title="Médiane"></div></div>'
+    +'<div class="stat-art-cmp-bas">'+(c.rang === 1 ? '1er' : c.rang+'e')+' sur '+c.n+' articles publiés depuis Compo · repère : médiane des 3 premiers jours, visites depuis Compo comprises.</div></div>';
+}
+
 function _stArtRendre(corps, d, doc){
   // Consultations depuis Compo (l'équipe qui relit son article) : écartées des provenances et des pages vues affichées.
   // Approximatif : seules les visites arrivées par un lien de Compo sont reconnues ; visiteurs et durée restent ceux d'Umami.
@@ -61,6 +79,7 @@ function _stArtRendre(corps, d, doc){
       +'<div><b>'+(d.visiteurs != null ? d.visiteurs.toLocaleString('fr-FR') : '—')+'</b><span>Visiteurs</span></div>'
       +'<div><b>'+(likes > 0 ? likes.toLocaleString('fr-FR') : '0')+'</b><span>J’aime</span></div>'
       +'<div><b>'+_stArtDuree(d.secondes)+'</b><span>Durée moyenne par visite</span></div></div>'
+    +_stArtComparaison(d.comparaison)
     +'<h4 class="stat-art-titre">Pages vues par jour (30 derniers jours)</h4>'+_stArtCourbe(d.serie)
     +'<div class="stat-art-cols"><div><h4 class="stat-art-titre">D’où viennent les lecteurs</h4>'+_stArtListe(d.sources, 'vues')+'</div>'
     +'<div><h4 class="stat-art-titre">Appareils</h4>'+_stArtListe(d.appareils, 'visites')+'</div></div>'
@@ -69,24 +88,28 @@ function _stArtRendre(corps, d, doc){
     +'<div class="stat-art-pied">Chiffres Umami depuis la mise en ligne'+(d.maj ? ', lus à '+new Date(d.maj).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '')+'. La partie newsletter viendra avec Listmonk.</div>';
 }
 
+// Affichée dans la fenêtre de lecture elle-même, à la place de l'article, avec un bouton « Article » pour y revenir
+// (même principe que le retour « Agenda » de la fiche d'un événement). Le jeton évite qu'une réponse qui arrive
+// en retard s'affiche sur un autre article ou après le retour à l'article.
+var _stArtJeton = 0;
+function osStatsArticleFermer(){
+  _stArtJeton++;
+  if(typeof renderLecture === 'function' && currentDoc) renderLecture();
+}
+
 function osStatsArticleOuvrir(docArg){
   var doc = (docArg && docArg.id) ? docArg : currentDoc;
   if(!osStatsArticlePeut(doc)) return;
+  var cont = document.getElementById('lect-content');
+  if(!cont) return;
   var slug = _sitSlugDe(doc);
-  var mo = document.createElement('div');
-  mo.className = 'renvoi-voile';
-  mo.innerHTML = '<div class="renvoi-boite stat-art-boite" role="dialog" aria-labelledby="stat-art-t">'
-    +'<div class="renvoi-entete"><div class="renvoi-icone hist-icone"><i class="ti ti-chart-bar"></i></div><div>'
-      +'<div id="stat-art-t" class="renvoi-titre">Statistiques de l’article</div>'
-      +'<div class="renvoi-article">« '+esc(doc.titre || 'Sans titre')+' »</div></div>'
-      +'<button type="button" class="verif-btn-icone hist-fermer" data-a="fermer" title="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="renvoi-corps stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div></div>';
-  document.body.appendChild(mo);
-  var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
-  var touche = function(e){ if(e.key === 'Escape') fermer(); };
-  document.addEventListener('keydown', touche);
-  mo.addEventListener('click', function(e){ if(e.target === mo || e.target.closest('[data-a="fermer"]')) fermer(); });
-  var corps = mo.querySelector('.stat-art-corps');
+  var jeton = ++_stArtJeton;
+  cont.innerHTML = '<div class="fil-retour stat-art-fil">'
+      +'<button type="button" class="mac-btn" data-retour onclick="osStatsArticleFermer()"><i class="ti ti-arrow-left"></i><span>Article</span></button>'
+      +'<div class="stat-art-fil-t"><i class="ti ti-chart-bar"></i> Statistiques · <span>'+esc(doc.titre || 'Sans titre')+'</span></div></div>'
+    +'<div class="stat-art-corps"><div class="verif-vide"><i class="ti ti-loader-2 se-tourne"></i>Chargement…</div></div>';
+  var corps = cont.querySelector('.stat-art-corps');
+  var actif = function(){ return jeton === _stArtJeton && corps.isConnected && currentDoc && currentDoc.id === doc.id; };
   var panne = function(texte){ corps.innerHTML = '<div class="verif-vide">'+esc(texte)+'</div>'; };
 
   var c = _stArtCache[slug];
@@ -97,10 +120,10 @@ function osStatsArticleOuvrir(docArg){
       body: JSON.stringify({ slug: slug }) })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!mo.isConnected) return;
+      if(!actif()) return;
       if(!d || !d.ok){ panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', d && d.raison); return; }
       _stArtCache[slug] = { le: Date.now(), donnees: d };
       _stArtRendre(corps, d, doc);
     })
-    .catch(function(e){ if(mo.isConnected) panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', e); });
+    .catch(function(e){ if(actif()) panne('Les statistiques ne sont pas disponibles pour le moment.'); console.warn('[stats article]', e); });
 }
