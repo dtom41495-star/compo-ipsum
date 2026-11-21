@@ -64,6 +64,42 @@ function _stArtComparaison(c){
     +'<div class="stat-art-cmp-bas">'+(c.rang === 1 ? '1er' : c.rang+'e')+' sur '+c.n+' articles publiés depuis Compo · repère : médiane des 3 premiers jours, visites depuis Compo comprises.</div></div>';
 }
 
+// Où sont les lecteurs : une barre découpée (régions de France les plus fortes, reste de la France, étranger) et les villes françaises
+// à 2 visites ou plus. Localisation estimée d'après l'adresse IP : approximative, surtout sur mobile (ville de l'opérateur).
+// « Étranger » est signalé comme souvent des robots (centres de données américains), pas comme des lecteurs.
+var _ST_REGIONS = { ARA:'Auvergne-Rhône-Alpes', BFC:'Bourgogne-Franche-Comté', BRE:'Bretagne', CVL:'Centre-Val de Loire', COR:'Corse', GES:'Grand Est',
+  HDF:'Hauts-de-France', IDF:'Île-de-France', NOR:'Normandie', NAQ:'Nouvelle-Aquitaine', OCC:'Occitanie', PDL:'Pays de la Loire',
+  PAC:'Provence-Alpes-Côte d’Azur', GP:'Guadeloupe', MQ:'Martinique', GF:'Guyane', RE:'La Réunion', YT:'Mayotte' };
+function _stArtGeo(geo){
+  if(!geo || !geo.pays || !geo.pays.length) return '';
+  var total = geo.pays.reduce(function(n, p){ return n + p.visites; }, 0);
+  if(!(total > 0)) return '';
+  var fr = 0; geo.pays.forEach(function(p){ if(p.nom === 'FR') fr += p.visites; });
+  var etr = total - fr;
+  var regs = (geo.regions || []).filter(function(r){ return /^FR-/.test(r.nom) && r.visites > 0; })
+    .map(function(r){ var c = r.nom.slice(3); return { nom:_ST_REGIONS[c] || c, visites:r.visites }; })
+    .sort(function(a, b){ return b.visites - a.visites; }).slice(0, 2);
+  var reste = fr - regs.reduce(function(n, r){ return n + r.visites; }, 0);
+  var couleurs = ['#e8590c', '#1d4ed8'];
+  var segs = regs.map(function(r, i){ return { nom:r.nom, n:r.visites, c:couleurs[i] }; });
+  if(reste > 0) segs.push({ nom:(regs.length ? 'Autres en France' : 'France'), n:reste, c:'#6b7280' });
+  if(etr > 0) segs.push({ nom:'Étranger', n:etr, c:'#b45309', robots:true });
+  var pct = function(n){ return Math.round(100 * n / total); };
+  var barre = segs.map(function(x){
+    return '<div style="flex:'+x.n+';background:'+x.c+'" title="'+esc(x.nom)+' : '+x.n+'">'+(pct(x.n) >= 18 ? esc(x.nom.length > 14 ? x.nom.slice(0, 12)+'…' : x.nom) : '')+'</div>';
+  }).join('');
+  var legende = segs.map(function(x){
+    return '<span><i style="background:'+x.c+'"></i>'+esc(x.nom)+' '+x.n+' ('+pct(x.n)+' %)'+(x.robots ? ', souvent des robots' : '')+'</span>';
+  }).join('');
+  var villes = (geo.villes || []).filter(function(v){ return v.pays === 'FR' && v.visites >= 2; }).slice(0, 8)
+    .map(function(v){ return '<span class="stat-art-pastille">'+esc(v.nom)+'<b>'+v.visites+'</b></span>'; }).join('');
+  return '<h4 class="stat-art-titre">Où sont les lecteurs</h4>'
+    +'<div class="stat-art-seg" role="img" aria-label="Répartition des '+total+' visites localisées">'+barre+'</div>'
+    +'<div class="stat-art-leg">'+legende+'</div>'
+    +(villes ? '<h4 class="stat-art-titre">Villes (au moins 2 visites)</h4><div class="stat-art-pastilles">'+villes+'</div>' : '')
+    +'<div class="stat-art-note"><i class="ti ti-info-circle"></i> Lieu estimé d’après la connexion, approximatif sur mobile. Visites depuis Compo comprises.</div>';
+}
+
 function _stArtRendre(corps, d, doc){
   // Consultations depuis Compo (l'équipe qui relit son article) : écartées des provenances et des pages vues affichées.
   // Approximatif : seules les visites arrivées par un lien de Compo sont reconnues ; visiteurs et durée restent ceux d'Umami.
@@ -84,6 +120,7 @@ function _stArtRendre(corps, d, doc){
     +'<h4 class="stat-art-titre">Pages vues par jour (30 derniers jours)</h4>'+_stArtCourbe(d.serie)
     +'<div class="stat-art-cols"><div><h4 class="stat-art-titre">D’où viennent les lecteurs</h4>'+_stArtListe(d.sources, 'vues')+'</div>'
     +'<div><h4 class="stat-art-titre">Appareils</h4>'+_stArtListe(d.appareils, 'visites')+'</div></div>'
+    +_stArtGeo(d.geo)
     +(interne ? '<div class="stat-art-note"><i class="ti ti-info-circle"></i> '+interne+' consultation'+(interne > 1 ? 's' : '')+' depuis Compo écartée'+(interne > 1 ? 's' : '')+' des pages vues et des provenances.</div>' : '')
     +peu
     +'<div class="stat-art-pied">Chiffres Umami depuis la mise en ligne'+(d.maj ? ', lus à '+new Date(d.maj).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '')+'. La partie newsletter viendra avec Listmonk.</div>';
