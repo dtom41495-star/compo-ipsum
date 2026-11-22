@@ -921,6 +921,27 @@ function osSavePrompt(pageId){
   setTimeout(function(){ var b = ov.querySelector('[data-action="enregistrer"]'); if(b) b.focus(); }, 30);
 }
 
+// Anime une fenêtre vers l'icône de la barre des tâches (réduction, fermeture) : renvoie la durée (ms). Sans animation en mouvements réduits.
+function _osFenetreVersDock(el, icone, duree){
+  var reduit = false;
+  try{ reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  el.style.pointerEvents = 'none';
+  if(reduit){ el.style.opacity = '0'; return 10; }
+  var r = el.getBoundingClientRect(), c = icone ? icone.getBoundingClientRect() : null;
+  var dx = 0, dy = 28, echelle = .9;
+  if(c && c.width && c.top < window.innerHeight + 4){
+    dx = (c.left + c.width / 2) - (r.left + r.width / 2);
+    dy = (c.top + c.height / 2) - (r.top + r.height / 2);
+    echelle = .1;
+  }
+  el.style.transformOrigin = '50% 50%';
+  el.style.transition = 'transform '+duree+'ms cubic-bezier(.45,0,.25,1), opacity '+Math.round(duree * .55)+'ms ease-in '+Math.round(duree * .45)+'ms';
+  void el.offsetWidth;
+  el.style.transform = 'translate3d('+Math.round(dx)+'px,'+Math.round(dy)+'px,0) scale('+echelle+')';
+  el.style.opacity = '0';
+  return duree;
+}
+
 function osCloseWindowForce(pageId){
   var win = _windows[pageId];
   if(!win) return;
@@ -939,16 +960,12 @@ function osCloseWindowForce(pageId){
     if(dockIcon.dataset.pinned === '0') dockIcon.classList.add('dock-icon-sortie');
   }
   var el = win.el;
-  // La fenêtre se referme sur elle-même en s'effaçant (la transition est posée avant, sinon le navigateur
-  // peut appliquer le changement d'un coup)
-  el.style.pointerEvents = 'none';
-  el.style.transition = 'transform 0.22s cubic-bezier(.4,0,.6,1), opacity 0.2s ease';
-  void el.offsetWidth;
-  el.style.transform = 'scale(0.9)';
-  el.style.opacity = '0';
+  // La fenêtre se referme en se réduisant vers son icône de la barre des tâches (ou, sans icône, en s'enfonçant légèrement) tout en
+  // s'effaçant. La transition est posée avant le changement, sinon le navigateur peut l'appliquer d'un coup.
+  var duree = _osFenetreVersDock(el, dockIcon, 340);
   setTimeout(function(){
     if(el.parentNode) el.parentNode.removeChild(el);
-  }, 230);
+  }, duree + 20);
   // Ma rédac fermée sur l'onglet Sujets/Recrutement : ce qui y était affiché a été vu,
   // sinon l'icône du dock se remettrait à clignoter pour des choses qu'on vient de lire.
   if(pageId === 'redactions'){
@@ -1126,7 +1143,17 @@ function osUpdateDockActiveState(){
 function osMinimizeWindow(pageId){
   var win = _windows[pageId];
   if(!win) return;
-  win.el.classList.add('minimized');
+  var elMin = win.el;
+  if(!elMin.classList.contains('minimized')){
+    // Se réduit vers son icône avant de se masquer, puis retrouve son état normal (pour la restauration)
+    var iconeMin = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
+    var dureeMin = _osFenetreVersDock(elMin, iconeMin, 260);
+    setTimeout(function(){
+      elMin.classList.add('minimized');
+      elMin.style.transition = ''; elMin.style.transform = ''; elMin.style.opacity = ''; elMin.style.pointerEvents = '';
+      osMajDock();
+    }, dureeMin + 10);
+  }
   if(window._activeWindowId === pageId){
     window._activeWindowId = null;
     osUpdateDockActiveState();
