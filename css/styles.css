@@ -8142,3 +8142,31 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 /* Écran d'accueil : titres des tuiles et des applications en DM Sans (fini la police à chasse fixe en capitales espacées) */
 #os-accueil .os-w-wid small { font: 600 .76rem 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.68); margin-bottom: 2px; }
 #os-accueil .acc-apps-titre { font: 600 .78rem 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.68); }
+
+/* ===== CHARGEMENT : quatre pictos qui s'enchaînent (js/97-chargement.js) =====
+   Croix occitane, journal, porte-voix, stylo : chacun tombe, rebondit en s'écrasant, fait un tour sur lui-même puis rétrécit ;
+   le suivant prend la place. Grande (cc-bloc, cc-lancement) en dégradé orange-rose ; petite (en ligne) de la couleur du texte. */
+.cc-plein { fill: var(--cc-fill, currentColor); stroke: none; }
+.cc { --cc-t: 4.8s; --cc-y: .35; display: inline-block; position: relative; width: 1.2em; height: 1.2em; vertical-align: -.25em; }
+.cc svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  transform: scale(0); opacity: 0; transform-origin: 50% 50%; animation: cc-b var(--cc-t) infinite both; animation-delay: calc(var(--i) * var(--cc-t) / 4); }
+.cc-bloc { --cc-y: 1; display: block; width: 64px; height: 112px; margin: 0 auto; overflow: hidden; vertical-align: baseline; }
+.cc-bloc svg { inset: auto 0 0 0; height: 64px; stroke: url(#cc-grad); stroke-width: 1.7; --cc-fill: #ec5b67; }
+.cc-lancement { width: 88px; height: 150px; }
+.cc-lancement svg { height: 88px; }
+@keyframes cc-b {
+  0%    { transform: translateY(calc(var(--cc-y) * -130%)) scale(.7) rotate(0); opacity: 0; animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  .1%   { opacity: 1; }
+  4%    { transform: translateY(0) scale(1.18,.8) rotate(90deg); animation-timing-function: ease-out; }
+  8%    { transform: translateY(calc(var(--cc-y) * -50%)) scale(.94,1.08) rotate(200deg); animation-timing-function: ease-in; }
+  11%   { transform: translateY(0) scale(1.1,.9) rotate(360deg); animation-timing-function: ease-out; }
+  14%   { transform: translateY(calc(var(--cc-y) * -22%)) scale(1) rotate(360deg); animation-timing-function: ease-in; }
+  16%   { transform: translateY(0) scale(1.04,.96) rotate(360deg); }
+  18%, 21% { transform: translateY(0) scale(1) rotate(360deg); animation-timing-function: ease-in; }
+  25%   { transform: translateY(calc(var(--cc-y) * 20%)) scale(0) rotate(360deg); opacity: 1; }
+  25.1%, 100% { transform: translateY(calc(var(--cc-y) * 20%)) scale(0) rotate(360deg); opacity: 0; }
+}
+/* Sans animation (mouvements réduits, mode léger, malvoyant) : la croix, fixe */
+@media (prefers-reduced-motion: reduce) { .cc svg { animation: none !important; } .cc svg:first-child { transform: none; opacity: 1; } }
+:root.mode-leger .cc svg, :root.mode-malvoyant .cc svg { animation: none !important; }
+:root.mode-leger .cc svg:first-child, :root.mode-malvoyant .cc svg:first-child { transform: none; opacity: 1; }

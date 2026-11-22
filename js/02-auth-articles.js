@@ -1100,9 +1100,9 @@ function lancerCompo(){
   loader.setAttribute('data-sombre-ignore', '');
   loader.setAttribute('role', 'status');
   loader.setAttribute('aria-label', 'Compo démarre');
-  // Plus d'animation : un fond sombre sans rien dessus (la même teinte que l'accueil) qui s'efface dès que tout est prêt.
-  // Seul le message de la file d'attente (serveur surchargé, pas de connexion) et le bouton « Réessayer » s'y affichent.
-  loader.innerHTML = '<div class="cl-scene"><div id="compo-loading-step" class="cl-etape"></div></div>';
+  // Fond sombre (la même teinte que l'accueil) avec l'animation des quatre pictos (js/97-chargement.js), qui s'efface dès que tout est prêt.
+  // Le message de la file d'attente (serveur surchargé, pas de connexion) et le bouton « Réessayer » s'y affichent aussi.
+  loader.innerHTML = '<div class="cl-scene">'+(typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc cc-lancement', 'Compo démarre') : '')+'<div id="compo-loading-step" class="cl-etape"></div></div>';
   var lancementDebut = Date.now();
   document.body.appendChild(loader);
 
