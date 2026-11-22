@@ -723,7 +723,7 @@ function loginValider(){
   }
 
   btn.disabled = true;
-  btn.textContent = 'Connexion...';
+  btn.innerHTML = (typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-petit', 'Chargement')+' ' : '')+'Connexion...';
   errEl.classList.remove('visible');
 
   fetch('https://ctmekufqaxdelgfyjwly.supabase.co/auth/v1/token?grant_type=password', {
@@ -909,7 +909,7 @@ function osMotDePasseOublieEnvoyer(){
     if(msgEl){ msgEl.style.display='block'; msgEl.style.background='#FEE2E2'; msgEl.style.color='#DC2626'; msgEl.textContent='Adresse email invalide.'; }
     return;
   }
-  if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML = (typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-petit', 'Chargement')+' ' : '')+'Envoi...'; }
   if(msgEl) msgEl.style.display='none';
   fetch(SB_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent('https://compo.ipsummedia.fr'), {
     method: 'POST',
@@ -989,7 +989,7 @@ function osValiderNouveauMotDePasse(){
     if(errEl){ errEl.textContent='Lien invalide ou expiré. Refais une demande.'; errEl.classList.add('visible'); }
     return;
   }
-  if(btn){ btn.disabled=true; btn.textContent='Validation...'; }
+  if(btn){ btn.disabled=true; btn.innerHTML = (typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-petit', 'Chargement')+' ' : '')+'Validation...'; }
   fetch(SB_URL+'/auth/v1/user', {
     method: 'PUT',
     headers: { 'apikey': SB_KEY, 'Authorization':'Bearer '+accessToken, 'Content-Type': 'application/json' },
