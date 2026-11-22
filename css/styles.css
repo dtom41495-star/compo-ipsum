@@ -8241,3 +8241,6 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
   :root.beta-menu-plein .sm-pied { padding: 12px 24px; }
 }
 :root.mode-leger.beta-menu-plein #os-start-menu { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(14,14,30,.97); }
+
+/* Menu en pleine page ouvert depuis l'accueil (pas de barre des tâches à ce moment-là) : il va jusqu'en bas */
+@media (min-width: 769px) { body.accueil-ouvert.beta-menu-plein #os-start-menu, :root.beta-menu-plein body.accueil-ouvert #os-start-menu { bottom: 0; } }
