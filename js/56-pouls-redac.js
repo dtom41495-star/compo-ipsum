@@ -112,17 +112,13 @@ function _poulsDepuis(iso){
   return 'or=(publie_le.gte.'+d+',and(publie_le.is.null,updated_at.gte.'+d+'))';
 }
 
-function osPoulsCharger(){
-  // Les chiffres servent au cadran « La rédac » et au compte à rebours de la newsletter : inutile de les lire si aucun n'est au bureau
-  if(!document.getElementById('os-w-pouls') && !document.getElementById('os-w-newsletter')) return Promise.resolve();
-  var widget = document.getElementById('os-clock-widget');
-  if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
-  var r = _poulsRedacActive();
+// Les chiffres d'une rédaction (r = identifiant ; vide = toutes, quand aucune n'est choisie) : promesse de { donnees, score, parCorr, parts, totalBreves, maj }
+function _poulsChargerPour(r){
   var filtre = r ? '&redaction_id=eq.'+encodeURIComponent(r) : '';
   var authH = Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+(_session.access_token || '') });
   var lire = function(chemin){ return fetch(SB_URL+'/rest/v1/'+chemin, { headers:authH }).then(function(x){ return x.json(); }).then(function(j){ return Array.isArray(j) ? j : null; }); };
   return lire('newsletters?select=date_envoi,newsletter_articles(article_id)&order=date_envoi.desc&limit=6'+filtre).then(function(nl){
-    if(!nl) return;
+    if(!nl) return null;
     var dejaEnvoyes = osIdsDansNewsletters(nl);
     var derniere = nl.length ? nl[0].date_envoi : null;
     var depuisIso = derniere ? derniere : new Date(Date.now() - 7 * 86400000).toISOString();
@@ -134,13 +130,31 @@ function osPoulsCharger(){
       lire('briefing?statut=eq.ouvert&select=id'+filtre),
       lire('briefing?statut=eq.en_cours&select=id'+filtre)
     ]).then(function(res){
-      if(!res[0] || !res[1] || !res[2] || !res[3]) return;
+      if(!res[0] || !res[1] || !res[2] || !res[3]) return null;
       var d = _poulsDonnees(r, res[0].filter(function(x){ return !dejaEnvoyes[x.id]; }), res[1].filter(function(x){ return !dejaEnvoyes[x.id]; }).length, res[2].length, res[3].length, nl.map(function(x){ return x.date_envoi; }));
       var res2 = osPoulsCalculer(d);
-      _pouls.dernier = { donnees:d, score:res2.score, parCorr:res2.parCorr, parts:res2.parts, totalBreves:res2.totalBreves, maj:Date.now() };
-      osPoulsRendre();
+      return { donnees:d, score:res2.score, parCorr:res2.parCorr, parts:res2.parts, totalBreves:res2.totalBreves, maj:Date.now() };
     });
-  }).catch(function(){});
+  });
+}
+
+function osPoulsCharger(){
+  // Les chiffres servent au cadran « La rédac » et au compte à rebours de la newsletter : inutile de les lire si aucun n'est au bureau
+  if(!document.getElementById('os-w-pouls') && !document.getElementById('os-w-newsletter')) return Promise.resolve();
+  var widget = document.getElementById('os-clock-widget');
+  if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
+  var r = _poulsRedacActive();
+  // La newsletter est celle de la rédaction nationale : son compte à rebours et ses brèves prêtes ne dépendent pas de la rédaction affichée
+  var nat = (window._redactionsData || []).filter(function(x){ return x.est_nationale; })[0];
+  var natId = nat ? nat.id : null;
+  var cadran = _poulsChargerPour(r).then(function(d){
+    if(!d) return null;
+    _pouls.dernier = d;
+    if(!natId || natId === r) _pouls.national = d;
+    return d;
+  });
+  var newsletter = (natId && natId !== r) ? _poulsChargerPour(natId).then(function(d){ if(d) _pouls.national = d; }) : Promise.resolve();
+  return Promise.all([cadran, newsletter]).then(function(){ osPoulsRendre(); }).catch(function(){});
 }
 
 // Le compteur de chaque rédaction lancée, à partir de listes déjà lues :

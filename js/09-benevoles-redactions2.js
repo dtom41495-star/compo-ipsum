@@ -1435,6 +1435,7 @@ function osRedactionsChoisirRedac(redacId){
   osRedactionsRender();
   if(typeof cpsChargerBadge === 'function') cpsChargerBadge();
   if(typeof _accueilChargerCompteurs === 'function') _accueilChargerCompteurs();
+  if(typeof osWidgetsRedacChangee === 'function') osWidgetsRedacChangee();   // les widgets de l'accueil suivent la rédaction choisie
 }
 
 // ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----

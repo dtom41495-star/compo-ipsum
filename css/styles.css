@@ -8117,3 +8117,11 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 #os-accueil .os-widgets-barre .acc-bureau { font-size: .8rem; padding: 8px 15px; gap: 7px; }
 #os-accueil .os-widgets-barre .acc-bureau kbd { font: 600 .6rem 'DM Sans', sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(26,26,46,.12); color: #4b4b63; }
 #os-accueil #os-clock-widget #os-online-pill { position: static; display: inline-flex; margin: 8px 0 0; }
+
+/* Applications épinglées centrées */
+.acc-apps-titre { text-align: center; }
+.acc-apps-grille { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.acc-app { width: 98px; }
+/* Bouton de la rédaction (en-tête de l'accueil) */
+#os-accueil .os-widgets-barre #acc-redac[hidden] { display: none; }
+#os-accueil .os-widgets-barre .acc-redac-a-choisir { background: #E8461E; border-color: #E8461E; color: #fff; font-weight: 700; }

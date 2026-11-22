@@ -21,11 +21,9 @@ var OS_WIDGETS = [
   { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:2, hauteur:2, 
     classe:'os-w-pouls', monter:function(c){ osPoulsMonter(c); if(typeof osPoulsRendre === 'function' && _pouls && _pouls.dernier) osPoulsRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
   { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:2, hauteur:2, 
-    classe:'os-w-nl', monter:function(){ if(_pouls && _pouls.dernier) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
+    classe:'os-w-nl', monter:function(){ if(_pouls && (_pouls.national || _pouls.dernier)) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
   { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:4, hauteur:2, auto:true, 
     classe:'os-w-da', monter:function(){ osWidgetDernierArticleCharger(); } },
-  { id:'heures-plumes', nom:'Mes heures et plumes', desc:'Mes heures de bénévolat et mon solde de plumes.', icone:'feather', largeur:2, hauteur:2, classe:'os-w-hp',
-    monter:function(){ osWidgetHeuresPlumesCharger(); } },
   { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:2, hauteur:2, classe:'os-w-ry',
     monter:function(){ osWidgetRythmeCharger(); } },
   { id:'agenda', nom:'Agenda', desc:'Les prochains événements.', icone:'calendar', largeur:4, hauteur:4, auto:true, classe:'os-w-ag',
@@ -57,17 +55,16 @@ var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[], dem
 
 function _wbVisible(w){ try{ return !w.visible || !!w.visible(); }catch(e){ return false; } }
 function _wbDef(id){ return OS_WIDGETS.filter(function(w){ return w.id === id; })[0] || null; }
-// Disposition des nouveaux membres : dans cet ordre, chaque widget prend la première place libre (annonce de la rédac d'abord)
-var WB_ORDRE_DEFAUT = ['annonce', 'notifications', 'pouls', 'newsletter', 'recrutement', 'heures-plumes', 'rendez-vous', 'audience', 'dernier-article', 'mes-articles'];
+// Disposition des nouveaux membres : deux colonnes de 4 (gauche : annonce, recrutement, audience, mes articles ; droite : notifications,
+// La rédac et newsletter côte à côte, rendez-vous, dernier article). Chaque widget se cale juste sous le précédent de sa colonne.
+var WB_ORDRE_DEFAUT = [ ['annonce', 1], ['notifications', 5], ['recrutement', 1], ['pouls', 5], ['newsletter', 7], ['rendez-vous', 5], ['audience', 1], ['dernier-article', 5], ['mes-articles', 1] ];
 function _wbDefauts(){
   var sauve = _wb.liste, res = [];
-  _wb.liste = res;
-  WB_ORDRE_DEFAUT.forEach(function(id){
-    var d = _wbDef(id); if(!d || !_wbVisible(d)) return;
-    var p = _wbPremiereCaseLibre(d.largeur, d.hauteur || 1);
-    if(p) res.push({ widget:id, col:p.col, ligne:p.ligne, largeur:d.largeur, hauteur:d.hauteur || 1 });
+  WB_ORDRE_DEFAUT.forEach(function(e, i){
+    var d = _wbDef(e[0]); if(!d || !_wbVisible(d)) return;
+    res.push({ widget:d.id, col:e[1], ligne:i + 1, largeur:d.largeur, hauteur:d.hauteur || 1 });
   });
-  _wb.liste = sauve;
+  _wb.liste = res; _wbRepacker(true); _wb.liste = sauve;
   return res;
 }
 // Remet les widgets en ordre : un widget qui grandit repousse ceux du dessous, un qui rétrécit laisse remonter les autres (hors mode « Organiser »)
@@ -158,6 +155,17 @@ function osWidgetsSauver(){
 }
 
 // ---- Affichage ----
+// La rédaction active vient de changer (ou d'être choisie) : les widgets qui en dépendent se rechargent, et le bouton de l'en-tête se met à jour
+function osWidgetsRedacChangee(){
+  ['mes-articles', 'publies', 'annonce', 'newsletter', 'pouls'].forEach(function(id){
+    if(!document.getElementById('os-w-'+id)) return;
+    if(id === 'mes-articles') osWidgetMesArticlesCharger();
+    else if(id === 'publies') osWidgetPubliesCharger();
+    else if(id === 'annonce') osWidgetAnnonceCharger();
+    else if(typeof osPoulsCharger === 'function') osPoulsCharger();
+  });
+  if(typeof osAccueilRedacMaj === 'function') osAccueilRedacMaj();
+}
 function osWidgetsInit(){
   if(typeof osEstMobile === 'function' && osEstMobile()) return;
   if(!_session || !getUserId()) return;
@@ -292,7 +300,7 @@ function osWidgetsBoutiqueRemplir(){
 // ---- Widget « Prochaine newsletter » ----
 function osWidgetNewsletterRendre(){
   var c = document.getElementById('os-w-newsletter'); var corps = c && c.querySelector('.os-w-wid-corps');
-  var m = _pouls && _pouls.dernier;
+  var m = _pouls && (_pouls.national || _pouls.dernier);   // la newsletter est celle de la rédaction nationale
   if(!corps || !m) return;
   var d = m.donnees, total = m.totalBreves || 0, pretes = d.brevesPretes || 0;
   var part = total ? Math.max(0, Math.min(1, pretes / total)) : 0;
@@ -344,17 +352,6 @@ function osWidgetNotificationsRendre(){
   var detail = cpt.total ? [cpt.taches ? cpt.taches+' à traiter' : '', cpt.nouvelles ? cpt.nouvelles+' nouvelle'+(cpt.nouvelles > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') : (cpt.infos ? cpt.infos+' information'+(cpt.infos > 1 ? 's' : '') : 'Rien de neuf');
   corps.innerHTML = '<div class="os-w-nt-l"><span class="os-w-nt-ic"><i class="ti ti-bell"></i></span><div><strong>'+(cpt.total ? cpt.total+' notification'+(cpt.total > 1 ? 's' : '') : 'Notifications')+'</strong><em>'+esc(detail)+'</em></div><span class="os-w-nt-go">Ouvrir</span></div>';
   c.onclick = _wbOuvrirSiPas(function(){ if(typeof osATraiterBasculer === 'function' && !(window._atr && _atr.ouvert)) osATraiterBasculer(); });
-}
-function osWidgetHeuresPlumesCharger(){
-  var uid = getUserId();
-  Promise.all([ _wbLire('heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda'), typeof _boutiquePlumesFetch === 'function' ? _boutiquePlumesFetch(_wbH()) : Promise.resolve(null) ]).then(function(res){
-    var c = document.getElementById('os-w-heures-plumes'), corps = _wbCorps('heures-plumes'); if(!c || !corps) return;
-    var min = (res[0] || []).filter(function(h){ return !(h.type === 'agenda' && h.categorie_agenda === 'sortie'); }).reduce(function(t, h){ return t + (h.duree_minutes || 0); }, 0);
-    var h = Math.floor(min / 60), m = min % 60, plumes = typeof res[1] === 'number' ? res[1] : null;
-    corps.innerHTML = '<small>Heures et plumes</small><div class="os-w-hp-l"><div><b>'+(h > 0 ? h+' h'+(m ? ' '+String(m).padStart(2, '0') : '') : m+' min')+'</b><span>bénévolat</span></div>'
-      +'<div><b>'+(plumes != null ? plumes : '—')+'</b><span>plumes</span></div></div>';
-    c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('boutique'); });
-  });
 }
 function osWidgetAgendaCharger(){
   _wbLire('agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=5&select=id,titre,type,date_debut,lieu').then(function(l){
@@ -420,7 +417,7 @@ function osWidgetPubliesCharger(){
 function osWidgetAudienceCharger(essai){
   var corps0 = _wbCorps('audience');
   if(corps0 && !corps0.innerHTML) corps0.innerHTML = '<small>Audience · 7 jours</small><span class="os-w-vide">Chargement…</span>';
-  fetch(SB_URL+'/functions/v1/umami-article', { method:'POST', headers:_wbH({ 'Content-Type':'application/json' }), body:JSON.stringify({ semaine:true }) })
+  fetch(SB_URL+'/functions/v1/umami-article', { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+((_session && _session.access_token) || '') }, body:JSON.stringify({ semaine:true })   /* sans « Prefer » : la fonction ne l'autorise pas (le navigateur bloquerait l'appel) */ })
     .then(function(r){ return r.json(); })
     .then(function(d){
       var corps = _wbCorps('audience'); if(!corps) return;
@@ -620,9 +617,9 @@ function _wbNoteProgrammer(texte){
       setInterval(function(){
         if(document.hidden) return;
         if(document.getElementById('os-w-dernier-article')){ _wbDernier.quand = 0; osWidgetDernierArticleCharger(); }
-        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo', 'notes', 'heures-plumes', 'agenda', 'mes-articles', 'annonce', 'recrutement', 'publies'].forEach(function(id){
+        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo', 'notes', 'agenda', 'mes-articles', 'annonce', 'recrutement', 'publies'].forEach(function(id){
           if(!document.getElementById('os-w-'+id)) return;
-          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger, notes:osWidgetNotesRafraichir, 'heures-plumes':osWidgetHeuresPlumesCharger, agenda:osWidgetAgendaCharger, 'mes-articles':osWidgetMesArticlesCharger, annonce:osWidgetAnnonceCharger, recrutement:osWidgetRecrutementCharger, publies:osWidgetPubliesCharger }[id];
+          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger, notes:osWidgetNotesRafraichir, agenda:osWidgetAgendaCharger, 'mes-articles':osWidgetMesArticlesCharger, annonce:osWidgetAnnonceCharger, recrutement:osWidgetRecrutementCharger, publies:osWidgetPubliesCharger }[id];
           if(fn) fn();
         });
       }, 5 * 60000);
