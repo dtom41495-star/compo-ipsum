@@ -8314,3 +8314,28 @@ html.mode-beta.beta-sans-barre #os-notif-center.open {
   }
 }
 @keyframes atr-centre { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* Pastille bêta : rédaction active, heure animée, recherche rapide */
+#os-pastille-beta .pb-redac { padding: 0 10px; font: 600 .74rem 'DM Sans', sans-serif; gap: 5px; max-width: 150px; }
+#os-pastille-beta .pb-redac[hidden] { display: none; }
+#os-pastille-beta .pb-redac span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-heure { display: inline-flex; overflow: hidden; height: 1.3em; line-height: 1.3em; font-variant-numeric: tabular-nums; }
+.pb-ch { display: inline-block; }
+.pb-ch.pb-roule { animation: pb-roule .45s cubic-bezier(.2,.9,.3,1); }
+@keyframes pb-roule { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+#os-recherche-beta { position: fixed; inset: 0; z-index: 99500; background: rgba(0,0,0,.18); }
+#os-recherche-beta .rb-boite { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); background: rgba(20,20,42,.94); color: #fff; border: 1px solid rgba(255,255,255,.14); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.4); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); padding: 10px; animation: atr-centre .2s cubic-bezier(.2,.9,.3,1); font-family: 'DM Sans', sans-serif; }
+#os-recherche-beta .rb-champ { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.08); }
+#os-recherche-beta input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #fff; font: 500 1rem 'DM Sans', sans-serif; }
+#os-recherche-beta input::placeholder { color: rgba(255,255,255,.5); }
+#os-recherche-beta .rb-liste { margin-top: 6px; display: flex; flex-direction: column; max-height: 55vh; overflow-y: auto; }
+#os-recherche-beta .rb-app { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; border-radius: 10px; background: transparent; color: #fff; font: 500 .9rem 'DM Sans', sans-serif; text-align: left; cursor: pointer; }
+#os-recherche-beta .rb-app.sel, #os-recherche-beta .rb-app:hover { background: rgba(255,255,255,.12); }
+#os-recherche-beta .rb-ic { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; }
+#os-recherche-beta .rb-vide { padding: 14px; text-align: center; color: rgba(255,255,255,.6); font-size: .85rem; }
+
+/* Mode bêta sans barre : le contenu du menu pleine page démarre sous la pastille (elle recouvrait la recherche) */
+@media (min-width: 769px) {
+  :root.beta-menu-plein.beta-sans-barre .sm-main { padding-top: 84px; }
+  :root.beta-menu-plein.beta-sans-barre .sm-side { padding-top: 84px; }
+}
