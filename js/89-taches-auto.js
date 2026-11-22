@@ -7,11 +7,11 @@
 var TACHES_TYPES = {
   relire:          { titre:'Articles à relire',          icone:'search',        couleur:'#1A5276', ouvrir:function(){ osOpenWindow('app-correction'); } },
   file_sr:         { titre:'File de relecture',          icone:'list-check',    couleur:'#1A5276', ouvrir:function(){ osOpenWindow('app-correction'); } },
-  sujet_a_finir:   { titre:'Sujets à finir',             icone:'pencil',        couleur:'#993C1D', ouvrir:function(){ osOpenWindow('sujets'); } },
+  sujet_a_finir:   { titre:'Sujets à finir',             icone:'pencil',        couleur:'#993C1D', ouvrir:function(){ osOuvrirSujets(); } },
   publier:         { titre:'Prêts à publier',            icone:'circle-check',  couleur:'#0F6E56', ouvrir:function(){ _redacOnglet = 'redac'; osOpenWindow('redactions'); } },
   cps_brouillons:  { titre:'Communiqués à valider',      icone:'mail-check',    couleur:'#4A235A', ouvrir:function(){ osCpsOuvrirBrouillons(); } },
   erratum:         { titre:'Erratums à valider',         icone:'alert-triangle',couleur:'#8A6400', ouvrir:function(ref){ osOpenWindow('cps-admin'); setTimeout(function(){ if(typeof osErratumOuvrir === 'function') osErratumOuvrir(ref); }, 800); } },
-  sujets_proposes: { titre:'Sujets proposés à valider',  icone:'bulb',          couleur:'#856404', ouvrir:function(){ osOpenWindow('sujets'); } },
+  sujets_proposes: { titre:'Sujets proposés à valider',  icone:'bulb',          couleur:'#856404', ouvrir:function(){ osOuvrirSujets(); } },
   visuels:         { titre:'Visuels à créer',            icone:'palette',       couleur:'#7D3C98', ouvrir:function(){ osOpenWindow('app-com'); } },
   relais:          { titre:'À publier sur les réseaux',  icone:'speakerphone',  couleur:'#6B2F8A', ouvrir:function(){ osOpenWindow('app-com'); } }
 };
