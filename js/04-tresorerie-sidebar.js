@@ -1221,7 +1221,7 @@ function osVerifierNotifsWorkflow(){
   try{ vus = JSON.parse(localStorage.getItem('compo_workflow_vus_ids')||'[]'); }catch(e){}
 
   var reqs = [
-    fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id,titre,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
+    (typeof osPeutRelire === 'function' && !osPeutRelire()) ? Promise.resolve([]) : fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id,titre,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];}),
     mesRedacsChef.length
       ? fetch(SB_URL+'/rest/v1/articles?redaction_id=in.('+mesRedacsChef.join(',')+')&statut=in.(corrige,valide,valide_central)&select=id,titre,statut,redaction_id',{headers:authH}).then(function(r){return r.json();}).catch(function(){return [];})
       : Promise.resolve([]),

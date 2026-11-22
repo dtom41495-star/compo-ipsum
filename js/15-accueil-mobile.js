@@ -141,7 +141,7 @@ function _accueilChargerCompteurs(){
   var maintenant = new Date(), dans7j = new Date(Date.now() + 7*24*3600*1000);
   function lire(url){ return fetch(SB_URL+url, {headers:h}).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : []; }).catch(function(){ return []; }); }
 
-  var pCorr = lire('/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id');
+  var pCorr = (typeof osPeutRelire === 'function' && !osPeutRelire()) ? Promise.resolve([]) : lire('/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id');
   var pEv = lire('/rest/v1/agenda_evenements?statut=neq.annule&date_debut=gte.'+encodeURIComponent(maintenant.toISOString())+'&date_debut=lte.'+encodeURIComponent(dans7j.toISOString())+'&select=id');
   // Invitations presse à venir de mes rédactions, pour lesquelles personne n'est encore choisi
   var mesRedacs = (window._membresRedactionsData||[]).filter(function(l){ return l.membre_id === uid; }).map(function(l){ return l.redaction_id; });

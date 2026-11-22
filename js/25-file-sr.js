@@ -20,6 +20,9 @@ function osEstSR(redacId){
   });
 }
 
+// Peut être désigné·e relecteur·rice quelque part (admin ou SR) : sinon inutile de demander « mes relectures en cours » au serveur
+function osPeutRelire(){ return getUserRole() === 'admin' || osEstSR(null); }
+
 // Peut prendre un article de la file de cette rédaction
 function _srPeutPrendre(redacId){
   // Le rédac chef ne prend pas, sauf s'il a aussi le rôle de SR (choix de Tom)

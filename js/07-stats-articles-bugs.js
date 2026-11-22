@@ -1469,6 +1469,14 @@ function _maRendreTous(list, count, arts, uid, role){
   osProgressif(list, pieces);
 }
 
+// Filtre « rédaction ouverte » des listes personnelles (un article sans rédaction reste visible partout)
+var _maToutesRedacs = false;
+function _maFiltrerParRedac(arts){
+  var r = window._redacActiveId;
+  if(!r || _maToutesRedacs) return arts;
+  return arts.filter(function(a){ return !a.redaction_id || a.redaction_id === r; });
+}
+
 function maOsFiltre(){
   var list   = document.getElementById('ma-os-list');
   var count  = document.getElementById('ma-os-count');
@@ -1498,6 +1506,15 @@ function maOsFiltre(){
     arts = arts.filter(function(a){ return !!a.correcteur_id; });
   }
 
+  // « Mes articles » et « Mes brouillons » : la rédaction sélectionnée seulement (sinon un brouillon d'une autre rédaction se retrouvait
+  // dans la rédaction ouverte). Un petit lien ramène les articles des autres rédactions.
+  var masquesAutresRedacs = 0;
+  if(_maOnglet === 'brouillons' || _maOnglet === 'mes'){
+    var avantRedac = arts.length;
+    arts = _maFiltrerParRedac(arts);
+    masquesAutresRedacs = avantRedac - arts.length;
+  }
+
   // Tri fixe, du plus récent au plus ancien — plus de case de tri manuelle, l'ordre
   // chronologique (et le regroupement ci-dessous) suffit.
   arts.sort(function(a,b){ return (b.updated_at||'')>(a.updated_at||'')?1:-1; });
@@ -1505,10 +1522,22 @@ function maOsFiltre(){
   var fileSr = _maOnglet === 'corriger' ? (window._srFile||[]) : [];
   if(count) count.textContent = arts.length ? arts.length+' article'+(arts.length>1?'s':'') : '';
   if(!arts.length && !fileSr.length){
-    list.innerHTML='<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun article.</div>';
+    list.innerHTML='<div style="padding:3rem;text-align:center;font-size:.82rem;color:var(--gris);">Aucun article'+(masquesAutresRedacs ? ' dans cette rédaction' : '')+'.'
+      +(masquesAutresRedacs ? '<div style="margin-top:10px;"><button type="button" class="ma-chip" id="ma-toutes-redacs">Voir les '+masquesAutresRedacs+' des autres rédactions</button></div>' : '')+'</div>';
+    var bt = document.getElementById('ma-toutes-redacs'); if(bt) bt.onclick = function(){ _maToutesRedacs = true; maOsFiltre(); };
     return;
   }
   list.innerHTML='';
+  if(masquesAutresRedacs || _maToutesRedacs){
+    var avis = document.createElement('div');
+    avis.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--gris-clair);font:500 .78rem \'DM Sans\',sans-serif;color:var(--gris);';
+    var nomR = ((window._redactionsData||[]).filter(function(r){ return r.id === window._redacActiveId; })[0] || {}).nom || '';
+    avis.innerHTML = _maToutesRedacs
+      ? '<span>Toutes tes rédactions.</span><button type="button" class="ma-chip" data-a="redac">Seulement '+esc(nomR || 'la rédaction ouverte')+'</button>'
+      : '<span>Rédaction « '+esc(nomR)+' » : '+masquesAutresRedacs+' autre'+(masquesAutresRedacs > 1 ? 's' : '')+' article'+(masquesAutresRedacs > 1 ? 's' : '')+' dans tes autres rédactions.</span><button type="button" class="ma-chip" data-a="redac">Tout afficher</button>';
+    avis.querySelector('button').onclick = function(){ _maToutesRedacs = !_maToutesRedacs; maOsFiltre(); };
+    list.appendChild(avis);
+  }
   if(fileSr.length){
     _srRenderFile(list, fileSr);
     if(arts.length){

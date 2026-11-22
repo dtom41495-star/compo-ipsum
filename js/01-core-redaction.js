@@ -798,7 +798,9 @@ function buildDoc(){
   // (ou, à défaut, l'input caché).
   var hiddenRedac = document.getElementById('r-redaction');
   var redacIdFromHidden = hiddenRedac ? hiddenRedac.dataset.redacId || null : null;
-  var redacId = (currentDoc && currentDoc.id && currentDoc.redaction_id) || window._redacActiveId || redacIdFromHidden || null;
+  var redacId = (currentDoc && currentDoc.id && currentDoc.redaction_id)
+    || (hiddenRedac && hiddenRedac.dataset.choisie === '1' ? redacIdFromHidden : null)   // rédaction choisie avec « Changer » pour un nouvel article
+    || window._redacActiveId || redacIdFromHidden || null;
 
   // Lire l'auteur
   var elSelect = document.getElementById('r-auteur-select');
@@ -906,28 +908,82 @@ function osPopulerSelectRedaction(){
   }
 
   var mesLiens = membreRedacs.filter(function(mr){ return mr.membre_id === uid; });
-  var redacActive = window._redacActiveId
+  // Un article déjà enregistré affiche SA rédaction (et non celle de l'espace de travail, qui peut être une autre)
+  var redacDoc = (typeof currentDoc !== 'undefined' && currentDoc && currentDoc.id && currentDoc.redaction_id)
+    ? redactions.find(function(r){ return r.id === currentDoc.redaction_id; }) : null;
+  var redacActive = redacDoc || (window._redacActiveId
     ? redactions.find(function(r){ return r.id === window._redacActiveId; })
-    : (mesLiens.length ? redactions.find(function(r){ return r.id === mesLiens[0].redaction_id; }) : null);
+    : (mesLiens.length ? redactions.find(function(r){ return r.id === mesLiens[0].redaction_id; }) : null));
 
   if(redacActive){
     nomEl.textContent = redacActive.nom;
     if(hiddenEl){ hiddenEl.value = redacActive.nom; hiddenEl.dataset.redacId = redacActive.id; }
-    if(!window._redacActiveId) window._redacActiveId = redacActive.id;
+    if(!window._redacActiveId && !redacDoc) window._redacActiveId = redacActive.id;
   } else {
     nomEl.textContent = 'Rédaction...';
   }
 
-  if(btnChg) btnChg.style.display = mesLiens.length > 1 ? '' : 'none';
+  if(btnChg) btnChg.style.display = (mesLiens.length > 1 || getUserRole() === 'admin') ? '' : 'none';
 }
 
+// « Changer » : la rédaction DE CET ARTICLE (pas celle de l'espace de travail). Parmi les rédactions de la personne (toutes, pour un admin).
+// Seul·e l'auteur·rice ou un admin peut déplacer un article déjà enregistré.
 function rChangerRedaction(){
-  var uid = getUserId();
-  var mesLiens = (window._membresRedactionsData||[]).filter(function(mr){ return mr.membre_id === uid; });
-  if(mesLiens.length <= 1) return;
-  if(typeof _osAfficherSelecteurRedaction === 'function'){
-    _osAfficherSelecteurRedaction(mesLiens);
+  var uid = getUserId(), role = getUserRole();
+  var toutes = (window._redactionsData || []).filter(function(r){ return !r.pas_lancee; });
+  var liens = (window._membresRedactionsData || []).filter(function(l){ return l.membre_id === uid; }).map(function(l){ return l.redaction_id; });
+  var permises = role === 'admin' ? toutes : toutes.filter(function(r){ return liens.indexOf(r.id) !== -1; });
+  if(permises.length <= 1){ notif('Tu n\'as qu\'une seule rédaction : rien à changer.'); return; }
+  if(currentDoc && currentDoc.id && currentDoc.auteur_id && currentDoc.auteur_id !== uid && role !== 'admin'){
+    notif('Seul·e l\'auteur·rice ou un admin peut changer la rédaction d\'un article.', 'alerte'); return;
   }
+  var hidden = document.getElementById('r-redaction');
+  var actuelle = (currentDoc && currentDoc.id && currentDoc.redaction_id) || (hidden && hidden.dataset.redacId) || window._redacActiveId || null;
+  var ancien = document.getElementById('redac-article-choix'); if(ancien) ancien.remove();
+  var ov = document.createElement('div');
+  ov.id = 'redac-article-choix'; ov.className = 'renvoi-voile';
+  ov.innerHTML = '<div class="renvoi-boite" role="dialog" aria-label="Rédaction de l\'article" style="max-width:420px;">'
+    +'<div class="renvoi-entete"><div><div class="renvoi-titre">Rédaction de cet article</div><div class="renvoi-article">Dans quelle rédaction doit-il être publié ?</div></div></div>'
+    +'<div class="renvoi-corps" style="display:flex;flex-direction:column;gap:8px;">'
+    +permises.map(function(r){
+      var ici = r.id === actuelle;
+      return '<button type="button" data-r="'+r.id+'" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid '+(ici ? 'var(--rouge)' : 'var(--gris-bord)')+';background:'+(ici ? 'var(--rouge-clair, #FBE7E0)' : 'transparent')+';color:var(--encre);font:600 .9rem \'DM Sans\',sans-serif;cursor:pointer;text-align:left;">'
+        +'<i class="ti ti-news"></i><span style="flex:1;">'+esc(r.nom)+'</span>'+(ici ? '<span style="font-size:.72rem;color:var(--rouge);">actuelle</span>' : '')+'</button>';
+    }).join('')
+    +'</div><div style="padding:0 1.2rem 1rem;text-align:right;"><button type="button" data-a="fermer" class="btn sec">Annuler</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', function(e){
+    if(e.target === ov || e.target.closest('[data-a="fermer"]')){ ov.remove(); return; }
+    var b = e.target.closest('button[data-r]'); if(!b) return;
+    ov.remove();
+    if(b.dataset.r !== actuelle) _rAppliquerRedactionArticle(b.dataset.r, actuelle);
+  });
+}
+function _rAppliquerRedactionArticle(id, ancienId){
+  var r = (window._redactionsData || []).filter(function(x){ return x.id === id; })[0]; if(!r) return;
+  var anc = (window._redactionsData || []).filter(function(x){ return x.id === ancienId; })[0];
+  var nomEl = document.getElementById('r-redaction-nom'), hidden = document.getElementById('r-redaction');
+  var poser = function(rd){
+    if(nomEl) nomEl.textContent = rd ? rd.nom : 'Rédaction...';
+    if(hidden){ hidden.value = rd ? rd.nom : ''; hidden.dataset.redacId = rd ? rd.id : ''; }
+  };
+  poser(r);
+  if(hidden) hidden.dataset.choisie = '1';
+  if(!(currentDoc && currentDoc.id)){ notif('Cet article sera créé dans la rédaction « '+r.nom+' ».', 'succes'); return; }
+  // Article déjà enregistré : on l'enregistre tout de suite dans la nouvelle rédaction
+  currentDoc.redaction_id = r.id; currentDoc.redaction = r.nom;
+  var doc = buildDoc();
+  osSaveIndicateur('modifie');
+  db.sauvegarderArticle(doc).then(function(){
+    osSynchroDoc(doc);
+    osSaveIndicateur('sauvegarde');
+    notif('L\'article est maintenant dans la rédaction « '+r.nom+' ».', 'succes');
+  }).catch(function(){
+    currentDoc.redaction_id = anc ? anc.id : null; currentDoc.redaction = anc ? anc.nom : '';
+    poser(anc || null);
+    osSaveIndicateur('erreur');
+    notif('Impossible de changer la rédaction : vérifie ta connexion et réessaie.', 'erreur');
+  });
 }
 
 
@@ -952,6 +1008,7 @@ function osSynchroDoc(doc){
 }
 
 function resetRedaction(){
+  var hr = document.getElementById('r-redaction'); if(hr) delete hr.dataset.choisie;   // la rédaction choisie pour l'article précédent ne se garde pas
   osClearAutosave();
   currentDoc = null; // Nouvel article -> nouvel ID
   _osDoublonsReinit(); // nouvel article : l'avertissement doit pouvoir réapparaître
