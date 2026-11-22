@@ -2215,6 +2215,7 @@ function _osRedacOngletsListe(){
     {id:'profil',      icon:'<i class="ti ti-user"></i>', label:'Mon profil'},
     {id:'sujets',      icon:'<i class="ti ti-pin"></i>', label:'Sujets'},
     {id:'breves',      icon:'<i class="ti ti-list-details"></i>', label:'Brèves'},
+    {id:'publies',     icon:'<i class="ti ti-world"></i>', label:'Publiés'},
     {id:'recrutement', icon:'<i class="ti ti-speakerphone"></i>', label:'Recrutement'},
     {id:'redac',       icon:'<i class="ti ti-news"></i>', label:'Ma rédaction'},
     // Communiqués + son sous-menu — rendus à part dans un encadré blanc (voir
@@ -2227,7 +2228,7 @@ function _osRedacOngletsListe(){
     onglets.push({id:'admin', icon:'<i class="ti ti-settings"></i>', label:'Gestion rédactions'});
   }
   if(_osRedacSansRedaction()){
-    onglets = onglets.filter(function(o){ return o.id === 'profil' || o.id === 'recrutement' || o.id === 'cps-abonnements'; });
+    onglets = onglets.filter(function(o){ return o.id === 'profil' || o.id === 'publies' || o.id === 'recrutement' || o.id === 'cps-abonnements'; });
   }
   onglets.forEach(function(o){
     o.badge = '';
@@ -2298,6 +2299,8 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
     h += osRedactionsMembre_OngletSujets(uid, roleRedac);
   } else if(_redacOnglet === 'breves'){
     h += osRedactionsMembre_OngletBreves(redacId);
+  } else if(_redacOnglet === 'publies'){
+    h += '<div id="redac-publies-zone">'+osLoadingHtml()+'</div>';
   } else if(_redacOnglet === 'recrutement'){
     h += '<div id="redac-recrutement-zone">'+osLoadingHtml()+'</div>';
   } else if(_redacOnglet === 'redac'){
@@ -2375,6 +2378,7 @@ function _osRedacRenderContenu(uid, redacId, roleRedac, membre){
   }
   if(_redacOnglet === 'redac') osMaRedacDemarrer(uid, redacId, roleRedac);
   if(_redacOnglet === 'breves') osBrevesDemarrer(uid, redacId, roleRedac);
+  if(_redacOnglet === 'publies' && typeof osPubliesDemarrer === 'function') osPubliesDemarrer(document.getElementById('redac-publies-zone'), redacId);
   if(_redacOnglet === 'admin'){
     var zone = document.getElementById('redac-admin-zone');
     if(zone) osRedactionsRenderAdmin(zone, uid);
