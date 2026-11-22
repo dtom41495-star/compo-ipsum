@@ -8023,3 +8023,64 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .os-w-no-btns button { border: none; border-radius: 999px; padding: 2px 8px; background: rgba(255,255,255,0.16); color: #fff; font: 600 0.58rem 'DM Sans', sans-serif; cursor: pointer; }
 .os-w-no-btns button:hover { background: rgba(255,255,255,0.3); }
 .os-w-no-titre { margin-top: 2px; font: 600 0.78rem 'Poppins', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== Écran d'accueil en plein écran (js/96-accueil.js) ===== */
+#os-accueil { position: fixed; top: 0; left: 0; right: 0; bottom: var(--dock-h); z-index: 2000; display: none; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  padding: 26px clamp(18px, 4vw, 56px) 30px; background: rgba(14,14,30,0.66); backdrop-filter: blur(28px) saturate(140%); -webkit-backdrop-filter: blur(28px) saturate(140%); color: #fff; }
+#os-accueil.visible { display: block; animation: acc-entree .35s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes acc-entree { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #os-accueil.visible { animation: none; } }
+.acc-conteneur { max-width: 1240px; margin: 0 auto; }
+.acc-tete { display: flex; align-items: stretch; flex-wrap: wrap; gap: 18px; margin-bottom: 18px; }
+.acc-tete #os-clock-widget { position: static; top: auto; right: auto; width: auto; flex: 1 1 440px; max-width: 760px; pointer-events: auto; animation: none; z-index: auto; }
+#os-accueil #os-clock-widget > .os-w-carte { height: 100%; box-sizing: border-box; }
+.acc-droite { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.acc-meteo { display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.acc-meteo-ic { font-size: 2.4rem; line-height: 1; }
+.acc-meteo-t b { display: block; font: 700 2rem/1 'Poppins', sans-serif; }
+.acc-meteo-t small { display: block; margin-top: 3px; font: 400 .74rem 'DM Sans', sans-serif; color: rgba(255,255,255,0.7); }
+#os-accueil .os-widgets-barre { opacity: 1; margin-top: 0; }
+#os-accueil .os-widgets-barre button { font-size: .72rem; padding: 6px 13px; }
+#os-accueil .os-widgets-barre .acc-bureau { background: #fff; color: #1a1a2e; border-color: #fff; font-weight: 700; }
+#os-accueil .os-widgets-barre .acc-bureau:hover { background: #f1f1f4; }
+/* La grille : 8 colonnes de cases carrées */
+#os-accueil .os-widgets { --wb-cell: clamp(78px, calc((min(100vw - 112px, 1240px) - 84px) / 8), 144px); grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: var(--wb-cell); gap: 12px; margin-top: 0; }
+#os-accueil .os-w-wid { padding: 0.7rem 0.95rem; }
+#os-accueil .os-widgets:empty::before { content: 'Ton accueil est vide : ajoute des widgets avec le bouton « Widgets ».'; grid-column: 1 / -1; padding: 2rem; text-align: center; color: rgba(255,255,255,0.6); font-size: .85rem; }
+/* Applications épinglées */
+.acc-apps { margin-top: 28px; }
+.acc-apps-titre { font: 400 .62rem 'Space Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 10px; }
+.acc-apps-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.acc-app { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 10px; border: 1px solid rgba(255,255,255,0.14); border-radius: 16px; background: rgba(20,20,42,0.45); color: #fff; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background .15s, transform .15s; }
+.acc-app:hover { background: rgba(20,20,42,0.7); transform: translateY(-2px); }
+.acc-app-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 1.4rem; color: #fff; background: rgba(255,255,255,0.16); }
+.acc-app-l { font-size: .7rem; text-align: center; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Widgets : contenus un peu plus grands sur l'accueil */
+.os-w-nt-l { display: flex; align-items: center; gap: 14px; }
+.os-w-nt-ic { width: 46px; height: 46px; border-radius: 14px; background: #E8461E; display: grid; place-items: center; font-size: 1.5rem; flex-shrink: 0; }
+.os-w-nt-l strong { display: block; font: 700 1.15rem 'Poppins', sans-serif; }
+.os-w-nt-l em { display: block; font-size: .8rem; color: rgba(255,255,255,0.7); }
+.os-w-nt-go { margin-left: auto; font: 700 .9rem 'Poppins', sans-serif; }
+.os-w-nt, .os-w-hp, .os-w-ag, .os-w-ma, .os-w-pb, .os-w-rc { cursor: pointer; }
+.os-w-hp-l { display: flex; gap: 14px; margin-top: 4px; }
+.os-w-hp-l b { display: block; font: 800 1.4rem/1.1 'Poppins', sans-serif; }
+.os-w-hp-l span { font-size: .62rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: .06em; }
+.os-w-ag-l, .os-w-ma-l, .os-w-pb-l, .os-w-rc-l { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: .8rem; min-width: 0; }
+.os-w-ag-d { flex-shrink: 0; width: 36px; text-align: center; font-size: .55rem; text-transform: uppercase; color: rgba(255,255,255,0.65); }
+.os-w-ag-d b { display: block; font: 700 1.05rem/1.1 'Poppins', sans-serif; color: #fff; }
+.os-w-ag-d.auj b { color: #FFB27A; }
+.os-w-ag-t, .os-w-ma-t, .os-w-pb-t { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.os-w-ag-t em, .os-w-rc-l em { display: block; font-size: .64rem; }
+.os-w-ma-s, .os-w-pb-s { flex-shrink: 0; font-size: .64rem; color: rgba(255,255,255,0.65); }
+.os-w-rc-l { flex-direction: column; align-items: flex-start; gap: 0; }
+.os-w-rc-l em { color: #FFB27A; }
+.os-w-an-m { font-size: .84rem; line-height: 1.4; margin-top: 4px; }
+.os-w-vl { overflow: auto; }
+.os-w-vl .os-w-veille-tete, .os-w-vl ul { position: static; }
+#os-accueil .os-w-ag, #os-accueil .os-w-ma, #os-accueil .os-w-pb, #os-accueil .os-w-rc, #os-accueil .os-w-vl, #os-accueil .os-w-no, #os-accueil .os-w-ta { justify-content: flex-start; }
+#os-accueil .os-w-da-titre { font-size: 1.15rem; }
+#os-accueil .os-w-titre2 { font-size: .98rem; }
+#os-accueil .os-w-ag-l, #os-accueil .os-w-ma-l, #os-accueil .os-w-pb-l, #os-accueil .os-w-rc-l { font-size: .9rem; }
+#os-accueil .os-w-wid small { font-size: .62rem; margin-bottom: 4px; }
+#os-accueil .os-w-ry-nb, #os-accueil .os-w-hp-l b { font-size: 1.8rem; }
+#os-accueil .os-w-au-nb { font-size: 1.9rem; }

@@ -1,5 +1,5 @@
-// ===== WIDGETS DU BUREAU : GRILLE, BOUTIQUE, ENREGISTREMENT DANS LA BASE =====
-// Sous la carte de l'horloge, une grille de 2 colonnes (cases de 92 px de haut) où chacun pose les widgets qu'il veut.
+// ===== WIDGETS DE L'ÉCRAN D'ACCUEIL : GRILLE, BOUTIQUE, ENREGISTREMENT DANS LA BASE =====
+// Sur l'écran d'accueil plein écran (js/96-accueil.js), une grille de 8 colonnes (cases carrées) où chacun pose les widgets qu'il veut.
 //  - « Widgets » ouvre la boutique : le catalogue ci-dessous, avec « Ajouter » / « Retirer » ;
 //  - « Organiser » montre les cases libres : on fait glisser un widget d'une case à l'autre, la croix le retire ;
 //  - la sélection et la place de chaque widget sont enregistrées dans la table widgets_bureau (docs/serveur/widgets-bureau.sql),
@@ -7,41 +7,58 @@
 //    sans erreur. Une ligne « _perso » marque un bureau déjà personnalisé (un bureau vide reste vide).
 // Un widget du catalogue : { id, nom, desc, icone, largeur (1 ou 2 colonnes), defaut:{col,ligne}, monter(carte) } ; « bientot » : annoncé, pas encore là.
 
-var WB_COLS = 2, WB_LIGNES = 8;
-// largeur : 1 ou 2 colonnes ; hauteur : 1 ou 2 lignes (défaut 1) ; visible() : qui peut l'ajouter (défaut : tout le monde)
+var WB_COLS = 8, WB_LIGNES = 12;
+// largeur : nombre de colonnes (sur 8) ; hauteur : nombre de lignes (défaut 1) ; defaut : place des nouveaux membres ;
+// visible() : qui peut l'ajouter (défaut : tout le monde)
 function _wbAdminOuChef(){
   if(getUserRole() === 'admin') return true;
   var uid = getUserId();
   return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; });
 }
 var OS_WIDGETS = [
-  { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:1, defaut:{ col:1, ligne:1 },
+  { id:'notifications', nom:'Notifications', desc:'Le nombre de notifications et ce qui est à traiter, avec « Ouvrir ».', icone:'bell', largeur:4, hauteur:1, defaut:{ col:1, ligne:1 }, classe:'os-w-nt',
+    monter:function(){ osWidgetNotificationsRendre(); } },
+  { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:2, hauteur:1, defaut:{ col:5, ligne:1 },
     classe:'os-w-pouls', monter:function(c){ osPoulsMonter(c); if(typeof osPoulsRendre === 'function' && _pouls && _pouls.dernier) osPoulsRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
-  { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:1, defaut:{ col:2, ligne:1 },
-    classe:'os-w-nl', monter:function(c){ if(_pouls && _pouls.dernier) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
-  { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:2, defaut:{ col:1, ligne:2 },
+  { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:2, hauteur:1, defaut:{ col:7, ligne:1 },
+    classe:'os-w-nl', monter:function(){ if(_pouls && _pouls.dernier) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
+  { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:4, hauteur:1, defaut:{ col:1, ligne:2 },
     classe:'os-w-da', monter:function(){ osWidgetDernierArticleCharger(); } },
-  { id:'audience', nom:'Audience de la semaine', desc:'Les pages vues des 7 derniers jours, en courbe.', icone:'chart-line', largeur:2, classe:'os-w-au', visible:_wbAdminOuChef,
-    monter:function(){ osWidgetAudienceCharger(); } },
-  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', largeur:2, classe:'os-w-rv',
-    monter:function(){ osWidgetRendezVousCharger(); } },
-  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées pour aujourd’hui, à cocher.', icone:'checkbox', largeur:2, classe:'os-w-ta',
-    monter:function(){ osWidgetTachesCharger(); } },
-  { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:1, classe:'os-w-ry',
+  { id:'heures-plumes', nom:'Mes heures et plumes', desc:'Mes heures de bénévolat et mon solde de plumes.', icone:'feather', largeur:2, hauteur:1, defaut:{ col:5, ligne:2 }, classe:'os-w-hp',
+    monter:function(){ osWidgetHeuresPlumesCharger(); } },
+  { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:2, hauteur:1, defaut:{ col:7, ligne:2 }, classe:'os-w-ry',
     monter:function(){ osWidgetRythmeCharger(); } },
-  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', largeur:2, classe:'os-w-sr',
+  { id:'agenda', nom:'Agenda', desc:'Les prochains événements.', icone:'calendar', largeur:4, hauteur:2, defaut:{ col:1, ligne:3 }, classe:'os-w-ag',
+    monter:function(){ osWidgetAgendaCharger(); } },
+  { id:'mes-articles', nom:'Mes articles', desc:'Mes articles en cours, avec leur étape.', icone:'notes', largeur:4, hauteur:2, defaut:{ col:5, ligne:3 }, classe:'os-w-ma',
+    monter:function(){ osWidgetMesArticlesCharger(); } },
+  { id:'audience', nom:'Audience de la semaine', desc:'Les pages vues des 7 derniers jours, en courbe.', icone:'chart-line', largeur:4, hauteur:1, classe:'os-w-au', visible:_wbAdminOuChef,
+    monter:function(){ osWidgetAudienceCharger(); } },
+  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', largeur:4, hauteur:1, classe:'os-w-rv',
+    monter:function(){ osWidgetRendezVousCharger(); } },
+  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées pour aujourd’hui, à cocher.', icone:'checkbox', largeur:4, hauteur:1, classe:'os-w-ta',
+    monter:function(){ osWidgetTachesCharger(); } },
+  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', largeur:4, hauteur:1, classe:'os-w-sr',
     visible:function(){ return typeof _srVoitLaFile === 'function' && _srVoitLaFile(); }, monter:function(){ osWidgetFileSrCharger(); } },
-  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, classe:'os-w-me',
+  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, hauteur:1, classe:'os-w-me',
     monter:function(){ osWidgetMeteoCharger(); } },
-  { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:2, hauteur:2, classe:'os-w-no',
+  { id:'publies', nom:'Derniers publiés', desc:'Les derniers articles et brèves publiés dans ma rédaction.', icone:'world', largeur:4, hauteur:2, classe:'os-w-pb',
+    monter:function(){ osWidgetPubliesCharger(); } },
+  { id:'veille', nom:'Veille', desc:'Les derniers articles de la veille, à lire ou à transformer en sujet.', icone:'rss', largeur:4, hauteur:3, classe:'os-w-vl',
+    visible:function(){ return typeof _veilleWidgetPermis === 'function' ? _veilleWidgetPermis() : true; }, monter:function(){ if(typeof osVeilleWidgetCharger === 'function') osVeilleWidgetCharger(); } },
+  { id:'annonce', nom:'Annonce de la rédac', desc:'La dernière annonce de la rédaction.', icone:'speakerphone', largeur:4, hauteur:1, classe:'os-w-an',
+    monter:function(){ osWidgetAnnonceCharger(); } },
+  { id:'recrutement', nom:'Rejoindre l’équipe', desc:'Les postes ouverts au recrutement.', icone:'user-plus', largeur:4, hauteur:2, classe:'os-w-rc',
+    monter:function(){ osWidgetRecrutementCharger(); } },
+  { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:4, hauteur:3, classe:'os-w-no',
     monter:function(c){ osWidgetNotesMonter(c); } }
 ];
-var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[] };
+var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[], demarrage:'accueil' };
 
 function _wbVisible(w){ try{ return !w.visible || !!w.visible(); }catch(e){ return false; } }
 function _wbDef(id){ return OS_WIDGETS.filter(function(w){ return w.id === id; })[0] || null; }
 function _wbDefauts(){
-  return OS_WIDGETS.filter(function(w){ return w.defaut && _wbVisible(w); }).map(function(w){ return { widget:w.id, col:w.defaut.col, ligne:w.defaut.ligne, largeur:w.largeur, hauteur:w.hauteur || 1, reglages:{} }; });
+  return OS_WIDGETS.filter(function(w){ return w.defaut && _wbVisible(w); }).map(function(w){ return { widget:w.id, col:w.defaut.col, ligne:w.defaut.ligne, largeur:w.largeur, hauteur:w.hauteur || 1 }; });
 }
 function _wbH(extra){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || '') }, extra || {}); }
 
@@ -68,13 +85,15 @@ function _wbPremiereCaseLibre(largeur, hauteur){
 
 // ---- Lecture et enregistrement (base) ----
 function osWidgetsCharger(){
-  return fetch(SB_URL+'/rest/v1/widgets_bureau?select=widget,col,ligne,largeur,reglages&order=ligne.asc,col.asc', { headers:_wbH() })
+  return fetch(SB_URL+'/rest/v1/widgets_bureau?select=widget,col,ligne,largeur,hauteur,reglages&order=ligne.asc,col.asc', { headers:_wbH() })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(rows){
       if(!Array.isArray(rows)){ _wb.liste = _wbDefauts(); _wb.perso = false; return; }
-      var perso = rows.some(function(x){ return x.widget === '_perso'; });
+      var ligPerso = rows.filter(function(x){ return x.widget === '_perso'; })[0];
+      var perso = !!ligPerso;
+      _wb.demarrage = (ligPerso && ligPerso.reglages && ligPerso.reglages.demarrage === 'bureau') ? 'bureau' : 'accueil';
       var liste = rows.filter(function(x){ return x.widget.charAt(0) !== '_' && _wbDef(x.widget) && _wbVisible(_wbDef(x.widget)); })
-        .map(function(x){ var d = _wbDef(x.widget); return { widget:x.widget, col:x.col, ligne:x.ligne, largeur:d.largeur, hauteur:d.hauteur || 1, reglages:x.reglages || {} }; });
+        .map(function(x){ var d = _wbDef(x.widget); return { widget:x.widget, col:x.col, ligne:x.ligne, largeur:d.largeur, hauteur:d.hauteur || 1 }; });
       _wb.perso = perso;
       _wb.liste = perso ? liste : _wbDefauts();
     }).catch(function(){ _wb.liste = _wbDefauts(); _wb.perso = false; });
@@ -86,8 +105,8 @@ function osWidgetsSauverPlusTard(){
 function osWidgetsSauver(){
   if(!_session || !getUserId()) return;
   var uid = getUserId();
-  var rows = _wb.liste.map(function(x){ return { membre_id:uid, widget:x.widget, col:x.col, ligne:x.ligne, largeur:x.largeur, maj:new Date().toISOString() }; });
-  rows.push({ membre_id:uid, widget:'_perso', col:1, ligne:1, largeur:1, maj:new Date().toISOString() });
+  var rows = _wb.liste.map(function(x){ return { membre_id:uid, widget:x.widget, col:x.col, ligne:x.ligne, largeur:x.largeur, hauteur:x.hauteur || 1, maj:new Date().toISOString() }; });
+  rows.push({ membre_id:uid, widget:'_perso', col:1, ligne:1, largeur:1, hauteur:1, reglages:{ demarrage:_wb.demarrage }, maj:new Date().toISOString() });
   var retires = _wb.retires.slice(); _wb.retires = [];
   var envois = [ fetch(SB_URL+'/rest/v1/widgets_bureau?on_conflict=membre_id,widget', { method:'POST',
     headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }), body:JSON.stringify(rows) }) ];
@@ -102,22 +121,12 @@ function osWidgetsSauver(){
 // ---- Affichage ----
 function osWidgetsInit(){
   if(typeof osEstMobile === 'function' && osEstMobile()) return;
-  var widget = document.getElementById('os-clock-widget');
-  if(!widget || !_session || !getUserId()) return;
-  if(!document.getElementById('os-widgets')){
-    var zone = document.createElement('div');
-    zone.id = 'os-widgets'; zone.className = 'os-widgets';
-    var barre = document.createElement('div');
-    barre.id = 'os-widgets-barre'; barre.className = 'os-widgets-barre';
-    barre.innerHTML = '<button type="button" data-a="boutique"><i class="ti ti-plus"></i> Widgets</button><button type="button" data-a="organiser"><i class="ti ti-layout-grid"></i> <span>Organiser</span></button>';
-    barre.addEventListener('click', function(e){
-      var b = e.target.closest('button[data-a]'); if(!b) return;
-      if(b.dataset.a === 'boutique') osWidgetsBoutique(); else osWidgetsBasculerEdition();
-    });
-    var installer = document.getElementById('os-w-installer');
-    if(installer){ widget.insertBefore(zone, installer); widget.insertBefore(barre, installer); } else { widget.appendChild(zone); widget.appendChild(barre); }
-  }
-  osWidgetsCharger().then(osWidgetsRendre);
+  if(!_session || !getUserId()) return;
+  if(typeof osAccueilConstruire === 'function') osAccueilConstruire();   // la grille #os-widgets et sa barre vivent dans l'écran d'accueil
+  osWidgetsCharger().then(function(){
+    osWidgetsRendre();
+    if(!_wb.dejaOuvert){ _wb.dejaOuvert = true; if(_wb.demarrage !== 'bureau' && typeof osAccueilOuvrir === 'function') osAccueilOuvrir(); }
+  });
 }
 
 function osWidgetsRendre(){
@@ -154,7 +163,7 @@ function osWidgetsRendre(){
   Array.prototype.forEach.call(zone.querySelectorAll('.os-w-case'), function(c){ c.remove(); });
   if(_wb.edition){
     var occ = _wbOccupees(''), derniere = 1;
-    _wb.liste.forEach(function(x){ derniere = Math.max(derniere, x.ligne); });
+    _wb.liste.forEach(function(x){ derniere = Math.max(derniere, x.ligne + (x.hauteur || 1) - 1); });
     for(var l = 1; l <= Math.min(WB_LIGNES, derniere + 1); l++) for(var col = 1; col <= WB_COLS; col++){
       if(occ[col+'-'+l]) continue;
       var k = document.createElement('div');
@@ -204,9 +213,10 @@ function osWidgetsBoutique(){
   mo.id = 'os-wb-boutique'; mo.className = 'renvoi-voile';
   mo.innerHTML = '<div class="renvoi-boite wb-boite" role="dialog" aria-labelledby="wb-titre">'
     +'<div class="renvoi-entete"><div class="renvoi-icone hist-icone"><i class="ti ti-layout-grid-add"></i></div><div>'
-      +'<div id="wb-titre" class="renvoi-titre">Boutique de widgets</div><div class="renvoi-article">Choisis ceux qui s’affichent sous l’horloge de ton bureau</div></div>'
+      +'<div id="wb-titre" class="renvoi-titre">Boutique de widgets</div><div class="renvoi-article">Choisis ceux qui s’affichent sur ton écran d’accueil</div></div>'
       +'<button type="button" class="verif-btn-icone hist-fermer" data-a="fermer" title="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="renvoi-corps wb-corps" id="wb-corps"></div></div>';
+    +'<div class="renvoi-corps wb-corps" id="wb-corps"></div>'
+    +'<label class="wb-demarrage"><input type="checkbox" id="wb-demarrage"> Ouvrir Compo sur l’écran d’accueil</label></div>';
   document.body.appendChild(mo);
   var fermer = function(){ mo.remove(); document.removeEventListener('keydown', touche); };
   var touche = function(e){ if(e.key === 'Escape') fermer(); };
@@ -216,6 +226,9 @@ function osWidgetsBoutique(){
     var b = e.target.closest('button[data-w]'); if(!b) return;
     if(b.dataset.act === 'retirer') osWidgetsRetirer(b.dataset.w); else osWidgetsAjouter(b.dataset.w);
   });
+  var cd = document.getElementById('wb-demarrage');
+  cd.checked = _wb.demarrage !== 'bureau';
+  cd.onchange = function(){ _wb.demarrage = cd.checked ? 'accueil' : 'bureau'; osWidgetsSauverPlusTard(); };
   osWidgetsBoutiqueRemplir();
 }
 function osWidgetsBoutiqueRemplir(){
@@ -277,6 +290,85 @@ function _wbLire(chemin){
 }
 function _wbCorps(id){ var c = document.getElementById('os-w-'+id); return c && c.querySelector('.os-w-wid-corps'); }
 function _wbOuvrirSiPas(fn){ return function(){ if(!_wb.edition) fn(); }; }
+
+// ---- Widgets qui reprennent les blocs de l'ancien panneau de droite ----
+function osWidgetNotificationsRendre(){
+  var c = document.getElementById('os-w-notifications'), corps = _wbCorps('notifications'); if(!c || !corps) return;
+  var cpt = typeof osNotifCompteurs === 'function' ? osNotifCompteurs() : { total:0, taches:0, nouvelles:0, infos:0 };
+  var detail = cpt.total ? [cpt.taches ? cpt.taches+' à traiter' : '', cpt.nouvelles ? cpt.nouvelles+' nouvelle'+(cpt.nouvelles > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') : (cpt.infos ? cpt.infos+' information'+(cpt.infos > 1 ? 's' : '') : 'Rien de neuf');
+  corps.innerHTML = '<div class="os-w-nt-l"><span class="os-w-nt-ic"><i class="ti ti-bell"></i></span><div><strong>'+(cpt.total ? cpt.total+' notification'+(cpt.total > 1 ? 's' : '') : 'Notifications')+'</strong><em>'+esc(detail)+'</em></div><span class="os-w-nt-go">Ouvrir</span></div>';
+  c.onclick = _wbOuvrirSiPas(function(){ if(typeof osATraiterBasculer === 'function' && !(window._atr && _atr.ouvert)) osATraiterBasculer(); });
+}
+function osWidgetHeuresPlumesCharger(){
+  var uid = getUserId();
+  Promise.all([ _wbLire('heures_benevolat?membre_id=eq.'+uid+'&select=duree_minutes,type,categorie_agenda'), typeof _boutiquePlumesFetch === 'function' ? _boutiquePlumesFetch(_wbH()) : Promise.resolve(null) ]).then(function(res){
+    var c = document.getElementById('os-w-heures-plumes'), corps = _wbCorps('heures-plumes'); if(!c || !corps) return;
+    var min = (res[0] || []).filter(function(h){ return !(h.type === 'agenda' && h.categorie_agenda === 'sortie'); }).reduce(function(t, h){ return t + (h.duree_minutes || 0); }, 0);
+    var h = Math.floor(min / 60), m = min % 60, plumes = typeof res[1] === 'number' ? res[1] : null;
+    corps.innerHTML = '<small>Heures et plumes</small><div class="os-w-hp-l"><div><b>'+(h > 0 ? h+' h'+(m ? ' '+String(m).padStart(2, '0') : '') : m+' min')+'</b><span>bénévolat</span></div>'
+      +'<div><b>'+(plumes != null ? plumes : '—')+'</b><span>plumes</span></div></div>';
+    c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('boutique'); });
+  });
+}
+function osWidgetAgendaCharger(){
+  _wbLire('agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=5&select=id,titre,type,date_debut,lieu').then(function(l){
+    var c = document.getElementById('os-w-agenda'), corps = _wbCorps('agenda'); if(!c || !corps) return;
+    l = l || [];
+    corps.innerHTML = '<small>Agenda</small>'+(l.length ? l.map(function(e){
+      var d = new Date(e.date_debut), auj = d.toDateString() === new Date().toDateString();
+      return '<div class="os-w-ag-l"><span class="os-w-ag-d'+(auj ? ' auj' : '')+'"><b>'+d.getDate()+'</b>'+d.toLocaleDateString('fr-FR', { month:'short' })+'</span>'
+        +'<span class="os-w-ag-t">'+esc(e.titre || '')+'<em>'+esc(d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ')+(e.lieu ? ' · '+e.lieu : ''))+'</em></span></div>';
+    }).join('') : '<span class="os-w-vide">Aucun événement à venir</span>');
+    c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('agenda'); });
+  });
+}
+function osWidgetMesArticlesCharger(){
+  var r = window._redacActiveId;
+  _wbLire('articles?auteur_id=eq.'+getUserId()+'&statut=neq.publie'+(r ? '&redaction_id=eq.'+encodeURIComponent(r) : '')+'&select=id,titre,statut&order=updated_at.desc&limit=5').then(function(l){
+    var c = document.getElementById('os-w-mes-articles'), corps = _wbCorps('mes-articles'); if(!c || !corps) return;
+    l = l || [];
+    var libs = { brouillon:'brouillon', 'en-relecture':'au SR', corrige:'relu', valide:'bon à publier', valide_central:'bon à publier' };
+    corps.innerHTML = '<small>Mes articles</small>'+(l.length ? l.map(function(a){
+      return '<div class="os-w-ma-l"><span class="os-w-ma-t">'+esc(a.titre || 'Sans titre')+'</span><span class="os-w-ma-s">'+esc(libs[a.statut] || a.statut || '')+'</span></div>';
+    }).join('') : '<span class="os-w-vide">Aucun article en cours</span>');
+    c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('mes-articles'); });
+  });
+}
+function osWidgetAnnonceCharger(){
+  _wbLire('annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type').then(function(l){
+    var corps = _wbCorps('annonce'); if(!corps) return;
+    var a = l && l[0];
+    corps.innerHTML = '<small>Annonce de la rédac</small>'+(a ? '<div class="os-w-an-m">'+esc(a.message || '')+'</div>' : '<span class="os-w-vide">Aucune annonce pour l’instant</span>');
+  });
+}
+function osWidgetRecrutementCharger(){
+  _wbLire('recrutement_annonces?statut=eq.ouvert&order=created_at.desc&limit=3&select=id,titre,commissions(nom)').then(function(l){
+    var c = document.getElementById('os-w-recrutement'), corps = _wbCorps('recrutement'); if(!c || !corps) return;
+    l = l || [];
+    corps.innerHTML = '<small>Rejoindre l’équipe</small>'+(l.length ? l.map(function(p){
+      return '<div class="os-w-rc-l"><strong>'+esc(p.titre || '')+'</strong>'+(p.commissions ? '<em>'+esc(p.commissions.nom)+'</em>' : '')+'</div>';
+    }).join('') : '<span class="os-w-vide">Aucun poste ouvert</span>');
+    c.onclick = _wbOuvrirSiPas(function(){ if(typeof osOuvrirRecrutement === 'function') osOuvrirRecrutement(); });
+  });
+}
+function osWidgetPubliesCharger(){
+  var r = window._redacActiveId;
+  _wbLire('articles?statut=eq.publie'+(r ? '&redaction_id=eq.'+encodeURIComponent(r) : '')+'&order=publie_le.desc.nullslast,updated_at.desc&limit=5&select=id,titre,type,publie_le,updated_at').then(function(l){
+    var c = document.getElementById('os-w-publies'), corps = _wbCorps('publies'); if(!c || !corps) return;
+    l = l || [];
+    corps.innerHTML = '<small>Derniers publiés</small>'+(l.length ? l.map(function(a){
+      var d = a.publie_le || a.updated_at;
+      return '<div class="os-w-pb-l" data-id="'+esc(a.id)+'"><span class="os-w-pb-t">'+esc(a.titre || 'Sans titre')+'</span><span class="os-w-pb-s">'+(a.type === 'breve' ? 'Brève' : 'Article')+(d && typeof _maDateCourte === 'function' ? ' · '+esc(_maDateCourte(d)) : '')+'</span></div>';
+    }).join('') : '<span class="os-w-vide">Rien de publié pour l’instant</span>');
+    corps.onclick = function(e){
+      if(_wb.edition) return;
+      var ln = e.target.closest('.os-w-pb-l');
+      if(ln && typeof mesArticlesOuvrir === 'function'){ mesArticlesOuvrir(ln.dataset.id, 'lecture'); return; }
+      _redacOnglet = 'publies';
+      if(window._windows && _windows['redactions']){ osFocusWindow('redactions'); osRedactionsChangerOnglet('publies'); } else osOpenWindow('redactions');
+    };
+  });
+}
 
 // ---- Audience de la semaine (Umami, via la fonction umami-article) ----
 function osWidgetAudienceCharger(){
@@ -472,12 +564,13 @@ function _wbNoteProgrammer(texte){
     lancerCompo = function(){
       var r = _lancerAvantWidgets.apply(this, arguments);
       setTimeout(osWidgetsInit, 1800);
+      setInterval(function(){ if(!document.hidden && document.getElementById('os-w-notifications')) osWidgetNotificationsRendre(); }, 20000);
       setInterval(function(){
         if(document.hidden) return;
         if(document.getElementById('os-w-dernier-article')){ _wbDernier.quand = 0; osWidgetDernierArticleCharger(); }
-        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo', 'notes'].forEach(function(id){
+        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo', 'notes', 'heures-plumes', 'agenda', 'mes-articles', 'annonce', 'recrutement', 'publies'].forEach(function(id){
           if(!document.getElementById('os-w-'+id)) return;
-          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger, notes:osWidgetNotesRafraichir }[id];
+          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger, notes:osWidgetNotesRafraichir, 'heures-plumes':osWidgetHeuresPlumesCharger, agenda:osWidgetAgendaCharger, 'mes-articles':osWidgetMesArticlesCharger, annonce:osWidgetAnnonceCharger, recrutement:osWidgetRecrutementCharger, publies:osWidgetPubliesCharger }[id];
           if(fn) fn();
         });
       }, 5 * 60000);

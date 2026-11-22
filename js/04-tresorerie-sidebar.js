@@ -732,7 +732,7 @@ function osBuildDock(){
   tray.id = 'os-taskbar-tray';
   tray.innerHTML =
     '<button id="os-atraiter-btn" class="tray-btn" onclick="osATraiterBasculer()" title="À traiter"><i class="ti ti-bell"></i><span id="atr-badge" class="atr-badge"></span></button>'
-    +'<button id="os-sidebar-toggle" class="tray-btn" onclick="osToggleSidebar()" title="Widgets et notifications"><i class="ti ti-layout-sidebar-right"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
+    +'<button id="os-accueil-btn" class="tray-btn" onclick="osAccueilBasculer()" title="Accueil"><i class="ti ti-layout-grid"></i><span id="nc-badge" class="nc-badge" style="position:absolute;top:1px;right:1px;"></span></button>'
     +osDndSwitchHtml('barre', 'os-dnd-btn')
     +'<button id="os-fs-btn" class="tray-btn" onclick="osToggleFullscreen()" title="Plein écran"><i class="ti ti-arrows-maximize"></i></button>'
     +'<button class="tray-btn" onclick="osStartAction(\'spotlight\')" title="Rechercher (⌘K)"><i class="ti ti-search"></i></button>'
