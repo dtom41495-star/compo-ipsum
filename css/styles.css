@@ -5867,8 +5867,8 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .cl-logo { height: 52px; opacity: 0; transform: translateY(8px) scale(.94); animation: cl-monte .45s cubic-bezier(.3,1.3,.6,1) 900ms forwards; }
 .cl-logo img { height: 100%; width: auto; display: block; }
 .cl-logo .cl-logo-sombre { display: none; }
-:root.theme-dark .cl-logo .cl-logo-clair { display: none; }
-:root.theme-dark .cl-logo .cl-logo-sombre { display: block; }
+.cl-logo .cl-logo-clair { display: none; }
+.cl-logo .cl-logo-sombre { display: block; }
 .cl-bonjour { font: 700 1.05rem/1.2 'Poppins', sans-serif; color: #1A1A2E; opacity: 0; transform: translateY(6px);
   animation: cl-monte .4s ease 1100ms forwards; }
 .cl-etape { min-height: 1.2em; font: .62rem/1.2 'Space Mono', monospace; letter-spacing: .06em; text-transform: uppercase; color: #9CA3AF; }
@@ -5882,13 +5882,13 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 @keyframes cl-rouleau { to { left: 110%; } }
 @keyframes cl-monte { to { opacity: 1; transform: none; } }
 @keyframes cl-leve { to { opacity: 0; transform: translateY(-26px) scale(.96); } }
-/* Thème sombre */
-:root.theme-dark #compo-loading-screen { background: radial-gradient(120% 90% at 50% 40%, #1E1E34 0%, #131320 55%, #0D0D1A 100%); }
-:root.theme-dark .cl-casse { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
-:root.theme-dark .cl-sorte { background: #23233A; box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -6px rgba(0,0,0,.6); }
-:root.theme-dark .cl-sorte > span { -webkit-text-fill-color: #E8E6E1; }
-:root.theme-dark .cl-bonjour { color: #E8E6E1; }
-:root.theme-dark .cl-reglette { background: rgba(255,255,255,.1); }
+/* Toujours sombre : même teinte que l'accueil, pour que l'écran de lancement s'y fonde sans rupture */
+:root #compo-loading-screen, :root.theme-dark #compo-loading-screen { background: radial-gradient(120% 90% at 50% 40%, #1E1E34 0%, #14142A 55%, #0E0E1E 100%); }
+:root .cl-casse, :root.theme-dark .cl-casse { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+:root .cl-sorte, :root.theme-dark .cl-sorte { background: #23233A; box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -6px rgba(0,0,0,.6); }
+:root .cl-sorte > span, :root.theme-dark .cl-sorte > span { -webkit-text-fill-color: #E8E6E1; }
+:root .cl-bonjour, :root.theme-dark .cl-bonjour { color: #E8E6E1; }
+:root .cl-reglette, :root.theme-dark .cl-reglette { background: rgba(255,255,255,.1); }
 /* Sans animation (mouvements réduits, mode léger, mode malvoyant) : la ligne est déjà composée et encrée */
 @media (prefers-reduced-motion: reduce) {
   .cl-sorte, .cl-sorte > span, .cl-rouleau, .cl-bonjour, .cl-logo, #compo-loading-screen.cl-sortie .cl-sorte { animation: none !important; }
