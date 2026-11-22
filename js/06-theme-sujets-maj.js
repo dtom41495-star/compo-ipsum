@@ -855,6 +855,7 @@ function sauvegarderCloud(){
       }
     }).catch(function(err){
       if(err && (err.code === 'SUJET_DEJA_ECRIT' || err.code === 'SUJET_AUTRE_PERSONNE')){ notif(err.message, 'erreur'); return; }
+      if(err && /texte_fige/.test(String(err.message || ''))){ notif(typeof _MSG_TEXTE_FIGE === 'string' ? _MSG_TEXTE_FIGE : 'Ce texte est validé ou en ligne : il ne se modifie plus.', 'erreur'); return; }   // pas une panne de réseau : ne pas le mettre en file hors ligne
       notif('Erreur reseau - article mis en file hors ligne');
       osSauvegarderOfflineQueue(doc);
     });
