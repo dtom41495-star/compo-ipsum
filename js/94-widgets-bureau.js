@@ -8,26 +8,40 @@
 // Un widget du catalogue : { id, nom, desc, icone, largeur (1 ou 2 colonnes), defaut:{col,ligne}, monter(carte) } ; « bientot » : annoncé, pas encore là.
 
 var WB_COLS = 2, WB_LIGNES = 8;
+// largeur : 1 ou 2 colonnes ; hauteur : 1 ou 2 lignes (défaut 1) ; visible() : qui peut l'ajouter (défaut : tout le monde)
+function _wbAdminOuChef(){
+  if(getUserRole() === 'admin') return true;
+  var uid = getUserId();
+  return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; });
+}
 var OS_WIDGETS = [
   { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:1, defaut:{ col:1, ligne:1 },
     classe:'os-w-pouls', monter:function(c){ osPoulsMonter(c); if(typeof osPoulsRendre === 'function' && _pouls && _pouls.dernier) osPoulsRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
   { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:1, defaut:{ col:2, ligne:1 },
     classe:'os-w-nl', monter:function(c){ if(_pouls && _pouls.dernier) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
   { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:2, defaut:{ col:1, ligne:2 },
-    classe:'os-w-da', monter:function(c){ osWidgetDernierArticleCharger(); } },
-  { id:'audience', nom:'Audience de la semaine', desc:'La courbe des visites sur 7 jours.', icone:'chart-line', bientot:true },
-  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', bientot:true },
-  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées, à cocher.', icone:'checkbox', bientot:true },
-  { id:'rythme', nom:'Mon rythme', desc:'Ma série de brèves et mes plumes.', icone:'flame', bientot:true },
-  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', bientot:true },
-  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', bientot:true },
-  { id:'notes', nom:'Bloc-notes', desc:'Un petit texte libre, enregistré dans la base.', icone:'notes', bientot:true }
+    classe:'os-w-da', monter:function(){ osWidgetDernierArticleCharger(); } },
+  { id:'audience', nom:'Audience de la semaine', desc:'Les pages vues des 7 derniers jours, en courbe.', icone:'chart-line', largeur:2, classe:'os-w-au', visible:_wbAdminOuChef,
+    monter:function(){ osWidgetAudienceCharger(); } },
+  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', largeur:2, classe:'os-w-rv',
+    monter:function(){ osWidgetRendezVousCharger(); } },
+  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées pour aujourd’hui, à cocher.', icone:'checkbox', largeur:2, classe:'os-w-ta',
+    monter:function(){ osWidgetTachesCharger(); } },
+  { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:1, classe:'os-w-ry',
+    monter:function(){ osWidgetRythmeCharger(); } },
+  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', largeur:2, classe:'os-w-sr',
+    visible:function(){ return typeof _srVoitLaFile === 'function' && _srVoitLaFile(); }, monter:function(){ osWidgetFileSrCharger(); } },
+  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, classe:'os-w-me',
+    monter:function(){ osWidgetMeteoCharger(); } },
+  { id:'notes', nom:'Bloc-notes', desc:'Un petit texte libre, enregistré dans la base.', icone:'notes', largeur:2, hauteur:2, classe:'os-w-no',
+    monter:function(c, x){ osWidgetNotesMonter(c, x); } }
 ];
 var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[] };
 
+function _wbVisible(w){ try{ return !w.visible || !!w.visible(); }catch(e){ return false; } }
 function _wbDef(id){ return OS_WIDGETS.filter(function(w){ return w.id === id; })[0] || null; }
 function _wbDefauts(){
-  return OS_WIDGETS.filter(function(w){ return w.defaut && !w.bientot; }).map(function(w){ return { widget:w.id, col:w.defaut.col, ligne:w.defaut.ligne, largeur:w.largeur }; });
+  return OS_WIDGETS.filter(function(w){ return w.defaut && _wbVisible(w); }).map(function(w){ return { widget:w.id, col:w.defaut.col, ligne:w.defaut.ligne, largeur:w.largeur, hauteur:w.hauteur || 1, reglages:{} }; });
 }
 function _wbH(extra){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || '') }, extra || {}); }
 
@@ -36,30 +50,31 @@ function _wbOccupees(sauf){
   var occ = {};
   _wb.liste.forEach(function(x){
     if(x.widget === sauf) return;
-    for(var k = 0; k < x.largeur; k++) occ[(x.col + k)+'-'+x.ligne] = x.widget;
+    for(var k = 0; k < x.largeur; k++) for(var h = 0; h < (x.hauteur || 1); h++) occ[(x.col + k)+'-'+(x.ligne + h)] = x.widget;
   });
   return occ;
 }
-function _wbPeutPoser(widget, col, ligne, largeur){
-  if(col < 1 || ligne < 1 || ligne > WB_LIGNES || col + largeur - 1 > WB_COLS) return false;
+function _wbPeutPoser(widget, col, ligne, largeur, hauteur){
+  hauteur = hauteur || 1;
+  if(col < 1 || ligne < 1 || ligne + hauteur - 1 > WB_LIGNES || col + largeur - 1 > WB_COLS) return false;
   var occ = _wbOccupees(widget);
-  for(var k = 0; k < largeur; k++) if(occ[(col + k)+'-'+ligne]) return false;
+  for(var k = 0; k < largeur; k++) for(var h = 0; h < hauteur; h++) if(occ[(col + k)+'-'+(ligne + h)]) return false;
   return true;
 }
-function _wbPremiereCaseLibre(largeur){
-  for(var l = 1; l <= WB_LIGNES; l++) for(var c = 1; c + largeur - 1 <= WB_COLS; c++) if(_wbPeutPoser('', c, l, largeur)) return { col:c, ligne:l };
+function _wbPremiereCaseLibre(largeur, hauteur){
+  for(var l = 1; l <= WB_LIGNES; l++) for(var c = 1; c + largeur - 1 <= WB_COLS; c++) if(_wbPeutPoser('', c, l, largeur, hauteur)) return { col:c, ligne:l };
   return null;
 }
 
 // ---- Lecture et enregistrement (base) ----
 function osWidgetsCharger(){
-  return fetch(SB_URL+'/rest/v1/widgets_bureau?select=widget,col,ligne,largeur&order=ligne.asc,col.asc', { headers:_wbH() })
+  return fetch(SB_URL+'/rest/v1/widgets_bureau?select=widget,col,ligne,largeur,reglages&order=ligne.asc,col.asc', { headers:_wbH() })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(rows){
       if(!Array.isArray(rows)){ _wb.liste = _wbDefauts(); _wb.perso = false; return; }
       var perso = rows.some(function(x){ return x.widget === '_perso'; });
-      var liste = rows.filter(function(x){ return x.widget.charAt(0) !== '_' && _wbDef(x.widget) && !_wbDef(x.widget).bientot; })
-        .map(function(x){ var d = _wbDef(x.widget); return { widget:x.widget, col:x.col, ligne:x.ligne, largeur:d.largeur }; });
+      var liste = rows.filter(function(x){ return x.widget.charAt(0) !== '_' && _wbDef(x.widget) && _wbVisible(_wbDef(x.widget)); })
+        .map(function(x){ var d = _wbDef(x.widget); return { widget:x.widget, col:x.col, ligne:x.ligne, largeur:d.largeur, hauteur:d.hauteur || 1, reglages:x.reglages || {} }; });
       _wb.perso = perso;
       _wb.liste = perso ? liste : _wbDefauts();
     }).catch(function(){ _wb.liste = _wbDefauts(); _wb.perso = false; });
@@ -121,9 +136,7 @@ function osWidgetsRendre(){
       c = document.createElement('div');
       c.className = 'os-w-carte os-w-wid '+(d.classe || '');
       c.dataset.wid = x.widget;
-      if(x.widget === 'pouls') c.id = 'os-w-pouls';
-      if(x.widget === 'newsletter') c.id = 'os-w-newsletter';
-      if(x.widget === 'dernier-article') c.id = 'os-w-dernier-article';
+      c.id = 'os-w-'+x.widget;
       c.innerHTML = '<div class="os-w-wid-corps"></div><button type="button" class="os-w-wid-x" title="Retirer ce widget" aria-label="Retirer ce widget"><i class="ti ti-x"></i></button>';
       c.querySelector('.os-w-wid-x').addEventListener('click', function(e){ e.stopPropagation(); osWidgetsRetirer(x.widget); });
       c.addEventListener('dragstart', function(e){ if(!_wb.edition){ e.preventDefault(); return; } e.dataTransfer.setData('text/plain', x.widget); e.dataTransfer.effectAllowed = 'move'; c.classList.add('glisse'); });
@@ -133,8 +146,8 @@ function osWidgetsRendre(){
     delete presents[x.widget];
     c.draggable = _wb.edition;
     c.style.gridColumn = x.col+' / span '+x.largeur;
-    c.style.gridRow = String(x.ligne);
-    if(neuf && d.monter) d.monter(c);
+    c.style.gridRow = x.ligne+' / span '+(x.hauteur || 1);
+    if(neuf && d.monter) d.monter(c, x);
   });
   Object.keys(presents).forEach(function(id){ presents[id].remove(); });   // retirés
   // Cases libres, visibles en mode « Organiser » : on y dépose un widget
@@ -162,7 +175,7 @@ function osWidgetsBasculerEdition(){ _wb.edition = !_wb.edition; osWidgetsRendre
 function osWidgetsDeplacer(id, col, ligne){
   var x = _wb.liste.filter(function(w){ return w.widget === id; })[0];
   if(!x) return;
-  if(!_wbPeutPoser(id, col, ligne, x.largeur)){ if(typeof notif === 'function') notif('Pas assez de place ici pour ce widget'); return; }
+  if(!_wbPeutPoser(id, col, ligne, x.largeur, x.hauteur)){ if(typeof notif === 'function') notif('Pas assez de place ici pour ce widget'); return; }
   x.col = col; x.ligne = ligne;
   osWidgetsRendre(); osWidgetsSauverPlusTard();
 }
@@ -174,10 +187,11 @@ function osWidgetsRetirer(id){
 }
 function osWidgetsAjouter(id){
   var d = _wbDef(id);
-  if(!d || d.bientot || _wb.liste.some(function(w){ return w.widget === id; })) return;
-  var place = (d.defaut && _wbPeutPoser(id, d.defaut.col, d.defaut.ligne, d.largeur)) ? d.defaut : _wbPremiereCaseLibre(d.largeur);
+  if(!d || !_wbVisible(d) || _wb.liste.some(function(w){ return w.widget === id; })) return;
+  var h = d.hauteur || 1;
+  var place = (d.defaut && _wbPeutPoser(id, d.defaut.col, d.defaut.ligne, d.largeur, h)) ? d.defaut : _wbPremiereCaseLibre(d.largeur, h);
   if(!place){ if(typeof notif === 'function') notif('Le bureau est plein : retire un widget d’abord'); return; }
-  _wb.liste.push({ widget:id, col:place.col, ligne:place.ligne, largeur:d.largeur });
+  _wb.liste.push({ widget:id, col:place.col, ligne:place.ligne, largeur:d.largeur, hauteur:h, reglages:{} });
   _wb.retires = _wb.retires.filter(function(x){ return x !== id; });
   osWidgetsRendre(); osWidgetsSauverPlusTard();
   if(document.getElementById('os-wb-boutique')) osWidgetsBoutiqueRemplir();
@@ -206,7 +220,7 @@ function osWidgetsBoutique(){
 }
 function osWidgetsBoutiqueRemplir(){
   var corps = document.getElementById('wb-corps'); if(!corps) return;
-  corps.innerHTML = '<div class="wb-grille">'+OS_WIDGETS.map(function(w){
+  corps.innerHTML = '<div class="wb-grille">'+OS_WIDGETS.filter(_wbVisible).map(function(w){
     var ajoute = _wb.liste.some(function(x){ return x.widget === w.id; });
     return '<div class="wb-carte'+(w.bientot ? ' bientot' : '')+'"><div class="wb-ico"><i class="ti ti-'+w.icone+'"></i></div>'
       +'<div class="wb-txt"><strong>'+esc(w.nom)+'</strong><span>'+esc(w.desc)+'</span></div>'
@@ -257,13 +271,171 @@ function osWidgetDernierArticleRendre(){
   c.onclick = function(){ if(!_wb.edition && typeof mesArticlesOuvrir === 'function') mesArticlesOuvrir(a.id, 'lecture'); };
 }
 
+// ---- Lecture commune ----
+function _wbLire(chemin){
+  return fetch(SB_URL+'/rest/v1/'+chemin, { headers:_wbH() }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ return Array.isArray(j) ? j : null; }).catch(function(){ return null; });
+}
+function _wbCorps(id){ var c = document.getElementById('os-w-'+id); return c && c.querySelector('.os-w-wid-corps'); }
+function _wbOuvrirSiPas(fn){ return function(){ if(!_wb.edition) fn(); }; }
+
+// ---- Audience de la semaine (Umami, via la fonction umami-article) ----
+function osWidgetAudienceCharger(){
+  fetch(SB_URL+'/functions/v1/umami-article', { method:'POST', headers:_wbH({ 'Content-Type':'application/json' }), body:JSON.stringify({ semaine:true }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var corps = _wbCorps('audience'); if(!corps) return;
+      if(!d || !d.ok || !d.semaine){ corps.innerHTML = '<small>Audience</small><span class="os-w-vide">Indisponible pour le moment</span>'; return; }
+      var sem = d.semaine, serie = (sem.serie || []).slice(-7), max = Math.max.apply(null, serie.map(function(p){ return p.vues; }).concat([1]));
+      var W = 120, H = 40, pas = serie.length > 1 ? W / (serie.length - 1) : W;
+      var pts = serie.map(function(p, i){ return (i * pas).toFixed(1)+','+(H - 4 - (H - 10) * p.vues / max).toFixed(1); });
+      var fin = pts.length ? pts[pts.length - 1].split(',') : [W, H];
+      corps.innerHTML = '<div class="os-w-au-ligne"><div><small>Audience · 7 jours</small><span class="os-w-au-nb">'+(sem.vues || 0).toLocaleString('fr-FR')+'</span><em>pages vues · '+(sem.visites || 0).toLocaleString('fr-FR')+' visites</em></div>'
+        +'<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" aria-hidden="true">'
+        +(pts.length ? '<polygon points="0,'+H+' '+pts.join(' ')+' '+W+','+H+'" fill="rgba(91,211,154,.18)"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="#5BD39A" stroke-width="2" stroke-linejoin="round"/><circle cx="'+fin[0]+'" cy="'+fin[1]+'" r="2.6" fill="#fff"/>' : '')
+        +'</svg></div>';
+    }).catch(function(){});
+}
+
+// ---- Prochain rendez-vous (agenda) ----
+function osWidgetRendezVousCharger(){
+  _wbLire('agenda_evenements?date_debut=gt.'+encodeURIComponent(new Date().toISOString())+'&statut=neq.annule&order=date_debut.asc&limit=1&select=id,titre,date_debut,lieu').then(function(l){
+    var c = document.getElementById('os-w-rendez-vous'), corps = _wbCorps('rendez-vous'); if(!c || !corps) return;
+    var e = l && l[0];
+    if(!e){ corps.innerHTML = '<small>Prochain rendez-vous</small><span class="os-w-vide">Rien de prévu pour l’instant</span>'; return; }
+    var dt = new Date(e.date_debut), now = new Date(), demain = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    var quand = dt.toDateString() === now.toDateString() ? 'Aujourd’hui' : dt.toDateString() === demain.toDateString() ? 'Demain' : dt.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+    var heure = dt.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }).replace(':', ' h ');
+    corps.innerHTML = '<small>Prochain rendez-vous</small><span class="os-w-titre2">'+esc(e.titre || 'Événement')+'</span><em>'+esc(quand.charAt(0).toUpperCase()+quand.slice(1))+' · '+esc(heure)+(e.lieu ? ' · '+esc(e.lieu) : '')+'</em>';
+    c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('agenda'); });
+  });
+}
+
+// ---- Mes tâches du jour ----
+function osWidgetTachesCharger(){
+  var d = new Date(), auj = d.getFullYear()+'-'+String(d.getMonth() + 1).padStart(2, '0')+'-'+String(d.getDate()).padStart(2, '0');
+  _wbLire('projets_taches?assignes=cs.{'+getUserId()+'}&statut=neq.fait&date_limite=lte.'+auj+'&order=date_limite.asc&select=id,titre,date_limite').then(function(l){
+    var c = document.getElementById('os-w-taches'), corps = _wbCorps('taches'); if(!c || !corps) return;
+    l = l || [];
+    if(!l.length){ corps.innerHTML = '<small>Mes tâches du jour</small><span class="os-w-vide">Rien à faire aujourd’hui</span>'; return; }
+    corps.innerHTML = '<small>Mes tâches du jour · '+l.length+'</small>'+l.slice(0, 2).map(function(t){
+      return '<label class="os-w-ta-l"><input type="checkbox" data-id="'+esc(t.id)+'"><span>'+esc(t.titre || 'Sans titre')+'</span></label>';
+    }).join('');
+    corps.onchange = function(e){
+      var cb = e.target; if(!cb.dataset || !cb.dataset.id) return;
+      cb.disabled = true;
+      var corpsTache = { statut:'fait', updated_at:new Date().toISOString() };
+      var envoi = typeof _ipjEcrire === 'function' ? _ipjEcrire('/rest/v1/projets_taches?id=eq.'+cb.dataset.id, 'PATCH', corpsTache)
+        : fetch(SB_URL+'/rest/v1/projets_taches?id=eq.'+encodeURIComponent(cb.dataset.id), { method:'PATCH', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify(corpsTache) });
+      Promise.resolve(envoi).then(function(){ osWidgetTachesCharger(); }).catch(function(){ cb.disabled = false; cb.checked = false; });
+    };
+  });
+}
+
+// ---- Mon rythme : mes brèves de la semaine et mes plumes ----
+function osWidgetRythmeCharger(){
+  var lundi = new Date(); lundi.setHours(0, 0, 0, 0); lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7));
+  Promise.all([
+    _wbLire('articles?auteur_id=eq.'+getUserId()+'&type=eq.breve&statut=in.(en-relecture,corrige,valide,valide_central,publie)&updated_at=gte.'+encodeURIComponent(lundi.toISOString())+'&select=id'),
+    typeof _boutiquePlumesFetch === 'function' ? _boutiquePlumesFetch(_wbH()) : Promise.resolve(null)
+  ]).then(function(res){
+    var corps = _wbCorps('rythme'); if(!corps) return;
+    var n = res[0] ? res[0].length : 0, plumes = typeof res[1] === 'number' ? res[1] : null;
+    corps.innerHTML = '<small>Mon rythme</small><span class="os-w-ry-nb">'+n+'</span><em>brève'+(n > 1 ? 's' : '')+' cette semaine'+(plumes != null ? ' · '+plumes+' plume'+(plumes > 1 ? 's' : '') : '')+'</em>';
+  });
+}
+
+// ---- File du SR ----
+function osWidgetFileSrCharger(){
+  if(typeof _srChargerFile !== 'function') return;
+  _srChargerFile().then(function(f){
+    var c = document.getElementById('os-w-file-sr'), corps = _wbCorps('file-sr'); if(!c || !corps) return;
+    f = f || [];
+    if(!f.length){ corps.innerHTML = '<small>File du SR</small><span class="os-w-vide">Rien en attente</span>'; return; }
+    var a = f[0];
+    corps.innerHTML = '<small>File du SR · '+f.length+' à relire</small><div class="os-w-sr-l"><span class="os-w-titre2">'+(a.express ? '⚡ ' : '')+esc(a.titre || 'Sans titre')+'</span>'
+      +'<button type="button" class="os-w-sr-btn" data-id="'+esc(a.id)+'">Je prends</button></div>';
+    corps.onclick = function(e){
+      var b = e.target.closest('.os-w-sr-btn'); if(!b || _wb.edition) return;
+      e.stopPropagation();
+      if(typeof osSrPrendre === 'function') osSrPrendre(b.dataset.id, b);
+      setTimeout(osWidgetFileSrCharger, 2500);
+    };
+  }).catch(function(){});
+}
+
+// ---- Météo et saint du jour (mêmes données que le site) ----
+var _wbSaints = null;
+function _wbChargerSaints(){
+  if(window.SAINTS_DU_JOUR) return Promise.resolve(window.SAINTS_DU_JOUR);
+  if(_wbSaints) return _wbSaints;
+  _wbSaints = new Promise(function(ok){
+    var sc = document.createElement('script'); sc.src = 'https://ipsummedia.fr/assets/saints.js';
+    sc.onload = function(){ ok(window.SAINTS_DU_JOUR || null); }; sc.onerror = function(){ ok(null); };
+    document.head.appendChild(sc);
+  });
+  return _wbSaints;
+}
+function _wbIconeMeteo(c, jour){
+  if(c === 0) return jour ? '☀️' : '🌙'; if(c === 1) return jour ? '🌤️' : '🌙'; if(c === 2) return '⛅'; if(c === 3) return '☁️';
+  if(c === 45 || c === 48) return '🌫️'; if(c >= 51 && c <= 57) return '🌦️'; if(c >= 61 && c <= 67) return '🌧️'; if(c >= 71 && c <= 77) return '❄️';
+  if(c >= 80 && c <= 82) return '🌦️'; if(c === 85 || c === 86) return '🌨️'; if(c >= 95) return '⛈️'; return '⛅';
+}
+function osWidgetMeteoCharger(){
+  var lieux = { 'tarn':'albi', 'haute-garonne':'toulouse', 'national':'paris' };
+  var redac = (window._redactionsData || []).filter(function(r){ return r.id === window._redacActiveId; })[0];
+  var lieu = redac ? (lieux[String(redac.nom || '').toLowerCase().replace(/\s+/g, '-')] || 'albi') : 'albi';
+  Promise.all([
+    fetch(SB_URL+'/rest/v1/rpc/site_meteo_lire', { method:'POST', headers:_wbH({ 'Content-Type':'application/json' }), body:'{}' }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+    _wbChargerSaints()
+  ]).then(function(res){
+    var corps = _wbCorps('meteo'); if(!corps) return;
+    var m = (Array.isArray(res[0]) ? res[0] : []).filter(function(x){ return x && x.lieu === lieu; })[0];
+    var t = new Date().toLocaleDateString('sv-SE', { timeZone:'Europe/Paris' }).split('-'), saint = res[1] && res[1][+t[1] - 1] && res[1][+t[1] - 1][+t[2] - 1];
+    var frais = m && m.donnees && m.donnees.jours && m.donnees.jours.length && (Date.now() - new Date(m.maj_le).getTime() < 12 * 3600 * 1000);
+    var meteo = '';
+    if(frais){ var dn = m.donnees, a = dn.actuel || {}; meteo = _wbIconeMeteo(a.code, a.jour !== false)+' '+esc(dn.nom)+' <b>'+(a.temp != null ? a.temp : dn.jours[0].max)+'°</b>'; }
+    var jour = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/Paris' });
+    corps.innerHTML = '<small>'+esc(jour.charAt(0).toUpperCase()+jour.slice(1))+'</small>'+(meteo ? '<span class="os-w-me-t">'+meteo+'</span>' : '<span class="os-w-vide">Météo indisponible</span>')
+      +(saint ? '<em>Saint du jour : '+esc(saint)+'</em>' : '');
+  });
+}
+
+// ---- Bloc-notes : le texte est enregistré dans la base (colonne reglages de la ligne du widget) ----
+function osWidgetNotesMonter(c, x){
+  var corps = c.querySelector('.os-w-wid-corps');
+  corps.innerHTML = '<small>Bloc-notes <span class="os-w-no-etat"></span></small><textarea class="os-w-no-t" maxlength="2000" placeholder="Une idée, un numéro, un rappel…" aria-label="Bloc-notes"></textarea>';
+  var t = corps.querySelector('textarea'), etat = corps.querySelector('.os-w-no-etat'), minuteur = null;
+  t.value = (x && x.reglages && x.reglages.texte) || '';
+  t.addEventListener('input', function(){
+    etat.textContent = '…'; clearTimeout(minuteur);
+    minuteur = setTimeout(function(){
+      var w = _wb.liste.filter(function(y){ return y.widget === 'notes'; })[0]; if(!w) return;
+      w.reglages = { texte:t.value };
+      var uid = getUserId();
+      fetch(SB_URL+'/rest/v1/widgets_bureau?on_conflict=membre_id,widget', { method:'POST', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
+        body:JSON.stringify([{ membre_id:uid, widget:'notes', col:w.col, ligne:w.ligne, largeur:w.largeur, reglages:w.reglages, maj:new Date().toISOString() }]) })
+        .then(function(r){ etat.textContent = r.ok ? 'enregistré' : 'non enregistré'; setTimeout(function(){ etat.textContent = ''; }, 2500); })
+        .catch(function(){ etat.textContent = 'non enregistré'; });
+    }, 900);
+  });
+  t.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+}
+
 (function(){
   if(typeof lancerCompo === 'function'){
     var _lancerAvantWidgets = lancerCompo;
     lancerCompo = function(){
       var r = _lancerAvantWidgets.apply(this, arguments);
       setTimeout(osWidgetsInit, 1800);
-      setInterval(function(){ if(!document.hidden && document.getElementById('os-w-dernier-article')){ _wbDernier.quand = 0; osWidgetDernierArticleCharger(); } }, 5 * 60000);
+      setInterval(function(){
+        if(document.hidden) return;
+        if(document.getElementById('os-w-dernier-article')){ _wbDernier.quand = 0; osWidgetDernierArticleCharger(); }
+        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo'].forEach(function(id){
+          if(!document.getElementById('os-w-'+id)) return;
+          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger }[id];
+          if(fn) fn();
+        });
+      }, 5 * 60000);
       return r;
     };
   }
