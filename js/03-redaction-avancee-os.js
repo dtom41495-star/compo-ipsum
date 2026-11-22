@@ -2167,6 +2167,25 @@ function osLancer(){
 // Au démarrage sur l'écran d'accueil, le choix de la rédaction ne sert à rien tant qu'on y reste : il attend qu'on le quitte
 // (osAccueilFermer, js/96-accueil.js). Filet : si l'accueil ne s'ouvre pas, il apparaît quand même.
 function _osSelecteurInitialOuDiffere(liens){
+  // Dernière rédaction choisie sur cet appareil et toujours valable : on la reprend, sans rien demander (on peut en changer avec le bouton
+  // de l'accueil, ou « Changer » dans Ma rédac'). Le choix n'est demandé que la toute première fois, ou si cette rédaction n'est plus la sienne.
+  var derniere = null;
+  try{ derniere = localStorage.getItem('compo_redac_derniere'); }catch(e){}
+  if(derniere && (liens || []).some(function(l){ return l.redaction_id === derniere; }) && typeof osRedactionsChoisirRedac === 'function'){
+    osRedactionsChoisirRedac(derniere);
+    if(typeof osChoixRedacInitialFait === 'function') osChoixRedacInitialFait();
+    return;
+  }
+  // Aucune rédaction retenue : on ne demande plus rien au lancement d'une appli. Par défaut, la première rédaction locale de la personne
+  // (sinon la première de la liste) ; elle change avec le bouton de l'accueil ou « Changer de rédaction » dans Ma rédac', et est retenue ensuite.
+  var data = window._redactionsData || [];
+  var estNat = function(l){ var r = data.find(function(x){ return x.id === l.redaction_id; }); return !!(r && r.est_nationale); };
+  var choix = (liens || []).find(function(l){ return !estNat(l); }) || (liens || [])[0];
+  if(choix && typeof osRedactionsChoisirRedac === 'function'){
+    osRedactionsChoisirRedac(choix.redaction_id);
+    if(typeof osChoixRedacInitialFait === 'function') osChoixRedacInitialFait();
+    return;
+  }
   var surAccueil = !(typeof osEstMobile === 'function' && osEstMobile());
   try{ if(localStorage.getItem('ipsum_demarrage') === 'bureau') surAccueil = false; }catch(e){}
   var montrer = function(){ if(window._osChoixDiffere === montrer) window._osChoixDiffere = null; _osAfficherSelecteurRedaction(liens, true); };

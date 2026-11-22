@@ -101,7 +101,34 @@ function osBetaFenetresDansMenu(){
   });
   defaut.insertBefore(bloc, defaut.firstChild);
 }
+// Depuis l'accueil, « Toutes les apps » ouvre le menu en pleine page dans le prolongement du tableau de bord, même si la fonction « Menu Démarrer
+// en pleine page » est coupée : la classe n'est posée que le temps de cette ouverture.
+function osBetaMenuPleinTemporaire(){
+  var root = document.documentElement, menu = document.getElementById('os-start-menu');
+  if(!menu || root.classList.contains('beta-menu-plein')) return;
+  root.classList.add('beta-menu-plein');
+  var obs = new MutationObserver(function(){
+    if(menu.classList.contains('visible')) return;
+    root.classList.remove('beta-menu-plein'); obs.disconnect();
+    var b = document.getElementById('sm-fermer'); if(b) b.remove();
+  });
+  obs.observe(menu, { attributes:true, attributeFilter:['class'] });
+}
+
+// Menu en pleine page : un bouton « Fermer » toujours visible en haut à droite (en plus de Échap et du clic dans le vide)
+function osBetaBoutonFermerMenu(){
+  var menu = document.getElementById('os-start-menu'); if(!menu) return;
+  var b = document.getElementById('sm-fermer');
+  if(!document.documentElement.classList.contains('beta-menu-plein')){ if(b) b.remove(); return; }
+  if(b) return;
+  b = document.createElement('button');
+  b.type = 'button'; b.id = 'sm-fermer'; b.title = 'Fermer le menu (Échap)'; b.setAttribute('aria-label', 'Fermer le menu');
+  b.innerHTML = '<i class="ti ti-x"></i> Fermer';
+  b.onclick = function(e){ e.stopPropagation(); menu.classList.remove('visible'); };
+  menu.appendChild(b);
+}
 function osBetaBureauDansMenu(){
+  osBetaBoutonFermerMenu();
   osBetaFenetresDansMenu();
   var ancien = document.getElementById('sm-bureau-bloc'); if(ancien) ancien.remove();
   if(!osBetaActif('bureau-epure')) return;
@@ -139,14 +166,14 @@ function osBetaBureauDansMenu(){
 
 // « Menu en pleine page » : un clic dans le vide ou Échap ferme le menu
 document.addEventListener('click', function(e){
-  if(!osBetaActif('menu-plein')) return;
+  if(!document.documentElement.classList.contains('beta-menu-plein')) return;
   var menu = document.getElementById('os-start-menu');
   if(!menu || !menu.classList.contains('visible')) return;
   var t = e.target;
   if(t === menu || (t.classList && (t.classList.contains('sm-main') || t.id === 'sm-defaut' || t.classList.contains('sm-grid') || t.classList.contains('sm-side')))) menu.classList.remove('visible');
 });
 document.addEventListener('keydown', function(e){
-  if(e.key !== 'Escape' || !osBetaActif('menu-plein')) return;
+  if(e.key !== 'Escape' || !document.documentElement.classList.contains('beta-menu-plein')) return;
   var menu = document.getElementById('os-start-menu');
   if(menu && menu.classList.contains('visible')) menu.classList.remove('visible');
 });
@@ -217,6 +244,7 @@ function osBetaPastille(){
   p.id = 'os-pastille-beta';
   p.setAttribute('role', 'toolbar'); p.setAttribute('aria-label', 'Barre d\'état');
   p.innerHTML = '<button type="button" data-a="accueil" title="Accueil"><i class="ti ti-home"></i></button>'
+    +'<button type="button" data-a="redac" id="pb-redac" class="pb-redac" hidden></button>'
     +'<button type="button" data-a="menu" title="Menu (applications)"><i class="ti ti-layout-grid"></i></button>'
     +'<button type="button" data-a="ensemble" title="Fenêtres ouvertes (Ctrl+Espace)"><i class="ti ti-app-window"></i><b id="pb-nb"></b></button>'
     +'<button type="button" data-a="recherche" title="Rechercher (Ctrl+K)"><i class="ti ti-search"></i></button>'
@@ -229,7 +257,8 @@ function osBetaPastille(){
     if(a === 'accueil'){ if(typeof osAccueilBasculer === 'function') osAccueilBasculer(); }
     else if(a === 'menu'){ setTimeout(function(){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }, 0); }   // après le clic : sinon la fermeture « clic ailleurs » le referme
     else if(a === 'ensemble') osBetaVueEnsemble();
-    else if(a === 'recherche'){ setTimeout(function(){ if(typeof osStartMenuRecherche === 'function') osStartMenuRecherche(); }, 0); }
+    else if(a === 'recherche'){ setTimeout(osBetaRecherche, 0); }
+    else if(a === 'redac'){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); else if(typeof rChangerRedaction === 'function') rChangerRedaction(); }
     else if(a === 'notifs'){ if(typeof osATraiterBasculer === 'function') osATraiterBasculer(); }
     else if(a === 'dispo'){ if(typeof osToggleDND === 'function') osToggleDND(); }
   });
@@ -243,9 +272,59 @@ function osBetaPastilleMaj(){
   var a = document.getElementById('pb-nb'); if(a){ a.textContent = nb || ''; a.style.display = nb ? 'inline-flex' : 'none'; }
   var b = document.getElementById('pb-notifs'); if(b){ b.textContent = n > 99 ? '99+' : (n || ''); b.style.display = n ? 'inline-flex' : 'none'; }
   var d = document.getElementById('pb-dispo'); if(d){ d.classList.toggle('pause', !!window._dndActif); d.title = window._dndActif ? 'En pause' : 'Disponible'; }
-  var h = document.getElementById('pb-heure'); if(h){ var m = new Date(); h.textContent = String(m.getHours()).padStart(2, '0')+':'+String(m.getMinutes()).padStart(2, '0'); }
+  var r = document.getElementById('pb-redac');
+  if(r){
+    var liens = (window._membresRedactionsData || []).filter(function(mr){ return mr.membre_id === getUserId(); });
+    var act = window._redacActiveId && (window._redactionsData || []).filter(function(x){ return x.id === window._redacActiveId; })[0];
+    r.hidden = liens.length <= 1;
+    r.innerHTML = '<i class="ti ti-building-community"></i><span>'+(act ? esc(act.nom || 'Rédaction') : 'Rédaction')+'</span>';
+    r.title = 'Rédaction active : changer';
+  }
+  osBetaHeureMaj();
+}
+// L'heure : au changement de minute, les chiffres qui changent glissent vers le haut
+var _pbHeure = '';
+function osBetaHeureMaj(){
+  var h = document.getElementById('pb-heure'); if(!h) return;
+  var m = new Date(), t = String(m.getHours()).padStart(2, '0')+':'+String(m.getMinutes()).padStart(2, '0');
+  if(t === _pbHeure && h.firstChild) return;
+  var avant = _pbHeure; _pbHeure = t;
+  h.innerHTML = t.split('').map(function(c, i){ return '<span class="pb-ch'+(avant && avant.charAt(i) !== c ? ' pb-roule' : '')+'">'+c+'</span>'; }).join('');
 }
 setInterval(function(){ osBetaPastille(); osBetaPastilleMaj(); }, 2000);
+setInterval(osBetaHeureMaj, 1000);
+
+// Recherche rapide (loupe) : une petite fenêtre centrée sous la pastille, qui filtre les applications ; Entrée ouvre la première
+function osBetaRecherche(){
+  var ex = document.getElementById('os-recherche-beta');
+  if(ex){ ex.remove(); return; }
+  if(typeof osAppsAccessibles !== 'function') return;
+  var apps = osAppsAccessibles();
+  var ov = document.createElement('div'); ov.id = 'os-recherche-beta';
+  ov.innerHTML = '<div class="rb-boite"><div class="rb-champ"><i class="ti ti-search"></i><input type="text" placeholder="Rechercher une application…" autocomplete="off" aria-label="Rechercher une application"></div><div class="rb-liste"></div></div>';
+  document.body.appendChild(ov);
+  var inp = ov.querySelector('input'), liste = ov.querySelector('.rb-liste'), sel = 0, trouves = [];
+  function norm(x){ return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function ouvrir(app){ ov.remove(); if(typeof osOpenWindow === 'function') osOpenWindow(app.id); }
+  function dessiner(){
+    var q = norm(inp.value.trim());
+    trouves = apps.filter(function(a){ return !q || norm(a.label).indexOf(q) !== -1; }).slice(0, 8);
+    if(sel >= trouves.length) sel = 0;
+    liste.innerHTML = trouves.length ? trouves.map(function(a, i){
+      return '<button type="button" data-i="'+i+'" class="rb-app'+(i === sel ? ' sel' : '')+'"><span class="rb-ic" style="background:'+esc(a.color || '#555')+'">'+(a.icon || '')+'</span>'+esc(a.label || '')+'</button>';
+    }).join('') : '<div class="rb-vide">Aucune application trouvée</div>';
+  }
+  inp.addEventListener('input', function(){ sel = 0; dessiner(); });
+  inp.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(sel + 1, trouves.length - 1); dessiner(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(sel - 1, 0); dessiner(); }
+    else if(e.key === 'Enter' && trouves[sel]) ouvrir(trouves[sel]);
+    else if(e.key === 'Escape'){ ov.remove(); }
+  });
+  liste.addEventListener('click', function(e){ var b = e.target.closest('.rb-app'); if(b && trouves[+b.dataset.i]) ouvrir(trouves[+b.dataset.i]); });
+  ov.addEventListener('mousedown', function(e){ if(e.target === ov) ov.remove(); });
+  dessiner(); inp.focus();
+}
 
 // Ctrl+Espace : vue d'ensemble (seulement en mode « sans barre »)
 document.addEventListener('keydown', function(e){
@@ -255,3 +334,20 @@ document.addEventListener('keydown', function(e){
 }, true);
 
 osBetaAppliquer();
+
+// Mode bêta : quand plus aucune application n'est ouverte (fermée ou réduite), le tableau de bord revient
+function _osBetaAccueilSiVide(){
+  setTimeout(function(){
+    if(!osBetaActif()) return;
+    if(typeof _acc === 'undefined' || _acc.ouvert || typeof osAccueilOuvrir !== 'function') return;
+    var ouvertes = Object.keys(window._windows || {}).filter(function(id){ var w = _windows[id]; return w && w.el && w.el.parentNode && !w.el.classList.contains('minimized'); });
+    if(ouvertes.length) return;
+    var m = document.getElementById('os-start-menu'); if(m && m.classList.contains('open')) return;
+    if(document.querySelector('.modal-overlay, #redac-select-overlay, #os-vue-ensemble')) return;
+    osAccueilOuvrir();
+  }, 420);
+}
+['osCloseWindowForce', 'osMinimizeWindow'].forEach(function(nom){
+  var f = window[nom]; if(typeof f !== 'function') return;
+  window[nom] = function(){ var r = f.apply(this, arguments); _osBetaAccueilSiVide(); return r; };
+});

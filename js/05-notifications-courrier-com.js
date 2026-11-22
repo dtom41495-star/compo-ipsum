@@ -969,7 +969,8 @@ function osCloseWindowForce(pageId){
   var el = win.el;
   // La fenêtre se referme en se réduisant vers son icône de la barre des tâches (ou, sans icône, en s'enfonçant légèrement) tout en
   // s'effaçant. La transition est posée avant le changement, sinon le navigateur peut l'appliquer d'un coup.
-  var duree = _osFenetreVersDock(el, dockIcon, 340);
+  // Fermer ne ressemble pas à réduire : la fenêtre s'enfonce sur place et s'efface (réduire, lui, l'envoie vers son icône de la barre, js/75)
+  var duree = _osFenetreVersDock(el, null, 240);
   setTimeout(function(){
     if(el.parentNode) el.parentNode.removeChild(el);
   }, duree + 20);

@@ -88,8 +88,9 @@ function osAccueilApps(){
     // Mode bêta « menu en pleine page » : le menu s'ouvre par-dessus l'accueil (qui est toujours là en dessous quand on le ferme) ;
     // sinon, l'accueil s'efface et le petit menu s'ouvre. Dans les deux cas après le clic : sinon ce même clic, vu comme « à côté du
     // menu », le refermerait aussitôt (js/29, fermeture au clic ailleurs).
-    var pleinePage = typeof osBetaActif === 'function' && osBetaActif('menu-plein');
+    var pleinePage = typeof osBetaActif === 'function' && osBetaActif();   // mode bêta : toujours en pleine page, par-dessus le tableau de bord
     if(!pleinePage) osAccueilFermer();
+    else if(typeof osBetaMenuPleinTemporaire === 'function') osBetaMenuPleinTemporaire();
     setTimeout(function(){
       var menu = document.getElementById('os-start-menu');
       if(typeof osToggleStartMenu === 'function' && !(menu && menu.classList.contains('visible'))) osToggleStartMenu();
@@ -113,7 +114,8 @@ function osAccueilOuvrir(){
 // Applications qui ne dépendent d'aucune rédaction (administration, vie asso, trésorerie, outils…) : les ouvrir ne déclenche pas le choix de
 // la rédaction repoussé depuis le lancement. Les autres (Rédiger, Articles, Ma rédac', Communiqués, Newsletter, Agenda…) le déclenchent.
 var OS_APPS_SANS_REDAC = ['gestion-apps', 'benevoles', 'tresorerie', 'notes-frais', 'cockpit', 'stats-dashboard', 'nettoyage', 'boutique', 'salles',
-  'tutos', 'mail', 'app-dub', 'signatures', 'notes', 'magneto', 'transcrire', 'flouter', 'compteur', 'compo-store', 'upload-medias'];
+  'tutos', 'mail', 'app-dub', 'signatures', 'notes', 'magneto', 'transcrire', 'flouter', 'compteur', 'compo-store', 'upload-medias',
+  'params', 'bugs', 'veille', 'projets', 'carnet', 'snake', 'substack', 'tchat', 'chat', 'lecture', 'guide'];
 function osAppSansRedac(id){ return OS_APPS_SANS_REDAC.indexOf(id) !== -1; }
 
 function osAccueilFermer(sansChoix){
