@@ -1590,22 +1590,7 @@ function osBuildDesktopIcons(){
   guidIcon.appendChild(guidLabel);
   container.appendChild(guidIcon);
 
-  // Icône Substack — ouvre l'app dédiée listant les derniers articles publiés
-  var substackIcon = document.createElement('div');
-  substackIcon.className = 'desktop-icon';
-  substackIcon.onclick = function(){ osOuvrirSubstack(); };
-  var substackImg = document.createElement('div');
-  substackImg.className = 'desktop-icon-img';
-  substackImg.style.background = 'linear-gradient(135deg,#FF6719,#E8461E)';
-  substackImg.style.fontSize = '1.5rem';
-  substackImg.style.color = 'white';
-  substackImg.innerHTML = '<i class="ti ti-news"></i>';
-  var substackLabel = document.createElement('div');
-  substackLabel.className = 'desktop-icon-label';
-  substackLabel.textContent = 'Articles publiés';
-  substackIcon.appendChild(substackImg);
-  substackIcon.appendChild(substackLabel);
-  container.appendChild(substackIcon);
+  // (L'ancienne icône « Articles publiés » du bureau est retirée : la liste est dans Ma rédac', onglet « Publiés », avec les autres rédactions.)
 
   toShow.forEach(function(app){
     var icon = document.createElement('div');
