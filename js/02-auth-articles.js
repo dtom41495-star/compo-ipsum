@@ -1058,7 +1058,7 @@ function osArriveeBureau(forcer){
     var sansSelecteur = 0;
     bureau._osAttenteVeille = setInterval(function(){
       if(window._osChoixRedacInitial !== 'attendu'){ clearInterval(bureau._osAttenteVeille); return; }
-      sansSelecteur = document.getElementById('redac-select-overlay') ? 0 : sansSelecteur + 1;
+      sansSelecteur = (document.getElementById('redac-select-overlay') || window._osChoixDiffere) ? 0 : sansSelecteur + 1;
       if(sansSelecteur >= 3){ clearInterval(bureau._osAttenteVeille); osChoixRedacInitialFait(); }
     }, 2000);
     return;
@@ -1095,25 +1095,14 @@ function lancerCompo(){
   var existing = document.getElementById('compo-loading-screen');
   if(existing) existing.remove();
 
-  // Écran de lancement : « Compo » se compose comme une ligne de caractères en plomb, passe sous le rouleau
-  // encreur, puis le logo d'Ipsum Média apparaît ; la réglette sous la ligne suit le chargement (styles : « ÉCRAN DE LANCEMENT », css/styles.css)
   var loader = document.createElement('div');
   loader.id = 'compo-loading-screen';
   loader.setAttribute('data-sombre-ignore', '');
   loader.setAttribute('role', 'status');
   loader.setAttribute('aria-label', 'Compo démarre');
-  var prenomLancement = (localStorage.getItem('ipsum_user_prenom') || '').trim();
-  loader.innerHTML =
-    '<div class="cl-scene">'
-    +'<div class="cl-casse" aria-hidden="true">'
-    +['C','o','m','p','o'].map(function(l, i){ return '<span class="cl-sorte" style="--i:'+i+'"><span>'+l+'</span></span>'; }).join('')
-    +'<span class="cl-rouleau-cadre"><span class="cl-rouleau"></span></span></div>'
-    +'<div class="cl-reglette"><div id="compo-loading-bar" class="cl-reglette-plein"></div></div>'
-    // Puis la signature : le logo d'Ipsum Média (version blanche en thème sombre)
-    +'<div class="cl-logo"><img class="cl-logo-clair" src="icons/logo-ipsum.png" alt="Ipsum Média"><img class="cl-logo-sombre" src="icons/logo-ipsum-blanc.png" alt=""></div>'
-    +'<div class="cl-bonjour">'+(prenomLancement ? 'Bonjour '+esc(prenomLancement) : 'Bonjour')+'</div>'
-    +'<div id="compo-loading-step" class="cl-etape"></div>'
-    +'</div>';
+  // Plus d'animation : un fond sombre sans rien dessus (la même teinte que l'accueil) qui s'efface dès que tout est prêt.
+  // Seul le message de la file d'attente (serveur surchargé, pas de connexion) et le bouton « Réessayer » s'y affichent.
+  loader.innerHTML = '<div class="cl-scene"><div id="compo-loading-step" class="cl-etape"></div></div>';
   var lancementDebut = Date.now();
   document.body.appendChild(loader);
 
@@ -1126,16 +1115,16 @@ function lancerCompo(){
   };
 
   // Fermer l'ecran de chargement
-  // Fermer l'écran : au moins le temps que la ligne soit composée et le logo affiché (sinon, chargement en cache, on ne les verrait pas),
-  // puis les caractères se lèvent et l'écran s'efface
   var _loadDone = function(){
     var s = document.getElementById('compo-loading-screen');
     if(!s) return;
-    setTimeout(function(){
+    // Directement sur l'accueil (ou le bureau) : on attend l'accueil au plus 1,5 s, puis l'écran sombre s'efface en un clin d'œil
+    var accueilPret = Promise.race([window._wbPret || Promise.resolve(), new Promise(function(r){ setTimeout(r, 1500); })]);
+    accueilPret.then(function(){
       s.classList.add('cl-sortie');
       osArriveeBureau();
-      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 520);
-    }, Math.max(0, 1400 - (Date.now() - lancementDebut)));
+      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 260);
+    });
   };
 
   var roleActuel = getUserRole();

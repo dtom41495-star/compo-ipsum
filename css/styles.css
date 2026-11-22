@@ -5867,8 +5867,8 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 .cl-logo { height: 52px; opacity: 0; transform: translateY(8px) scale(.94); animation: cl-monte .45s cubic-bezier(.3,1.3,.6,1) 900ms forwards; }
 .cl-logo img { height: 100%; width: auto; display: block; }
 .cl-logo .cl-logo-sombre { display: none; }
-:root.theme-dark .cl-logo .cl-logo-clair { display: none; }
-:root.theme-dark .cl-logo .cl-logo-sombre { display: block; }
+.cl-logo .cl-logo-clair { display: none; }
+.cl-logo .cl-logo-sombre { display: block; }
 .cl-bonjour { font: 700 1.05rem/1.2 'Poppins', sans-serif; color: #1A1A2E; opacity: 0; transform: translateY(6px);
   animation: cl-monte .4s ease 1100ms forwards; }
 .cl-etape { min-height: 1.2em; font: .62rem/1.2 'Space Mono', monospace; letter-spacing: .06em; text-transform: uppercase; color: #9CA3AF; }
@@ -5882,13 +5882,13 @@ body.ecr-actif #os-toast-stack { display: none !important; }
 @keyframes cl-rouleau { to { left: 110%; } }
 @keyframes cl-monte { to { opacity: 1; transform: none; } }
 @keyframes cl-leve { to { opacity: 0; transform: translateY(-26px) scale(.96); } }
-/* Thème sombre */
-:root.theme-dark #compo-loading-screen { background: radial-gradient(120% 90% at 50% 40%, #1E1E34 0%, #131320 55%, #0D0D1A 100%); }
-:root.theme-dark .cl-casse { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
-:root.theme-dark .cl-sorte { background: #23233A; box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -6px rgba(0,0,0,.6); }
-:root.theme-dark .cl-sorte > span { -webkit-text-fill-color: #E8E6E1; }
-:root.theme-dark .cl-bonjour { color: #E8E6E1; }
-:root.theme-dark .cl-reglette { background: rgba(255,255,255,.1); }
+/* Toujours sombre : même teinte que l'accueil, pour que l'écran de lancement s'y fonde sans rupture */
+:root #compo-loading-screen, :root.theme-dark #compo-loading-screen { background: radial-gradient(120% 90% at 50% 40%, #1E1E34 0%, #14142A 55%, #0E0E1E 100%); }
+:root .cl-casse, :root.theme-dark .cl-casse { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+:root .cl-sorte, :root.theme-dark .cl-sorte { background: #23233A; box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -6px rgba(0,0,0,.6); }
+:root .cl-sorte > span, :root.theme-dark .cl-sorte > span { -webkit-text-fill-color: #E8E6E1; }
+:root .cl-bonjour, :root.theme-dark .cl-bonjour { color: #E8E6E1; }
+:root .cl-reglette, :root.theme-dark .cl-reglette { background: rgba(255,255,255,.1); }
 /* Sans animation (mouvements réduits, mode léger, mode malvoyant) : la ligne est déjà composée et encrée */
 @media (prefers-reduced-motion: reduce) {
   .cl-sorte, .cl-sorte > span, .cl-rouleau, .cl-bonjour, .cl-logo, #compo-loading-screen.cl-sortie .cl-sorte { animation: none !important; }
@@ -7962,7 +7962,10 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .os-w-da-titre { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 3px 0 2px; font: 600 0.84rem/1.25 'Poppins', sans-serif; }
 .os-w-da em { display: block; font: 400 0.64rem 'DM Sans', sans-serif; font-style: normal; color: rgba(255,255,255,0.6); }
 /* Boutique de widgets */
-.wb-boite { max-width: 560px; }
+.wb-boite { max-width: 560px; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+.wb-boite .wb-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.wb-demarrage { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 11px 14px; border: 1px solid var(--gris-bord); border-radius: 12px; background: var(--gris-clair, #f3f2f0); font-size: .8rem; font-weight: 600; color: var(--encre); cursor: pointer; }
+.wb-demarrage input { width: 18px; height: 18px; margin: 0; flex-shrink: 0; accent-color: var(--rouge, #E8461E); cursor: pointer; }
 .wb-grille { display: flex; flex-direction: column; gap: .55rem; }
 .wb-carte { display: flex; align-items: center; gap: .8rem; padding: .7rem .8rem; border: 1px solid var(--gris-bord); border-radius: 12px; background: #fff; }
 .wb-carte.bientot { opacity: .6; }
@@ -8025,7 +8028,7 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .os-w-no-titre { margin-top: 2px; font: 600 0.78rem 'Poppins', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ===== Écran d'accueil en plein écran (js/96-accueil.js) ===== */
-#os-accueil { position: fixed; top: 0; left: 0; right: 0; bottom: var(--dock-h); z-index: 2000; display: none; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+#os-accueil { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; display: none; overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
   padding: 26px clamp(18px, 4vw, 56px) 30px; background: rgba(14,14,30,0.66); backdrop-filter: blur(28px) saturate(140%); -webkit-backdrop-filter: blur(28px) saturate(140%); color: #fff; }
 #os-accueil.visible { display: block; animation: acc-entree .35s cubic-bezier(.2,.9,.3,1) both; }
 @keyframes acc-entree { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
@@ -8044,7 +8047,7 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 #os-accueil .os-widgets-barre .acc-bureau { background: #fff; color: #1a1a2e; border-color: #fff; font-weight: 700; }
 #os-accueil .os-widgets-barre .acc-bureau:hover { background: #f1f1f4; }
 /* La grille : 8 colonnes de cases carrées */
-#os-accueil .os-widgets { --wb-cell: clamp(78px, calc((min(100vw - 112px, 1240px) - 84px) / 8), 144px); grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: var(--wb-cell); gap: 12px; margin-top: 0; }
+#os-accueil .os-widgets { --wb-cell: clamp(78px, calc((min(100vw - 112px, 1240px) - 84px) / 8), 144px); grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: calc((var(--wb-cell) - 12px) / 2); gap: 12px; margin-top: 0; }
 #os-accueil .os-w-wid { padding: 0.7rem 0.95rem; }
 #os-accueil .os-widgets:empty::before { content: 'Ton accueil est vide : ajoute des widgets avec le bouton « Widgets ».'; grid-column: 1 / -1; padding: 2rem; text-align: center; color: rgba(255,255,255,0.6); font-size: .85rem; }
 /* Applications épinglées */
@@ -8057,10 +8060,10 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 .acc-app-l { font-size: .7rem; text-align: center; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* Widgets : contenus un peu plus grands sur l'accueil */
 .os-w-nt-l { display: flex; align-items: center; gap: 14px; }
-.os-w-nt-ic { width: 46px; height: 46px; border-radius: 14px; background: #E8461E; display: grid; place-items: center; font-size: 1.5rem; flex-shrink: 0; }
-.os-w-nt-l strong { display: block; font: 700 1.15rem 'Poppins', sans-serif; }
-.os-w-nt-l em { display: block; font-size: .8rem; color: rgba(255,255,255,0.7); }
-.os-w-nt-go { margin-left: auto; font: 700 .9rem 'Poppins', sans-serif; }
+.os-w-nt-ic { width: 36px; height: 36px; border-radius: 11px; background: #E8461E; display: grid; place-items: center; font-size: 1.2rem; flex-shrink: 0; }
+.os-w-nt-l strong { display: block; font: 700 .95rem/1.2 'Poppins', sans-serif; }
+.os-w-nt-l em { display: block; font-size: .72rem; color: rgba(255,255,255,0.7); }
+.os-w-nt-go { margin-left: auto; font: 700 .8rem 'Poppins', sans-serif; }
 .os-w-nt, .os-w-hp, .os-w-ag, .os-w-ma, .os-w-pb, .os-w-rc { cursor: pointer; }
 .os-w-hp-l { display: flex; gap: 14px; margin-top: 4px; }
 .os-w-hp-l b { display: block; font: 800 1.4rem/1.1 'Poppins', sans-serif; }
@@ -8084,3 +8087,21 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 #os-accueil .os-w-wid small { font-size: .62rem; margin-bottom: 4px; }
 #os-accueil .os-w-ry-nb, #os-accueil .os-w-hp-l b { font-size: 1.8rem; }
 #os-accueil .os-w-au-nb { font-size: 1.9rem; }
+
+/* L'accueil prend tout l'écran : pas de barre des tâches tant qu'on y est (le bouton « Bureau » en haut en sort) */
+body.accueil-ouvert #os-dock, body.accueil-ouvert #os-dock-poignee, body.accueil-ouvert #os-dock-bord { visibility: hidden; pointer-events: none; }
+/* Arrivée au lancement : l'écran blanc « Compo / Bonjour » se dissout, l'accueil (déjà là dessous) se pose, tuiles l'une après l'autre */
+body.acc-arrivee #os-accueil.visible { animation: none; }
+body.acc-arrivee #compo-loading-screen.cl-sortie { transition-duration: .85s; transition-delay: .25s; }
+body.acc-arrivee #os-accueil .os-w-wid, body.acc-arrivee #os-accueil .acc-app, body.acc-arrivee #os-accueil .acc-tete > * {
+  animation: acc-tuile .6s cubic-bezier(.2,.9,.3,1) calc(250ms + var(--acc-i, 0) * 55ms) both; }
+body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600ms both; }
+@keyframes acc-tuile { from { opacity: 0; translate: 0 26px; scale: .96; } to { opacity: 1; translate: 0 0; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { body.acc-arrivee #os-accueil * { animation: none !important; } }
+:root.mode-leger body.acc-arrivee #os-accueil *, :root.mode-malvoyant body.acc-arrivee #os-accueil * { animation: none !important; }
+
+/* Écran de lancement sans animation : fond sombre uni, qui s'efface vite. Le texte n'apparaît que pour la file d'attente. */
+#compo-loading-screen { background: #0E0E1E; transition: opacity .2s ease; }
+#compo-loading-screen.cl-sortie { opacity: 0; transition-delay: 0s; }
+#compo-loading-screen .cl-etape { visibility: hidden; color: #C9C7D6; }
+#compo-loading-screen .cl-etape.cl-etape-attente { visibility: visible; }
