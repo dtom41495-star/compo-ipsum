@@ -78,7 +78,7 @@ function _recrutementOuvrirDetail(a, surface){
   modal.id = 'recrut-detail-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
   modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-  modal.innerHTML = '<div style="background:white;border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
+  modal.innerHTML = '<div class="recrut-detail-panel" style="border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
     +'<div style="padding:1.3rem 1.5rem 1.1rem;border-bottom:1px solid var(--gris-bord);">'
     +(a.commissions?'<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:3px 9px;margin-bottom:.6rem;">'+esc(a.commissions.nom)+'</span>':'')
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;line-height:1.3;color:var(--encre);">'+esc(a.titre)+'</div>'
