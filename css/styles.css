@@ -8170,3 +8170,7 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 @media (prefers-reduced-motion: reduce) { .cc svg { animation: none !important; } .cc svg:first-child { transform: none; opacity: 1; } }
 :root.mode-leger .cc svg, :root.mode-malvoyant .cc svg { animation: none !important; }
 :root.mode-leger .cc svg:first-child, :root.mode-malvoyant .cc svg:first-child { transform: none; opacity: 1; }
+
+/* Écran de démarrage d'une application (fenêtre) : les quatre pictos, plus petits et plus rapides (js/76-splash-applis.js) */
+.fen-splash .cc-splash { --cc-t: 3.2s; width: 46px; height: 82px; margin-top: -4px; }
+.fen-splash .cc-splash svg { height: 46px; }
