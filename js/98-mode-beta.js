@@ -101,11 +101,25 @@ function osBetaFenetresDansMenu(){
   });
   defaut.insertBefore(bloc, defaut.firstChild);
 }
+// Depuis l'accueil, « Toutes les apps » ouvre le menu en pleine page dans le prolongement du tableau de bord, même si la fonction « Menu Démarrer
+// en pleine page » est coupée : la classe n'est posée que le temps de cette ouverture.
+function osBetaMenuPleinTemporaire(){
+  var root = document.documentElement, menu = document.getElementById('os-start-menu');
+  if(!menu || root.classList.contains('beta-menu-plein')) return;
+  root.classList.add('beta-menu-plein');
+  var obs = new MutationObserver(function(){
+    if(menu.classList.contains('visible')) return;
+    root.classList.remove('beta-menu-plein'); obs.disconnect();
+    var b = document.getElementById('sm-fermer'); if(b) b.remove();
+  });
+  obs.observe(menu, { attributes:true, attributeFilter:['class'] });
+}
+
 // Menu en pleine page : un bouton « Fermer » toujours visible en haut à droite (en plus de Échap et du clic dans le vide)
 function osBetaBoutonFermerMenu(){
   var menu = document.getElementById('os-start-menu'); if(!menu) return;
   var b = document.getElementById('sm-fermer');
-  if(!osBetaActif('menu-plein')){ if(b) b.remove(); return; }
+  if(!document.documentElement.classList.contains('beta-menu-plein')){ if(b) b.remove(); return; }
   if(b) return;
   b = document.createElement('button');
   b.type = 'button'; b.id = 'sm-fermer'; b.title = 'Fermer le menu (Échap)'; b.setAttribute('aria-label', 'Fermer le menu');
@@ -152,14 +166,14 @@ function osBetaBureauDansMenu(){
 
 // « Menu en pleine page » : un clic dans le vide ou Échap ferme le menu
 document.addEventListener('click', function(e){
-  if(!osBetaActif('menu-plein')) return;
+  if(!document.documentElement.classList.contains('beta-menu-plein')) return;
   var menu = document.getElementById('os-start-menu');
   if(!menu || !menu.classList.contains('visible')) return;
   var t = e.target;
   if(t === menu || (t.classList && (t.classList.contains('sm-main') || t.id === 'sm-defaut' || t.classList.contains('sm-grid') || t.classList.contains('sm-side')))) menu.classList.remove('visible');
 });
 document.addEventListener('keydown', function(e){
-  if(e.key !== 'Escape' || !osBetaActif('menu-plein')) return;
+  if(e.key !== 'Escape' || !document.documentElement.classList.contains('beta-menu-plein')) return;
   var menu = document.getElementById('os-start-menu');
   if(menu && menu.classList.contains('visible')) menu.classList.remove('visible');
 });

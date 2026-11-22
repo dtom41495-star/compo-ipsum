@@ -8238,7 +8238,7 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
   :root.beta-menu-plein .sm-app-label { font-size: .72rem; }
   :root.beta-menu-plein .sm-side { padding: 4vh 18px 18px; background: rgba(255,255,255,.04); }
   /* La barre des tâches reste visible, même quand le menu s'ouvre depuis l'accueil */
-  :root.beta-menu-plein body.accueil-ouvert:has(#os-start-menu.visible) #os-dock { visibility: visible; pointer-events: auto; }
+  :root.beta-menu-plein body.accueil-ouvert #os-start-menu { bottom: 0; }
 }
 :root.mode-leger.beta-menu-plein #os-start-menu { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(14,14,30,.97); }
 
