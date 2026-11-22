@@ -144,16 +144,19 @@ function osPoulsCharger(){
   var widget = document.getElementById('os-clock-widget');
   if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
   var r = _poulsRedacActive();
-  // La newsletter est celle de la rédaction nationale : son compte à rebours et ses brèves prêtes ne dépendent pas de la rédaction affichée
+  // Jamais la somme de toutes les rédactions : la newsletter est celle d'UNE rédaction. Rédaction choisie : la sienne ; aucune choisie
+  // (accueil, choix repoussé) : la rédaction nationale, ou à défaut la première rédaction de la personne.
   var nat = (window._redactionsData || []).filter(function(x){ return x.est_nationale; })[0];
-  var natId = nat ? nat.id : null;
+  var uid = getUserId();
+  var mienne = (window._membresRedactionsData || []).filter(function(l){ return l.membre_id === uid; })[0];
+  var cible = r || (nat && nat.id) || (mienne && mienne.redaction_id) || null;
   var cadran = _poulsChargerPour(r).then(function(d){
     if(!d) return null;
     _pouls.dernier = d;
-    if(!natId || natId === r) _pouls.national = d;
+    if(cible === r) _pouls.national = d;
     return d;
   });
-  var newsletter = (natId && natId !== r) ? _poulsChargerPour(natId).then(function(d){ if(d) _pouls.national = d; }) : Promise.resolve();
+  var newsletter = (cible && cible !== r) ? _poulsChargerPour(cible).then(function(d){ if(d) _pouls.national = d; }) : Promise.resolve();
   return Promise.all([cadran, newsletter]).then(function(){ osPoulsRendre(); }).catch(function(){});
 }
 
