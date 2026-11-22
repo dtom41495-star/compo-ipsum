@@ -207,6 +207,18 @@ function _poulsRetirer(){
   var c = document.getElementById('os-w-pouls'); if(c) c.remove();
 }
 
+// Petit cadran de compteur : un demi-cercle vert, orange, rouge et une aiguille qui tourne de -90° (score 0) à +90° (score 100)
+function _poulsCadran(score){
+  var cx = 32, cy = 32, r = 25;
+  var pt = function(sc){ var a = sc * 1.8 * Math.PI / 180; return (cx - r * Math.cos(a)).toFixed(2)+' '+(cy - r * Math.sin(a)).toFixed(2); };
+  var arc = function(de, a, coul){ return '<path d="M'+pt(de)+' A'+r+' '+r+' 0 0 1 '+pt(a)+'" fill="none" stroke="'+coul+'" stroke-width="5"/>'; };
+  var angle = Math.max(0, Math.min(100, score)) * 1.8 - 90;
+  return '<svg class="os-w-pouls-cadran" viewBox="0 0 64 38" width="58" height="34" aria-hidden="true">'
+    +arc(0, 29.5, '#5BD39A')+arc(30.5, 64.5, '#FFB43C')+arc(65.5, 100, '#FF6A55')
+    +'<g class="os-w-pouls-aiguille" style="transform:rotate('+angle+'deg);transform-origin:'+cx+'px '+cy+'px"><line x1="'+cx+'" y1="'+cy+'" x2="'+cx+'" y2="'+(cy - r + 5)+'" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#fff"/></svg>';
+}
+
 function osPoulsRendre(){
   var widget = document.getElementById('os-clock-widget');
   var m = _pouls.dernier;
@@ -228,7 +240,8 @@ function osPoulsRendre(){
   carte.setAttribute('aria-label', 'La rédac : '+etat.mot+'. Voir le détail');
   carte.setAttribute('role', 'button');
   carte.tabIndex = 0;
-  carte.innerHTML = '<small>La rédac</small><b>'+etat.mot+'</b><div class="os-w-pouls-regle"><i style="left:'+m.score+'%"></i></div>';
+  carte.innerHTML = _poulsCadran(m.score)
+    +'<div class="os-w-pouls-txt"><small>La rédac</small><span class="os-w-pouls-mot">'+etat.mot+'</span></div>';
   if(document.getElementById('os-pouls-pop')) _poulsDetailRemplir();  // détail ouvert : il se met à jour
 }
 

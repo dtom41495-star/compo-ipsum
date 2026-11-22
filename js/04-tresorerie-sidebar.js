@@ -339,8 +339,7 @@ function osWidgetPastilles(){
     }
     if(inactifs.length) ajouter('ti-user-off', 'Vie associative', inactifs.length+' membre'+(inactifs.length>1?'s':'')+' noté'+(inactifs.length>1?'s':'')+' inactif'+(inactifs.length>1?'s':''), "osOpenWindow('benevoles')", true);
     if(cand.length) ajouter('ti-user-plus', 'Bénévoles', cand.length+' nouvelle'+(cand.length>1?'s':'')+' candidature'+(cand.length>1?'s':''), "osOpenWindow('benevoles')");
-    var nv = (typeof _bureauNonLus !== 'undefined' && _bureauNonLus.veille) || 0;
-    if(nv) ajouter('ti-rss', 'Veille', nv+' article'+(nv>1?'s':'')+' non lu'+(nv>1?'s':''), "osOpenWindow('veille')");
+    // La veille n'est plus annoncée ici : un compte d'articles non lus (195 mi-novembre) n'est pas une tâche et décourage ; l'icône de la veille garde son repère.
     // Quand il n'y a rien de pressant (ou en complément) : la vie de la rédaction
     if(publiesMois.length) ajouter('ti-news', 'Ce mois-ci', publiesMois.length+' article'+(publiesMois.length>1?'s':'')+' publié'+(publiesMois.length>1?'s':''), "osOpenWindow('mes-articles')");
     if(dernier && dernier.titre) ajouter('ti-circle-check', 'Dernier article en ligne', String(dernier.titre), "osOpenWindow('mes-articles')");
