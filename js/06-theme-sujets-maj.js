@@ -1167,6 +1167,9 @@ function osParamsRenderSection(section, container){
     rowLeger.appendChild(legerAction);
     container.appendChild(rowLeger);
 
+    // Mode bêta global : les fonctions en test (js/98-mode-beta.js)
+    if(typeof osBetaConstruireLigne === 'function') osBetaConstruireLigne(container);
+
     // Position des icônes de la barre des tâches
     var rowDockAlign = document.createElement('div');
     rowDockAlign.className = 'params-row';

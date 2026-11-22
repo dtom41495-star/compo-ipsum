@@ -142,6 +142,7 @@ function osStartMenuRender(){
   }
   _smAppliquerCategorie();
   _smRecentsRendre(appsAff);
+  if(typeof osBetaBureauDansMenu === 'function') osBetaBureauDansMenu();   // mode bêta « Bureau épuré » : les icônes du bureau, dans le menu
 }
 
 function _smAppliquerCategorie(){

@@ -84,7 +84,17 @@ function osAccueilApps(){
   var tout = document.createElement('button');
   tout.type = 'button'; tout.className = 'acc-app acc-app-tout';
   tout.innerHTML = '<span class="acc-app-ic"><i class="ti ti-apps"></i></span><span class="acc-app-l">Toutes les apps</span>';
-  tout.onclick = function(){ osAccueilFermer(); if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); };
+  tout.onclick = function(){
+    // Mode bêta « menu en pleine page » : le menu s'ouvre par-dessus l'accueil (qui est toujours là en dessous quand on le ferme) ;
+    // sinon, l'accueil s'efface et le petit menu s'ouvre. Dans les deux cas après le clic : sinon ce même clic, vu comme « à côté du
+    // menu », le refermerait aussitôt (js/29, fermeture au clic ailleurs).
+    var pleinePage = typeof osBetaActif === 'function' && osBetaActif('menu-plein');
+    if(!pleinePage) osAccueilFermer();
+    setTimeout(function(){
+      var menu = document.getElementById('os-start-menu');
+      if(typeof osToggleStartMenu === 'function' && !(menu && menu.classList.contains('visible'))) osToggleStartMenu();
+    }, 0);
+  };
   z.appendChild(tout);
 }
 
