@@ -46,11 +46,32 @@
       e.parentNode.replaceChild(h.firstChild, e);
     });
   }
+  // Les messages de chargement qui n'étaient que du texte (« Chargement… », « Envoi… »…) reçoivent l'animation : en grand si le message est seul
+  // dans sa zone, en petit s'il est à côté d'autre chose (bouton, ligne). Pas dans les bulles de notification.
+  var MOT = /^(Chargement|Envoi|Enregistrement|Sauvegarde|Un instant|Vérification|Connexion|Création|Lecture|Relevé|Ouverture)[^<]{0,60}(\.\.\.|…)$/;
+  function textes(racine){
+    if(!racine.querySelectorAll || racine.closest && racine.closest('#os-toast-stack, [class*="toast"], #compo-loading-screen')) return;
+    var w = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT, null), n, liste = [];
+    while((n = w.nextNode())){
+      var t = n.nodeValue.trim();
+      if(t.length > 5 && t.length < 90 && MOT.test(t)) liste.push(n);
+    }
+    liste.forEach(function(n){
+      var par = n.parentNode;
+      if(!par || par.nodeType !== 1 || /^(SCRIPT|STYLE|OPTION|TEXTAREA|TITLE)$/.test(par.tagName)) return;
+      if(par.closest('#os-toast-stack, [class*="toast"], .cc, #compo-loading-screen') || par.querySelector(':scope > .cc')) return;
+      var seul = par.childNodes.length === 1 && !/^(BUTTON|A|SPAN|I|LABEL|B|STRONG|EM)$/.test(par.tagName);
+      var h = document.createElement('span');
+      h.innerHTML = window.osChargeurHtml(seul ? 'cc-bloc' : 'cc-petit', 'Chargement');
+      par.insertBefore(h.firstChild, n);
+      if(!seul) par.insertBefore(document.createTextNode(' '), n);
+    });
+  }
   function demarrer(){
     sprite();
-    remplacer(document.body);
+    remplacer(document.body); textes(document.body);
     new MutationObserver(function(muts){
-      muts.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes, remplacer); });
+      muts.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes, function(a){ remplacer(a); if(a.nodeType === 1) textes(a); else if(a.nodeType === 3 && a.parentNode && a.parentNode.nodeType === 1) textes(a.parentNode); }); });
     }).observe(document.body, { childList:true, subtree:true });
   }
   if(document.body) demarrer(); else document.addEventListener('DOMContentLoaded', demarrer);
