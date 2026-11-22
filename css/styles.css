@@ -7923,3 +7923,10 @@ html.connexion-en-cours .os-login-google, html.connexion-en-cours .os-login-erro
 
 /* Légende d'une image dans l'éditeur : affichée sous la photo, sans entrer dans le texte enregistré */
 #r-corps-live [data-leg]::after{content:attr(data-leg);display:block;font-style:italic;font-size:.85rem;color:var(--gris);text-align:center;margin:-.2rem 0 .8rem}
+
+/* Message qui reste affiché en haut de la lecture après avoir relu ou validé un texte */
+.lx-bandeau{display:flex;align-items:center;gap:.6rem;margin:.8rem auto 0;max-width:680px;box-sizing:border-box;padding:.7rem .9rem;border-radius:10px;background:#E7F6EC;border:1px solid #B7E1C4;color:#14532D;font-size:.82rem}
+.lx-bandeau i{font-size:1.1rem;flex-shrink:0}
+.lx-bandeau span{flex:1;min-width:0}
+.lx-bandeau-x{border:none;background:transparent;color:inherit;cursor:pointer;padding:2px;display:flex}
+@media (max-width:768px){ .lx-bandeau{margin:.6rem .8rem 0} }

@@ -1263,7 +1263,15 @@ function renderLecture(){
   // Supprimer : admin sur tout, auteur·rice tant que l'article n'est pas bon à publier
   var peutSupprimerLect = getUserRole()==='admin' || (estAuteurLect && ['brouillon','en-relecture','corrige'].indexOf(s)!==-1);
 
+  // Message qui reste affiché après avoir relu ou validé ce texte (voir rWorkflowAvancer) : l'éditeur n'est plus là pour le montrer
+  var bandeau = '';
+  if(window._lectBandeau && Date.now() - window._lectBandeau.at > 60000) window._lectBandeau = null;   // trop ancien : n'a plus lieu d'être
+  if(window._lectBandeau && window._lectBandeau.id === doc.id){
+    bandeau = '<div class="lx-bandeau" role="status"><i class="ti ti-circle-check"></i><span>'+esc(window._lectBandeau.texte)+'</span>'
+      +'<button type="button" class="lx-bandeau-x" aria-label="Fermer" onclick="window._lectBandeau=null;this.parentNode.remove();"><i class="ti ti-x"></i></button></div>';
+  }
   cont.innerHTML = h
+    +bandeau
     +'<article class="art-preview lx-article" id="art-preview">'+a+'</article>'
     +'<div class="lx-bas">'+(peutSupprimerLect ? '<button class="mac-btn mac-btn-refus" onclick="maOsSupprimer(\''+esc(doc.id)+'\')"><i class="ti ti-trash"></i> Supprimer l\'article</button>' : '')+'</div>'
     +'<div class="md-out" id="md-lect"></div>';
