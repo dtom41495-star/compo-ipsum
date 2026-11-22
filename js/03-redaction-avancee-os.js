@@ -20,6 +20,22 @@ function _recrutementTexteBrut(md){
     .trim();
 }
 
+// Aperçu de la carte : sans les titres de section (« Présentation de la mission » se collait à la phrase suivante), la première phrase
+// complète si elle tient, sinon coupée proprement sur un mot.
+function _recrutementApercu(md){
+  if(!md) return '';
+  var lignes = String(md).split(/\n/).filter(function(l){
+    var t = l.trim();
+    return t && !/^#{1,6}\s/.test(t) && !/^\*\*[^*]+\*\*:?$/.test(t);
+  });
+  var txt = _recrutementTexteBrut(lignes.join('\n'));
+  if(txt.length <= 150) return txt;
+  var m = txt.slice(0, 170).match(/^(.{60,170}?[.!?])(\s|$)/);
+  if(m) return m[1];
+  var coupe = txt.slice(0, 150), esp = coupe.lastIndexOf(' ');
+  return (esp > 80 ? coupe.slice(0, esp) : coupe).trim()+'…';
+}
+
 // Carte cliquable de la liste — `a` doit porter `a.mesCandidature` (statut de candidature
 // du membre courant, ou null) posé par l'appelant avant le rendu. `opts.surface` ('benv'
 // ou 'redac') détermine quel global _recrutementOuvrirDetailParId ira relire au clic.
@@ -27,8 +43,7 @@ function _recrutementCarteHTML(a, opts){
   opts = opts || {};
   var estOuvert = a.statut === 'ouvert';
   var dateStr = a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '';
-  var excerpt = _recrutementTexteBrut(a.description);
-  if(excerpt.length > 140) excerpt = excerpt.slice(0,140).trim()+'…';
+  var excerpt = _recrutementApercu(a.description);
   var statutTexte = '';
   if(a.mesCandidature){
     statutTexte = {en_attente:'Candidature en attente',accepte:'Candidature acceptée',refuse:'Candidature refusée'}[a.mesCandidature] || '';
@@ -39,14 +54,15 @@ function _recrutementCarteHTML(a, opts){
   if(opts.nonVue) r += '<div style="width:7px;height:7px;border-radius:50%;background:var(--rouge);flex-shrink:0;margin-top:6px;"></div>';
   r += '<div style="flex:1;min-width:0;">';
   r += '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:0.88rem;color:var(--encre);">'+esc(a.titre)+'</div>';
-  if(a.commissions) r += '<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:.04em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:2px 8px;margin-top:4px;">'+esc(a.commissions.nom)+'</span>';
+  if(a.commissions) r += '<span style="display:inline-block;font-family:\'DM Sans\',sans-serif;font-size:0.72rem;font-weight:600;color:var(--rouge);background:#FBE7E0;border-radius:999px;padding:2px 10px;margin-top:5px;">'+esc(a.commissions.nom)+'</span>';
   if(excerpt) r += '<div style="font-size:0.76rem;color:var(--gris);margin-top:5px;line-height:1.5;">'+esc(excerpt)+'</div>';
-  r += '<div style="font-family:Space Mono,monospace;font-size:0.58rem;color:var(--gris);margin-top:5px;">'+(estOuvert?'Publié le '+dateStr:'Publié le '+dateStr+' · Fermé')+(statutTexte?' · '+statutTexte:'')+'</div>';
+  r += '<div style="font-family:\'DM Sans\',sans-serif;font-size:0.74rem;color:var(--gris);margin-top:6px;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;"><span>'+(estOuvert?'Publié le '+dateStr:'Publié le '+dateStr+' · Fermé')+(statutTexte?' · '+statutTexte:'')+'</span>'
+    +(estOuvert && !a.mesCandidature ? '<span style="margin-left:auto;color:var(--rouge);font-weight:700;">Voir le poste</span>' : '')+'</div>';
   r += '</div>';
   if(opts.compteCandidatures && opts.compteCandidatures.total){
-    r += '<span style="font-family:Space Mono,monospace;font-size:0.6rem;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0;white-space:nowrap;background:'+(opts.compteCandidatures.enAttente?'#FFF3CD':'#F5F5F5')+';color:'+(opts.compteCandidatures.enAttente?'#856404':'#6c757d')+';">'+opts.compteCandidatures.total+(opts.compteCandidatures.enAttente?' · '+opts.compteCandidatures.enAttente+' en attente':'')+'</span>';
+    r += '<span style="font-family:\'DM Sans\',sans-serif;font-size:0.72rem;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0;white-space:nowrap;background:'+(opts.compteCandidatures.enAttente?'#FFF3CD':'#F5F5F5')+';color:'+(opts.compteCandidatures.enAttente?'#856404':'#6c757d')+';">'+opts.compteCandidatures.total+(opts.compteCandidatures.enAttente?' · '+opts.compteCandidatures.enAttente+' en attente':'')+'</span>';
   }
-  r += '<span style="color:var(--gris);font-size:0.85rem;flex-shrink:0;margin-top:2px;">→</span>';
+  r += '<i class="ti ti-chevron-right" style="color:var(--gris);font-size:1rem;flex-shrink:0;margin-top:2px;"></i>';
   r += '</div>';
   return r;
 }
@@ -74,22 +90,32 @@ function _recrutementOuvrirDetail(a, surface){
   }
   actionsHtml += (surface==='benv' ? _recrutementActionsBenv(a) : _recrutementActionsRedac(a));
 
+  // En-tête (rédaction concernée, titre, date, contact), corps (description en markdown) et actions (Candidater…)
+  var mail = a.email_contact ? '<a href="mailto:'+esc(a.email_contact)+'" onclick="event.stopPropagation()" style="color:var(--rouge);text-decoration:none;font-weight:600;"><i class="ti ti-mail"></i> '+esc(a.email_contact)+'</a>' : '';
+  var entete = '<div class="recrut-fiche-entete">'
+    +(a.commissions?'<span style="display:inline-block;font-family:\'DM Sans\',sans-serif;font-size:0.76rem;font-weight:600;color:var(--rouge);background:#FBE7E0;border-radius:999px;padding:3px 11px;margin-bottom:.6rem;">'+esc(a.commissions.nom)+'</span>':'')
+    +'<div class="recrut-fiche-titre">'+esc(a.titre)+'</div>'
+    +'<div class="recrut-fiche-meta"><span><i class="ti ti-calendar"></i> Publié le '+dateStr+'</span>'+(mail ? '<span>'+mail+'</span>' : '')+(!estOuvert?'<span>Fermé</span>':'')+'</div></div>';
+  var corps = '<div class="art-corps recrut-fiche-corps">'+(a.description?mdVersHtml(a.description):'<span style="color:var(--gris);font-style:italic;">Pas de description.</span>')+'</div>';
+  var mobile = typeof osEstMobile === 'function' && osEstMobile();
+
   var modal = document.createElement('div');
   modal.id = 'recrut-detail-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-  modal.innerHTML = '<div style="background:white;border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
-    +'<div style="padding:1.3rem 1.5rem 1.1rem;border-bottom:1px solid var(--gris-bord);">'
-    +(a.commissions?'<span style="display:inline-block;font-family:Space Mono,monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--rouge);background:#FBE7E0;border-radius:8px;padding:3px 9px;margin-bottom:.6rem;">'+esc(a.commissions.nom)+'</span>':'')
-    +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.1rem;line-height:1.3;color:var(--encre);">'+esc(a.titre)+'</div>'
-    +'<div style="display:flex;gap:1rem;margin-top:.6rem;font-family:Space Mono,monospace;font-size:.65rem;color:var(--gris);flex-wrap:wrap;">'
-    +'<span><i class="ti ti-calendar"></i> Publié le '+dateStr+'</span>'
-    +(a.email_contact?'<span><i class="ti ti-mail"></i> '+esc(a.email_contact)+'</span>':'')
-    +(!estOuvert?'<span>Fermé</span>':'')
-    +'</div></div>'
-    +'<div class="art-corps" style="padding:1.3rem 1.5rem;font-size:.86rem;">'+(a.description?mdVersHtml(a.description):'<span style="color:var(--gris);font-style:italic;">Pas de description.</span>')+'</div>'
-    +'<div style="padding:1rem 1.5rem;background:var(--gris-clair);border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">'+actionsHtml+'</div>'
-    +'</div>';
+  if(mobile){
+    // Téléphone : une page entière (comme les autres écrans, avec son retour en haut), le bouton d'action toujours visible en bas
+    modal.className = 'recrut-page';
+    modal.innerHTML = '<div class="recrut-page-barre"><button type="button" class="recrut-page-retour"><i class="ti ti-chevron-left"></i> Postes ouverts</button></div>'
+      +'<div class="recrut-page-defil">'+entete+corps+'</div>'
+      +(actionsHtml ? '<div class="recrut-page-actions">'+actionsHtml+'</div>' : '');
+    modal.querySelector('.recrut-page-retour').onclick = function(){ modal.remove(); };
+  } else {
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+    modal.innerHTML = '<div class="recrut-detail-panel" style="border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
+      +entete+corps
+      +'<div style="padding:1rem 1.5rem;background:var(--gris-clair);border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">'+actionsHtml+'</div>'
+      +'</div>';
+  }
   document.body.appendChild(modal);
 }
 

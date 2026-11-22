@@ -1436,6 +1436,7 @@ function osRedactionsChoisirRedac(redacId){
   if(typeof cpsChargerBadge === 'function') cpsChargerBadge();
   if(typeof _accueilChargerCompteurs === 'function') _accueilChargerCompteurs();
   if(typeof osWidgetsRedacChangee === 'function') osWidgetsRedacChangee();   // les widgets de l'accueil suivent la rédaction choisie
+  if(window._windows && _windows['mes-articles'] && typeof maOsFiltre === 'function'){ try{ maOsFiltre(); }catch(e){} }   // « Mes articles » aussi
 }
 
 // ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----

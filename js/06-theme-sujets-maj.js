@@ -344,6 +344,7 @@ function osMesArticlesMajClignotement(){
 function osMesArticlesChargerACorriger(){
   var uid = getUserId();
   if(!uid || uid === 'undefined' || !_session || !_session.access_token) return;
+  if(typeof osPeutRelire === 'function' && !osPeutRelire()){ _corrAArticleACorriger = false; return; }   // ni admin ni SR : aucune relecture à lui demander
   var authH = Object.assign({}, SB_HEADERS, {'Authorization':'Bearer '+_session.access_token});
   fetch(SB_URL+'/rest/v1/articles?correcteur_id=eq.'+encodeURIComponent(uid)+'&statut=eq.en-relecture&select=id&limit=1', {headers:authH})
   .then(function(r){ return r.json(); })

@@ -1273,6 +1273,7 @@ function osVeilleToutMarquerLu(){
 
 // Appelée au démarrage (comme cpsChargerBadge) pour le badge du dock, sans ouvrir l'app.
 function osVeilleChargerBadge(){
+  if(typeof _veilleWidgetPermis === 'function' && !_veilleWidgetPermis()) return;   // rôle sans Veille (rédac chef, communicant) : pas de badge à calculer
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
   fetch(SB_URL+'/rest/v1/veille_articles?select=id&order=date_publication.desc.nullslast&limit=200',{headers:authH})
   .then(function(r){return r.json();})
