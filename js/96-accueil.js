@@ -67,36 +67,12 @@ function osAccueilRedacMaj(){
   b.title = active ? 'Changer de rédaction' : 'Choisis la rédaction dont Compo t\'affiche les articles et les chiffres';
 }
 
-// Fréquence d'ouverture des applications : un compteur par appli, propre à cet appareil (localStorage), qui se tasse tout seul pour que les
-// habitudes récentes comptent plus que les anciennes. Il sert à la barre « Mes applications » de l'accueil.
-function osAppFreqLire(){ try{ return JSON.parse(localStorage.getItem('compo_apps_freq') || '{}') || {}; }catch(e){ return {}; } }
-function osAppFreqNoter(id){
-  if(!id) return;
-  var f = osAppFreqLire(); f[id] = (f[id] || 0) + 1;
-  var total = Object.keys(f).reduce(function(t, k){ return t + f[k]; }, 0);
-  if(total > 400) Object.keys(f).forEach(function(k){ f[k] = Math.round(f[k] / 2); if(!f[k]) delete f[k]; });
-  try{ localStorage.setItem('compo_apps_freq', JSON.stringify(f)); }catch(e){}
-}
-
-// Applications de l'accueil : les plus utilisées d'abord (au plus 9), complétées par les épinglées tant qu'on a peu d'historique
-function osAccueilListeApps(){
-  var apps = osAppsAccessibles(), ids = (window._userApps || []).map(function(a){ return a.id; });
-  var f = osAppFreqLire();
-  var epingles = apps.filter(function(a){ return ids.indexOf(a.id) !== -1; });
-  if(!epingles.length) epingles = apps.slice(0, 9);
-  var frequentes = apps.filter(function(a){ return f[a.id] > 0; }).sort(function(a, b){ return f[b.id] - f[a.id]; });
-  if(frequentes.length < 3) return { liste:epingles, frequentes:false };   // pas encore assez d'habitudes : les épinglées, comme avant
-  var liste = frequentes.slice(0, 9);
-  epingles.forEach(function(a){ if(liste.length < 9 && liste.indexOf(a) === -1) liste.push(a); });
-  return { liste:liste, frequentes:true };
-}
-
 // Applications épinglées (les mêmes que dans le menu Démarrer)
 function osAccueilApps(){
   var z = document.getElementById('acc-apps'); if(!z || typeof osAppsAccessibles !== 'function') return;
-  var choix = osAccueilListeApps(), epingles = choix.liste;
-  var titre = document.querySelector('#os-accueil .acc-apps-titre');
-  if(titre) titre.textContent = choix.frequentes ? 'Mes applications · les plus utilisées' : 'Mes applications';
+  var apps = osAppsAccessibles(), ids = (window._userApps || []).map(function(a){ return a.id; });
+  var epingles = apps.filter(function(a){ return ids.indexOf(a.id) !== -1; });
+  if(!epingles.length) epingles = apps.slice(0, 8);
   z.innerHTML = '';
   epingles.forEach(function(app){
     var b = document.createElement('button');
@@ -163,7 +139,6 @@ function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilO
   if(typeof osOpenWindow === 'function'){
     var _ouvrirAvantAccueil = osOpenWindow;
     osOpenWindow = function(id){
-      osAppFreqNoter(id);
       var etaitOuvert = !!_acc.ouvert, sans = osAppSansRedac(id);
       osAccueilFermer(sans);
       // Accueil déjà fermé et choix toujours en attente : une appli qui dépend d'une rédaction le fait apparaître
