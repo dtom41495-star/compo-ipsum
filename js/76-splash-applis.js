@@ -51,7 +51,7 @@ function _fenSplashPoser(pageId){
   s.innerHTML = '<div class="fen-splash-centre">'
     +(app && app.icon ? '<span class="fen-splash-icone" style="background:'+(app.color || '#6B7280')+';">'+app.icon+'</span>' : '')
     +(titre ? '<span class="fen-splash-nom">'+String(titre).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; })+'</span>' : '')
-    +'<span class="fen-splash-points"><i></i><i></i><i></i></span>'
+    +(typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc cc-splash', 'Chargement') : '<span class="fen-splash-points"><i></i><i></i><i></i></span>')
     +'</div>';
   el.appendChild(s);
 
