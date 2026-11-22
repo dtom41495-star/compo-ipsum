@@ -2172,7 +2172,7 @@ function _osSelecteurInitialOuDiffere(liens){
   var montrer = function(){ if(window._osChoixDiffere === montrer) window._osChoixDiffere = null; _osAfficherSelecteurRedaction(liens, true); };
   if(!surAccueil){ montrer(); return; }
   window._osChoixDiffere = montrer;
-  setTimeout(function(){ if(window._osChoixDiffere === montrer && !(window._acc && _acc.ouvert)) montrer(); }, 9000);
+  setTimeout(function(){ if(window._osChoixDiffere === montrer && !(window._acc && _acc.ouvert) && !window._osChoixAttendApp) montrer(); }, 9000);
 }
 
 function osAfficherUserWatermark(){
