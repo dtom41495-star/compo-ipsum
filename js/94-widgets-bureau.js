@@ -417,7 +417,9 @@ function osWidgetPubliesCharger(){
 }
 
 // ---- Audience de la semaine (Umami, via la fonction umami-article) ----
-function osWidgetAudienceCharger(){
+function osWidgetAudienceCharger(essai){
+  var corps0 = _wbCorps('audience');
+  if(corps0 && !corps0.innerHTML) corps0.innerHTML = '<small>Audience · 7 jours</small><span class="os-w-vide">Chargement…</span>';
   fetch(SB_URL+'/functions/v1/umami-article', { method:'POST', headers:_wbH({ 'Content-Type':'application/json' }), body:JSON.stringify({ semaine:true }) })
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -431,7 +433,11 @@ function osWidgetAudienceCharger(){
         +'<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" aria-hidden="true">'
         +(pts.length ? '<polygon points="0,'+H+' '+pts.join(' ')+' '+W+','+H+'" fill="rgba(91,211,154,.18)"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="#5BD39A" stroke-width="2" stroke-linejoin="round"/><circle cx="'+fin[0]+'" cy="'+fin[1]+'" r="2.6" fill="#fff"/>' : '')
         +'</svg></div>';
-    }).catch(function(){});
+    }).catch(function(){
+      // Pas de réponse (réseau, fonction qui démarre) : une seconde tentative, puis un message plutôt qu'une tuile vide
+      if(!essai){ setTimeout(function(){ osWidgetAudienceCharger(true); }, 3000); return; }
+      var corps = _wbCorps('audience'); if(corps) corps.innerHTML = '<small>Audience</small><span class="os-w-vide">Indisponible pour le moment</span>';
+    });
 }
 
 // ---- Prochain rendez-vous (agenda) ----

@@ -15,7 +15,7 @@ function osAccueilConstruire(){
       +'<div class="acc-tete" id="acc-tete"><div class="acc-droite"><div class="acc-meteo" id="acc-meteo"></div>'
         +'<div id="os-widgets-barre" class="os-widgets-barre"><button type="button" data-a="boutique"><i class="ti ti-plus"></i> Widgets</button>'
         +'<button type="button" data-a="organiser"><i class="ti ti-layout-grid"></i> <span>Organiser</span></button>'
-        +'<button type="button" data-a="bureau" class="acc-bureau"><i class="ti ti-device-desktop"></i> Bureau</button></div></div></div>'
+        +'<button type="button" data-a="bureau" class="acc-bureau" title="Revenir au bureau (touche Échap)"><i class="ti ti-device-desktop"></i> Aller au bureau <kbd>Échap</kbd></button></div></div></div>'
       +'<div id="os-widgets" class="os-widgets"></div>'
       +'<section class="acc-apps"><div class="acc-apps-titre">Mes applications</div><div class="acc-apps-grille" id="acc-apps"></div></section>'
     +'</div>';
@@ -23,6 +23,9 @@ function osAccueilConstruire(){
   // L'horloge du bureau devient l'en-tête de l'accueil (mêmes éléments : l'heure, le message et la pastille « en ligne » continuent de se mettre à jour)
   var horloge = document.getElementById('os-clock-widget'), tete = document.getElementById('acc-tete');
   if(horloge && tete) tete.insertBefore(horloge, tete.firstChild);
+  // Le message du moment (« Bonjour Tom, une dernière brève ? ») passe au-dessus de la météo, à droite ; l'heure et la date restent seules à gauche
+  var salut = document.getElementById('os-clock-salut'), droite = tete && tete.querySelector('.acc-droite');
+  if(salut && droite) droite.insertBefore(salut, droite.firstChild);
   document.getElementById('os-widgets-barre').addEventListener('click', function(e){
     var b = e.target.closest('button[data-a]'); if(!b) return;
     if(b.dataset.a === 'boutique') osWidgetsBoutique();
