@@ -101,7 +101,20 @@ function osBetaFenetresDansMenu(){
   });
   defaut.insertBefore(bloc, defaut.firstChild);
 }
+// Menu en pleine page : un bouton « Fermer » toujours visible en haut à droite (en plus de Échap et du clic dans le vide)
+function osBetaBoutonFermerMenu(){
+  var menu = document.getElementById('os-start-menu'); if(!menu) return;
+  var b = document.getElementById('sm-fermer');
+  if(!osBetaActif('menu-plein')){ if(b) b.remove(); return; }
+  if(b) return;
+  b = document.createElement('button');
+  b.type = 'button'; b.id = 'sm-fermer'; b.title = 'Fermer le menu (Échap)'; b.setAttribute('aria-label', 'Fermer le menu');
+  b.innerHTML = '<i class="ti ti-x"></i> Fermer';
+  b.onclick = function(e){ e.stopPropagation(); menu.classList.remove('visible'); };
+  menu.appendChild(b);
+}
 function osBetaBureauDansMenu(){
+  osBetaBoutonFermerMenu();
   osBetaFenetresDansMenu();
   var ancien = document.getElementById('sm-bureau-bloc'); if(ancien) ancien.remove();
   if(!osBetaActif('bureau-epure')) return;

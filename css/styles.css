@@ -8280,3 +8280,11 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 .ve-pied button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #fff; font: 600 .84rem 'DM Sans', sans-serif; cursor: pointer; }
 .ve-pied button:hover { background: rgba(255,255,255,.16); }
 @media (prefers-reduced-motion: reduce) { #os-vue-ensemble { animation: none; } }
+
+/* Menu en pleine page : bouton « Fermer » */
+#sm-fermer { display: none; }
+@media (min-width: 769px) {
+  :root.beta-menu-plein #sm-fermer { display: inline-flex; align-items: center; gap: 6px; position: absolute; top: 14px; right: 18px; z-index: 5; height: 38px; padding: 0 16px 0 12px;
+    border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.10); color: #fff; font: 600 .84rem 'DM Sans', sans-serif; cursor: pointer; }
+  :root.beta-menu-plein #sm-fermer:hover { background: rgba(255,255,255,.2); }
+}
