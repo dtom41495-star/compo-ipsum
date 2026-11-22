@@ -1046,6 +1046,7 @@ function osNotesSauvegarder(id){
     if(r.ok){
       if(st) st.innerHTML = '<i class="ti ti-check"></i>Enregistré';
       setTimeout(function(){ if(st) st.textContent = ''; }, 2000);
+      if(typeof osWidgetNotesRafraichir === 'function') osWidgetNotesRafraichir();   // le widget Bloc-notes du bureau suit
       // Mettre à jour le cache local
       var idx = _notesData.findIndex(function(n){ return n.id === id; });
       if(idx >= 0){

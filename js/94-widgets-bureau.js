@@ -33,8 +33,8 @@ var OS_WIDGETS = [
     visible:function(){ return typeof _srVoitLaFile === 'function' && _srVoitLaFile(); }, monter:function(){ osWidgetFileSrCharger(); } },
   { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, classe:'os-w-me',
     monter:function(){ osWidgetMeteoCharger(); } },
-  { id:'notes', nom:'Bloc-notes', desc:'Un petit texte libre, enregistré dans la base.', icone:'notes', largeur:2, hauteur:2, classe:'os-w-no',
-    monter:function(c, x){ osWidgetNotesMonter(c, x); } }
+  { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:2, hauteur:2, classe:'os-w-no',
+    monter:function(c){ osWidgetNotesMonter(c); } }
 ];
 var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[] };
 
@@ -400,25 +400,70 @@ function osWidgetMeteoCharger(){
   });
 }
 
-// ---- Bloc-notes : le texte est enregistré dans la base (colonne reglages de la ligne du widget) ----
-function osWidgetNotesMonter(c, x){
+// ---- Bloc-notes : lié à l'appli Notes (table notes) ----
+// Le widget montre la note modifiée en dernier et la modifie sur place : c'est la même ligne de la table notes que dans l'appli Notes,
+// donc ce qui s'écrit ici s'y retrouve, et inversement. « Nouvelle » crée une note (couleur jaune, comme dans l'appli), « Ouvrir » ouvre l'appli.
+var _wbNote = { id:null, minuteur:null };
+function osWidgetNotesMonter(c){
   var corps = c.querySelector('.os-w-wid-corps');
-  corps.innerHTML = '<small>Bloc-notes <span class="os-w-no-etat"></span></small><textarea class="os-w-no-t" maxlength="2000" placeholder="Une idée, un numéro, un rappel…" aria-label="Bloc-notes"></textarea>';
-  var t = corps.querySelector('textarea'), etat = corps.querySelector('.os-w-no-etat'), minuteur = null;
-  t.value = (x && x.reglages && x.reglages.texte) || '';
-  t.addEventListener('input', function(){
-    etat.textContent = '…'; clearTimeout(minuteur);
-    minuteur = setTimeout(function(){
-      var w = _wb.liste.filter(function(y){ return y.widget === 'notes'; })[0]; if(!w) return;
-      w.reglages = { texte:t.value };
-      var uid = getUserId();
-      fetch(SB_URL+'/rest/v1/widgets_bureau?on_conflict=membre_id,widget', { method:'POST', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
-        body:JSON.stringify([{ membre_id:uid, widget:'notes', col:w.col, ligne:w.ligne, largeur:w.largeur, reglages:w.reglages, maj:new Date().toISOString() }]) })
-        .then(function(r){ etat.textContent = r.ok ? 'enregistré' : 'non enregistré'; setTimeout(function(){ etat.textContent = ''; }, 2500); })
-        .catch(function(){ etat.textContent = 'non enregistré'; });
-    }, 900);
-  });
+  corps.innerHTML = '<div class="os-w-no-tete"><small>Bloc-notes <span class="os-w-no-etat"></span></small>'
+      +'<span class="os-w-no-btns"><button type="button" data-a="nouvelle" title="Nouvelle note">+ Nouvelle</button><button type="button" data-a="ouvrir" title="Ouvrir l’appli Notes"><i class="ti ti-arrow-up-right"></i></button></span></div>'
+    +'<div class="os-w-no-titre"></div><textarea class="os-w-no-t" maxlength="20000" placeholder="Une idée, un numéro, un rappel…" aria-label="Dernière note"></textarea>';
+  var t = corps.querySelector('textarea');
   t.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+  t.addEventListener('input', function(){ _wbNoteProgrammer(t.value); });
+  corps.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-a]'); if(!b || _wb.edition) return;
+    if(b.dataset.a === 'ouvrir'){ if(typeof osOpenWindow === 'function') osOpenWindow('notes'); }
+    else _wbNoteCreer('', true);
+  });
+  osWidgetNotesRafraichir();
+}
+function _wbNoteEtat(texte){
+  var e = document.querySelector('#os-w-notes .os-w-no-etat'); if(!e) return;
+  e.textContent = texte || ''; if(texte) setTimeout(function(){ if(e.textContent === texte) e.textContent = ''; }, 2500);
+}
+function _wbNoteAfficher(n){
+  var c = document.getElementById('os-w-notes'); if(!c) return;
+  _wbNote.id = n ? n.id : null;
+  var t = c.querySelector('textarea'), ti = c.querySelector('.os-w-no-titre');
+  if(t && document.activeElement !== t) t.value = n ? (n.contenu || '') : '';   // pas pendant la frappe : on ne réécrit pas sous les doigts
+  if(ti) ti.textContent = n ? (n.titre || 'Sans titre') : 'Aucune note pour l’instant : écris ici pour en créer une';
+}
+// Relit la note la plus récente (au démarrage, toutes les 5 minutes, et quand l'appli Notes vient d'enregistrer)
+function osWidgetNotesRafraichir(){
+  if(!document.getElementById('os-w-notes') || !getUserId()) return;
+  _wbLire('notes?membre_id=eq.'+getUserId()+'&order=updated_at.desc&limit=1&select=id,titre,contenu,updated_at').then(function(l){
+    if(l === null) return;
+    _wbNoteAfficher(l[0] || null);
+  });
+}
+function _wbNoteCreer(contenu, vide){
+  var uid = getUserId(); if(!uid) return Promise.resolve(null);
+  var id = 'NOTE-'+(typeof genId === 'function' ? genId().slice(4) : Date.now().toString(36));
+  var premiere = String(contenu || '').split('\n')[0].trim().slice(0, 40);
+  var n = { id:id, membre_id:uid, titre:premiere, contenu:contenu || '', couleur:'jaune', created_at:new Date().toISOString(), updated_at:new Date().toISOString() };
+  return fetch(SB_URL+'/rest/v1/notes', { method:'POST', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify(n) })
+    .then(function(r){
+      if(!r.ok){ _wbNoteEtat('non enregistré'); return null; }
+      _wbNote.id = id;
+      if(vide){ _wbNoteAfficher(n); var t = document.querySelector('#os-w-notes textarea'); if(t) t.focus(); }
+      if(typeof _notesData !== 'undefined' && Array.isArray(_notesData)) _notesData.unshift(n);   // l'appli Notes, si elle est ouverte, la voit tout de suite
+      return id;
+    }).catch(function(){ _wbNoteEtat('non enregistré'); return null; });
+}
+function _wbNoteProgrammer(texte){
+  _wbNoteEtat('…'); clearTimeout(_wbNote.minuteur);
+  _wbNote.minuteur = setTimeout(function(){
+    var corps = { contenu:texte, updated_at:new Date().toISOString() };
+    if(!_wbNote.id){ _wbNoteCreer(texte, false).then(function(id){ if(id) _wbNoteEtat('enregistré'); }); return; }
+    var id = _wbNote.id;
+    fetch(SB_URL+'/rest/v1/notes?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify(corps) })
+      .then(function(r){
+        _wbNoteEtat(r.ok ? 'enregistré' : 'non enregistré');
+        if(r.ok && typeof _notesData !== 'undefined' && Array.isArray(_notesData)){ var x = _notesData.filter(function(n){ return n.id === id; })[0]; if(x){ x.contenu = texte; x.updated_at = corps.updated_at; } }
+      }).catch(function(){ _wbNoteEtat('non enregistré'); });
+  }, 900);
 }
 
 (function(){
@@ -430,9 +475,9 @@ function osWidgetNotesMonter(c, x){
       setInterval(function(){
         if(document.hidden) return;
         if(document.getElementById('os-w-dernier-article')){ _wbDernier.quand = 0; osWidgetDernierArticleCharger(); }
-        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo'].forEach(function(id){
+        ['rendez-vous', 'taches', 'rythme', 'file-sr', 'audience', 'meteo', 'notes'].forEach(function(id){
           if(!document.getElementById('os-w-'+id)) return;
-          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger }[id];
+          var fn = { 'rendez-vous':osWidgetRendezVousCharger, taches:osWidgetTachesCharger, rythme:osWidgetRythmeCharger, 'file-sr':osWidgetFileSrCharger, audience:osWidgetAudienceCharger, meteo:osWidgetMeteoCharger, notes:osWidgetNotesRafraichir }[id];
           if(fn) fn();
         });
       }, 5 * 60000);
