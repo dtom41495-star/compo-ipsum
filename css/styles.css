@@ -8099,3 +8099,9 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 @keyframes acc-tuile { from { opacity: 0; translate: 0 26px; scale: .96; } to { opacity: 1; translate: 0 0; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { body.acc-arrivee #os-accueil * { animation: none !important; } }
 :root.mode-leger body.acc-arrivee #os-accueil *, :root.mode-malvoyant body.acc-arrivee #os-accueil * { animation: none !important; }
+
+/* Écran de lancement sans animation : fond sombre uni, qui s'efface vite. Le texte n'apparaît que pour la file d'attente. */
+#compo-loading-screen { background: #0E0E1E; transition: opacity .2s ease; }
+#compo-loading-screen.cl-sortie { opacity: 0; transition-delay: 0s; }
+#compo-loading-screen .cl-etape { visibility: hidden; color: #C9C7D6; }
+#compo-loading-screen .cl-etape.cl-etape-attente { visibility: visible; }
