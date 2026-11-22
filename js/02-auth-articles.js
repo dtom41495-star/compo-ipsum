@@ -2128,7 +2128,18 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     // Relu ou bon à publier sur le texte de QUELQU'UN D'AUTRE : on vide l'éditeur. Sinon il restait ouvert sur cet article, et la brève ou
     // l'article écrit juste après s'enregistrait dessus, au nom de son auteur·rice (cas Rose / Tom, IPM-2611-AAKZ).
     if(doc.auteur_id && doc.auteur_id !== getUserId() && ['corrige','valide','valide_central'].indexOf(nouveauStatut) !== -1 && typeof resetRedaction === 'function'){
-      try{ resetRedaction(); _docModifie = false; notif('Article de '+(doc.auteur || 'son auteur·rice')+' traité : l\'éditeur est vide, tu peux écrire ton texte.', 'succes'); }catch(e){}
+      // On quitte l'éditeur (remis à zéro, il n'est plus rattaché à l'article) et on revient sur l'article en lecture, avec un message
+      // qui reste affiché : un éditeur soudain vide faisait croire que le texte avait disparu.
+      try{
+        var texteBandeau = nouveauStatut === 'corrige'
+          ? 'Article relu. Il passe dans « À valider », chez le rédac chef.'
+          : 'Article validé : bon à publier. Il passe dans « À publier ».';
+        window._lectBandeau = { id: doc.id, texte: texteBandeau, at: Date.now() };
+        _docModifie = false;
+        if(window._windows && _windows['redaction'] && typeof osCloseWindowForce === 'function') osCloseWindowForce('redaction');
+        else resetRedaction();
+        mesArticlesOuvrir(doc.id, 'lecture');
+      }catch(e){ try{ resetRedaction(); _docModifie = false; }catch(e2){} }
     }
   }).catch(function(err){
     if(err && err.annule){   // fenêtre « C'est bien un article ? » : annulé, ou passé en brève (rien n'est mis en ligne)
