@@ -1058,7 +1058,7 @@ function osArriveeBureau(forcer){
     var sansSelecteur = 0;
     bureau._osAttenteVeille = setInterval(function(){
       if(window._osChoixRedacInitial !== 'attendu'){ clearInterval(bureau._osAttenteVeille); return; }
-      sansSelecteur = document.getElementById('redac-select-overlay') ? 0 : sansSelecteur + 1;
+      sansSelecteur = (document.getElementById('redac-select-overlay') || window._osChoixDiffere) ? 0 : sansSelecteur + 1;
       if(sansSelecteur >= 3){ clearInterval(bureau._osAttenteVeille); osChoixRedacInitialFait(); }
     }, 2000);
     return;
@@ -1131,10 +1131,21 @@ function lancerCompo(){
   var _loadDone = function(){
     var s = document.getElementById('compo-loading-screen');
     if(!s) return;
+    // L'écran s'efface sur l'accueil (déjà prêt dessous) : les lettres se lèvent, le blanc se dissout et les tuiles arrivent l'une après
+    // l'autre (body.acc-arrivee, css « Écran d'accueil »). On attend l'accueil au plus 2,5 s ; sur le bureau (réglage) ou le téléphone : comme avant.
+    var accueilPret = Promise.race([window._wbPret || Promise.resolve(), new Promise(function(r){ setTimeout(r, 2500); })]);
     setTimeout(function(){
-      s.classList.add('cl-sortie');
-      osArriveeBureau();
-      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 520);
+      accueilPret.then(function(){
+        var surAccueil = !!(window._acc && _acc.ouvert);
+        if(surAccueil){
+          if(typeof osAccueilApps === 'function') osAccueilApps();
+          document.body.classList.add('acc-arrivee');
+          setTimeout(function(){ document.body.classList.remove('acc-arrivee'); }, 2600);
+        }
+        s.classList.add('cl-sortie');
+        osArriveeBureau();
+        setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, surAccueil ? 1000 : 520);
+      });
     }, Math.max(0, 1400 - (Date.now() - lancementDebut)));
   };
 

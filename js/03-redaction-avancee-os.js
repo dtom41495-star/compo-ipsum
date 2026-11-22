@@ -2130,12 +2130,23 @@ function osLancer(){
           if(existante) Object.assign(existante, r); else liste.push(r);
         });
         window._redactionsData = liste;
-        _osAfficherSelecteurRedaction(liens, true);
+        _osSelecteurInitialOuDiffere(liens);
       }).catch(function(){
-        _osAfficherSelecteurRedaction(liens, true);
+        _osSelecteurInitialOuDiffere(liens);
       });
     }).catch(function(){});
   }, 300);
+}
+
+// Au démarrage sur l'écran d'accueil, le choix de la rédaction ne sert à rien tant qu'on y reste : il attend qu'on le quitte
+// (osAccueilFermer, js/96-accueil.js). Filet : si l'accueil ne s'ouvre pas, il apparaît quand même.
+function _osSelecteurInitialOuDiffere(liens){
+  var surAccueil = !(typeof osEstMobile === 'function' && osEstMobile());
+  try{ if(localStorage.getItem('ipsum_demarrage') === 'bureau') surAccueil = false; }catch(e){}
+  var montrer = function(){ if(window._osChoixDiffere === montrer) window._osChoixDiffere = null; _osAfficherSelecteurRedaction(liens, true); };
+  if(!surAccueil){ montrer(); return; }
+  window._osChoixDiffere = montrer;
+  setTimeout(function(){ if(window._osChoixDiffere === montrer && !(window._acc && _acc.ouvert)) montrer(); }, 9000);
 }
 
 function osAfficherUserWatermark(){

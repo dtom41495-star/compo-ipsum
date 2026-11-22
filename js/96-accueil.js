@@ -78,6 +78,7 @@ function osAccueilOuvrir(){
   document.body.classList.add('accueil-ouvert');
   var b = document.getElementById('os-accueil-btn'); if(b) b.classList.add('active');
   osAccueilApps();
+  Array.prototype.forEach.call(o.querySelectorAll('.os-w-wid, .acc-app, .acc-tete > *'), function(el, i){ el.style.setProperty('--acc-i', i); });
   if(typeof osWidgetNotificationsRendre === 'function') osWidgetNotificationsRendre();
 }
 function osAccueilFermer(){
@@ -86,6 +87,8 @@ function osAccueilFermer(){
   o.classList.remove('visible'); _acc.ouvert = false;
   document.body.classList.remove('accueil-ouvert');
   var b = document.getElementById('os-accueil-btn'); if(b) b.classList.remove('active');
+  // Plusieurs rédactions : le choix de la rédaction attendait qu'on quitte l'accueil
+  if(typeof window._osChoixDiffere === 'function') setTimeout(function(){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); }, 250);
 }
 function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilOuvrir(); }
 

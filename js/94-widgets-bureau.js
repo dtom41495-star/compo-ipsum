@@ -5,9 +5,9 @@
 //  - la sélection et la place de chaque widget sont enregistrées dans la table widgets_bureau (docs/serveur/widgets-bureau.sql),
 //    par membre, donc elles suivent d'un ordinateur à l'autre. Tant que la table n'existe pas ou ne répond pas : sélection par défaut,
 //    sans erreur. Une ligne « _perso » marque un bureau déjà personnalisé (un bureau vide reste vide).
-// Un widget du catalogue : { id, nom, desc, icone, largeur (1 ou 2 colonnes), defaut:{col,ligne}, monter(carte) } ; « bientot » : annoncé, pas encore là.
+// Un widget du catalogue : { id, nom, desc, icone, largeur (1 ou 2 colonnes), auto (la hauteur suit le contenu), monter(carte) } ; « bientot » : annoncé, pas encore là.
 
-var WB_COLS = 8, WB_LIGNES = 12;
+var WB_COLS = 8, WB_LIGNES = 24;   // lignes = demi-cases : deux d'entre elles (et l'écart) font une case carrée
 // largeur : nombre de colonnes (sur 8) ; hauteur : nombre de lignes (défaut 1) ; defaut : place des nouveaux membres ;
 // visible() : qui peut l'ajouter (défaut : tout le monde)
 function _wbAdminOuChef(){
@@ -16,50 +16,88 @@ function _wbAdminOuChef(){
   return (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.role_redac === 'redac_chef'; });
 }
 var OS_WIDGETS = [
-  { id:'notifications', nom:'Notifications', desc:'Le nombre de notifications et ce qui est à traiter, avec « Ouvrir ».', icone:'bell', largeur:4, hauteur:1, defaut:{ col:1, ligne:1 }, classe:'os-w-nt',
+  { id:'notifications', nom:'Notifications', desc:'Le nombre de notifications et ce qui est à traiter, avec « Ouvrir ».', icone:'bell', largeur:4, hauteur:1, classe:'os-w-nt',
     monter:function(){ osWidgetNotificationsRendre(); } },
-  { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:2, hauteur:1, defaut:{ col:5, ligne:1 },
+  { id:'pouls', nom:'La rédac', desc:'Un cadran : la rédaction est-elle calme, soutenue ou tendue ?', icone:'activity-heartbeat', largeur:2, hauteur:2, 
     classe:'os-w-pouls', monter:function(c){ osPoulsMonter(c); if(typeof osPoulsRendre === 'function' && _pouls && _pouls.dernier) osPoulsRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
-  { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:2, hauteur:1, defaut:{ col:7, ligne:1 },
+  { id:'newsletter', nom:'Prochaine newsletter', desc:'Le compte à rebours, et les brèves déjà prêtes.', icone:'mail-forward', largeur:2, hauteur:2, 
     classe:'os-w-nl', monter:function(){ if(_pouls && _pouls.dernier) osWidgetNewsletterRendre(); else if(typeof osPoulsCharger === 'function') osPoulsCharger(); } },
-  { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:4, hauteur:1, defaut:{ col:1, ligne:2 },
+  { id:'dernier-article', nom:'Dernier article en ligne', desc:'Le titre, depuis quand il est en ligne et ses vues.', icone:'circle-check', largeur:4, hauteur:2, auto:true, 
     classe:'os-w-da', monter:function(){ osWidgetDernierArticleCharger(); } },
-  { id:'heures-plumes', nom:'Mes heures et plumes', desc:'Mes heures de bénévolat et mon solde de plumes.', icone:'feather', largeur:2, hauteur:1, defaut:{ col:5, ligne:2 }, classe:'os-w-hp',
+  { id:'heures-plumes', nom:'Mes heures et plumes', desc:'Mes heures de bénévolat et mon solde de plumes.', icone:'feather', largeur:2, hauteur:2, classe:'os-w-hp',
     monter:function(){ osWidgetHeuresPlumesCharger(); } },
-  { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:2, hauteur:1, defaut:{ col:7, ligne:2 }, classe:'os-w-ry',
+  { id:'rythme', nom:'Mon rythme', desc:'Mes brèves de la semaine et mes plumes.', icone:'flame', largeur:2, hauteur:2, classe:'os-w-ry',
     monter:function(){ osWidgetRythmeCharger(); } },
-  { id:'agenda', nom:'Agenda', desc:'Les prochains événements.', icone:'calendar', largeur:4, hauteur:2, defaut:{ col:1, ligne:3 }, classe:'os-w-ag',
+  { id:'agenda', nom:'Agenda', desc:'Les prochains événements.', icone:'calendar', largeur:4, hauteur:4, auto:true, classe:'os-w-ag',
     monter:function(){ osWidgetAgendaCharger(); } },
-  { id:'mes-articles', nom:'Mes articles', desc:'Mes articles en cours, avec leur étape.', icone:'notes', largeur:4, hauteur:2, defaut:{ col:5, ligne:3 }, classe:'os-w-ma',
+  { id:'mes-articles', nom:'Mes articles', desc:'Mes articles en cours, avec leur étape.', icone:'notes', largeur:4, hauteur:4, auto:true, classe:'os-w-ma',
     monter:function(){ osWidgetMesArticlesCharger(); } },
-  { id:'audience', nom:'Audience de la semaine', desc:'Les pages vues des 7 derniers jours, en courbe.', icone:'chart-line', largeur:4, hauteur:1, classe:'os-w-au', visible:_wbAdminOuChef,
+  { id:'audience', nom:'Audience de la semaine', desc:'Les pages vues des 7 derniers jours, en courbe.', icone:'chart-line', largeur:4, hauteur:2, classe:'os-w-au', visible:_wbAdminOuChef,
     monter:function(){ osWidgetAudienceCharger(); } },
-  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', largeur:4, hauteur:1, classe:'os-w-rv',
+  { id:'rendez-vous', nom:'Prochain rendez-vous', desc:'Le prochain événement de l’agenda.', icone:'calendar-event', largeur:4, hauteur:2, auto:true, classe:'os-w-rv',
     monter:function(){ osWidgetRendezVousCharger(); } },
-  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées pour aujourd’hui, à cocher.', icone:'checkbox', largeur:4, hauteur:1, classe:'os-w-ta',
+  { id:'taches', nom:'Mes tâches du jour', desc:'Les tâches qui me sont assignées pour aujourd’hui, à cocher.', icone:'checkbox', largeur:4, hauteur:2, auto:true, classe:'os-w-ta',
     monter:function(){ osWidgetTachesCharger(); } },
-  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', largeur:4, hauteur:1, classe:'os-w-sr',
+  { id:'file-sr', nom:'File du SR', desc:'Les articles à relire, avec « Je prends ».', icone:'eye-check', largeur:4, hauteur:2, auto:true, classe:'os-w-sr',
     visible:function(){ return typeof _srVoitLaFile === 'function' && _srVoitLaFile(); }, monter:function(){ osWidgetFileSrCharger(); } },
-  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, hauteur:1, classe:'os-w-me',
+  { id:'meteo', nom:'Météo et saint du jour', desc:'Les mêmes données que la page d’accueil du site.', icone:'cloud-sun', largeur:2, hauteur:2, classe:'os-w-me',
     monter:function(){ osWidgetMeteoCharger(); } },
-  { id:'publies', nom:'Derniers publiés', desc:'Les derniers articles et brèves publiés dans ma rédaction.', icone:'world', largeur:4, hauteur:2, classe:'os-w-pb',
+  { id:'publies', nom:'Derniers publiés', desc:'Les derniers articles et brèves publiés dans ma rédaction.', icone:'world', largeur:4, hauteur:4, auto:true, classe:'os-w-pb',
     monter:function(){ osWidgetPubliesCharger(); } },
-  { id:'veille', nom:'Veille', desc:'Les derniers articles de la veille, à lire ou à transformer en sujet.', icone:'rss', largeur:4, hauteur:3, classe:'os-w-vl',
+  { id:'veille', nom:'Veille', desc:'Les derniers articles de la veille, à lire ou à transformer en sujet.', icone:'rss', largeur:4, hauteur:6, classe:'os-w-vl',
     visible:function(){ return typeof _veilleWidgetPermis === 'function' ? _veilleWidgetPermis() : true; }, monter:function(){ if(typeof osVeilleWidgetCharger === 'function') osVeilleWidgetCharger(); } },
-  { id:'annonce', nom:'Annonce de la rédac', desc:'La dernière annonce de la rédaction.', icone:'speakerphone', largeur:4, hauteur:1, classe:'os-w-an',
+  { id:'annonce', nom:'Annonce de la rédac', desc:'La dernière annonce de la rédaction.', icone:'speakerphone', largeur:4, hauteur:2, auto:true, classe:'os-w-an',
     monter:function(){ osWidgetAnnonceCharger(); } },
-  { id:'recrutement', nom:'Rejoindre l’équipe', desc:'Les postes ouverts au recrutement.', icone:'user-plus', largeur:4, hauteur:2, classe:'os-w-rc',
+  { id:'recrutement', nom:'Rejoindre l’équipe', desc:'Les postes ouverts au recrutement.', icone:'user-plus', largeur:4, hauteur:4, auto:true, classe:'os-w-rc',
     monter:function(){ osWidgetRecrutementCharger(); } },
-  { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:4, hauteur:3, classe:'os-w-no',
+  { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:4, hauteur:6, classe:'os-w-no',
     monter:function(c){ osWidgetNotesMonter(c); } }
 ];
 var _wb = { liste:[], perso:false, edition:false, minuteur:null, retires:[], demarrage:'accueil' };
 
 function _wbVisible(w){ try{ return !w.visible || !!w.visible(); }catch(e){ return false; } }
 function _wbDef(id){ return OS_WIDGETS.filter(function(w){ return w.id === id; })[0] || null; }
+// Disposition des nouveaux membres : dans cet ordre, chaque widget prend la première place libre (annonce de la rédac d'abord)
+var WB_ORDRE_DEFAUT = ['annonce', 'notifications', 'pouls', 'newsletter', 'recrutement', 'heures-plumes', 'rendez-vous', 'audience', 'dernier-article', 'mes-articles'];
 function _wbDefauts(){
-  return OS_WIDGETS.filter(function(w){ return w.defaut && _wbVisible(w); }).map(function(w){ return { widget:w.id, col:w.defaut.col, ligne:w.defaut.ligne, largeur:w.largeur, hauteur:w.hauteur || 1 }; });
+  var sauve = _wb.liste, res = [];
+  _wb.liste = res;
+  WB_ORDRE_DEFAUT.forEach(function(id){
+    var d = _wbDef(id); if(!d || !_wbVisible(d)) return;
+    var p = _wbPremiereCaseLibre(d.largeur, d.hauteur || 1);
+    if(p) res.push({ widget:id, col:p.col, ligne:p.ligne, largeur:d.largeur, hauteur:d.hauteur || 1 });
+  });
+  _wb.liste = sauve;
+  return res;
 }
+// Remet les widgets en ordre : un widget qui grandit repousse ceux du dessous, un qui rétrécit laisse remonter les autres (hors mode « Organiser »)
+function _wbRepacker(compacter){
+  var occ = {};
+  _wb.liste.slice().sort(function(a, b){ return a.ligne - b.ligne || a.col - b.col; }).forEach(function(x){
+    var h = x.hauteur || 1, l = x.ligne;
+    var libre = function(ligne){ for(var k = 0; k < x.largeur; k++) for(var j = 0; j < h; j++) if(occ[(x.col + k)+'-'+(ligne + j)]) return false; return true; };
+    while(!libre(l) && l < 200) l++;
+    if(compacter) while(l > 1 && libre(l - 1)) l--;
+    x.ligne = l;
+    for(var k = 0; k < x.largeur; k++) for(var j = 0; j < h; j++) occ[(x.col + k)+'-'+(l + j)] = 1;
+  });
+}
+// Les widgets « auto » prennent la hauteur de leur contenu (en demi-cases), sans espace vide
+function osWidgetsAjuster(){
+  var zone = document.getElementById('os-widgets');
+  if(!zone || _wb.edition || !zone.offsetHeight) return;
+  var cs0 = getComputedStyle(zone), unite = parseFloat(cs0.gridAutoRows) || 66, ecart = parseFloat(cs0.rowGap) || 12, change = false;
+  _wb.liste.forEach(function(x){
+    var d = _wbDef(x.widget); if(!d || !d.auto) return;
+    var c = document.getElementById('os-w-'+x.widget), corps = c && c.querySelector('.os-w-wid-corps');
+    if(!corps || !corps.offsetHeight) return;
+    var cs = getComputedStyle(c), besoin = corps.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 2;
+    var u = Math.max(1, Math.min(d.hauteurMax || 6, Math.ceil((besoin + ecart) / (unite + ecart))));
+    if(u !== x.hauteur){ x.hauteur = u; change = true; }
+  });
+  if(change){ _wbRepacker(true); osWidgetsRendre(); }
+}
+var _wbRO = (typeof ResizeObserver === 'function') ? new ResizeObserver(function(){ clearTimeout(_wb.ajT); _wb.ajT = setTimeout(osWidgetsAjuster, 40); }) : null;
 function _wbH(extra){ return Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || '') }, extra || {}); }
 
 // Cases occupées : { "col-ligne": id du widget }
@@ -96,6 +134,7 @@ function osWidgetsCharger(){
         .map(function(x){ var d = _wbDef(x.widget); return { widget:x.widget, col:x.col, ligne:x.ligne, largeur:d.largeur, hauteur:d.hauteur || 1 }; });
       _wb.perso = perso;
       _wb.liste = perso ? liste : _wbDefauts();
+      try{ localStorage.setItem('ipsum_demarrage', _wb.demarrage); }catch(e){}
     }).catch(function(){ _wb.liste = _wbDefauts(); _wb.perso = false; });
 }
 function osWidgetsSauverPlusTard(){
@@ -105,7 +144,7 @@ function osWidgetsSauverPlusTard(){
 function osWidgetsSauver(){
   if(!_session || !getUserId()) return;
   var uid = getUserId();
-  var rows = _wb.liste.map(function(x){ return { membre_id:uid, widget:x.widget, col:x.col, ligne:x.ligne, largeur:x.largeur, hauteur:x.hauteur || 1, maj:new Date().toISOString() }; });
+  var rows = _wb.liste.map(function(x){ return { membre_id:uid, widget:x.widget, col:x.col, ligne:x.ligne, largeur:x.largeur, hauteur:x.hauteur || 1, reglages:{}, maj:new Date().toISOString() }; });
   rows.push({ membre_id:uid, widget:'_perso', col:1, ligne:1, largeur:1, hauteur:1, reglages:{ demarrage:_wb.demarrage }, maj:new Date().toISOString() });
   var retires = _wb.retires.slice(); _wb.retires = [];
   var envois = [ fetch(SB_URL+'/rest/v1/widgets_bureau?on_conflict=membre_id,widget', { method:'POST',
@@ -123,10 +162,16 @@ function osWidgetsInit(){
   if(typeof osEstMobile === 'function' && osEstMobile()) return;
   if(!_session || !getUserId()) return;
   if(typeof osAccueilConstruire === 'function') osAccueilConstruire();   // la grille #os-widgets et sa barre vivent dans l'écran d'accueil
-  osWidgetsCharger().then(function(){
+  // La promesse sert à l'écran de lancement (js/02-auth-articles.js) : il attend que l'accueil soit prêt, pour s'effacer sur lui
+  window._wbPret = osWidgetsCharger().then(function(){
     osWidgetsRendre();
-    if(!_wb.dejaOuvert){ _wb.dejaOuvert = true; if(_wb.demarrage !== 'bureau' && typeof osAccueilOuvrir === 'function') osAccueilOuvrir(); }
+    if(!_wb.dejaOuvert){
+      _wb.dejaOuvert = true;
+      if(_wb.demarrage !== 'bureau' && typeof osAccueilOuvrir === 'function') osAccueilOuvrir();
+      else if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere();   // démarrage sur le bureau : le choix de rédaction n'attend plus
+    }
   });
+  return window._wbPret;
 }
 
 function osWidgetsRendre(){
@@ -156,6 +201,7 @@ function osWidgetsRendre(){
     c.draggable = _wb.edition;
     c.style.gridColumn = x.col+' / span '+x.largeur;
     c.style.gridRow = x.ligne+' / span '+(x.hauteur || 1);
+    if(neuf && d.auto && _wbRO) _wbRO.observe(c.querySelector('.os-w-wid-corps'));
     if(neuf && d.monter) d.monter(c, x);
   });
   Object.keys(presents).forEach(function(id){ presents[id].remove(); });   // retirés
@@ -198,7 +244,7 @@ function osWidgetsAjouter(id){
   var d = _wbDef(id);
   if(!d || !_wbVisible(d) || _wb.liste.some(function(w){ return w.widget === id; })) return;
   var h = d.hauteur || 1;
-  var place = (d.defaut && _wbPeutPoser(id, d.defaut.col, d.defaut.ligne, d.largeur, h)) ? d.defaut : _wbPremiereCaseLibre(d.largeur, h);
+  var place = _wbPremiereCaseLibre(d.largeur, h);
   if(!place){ if(typeof notif === 'function') notif('Le bureau est plein : retire un widget d’abord'); return; }
   _wb.liste.push({ widget:id, col:place.col, ligne:place.ligne, largeur:d.largeur, hauteur:h, reglages:{} });
   _wb.retires = _wb.retires.filter(function(x){ return x !== id; });
@@ -228,7 +274,7 @@ function osWidgetsBoutique(){
   });
   var cd = document.getElementById('wb-demarrage');
   cd.checked = _wb.demarrage !== 'bureau';
-  cd.onchange = function(){ _wb.demarrage = cd.checked ? 'accueil' : 'bureau'; osWidgetsSauverPlusTard(); };
+  cd.onchange = function(){ _wb.demarrage = cd.checked ? 'accueil' : 'bureau'; try{ localStorage.setItem('ipsum_demarrage', _wb.demarrage); }catch(e){} osWidgetsSauverPlusTard(); };
   osWidgetsBoutiqueRemplir();
 }
 function osWidgetsBoutiqueRemplir(){
@@ -563,7 +609,7 @@ function _wbNoteProgrammer(texte){
     var _lancerAvantWidgets = lancerCompo;
     lancerCompo = function(){
       var r = _lancerAvantWidgets.apply(this, arguments);
-      setTimeout(osWidgetsInit, 1800);
+      osWidgetsInit();   // tout de suite : l'écran de lancement s'efface sur l'accueil déjà prêt
       setInterval(function(){ if(!document.hidden && document.getElementById('os-w-notifications')) osWidgetNotificationsRendre(); }, 20000);
       setInterval(function(){
         if(document.hidden) return;
