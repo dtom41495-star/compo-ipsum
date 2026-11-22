@@ -282,3 +282,20 @@ document.addEventListener('keydown', function(e){
 }, true);
 
 osBetaAppliquer();
+
+// Mode bêta : quand plus aucune application n'est ouverte (fermée ou réduite), le tableau de bord revient
+function _osBetaAccueilSiVide(){
+  setTimeout(function(){
+    if(!osBetaActif()) return;
+    if(typeof _acc === 'undefined' || _acc.ouvert || typeof osAccueilOuvrir !== 'function') return;
+    var ouvertes = Object.keys(window._windows || {}).filter(function(id){ var w = _windows[id]; return w && w.el && w.el.parentNode && !w.el.classList.contains('minimized'); });
+    if(ouvertes.length) return;
+    var m = document.getElementById('os-start-menu'); if(m && m.classList.contains('open')) return;
+    if(document.querySelector('.modal-overlay, #redac-select-overlay, #os-vue-ensemble')) return;
+    osAccueilOuvrir();
+  }, 420);
+}
+['osCloseWindowForce', 'osMinimizeWindow'].forEach(function(nom){
+  var f = window[nom]; if(typeof f !== 'function') return;
+  window[nom] = function(){ var r = f.apply(this, arguments); _osBetaAccueilSiVide(); return r; };
+});

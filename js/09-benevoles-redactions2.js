@@ -1428,6 +1428,7 @@ function _osAfficherSelecteurRedactionRender(redactions, liens, effectifsParReda
 
 function osRedactionsChoisirRedac(redacId){
   window._redacActiveId = redacId;
+  try{ localStorage.setItem('compo_redac_derniere', redacId); }catch(e){}   // retenue pour le prochain lancement : plus besoin de la redemander
   // Ce qui dépend de la rédaction affichée est rechargé : communiqués, pastilles, accueil
   window._cpsData = [];
   window._cpInvitAttente = { total:0, invitations:[] };
