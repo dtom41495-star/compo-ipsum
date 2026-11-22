@@ -8138,3 +8138,7 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 #os-accueil .acc-app { flex: 0 0 auto; width: 88px; padding: 9px 4px 8px; gap: 5px; }
 #os-accueil .acc-app-ic { width: 36px; height: 36px; font-size: 1.2rem; }
 @media (max-width: 1100px) { #os-accueil .acc-apps-grille { justify-content: flex-start; } }
+
+/* Écran d'accueil : titres des tuiles et des applications en DM Sans (fini la police à chasse fixe en capitales espacées) */
+#os-accueil .os-w-wid small { font: 600 .76rem 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.68); margin-bottom: 2px; }
+#os-accueil .acc-apps-titre { font: 600 .78rem 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.68); }

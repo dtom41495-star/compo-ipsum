@@ -46,7 +46,7 @@ var OS_WIDGETS = [
     visible:function(){ return typeof _veilleWidgetPermis === 'function' ? _veilleWidgetPermis() : true; }, monter:function(){ if(typeof osVeilleWidgetCharger === 'function') osVeilleWidgetCharger(); } },
   { id:'annonce', nom:'Annonce de la rédac', desc:'La dernière annonce de la rédaction.', icone:'speakerphone', largeur:4, hauteur:2, auto:true, classe:'os-w-an',
     monter:function(){ osWidgetAnnonceCharger(); } },
-  { id:'recrutement', nom:'Rejoindre l’équipe', desc:'Les postes ouverts au recrutement.', icone:'user-plus', largeur:4, hauteur:4, auto:true, classe:'os-w-rc',
+  { id:'recrutement', nom:'On recrute', desc:'Les postes ouverts au recrutement.', icone:'user-plus', largeur:4, hauteur:4, auto:true, classe:'os-w-rc',
     monter:function(){ osWidgetRecrutementCharger(); } },
   { id:'notes', nom:'Bloc-notes', desc:'Ta dernière note, liée à l’appli Notes : elle se modifie ici ou là.', icone:'notes', largeur:4, hauteur:6, classe:'os-w-no',
     monter:function(c){ osWidgetNotesMonter(c); } }
@@ -388,7 +388,7 @@ function osWidgetRecrutementCharger(){
   _wbLire('recrutement_annonces?statut=eq.ouvert&order=created_at.desc&limit=3&select=id,titre,commissions(nom)').then(function(l){
     var c = document.getElementById('os-w-recrutement'), corps = _wbCorps('recrutement'); if(!c || !corps) return;
     l = l || [];
-    corps.innerHTML = '<small>Rejoindre l’équipe</small>'+(l.length ? l.map(function(p){
+    corps.innerHTML = '<small>On recrute</small>'+(l.length ? l.map(function(p){
       return '<div class="os-w-rc-l"><strong>'+esc(p.titre || '')+'</strong>'+(p.commissions ? '<em>'+esc(p.commissions.nom)+'</em>' : '')+'</div>';
     }).join('') : '<span class="os-w-vide">Aucun poste ouvert</span>');
     c.onclick = _wbOuvrirSiPas(function(){ if(typeof osOuvrirRecrutement === 'function') osOuvrirRecrutement(); });
