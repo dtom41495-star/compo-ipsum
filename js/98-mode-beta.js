@@ -8,6 +8,7 @@
 var OS_BETA = [
   { id:'fenetres', nom:'Rendu des fenêtres', desc:'Nouveau look : coins plus arrondis, ombres douces, barre de titre épurée, boutons ronds, fenêtre active mieux marquée.' },
   { id:'bureau-epure', nom:'Bureau épuré', desc:'Plus d\'icônes sur le bureau : elles passent dans le menu Démarrer (section « Sur le bureau »). La barre des applications épinglées en bas ne change pas.' },
+  { id:'sans-barre', nom:'Sans barre des tâches', desc:'La barre du bas disparaît. Une petite pastille en haut au centre reprend l\'essentiel (accueil, menu, vue d\'ensemble des fenêtres, recherche, notifications, disponibilité, heure). La vue d\'ensemble (Ctrl+Espace) liste toutes les fenêtres ouvertes, même réduites.' },
   { id:'menu-plein', nom:'Menu Démarrer en pleine page', desc:'Le menu s\'ouvre sur tout l\'écran, à la manière de Linux ou macOS : recherche en haut, grandes icônes. Un clic dans le vide ou Échap le ferme.' }
 ];
 
@@ -82,7 +83,26 @@ function osBetaConstruireLigne(container){
 
 // « Bureau épuré » : les icônes retirées du bureau (cachées par le CSS) deviennent une section du menu Démarrer. On les lit telles qu'elles sont
 // sur le bureau, pour ne rien oublier ; un clic sur la tuile déclenche l'icône d'origine. Celles qui sont déjà des applications du menu sont omises.
+function osBetaFenetresDansMenu(){
+  var anc = document.getElementById('sm-fenetres-bloc'); if(anc) anc.remove();
+  if(!osBetaActif('sans-barre')) return;
+  var l = _osBetaFenetres(); if(!l.length) return;
+  var defaut = document.getElementById('sm-defaut'); if(!defaut) return;
+  var bloc = document.createElement('div');
+  bloc.id = 'sm-fenetres-bloc';
+  bloc.innerHTML = '<div class="sm-section-label">Fenêtres ouvertes</div><div class="sm-grid"></div>';
+  var g = bloc.querySelector('.sm-grid');
+  l.forEach(function(f){
+    var t = document.createElement('div'); t.className = 'sm-app-icon';
+    t.innerHTML = '<div class="sm-app-img" style="background:'+f.couleur+';color:#fff">'+f.icone+'</div><div class="sm-app-label"></div>';
+    t.querySelector('.sm-app-label').textContent = f.titre + (f.reduite ? ' (réduite)' : '');
+    t.onclick = function(){ var m = document.getElementById('os-start-menu'); if(m) m.classList.remove('visible'); _osBetaMontrerFenetre(f.id); };
+    g.appendChild(t);
+  });
+  defaut.insertBefore(bloc, defaut.firstChild);
+}
 function osBetaBureauDansMenu(){
+  osBetaFenetresDansMenu();
   var ancien = document.getElementById('sm-bureau-bloc'); if(ancien) ancien.remove();
   if(!osBetaActif('bureau-epure')) return;
   var cats = document.getElementById('sm-cats'); if(!cats) return;
@@ -130,5 +150,108 @@ document.addEventListener('keydown', function(e){
   var menu = document.getElementById('os-start-menu');
   if(menu && menu.classList.contains('visible')) menu.classList.remove('visible');
 });
+
+
+// ===== « SANS BARRE DES TÂCHES » : pastille d'état + vue d'ensemble des fenêtres =====
+// Sans la barre du bas, trois choses ont besoin d'un autre endroit : lancer (le menu Démarrer), passer d'une fenêtre à l'autre (la vue d'ensemble,
+// aussi sous Ctrl+Espace, qui montre toutes les fenêtres ouvertes, réduites comprises) et les indicateurs (la pastille en haut au centre).
+function _osBetaFenetres(){
+  var l = [];
+  Object.keys(window._windows || {}).forEach(function(id){
+    var w = _windows[id]; if(!w || !w.el) return;
+    var t = document.getElementById('win-title-'+id);
+    var app = (typeof ALL_APPS_CATALOGUE !== 'undefined' ? ALL_APPS_CATALOGUE : []).filter(function(a){ return a.id === id; })[0];
+    l.push({ id:id, titre:(t && t.textContent.trim()) || (app && app.label) || id, icone:app ? app.icon : '<i class="ti ti-app-window"></i>', couleur:app ? app.color : '#475569',
+      reduite:w.el.classList.contains('minimized'), active:window._activeWindowId === id });
+  });
+  return l;
+}
+function _osBetaMontrerFenetre(id){
+  var w = window._windows && _windows[id]; if(!w) return;
+  if(typeof osRestaurerFenetre === 'function') osRestaurerFenetre(id);
+  else { w.el.classList.remove('minimized'); if(typeof osFocusWindow === 'function') osFocusWindow(id); }
+}
+
+function osBetaVueEnsemble(forcer){
+  var ex = document.getElementById('os-vue-ensemble');
+  if(ex){ ex.remove(); return; }
+  if(forcer === false) return;
+  var menu = document.getElementById('os-start-menu'); if(menu) menu.classList.remove('visible');
+  var ov = document.createElement('div');
+  ov.id = 'os-vue-ensemble';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Fenêtres ouvertes');
+  function dessiner(){
+    var l = _osBetaFenetres();
+    ov.innerHTML = '<div class="ve-titre">Fenêtres ouvertes <span>'+l.length+'</span></div>'
+      +(l.length ? '<div class="ve-grille">'+l.map(function(f){
+        return '<div class="ve-carte'+(f.active ? ' active' : '')+'" data-id="'+f.id+'" tabindex="0">'
+          +'<button type="button" class="ve-x" data-x="'+f.id+'" aria-label="Fermer"><i class="ti ti-x"></i></button>'
+          +'<span class="ve-ic" style="background:'+f.couleur+'">'+f.icone+'</span>'
+          +'<span class="ve-nom">'+String(f.titre).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; })+'</span>'
+          +(f.reduite ? '<span class="ve-etat">réduite</span>' : (f.active ? '<span class="ve-etat on">devant</span>' : ''))+'</div>';
+      }).join('')+'</div>' : '<div class="ve-vide">Aucune fenêtre ouverte. Ouvre une application depuis le menu ou l\'accueil.</div>')
+      +'<div class="ve-pied"><button type="button" data-a="menu"><i class="ti ti-layout-grid"></i> Menu</button><button type="button" data-a="accueil"><i class="ti ti-home"></i> Accueil</button><span>Échap pour fermer</span></div>';
+  }
+  dessiner();
+  ov.addEventListener('click', function(e){
+    var x = e.target.closest('[data-x]');
+    if(x){ e.stopPropagation(); if(typeof osCloseWindow === 'function') osCloseWindow(x.dataset.x); setTimeout(dessiner, 450); return; }
+    var c = e.target.closest('.ve-carte');
+    if(c){ ov.remove(); _osBetaMontrerFenetre(c.dataset.id); return; }
+    var a = e.target.closest('[data-a]');
+    if(a){ ov.remove(); if(a.dataset.a === 'menu') setTimeout(function(){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }, 0); else if(typeof osAccueilBasculer === 'function') osAccueilBasculer(); return; }
+    if(e.target === ov) ov.remove();
+  });
+  ov.addEventListener('keydown', function(e){ if((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('ve-carte')){ e.preventDefault(); e.target.click(); } });
+  document.body.appendChild(ov);
+  var premiere = ov.querySelector('.ve-carte'); if(premiere) premiere.focus();
+}
+
+// La pastille d'état, en haut au centre
+function osBetaPastille(){
+  var ex = document.getElementById('os-pastille-beta');
+  var veut = osBetaActif('sans-barre') && !(typeof osEstMobile === 'function' && osEstMobile()) && !!window._session && !!document.getElementById('os-desktop') && document.getElementById('os-desktop').classList.contains('visible');
+  if(!veut){ if(ex) ex.remove(); return; }
+  if(ex) return;
+  var p = document.createElement('div');
+  p.id = 'os-pastille-beta';
+  p.setAttribute('role', 'toolbar'); p.setAttribute('aria-label', 'Barre d\'état');
+  p.innerHTML = '<button type="button" data-a="accueil" title="Accueil"><i class="ti ti-home"></i></button>'
+    +'<button type="button" data-a="menu" title="Menu (applications)"><i class="ti ti-layout-grid"></i></button>'
+    +'<button type="button" data-a="ensemble" title="Fenêtres ouvertes (Ctrl+Espace)"><i class="ti ti-app-window"></i><b id="pb-nb"></b></button>'
+    +'<button type="button" data-a="recherche" title="Rechercher (Ctrl+K)"><i class="ti ti-search"></i></button>'
+    +'<button type="button" data-a="notifs" title="Notifications"><i class="ti ti-bell"></i><b id="pb-notifs"></b></button>'
+    +'<button type="button" data-a="dispo" title="Disponibilité"><span id="pb-dispo" class="pb-dispo"></span></button>'
+    +'<span class="pb-heure" id="pb-heure"></span>';
+  p.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-a]'); if(!b) return;
+    var a = b.dataset.a;
+    if(a === 'accueil'){ if(typeof osAccueilBasculer === 'function') osAccueilBasculer(); }
+    else if(a === 'menu'){ setTimeout(function(){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }, 0); }   // après le clic : sinon la fermeture « clic ailleurs » le referme
+    else if(a === 'ensemble') osBetaVueEnsemble();
+    else if(a === 'recherche'){ setTimeout(function(){ if(typeof osStartMenuRecherche === 'function') osStartMenuRecherche(); }, 0); }
+    else if(a === 'notifs'){ if(typeof osATraiterBasculer === 'function') osATraiterBasculer(); }
+    else if(a === 'dispo'){ if(typeof osToggleDND === 'function') osToggleDND(); }
+  });
+  document.body.appendChild(p);
+  osBetaPastilleMaj();
+}
+function osBetaPastilleMaj(){
+  var p = document.getElementById('os-pastille-beta'); if(!p) return;
+  var nb = _osBetaFenetres().length, n = 0;
+  try{ n = (typeof _atrTotal === 'function' ? _atrTotal() : 0) + ((window._atr && _atr.infos) ? _atr.infos.length : 0); }catch(e){}
+  var a = document.getElementById('pb-nb'); if(a){ a.textContent = nb || ''; a.style.display = nb ? 'inline-flex' : 'none'; }
+  var b = document.getElementById('pb-notifs'); if(b){ b.textContent = n > 99 ? '99+' : (n || ''); b.style.display = n ? 'inline-flex' : 'none'; }
+  var d = document.getElementById('pb-dispo'); if(d){ d.classList.toggle('pause', !!window._dndActif); d.title = window._dndActif ? 'En pause' : 'Disponible'; }
+  var h = document.getElementById('pb-heure'); if(h){ var m = new Date(); h.textContent = String(m.getHours()).padStart(2, '0')+':'+String(m.getMinutes()).padStart(2, '0'); }
+}
+setInterval(function(){ osBetaPastille(); osBetaPastilleMaj(); }, 2000);
+
+// Ctrl+Espace : vue d'ensemble (seulement en mode « sans barre »)
+document.addEventListener('keydown', function(e){
+  if(!osBetaActif('sans-barre')) return;
+  if(e.ctrlKey && (e.code === 'Space' || e.key === ' ')){ e.preventDefault(); osBetaVueEnsemble(); }
+  else if(e.key === 'Escape'){ var v = document.getElementById('os-vue-ensemble'); if(v){ v.remove(); e.stopPropagation(); } }
+}, true);
 
 osBetaAppliquer();

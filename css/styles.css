@@ -8246,3 +8246,37 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 /* Connexion : l'ancien anneau qui tourne est remplacé par l'animation des quatre pictos (js/97-chargement.js) */
 .os-login-attente-roue { display: none !important; }
 .os-login-attente .cc { --cc-y: .35; width: 1.5em; height: 1.5em; }
+
+/* ===== .beta-sans-barre : plus de barre des tâches (js/98-mode-beta.js) ===== */
+:root.beta-sans-barre { --dock-h: 0px; }
+:root.beta-sans-barre #os-dock, :root.beta-sans-barre #os-dock-poignee, :root.beta-sans-barre #os-dock-bord { display: none !important; }
+#os-pastille-beta { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99000; display: flex; align-items: center; gap: 2px; padding: 4px 8px;
+  border-radius: 999px; background: rgba(20,20,42,.82); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 8px 28px rgba(0,0,0,.28);
+  backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); color: #fff; font-family: 'DM Sans', sans-serif; }
+#os-pastille-beta button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 34px; height: 34px; padding: 0 8px; border: none; border-radius: 999px; background: transparent; color: inherit; font-size: 1.05rem; cursor: pointer; }
+#os-pastille-beta button:hover { background: rgba(255,255,255,.14); }
+#os-pastille-beta b { display: none; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #E8461E; color: #fff; font: 700 .62rem 'DM Sans', sans-serif; }
+.pb-dispo { width: 12px; height: 12px; border-radius: 50%; background: #3DDC84; box-shadow: 0 0 0 2px rgba(61,220,132,.25); }
+.pb-dispo.pause { background: #F5A524; box-shadow: 0 0 0 2px rgba(245,165,36,.25); }
+.pb-heure { padding: 0 10px 0 6px; font: 700 .86rem 'Poppins', sans-serif; letter-spacing: .01em; }
+#os-vue-ensemble { position: fixed; inset: 0; z-index: 99500; display: flex; flex-direction: column; gap: 22px; align-items: center; padding: 9vh 5vw 5vh; overflow-y: auto;
+  background: rgba(12,12,28,.82); backdrop-filter: blur(30px) saturate(150%); -webkit-backdrop-filter: blur(30px) saturate(150%); color: #fff; font-family: 'DM Sans', sans-serif; animation: ve-entree .18s ease both; }
+@keyframes ve-entree { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
+.ve-titre { font: 700 1.2rem Poppins, sans-serif; display: flex; gap: 10px; align-items: center; }
+.ve-titre span { font: 600 .8rem 'DM Sans', sans-serif; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,.14); }
+.ve-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; width: min(1100px, 100%); }
+.ve-carte { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 14px 16px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.12); cursor: pointer; transition: background .15s, transform .15s, border-color .15s; outline: none; }
+.ve-carte:hover, .ve-carte:focus-visible { background: rgba(255,255,255,.16); transform: translateY(-2px); border-color: rgba(255,255,255,.35); }
+.ve-carte.active { border-color: #E8461E; }
+.ve-ic { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-size: 1.6rem; color: #fff; }
+.ve-nom { font: 600 .92rem 'DM Sans', sans-serif; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ve-etat { font-size: .72rem; color: rgba(255,255,255,.6); }
+.ve-etat.on { color: #5BD39A; }
+.ve-x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; display: grid; place-items: center; opacity: 0; transition: opacity .15s, background .15s; }
+.ve-carte:hover .ve-x, .ve-carte:focus-within .ve-x { opacity: 1; }
+.ve-x:hover { background: #E24B4A; }
+.ve-vide { margin-top: 8vh; color: rgba(255,255,255,.7); font-size: .95rem; text-align: center; }
+.ve-pied { margin-top: auto; display: flex; gap: 10px; align-items: center; color: rgba(255,255,255,.55); font-size: .78rem; }
+.ve-pied button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #fff; font: 600 .84rem 'DM Sans', sans-serif; cursor: pointer; }
+.ve-pied button:hover { background: rgba(255,255,255,.16); }
+@media (prefers-reduced-motion: reduce) { #os-vue-ensemble { animation: none; } }
