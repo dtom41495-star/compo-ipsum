@@ -935,7 +935,14 @@ function _osFenetreVersDock(el, icone, duree){
     echelle = .1;
   }
   el.style.transformOrigin = '50% 50%';
-  el.style.transition = 'transform '+duree+'ms cubic-bezier(.45,0,.25,1), opacity '+Math.round(duree * .55)+'ms ease-in '+Math.round(duree * .45)+'ms';
+  if(echelle === .1){
+    // Vers l'icône de la barre : la fenêtre voyage, puis s'efface vers la fin du trajet
+    el.style.transition = 'transform '+duree+'ms cubic-bezier(.45,0,.25,1), opacity '+Math.round(duree * .55)+'ms ease-in '+Math.round(duree * .45)+'ms';
+  } else {
+    // Pas d'icône à viser (fenêtre sans icône dans la barre) : elle s'enfonce et s'efface tout de suite, bien visible
+    duree = 240; dy = 18; echelle = .86;
+    el.style.transition = 'transform '+duree+'ms cubic-bezier(.4,0,.6,1), opacity '+Math.round(duree * .9)+'ms ease-in';
+  }
   void el.offsetWidth;
   el.style.transform = 'translate3d('+Math.round(dx)+'px,'+Math.round(dy)+'px,0) scale('+echelle+')';
   el.style.opacity = '0';
@@ -1143,17 +1150,7 @@ function osUpdateDockActiveState(){
 function osMinimizeWindow(pageId){
   var win = _windows[pageId];
   if(!win) return;
-  var elMin = win.el;
-  if(!elMin.classList.contains('minimized')){
-    // Se réduit vers son icône avant de se masquer, puis retrouve son état normal (pour la restauration)
-    var iconeMin = document.querySelector('#os-dock .dock-icon[data-page="'+pageId+'"]');
-    var dureeMin = _osFenetreVersDock(elMin, iconeMin, 260);
-    setTimeout(function(){
-      elMin.classList.add('minimized');
-      elMin.style.transition = ''; elMin.style.transform = ''; elMin.style.opacity = ''; elMin.style.pointerEvents = '';
-      osMajDock();
-    }, dureeMin + 10);
-  }
+  win.el.classList.add('minimized');
   if(window._activeWindowId === pageId){
     window._activeWindowId = null;
     osUpdateDockActiveState();

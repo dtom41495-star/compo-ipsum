@@ -110,13 +110,26 @@ function osAccueilOuvrir(){
   Array.prototype.forEach.call(o.querySelectorAll('.os-w-wid, .acc-app, .acc-tete > *'), function(el, i){ el.style.setProperty('--acc-i', i); });
   if(typeof osWidgetNotificationsRendre === 'function') osWidgetNotificationsRendre();
 }
-function osAccueilFermer(){
+// Applications qui ne dépendent d'aucune rédaction (administration, vie asso, trésorerie, outils…) : les ouvrir ne déclenche pas le choix de
+// la rédaction repoussé depuis le lancement. Les autres (Rédiger, Articles, Ma rédac', Communiqués, Newsletter, Agenda…) le déclenchent.
+var OS_APPS_SANS_REDAC = ['gestion-apps', 'benevoles', 'tresorerie', 'notes-frais', 'cockpit', 'stats-dashboard', 'nettoyage', 'boutique', 'salles',
+  'tutos', 'mail', 'app-dub', 'signatures', 'notes', 'magneto', 'transcrire', 'flouter', 'compteur', 'compo-store', 'upload-medias'];
+function osAppSansRedac(id){ return OS_APPS_SANS_REDAC.indexOf(id) !== -1; }
+
+function osAccueilFermer(sansChoix){
   var o = document.getElementById('os-accueil'); if(!o || !_acc.ouvert) return;
   if(window._wb && _wb.edition && typeof osWidgetsBasculerEdition === 'function') osWidgetsBasculerEdition();
   o.classList.remove('visible'); _acc.ouvert = false;
   document.body.classList.remove('accueil-ouvert');
   var b = document.getElementById('os-accueil-btn'); if(b) b.classList.remove('active');
-  // Plusieurs rédactions : le choix de la rédaction attendait qu'on quitte l'accueil
+  // Plusieurs rédactions : le choix de la rédaction attendait qu'on quitte l'accueil, sauf si c'est pour une appli sans rédaction : il attend
+  // alors qu'on ouvre une appli qui en dépend (ou le bureau)
+  if(sansChoix === true){
+    window._osChoixAttendApp = true;
+    var bureauAttente = document.getElementById('os-desktop');   // le bureau (fenêtres, barre) ne reste pas masqué en attendant le choix
+    if(bureauAttente) bureauAttente.classList.remove('os-attente');
+    return;
+  }
   if(typeof window._osChoixDiffere === 'function') setTimeout(function(){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); }, 250);
 }
 function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilOuvrir(); }
@@ -125,7 +138,13 @@ function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilO
   // Une fenêtre qui s'ouvre (depuis une tuile, une appli épinglée, une notification…) : l'accueil s'efface
   if(typeof osOpenWindow === 'function'){
     var _ouvrirAvantAccueil = osOpenWindow;
-    osOpenWindow = function(){ osAccueilFermer(); return _ouvrirAvantAccueil.apply(this, arguments); };
+    osOpenWindow = function(id){
+      var etaitOuvert = !!_acc.ouvert, sans = osAppSansRedac(id);
+      osAccueilFermer(sans);
+      // Accueil déjà fermé et choix toujours en attente : une appli qui dépend d'une rédaction le fait apparaître
+      if(!etaitOuvert && !sans && typeof window._osChoixDiffere === 'function') setTimeout(function(){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); }, 250);
+      return _ouvrirAvantAccueil.apply(this, arguments);
+    };
   }
   if(typeof osShowDesktop === 'function'){
     var _bureauAvantAccueil = osShowDesktop;
