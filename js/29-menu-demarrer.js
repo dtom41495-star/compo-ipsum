@@ -76,6 +76,8 @@ function _smQuand(ts){
 function osToggleStartMenu(){
   var menu = document.getElementById('os-start-menu');
   if(!menu) return;
+  // Le menu vit au niveau de la page : rangé dans la zone du bureau, il passait derrière l'écran d'accueil (qui est au-dessus de tout le bureau)
+  if(menu.parentNode !== document.body) document.body.appendChild(menu);
   menu.classList.toggle('visible');
   if(!menu.classList.contains('visible')) return;
   var nameEl = document.getElementById('start-menu-name');
