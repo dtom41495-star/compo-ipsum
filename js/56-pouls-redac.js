@@ -113,6 +113,8 @@ function _poulsDepuis(iso){
 }
 
 function osPoulsCharger(){
+  // Les chiffres servent au cadran « La rédac » et au compte à rebours de la newsletter : inutile de les lire si aucun n'est au bureau
+  if(!document.getElementById('os-w-pouls') && !document.getElementById('os-w-newsletter')) return Promise.resolve();
   var widget = document.getElementById('os-clock-widget');
   if(typeof osEstMobile === 'function' && osEstMobile() || !widget || !getUserId() || !_session || !_poulsPermis()){ _poulsRetirer(); return Promise.resolve(); }
   var r = _poulsRedacActive();
@@ -203,8 +205,29 @@ function osPoulsAdminRendre(zone){
   });
 }
 
+// La carte appartient au cadre des widgets : on la vide, on ne la retire pas (elle se remplit à la prochaine lecture)
 function _poulsRetirer(){
-  var c = document.getElementById('os-w-pouls'); if(c) c.remove();
+  var c = document.getElementById('os-w-pouls'); var z = c && (c.querySelector('.os-w-wid-corps') || c); if(z) z.innerHTML = '';
+}
+
+// Petit cadran de compteur : un demi-cercle vert, orange, rouge et une aiguille qui tourne de -90° (score 0) à +90° (score 100)
+function _poulsCadran(score){
+  var cx = 32, cy = 32, r = 25;
+  var pt = function(sc){ var a = sc * 1.8 * Math.PI / 180; return (cx - r * Math.cos(a)).toFixed(2)+' '+(cy - r * Math.sin(a)).toFixed(2); };
+  var arc = function(de, a, coul){ return '<path d="M'+pt(de)+' A'+r+' '+r+' 0 0 1 '+pt(a)+'" fill="none" stroke="'+coul+'" stroke-width="5"/>'; };
+  var angle = Math.max(0, Math.min(100, score)) * 1.8 - 90;
+  return '<svg class="os-w-pouls-cadran" viewBox="0 0 64 38" width="58" height="34" aria-hidden="true">'
+    +arc(0, 29.5, '#5BD39A')+arc(30.5, 64.5, '#FFB43C')+arc(65.5, 100, '#FF6A55')
+    +'<g class="os-w-pouls-aiguille" style="transform:rotate('+angle+'deg);transform-origin:'+cx+'px '+cy+'px"><line x1="'+cx+'" y1="'+cy+'" x2="'+cx+'" y2="'+(cy - r + 5)+'" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#fff"/></svg>';
+}
+
+// Branche le clic (détail) sur la carte posée par le cadre des widgets
+function osPoulsMonter(carte){
+  if(!carte || carte.dataset.branche) return;
+  carte.dataset.branche = '1';
+  carte.addEventListener('click', osPoulsDetailBasculer);
+  carte.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); osPoulsDetailBasculer(e); } });
 }
 
 function osPoulsRendre(){
@@ -212,24 +235,18 @@ function osPoulsRendre(){
   var m = _pouls.dernier;
   if(!widget || !m || !_poulsPermis() || (typeof osEstMobile === 'function' && osEstMobile())){ _poulsRetirer(); return; }
   var etat = osPoulsEtat(m.score), d = m.donnees;
-  var carte = document.getElementById('os-w-pouls');
-  if(!carte){
-    carte = document.createElement('div');
-    carte.id = 'os-w-pouls';
-    carte.className = 'os-w-carte os-w-pouls';
-    // Sous la pastille « en ligne », avant la carte d'installation
-    var installer = document.getElementById('os-w-installer');
-    if(installer) widget.insertBefore(carte, installer); else widget.appendChild(carte);
-    carte.addEventListener('click', osPoulsDetailBasculer);
-    carte.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); osPoulsDetailBasculer(e); } });
-  }
+  var carte = document.getElementById('os-w-pouls');   // posée par le cadre des widgets (js/94-widgets-bureau.js) quand ce widget est choisi
+  if(!carte) return;
   carte.style.setProperty('--c', etat.couleur);
   carte.title = 'Voir le détail';
   carte.setAttribute('aria-label', 'La rédac : '+etat.mot+'. Voir le détail');
   carte.setAttribute('role', 'button');
   carte.tabIndex = 0;
-  carte.innerHTML = '<small>La rédac</small><b>'+etat.mot+'</b><div class="os-w-pouls-regle"><i style="left:'+m.score+'%"></i></div>';
+  var zoneP = carte.querySelector('.os-w-wid-corps') || carte;
+  zoneP.innerHTML = _poulsCadran(m.score)
+    +'<div class="os-w-pouls-txt"><small>La rédac</small><span class="os-w-pouls-mot">'+etat.mot+'</span></div>';
   if(document.getElementById('os-pouls-pop')) _poulsDetailRemplir();  // détail ouvert : il se met à jour
+  if(typeof osWidgetNewsletterRendre === 'function') osWidgetNewsletterRendre();
 }
 
 // ---- Le détail, au clic sur le widget ----
@@ -272,6 +289,7 @@ function _poulsDetailEchap(e){ if(e.key === 'Escape') osPoulsDetailFermer(); }
 
 function osPoulsDetailBasculer(e){
   if(e) e.stopPropagation();
+  if(window._wb && _wb.edition) return;   // en mode « Organiser », un clic ne doit pas ouvrir le détail
   if(document.getElementById('os-pouls-pop')){ osPoulsDetailFermer(); return; }
   var carte = document.getElementById('os-w-pouls');
   if(!carte || !_pouls.dernier) return;
