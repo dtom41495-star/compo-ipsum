@@ -148,7 +148,7 @@ function osBoutiqueVoirCommandes(){
 function osLoadingHtml(retryFnName, timeoutMs){
   if(!retryFnName){
     return '<div class="os-loading">'
-      +'<div class="os-loading-dots"><span></span><span></span><span></span></div>'
+      +(typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc', 'Chargement') : '<div class="os-loading-dots"><span></span><span></span><span></span></div>')
       +'<div class="os-loading-label">Communication en cours avec le serveur</div>'
       +'</div>';
   }
@@ -159,7 +159,7 @@ function osLoadingHtml(retryFnName, timeoutMs){
     el.outerHTML = osErreurHtml(retryFnName, 'Ça prend plus de temps que prévu — vérifie ta connexion.');
   }, timeoutMs || 9000);
   return '<div class="os-loading" id="'+idUnique+'">'
-    +'<div class="os-loading-dots"><span></span><span></span><span></span></div>'
+    +(typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc', 'Chargement') : '<div class="os-loading-dots"><span></span><span></span><span></span></div>')
     +'<div class="os-loading-label">Communication en cours avec le serveur</div>'
     +'</div>';
 }

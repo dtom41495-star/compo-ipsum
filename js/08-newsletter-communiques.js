@@ -2358,7 +2358,7 @@ function cpsAdminSauvegarder(statut){
   overlay.id = 'cps-upload-overlay';
   overlay.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,0.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;border-radius:inherit;';
   overlay.innerHTML =
-    '<div style="width:40px;height:40px;border:3px solid var(--gris-bord);border-top-color:var(--rouge);border-radius:50%;animation:spin 0.8s linear infinite;"></div>'
+    (typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc', 'Sauvegarde') : '')
     +'<div id="cps-upload-msg" style="font-family:Space Mono,monospace;font-size:0.75rem;color:var(--gris);"><i class="ti ti-device-floppy"></i> Sauvegarde en cours…</div>';
   if(form){ form.style.position = 'relative'; form.appendChild(overlay); }
 

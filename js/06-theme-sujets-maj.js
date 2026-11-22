@@ -164,8 +164,7 @@ function _afficherAnimationMajEtRecharger(){
   overlay.style.cssText = 'position:fixed;inset:0;z-index:999990;background:#FDFAF9;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s ease;';
   overlay.innerHTML =
     '<div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;min-width:260px;">'
-    +'<div style="width:52px;height:52px;background:linear-gradient(135deg,#E8461E,#C73A18);border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(232,70,30,0.3);">'
-    +'<i class="ti ti-refresh" style="font-size:1.5rem;color:white;animation:spin 1.1s linear infinite;"></i></div>'
+    +(typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-bloc', 'Mise à jour') : '')
     +'<div style="font-family:Poppins,sans-serif;font-weight:800;font-size:1.05rem;color:#1A1A2E;letter-spacing:-.02em;text-align:center;line-height:1.4;">Compo a été mis à jour<br>pendant ton absence</div>'
     +'<div style="font-family:DM Sans,sans-serif;font-size:.72rem;color:#9CA3AF;">Rechargement en cours…</div>'
     +'</div>';
