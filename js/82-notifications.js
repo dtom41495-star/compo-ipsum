@@ -400,6 +400,8 @@ _atrResume = function(){
     var taches = _atrTotal();
     if(taches) lignes.push({ ic:'checklist', couleur:'#0F6E56', label:'À traiter', n:taches });
     if(!lignes.length) return;
+    // L'écran d'accueil est ouvert : la tuile Notifications dit déjà la même chose, pas de bulle par-dessus les tuiles
+    if(window._acc && _acc.ouvert) return;
     // Une fenêtre est déjà ouverte : pas de bulle par-dessus, la cloche porte le même compte
     if(document.querySelector('.os-window:not(.minimized)')) return;
     var prenom = (typeof getUserPrenom === 'function' ? getUserPrenom() : (getUserNomComplet() || '').split(' ')[0]) || '';

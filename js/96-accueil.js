@@ -14,7 +14,7 @@ function osAccueilConstruire(){
   o.innerHTML = '<div class="acc-conteneur">'
       +'<div class="acc-tete" id="acc-tete"><div class="acc-droite"><div class="acc-meteo" id="acc-meteo"></div>'
         +'<div id="os-widgets-barre" class="os-widgets-barre"><button type="button" data-a="boutique"><i class="ti ti-plus"></i> Widgets</button>'
-        +'<button type="button" data-a="organiser"><i class="ti ti-layout-grid"></i> <span>Organiser</span></button>'
+        +'<button type="button" data-a="redac" id="acc-redac" hidden></button><button type="button" data-a="organiser"><i class="ti ti-layout-grid"></i> <span>Organiser</span></button>'
         +'<button type="button" data-a="bureau" class="acc-bureau" title="Revenir au bureau (touche Échap)"><i class="ti ti-device-desktop"></i> Aller au bureau <kbd>Échap</kbd></button></div></div></div>'
       +'<div id="os-widgets" class="os-widgets"></div>'
       +'<section class="acc-apps"><div class="acc-apps-titre">Mes applications</div><div class="acc-apps-grille" id="acc-apps"></div></section>'
@@ -29,6 +29,7 @@ function osAccueilConstruire(){
   document.getElementById('os-widgets-barre').addEventListener('click', function(e){
     var b = e.target.closest('button[data-a]'); if(!b) return;
     if(b.dataset.a === 'boutique') osWidgetsBoutique();
+    else if(b.dataset.a === 'redac'){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); else if(typeof rChangerRedaction === 'function') rChangerRedaction(); }
     else if(b.dataset.a === 'organiser') osWidgetsBasculerEdition();
     else osAccueilFermer();
   });
@@ -50,6 +51,20 @@ function osAccueilMeteo(){
       z.innerHTML = '<span class="acc-meteo-ic" aria-hidden="true">'+(typeof _wbIconeMeteo === 'function' ? _wbIconeMeteo(a.code, a.jour !== false) : '')+'</span>'
         +'<span class="acc-meteo-t"><b>'+(a.temp != null ? a.temp : j0.max)+'°</b><small>'+esc(dn.nom || 'Albi')+(j0.min != null && j0.max != null ? ' · '+j0.min+'° / '+j0.max+'°' : '')+'</small></span>';
     });
+}
+
+// Bouton « rédaction » de l'en-tête, pour qui est dans plusieurs rédactions : « Choisir ma rédaction » tant qu'aucune n'est choisie
+// (c'est ce qui remplace la fenêtre de choix, repoussée à la sortie de l'accueil), puis le nom de la rédaction active, pour en changer.
+function osAccueilRedacMaj(){
+  var b = document.getElementById('acc-redac'); if(!b) return;
+  var uid = getUserId();
+  var liens = (window._membresRedactionsData || []).filter(function(mr){ return mr.membre_id === uid; });
+  if(liens.length <= 1){ b.hidden = true; return; }
+  var active = window._redacActiveId && (window._redactionsData || []).filter(function(r){ return r.id === window._redacActiveId; })[0];
+  b.hidden = false;
+  b.classList.toggle('acc-redac-a-choisir', !active);
+  b.innerHTML = '<i class="ti ti-building-community"></i> '+(active ? esc(active.nom || 'Ma rédaction')+' <i class="ti ti-chevron-down"></i>' : 'Choisir ma rédaction');
+  b.title = active ? 'Changer de rédaction' : 'Choisis la rédaction dont Compo t\'affiche les articles et les chiffres';
 }
 
 // Applications épinglées (les mêmes que dans le menu Démarrer)
@@ -81,6 +96,7 @@ function osAccueilOuvrir(){
   document.body.classList.add('accueil-ouvert');
   var b = document.getElementById('os-accueil-btn'); if(b) b.classList.add('active');
   osAccueilApps();
+  osAccueilRedacMaj();
   Array.prototype.forEach.call(o.querySelectorAll('.os-w-wid, .acc-app, .acc-tete > *'), function(el, i){ el.style.setProperty('--acc-i', i); });
   if(typeof osWidgetNotificationsRendre === 'function') osWidgetNotificationsRendre();
 }
