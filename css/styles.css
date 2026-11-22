@@ -8105,3 +8105,15 @@ body.acc-arrivee #os-accueil .acc-apps-titre { animation: acc-tuile .6s ease 600
 #compo-loading-screen.cl-sortie { opacity: 0; transition-delay: 0s; }
 #compo-loading-screen .cl-etape { visibility: hidden; color: #C9C7D6; }
 #compo-loading-screen .cl-etape.cl-etape-attente { visibility: visible; }
+
+/* En-tête de l'accueil : plus de grosse tuile. L'heure et la date à gauche, à même le fond ; le message du moment, la météo et les boutons à droite. */
+.acc-tete { margin-bottom: 14px; }
+.acc-tete #os-clock-widget { flex: 0 1 auto; max-width: none; }
+#os-accueil #os-clock-widget > .os-w-carte { background: none; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0; }
+#os-accueil #os-clock-widget .os-w-chips { display: none; }
+#os-accueil #os-clock-widget .os-w-date { margin: .3rem 0 0; font-size: .9rem; }
+.acc-droite { gap: 8px; }
+.acc-droite .os-w-salut { border: 0; padding: 0; text-align: right; font-size: .98rem; max-width: 460px; }
+#os-accueil .os-widgets-barre .acc-bureau { font-size: .8rem; padding: 8px 15px; gap: 7px; }
+#os-accueil .os-widgets-barre .acc-bureau kbd { font: 600 .6rem 'DM Sans', sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(26,26,46,.12); color: #4b4b63; }
+#os-accueil #os-clock-widget #os-online-pill { position: static; display: inline-flex; margin: 8px 0 0; }
