@@ -291,11 +291,18 @@ function _osPermissionsModalAction(doc){
   var estChefRedac = (window._membresRedactionsData||[]).some(function(l){
     return l.membre_id===getUserId() && l.redaction_id===doc.redaction_id && l.role_redac==='redac_chef';
   });
+  // Texte validé ou en ligne : seuls un admin et le responsable de la rédaction (pas sur son propre texte) peuvent encore le modifier,
+  // comme la base le fait respecter (déclencheur articles_fige_texte). Les autres renvoient l'article en correction.
+  var estAuteur = !!doc.auteur_id && doc.auteur_id===getUserId();
+  var fige = osTexteFige(doc);
   return {
     peutCorriger: role==='admin' || osEstSR(doc.redaction_id),
-    peutModifier: role==='admin' || doc.auteur_id===getUserId() || estChefRedac
+    peutModifier: role==='admin' || (fige ? (estChefRedac && !estAuteur) : (estAuteur || estChefRedac))
   };
 }
+// Le texte de cet article est-il figé (bon à publier, validé par la centrale, ou en ligne) ?
+var _MSG_TEXTE_FIGE = 'Ce texte est validé ou en ligne : il ne se modifie plus. Demande à un responsable ou à un admin, ou renvoie-le en correction.';
+function osTexteFige(doc){ return !!doc && ['valide','valide_central','publie'].indexOf(doc.statut) !== -1; }
 
 // Ouvre un article par son identifiant (lien ?article=…, recherche du menu, récents, notifications) : directement en lecture.
 // Plus de fenêtre de choix : « Modifier » et « Corriger » sont dans la barre de la lecture, proposés selon les droits de chacun
@@ -1656,6 +1663,13 @@ function osStartAutosave(){
       _autosaveFallbackLocal(doc); // pas de connexion — garder une copie locale (récupérable via Brouillons)
       osSaveIndicateur('erreur');
       var ind = document.getElementById('r-save-indicator');
+      if(err && /texte_fige/.test(String(err.message || ''))){   // texte validé entre-temps : pas une panne de réseau, inutile de réessayer
+        osSaveIndicateur('erreur');
+        var indF = document.getElementById('r-save-indicator');
+        if(indF){ indF.textContent = 'Texte validé : modification refusée'; indF.style.color = 'var(--rouge)'; }
+        if(_autosaveDoublonSignale !== doc.id){ _autosaveDoublonSignale = doc.id; notif(_MSG_TEXTE_FIGE, 'erreur'); }
+        return;
+      }
       var doublon = err && (err.code === 'SUJET_DEJA_ECRIT' || err.code === 'SUJET_AUTRE_PERSONNE');
       if(ind){ ind.textContent = doublon ? 'Un article existe déjà pour ce sujet — copie gardée sur l\'appareil' : 'Connexion perdue — sauvegardé en local'; ind.style.color='var(--rouge)'; }
       // Prévenir une seule fois par article (l'autosave repasse toutes les 45 s)

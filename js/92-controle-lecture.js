@@ -20,6 +20,7 @@ function _ctlRpc(nom, params){
 // Message neutre quand la base refuse une mise en ligne à cause d'un contrôle : on ne dit pas pourquoi
 function osMessageMiseEnLigne(err){
   var m = String((err && err.message) || err || '');
+  if(/texte_fige/.test(m)) return typeof _MSG_TEXTE_FIGE === 'string' ? _MSG_TEXTE_FIGE : 'Ce texte est validé ou en ligne : il ne se modifie plus.';
   return /controle_en_cours/.test(m) ? 'La mise en ligne de cet article n\'est pas encore disponible. Réessaie un peu plus tard.' : null;
 }
 
