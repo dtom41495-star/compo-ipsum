@@ -543,3 +543,81 @@ function osCoecApercuMessages(doc){
     return { type:type, sujet:'[Ipsum Média] '+m.sujet, chat:m.chat, html:_emailCompo(m.email) };
   });
 }
+
+
+// ─────────────────────────────────────────────────────────────────
+// « NOUVEAU » DEPUIS LA VUE « À PLUSIEURS » : avec qui, puis le sujet, puis les invitations partent toutes seules
+// ─────────────────────────────────────────────────────────────────
+function osMesArticlesNouveau(){
+  if(typeof _maOnglet !== 'undefined' && _maOnglet === 'coecriture' && typeof osFenetreContenu === 'function') osCoecNouveau();
+  else osOuvrirNouvelArticle();
+}
+var _coecNv = null;
+function osCoecNouveau(){
+  _coecNv = { choisis:[], recherche:'' };
+  if(typeof _coecChargerMembres === 'function') try{ _coecChargerMembres(); }catch(e){}
+  osFenetreContenu('coec-nouveau', 'Écrire à plusieurs : avec qui ?', _coecNvRendre, [520, 600]);
+}
+function _coecNvRendre(z){
+  var e = _coecNv; if(!e) return;
+  var moi = getUserId(), q = e.recherche.trim().toLowerCase();
+  var pris = {}; e.choisis.forEach(function(m){ pris[m.id] = true; });
+  var candidats = q.length < 2 ? [] : _coecTousMembres().filter(function(m){
+    return m.id !== moi && !pris[m.id] && _coecNom(m).toLowerCase().indexOf(q) !== -1;
+  }).slice(0, 8);
+  var reste = COEC_MAX - e.choisis.length;
+  z.innerHTML = '<div style="padding:1.1rem 1.3rem;">'
+    +'<p class="se-aide" style="margin:0 0 .8rem;">Choisis avec qui tu veux écrire ce papier (jusqu’à '+COEC_MAX+' personnes, d’une autre rédaction si besoin). Tu choisiras le sujet juste après : les invitations partent toutes seules quand l’article est créé.</p>'
+    +(e.choisis.length ? '<div class="coec-liste">'+e.choisis.map(function(m){
+        return '<div class="coec-ligne"><span class="coec-avatar">'+esc(_coecNom(m).slice(0, 1).toUpperCase())+'</span><span class="coec-nom">'+esc(_coecNom(m))+'</span>'
+          +'<button type="button" class="se-btn-lien" data-retirer="'+esc(m.id)+'">Retirer</button></div>';
+      }).join('')+'</div>' : '')
+    +(reste > 0 ? '<label class="coec-label" for="coecnv-recherche">Inviter un membre <span class="coec-reste">('+reste+' place'+(reste > 1 ? 's' : '')+' restante'+(reste > 1 ? 's' : '')+')</span></label>'
+      +'<input id="coecnv-recherche" class="coec-recherche" type="search" placeholder="Prénom ou nom…" autocomplete="off" value="'+esc(e.recherche)+'">'
+      +(candidats.length ? '<div class="coec-candidats">'+candidats.map(function(m){
+          return '<button type="button" class="coec-candidat" data-ajouter="'+esc(m.id)+'"><span class="coec-avatar">'+esc(_coecNom(m).slice(0, 1).toUpperCase())+'</span><span class="coec-nom">'+esc(_coecNom(m))+'</span><i class="ti ti-plus"></i></button>';
+        }).join('')+'</div>' : (q.length >= 2 ? '<p class="se-aide">Aucun membre ne correspond.</p>' : '')) : '')
+    +'<div class="se-actions" style="margin-top:1rem;"><button type="button" class="se-btn-principal" id="coecnv-suite"'+(e.choisis.length ? '' : ' disabled')+'><i class="ti ti-arrow-right"></i> Choisir le sujet</button>'
+    +'<button type="button" class="se-btn-lien" id="coecnv-annuler">Annuler</button></div></div>';
+  var champ = z.querySelector('#coecnv-recherche');
+  if(champ){
+    champ.oninput = function(){ e.recherche = champ.value; var pos = champ.selectionStart; _coecNvRendre(z); var c2 = z.querySelector('#coecnv-recherche'); if(c2){ c2.focus(); try{ c2.setSelectionRange(pos, pos); }catch(x){} } };
+    if(!e._dejaFocus){ e._dejaFocus = true; champ.focus(); }
+  }
+  z.querySelectorAll('[data-ajouter]').forEach(function(b){ b.onclick = function(){ var m = _coecMembre(b.getAttribute('data-ajouter')); if(m && e.choisis.length < COEC_MAX){ e.choisis.push(m); e.recherche = ''; _coecNvRendre(z); } }; });
+  z.querySelectorAll('[data-retirer]').forEach(function(b){ b.onclick = function(){ e.choisis = e.choisis.filter(function(m){ return m.id !== b.getAttribute('data-retirer'); }); _coecNvRendre(z); }; });
+  z.querySelector('#coecnv-annuler').onclick = function(){ _coecNv = null; osCloseWindowForce('coec-nouveau'); };
+  z.querySelector('#coecnv-suite').onclick = function(){
+    if(!e.choisis.length) return;
+    window._coecEnAttente = { membres:e.choisis.slice(), depuis:Date.now(), idAvant:(typeof currentDoc !== 'undefined' && currentDoc) ? currentDoc.id : null, vuSujet:false };
+    _coecNv = null; osCloseWindowForce('coec-nouveau');
+    osRedigerChoisirSujet('nouveau');
+    _coecSurveillerNouvelArticle();
+  };
+}
+// Le sujet est choisi, l'éditeur s'ouvre sur le nouvel article : on l'enregistre, puis on invite chaque personne choisie
+function _coecSurveillerNouvelArticle(){
+  var t = setInterval(function(){
+    var a = window._coecEnAttente;
+    if(!a){ clearInterval(t); return; }
+    var choix = !!(window._windows && _windows['rs-sujets']);
+    if(choix) a.vuSujet = true;
+    var pret = !choix && window._windows && _windows['redaction'] && typeof currentDoc !== 'undefined' && currentDoc && currentDoc.id && currentDoc.id !== a.idAvant
+      && (currentDoc.sujet_id || currentDoc._sujet_id) && document.getElementById('r-titre');
+    if(pret){
+      clearInterval(t); window._coecEnAttente = null;
+      var doc = buildDoc();
+      db.sauvegarderArticle(doc).then(function(){
+        if(typeof osSynchroDoc === 'function') osSynchroDoc(doc);
+        return Promise.all(a.membres.map(function(m){ return osCoecInviter(doc, m).then(function(){ return _coecNom(m); }, function(err){ notif((_coecNom(m) || 'Invitation')+' : '+(err.message || 'impossible'), 'erreur'); return null; }); }));
+      }).then(function(noms){
+        noms = (noms || []).filter(Boolean);
+        if(noms.length) notif('Invitation envoyée à '+noms.join(', ')+'. Vous écrirez ensemble dès qu’elle sera acceptée.', 'succes');
+        if(typeof osCoecVueCharger === 'function' && document.getElementById('ma-os-list')) osCoecVueCharger();
+      }).catch(function(){ notif('Article créé, mais les invitations n’ont pas pu partir : utilise « Écrire à plusieurs » dans le bandeau.', 'alerte'); });
+      return;
+    }
+    // Le choix du sujet a été fermé sans rien choisir, ou trop de temps a passé : on laisse tomber
+    if((a.vuSujet && !choix && !pret && Date.now() - a.depuis > 8000 && !(window._windows && _windows['redaction'])) || Date.now() - a.depuis > 180000){ clearInterval(t); window._coecEnAttente = null; }
+  }, 500);
+}

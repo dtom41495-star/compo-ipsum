@@ -135,6 +135,25 @@ function osBetaConstruireLigne(container){
   container.appendChild(ligne);
 }
 
+// Paramètres : l'interrupteur des fenêtres « rangées » (formulaires, fiches et choix dans de vraies fenêtres, au lieu de flotter par-dessus tout)
+function osOvConstruireLigne(container){
+  var ligne = document.createElement('div');
+  ligne.className = 'params-row';
+  ligne.innerHTML = '<div><div class="params-label">Fenêtres plutôt que fenêtres flottantes</div>'
+    +'<div class="params-label-sub">Les formulaires, fiches et choix s\'ouvrent dans de vraies fenêtres (barre de titre, réduire, déplacer). Sur ordinateur.</div></div>';
+  var actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:0.4rem;flex-shrink:0;';
+  var on = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;background:var(--rouge);color:white;border:2px solid var(--rouge);';
+  var off = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;background:transparent;color:var(--gris);border:2px solid var(--gris-bord);';
+  var bNon = document.createElement('button'), bOui = document.createElement('button');
+  bNon.type = 'button'; bOui.type = 'button'; bNon.textContent = 'Non'; bOui.textContent = 'Oui';
+  function dessiner(){ var a = (osBetaEtat().ov !== false); bNon.style.cssText = a ? off : on; bOui.style.cssText = a ? on : off; }
+  bNon.onclick = function(){ osOvDefinir(false); dessiner(); };
+  bOui.onclick = function(){ osOvDefinir(true); dessiner(); };
+  actions.appendChild(bNon); actions.appendChild(bOui); ligne.appendChild(actions); dessiner();
+  container.appendChild(ligne);
+}
+
 // « Bureau épuré » : les icônes retirées du bureau (cachées par le CSS) deviennent une section du menu Démarrer. On les lit telles qu'elles sont
 // sur le bureau, pour ne rien oublier ; un clic sur la tuile déclenche l'icône d'origine. Celles qui sont déjà des applications du menu sont omises.
 function osBetaFenetresDansMenu(){
