@@ -8360,3 +8360,13 @@ html.mode-beta.beta-sans-barre body.accueil-ouvert #os-pastille-beta { display: 
 .acc-toutes-vide { padding: 30px; color: rgba(255,255,255,.6); font-size: .85rem; }
 #os-accueil .acc-toutes-champ input { background: transparent !important; border: none !important; box-shadow: none !important; color: #fff !important; padding: 0 !important; }
 #os-accueil .acc-toutes-champ i { color: rgba(255,255,255,.55); }
+
+/* Écrans passés de « fenêtre flottante » à vraie fenêtre : choix du sujet avant d'écrire, fiche d'un poste */
+.rs-dans-fenetre { height: 100%; overflow-y: auto; background: #fff; }
+.rs-dans-fenetre .se-boite { width: 100%; max-height: none; border-radius: 0; box-shadow: none; }
+.rs-dans-fenetre .se-fermer { display: none; }
+.rs-redac { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 8px 12px; border-radius: 10px; background: var(--gris-clair, #f3f0ee); font: 500 .8rem 'DM Sans', sans-serif; color: var(--encre, #1a1a2e); }
+.rs-redac button { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--gris-bord, #ddd); background: #fff; font: 600 .74rem 'DM Sans', sans-serif; cursor: pointer; }
+.recrut-dans-fenetre { height: 100%; overflow-y: auto; background: #fff; box-sizing: border-box; }
+/* Mode bêta : le bureau vide n'a plus d'intérêt, le bouton « Aller au bureau » disparaît du tableau de bord */
+html.mode-beta #os-accueil .acc-bureau { display: none; }

@@ -1438,6 +1438,7 @@ function osRedactionsChoisirRedac(redacId){
   if(typeof _accueilChargerCompteurs === 'function') _accueilChargerCompteurs();
   if(typeof osWidgetsRedacChangee === 'function') osWidgetsRedacChangee();   // les widgets de l'accueil suivent la rédaction choisie
   if(window._windows && _windows['mes-articles'] && typeof maOsFiltre === 'function'){ try{ maOsFiltre(); }catch(e){} }   // « Mes articles » aussi
+  if(window._rsEtat && document.getElementById('rs-overlay') && typeof osRedigerChoisirSujet === 'function') osRedigerChoisirSujet(_rsEtat.mode, _rsEtat.suite);   // le choix du sujet suit la nouvelle rédaction
 }
 
 // ---- VUE UNIFIÉE MEMBRE + RÉDAC CHEF (avec onglets) ----

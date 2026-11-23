@@ -481,7 +481,7 @@ function _osOpenWindowExecuter(pageId){
     win.style.top = '';
   } else {
     // Fenêtres qui n'ont pas besoin d'être grandes : elles s'ouvrent à la taille minimale (celle du redimensionnement)
-    var petite = { 'notes-frais':[400, 300] }[pageId];
+    var petite = { 'notes-frais':[400, 300] }[pageId] || (window._osFenetresTaille || {})[pageId];
     // … et celles qui montrent beaucoup à la fois (Ma rédac' : sujets, équipe, communiqués côte à côte) s'ouvrent plus grandes
     var grande = { 'redactions':[1080, 700] }[pageId];
     var w = petite ? petite[0] : Math.min(grande ? grande[0] : 860, wsW - 80);
@@ -570,6 +570,13 @@ function osLoadPageContent(pageId, winEl){
   var content = winEl.querySelector('.os-window-content');
   if(!content) return;
   
+  // Fenêtre « libre » (js/99) : son contenu est préparé par le code qui l'a ouverte
+  if(window._osFenetresContenu && window._osFenetresContenu[pageId]){
+    var _rendu = window._osFenetresContenu[pageId];
+    setTimeout(function(){ if(content.parentNode) _rendu(content); }, 0);
+    return;
+  }
+
   // Bugs admin
   if(pageId === 'bugs'){
     setTimeout(function(){ osBugsRender(); }, 50);

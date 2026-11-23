@@ -215,6 +215,7 @@ function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilO
   // Échap : retour au bureau (sauf si une fenêtre modale, un menu ou un champ de saisie est en cours d'usage)
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Escape' || !_acc.ouvert) return;
+    if(typeof osBetaActif === 'function' && osBetaActif()) return;   // bêta : le tableau de bord est l'accueil, le bureau vide ne sert plus
     var t = e.target;
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     if(document.querySelector('.renvoi-voile, #os-pouls-pop, #os-start-menu.visible')) return;

@@ -24,13 +24,14 @@ function osRedigerChoisirSujet(mode, suite){
   .then(function(d){
     if(!_rsEtat) return;
     _rsEtat.sujets = Array.isArray(d) ? d : [];
+    _rsEtat.charge = true;
     _rsAfficher(false);
   }).catch(function(){ if(_rsEtat){ _rsEtat.erreur = true; _rsAfficher(false); } });
 }
 
 function _rsFermer(){
-  var ov = document.getElementById('rs-overlay');
-  if(ov) ov.remove();
+  if(window._windows && _windows['rs-sujets'] && typeof osCloseWindowForce === 'function') osCloseWindowForce('rs-sujets');
+  else { var ov = document.getElementById('rs-overlay'); if(ov) ov.remove(); }
 }
 
 function _rsLigne(s, type){
@@ -72,14 +73,19 @@ function _rsAfficher(chargement){
         : '<p class="se-aide se-centre"><i class="ti ti-info-circle"></i> Dans ta rédaction, seul le rédac chef crée les sujets. Demande-lui si ton idée n\'est pas dans la liste.</p>')
       +'<button class="se-btn-lien" onclick="_rsFermer()">Annuler</button></div>';
   }
+  // Dans une vraie fenêtre (barre de titre, réduire, fermer), plus par-dessus tout le reste
   var ov = document.getElementById('rs-overlay');
   if(!ov){
-    ov = document.createElement('div');
-    ov.id = 'rs-overlay';
-    ov.className = 'se-overlay';
-    ov.addEventListener('click', function(ev){ if(ev.target === ov) _rsFermer(); });
-    document.body.appendChild(ov);
+    osFenetreContenu('rs-sujets', 'Rédiger : choisir un sujet', function(z){
+      if(!document.getElementById('rs-overlay')) z.innerHTML = '<div id="rs-overlay" class="rs-dans-fenetre"></div>';
+      _rsAfficher(!_rsEtat || (!_rsEtat.charge && !_rsEtat.erreur));
+    }, [560, 640]);
+    return;
   }
+  var nomR = ((window._redactionsData || []).filter(function(r){ return r.id === e.redacId; })[0] || {}).nom || '';
+  var bandeauR = nomR ? '<div class="rs-redac"><span><i class="ti ti-building-community"></i> Rédaction : <b>'+esc(nomR)+'</b></span>'
+    +((window._membresRedactionsData || []).filter(function(mr){ return mr.membre_id === getUserId(); }).length > 1 ? '<button type="button" onclick="osChoisirRedactionGlobale()">Changer</button>' : '')+'</div>' : '';
+  corps = bandeauR + corps;
   ov.innerHTML = '<div class="se-boite rs-boite" role="dialog" aria-modal="true" aria-labelledby="rs-titre">'
     +'<div class="se-entete"><div id="rs-titre" class="se-titre"><i class="ti ti-pin"></i> '+(e.mode === 'lier' ? 'Rattacher à un sujet' : 'Sur quel sujet écris-tu ?')+'</div>'
     +'<button class="se-fermer" onclick="_rsFermer()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'

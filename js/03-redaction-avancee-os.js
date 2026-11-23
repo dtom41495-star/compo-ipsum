@@ -109,6 +109,13 @@ function _recrutementOuvrirDetail(a, surface){
       +(actionsHtml ? '<div class="recrut-page-actions">'+actionsHtml+'</div>' : '');
     modal.querySelector('.recrut-page-retour').onclick = function(){ modal.remove(); };
   } else {
+    // Ordinateur : une vraie fenêtre (barre de titre, réduire, fermer), plus une fenêtre flottante par-dessus tout
+    var html = '<div id="recrut-detail-modal" class="recrut-detail-panel recrut-dans-fenetre">'+entete+corps
+      +'<div style="padding:1rem 1.5rem;background:var(--gris-clair);border-top:1px solid var(--gris-bord);display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">'+actionsHtml+'</div></div>';
+    if(typeof osFenetreContenu === 'function'){
+      osFenetreContenu('recrut-detail', 'Poste : '+(a.titre || 'recrutement'), function(z){ z.innerHTML = html; }, [560, 620]);
+      return;
+    }
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
     modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
     modal.innerHTML = '<div class="recrut-detail-panel" style="border-radius:16px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);">'
@@ -188,7 +195,8 @@ function _recrutementOuvrirCandidatureModal(annonceId, annonceTitre, surface){
       if(r.ok){
         modal.remove();
         var detailModal = document.getElementById('recrut-detail-modal');
-        if(detailModal) detailModal.remove();
+        if(window._windows && _windows['recrut-detail'] && typeof osCloseWindowForce === 'function') osCloseWindowForce('recrut-detail');
+        else if(detailModal) detailModal.remove();
         notif('Candidature envoyée','succes');
         osBenvEmailCandidature(annonceId, annonceTitre, getUserPrenom());
         _recrutementConfirmerCandidat(annonceTitre);
