@@ -29,7 +29,7 @@ function osAccueilConstruire(){
   document.getElementById('os-widgets-barre').addEventListener('click', function(e){
     var b = e.target.closest('button[data-a]'); if(!b) return;
     if(b.dataset.a === 'boutique') osWidgetsBoutique();
-    else if(b.dataset.a === 'redac'){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); else if(typeof rChangerRedaction === 'function') rChangerRedaction(); }
+    else if(b.dataset.a === 'redac'){ osChoisirRedactionGlobale(); }
     else if(b.dataset.a === 'organiser') osWidgetsBasculerEdition();
     else osAccueilFermer();
   });
@@ -55,6 +55,14 @@ function osAccueilMeteo(){
 
 // Bouton « rédaction » de l'en-tête, pour qui est dans plusieurs rédactions : « Choisir ma rédaction » tant qu'aucune n'est choisie
 // (c'est ce qui remplace la fenêtre de choix, repoussée à la sortie de l'accueil), puis le nom de la rédaction active, pour en changer.
+// Choix de la rédaction active de Compo (celle dont on voit articles et chiffres) : le même écran partout (accueil, pastille bêta).
+// Ne pas confondre avec « Rédaction de cet article » (rChangerRedaction), qui change la rédaction d'un seul article dans l'éditeur.
+function osChoisirRedactionGlobale(){
+  if(typeof window._osChoixDiffere === 'function'){ window._osChoixDiffere(); return; }
+  var uid = getUserId();
+  var liens = (window._membresRedactionsData || []).filter(function(mr){ return mr.membre_id === uid; });
+  if(liens.length && typeof _osAfficherSelecteurRedaction === 'function') _osAfficherSelecteurRedaction(liens, false);
+}
 function osAccueilRedacMaj(){
   var b = document.getElementById('acc-redac'); if(!b) return;
   var uid = getUserId();
