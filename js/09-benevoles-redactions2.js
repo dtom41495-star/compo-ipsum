@@ -614,7 +614,7 @@ function osBenvChargerRecrutement(elForce){
     var nonVues = annonces.filter(function(a){ return a.statut==='ouvert' && seenRecBenv.indexOf(a.id)===-1; });
     _osBenvMajBadgeRail('recrutement', nonVues.length);
 
-    var h = '';
+    var h = '<p class="recrut-intro">Les postes à pourvoir dans l\'association et dans les rédactions. Ouvre un poste pour lire le détail et candidater.</p>';
     if(isVieAsso){
       h += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.8rem;">';
       h += '<button onclick="osBenvAnnonceNouvelle()" style="font-size:0.72rem;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;">+ Nouvelle annonce</button>';
@@ -1462,7 +1462,7 @@ function osRedacChargerRecrutement(zone, uid){
     var ouvertes = annonces.filter(function(a){return a.statut==='ouvert';});
     var fermees  = annonces.filter(function(a){return a.statut!=='ouvert';});
     var recNonVues = ouvertes.filter(function(a){ return seenRec.indexOf(a.id)===-1; });
-    var h = '';
+    var h = '<p class="recrut-intro">Les postes à pourvoir dans l\'association et dans les rédactions. Ouvre un poste pour lire le détail et candidater.</p>';
     if(recNonVues.length){
       h += '<button onclick="_osRedacMarquerRecrutementLu();this.style.display=\'none\';" style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:0.72rem;padding:5px 12px;background:white;color:var(--gris);border:1px solid var(--gris-bord);border-radius:6px;cursor:pointer;margin-bottom:0.6rem;"><i class="ti ti-checks" style="vertical-align:-2px;margin-right:3px;"></i>Tout marquer comme lu</button>';
     }
