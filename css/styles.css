@@ -8339,3 +8339,6 @@ html.mode-beta.beta-sans-barre #os-notif-center.open {
   :root.beta-menu-plein.beta-sans-barre .sm-main { padding-top: 84px; }
   :root.beta-menu-plein.beta-sans-barre .sm-side { padding-top: 84px; }
 }
+
+/* Mode bêta : sur le tableau de bord la pastille faisait doublon (heure, rédaction, notifications, applications) : elle se cache */
+html.mode-beta.beta-sans-barre body.accueil-ouvert #os-pastille-beta { display: none; }

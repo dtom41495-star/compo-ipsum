@@ -251,15 +251,35 @@ function osBetaPastille(){
     +'<button type="button" data-a="notifs" title="Notifications"><i class="ti ti-bell"></i><b id="pb-notifs"></b></button>'
     +'<button type="button" data-a="dispo" title="Disponibilité"><span id="pb-dispo" class="pb-dispo"></span></button>'
     +'<span class="pb-heure" id="pb-heure"></span>';
+  // Un bouton ouvre son panneau, un second clic le referme. L'état est relevé AVANT le clic (les fermetures « clic ailleurs » du menu, des
+  // notifications et de la vue d'ensemble ont déjà pu le refermer au moment du clic : on le rouvrirait aussitôt).
+  function ouvertAvant(a){
+    if(a === 'menu'){ var m = document.getElementById('os-start-menu'); return !!(m && m.classList.contains('visible')); }
+    if(a === 'ensemble') return !!document.getElementById('os-vue-ensemble');
+    if(a === 'recherche') return !!document.getElementById('os-recherche-beta');
+    if(a === 'notifs') return !!document.getElementById('atr-panneau');
+    if(a === 'accueil') return !!(window._acc && _acc.ouvert);
+    return false;
+  }
+  p.addEventListener('pointerdown', function(e){ var b = e.target.closest('button[data-a]'); p._etat = b ? ouvertAvant(b.dataset.a) : false; }, true);
   p.addEventListener('click', function(e){
     var b = e.target.closest('button[data-a]'); if(!b) return;
-    var a = b.dataset.a;
+    var a = b.dataset.a, etait = (p._etat === true); p._etat = false;
     if(a === 'accueil'){ if(typeof osAccueilBasculer === 'function') osAccueilBasculer(); }
-    else if(a === 'menu'){ setTimeout(function(){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }, 0); }   // après le clic : sinon la fermeture « clic ailleurs » le referme
-    else if(a === 'ensemble') osBetaVueEnsemble();
-    else if(a === 'recherche'){ setTimeout(osBetaRecherche, 0); }
+    else if(a === 'menu'){
+      setTimeout(function(){
+        var m = document.getElementById('os-start-menu'), ouvert = !!(m && m.classList.contains('visible'));
+        if(etait ? ouvert : !ouvert){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }
+      }, 0);
+    }
+    else if(a === 'ensemble'){ var v = document.getElementById('os-vue-ensemble'); if(v) v.remove(); if(!etait) osBetaVueEnsemble(); }
+    else if(a === 'recherche'){ var r = document.getElementById('os-recherche-beta'); if(r) r.remove(); if(!etait) setTimeout(osBetaRecherche, 0); }
     else if(a === 'redac'){ osChoisirRedactionGlobale(); }
-    else if(a === 'notifs'){ if(typeof osATraiterBasculer === 'function') osATraiterBasculer(); }
+    else if(a === 'notifs'){
+      var pn = document.getElementById('atr-panneau');
+      if(etait){ if(pn && typeof _atrFermerPanneau === 'function') _atrFermerPanneau(); }
+      else if(!pn && typeof osATraiterBasculer === 'function') osATraiterBasculer();
+    }
     else if(a === 'dispo'){ if(typeof osToggleDND === 'function') osToggleDND(); }
   });
   document.body.appendChild(p);
