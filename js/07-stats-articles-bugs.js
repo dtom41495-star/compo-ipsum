@@ -3104,3 +3104,22 @@ function _sigAssemblerPdfFinal(doc, signataires){
     });
   }).catch(function(e){ console.error('Erreur génération PDF final', e); });
 }
+
+
+// « Prêts à publier » (appli Tâches, cloche) : Mes articles sur l'onglet « À publier », et l'article cliqué est repéré dans la liste
+// (défilement jusqu'à lui et courte surbrillance), pour cliquer tout de suite sur « Mettre en ligne ».
+function osMesArticlesAPublier(articleId){
+  _maOnglet = 'a-publier';
+  osOpenWindow('mes-articles');
+  if(!articleId) return;
+  var essais = 0;
+  (function repere(){
+    var b = document.querySelector('#ma-os-list .mac [data-id="'+String(articleId).replace(/"/g, '')+'"]');
+    var carte = b && b.closest('.mac');
+    if(!carte){ if(++essais < 12) setTimeout(repere, 350); return; }
+    try{ carte.scrollIntoView({ block:'center', behavior:'smooth' }); }catch(e){}
+    carte.style.transition = 'box-shadow .3s ease';
+    carte.style.boxShadow = '0 0 0 3px var(--rouge, #E8461E)';
+    setTimeout(function(){ carte.style.boxShadow = ''; }, 2600);
+  })();
+}
