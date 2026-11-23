@@ -125,6 +125,8 @@ function osWidgetsCharger(){
     .then(function(rows){
       if(!Array.isArray(rows)){ _wb.liste = _wbDefauts(); _wb.perso = false; return; }
       var ligPerso = rows.filter(function(x){ return x.widget === '_perso'; })[0];
+      var ligBeta = rows.filter(function(x){ return x.widget === '_beta'; })[0];
+      if(typeof osBetaDepuisServeur === 'function') osBetaDepuisServeur(ligBeta ? ligBeta.reglages : null);   // mode bêta enregistré sur le compte (js/98)
       var perso = !!ligPerso;
       _wb.demarrage = (ligPerso && ligPerso.reglages && ligPerso.reglages.demarrage === 'bureau') ? 'bureau' : 'accueil';
       var liste = rows.filter(function(x){ return x.widget.charAt(0) !== '_' && _wbDef(x.widget) && _wbVisible(_wbDef(x.widget)); })
