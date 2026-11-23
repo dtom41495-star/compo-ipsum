@@ -23,7 +23,7 @@ avec des systèmes de secours.
 3. **Les anciens articles restent sur Substack.** Les liens déjà partagés (`ipsummedia.fr/articles/<slug>`)
    doivent continuer de marcher (copie du flux ou redirection vers Substack, comme aujourd'hui).
 4. **Tout sera hébergé sur la machine de l'asso** : Supabase (auto-hébergé), Compo, le site,
-   Vaultwarden ✅, Umami ✅, Uptime Kuma ✅, le raccourcisseur de liens (Dub), puis Listmonk.
+   Vaultwarden ✅, Umami ✅, Uptime Kuma ✅, le raccourcisseur de liens (Dub), puis Listmonk, et enfin **le code lui-même (décision 14 : plus de GitHub)**.
 5. **Newsletters** : plus tard, une instance **Listmonk** sur la machine (une liste par rédaction),
    envoi via le SMTP de **Mailjet** (choisi ; limites de l'offre gratuite à vérifier au moment de la mise
    en place). 160 abonnés à ce jour.
@@ -103,6 +103,8 @@ avec des systèmes de secours.
       dans Supabase et fabrique le HTML. Avec des pages écrites d'avance, Node ne tourne qu'à chaque publication (ou toutes les heures pour les flux) ;
       Caddy distribue seulement des fichiers déjà prêts.
     - Retour en arrière : chaque envoi est un commit GitHub, et l'ancien site Netlify reste en place tant que le nouveau n'a pas fait ses preuves.
+    - **GitHub n'est qu'une étape intermédiaire** : le robot GitHub Actions et GitHub Pages servent à quitter Netlify vite et gratuitement, puis la
+      décision 14 les remplace par la machine de l'asso (le secours ne sera plus GitHub Pages, voir 14).
     - **Question ouverte (23 novembre)** : les crédits Netlify étant épuisés, le site est-il en ce moment en panne ou suspendu ? Si oui, le rallumer
       d'abord (nouveau mois de crédits ou offre payante) pendant qu'on prépare la migration.
 
@@ -139,6 +141,36 @@ avec des systèmes de secours.
     - Tant que ce n'est pas fait, lire les pays et les villes avec prudence : la région française est plus fiable que la ville, et la ville
       peut être celle de l'opérateur mobile.
 
+14. **Ne plus utiliser GitHub** (décision de Tom, 23 novembre 2026). Même raison que pour Netlify et Substack : plateforme américaine, risque de
+    coupure ou de changement de conditions, et le but reste que tout tourne chez nous.
+    - **Ce que GitHub fait aujourd'hui pour Ipsum Média** :
+      1. **héberge le code** : dépôts publics `compo-ipsum` (Compo) et `ipsummediasite` (le site), avec l'historique, les branches et les « pull requests » ;
+      2. **sert Compo** : GitHub Pages publie `compo.ipsummedia.fr` (fichier `CNAME` du dépôt) ;
+      3. **alimente les « nouveautés » de Compo** : `js/27-patchnotes.js` lit les pull requests fusionnées par l'API de GitHub ;
+      4. **demain (décision 11)** : le robot GitHub Actions qui écrit les pages du site, et GitHub Pages comme secours ;
+      5. **le travail avec Claude** : les sessions Claude dans le nuage clonent, poussent et ouvrent les pull requests par les outils GitHub.
+    - **Cible : Forgejo auto-hébergé** (libre, un conteneur Docker, léger ; fork de Gitea porté par l'association allemande Codeberg e.V.). Il fournit les
+      dépôts git, les pull requests avec relecture, les crochets (webhooks), des « Actions » compatibles avec celles de GitHub (un « runner » sur la
+      machine) et une API proche de celle de GitHub. **À vérifier avant de s'engager** (non lisible depuis la session cloud) : consommation mémoire
+      sur la machine, maturité des Actions de Forgejo, et surtout **ce que les sessions Claude peuvent utiliser avec un Forgejo** (outils de dépôt,
+      ouverture de pull requests, accès depuis le nuage) : c'est la contrainte la plus importante, car elle décide de la manière de travailler ensuite.
+    - **Comment on déménage (par petits pas, GitHub reste en place jusqu'au dernier)** :
+      1. installer Forgejo sur la machine (derrière Caddy, sous-domaine du type `git.ipsummedia.fr`, sauvegarde nocturne des dépôts avec celle de la base) ;
+      2. **importer les deux dépôts** (historique complet) et les garder synchronisés avec GitHub (miroir) le temps de la transition ;
+      3. **Compo servi par Caddy** : un « crochet » à chaque fusion met à jour le dossier servi ; `compo.ipsummedia.fr` quitte GitHub Pages (DNS avec TTL court) ;
+      4. **le robot du site** (décision 11) passe de GitHub Actions à la machine : le même script, lancé par Forgejo Actions ou directement par Compo
+         (le « crochet » unique de la décision 11) ;
+      5. **nouveautés de Compo** : `js/27-patchnotes.js` lit l'API de Forgejo, ou mieux une table de Compo remplie à chaque fusion (plus de lecture d'un
+         service extérieur depuis le navigateur) ;
+      6. **secours hors de la maison, sans GitHub** : copie des dépôts (miroir) chez **Codeberg** (Forgejo hébergé par l'association) ou sur un second
+         serveur en Europe ; et copie du dossier de pages du site pour qu'un hébergeur de secours puisse le servir si la machine tombe ;
+      7. enfin, **archiver les dépôts GitHub** (lecture seule, avec un message qui renvoie vers Forgejo) et ne plus rien y pousser.
+    - **Points délicats** : les liens vers les anciennes pull requests ou fichiers GitHub (dans les documents, mails, notes) ; les dépôts étant publics,
+      Google et les autres les ont indexés (une redirection n'est pas possible : le README archivé suffira) ; le code reste public ou non, **à décider
+      par Tom** ; les jetons et secrets ne sont jamais dans le code.
+    - **Ordre** : après l'étape 5 (la machine est prête, sauvegardée et surveillée) ; jamais avant, sinon le code serait hébergé sur une machine
+      sans filet. Pas de précipitation : GitHub reste le miroir jusqu'à ce que Forgejo ait fait ses preuves.
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -157,6 +189,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
 | 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/serveur/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
+| 9 | **Sortir de GitHub** (décision 14) : Forgejo sur la machine, import des deux dépôts, Compo servi par Caddy, robot du site et « nouveautés » de Compo sur la machine, secours chez Codeberg, archivage des dépôts GitHub. | Un changement fusionné sur Forgejo met à jour Compo et le site ; les « nouveautés » s'affichent depuis Forgejo ; une restauration d'essai des dépôts réussit ; Tom valide avant d'archiver GitHub. |
 
 ## 4. Étape 2 en détail : Compo → site
 
