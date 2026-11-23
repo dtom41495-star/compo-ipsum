@@ -379,12 +379,59 @@ function osWidgetMesArticlesCharger(){
     c.onclick = _wbOuvrirSiPas(function(){ osOpenWindow('mes-articles'); });
   });
 }
+// Annonce : la dernière annonce active de la rédaction choisie, ou à défaut de toute l'association. Le rédac chef (de cette rédaction) et les
+// admins peuvent en publier une d'ici, sans passer par Ma rédac'.
+function osPeutAnnoncer(){
+  if(getUserRole() === 'admin') return true;
+  var uid = getUserId(), r = window._redacActiveId;
+  return !!r && (window._membresRedactionsData || []).some(function(l){ return l.membre_id === uid && l.redaction_id === r && l.role_redac === 'redac_chef'; });
+}
 function osWidgetAnnonceCharger(){
-  _wbLire('annonces?actif=eq.true&redaction_id=is.null&order=created_at.desc&limit=1&select=message,type').then(function(l){
+  var r = window._redacActiveId;
+  var filtre = r ? '&or=(redaction_id.eq.'+encodeURIComponent(r)+',redaction_id.is.null)' : '&redaction_id=is.null';
+  _wbLire('annonces?actif=eq.true'+filtre+'&order=created_at.desc&limit=1&select=message,type,redaction_id').then(function(l){
     var corps = _wbCorps('annonce'); if(!corps) return;
     var a = l && l[0];
-    corps.innerHTML = '<small>Annonce de la rédac</small>'+(a ? '<div class="os-w-an-m">'+esc(a.message || '')+'</div>' : '<span class="os-w-vide">Aucune annonce pour l’instant</span>');
+    var titre = a && !a.redaction_id ? 'Annonce de l’association' : 'Annonce de la rédac';
+    corps.innerHTML = '<small>'+titre+'</small>'+(a ? '<div class="os-w-an-m">'+esc(a.message || '')+'</div>' : '<span class="os-w-vide">Aucune annonce pour l’instant</span>')
+      +(osPeutAnnoncer() ? '<button type="button" class="os-w-an-plus" title="Publier une annonce"><i class="ti ti-plus"></i> Annonce</button>' : '');
+    var b = corps.querySelector('.os-w-an-plus');
+    if(b) b.onclick = function(e){ e.stopPropagation(); if(!_wb.edition) osAnnonceNouvelle(); };
   });
+}
+// Fenêtre « Nouvelle annonce » (vraie fenêtre) : type, message, lien ; un admin choisit aussi de s'adresser à toute l'association
+function osAnnonceNouvelle(){
+  if(!osPeutAnnoncer()){ if(typeof notif === 'function') notif('Seuls les admins et le rédac chef publient une annonce.', 'alerte'); return; }
+  var r = window._redacActiveId, rd = (window._redactionsData || []).filter(function(x){ return x.id === r; })[0];
+  var admin = getUserRole() === 'admin';
+  osFenetreContenu('annonce-nouvelle', 'Nouvelle annonce', function(z){
+    var champ = 'width:100%;box-sizing:border-box;padding:.55rem .7rem;border:1.5px solid var(--gris-bord);border-radius:8px;font:400 .88rem \'DM Sans\',sans-serif;margin-bottom:.6rem;background:#fff;color:var(--encre);';
+    z.innerHTML = '<div style="padding:1.1rem 1.3rem;">'
+      +'<div style="font:600 .82rem \'DM Sans\',sans-serif;margin-bottom:.7rem;color:var(--gris);">'+(rd ? 'Elle s’affichera pour la rédaction « '+esc(rd.nom)+' ».' : 'Elle s’affichera pour toute l’association.')+'</div>'
+      +'<select id="ann-type" style="'+champ+'"><option value="info">Info</option><option value="alerte">Alerte</option><option value="succes">Bonne nouvelle</option></select>'
+      +'<textarea id="ann-msg" rows="4" placeholder="Ton message pour l’équipe…" style="'+champ+'resize:vertical;"></textarea>'
+      +'<input id="ann-lien" type="url" placeholder="Lien (facultatif) : https://…" style="'+champ+'">'
+      +(admin && rd ? '<label style="display:flex;align-items:center;gap:8px;font:500 .8rem \'DM Sans\',sans-serif;margin-bottom:.8rem;cursor:pointer;"><input type="checkbox" id="ann-tous"> À toute l’association (pas seulement '+esc(rd.nom)+')</label>' : '')
+      +'<div style="display:flex;gap:.5rem;"><button type="button" id="ann-pub" class="btn" style="font-size:.78rem;padding:.5rem 1.1rem;">Publier</button><button type="button" id="ann-non" class="btn sec" style="font-size:.78rem;padding:.5rem 1.1rem;">Annuler</button></div></div>';
+    var msg = z.querySelector('#ann-msg'); if(msg) msg.focus();
+    z.querySelector('#ann-non').onclick = function(){ osCloseWindowForce('annonce-nouvelle'); };
+    z.querySelector('#ann-pub').onclick = function(){
+      var texte = (msg.value || '').trim();
+      if(!texte){ if(typeof notif === 'function') notif('Écris ton message.'); return; }
+      var tous = !!(z.querySelector('#ann-tous') && z.querySelector('#ann-tous').checked);
+      var lien = (z.querySelector('#ann-lien').value || '').trim();
+      var corps = { message:texte, type:z.querySelector('#ann-type').value || 'info', lien:lien || null, auteur:getUserNomComplet(), actif:true, redaction_id:(tous || !r) ? null : r };
+      var btn = z.querySelector('#ann-pub'); btn.disabled = true;
+      fetch(SB_URL+'/rest/v1/annonces', { method:'POST', headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'return=minimal' }), body:JSON.stringify(corps) })
+        .then(function(res){
+          if(!res.ok){ btn.disabled = false; if(typeof notif === 'function') notif('Annonce non publiée, réessaie.', 'erreur'); return; }
+          if(typeof notif === 'function') notif('Annonce publiée', 'succes');
+          osCloseWindowForce('annonce-nouvelle');
+          osWidgetAnnonceCharger();
+          var zone = document.getElementById('redac-annonces-zone'); if(zone && typeof osRedacChargerAnnonces === 'function') osRedacChargerAnnonces(zone);
+        }).catch(function(){ btn.disabled = false; if(typeof notif === 'function') notif('Erreur réseau', 'erreur'); });
+    };
+  }, [480, 470]);
 }
 function osWidgetRecrutementCharger(){
   _wbLire('recrutement_annonces?statut=eq.ouvert&order=created_at.desc&limit=3&select=id,titre,commissions(nom)').then(function(l){

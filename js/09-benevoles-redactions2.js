@@ -1717,7 +1717,7 @@ function osRedactionsMembre_OngletProfil(uid, membre, redacId, roleRedac, mesArt
     // Bouton annonce pour admin et rédac chef — reste la seule carte pleine couleur
     // du lot : c'est un appel à l'action (écrire un message), pas juste un raccourci.
     if(peutAnnoncer){
-      h += '<button onclick="osRedacToggleAnnonceForm()" style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.8rem;background:var(--encre-fixe);border:none;border-radius:10px;cursor:pointer;text-align:left;transition:transform 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'">';
+      h += '<button onclick="osAnnonceNouvelle()" style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.8rem;background:var(--encre-fixe);border:none;border-radius:10px;cursor:pointer;text-align:left;transition:transform 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'">';
       h += '<div style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;background:rgba(255,255,255,0.14);color:white;"><i class="ti ti-speakerphone"></i></div>';
       h += '<div style="min-width:0;"><div style="font-family:Poppins,sans-serif;font-size:0.8rem;font-weight:700;color:white;">Annonce</div><div style="font-family:\'DM Sans\',sans-serif;font-size:0.7rem;color:rgba(255,255,255,0.55);">Message équipe</div></div>';
       h += '</button>';

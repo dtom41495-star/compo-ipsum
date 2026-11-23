@@ -8425,3 +8425,7 @@ html.mode-beta #os-accueil { overflow-y: auto; overflow-x: hidden; scrollbar-wid
 #os-beta-invit button { padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: transparent; color: #fff; font: 600 .76rem 'DM Sans', sans-serif; cursor: pointer; }
 #os-beta-invit .obi-oui { background: #ea5b1c; border-color: #ea5b1c; }
 #os-beta-invit button:hover { filter: brightness(1.15); }
+
+/* Widget « Annonce » : bouton pour en publier une (admin, rédac chef) */
+.os-w-an-plus { margin-top: 8px; align-self: flex-start; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; font: 600 .7rem 'DM Sans', sans-serif; cursor: pointer; }
+.os-w-an-plus:hover { background: rgba(255,255,255,.16); }
