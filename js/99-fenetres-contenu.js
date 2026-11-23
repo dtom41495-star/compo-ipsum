@@ -68,7 +68,7 @@ function osFenetreContenu(id, titre, rendre, taille){
     var r = dlg.getBoundingClientRect();
     if(r.width && r.height && r.width < 330 && r.height < 190) return;   // petite confirmation : reste comme avant
     var w = Math.max(420, Math.min(Math.round(r.width) + 4, 1000, window.innerWidth - 80));
-    var h = Math.max(320, Math.min(Math.round(r.height) + 52, window.innerHeight - 140));
+    var h = Math.max(460, Math.min(Math.round(r.height) + 100, window.innerHeight - 140));   // marge : le contenu finit souvent de se charger après l'ouverture
     var id = 'ov-'+(++N);
     el.dataset.ovFen = id;
     el.classList.add('ov-attente');   // invisible le temps de passer dans la fenêtre
@@ -86,4 +86,65 @@ function osFenetreContenu(id, titre, rendre, taille){
     if(!actif()) return;
     muts.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes, function(n){ if(candidat(n)) convertir(n, 0); }); });
   }).observe(document.body || document.documentElement, { childList:true });
+})();
+
+// ===== MODE BÊTA : les modales « fixes » de la page (Envoyer au SR, fiche d'un sujet) deviennent aussi de vraies fenêtres =====
+// Elles font partie de index.html (elles ne sont pas ajoutées à la volée) : on surveille leur ouverture, on range l'élément dans une fenêtre,
+// et à la fermeture (par la fenêtre ou par le code de la modale) on le remet à sa place, fermé, pour la fois suivante.
+(function(){
+  var MODALES = [
+    { id:'modal-assign', ouvert:function(el){ return el.classList.contains('visible'); },
+      fermer:function(el){ if(typeof assignFermer === 'function') assignFermer(); else el.classList.remove('visible'); },
+      titre:function(){ return 'Envoyer au SR'; }, taille:[560, 760] },
+    { id:'modal-sujet', ouvert:function(el){ return el.style.display === 'flex'; },
+      fermer:function(el){ if(typeof fermerModalSujet === 'function') fermerModalSujet(); else el.style.display = 'none'; },
+      titre:function(){ var t = document.getElementById('sujet-modal-titre'); return (t && t.textContent.trim()) ? t.textContent.trim().slice(0, 58) : 'Sujet'; }, taille:[560, 640] }
+  ];
+  var adoptees = {};   // id de fenêtre → { el, parent, repere, def }
+
+  function actif(){
+    try{ if(localStorage.getItem('compo_ov_fenetres') === '0') return false; }catch(e){}
+    if(typeof osBetaActif !== 'function' || !osBetaActif()) return false;
+    if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return false;
+    return typeof osFenetreContenu === 'function' && typeof osCloseWindowForce === 'function';
+  }
+  function remettre(winId, fermerModale){
+    var a = adoptees[winId]; if(!a) return;
+    delete adoptees[winId];
+    var el = a.el;
+    el.classList.remove('ov-en-fenetre', 'ov-attente');
+    if(a.repere && a.repere.parentNode) a.repere.parentNode.replaceChild(el, a.repere); else document.body.appendChild(el);
+    if(fermerModale) a.def.fermer(el);
+  }
+  function adopter(def, el){
+    var winId = 'ov-m-'+def.id;
+    if(adoptees[winId] || (window._windows && _windows[winId])) return;
+    var repere = document.createComment('modale '+def.id);
+    el.parentNode.insertBefore(repere, el);
+    el.classList.add('ov-attente');
+    adoptees[winId] = { el:el, repere:repere, def:def };
+    var t = def.taille, h = Math.min(t[1], Math.max(420, window.innerHeight - 140));
+    osFenetreContenu(winId, def.titre(), function(z){
+      if(!adoptees[winId]) return;
+      z.appendChild(el);
+      el.classList.remove('ov-attente'); el.classList.add('ov-en-fenetre');
+    }, [t[0], h]);
+  }
+  function surveiller(def){
+    var el = document.getElementById(def.id); if(!el) return;
+    new MutationObserver(function(){
+      var winId = 'ov-m-'+def.id;
+      if(def.ouvert(el)){ if(actif() && !adoptees[winId] && el.parentNode === document.body) adopter(def, el); }
+      else if(adoptees[winId]){   // le code de la modale l'a fermée : la fenêtre se ferme, la modale revient à sa place
+        if(window._windows && _windows[winId]) osCloseWindowForce(winId); else remettre(winId, false);
+      }
+    }).observe(el, { attributes:true, attributeFilter:['class', 'style'] });
+  }
+  // La fenêtre se ferme (croix, Échap…) : on rend la modale à la page avant que la fenêtre ne l'emporte
+  var fermerAvant = osCloseWindowForce;
+  osCloseWindowForce = function(pageId){
+    if(adoptees[pageId]) remettre(pageId, true);
+    return fermerAvant.apply(this, arguments);
+  };
+  MODALES.forEach(surveiller);
 })();

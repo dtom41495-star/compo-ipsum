@@ -1022,7 +1022,9 @@ function osRedacVoirSujetLie(){
   var sujetId = btn && btn.dataset.sujetId;
   if(!sujetId) return;
 
-  var enCache = (window._sujetsData||[]).find(function(s){ return s.id === sujetId; });
+  // « Voir le sujet » depuis l'éditeur : l'aperçu moderne (communiqué lié, article déjà écrit, ancienneté, flèches), pas l'ancienne fenêtre
+  var enCache = (window._sujetsData||[]).concat(window._sujetsPropositions||[]).find(function(s){ return s.id === sujetId; });
+  if(enCache && typeof osSujetApercu === 'function'){ osSujetApercu(sujetId); return; }
   if(enCache){ ouvrirModalSujet(enCache); return; }
 
   var authH = Object.assign({},SB_HEADERS,{'Authorization':'Bearer '+(_session&&_session.access_token||'')});
@@ -1031,6 +1033,11 @@ function osRedacVoirSujetLie(){
   .then(function(data){
     var sujet = data && !data.code && data[0];
     if(!sujet){ notif('Sujet introuvable','erreur'); return; }
+    if(typeof osSujetApercu === 'function'){
+      window._sujetsData = window._sujetsData || [];
+      if(!_sujetsData.some(function(x){ return x.id === sujet.id; })) _sujetsData.push(sujet);
+      osSujetApercu(sujet.id); return;
+    }
     ouvrirModalSujet(sujet);
   }).catch(function(){ notif('Erreur réseau','erreur'); });
 }
