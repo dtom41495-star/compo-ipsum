@@ -1,6 +1,6 @@
 // ===== SUPABASE =====
-var SB_URL = 'https://ctmekufqaxdelgfyjwly.supabase.co';
-var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE';
+// L'adresse de la base (SB_URL) et la clé publique (SB_KEY) sont définies UNE SEULE FOIS, au début de js/01-core-redaction.js :
+// c'est le seul endroit à changer quand Supabase déménage sur la machine de l'asso (chantier « Indépendance »).
 
 // SB_HEADERS déjà défini plus haut — on ne le réinitialise pas ici
 // pour conserver le token de session mis à jour au login
@@ -726,10 +726,10 @@ function loginValider(){
   btn.innerHTML = (typeof osChargeurHtml === 'function' ? osChargeurHtml('cc-petit', 'Chargement')+' ' : '')+'Connexion...';
   errEl.classList.remove('visible');
 
-  fetch('https://ctmekufqaxdelgfyjwly.supabase.co/auth/v1/token?grant_type=password', {
+  fetch(SB_URL+'/auth/v1/token?grant_type=password', {
     method: 'POST',
     headers: {
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE',
+      'apikey': SB_KEY,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ email: email, password: mdp })
@@ -789,7 +789,7 @@ function chargerProfilMembre(userId, contexte){
     emailPrecedent = contexte.emailPrecedent;
   }
 
-  fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?id=eq.' + userId + '&select=*', {
+  fetch(SB_URL+'/rest/v1/membres?id=eq.' + userId + '&select=*', {
     headers: SB_HEADERS
   })
   .then(function(r){ return r.json(); })
@@ -1487,13 +1487,13 @@ function syncProfilBase(prenom, nom, role){
   if(roleActuelBase === 'admin') payload.role = role;
 
   var headers = {
-    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bWVrdWZxYXhkZWxnZnlqd2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDI1OTksImV4cCI6MjA5MDg3ODU5OX0.32wkp9NsqNTktvuC2Pb3S5EnAPPipt06DYLxfeyf5xE',
+    'apikey': SB_KEY,
     'Authorization': 'Bearer ' + _session.access_token,
     'Content-Type': 'application/json',
     'Prefer': 'return=minimal'
   };
 
-  fetch('https://ctmekufqaxdelgfyjwly.supabase.co/rest/v1/membres?id=eq.' + user.id, {
+  fetch(SB_URL+'/rest/v1/membres?id=eq.' + user.id, {
     method: 'PATCH',
     headers: headers,
     body: JSON.stringify(payload)
