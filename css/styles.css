@@ -8370,3 +8370,15 @@ html.mode-beta.beta-sans-barre body.accueil-ouvert #os-pastille-beta { display: 
 .recrut-dans-fenetre { height: 100%; overflow-y: auto; background: #fff; box-sizing: border-box; }
 /* Mode bêta : le bureau vide n'a plus d'intérêt, le bouton « Aller au bureau » disparaît du tableau de bord */
 html.mode-beta #os-accueil .acc-bureau { display: none; }
+
+/* Mode bêta sans barre : la zone des fenêtres commence sous la pastille, pour que les boutons réduire / agrandir / fermer d'une fenêtre
+   agrandie ou ancrée ne passent jamais dessous */
+@media (min-width: 769px) {
+  html.mode-beta.beta-sans-barre #os-workspace { margin-top: 60px; }
+}
+
+/* Écrans « par-dessus tout » rangés dans une vraie fenêtre (mode bêta, js/99) */
+.ov-attente { visibility: hidden !important; }
+.ov-en-fenetre { position: static !important; inset: auto !important; z-index: auto !important; background: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  padding: 0 !important; display: block !important; width: 100% !important; height: 100% !important; overflow: auto !important; animation: none !important; opacity: 1 !important; transform: none !important; visibility: visible !important; pointer-events: auto !important; box-sizing: border-box; }
+.ov-en-fenetre > * { width: 100% !important; max-width: none !important; max-height: none !important; min-height: 100%; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; animation: none !important; transform: none !important; box-sizing: border-box; }
