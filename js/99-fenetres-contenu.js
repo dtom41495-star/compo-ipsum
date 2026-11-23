@@ -68,7 +68,7 @@ function osFenetreContenu(id, titre, rendre, taille){
     var r = dlg.getBoundingClientRect();
     if(r.width && r.height && r.width < 330 && r.height < 190) return;   // petite confirmation : reste comme avant
     var w = Math.max(420, Math.min(Math.round(r.width) + 4, 1000, window.innerWidth - 80));
-    var h = Math.max(320, Math.min(Math.round(r.height) + 52, window.innerHeight - 140));
+    var h = Math.max(460, Math.min(Math.round(r.height) + 100, window.innerHeight - 140));   // marge : le contenu finit souvent de se charger après l'ouverture
     var id = 'ov-'+(++N);
     el.dataset.ovFen = id;
     el.classList.add('ov-attente');   // invisible le temps de passer dans la fenêtre
