@@ -8429,3 +8429,14 @@ html.mode-beta #os-accueil { overflow-y: auto; overflow-x: hidden; scrollbar-wid
 /* Widget « Annonce » : bouton pour en publier une (admin, rédac chef) */
 .os-w-an-plus { margin-top: 8px; align-self: flex-start; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; font: 600 .7rem 'DM Sans', sans-serif; cursor: pointer; }
 .os-w-an-plus:hover { background: rgba(255,255,255,.16); }
+
+/* Tablette (pointeur tactile) : boutons de la pastille d'au moins 44 px, la taille recommandée pour le doigt */
+@media (pointer: coarse) {
+  #os-pastille-beta { gap: 4px; padding: 5px 10px; }
+  #os-pastille-beta button { min-width: 44px; height: 44px; }
+  #os-pastille-beta .pb-f { min-width: 44px; width: 44px; height: 44px; }
+  #os-pastille-beta .pb-f .pb-f-ic { width: 28px; height: 28px; font-size: 1rem; }
+  #os-pastille-beta .pb-redac { height: 44px; max-width: 130px; }
+  .os-window .os-btn-win { min-width: 40px; min-height: 40px; }
+  .os-titlebar { touch-action: none; }
+}

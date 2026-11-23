@@ -1,24 +1,29 @@
 // ===== MODE BÊTA GLOBAL =====
 // Un interrupteur dans Paramètres (« Mode bêta ») qui donne accès aux fonctions en test, avant qu'elles soient pour tout le monde.
-//  - Le mode est enregistré sur le compte (table widgets_bureau, ligne « _beta »), avec une copie localStorage « compo_os_beta » = { actif:bool, off:[ids désactivées] }.
-//  - Quand il est actif, chaque fonction du catalogue ci-dessous est activée, sauf celles que la personne a coupées une par une.
-//  - Pour le code : osBetaActif() (mode actif ?) et osBetaActif('id') (cette fonction-là ?). Pour le style : la classe « mode-beta » sur
-//    <html>, plus « beta-<id> » pour chaque fonction active, à utiliser dans le CSS (css/styles.css, « MODE BÊTA »).
-//  - Ajouter une fonction en test : une ligne dans OS_BETA, puis tester osBetaActif('id') (ou la classe beta-<id>) là où elle agit.
-var OS_BETA = [
-  { id:'fenetres', nom:'Rendu des fenêtres', desc:'Nouveau look : coins plus arrondis, ombres douces, barre de titre épurée, boutons ronds, fenêtre active mieux marquée.' },
-  { id:'bureau-epure', nom:'Bureau épuré', desc:'Plus d\'icônes sur le bureau : elles passent dans le menu Démarrer (section « Sur le bureau »). La barre des applications épinglées en bas ne change pas.' },
-  { id:'sans-barre', nom:'Sans barre des tâches', desc:'La barre du bas disparaît. Une petite pastille en haut au centre reprend l\'essentiel (accueil, toutes les apps, vue d\'ensemble des fenêtres, recherche, notifications, disponibilité, heure). La vue d\'ensemble (Ctrl+Espace) liste toutes les fenêtres ouvertes, même réduites.' }
-];
+//  - Fonctions PASSÉES EN PRODUCTION (OS_BETA_PROMUES) : rendu des fenêtres, bureau épuré, sans barre des tâches (pastille, tableau de bord qui défile
+//    jusqu'à toutes les apps…). Elles sont actives pour tout le monde sur ordinateur, sans réglage ; le téléphone garde son interface.
+//  - Fonctions EN TEST (OS_BETA) : vide pour l'instant. Quand on en ajoute une, l'interrupteur « Mode bêta » de Paramètres l'active pour la personne
+//    (et l'invitation de lancement la propose aux autres).
+//  - L'état du mode est enregistré sur le compte (table widgets_bureau, ligne « _beta »), avec une copie localStorage « compo_os_beta » =
+//    { actif:bool, off:[ids de fonctions en test coupées une par une], ov, invit, rappel }.
+//  - Pour le code : osBetaActif() (une fonction bêta ou promue est-elle active ?) et osBetaActif('id') (cette fonction-là ?). Pour le style : la classe
+//    « mode-beta » sur <html>, plus « beta-<id> » pour chaque fonction active (css/styles.css, « MODE BÊTA »).
+//  - Ajouter une fonction en test : une ligne dans OS_BETA, puis tester osBetaActif('id') (ou la classe beta-<id>) là où elle agit. Une fois validée,
+//    on déplace son id dans OS_BETA_PROMUES.
+var OS_BETA_PROMUES = ['fenetres', 'bureau-epure', 'sans-barre'];
+var OS_BETA = [];
 
 function osBetaEtat(){
   try{ var e = JSON.parse(localStorage.getItem('compo_os_beta') || '{}'); return (e && typeof e === 'object') ? e : {}; }catch(e){ return {}; }
 }
+function _osBetaBureau(){ return window.innerWidth > 768 && !(typeof osEstMobile === 'function' && osEstMobile()); }
+function osBetaOptIn(){ return !!osBetaEtat().actif; }
+function _osBetaListe(id){ return OS_BETA.filter(function(f){ return f.id === id; })[0] || null; }
 function osBetaActif(id){
+  if(!id) return (OS_BETA_PROMUES.length > 0 && _osBetaBureau()) || (OS_BETA.length > 0 && osBetaOptIn());
+  if(OS_BETA_PROMUES.indexOf(id) !== -1) return _osBetaBureau();
   var e = osBetaEtat();
-  if(!e.actif) return false;
-  if(!id) return true;
-  return (e.off || []).indexOf(id) === -1;
+  return !!(_osBetaListe(id) && e.actif && (e.off || []).indexOf(id) === -1);
 }
 // L'état du mode bêta est enregistré sur le compte (table widgets_bureau, ligne spéciale « _beta », réglages en JSON : { actif, off, invit, rappel }) :
 // il suit la personne d'un appareil à l'autre. localStorage n'en garde qu'une copie, pour l'appliquer dès l'ouverture, avant la réponse du serveur.
@@ -58,7 +63,7 @@ function _osBetaTenterProposer(n){
 // Version normale : une invitation à essayer la bêta (une petite carte en bas à gauche, pas une fenêtre par-dessus tout).
 // « Essayer » l'active ; « Plus tard » revient dans 3 jours ; « Non merci » ne la propose plus (la bêta reste dans Paramètres).
 function osBetaProposer(){
-  if(osBetaActif() || document.getElementById('os-beta-invit')) return;
+  if(!OS_BETA.length || osBetaOptIn() || document.getElementById('os-beta-invit')) return;   // rien en test, ou déjà activé
   if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return;
   var e = osBetaEtat();
   if(e.invit === 'refuse' || (e.rappel && Date.now() < e.rappel)) return;
@@ -66,7 +71,7 @@ function osBetaProposer(){
   var c = document.createElement('div');
   c.id = 'os-beta-invit'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Essayer la nouvelle version de Compo');
   c.innerHTML = '<div class="obi-titre"><span class="badge-beta">Bêta</span> Essaie la nouvelle version de Compo</div>'
-    +'<div class="obi-texte">Un tableau de bord qui défile jusqu\'à toutes les apps, une barre d\'état en haut, des fenêtres plus douces. Tu pourras revenir à la normale quand tu veux, dans Paramètres.</div>'
+    +'<div class="obi-texte">Des nouveautés sont à essayer avant tout le monde : '+OS_BETA.map(function(f){ return esc(f.nom); }).join(', ')+'. Tu pourras revenir à la normale quand tu veux, dans Paramètres.</div>'
     +'<div class="obi-actions"><button type="button" class="obi-oui">Essayer</button><button type="button" class="obi-plus">Plus tard</button><button type="button" class="obi-non">Non merci</button></div>';
   function fermer(){ c.classList.remove('on'); setTimeout(function(){ c.remove(); }, 250); }
   c.querySelector('.obi-oui').onclick = function(){ osBetaDefinir(true); fermer(); if(typeof notif === 'function') notif('Mode bêta activé. Tu peux le couper dans Paramètres.', 'succes'); };
@@ -81,7 +86,7 @@ function osBetaProposer(){
 function osBetaAppliquer(){
   var root = document.documentElement;
   root.classList.toggle('mode-beta', osBetaActif());
-  OS_BETA.forEach(function(f){ root.classList.toggle('beta-'+f.id, osBetaActif(f.id)); });
+  OS_BETA_PROMUES.concat(OS_BETA.map(function(f){ return f.id; })).forEach(function(id){ root.classList.toggle('beta-'+id, osBetaActif(id)); });
 }
 function osBetaDefinir(actif){
   var e = osBetaEtat(); e.actif = !!actif; _osBetaSauver(e); osBetaAppliquer();
@@ -113,11 +118,12 @@ function osBetaConstruireLigne(container){
   ligne.appendChild(liste);
 
   function dessiner(){
-    var actif = osBetaActif();
+    var actif = osBetaOptIn();
     bNon.style.cssText = actif ? styleOff : styleOn;
     bOui.style.cssText = actif ? styleOn : styleOff;
     liste.innerHTML = '';
     liste.style.display = actif ? 'flex' : 'none';
+    if(!OS_BETA.length && actif){ liste.innerHTML = '<div style="font:400 .76rem \'DM Sans\',sans-serif;color:var(--gris);">Aucune fonction en test pour l\'instant : les nouveautés précédentes sont désormais pour tout le monde. Les prochaines apparaîtront ici.</div>'; }
     OS_BETA.forEach(function(f){
       var l = document.createElement('label');
       l.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border:1px solid var(--gris-bord);border-radius:10px;cursor:pointer;';
