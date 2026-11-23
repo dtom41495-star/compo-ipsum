@@ -1528,14 +1528,12 @@ function maOsFiltre(){
     return;
   }
   list.innerHTML='';
-  if(masquesAutresRedacs || _maToutesRedacs){
+  if(masquesAutresRedacs){
     var avis = document.createElement('div');
     avis.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--gris-clair);font:500 .78rem \'DM Sans\',sans-serif;color:var(--gris);';
     var nomR = ((window._redactionsData||[]).filter(function(r){ return r.id === window._redacActiveId; })[0] || {}).nom || '';
-    avis.innerHTML = _maToutesRedacs
-      ? '<span>Toutes tes rédactions.</span><button type="button" class="ma-chip" data-a="redac">Seulement '+esc(nomR || 'la rédaction ouverte')+'</button>'
-      : '<span>Rédaction « '+esc(nomR)+' » : '+masquesAutresRedacs+' autre'+(masquesAutresRedacs > 1 ? 's' : '')+' article'+(masquesAutresRedacs > 1 ? 's' : '')+' dans tes autres rédactions.</span><button type="button" class="ma-chip" data-a="redac">Tout afficher</button>';
-    avis.querySelector('button').onclick = function(){ _maToutesRedacs = !_maToutesRedacs; maOsFiltre(); };
+    avis.innerHTML = '<span>Rédaction « '+esc(nomR)+' » : '+masquesAutresRedacs+' autre'+(masquesAutresRedacs > 1 ? 's' : '')+' article'+(masquesAutresRedacs > 1 ? 's' : '')+' dans tes autres rédactions.</span><button type="button" class="ma-chip" data-a="redac"><i class="ti ti-switch-horizontal"></i> Changer de rédaction</button>';
+    avis.querySelector('button').onclick = function(){ if(typeof osChoisirRedactionGlobale === 'function') osChoisirRedactionGlobale(); };
     list.appendChild(avis);
   }
   if(fileSr.length){
