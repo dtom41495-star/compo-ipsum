@@ -2131,7 +2131,7 @@ function osStartAction(action){
 document.addEventListener('click', function(e){
   var menu = document.getElementById('os-start-menu');
   var btn = document.getElementById('os-start-btn');
-  if(menu && !menu.contains(e.target) && btn && !btn.contains(e.target)){
+  if(menu && !menu.classList.contains('sm-integre') && !menu.contains(e.target) && btn && !btn.contains(e.target)){
     menu.classList.remove('visible');
   }
 });

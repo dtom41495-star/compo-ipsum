@@ -77,9 +77,16 @@ function osToggleStartMenu(){
   var menu = document.getElementById('os-start-menu');
   if(!menu) return;
   // Le menu vit au niveau de la page : rangé dans la zone du bureau, il passait derrière l'écran d'accueil (qui est au-dessus de tout le bureau)
+  // Mode bêta : le menu n'est plus une fenêtre à part, il est dans le prolongement du tableau de bord (« Toutes les apps », js/96)
+  if(typeof osBetaActif === 'function' && osBetaActif() && typeof osAccueilToutesOuvrir === 'function' && !(window.innerWidth <= 768)){ osAccueilToutesOuvrir(); return; }
   if(menu.parentNode !== document.body) document.body.appendChild(menu);
+  menu.classList.remove('sm-integre');
   menu.classList.toggle('visible');
   if(!menu.classList.contains('visible')) return;
+  osStartMenuPreparer();
+}
+// Remplit le menu (nom, rôle, recherche vide, épinglées, récents, « Pour toi »…) : à l'ouverture, ou quand il est intégré au tableau de bord
+function osStartMenuPreparer(){
   var nameEl = document.getElementById('start-menu-name');
   var roleEl = document.getElementById('start-menu-role');
   var prenom = getUserPrenom() || '', nom = getUserNom() || '';
@@ -104,7 +111,8 @@ function osToggleStartMenu(){
 function osStartMenuRecherche(){
   var menu = document.getElementById('os-start-menu');
   if(!menu) return;
-  if(!menu.classList.contains('visible')) osToggleStartMenu();
+  if(!menu.classList.contains('visible') && !menu.classList.contains('sm-integre')) osToggleStartMenu();
+  else if(menu.classList.contains('sm-integre') && typeof osAccueilToutesOuvrir === 'function') osAccueilToutesOuvrir();
   var s = document.getElementById('sm-search');
   if(s){ s.focus(); s.select(); }
 }
