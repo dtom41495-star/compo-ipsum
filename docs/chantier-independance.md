@@ -64,24 +64,47 @@ avec des systèmes de secours.
       la session cloud : **contrôler chaque point dans les consignes** avant l'installation (modération avant publication, mails de validation,
       anonymisation des IP, traduction française, réglages d'affichage).
 
-11. **Sortir de Netlify : pages écrites d'avance, servies par GitHub Pages** (idée de Tom, 21 novembre 2026, après l'épuisement des crédits
-    Netlify). Aujourd'hui Netlify fait trois choses : héberger les fichiers, gérer l'adresse et le HTTPS, et lancer à chaque visite les
-    8 fonctions du site (`netlify/functions` : article, liste, commune et rubrique, auteur, équipe, plan du site, flux Substack et YouTube).
-    Ces fonctions sont ce qui consomme les crédits. Principe : à chaque mise en ligne depuis Compo, une fonction Supabase **écrit une seule
-    fois** les pages concernées (article, communes, rubriques, accueil) comme de vrais fichiers HTML et les envoie dans le dépôt
-    `ipsummediasite` par l'API GitHub. **GitHub Pages** les sert gratuitement ; Netlify n'a plus rien à faire. Le même dossier de fichiers
-    pourra ensuite être servi par Caddy sur la machine de l'asso (étape 5), sans réécriture : cette décision prépare le déménagement.
+11. **Sortir de Netlify : pages écrites d'avance, servies par GitHub Pages, puis par Caddy sur la machine** (idée de Tom, 21 novembre 2026, après
+    l'épuisement des crédits Netlify ; précisée le 23 novembre).
+    - **Pourquoi pas tout sur Supabase** : Supabase ne sert pas un site web (sa documentation dit que les domaines personnalisés ne sont pas prévus
+      pour héberger une application web par les fonctions ; d'après mes connaissances, non vérifiées, une page HTML y est renvoyée en texte brut
+      sur l'adresse par défaut). Il reste le cerveau (données, fonctions), pas la vitrine.
+    - **Ce que fait Netlify aujourd'hui** : héberger les fichiers, gérer l'adresse et le HTTPS, appliquer les redirections et en-têtes de `netlify.toml`,
+      et lancer à chaque visite les 8 fonctions du site (`netlify/functions` : article, liste, commune et rubrique, auteur, équipe, plan du site, flux
+      Substack et YouTube). Ces fonctions sont ce qui consomme les crédits. Elles n'utilisent aucun secret (`process.env` absent) : elles lisent
+      les données publiques de Supabase.
+    - **Principe** : à chaque mise en ligne depuis Compo, les pages concernées (article, communes, rubriques, auteurs, équipe, accueil, liste,
+      plan du site) sont **écrites une seule fois** comme de vrais fichiers HTML. **GitHub Pages** les sert gratuitement ; Netlify n'a plus rien à faire.
+    - **Qui écrit les pages (décision du 23 novembre)** : un **robot GitHub Actions** dans le dépôt `ipsummediasite` (gratuit sur un dépôt public)
+      lance le code Node actuel du site (même `lib/`, mêmes fonctions appelées avec une fausse requête) et enregistre le résultat en fichiers dans le
+      dépôt ; GitHub Pages publie. On ne réécrit donc pas le code pour Supabase (Deno, ESM), ce qui évite un portage risqué. Compo le déclenche :
+      la fonction `site_publier`, après une mise en ligne, demande la régénération à GitHub (`repository_dispatch`). Les flux Substack et YouTube,
+      qui bougent sans mise en ligne, sont rafraîchis par le même robot toutes les heures environ.
     - **Ce qu'il faut prévoir** : un fichier réel pour chaque adresse (GitHub Pages n'a pas les redirections de `netlify.toml` : `/tarn`,
-      `/commune/albi`…, avec une page 404 propre) ; un **jeton GitHub limité à ce seul dépôt** (écriture du contenu uniquement), rangé dans
+      `/commune/albi`…, avec une page 404 propre) ; un **jeton GitHub limité à ce seul dépôt** (déclenchement du robot uniquement), rangé dans
       les secrets Supabase par Tom, **jamais dans le code** (le dépôt est public) ; désactiver le déploiement automatique Netlify ; repointer
-      le domaine `ipsummedia.fr` seulement après des tests sur l'adresse provisoire GitHub.
+      le domaine `ipsummedia.fr` seulement après des tests sur l'adresse provisoire GitHub, avec un TTL court sur le DNS.
     - **Points délicats** : un article dépublié ou corrigé (erratum) doit aussi mettre à jour ou supprimer ses fichiers, sinon l'ancienne
-      page reste visible ; les flux Substack et YouTube et la météo bougent sans mise en ligne, donc il faut les rafraîchir à intervalle
-      régulier (cron Supabase) ou les charger depuis le navigateur ; délai de une à deux minutes entre le clic et la page visible (non mesuré).
+      page reste visible ; délai de une à deux minutes entre le clic et la page visible (non mesuré).
     - **À vérifier avant de s'engager** (non lisible depuis la session cloud) : taille et nombre de fichiers que le dépôt supportera ; limites
-      actuelles de GitHub Pages ; ce que Supabase affiche pour une page HTML (non retenu : d'après mes connaissances, non vérifiées, il la
-      renvoie en texte brut sur son adresse par défaut, donc il ne remplace pas un hébergeur de pages).
+      actuelles de GitHub Pages (taille du site, bande passante).
+    - **Sur la machine de l'asso (étape 5)** : le dossier de pages est le même, seul l'endroit où le script tourne change.
+      **Option retenue : A**. Le script tourne dans un conteneur Docker sur la machine (à la demande, et toutes les heures pour les flux) ;
+      **Caddy** sert le dossier généré et applique les redirections (quelques lignes de configuration à la place de `netlify.toml`) ;
+      Compo déclenche la régénération par un petit « crochet » (adresse protégée par un secret) sur la machine au lieu de GitHub ; le dossier est aussi
+      envoyé sur GitHub, qui continue de le servir via GitHub Pages **comme secours** (si la machine tombe, on repointe le domaine).
+      Option B écartée pour l'instant : faire tourner les 8 fonctions en permanence derrière Caddy avec du cache (mises à jour instantanées si Compo
+      vide le cache, mais un programme à surveiller et pas de secours automatique).
+    - **À préparer dès maintenant pour que le déménagement soit simple** : un dossier de sortie configurable (rien qui dépende de GitHub dans le script) ;
+      **une seule action de déclenchement** (« régénérer ces pages », aujourd'hui GitHub, demain la machine : le seul endroit à changer dans Compo) ;
+      l'adresse de la base lue en **un seul endroit** (`lib/compo.js`) pour le jour où Supabase déménage aussi ; TTL court sur le DNS.
+    - **Rôles à retenir** : **Caddy** = le « portier » : serveur web qui reçoit les visites, renvoie la bonne page, gère le cadenas HTTPS tout seul
+      (certificat gratuit renouvelé) et les redirections. **Node** = le « rédacteur » : exécute le code JavaScript qui va chercher les articles
+      dans Supabase et fabrique le HTML. Avec des pages écrites d'avance, Node ne tourne qu'à chaque publication (ou toutes les heures pour les flux) ;
+      Caddy distribue seulement des fichiers déjà prêts.
     - Retour en arrière : chaque envoi est un commit GitHub, et l'ancien site Netlify reste en place tant que le nouveau n'a pas fait ses preuves.
+    - **Question ouverte (23 novembre)** : les crédits Netlify étant épuisés, le site est-il en ce moment en panne ou suspendu ? Si oui, le rallumer
+      d'abord (nouveau mois de crédits ou offre payante) pendant qu'on prépare la migration.
 
 12. **Statistiques par article dans Compo, puis lien avec Listmonk** (idée de Tom, 21 novembre 2026). Un bouton « Statistiques » sur la carte
     d'un article en ligne ouvre une fenêtre avec les chiffres de cet article seulement.
@@ -126,7 +149,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 |---|-------|-------------|
 | 1 | **Sauvegarde de la base Compo chaque nuit sur la machine** (pg_dump), puis copie hors de la maison (avec les sauvegardes de Vaultwarden). | Une restauration d'essai réussit. |
 | 2 | **Compo → site** (détail section 4). | Un article fictif publié en un clic apparaît sur l'adresse de test Netlify ; Tom a ouvert une dizaine de vrais liens anciens qui marchent tous. |
-| 2 bis | **Site sans Netlify** (décision 11) : générateur de pages dans une fonction Supabase, envoi dans le dépôt, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse de test ; un erratum et une dépublication d'essai mettent bien à jour ou retirent les pages ; Tom valide avant le changement de domaine. |
+| 2 bis | **Site sans Netlify** (décision 11) : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
 | 2 ter | **Bouton « Statistiques » par article dans Compo** (décision 12, partie Umami et « J'aime »). | La fenêtre s'ouvre sur un article en ligne avec ses vraies vues ; un article sans visite affiche zéro sans erreur ; Tom valide qui la voit. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
