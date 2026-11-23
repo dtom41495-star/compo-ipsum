@@ -115,6 +115,10 @@ avec des systèmes de secours.
     - **Reste à faire** : débrancher le site Netlify du dépôt (puis le supprimer après quelques jours) ; supprimer l'enregistrement DNS `test` ; renvoyer le plan du
       site dans la Search Console et suivre les pages indexées pendant 1 à 2 semaines ; déclencher le robot dès qu'un article est publié dans Compo (aujourd'hui :
       au plus une heure d'attente) ; remplacer les 9 adresses Supabase écrites en dur (voir 15) ; en-têtes de sécurité sur le futur serveur Caddy.
+    - **Liste « Dernières éditions » de l'accueil** (décision de Tom, 24 novembre) : elle vient aujourd'hui des articles Substack étiquetés « Newsletter ». Comme les articles
+      viennent de Compo, elle se videra avec le temps. Le bloc newsletter du site se recentre tout seul quand elle est vide (PR 43 du site). À revoir avec Listmonk
+      (étape 7) : soit une liste alimentée par les envois Listmonk, soit seulement le bouton « Recevoir la newsletter ». Pas de garde-fou « plan de secours Substack » dans
+      le générateur pour l'instant : de moins en moins utile à mesure que Compo prend le dessus.
 
 12. **Statistiques par article dans Compo, puis lien avec Listmonk** (idée de Tom, 21 novembre 2026). Un bouton « Statistiques » sur la carte
     d'un article en ligne ouvre une fenêtre avec les chiffres de cet article seulement.
