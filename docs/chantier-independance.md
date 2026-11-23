@@ -204,9 +204,12 @@ avec des systèmes de secours.
       serveur d'identité à nous (Keycloak ou équivalent, par OpenID Connect).
     - **Préparation du code** : l'adresse de Supabase et la clé publique ne sont plus écrites qu'à **un seul endroit** dans Compo
       (`js/01-core-redaction.js` : `SB_URL`, `SB_KEY`) ✅ (23 novembre : 3 appels de `js/02-auth-articles.js` en dur ont été remplacés ; la page
-      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : un seul fichier de
-      configuration `assets/config.js` pour les pages et `lib/compo.js` pour les fonctions (variables d'environnement) : voir la demande de fusion
-      correspondante. À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
+      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : **rien n'est modifié pour l'instant**
+      (décision de Tom, 23 novembre : on ne touche pas au site tant qu'il ne peut pas être mis à jour, crédits Netlify épuisés). Reste à faire **au moment
+      de la sortie de Netlify (décision 11)**, dans la même mise en ligne : un seul fichier de configuration `assets/config.js` pour les pages (l'adresse
+      et la clé publique sont écrites aujourd'hui en 9 endroits : `index.html` ×2, `membre.html`, `nos-valeurs.html`, `document.html`, `assets/jour.js`,
+      `assets/accueil.js`, `netlify/functions/article.js`, `lib/compo.js`) et `lib/compo.js` pour les fonctions (déjà réglable par `COMPO_URL` et
+      `COMPO_CLE_PUBLIQUE`). À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
     - **Liste de vérification de l'étape 4** : connexion Google, connexion par mot de passe, mot de passe oublié, renouvellement de la session au bout d'une
       heure, déconnexion, un membre bloqué, un compte créé avant le déménagement et un compte créé après.
 
