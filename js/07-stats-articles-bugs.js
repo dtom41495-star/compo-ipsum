@@ -1206,7 +1206,7 @@ function osMesArticlesRender(){
     +'<span id="ma-os-count" style="font-size:.62rem;color:var(--gris);"></span>'
     +'<div style="flex:1;"></div>'
     +'<button onclick="osMesArticlesCharger()" title="Rafraîchir" style="font-size:.62rem;padding:4px 9px;border:1px solid var(--gris-bord);border-radius:6px;background:white;cursor:pointer;color:var(--gris);"><i class="ti ti-refresh"></i></button>'
-    +'<button onclick="osOuvrirNouvelArticle()" style="font-size:.68rem;padding:4px 10px;border:none;border-radius:6px;background:var(--rouge);color:white;cursor:pointer;font-weight:600;flex-shrink:0;"><i class="ti ti-plus" style="vertical-align:-1px;"></i> Nouveau</button>';
+    +'<button type="button" class="mac-btn mac-btn-principal" data-sombre-ignore onclick="osMesArticlesNouveau()" style="flex-shrink:0;"><i class="ti ti-plus"></i>Nouveau</button>';
   hdr.appendChild(l1);
   var barreFiltres = document.createElement('div');
   barreFiltres.id = 'ma-filtres';

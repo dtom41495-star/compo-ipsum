@@ -1168,6 +1168,7 @@ function osParamsRenderSection(section, container){
     container.appendChild(rowLeger);
 
     // Mode bêta global : les fonctions en test (js/98-mode-beta.js)
+    if(typeof osOvConstruireLigne === 'function') osOvConstruireLigne(container);
     if(typeof osBetaConstruireLigne === 'function') osBetaConstruireLigne(container);
 
     // Position des icônes de la barre des tâches

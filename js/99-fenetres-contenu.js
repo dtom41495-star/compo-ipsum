@@ -4,6 +4,18 @@
 // (barre de titre, glisser, agrandir, fermer) comme les applications.
 //  osFenetreContenu(id, titre, rendre, taille) : ouvre (ou ramène au premier plan) la fenêtre « id » ; rendre(zone) remplit la zone de contenu ;
 //  taille [largeur, hauteur] facultative. Retourne la zone de contenu.
+// Actif sur ordinateur, sauf si la personne l'a coupé dans Paramètres (réglage « ov: false » enregistré sur le compte avec le mode bêta)
+function osOvActif(){
+  try{ if(localStorage.getItem('compo_ov_fenetres') === '0') return false; }catch(e){}
+  var e = (typeof osBetaEtat === 'function') ? osBetaEtat() : {};
+  if(e && e.ov === false) return false;
+  if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return false;
+  return typeof osFenetreContenu === 'function' && typeof osCloseWindowForce === 'function';
+}
+function osOvDefinir(actif){
+  var e = osBetaEtat(); if(actif) delete e.ov; else e.ov = false;
+  _osBetaSauver(e);
+}
 window._osFenetresContenu = window._osFenetresContenu || {};
 window._osFenetresTaille = window._osFenetresTaille || {};
 function osFenetreContenu(id, titre, rendre, taille){
@@ -23,23 +35,18 @@ function osFenetreContenu(id, titre, rendre, taille){
   return document.getElementById('wincontent-'+id);
 }
 
-// ===== MODE BÊTA : les fenêtres flottantes deviennent de vraies fenêtres, partout =====
+// ===== LES FENÊTRES FLOTTANTES DEVIENNENT DE VRAIES FENÊTRES, PARTOUT (ordinateur ; interrupteur dans Paramètres) =====
 // Un observateur repère les écrans « par-dessus tout » ajoutés au document (fond assombri, boîte au centre : formulaires, fiches, choix…) et les
 // range dans une vraie fenêtre de Compo (barre de titre, glisser, agrandir, réduire, fermer, retour au tableau de bord). Le code qui les a
 // ouverts ne change pas : l'écran garde ses éléments, et quand il le retire (« Annuler », « Enregistrer »…), la fenêtre se ferme.
 // Restent comme avant : les petites confirmations (Oui / Non), les écrans plein écran opaques (connexion, lancement, mode plein écran),
-// les écrans propres à l'interface (menu, recherche, notifications) et tout le téléphone. Désactivable : localStorage compo_ov_fenetres = 0.
+// les écrans propres à l'interface (menu, recherche, notifications) et tout le téléphone. Désactivable dans Paramètres (« Fenêtres flottantes ») ou avec localStorage compo_ov_fenetres = 0.
 (function(){
   var N = 0;
   var EXCLU_ID = /splash|login|screensaver|maint|loading|offline|oobe|tour|toast|^compo-|^os-|pouls|tutos-welcome|^atr-|^rs-overlay|vue-ensemble|redac-select|^cc-|snake|lightbox|visionneuse|^win-|^page-/i;
-  var EXCLU_CLASSE = /dlg-overlay|acc-menu-voile|(^|\s)os-|toast|tour|(^|\s)cc(-|\s|$)|lightbox|ov-en-fenetre/i;
+  var EXCLU_CLASSE = /acc-menu-voile|(^|\s)os-|toast|tour|(^|\s)cc(-|\s|$)|lightbox|ov-en-fenetre/i;
 
-  function actif(){
-    try{ if(localStorage.getItem('compo_ov_fenetres') === '0') return false; }catch(e){}
-    if(typeof osBetaActif !== 'function' || !osBetaActif()) return false;
-    if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return false;
-    return typeof osFenetreContenu === 'function' && typeof osCloseWindowForce === 'function';
-  }
+  function actif(){ return osOvActif(); }
   function alpha(couleur){
     var m = /rgba?\(([^)]+)\)/.exec(couleur || ''); if(!m) return 1;
     var p = m[1].split(',').map(function(x){ return parseFloat(x); });
@@ -67,6 +74,8 @@ function osFenetreContenu(id, titre, rendre, taille){
     if(!dlg){ if((essai || 0) < 5) setTimeout(function(){ convertir(el, (essai || 0) + 1); }, 60); return; }
     var r = dlg.getBoundingClientRect();
     if(r.width && r.height && r.width < 330 && r.height < 190) return;   // petite confirmation : reste comme avant
+    // Les boîtes de dialogue (« dlg-overlay » : confirmations, questions) ne deviennent des fenêtres que si ce sont de vrais formulaires (assez hautes)
+    if(/dlg-overlay/.test(String(el.className || '')) && r.height < 280) return;
     var w = Math.max(420, Math.min(Math.round(r.width) + 4, 1000, window.innerWidth - 80));
     var h = Math.max(460, Math.min(Math.round(r.height) + 100, window.innerHeight - 140));   // marge : le contenu finit souvent de se charger après l'ouverture
     var id = 'ov-'+(++N);
@@ -88,7 +97,7 @@ function osFenetreContenu(id, titre, rendre, taille){
   }).observe(document.body || document.documentElement, { childList:true });
 })();
 
-// ===== MODE BÊTA : les modales « fixes » de la page (Envoyer au SR, fiche d'un sujet) deviennent aussi de vraies fenêtres =====
+// ===== LES MODALES « FIXES » de la page (Envoyer au SR, fiche d'un sujet) deviennent aussi de vraies fenêtres =====
 // Elles font partie de index.html (elles ne sont pas ajoutées à la volée) : on surveille leur ouverture, on range l'élément dans une fenêtre,
 // et à la fermeture (par la fenêtre ou par le code de la modale) on le remet à sa place, fermé, pour la fois suivante.
 (function(){
@@ -102,12 +111,7 @@ function osFenetreContenu(id, titre, rendre, taille){
   ];
   var adoptees = {};   // id de fenêtre → { el, parent, repere, def }
 
-  function actif(){
-    try{ if(localStorage.getItem('compo_ov_fenetres') === '0') return false; }catch(e){}
-    if(typeof osBetaActif !== 'function' || !osBetaActif()) return false;
-    if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return false;
-    return typeof osFenetreContenu === 'function' && typeof osCloseWindowForce === 'function';
-  }
+  function actif(){ return osOvActif(); }
   function remettre(winId, fermerModale){
     var a = adoptees[winId]; if(!a) return;
     delete adoptees[winId];
