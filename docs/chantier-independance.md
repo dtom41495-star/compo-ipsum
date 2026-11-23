@@ -185,6 +185,31 @@ avec des systèmes de secours.
     - **Ordre** : après l'étape 5 (la machine est prête, sauvegardée et surveillée) ; jamais avant, sinon le code serait hébergé sur une machine
       sans filet. Pas de précipitation : GitHub reste le miroir jusqu'à ce que Forgejo ait fait ses preuves.
 
+15. **Connexion à Compo quand Supabase sera sur la machine : Google, mot de passe, comptes** (question de Tom, 23 novembre 2026). **Oui, la connexion
+    avec Google continue de marcher** : le service de connexion de Supabase (GoTrue) la prend en charge en auto-hébergement (documentation officielle
+    « Configure Social Login (OAuth) Providers », relue le 23 novembre ; à essayer sur la copie de test, étape 4).
+    - **À faire** : (1) un nom public en **HTTPS** pour Supabase (par exemple `api.ipsummedia.fr`, derrière Caddy) : Google refuse les adresses de retour
+      qui ne sont pas en HTTPS ; (2) dans la **console Google Cloud**, dans le client OAuth actuel, **ajouter** l'adresse de retour
+      `https://api.ipsummedia.fr/auth/v1/callback` (garder l'ancienne jusqu'à la bascule) ; (3) dans la configuration Supabase (`.env` et
+      `docker-compose.yml`) : `GOTRUE_EXTERNAL_GOOGLE_ENABLED`, `…_CLIENT_ID`, `…_SECRET` (les mêmes que maintenant) et `…_REDIRECT_URI` ;
+      (4) `SITE_URL` et `ADDITIONAL_REDIRECT_URLS` : `https://compo.ipsummedia.fr`, la page d'inscription et le site.
+    - **Les comptes** : les membres vivent dans la partie « auth » de la base (utilisateurs et identités Google). Elle doit être copiée avec la base (étape 4,
+      copie de test) : les comptes Google sont alors reconnus et chacun garde son identité et ses données.
+    - **Le secret JWT** : le **garder identique** évite de déconnecter tout le monde. S'il change, chaque membre se reconnecte une fois, et les clés
+      « anon » et « service » changent : Compo (`SB_KEY`), le site, les secrets des fonctions serveur, les jetons. À décider au moment de l'étape 4.
+    - **Les emails de connexion** (mot de passe oublié, liens par email) demandent un envoi d'emails configuré sur la machine : le SMTP Mailjet déjà prévu
+      (étape 7 ; à régler dès l'étape 4 si on veut tester la récupération de mot de passe).
+    - **Google reste ici un fournisseur de connexion, pas l'hébergeur des données** (cohérent avec le point 8). Plus tard, si Tom le décide : **passkeys**
+      (connexion par l'appareil, prise en charge en auto-hébergement ; attention, changer l'identifiant de domaine invalide les passkeys déjà créées) ou un
+      serveur d'identité à nous (Keycloak ou équivalent, par OpenID Connect).
+    - **Préparation du code** : l'adresse de Supabase et la clé publique ne sont plus écrites qu'à **un seul endroit** dans Compo
+      (`js/01-core-redaction.js` : `SB_URL`, `SB_KEY`) ✅ (23 novembre : 3 appels de `js/02-auth-articles.js` en dur ont été remplacés ; la page
+      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : un seul fichier de
+      configuration `assets/config.js` pour les pages et `lib/compo.js` pour les fonctions (variables d'environnement) : voir la demande de fusion
+      correspondante. À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
+    - **Liste de vérification de l'étape 4** : connexion Google, connexion par mot de passe, mot de passe oublié, renouvellement de la session au bout d'une
+      heure, déconnexion, un membre bloqué, un compte créé avant le déménagement et un compte créé après.
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -198,7 +223,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 2 bis | **Site sans Netlify** (décision 11) : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
 | 2 ter | **Bouton « Statistiques » par article dans Compo** (décision 12, partie Umami et « J'aime »). | La fenêtre s'ouvre sur un article en ligne avec ses vraies vues ; un article sans visite affiche zéro sans erreur ; Tom valide qui la voit. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
-| 4 | **Supabase de test sur la machine**, avec une copie des données : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
+| 4 | **Supabase de test sur la machine**, avec une copie des données (dont les comptes et la connexion Google, décision 15) : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. Filtrage des robots avec Caddy et CrowdSec (décision 13). | Compo et le site répondent depuis la machine ; Uptime Kuma au vert ; Googlebot, Bingbot et les aperçus de liens passent toujours. |
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
