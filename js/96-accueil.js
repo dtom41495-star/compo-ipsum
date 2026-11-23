@@ -96,7 +96,9 @@ function osAccueilApps(){
     // Mode bêta « menu en pleine page » : le menu s'ouvre par-dessus l'accueil (qui est toujours là en dessous quand on le ferme) ;
     // sinon, l'accueil s'efface et le petit menu s'ouvre. Dans les deux cas après le clic : sinon ce même clic, vu comme « à côté du
     // menu », le refermerait aussitôt (js/29, fermeture au clic ailleurs).
-    var pleinePage = typeof osBetaActif === 'function' && osBetaActif();   // mode bêta : toujours en pleine page, par-dessus le tableau de bord
+    // Mode bêta : toutes les applications s'affichent À LA SUITE du tableau de bord (il se prolonge vers le bas), plus de menu à part
+    if(typeof osBetaActif === 'function' && osBetaActif()){ osAccueilToutesBasculer(); return; }
+    var pleinePage = false;   // mode bêta : toujours en pleine page, par-dessus le tableau de bord
     if(!pleinePage) osAccueilFermer();
     else if(typeof osBetaMenuPleinTemporaire === 'function') osBetaMenuPleinTemporaire();
     setTimeout(function(){
@@ -105,6 +107,54 @@ function osAccueilApps(){
     }, 0);
   };
   z.appendChild(tout);
+}
+
+// Toutes les applications, dans le prolongement du tableau de bord (mode bêta) : une section sous l'écran d'accueil, avec recherche et thèmes.
+// Un clic sur « Toutes les apps » y descend en douceur ; un second clic (ou « Remonter ») ramène en haut.
+var _accToutesCat = 'tout';
+function osAccueilToutesBasculer(){
+  var o = document.getElementById('os-accueil'); if(!o) return;
+  var sec = document.getElementById('acc-toutes');
+  if(!sec){ sec = document.createElement('section'); sec.id = 'acc-toutes'; sec.className = 'acc-toutes'; o.appendChild(sec); osAccueilToutesDessiner(); }
+  var bas = o.scrollTop > (o.clientHeight / 2);
+  o.scrollTo({ top: bas ? 0 : sec.offsetTop, behavior: 'smooth' });
+  if(!bas){ var q = sec.querySelector('input'); setTimeout(function(){ if(q && !('ontouchstart' in window)) q.focus({ preventScroll:true }); }, 450); }
+}
+function osAccueilToutesDessiner(){
+  var sec = document.getElementById('acc-toutes'); if(!sec || typeof osAppsAccessibles !== 'function') return;
+  var apps = osAppsAccessibles(), cats = (typeof SM_CATEGORIES !== 'undefined') ? SM_CATEGORIES : [{ id:'tout', label:'Toutes' }];
+  sec.innerHTML = '<div class="acc-toutes-tete"><div class="acc-apps-titre">Toutes les applications</div>'
+      +'<button type="button" class="acc-toutes-haut"><i class="ti ti-chevron-up"></i> Remonter</button></div>'
+    +'<div class="acc-toutes-champ"><i class="ti ti-search"></i><input type="text" placeholder="Rechercher une application…" autocomplete="off" aria-label="Rechercher une application"></div>'
+    +'<div class="acc-toutes-cats">'+cats.map(function(c){ return '<button type="button" data-c="'+c.id+'" class="'+(c.id === _accToutesCat ? 'on' : '')+'">'+esc(c.label)+'</button>'; }).join('')+'</div>'
+    +'<div class="acc-toutes-grille"></div>';
+  var inp = sec.querySelector('input'), grille = sec.querySelector('.acc-toutes-grille');
+  function norm(x){ return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function filtrer(){
+    var q = norm(inp.value.trim());
+    var l = apps.filter(function(a){
+      if(_accToutesCat !== 'tout' && typeof _smCategorieDe === 'function' && _smCategorieDe(a.id) !== _accToutesCat) return false;
+      return !q || norm(a.label).indexOf(q) !== -1;
+    });
+    grille.innerHTML = '';
+    if(!l.length){ grille.innerHTML = '<div class="acc-toutes-vide">Aucune application trouvée</div>'; return; }
+    l.forEach(function(app){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'acc-app';
+      b.innerHTML = '<span class="acc-app-ic" style="background:'+esc(app.color || '#555')+'">'+(app.icon || '')+'</span><span class="acc-app-l">'+esc(app.label || '')+'</span>';
+      b.onclick = function(){ osOpenWindow(app.id); };
+      grille.appendChild(b);
+    });
+  }
+  inp.addEventListener('input', filtrer);
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ var p1 = grille.querySelector('.acc-app'); if(p1) p1.click(); } });
+  sec.querySelector('.acc-toutes-cats').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-c]'); if(!b) return;
+    _accToutesCat = b.dataset.c;
+    Array.prototype.forEach.call(sec.querySelectorAll('.acc-toutes-cats button'), function(x){ x.classList.toggle('on', x === b); });
+    filtrer();
+  });
+  sec.querySelector('.acc-toutes-haut').onclick = function(){ var o = document.getElementById('os-accueil'); if(o) o.scrollTo({ top:0, behavior:'smooth' }); };
+  filtrer();
 }
 
 function osAccueilOuvrir(){
@@ -116,6 +166,8 @@ function osAccueilOuvrir(){
   var b = document.getElementById('os-accueil-btn'); if(b) b.classList.add('active');
   osAccueilApps();
   osAccueilRedacMaj();
+  if(document.getElementById('acc-toutes')) osAccueilToutesDessiner();
+  o.scrollTop = 0;
   Array.prototype.forEach.call(o.querySelectorAll('.os-w-wid, .acc-app, .acc-tete > *'), function(el, i){ el.style.setProperty('--acc-i', i); });
   if(typeof osWidgetNotificationsRendre === 'function') osWidgetNotificationsRendre();
 }
@@ -163,6 +215,7 @@ function osAccueilBasculer(){ if(_acc.ouvert) osAccueilFermer(); else osAccueilO
   // Échap : retour au bureau (sauf si une fenêtre modale, un menu ou un champ de saisie est en cours d'usage)
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Escape' || !_acc.ouvert) return;
+    if(typeof osBetaActif === 'function' && osBetaActif()) return;   // bêta : le tableau de bord est l'accueil, le bureau vide ne sert plus
     var t = e.target;
     if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     if(document.querySelector('.renvoi-voile, #os-pouls-pop, #os-start-menu.visible')) return;

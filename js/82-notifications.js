@@ -338,7 +338,12 @@ _atrRendrePanneau = function(){
     });
   }
   h += '</div><div class="atr-pied"><span>Les 30 derniers jours</span><button type="button" class="atr-lien" data-atr="reglages">Réglages des notifications</button></div>';
+  // Le panneau est redessiné à chaque action (croix, « marquer lu »…) : on garde la position de défilement, sinon la liste remontait tout en haut
+  var _corps = p.querySelector('.atr-corps'), _hautCorps = _corps ? _corps.scrollTop : 0, _hautPanneau = p.scrollTop;
   p.innerHTML = h;
+  var _corps2 = p.querySelector('.atr-corps');
+  if(_corps2) _corps2.scrollTop = _hautCorps;
+  p.scrollTop = _hautPanneau;
 };
 
 // Ouvrir la cloche charge aussi les notifications
