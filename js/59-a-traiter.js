@@ -13,7 +13,7 @@ var _atr = { taches:[], infos:[], ouvert:false, deplies:{}, resumeFait:false, ch
 
 var ATR_TYPES = {
   relire:      { titre:'Articles à relire',        sous:'attribués à toi',            icone:'search',       couleur:'#1A5276', ouvrir:function(){ osOpenWindow('app-correction'); } },
-  publier:     { titre:'Prêts à publier',          sous:'validés par la rédaction',   icone:'circle-check', couleur:'#0F6E56', ouvrir:function(){ _redacOnglet = 'redac'; osOpenWindow('redactions'); } },
+  publier:     { titre:'Prêts à publier',          sous:'validés par la rédaction',   icone:'circle-check', couleur:'#0F6E56', ouvrir:function(ref){ osMesArticlesAPublier(ref); } },
   cps_brouillons: { titre:'Communiqués à valider', sous:'brouillons de la boîte contact@', icone:'mail-check', couleur:'#4A235A', ouvrir:function(){ osCpsOuvrirBrouillons(); } },
   suppression: { titre:'Demandes de suppression',  sous:'comptes à traiter',          icone:'trash',        couleur:'#856404', ouvrir:function(){ osOpenWindow('benevoles'); } },
   cps:         { titre:'Communiqués non lus',      sous:'dans ta rédaction',          icone:'news',         couleur:'#4A235A', ouvrir:function(){ osOpenWindow(window._atrCpsAppId || 'cps-admin'); } },
