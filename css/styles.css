@@ -8370,3 +8370,9 @@ html.mode-beta.beta-sans-barre body.accueil-ouvert #os-pastille-beta { display: 
 .recrut-dans-fenetre { height: 100%; overflow-y: auto; background: #fff; box-sizing: border-box; }
 /* Mode bêta : le bureau vide n'a plus d'intérêt, le bouton « Aller au bureau » disparaît du tableau de bord */
 html.mode-beta #os-accueil .acc-bureau { display: none; }
+
+/* Mode bêta sans barre : la zone des fenêtres commence sous la pastille, pour que les boutons réduire / agrandir / fermer d'une fenêtre
+   agrandie ou ancrée ne passent jamais dessous */
+@media (min-width: 769px) {
+  html.mode-beta.beta-sans-barre #os-workspace { margin-top: 60px; }
+}
