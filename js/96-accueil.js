@@ -12,6 +12,7 @@ function osAccueilConstruire(){
   o.id = 'os-accueil'; o.className = 'os-accueil';
   o.setAttribute('role', 'region'); o.setAttribute('aria-label', 'Accueil');
   o.innerHTML = '<div class="acc-conteneur">'
+      +'<img class="acc-logo" src="icons/logo-ipsum-blanc.png" alt="Ipsum Média" draggable="false">'
       +'<div class="acc-tete" id="acc-tete"><div class="acc-droite"><div class="acc-meteo" id="acc-meteo"></div>'
         +'<div id="os-widgets-barre" class="os-widgets-barre"><button type="button" data-a="boutique"><i class="ti ti-plus"></i> Widgets</button>'
         +'<button type="button" data-a="redac" id="acc-redac" hidden></button><button type="button" data-a="organiser"><i class="ti ti-layout-grid"></i> <span>Organiser</span></button>'
