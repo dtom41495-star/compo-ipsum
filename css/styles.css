@@ -8342,3 +8342,21 @@ html.mode-beta.beta-sans-barre #os-notif-center.open {
 
 /* Mode bêta : sur le tableau de bord la pastille faisait doublon (heure, rédaction, notifications, applications) : elle se cache */
 html.mode-beta.beta-sans-barre body.accueil-ouvert #os-pastille-beta { display: none; }
+
+/* Mode bêta : « Toutes les apps » à la suite du tableau de bord (défilement vers le bas), au lieu d'un menu à part */
+.acc-toutes { max-width: 1240px; margin: 0 auto; padding: 34px 0 60px; min-height: 100%; box-sizing: border-box; color: #fff; }
+.acc-toutes-tete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.acc-toutes-tete .acc-apps-titre { margin: 0; }
+.acc-toutes-haut { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(20,20,42,.45); color: #fff; font: 600 .74rem 'DM Sans', sans-serif; cursor: pointer; }
+.acc-toutes-haut:hover { background: rgba(20,20,42,.7); }
+.acc-toutes-champ { display: flex; align-items: center; gap: 10px; max-width: 520px; margin: 0 auto 14px; padding: 10px 16px; border-radius: 14px; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); }
+.acc-toutes-champ input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #fff; font: 500 .95rem 'DM Sans', sans-serif; }
+.acc-toutes-champ input::placeholder { color: rgba(255,255,255,.5); }
+.acc-toutes-cats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px; }
+.acc-toutes-cats button { padding: 6px 14px; border-radius: 999px; border: none; background: rgba(255,255,255,.1); color: #fff; font: 600 .76rem 'DM Sans', sans-serif; cursor: pointer; }
+.acc-toutes-cats button.on { background: #ea5b1c; }
+.acc-toutes-grille { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.acc-toutes-grille .acc-app { width: 98px; }
+.acc-toutes-vide { padding: 30px; color: rgba(255,255,255,.6); font-size: .85rem; }
+#os-accueil .acc-toutes-champ input { background: transparent !important; border: none !important; box-shadow: none !important; color: #fff !important; padding: 0 !important; }
+#os-accueil .acc-toutes-champ i { color: rgba(255,255,255,.55); }
