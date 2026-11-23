@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inscription — Ipsum Média</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
@@ -35,7 +36,9 @@
   .etat .detail{font-size:0.85rem;color:var(--gris);}
   .confirmation{background:var(--vert-bg);color:var(--vert);border-radius:8px;padding:0.6rem 0.9rem;font-size:0.82rem;margin-top:0.8rem;display:none;}
   .erreur{color:#A32D2D;font-size:0.82rem;margin-top:0.6rem;display:none;}
-  .pied{text-align:center;font-size:0.66rem;color:var(--gris);padding:1rem 1.6rem 1.4rem;text-transform:uppercase;letter-spacing:0.08em;}
+  .rgpd{font-size:0.7rem;line-height:1.45;color:var(--gris);margin:0.9rem 0 0;}
+  .btn-agenda{display:block;margin-top:0.7rem;padding:0.7rem;border:1.5px solid var(--gris-bord);border-radius:9px;color:var(--encre);font-family:'Poppins',sans-serif;font-weight:700;font-size:0.85rem;text-align:center;text-decoration:none;background:white;}
+  .btn-agenda:hover{border-color:var(--rouge);color:var(--rouge);}
 </style>
 </head>
 <body>
@@ -66,12 +69,18 @@ function etatErreur(titre, detail){
   carte.innerHTML = '<div class="etat"><div class="picto"><i class="ti ti-mood-confuzed"></i></div><div class="msg">'+titre+'</div><div class="detail">'+(detail||'')+'</div></div>';
 }
 
+// Toujours l'heure de Paris, où se tient l'événement, quel que soit le fuseau de l'appareil
 function formatDate(iso){
-  var d = new Date(iso);
-  var jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-  var mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  var h = d.getHours(), m = d.getMinutes();
-  return jours[d.getDay()]+' '+d.getDate()+' '+mois[d.getMonth()]+' à '+h+'h'+(m<10?'0'+m:m);
+  var parts = new Intl.DateTimeFormat('fr-FR', { timeZone:'Europe/Paris', weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit', hourCycle:'h23' }).formatToParts(new Date(iso));
+  var v = {}; parts.forEach(function(p){ v[p.type] = p.value; });
+  return v.weekday+' '+v.day+' '+v.month+' à '+parseInt(v.hour, 10)+'h'+v.minute;
+}
+// Lien « Ajouter à mon agenda » (Google Agenda), sans le lieu quand il est réservé aux inscrit·es
+function lienAgenda(ev){
+  var d = new Date(ev.date_debut), fin = ev.date_fin ? new Date(ev.date_fin) : new Date(d.getTime() + 3600000);
+  var f = function(x){ return x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); };
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(ev.titre || 'Événement Ipsum Média')
+    +'&dates='+f(d)+'/'+f(fin)+(ev.lieu && !ev.infos_reservees ? '&location='+encodeURIComponent(ev.lieu) : '');
 }
 
 function afficherCarteLieu(ev){
@@ -111,11 +120,12 @@ function afficherFormulaire(ev){
   // ça faisait échouer silencieusement l'inscription de vraies personnes, sans erreur visible.
   html += '<input class="site" type="text" name="site" id="site" tabindex="-1" autocomplete="off" aria-hidden="true">';
   html += '<button type="submit" id="btn-envoyer">Je m\'inscris</button>';
-  html += '<div class="confirmation" id="confirmation">C\'est noté ! Regarde ta boîte mail pour la confirmation.</div>';
-  html += '<div class="erreur" id="erreur"></div>';
+  html += '<p class="rgpd">Ton nom, ton email et ton message servent uniquement à gérer ton inscription à cet événement ; ils ne sont pas transmis à des tiers. Pour les consulter ou les faire effacer : contact@ipsummedia.fr.</p>';
+  html += '<div class="erreur" id="erreur" role="alert"></div>';
   html += '</form>';
+  // Hors du formulaire : à l'envoi, le formulaire se masque et la confirmation doit rester visible
+  html += '<div class="confirmation" id="confirmation">C\'est noté ! Regarde ta boîte mail pour la confirmation.<a class="btn-agenda" id="btn-agenda" href="'+lienAgenda(ev)+'" target="_blank" rel="noopener"><i class="ti ti-calendar-plus"></i> Ajouter à mon agenda</a></div>';
   html += '</div>';
-  html += '<div class="pied">Ipsum Média · Rédaction associative</div>';
   carte.innerHTML = html;
   afficherCarteLieu(ev);
 
@@ -142,7 +152,8 @@ function afficherFormulaire(ev){
         email_invalide: 'Cette adresse email ne semble pas valide.',
         nom_invalide: 'Indique ton nom.',
         complet: 'Il n\'y a plus de place — désolé !',
-        introuvable: 'Cet événement n\'est plus disponible.'
+        introuvable: 'Cet événement n\'est plus disponible.',
+        trop_de_demandes: 'Beaucoup d\'inscriptions en ce moment : réessaie dans un moment.'
       };
       erreurEl.textContent = messages[res.data && res.data.error] || 'Un souci est survenu, réessaie dans un instant.';
       erreurEl.style.display = 'block';
