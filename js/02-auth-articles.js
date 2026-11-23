@@ -2103,6 +2103,15 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
   }).then(function(){
     if(srDessaisi) _osPrevenirSRDessaisi(srDessaisi, doc, nouveauStatut);
     currentDoc = doc;
+    // Série : un auteur qui valide ou publie lui-même son texte (« Bon à publier », « Publier »), sans passer par « Envoyer au SR », a aussi droit à
+    // la carte de félicitations (osSerieApresEnvoi ignore les textes d'autrui et ceux déjà fêtés à l'envoi au SR). Lancée AVANT les notifications
+    // et les mises à jour d'écran ci-dessous : si l'une d'elles plantait, la fête ne partait jamais.
+    try{
+      if((nouveauStatut==='publie' || nouveauStatut==='valide') && (!statutAvant || statutAvant === 'brouillon') && typeof osSerieApresEnvoi === 'function'){
+        var docSerie = Object.assign({}, currentDoc, { _sansCoec:true });   // publication directe : pas un envoi au SR
+        setTimeout(function(){ osSerieApresEnvoi(docSerie); }, 1200);
+      }
+    }catch(e){ console.warn('[série]', e); }
     rWorkflowMajInterface(currentDoc);
     _osRafraichirMesArticles();
     _docModifie = false;
@@ -2110,12 +2119,6 @@ function rWorkflowAvancer(nouveauStatut, besoinVisuel){
     if(nouveauStatut==='valide' && doc.besoin_visuel) osNotifierComArticleValide(currentDoc);
     if(nouveauStatut==='corrige' && typeof osNotifierChefsArticleRelu === 'function') osNotifierChefsArticleRelu(currentDoc);
     if(nouveauStatut==='valide') osNotifierValidateursCentraux(currentDoc);
-    // Série : un auteur qui valide ou publie lui-même son texte, sans passer par « Envoyer au SR », a aussi droit à la carte
-    // de félicitations (osSerieApresEnvoi ignore les textes d'autrui et ceux déjà fêtés à l'envoi au SR)
-    if((nouveauStatut==='publie' || nouveauStatut==='valide') && (!statutAvant || statutAvant === 'brouillon') && typeof osSerieApresEnvoi === 'function'){
-      var docSerie = Object.assign({}, currentDoc, { _sansCoec:true });   // publication directe : pas un envoi au SR
-      setTimeout(function(){ osSerieApresEnvoi(docSerie); }, 1200);
-    }
     if(nouveauStatut==='valide_central') osNotifierValidationCentraleOK(currentDoc);
     // Le sujet lié disparaît des sujets ouverts/en cours une fois l'article publié —
     // sinon il traîne indéfiniment dans les listes de sujets (sujets "caducs").

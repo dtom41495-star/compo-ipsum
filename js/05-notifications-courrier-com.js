@@ -986,6 +986,9 @@ function osCloseWindowForce(pageId){
   if(pageId === 'redactions'){
     if(_redacOnglet === 'sujets') _osRedacMarquerSujetsLus();
     if(_redacOnglet === 'recrutement') _osRedacMarquerRecrutementLu();
+    // Ma rédac' fermée : la prochaine ouverture « simple » (tuile, menu, barre) repart sur Mon profil ; les ouvertures ciblées (une tâche, un lien)
+    // posent leur onglet juste avant d'ouvrir et ne sont pas touchées
+    _redacOnglet = 'profil';
   }
   delete _windows[pageId];
   // Fenêtre de l'éditeur fermée (croix, envoi au SR…) : l'article qu'elle contenait ne doit pas survivre en mémoire. Sinon la fenêtre
