@@ -164,10 +164,24 @@ avec des systèmes de secours.
          service extérieur depuis le navigateur) ;
       6. **secours hors de la maison, sans GitHub** : copie des dépôts (miroir) chez **Codeberg** (Forgejo hébergé par l'association) ou sur un second
          serveur en Europe ; et copie du dossier de pages du site pour qu'un hébergeur de secours puisse le servir si la machine tombe ;
-      7. enfin, **archiver les dépôts GitHub** (lecture seule, avec un message qui renvoie vers Forgejo) et ne plus rien y pousser.
+      7. enfin, **fermer GitHub** : une fois les secrets de l'historique vérifiés, les copies de secours contrôlées et Compo comme le site servis ailleurs,
+         passer les dépôts en privé puis les supprimer (ou, au minimum, les archiver avec un message qui renvoie vers Forgejo) et ne plus rien y pousser.
     - **Points délicats** : les liens vers les anciennes pull requests ou fichiers GitHub (dans les documents, mails, notes) ; les dépôts étant publics,
-      Google et les autres les ont indexés (une redirection n'est pas possible : le README archivé suffira) ; le code reste public ou non, **à décider
-      par Tom** ; les jetons et secrets ne sont jamais dans le code.
+      Google et les autres les ont indexés (une redirection n'est pas possible : le README archivé suffira) ; les jetons et secrets ne sont jamais dans le code.
+    - **Décision de Tom, 23 novembre 2026 : le code devient PRIVÉ** (dépôts privés sur Forgejo, accès sur invitation). Conséquences à suivre :
+      1. **Ordre sur GitHub** : ne pas passer les dépôts GitHub en privé avant que Compo et le site soient servis par Caddy (GitHub Pages gratuit exige un
+         dépôt public) ; en pratique GitHub devient privé, puis supprimé, tout à la fin (étape 7).
+      2. **Ce qui a déjà été public ne s'efface pas** : l'historique des dépôts GitHub est visible et peut avoir été copié (moteurs de recherche, archives,
+         forks). Avant de passer en privé : **parcourir tout l'historique à la recherche de secrets** (clés, jetons, mots de passe, adresses privées) et, s'il
+         y en a, **les changer** (changer la clé suffit, réécrire l'historique n'efface pas les copies). La clé publique (« anon ») de Supabase est faite pour
+         être vue : elle n'est pas un secret.
+      3. **Privé ne cache pas le code que le navigateur reçoit** : les fichiers de Compo et du site servis aux visiteurs (HTML, JavaScript) restent lisibles
+         par quiconque ouvre la page. Ce qui protège les données, ce sont les règles de la base (RLS) et la connexion, pas le secret du code. Cacher le code
+         de Compo derrière une connexion serait une décision à part.
+      4. **Les « nouveautés » de Compo** ne peuvent plus lire un dépôt public sans jeton : raison de plus de les faire lire une table de Compo (étape 5
+         ci-dessus), pas l'API d'un dépôt.
+      5. **Accès pour Claude et pour qui aide** : un dépôt privé demande un jeton limité à ces dépôts (lecture et écriture) pour les sessions de travail, rangé
+         dans les secrets, jamais dans le code. À vérifier avec le point « ce que les sessions Claude peuvent utiliser avec un Forgejo ».
     - **Ordre** : après l'étape 5 (la machine est prête, sauvegardée et surveillée) ; jamais avant, sinon le code serait hébergé sur une machine
       sans filet. Pas de précipitation : GitHub reste le miroir jusqu'à ce que Forgejo ait fait ses preuves.
 
@@ -189,7 +203,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
 | 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/serveur/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
-| 9 | **Sortir de GitHub** (décision 14) : Forgejo sur la machine, import des deux dépôts, Compo servi par Caddy, robot du site et « nouveautés » de Compo sur la machine, secours chez Codeberg, archivage des dépôts GitHub. | Un changement fusionné sur Forgejo met à jour Compo et le site ; les « nouveautés » s'affichent depuis Forgejo ; une restauration d'essai des dépôts réussit ; Tom valide avant d'archiver GitHub. |
+| 9 | **Sortir de GitHub** (décision 14) : Forgejo sur la machine, import des deux dépôts, Compo servi par Caddy, robot du site et « nouveautés » de Compo sur la machine, secours chez Codeberg, vérification des secrets de l'historique, puis fermeture de GitHub (dépôts passés en privé, puis supprimés). | Un changement fusionné sur Forgejo met à jour Compo et le site ; les « nouveautés » s'affichent depuis Forgejo ; une restauration d'essai des dépôts réussit ; Tom valide avant d'archiver GitHub. |
 
 ## 4. Étape 2 en détail : Compo → site
 
