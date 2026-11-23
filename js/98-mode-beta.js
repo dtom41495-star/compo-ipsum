@@ -245,6 +245,7 @@ function osBetaPastille(){
   p.innerHTML = '<button type="button" data-a="accueil" title="Accueil"><i class="ti ti-home"></i></button>'
     +'<button type="button" data-a="redac" id="pb-redac" class="pb-redac" hidden></button>'
     +'<button type="button" data-a="menu" title="Menu (applications)"><i class="ti ti-layout-grid"></i></button>'
+    +'<span id="pb-fen" class="pb-fen"></span>'
     +'<button type="button" data-a="ensemble" title="Fenêtres ouvertes (Ctrl+Espace)"><i class="ti ti-app-window"></i><b id="pb-nb"></b></button>'
     +'<button type="button" data-a="recherche" title="Rechercher (Ctrl+K)"><i class="ti ti-search"></i></button>'
     +'<button type="button" data-a="notifs" title="Notifications"><i class="ti ti-bell"></i><b id="pb-notifs"></b></button>'
@@ -283,6 +284,23 @@ function osBetaPastilleMaj(){
   var p = document.getElementById('os-pastille-beta'); if(!p) return;
   var nb = _osBetaFenetres().length, n = 0;
   try{ n = (typeof _atrTotal === 'function' ? _atrTotal() : 0) + ((window._atr && _atr.infos) ? _atr.infos.length : 0); }catch(e){}
+  // Une petite icône par fenêtre ouverte (la fenêtre active est cerclée, les réduites sont atténuées) : un clic la ramène
+  var fz = document.getElementById('pb-fen');
+  if(fz){
+    var fl = _osBetaFenetres(), sig = fl.map(function(f){ return f.id+(f.reduite ? '-' : '+')+(f.active ? '*' : ''); }).join('|');
+    if(fz.dataset.sig !== sig){
+      fz.dataset.sig = sig; fz.innerHTML = '';
+      fl.slice(0, 7).forEach(function(f){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'pb-f'+(f.active && !f.reduite ? ' on' : '')+(f.reduite ? ' red' : '');
+        b.title = f.titre; b.setAttribute('aria-label', f.titre);
+        b.innerHTML = '<span class="pb-f-ic" style="background:'+(f.couleur || '#555')+'">'+(f.icone || '<i class="ti ti-app-window"></i>')+'</span>';
+        b.onclick = function(e){ e.stopPropagation(); _osBetaMontrerFenetre(f.id); setTimeout(osBetaPastilleMaj, 150); };
+        fz.appendChild(b);
+      });
+      if(fl.length > 7){ var plus = document.createElement('span'); plus.className = 'pb-plus'; plus.textContent = '+'+(fl.length - 7); fz.appendChild(plus); }
+    }
+  }
   var a = document.getElementById('pb-nb'); if(a){ a.textContent = nb || ''; a.style.display = nb ? 'inline-flex' : 'none'; }
   var b = document.getElementById('pb-notifs'); if(b){ b.textContent = n > 99 ? '99+' : (n || ''); b.style.display = n ? 'inline-flex' : 'none'; }
   var d = document.getElementById('pb-dispo'); if(d){ d.classList.toggle('pause', !!window._dndActif); d.title = window._dndActif ? 'En pause' : 'Disponible'; }
@@ -363,5 +381,11 @@ function _osBetaAccueilSiVide(){
 }
 ['osCloseWindowForce', 'osMinimizeWindow'].forEach(function(nom){
   var f = window[nom]; if(typeof f !== 'function') return;
-  window[nom] = function(){ var r = f.apply(this, arguments); _osBetaAccueilSiVide(); return r; };
+  window[nom] = function(){ var r = f.apply(this, arguments); _osBetaAccueilSiVide(); setTimeout(osBetaPastilleMaj, 320); return r; };
 });
+
+// Une fenêtre qui s'ouvre : la pastille le montre tout de suite
+(function(){
+  var ws = document.getElementById('os-workspace');
+  if(ws) new MutationObserver(function(){ if(typeof osBetaPastilleMaj === 'function') osBetaPastilleMaj(); }).observe(ws, { childList:true });
+})();

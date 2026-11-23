@@ -8403,3 +8403,13 @@ html.mode-beta #os-accueil .acc-bureau { display: none; }
 
 /* Mode bêta : le tableau de bord défile vers « Toutes les apps » (la règle d'accueil plus haut bloquait le défilement à la molette) */
 html.mode-beta #os-accueil { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+
+/* Pastille bêta : une icône par fenêtre ouverte */
+.pb-fen { display: inline-flex; align-items: center; gap: 4px; }
+.pb-fen:empty { display: none; }
+#os-pastille-beta .pb-f { min-width: 30px; width: 30px; height: 30px; padding: 0; border-radius: 9px; }
+#os-pastille-beta .pb-f .pb-f-ic { width: 22px; height: 22px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; color: #fff; }
+#os-pastille-beta .pb-f.on { box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
+#os-pastille-beta .pb-f.red { opacity: .5; }
+#os-pastille-beta .pb-plus { font: 700 .66rem 'DM Sans', sans-serif; opacity: .8; padding: 0 4px; }
+.recrut-intro { margin: 0 0 12px; font: 400 .8rem 'DM Sans', sans-serif; color: var(--gris, #6b6b7b); line-height: 1.4; }
