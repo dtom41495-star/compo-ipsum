@@ -258,7 +258,7 @@ function osBetaPastille(){
     else if(a === 'menu'){ setTimeout(function(){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }, 0); }   // après le clic : sinon la fermeture « clic ailleurs » le referme
     else if(a === 'ensemble') osBetaVueEnsemble();
     else if(a === 'recherche'){ setTimeout(osBetaRecherche, 0); }
-    else if(a === 'redac'){ if(typeof window._osChoixDiffere === 'function') window._osChoixDiffere(); else if(typeof rChangerRedaction === 'function') rChangerRedaction(); }
+    else if(a === 'redac'){ osChoisirRedactionGlobale(); }
     else if(a === 'notifs'){ if(typeof osATraiterBasculer === 'function') osATraiterBasculer(); }
     else if(a === 'dispo'){ if(typeof osToggleDND === 'function') osToggleDND(); }
   });
