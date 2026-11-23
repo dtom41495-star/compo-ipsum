@@ -8,8 +8,7 @@
 var OS_BETA = [
   { id:'fenetres', nom:'Rendu des fenêtres', desc:'Nouveau look : coins plus arrondis, ombres douces, barre de titre épurée, boutons ronds, fenêtre active mieux marquée.' },
   { id:'bureau-epure', nom:'Bureau épuré', desc:'Plus d\'icônes sur le bureau : elles passent dans le menu Démarrer (section « Sur le bureau »). La barre des applications épinglées en bas ne change pas.' },
-  { id:'sans-barre', nom:'Sans barre des tâches', desc:'La barre du bas disparaît. Une petite pastille en haut au centre reprend l\'essentiel (accueil, menu, vue d\'ensemble des fenêtres, recherche, notifications, disponibilité, heure). La vue d\'ensemble (Ctrl+Espace) liste toutes les fenêtres ouvertes, même réduites.' },
-  { id:'menu-plein', nom:'Menu Démarrer en pleine page', desc:'Le menu s\'ouvre sur tout l\'écran, à la manière de Linux ou macOS : recherche en haut, grandes icônes. Un clic dans le vide ou Échap le ferme.' }
+  { id:'sans-barre', nom:'Sans barre des tâches', desc:'La barre du bas disparaît. Une petite pastille en haut au centre reprend l\'essentiel (accueil, toutes les apps, vue d\'ensemble des fenêtres, recherche, notifications, disponibilité, heure). La vue d\'ensemble (Ctrl+Espace) liste toutes les fenêtres ouvertes, même réduites.' }
 ];
 
 function osBetaEtat(){
@@ -254,7 +253,7 @@ function osBetaPastille(){
   // Un bouton ouvre son panneau, un second clic le referme. L'état est relevé AVANT le clic (les fermetures « clic ailleurs » du menu, des
   // notifications et de la vue d'ensemble ont déjà pu le refermer au moment du clic : on le rouvrirait aussitôt).
   function ouvertAvant(a){
-    if(a === 'menu'){ var m = document.getElementById('os-start-menu'); return !!(m && m.classList.contains('visible')); }
+    if(a === 'menu') return false;
     if(a === 'ensemble') return !!document.getElementById('os-vue-ensemble');
     if(a === 'recherche') return !!document.getElementById('os-recherche-beta');
     if(a === 'notifs') return !!document.getElementById('atr-panneau');
@@ -266,12 +265,7 @@ function osBetaPastille(){
     var b = e.target.closest('button[data-a]'); if(!b) return;
     var a = b.dataset.a, etait = (p._etat === true); p._etat = false;
     if(a === 'accueil'){ if(typeof osAccueilBasculer === 'function') osAccueilBasculer(); }
-    else if(a === 'menu'){
-      setTimeout(function(){
-        var m = document.getElementById('os-start-menu'), ouvert = !!(m && m.classList.contains('visible'));
-        if(etait ? ouvert : !ouvert){ if(typeof osToggleStartMenu === 'function') osToggleStartMenu(); }
-      }, 0);
-    }
+    else if(a === 'menu'){ if(typeof osAccueilToutesOuvrir === 'function') osAccueilToutesOuvrir(); }   // « Toutes les apps » : à la suite du tableau de bord
     else if(a === 'ensemble'){ var v = document.getElementById('os-vue-ensemble'); if(v) v.remove(); if(!etait) osBetaVueEnsemble(); }
     else if(a === 'recherche'){ var r = document.getElementById('os-recherche-beta'); if(r) r.remove(); if(!etait) setTimeout(osBetaRecherche, 0); }
     else if(a === 'redac'){ osChoisirRedactionGlobale(); }

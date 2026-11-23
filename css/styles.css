@@ -8382,3 +8382,21 @@ html.mode-beta #os-accueil .acc-bureau { display: none; }
 .ov-en-fenetre { position: static !important; inset: auto !important; z-index: auto !important; background: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   padding: 0 !important; display: block !important; width: 100% !important; height: 100% !important; overflow: auto !important; animation: none !important; opacity: 1 !important; transform: none !important; visibility: visible !important; pointer-events: auto !important; box-sizing: border-box; }
 .ov-en-fenetre > * { width: 100% !important; max-width: none !important; max-height: none !important; min-height: 100%; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; animation: none !important; transform: none !important; box-sizing: border-box; }
+
+/* Logo Ipsum Média, en haut au centre du tableau de bord */
+#os-accueil .acc-conteneur { position: relative; }
+.acc-logo { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); height: 50px; width: auto; box-sizing: content-box; padding: 8px 16px; background: #fff; border-radius: 16px; box-shadow: 0 6px 20px rgba(0,0,0,.28); pointer-events: none; user-select: none; z-index: 1; }
+@media (max-width: 1100px) { .acc-logo { display: none; } }
+
+/* Mode bêta : le menu Démarrer intégré à la suite du tableau de bord (js/96 osAccueilToutesSection) */
+#os-start-menu.sm-integre { position: static !important; inset: auto !important; transform: none !important; opacity: 1 !important; pointer-events: all !important; z-index: auto !important;
+  width: 100% !important; max-width: none; height: auto !important; max-height: none !important; margin: 0 auto; box-shadow: none; border-radius: 22px; background: rgba(18,18,38,.62);
+  grid-template-columns: minmax(0, 1fr) 260px; transition: none; }
+#os-start-menu.sm-integre .sm-main { overflow: visible; padding: 22px 26px 14px; }
+#os-start-menu.sm-integre .sm-search-wrap { max-width: 520px; margin: 0 auto 14px; }
+#os-start-menu.sm-integre .sm-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px 6px; }
+#os-start-menu.sm-integre .sm-app-img { width: 50px; height: 50px; border-radius: 15px; font-size: 1.4rem; }
+#os-start-menu.sm-integre .sm-app-label { font-size: .72rem; }
+#os-start-menu.sm-integre .sm-side { overflow: visible; }
+#os-start-menu.sm-integre #sm-fermer { display: none !important; }
+.acc-toutes { padding-bottom: 80px; }
