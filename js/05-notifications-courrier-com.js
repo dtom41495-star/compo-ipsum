@@ -536,7 +536,7 @@ function _osOpenWindowExecuter(pageId){
   // bénévole) redéclenchait osFocusWindow, qui relance un refresh complet des
   // données dès que 60s se sont écoulées depuis le dernier — perçu comme un
   // rechargement intempestif de l'appli au clic, surtout visible sur connexion lente.
-  win.addEventListener('mousedown', function(){
+  win.addEventListener('pointerdown', function(){
     if(window._activeWindowId !== pageId) osFocusWindow(pageId);
   });
   
@@ -1365,27 +1365,29 @@ function osMasquerApercuSnap(){
 
 function osMakeResizable(win){
   var handle = document.createElement('div');
-  handle.style.cssText = 'position:absolute;bottom:0;right:0;width:16px;height:16px;cursor:se-resize;z-index:10;background:transparent;';
+  handle.style.cssText = 'position:absolute;bottom:0;right:0;width:16px;height:16px;cursor:se-resize;z-index:10;background:transparent;touch-action:none;user-select:none;-webkit-user-select:none;';
   // Indicateur visuel
   handle.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" style="position:absolute;bottom:3px;right:3px;opacity:0.3;"><path d="M9 1L1 9M9 5L5 9M9 9" stroke="rgba(0,0,0,0.5)" stroke-width="1.5" stroke-linecap="round"/></svg>';
   win.appendChild(handle);
   
   var resizing = false, startX, startY, startW, startH;
-  handle.addEventListener('mousedown', function(e){
+  // Pointer Events : souris, doigt et stylet (une tablette n'envoie pas de mousemove quand on fait glisser un doigt)
+  handle.addEventListener('pointerdown', function(e){
     resizing = true;
     startX = e.clientX; startY = e.clientY;
     startW = parseInt(win.style.width)||600;
     startH = parseInt(win.style.height)||400;
     e.preventDefault(); e.stopPropagation();
   });
-  document.addEventListener('mousemove', function(e){
+  document.addEventListener('pointermove', function(e){
     if(!resizing) return;
     var newW = Math.max(400, startW + (e.clientX - startX));
     var newH = Math.max(300, startH + (e.clientY - startY));
     win.style.width = newW+'px';
     win.style.height = newH+'px';
   });
-  document.addEventListener('mouseup', function(){ resizing = false; });
+  document.addEventListener('pointerup', function(){ resizing = false; });
+  document.addEventListener('pointercancel', function(){ resizing = false; });
 }
 
 function osMakeDraggable(win, handle, pageId){
@@ -1396,8 +1398,10 @@ function osMakeDraggable(win, handle, pageId){
     image = 0;
     win.style.transform = 'translate3d('+dx+'px,'+dy+'px,0)';
   };
-  handle.addEventListener('mousedown', function(e){
-    if(e.target.classList.contains('os-btn-win')) return;
+  handle.style.touchAction = 'none';   // le doigt déplace la fenêtre au lieu de faire défiler la page
+  handle.addEventListener('pointerdown', function(e){
+    if(e.target.closest && e.target.closest('.os-btn-win, button, input, select, textarea')) return;
+    if(e.pointerType === 'mouse' && e.button !== 0) return;
     dragging = true;
     startX = e.clientX; startY = e.clientY;
     startL = parseInt(win.style.left)||0;
@@ -1407,7 +1411,7 @@ function osMakeDraggable(win, handle, pageId){
     win.classList.add('os-deplace');
     e.preventDefault();
   });
-  document.addEventListener('mousemove', function(e){
+  document.addEventListener('pointermove', function(e){
     if(!dragging) return;
     dx = e.clientX - startX;
     dy = Math.max(-startT, e.clientY - startY);
@@ -1423,7 +1427,7 @@ function osMakeDraggable(win, handle, pageId){
       osAfficherApercuSnap(zone, wsRect);
     }
   });
-  document.addEventListener('mouseup', function(){
+  var fin = function(){
     if(dragging){
       if(image){ cancelAnimationFrame(image); image = 0; }
       win.style.left = (startL + dx) + 'px';
@@ -1446,7 +1450,9 @@ function osMakeDraggable(win, handle, pageId){
     }
     dragging = false;
     zoneSnap = null;
-  });
+  };
+  document.addEventListener('pointerup', fin);
+  document.addEventListener('pointercancel', fin);
 }
 
 function osStartStatusBar(){
