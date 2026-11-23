@@ -8400,3 +8400,6 @@ html.mode-beta #os-accueil .acc-bureau { display: none; }
 #os-start-menu.sm-integre .sm-side { overflow: visible; }
 #os-start-menu.sm-integre #sm-fermer { display: none !important; }
 .acc-toutes { padding-bottom: 80px; }
+
+/* Mode bêta : le tableau de bord défile vers « Toutes les apps » (la règle d'accueil plus haut bloquait le défilement à la molette) */
+html.mode-beta #os-accueil { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
