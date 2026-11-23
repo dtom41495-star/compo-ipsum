@@ -105,8 +105,16 @@ avec des systèmes de secours.
     - Retour en arrière : chaque envoi est un commit GitHub, et l'ancien site Netlify reste en place tant que le nouveau n'a pas fait ses preuves.
     - **GitHub n'est qu'une étape intermédiaire** : le robot GitHub Actions et GitHub Pages servent à quitter Netlify vite et gratuitement, puis la
       décision 14 les remplace par la machine de l'asso (le secours ne sera plus GitHub Pages, voir 14).
-    - **Question ouverte (23 novembre)** : les crédits Netlify étant épuisés, le site est-il en ce moment en panne ou suspendu ? Si oui, le rallumer
-      d'abord (nouveau mois de crédits ou offre payante) pendant qu'on prépare la migration.
+    - **✅ Fait le 23 novembre 2026** : le site `ipsummedia.fr` est servi par **GitHub Pages**, plus par Netlify. `scripts/generer.js` (dépôt `ipsummediasite`, PR 41)
+      écrit les pages avec le code des fonctions Netlify ; `.github/workflows/pages.yml` le lance toutes les heures, à chaque envoi sur `master` et à la demande,
+      avec un garde-fou (moins de 20 articles : rien n'est publié). Le domaine vient de la variable de dépôt `SITE_DOMAINE` (= `ipsummedia.fr`). Test préalable sur
+      `test.ipsummedia.fr`. DNS chez Infomaniak : 4 enregistrements A (185.199.108 à 111.153) sur l'apex, CNAME `www` vers `dtom41495-star.github.io`. Le site se
+      met à jour **sans Netlify** : toute modification poussée sur `master` est publiée en environ une minute.
+      Ce qui n'est **pas** reproduit : les en-têtes HTTP de `netlify.toml` (sécurité, cache de `sw.js`). Les 16 anciens articles Substack redirigent par une
+      redirection HTML (meta refresh) au lieu d'un 302.
+    - **Reste à faire** : débrancher le site Netlify du dépôt (puis le supprimer après quelques jours) ; supprimer l'enregistrement DNS `test` ; renvoyer le plan du
+      site dans la Search Console et suivre les pages indexées pendant 1 à 2 semaines ; déclencher le robot dès qu'un article est publié dans Compo (aujourd'hui :
+      au plus une heure d'attente) ; remplacer les 9 adresses Supabase écrites en dur (voir 15) ; en-têtes de sécurité sur le futur serveur Caddy.
 
 12. **Statistiques par article dans Compo, puis lien avec Listmonk** (idée de Tom, 21 novembre 2026). Un bouton « Statistiques » sur la carte
     d'un article en ligne ouvre une fenêtre avec les chiffres de cet article seulement.
@@ -204,9 +212,8 @@ avec des systèmes de secours.
       serveur d'identité à nous (Keycloak ou équivalent, par OpenID Connect).
     - **Préparation du code** : l'adresse de Supabase et la clé publique ne sont plus écrites qu'à **un seul endroit** dans Compo
       (`js/01-core-redaction.js` : `SB_URL`, `SB_KEY`) ✅ (23 novembre : 3 appels de `js/02-auth-articles.js` en dur ont été remplacés ; la page
-      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : **rien n'est modifié pour l'instant**
-      (décision de Tom, 23 novembre : on ne touche pas au site tant qu'il ne peut pas être mis à jour, crédits Netlify épuisés). Reste à faire **au moment
-      de la sortie de Netlify (décision 11)**, dans la même mise en ligne : un seul fichier de configuration `assets/config.js` pour les pages (l'adresse
+      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : le site peut de nouveau être modifié
+      (sortie de Netlify faite le 23 novembre, décision 11). Reste à faire, en une seule modification : un seul fichier de configuration `assets/config.js` pour les pages (l'adresse
       et la clé publique sont écrites aujourd'hui en 9 endroits : `index.html` ×2, `membre.html`, `nos-valeurs.html`, `document.html`, `assets/jour.js`,
       `assets/accueil.js`, `netlify/functions/article.js`, `lib/compo.js`) et `lib/compo.js` pour les fonctions (déjà réglable par `COMPO_URL` et
       `COMPO_CLE_PUBLIQUE`). À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
@@ -223,7 +230,7 @@ Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/READM
 |---|-------|-------------|
 | 1 | **Sauvegarde de la base Compo chaque nuit sur la machine** (pg_dump), puis copie hors de la maison (avec les sauvegardes de Vaultwarden). | Une restauration d'essai réussit. |
 | 2 | **Compo → site** (détail section 4). | Un article fictif publié en un clic apparaît sur l'adresse de test Netlify ; Tom a ouvert une dizaine de vrais liens anciens qui marchent tous. |
-| 2 bis | **Site sans Netlify** (décision 11) : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
+| 2 bis ✅ | **Site sans Netlify** (décision 11), fait le 23 novembre sauf le déclenchement par `site_publier` : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
 | 2 ter | **Bouton « Statistiques » par article dans Compo** (décision 12, partie Umami et « J'aime »). | La fenêtre s'ouvre sur un article en ligne avec ses vraies vues ; un article sans visite affiche zéro sans erreur ; Tom valide qui la voit. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données (dont les comptes et la connexion Google, décision 15) : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
