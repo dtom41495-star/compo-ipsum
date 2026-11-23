@@ -1,6 +1,6 @@
 // ===== MODE BÊTA GLOBAL =====
 // Un interrupteur dans Paramètres (« Mode bêta ») qui donne accès aux fonctions en test, avant qu'elles soient pour tout le monde.
-//  - Le mode est propre à l'appareil (comme le mode allégé) : localStorage « compo_os_beta » = { actif:bool, off:[ids désactivées] }.
+//  - Le mode est enregistré sur le compte (table widgets_bureau, ligne « _beta »), avec une copie localStorage « compo_os_beta » = { actif:bool, off:[ids désactivées] }.
 //  - Quand il est actif, chaque fonction du catalogue ci-dessous est activée, sauf celles que la personne a coupées une par une.
 //  - Pour le code : osBetaActif() (mode actif ?) et osBetaActif('id') (cette fonction-là ?). Pour le style : la classe « mode-beta » sur
 //    <html>, plus « beta-<id> » pour chaque fonction active, à utiliser dans le CSS (css/styles.css, « MODE BÊTA »).
@@ -20,7 +20,62 @@ function osBetaActif(id){
   if(!id) return true;
   return (e.off || []).indexOf(id) === -1;
 }
-function _osBetaSauver(e){ try{ localStorage.setItem('compo_os_beta', JSON.stringify(e)); }catch(x){} }
+// L'état du mode bêta est enregistré sur le compte (table widgets_bureau, ligne spéciale « _beta », réglages en JSON : { actif, off, invit, rappel }) :
+// il suit la personne d'un appareil à l'autre. localStorage n'en garde qu'une copie, pour l'appliquer dès l'ouverture, avant la réponse du serveur.
+var _osBetaMinuteur = null;
+function _osBetaSauver(e){
+  try{ localStorage.setItem('compo_os_beta', JSON.stringify(e)); }catch(x){}
+  clearTimeout(_osBetaMinuteur);
+  _osBetaMinuteur = setTimeout(function(){ _osBetaEnvoyer(e); }, 500);
+}
+function _osBetaEnvoyer(e){
+  var uid = (typeof getUserId === 'function') ? getUserId() : null;
+  if(!uid || !window._session || typeof _wbH !== 'function') return;
+  fetch(SB_URL+'/rest/v1/widgets_bureau?on_conflict=membre_id,widget', { method:'POST',
+    headers:_wbH({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
+    body:JSON.stringify([{ membre_id:uid, widget:'_beta', col:1, ligne:1, largeur:1, hauteur:1, reglages:e, maj:new Date().toISOString() }]) })
+    .catch(function(){});
+}
+// Appelée au chargement des widgets (js/94) avec les réglages du serveur (ou null s'il n'y en a pas encore)
+function osBetaDepuisServeur(reglages){
+  var local = osBetaEtat();
+  if(reglages && typeof reglages === 'object'){
+    // Le serveur fait foi
+    try{ localStorage.setItem('compo_os_beta', JSON.stringify(reglages)); }catch(x){}
+    osBetaAppliquer();
+    if(typeof osBetaPastille === 'function') osBetaPastille();
+  } else if(local && (local.actif || (local.off && local.off.length))){
+    _osBetaEnvoyer(local);   // un mode bêta déjà réglé sur cet appareil : on le met aussi sur le compte
+  }
+  _osBetaTenterProposer(0);
+}
+function _osBetaTenterProposer(n){
+  var d = document.getElementById('os-desktop');
+  if(d && d.classList.contains('visible')){ setTimeout(osBetaProposer, 2500); return; }
+  if(n < 12) setTimeout(function(){ _osBetaTenterProposer(n + 1); }, 2000);   // le bureau n'est pas encore affiché (écran de lancement)
+}
+
+// Version normale : une invitation à essayer la bêta (une petite carte en bas à gauche, pas une fenêtre par-dessus tout).
+// « Essayer » l'active ; « Plus tard » revient dans 3 jours ; « Non merci » ne la propose plus (la bêta reste dans Paramètres).
+function osBetaProposer(){
+  if(osBetaActif() || document.getElementById('os-beta-invit')) return;
+  if(window.innerWidth <= 768 || (typeof osEstMobile === 'function' && osEstMobile())) return;
+  var e = osBetaEtat();
+  if(e.invit === 'refuse' || (e.rappel && Date.now() < e.rappel)) return;
+  var d = document.getElementById('os-desktop'); if(!d || !d.classList.contains('visible') || !window._session) return;
+  var c = document.createElement('div');
+  c.id = 'os-beta-invit'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Essayer la nouvelle version de Compo');
+  c.innerHTML = '<div class="obi-titre"><span class="badge-beta">Bêta</span> Essaie la nouvelle version de Compo</div>'
+    +'<div class="obi-texte">Un tableau de bord qui défile jusqu\'à toutes les apps, une barre d\'état en haut, des fenêtres plus douces. Tu pourras revenir à la normale quand tu veux, dans Paramètres.</div>'
+    +'<div class="obi-actions"><button type="button" class="obi-oui">Essayer</button><button type="button" class="obi-plus">Plus tard</button><button type="button" class="obi-non">Non merci</button></div>';
+  function fermer(){ c.classList.remove('on'); setTimeout(function(){ c.remove(); }, 250); }
+  c.querySelector('.obi-oui').onclick = function(){ osBetaDefinir(true); fermer(); if(typeof notif === 'function') notif('Mode bêta activé. Tu peux le couper dans Paramètres.', 'succes'); };
+  c.querySelector('.obi-plus').onclick = function(){ var x = osBetaEtat(); x.rappel = Date.now() + 3 * 86400000; _osBetaSauver(x); fermer(); };
+  c.querySelector('.obi-non').onclick = function(){ var x = osBetaEtat(); x.invit = 'refuse'; _osBetaSauver(x); fermer(); };
+  document.body.appendChild(c);
+  requestAnimationFrame(function(){ c.classList.add('on'); });
+  setTimeout(function(){ if(c.parentNode && !c.matches(':hover')) fermer(); }, 40000);   // sans réponse : elle se retire, et reviendra au prochain lancement
+}
 
 // Pose (ou retire) les classes sur <html> d'après l'état enregistré
 function osBetaAppliquer(){
@@ -45,7 +100,7 @@ function osBetaConstruireLigne(container){
   var haut = document.createElement('div');
   haut.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;';
   haut.innerHTML = '<div><div class="params-label">Mode bêta <span class="badge-beta">Bêta</span></div>'
-    +'<div class="params-label-sub">Essaie les nouvelles fonctions avant tout le monde. Tu peux revenir à la normale à tout moment ; sur cet appareil seulement.</div></div>';
+    +'<div class="params-label-sub">Essaie les nouvelles fonctions avant tout le monde. Tu peux revenir à la normale à tout moment ; le réglage est enregistré sur ton compte.</div></div>';
   var actions = document.createElement('div');
   actions.style.cssText = 'display:flex;gap:0.4rem;flex-shrink:0;';
   var styleOn = 'padding:0.4rem 0.9rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600;background:var(--rouge);color:white;border:2px solid var(--rouge);';

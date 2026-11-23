@@ -8413,3 +8413,19 @@ html.mode-beta #os-accueil { overflow-y: auto; overflow-x: hidden; scrollbar-wid
 #os-pastille-beta .pb-f.red { opacity: .5; }
 #os-pastille-beta .pb-plus { font: 700 .66rem 'DM Sans', sans-serif; opacity: .8; padding: 0 4px; }
 .recrut-intro { margin: 0 0 12px; font: 400 .8rem 'DM Sans', sans-serif; color: var(--gris, #6b6b7b); line-height: 1.4; }
+
+/* Invitation à essayer la bêta (version normale) */
+#os-beta-invit { position: fixed; left: 16px; bottom: calc(var(--dock-h, 70px) + 14px); z-index: 2100; width: 330px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 14px 16px; border-radius: 16px;
+  background: rgba(24,24,46,.96); color: #fff; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 50px rgba(0,0,0,.45); font-family: 'DM Sans', sans-serif;
+  opacity: 0; transform: translateY(12px); transition: opacity .25s ease, transform .25s cubic-bezier(.2,.9,.3,1); }
+#os-beta-invit.on { opacity: 1; transform: none; }
+#os-beta-invit .obi-titre { font: 700 .92rem 'Poppins', sans-serif; margin-bottom: 6px; }
+#os-beta-invit .obi-texte { font-size: .78rem; line-height: 1.45; color: rgba(255,255,255,.78); margin-bottom: 12px; }
+#os-beta-invit .obi-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#os-beta-invit button { padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: transparent; color: #fff; font: 600 .76rem 'DM Sans', sans-serif; cursor: pointer; }
+#os-beta-invit .obi-oui { background: #ea5b1c; border-color: #ea5b1c; }
+#os-beta-invit button:hover { filter: brightness(1.15); }
+
+/* Widget « Annonce » : bouton pour en publier une (admin, rédac chef) */
+.os-w-an-plus { margin-top: 8px; align-self: flex-start; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; font: 600 .7rem 'DM Sans', sans-serif; cursor: pointer; }
+.os-w-an-plus:hover { background: rgba(255,255,255,.16); }
