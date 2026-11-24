@@ -36,10 +36,11 @@ Une page `/agenda` où **n'importe qui propose un événement, sans compte**. **
 
 ## Charge serveur (priorité n° 1)
 
-- Le site n'affiche que les événements **des trois prochains mois**. Dès qu'un événement est passé, il disparaît du site (liste et page) : rien d'inutile n'y reste.
-- Pages statiques : aucun accès à la base à chaque visite.
-- Photo compressée avant l'envoi ; la photo d'un événement passé est supprimée du stockage quelques jours après sa date (le texte de la proposition est conservé).
-- Limites d'envoi par adresse et par IP, et taille maximale de la photo.
+- **Affichage** : le site ne montre que les événements à venir. Dès qu'un événement est passé, il disparaît du site (liste et page).
+- **Suppression du serveur** : **trois mois après la date de l'événement**, la proposition est **supprimée de la base** (acceptée ou refusée), avec ses coordonnées. Une tâche automatique quotidienne (pg_cron, comme les autres) s'en charge : rien ne s'accumule.
+- Entre-temps, une proposition refusée n'est pas supprimée : elle reste dans Compo (étiquette « refusé »), comme source pour la rédaction.
+- La **photo** d'un événement passé est supprimée du stockage quelques jours après sa date (c'est elle qui pèse le plus) ; le texte reste jusqu'aux trois mois.
+- Pages statiques : aucun accès à la base à chaque visite. Photo compressée avant l'envoi, taille maximale, limites d'envoi par adresse et par IP.
 
 ## Base de données (Supabase)
 
@@ -51,11 +52,11 @@ Une page `/agenda` où **n'importe qui propose un événement, sans compte**. **
 ## Décisions prises
 
 - Zone : **Tarn et Haute-Garonne** (une page chacun).
-- Les propositions **refusées ne sont pas supprimées** : elles restent dans Compo (étiquette « refusé »), comme source.
+- Les propositions **refusées ne sont pas supprimées tout de suite** : elles restent dans Compo (étiquette « refusé »), comme source, jusqu'à la purge des trois mois.
 
 ## À confirmer
 
-- Durée de conservation des coordonnées des organisateurs dans Compo.
+- Rien en suspens : la conservation est de trois mois après la date de l'événement, pour tout (texte, coordonnées, refusés).
 
 ## Étapes prévues
 
