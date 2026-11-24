@@ -14,7 +14,7 @@ Une page `/agenda` où **n'importe qui propose un événement, sans compte**. **
 
 ## Côté organisateur (site)
 
-- Formulaire : titre, date et heure (fin facultative), lieu et commune, description, catégorie (concert, sport, culture, marché et fête, réunion publique, autre), lien (facultatif), photo (facultative), nom et email de l'organisateur.
+- Formulaire : titre, date et heure (fin facultative, dans les trois prochains mois), rédaction (Tarn ou Haute-Garonne), lieu et commune, description, catégorie (concert, sport, culture, marché et fête, réunion publique, autre), lien (facultatif), photo (facultative), nom et email de l'organisateur.
 - **Pas de case à cocher.** Une phrase d'information sous le bouton : les coordonnées servent à répondre à l'organisateur ; lien vers la page Confidentialité.
 - Photo réduite et compressée **dans le navigateur** avant l'envoi (≈ 1 600 px de large, WebP, moins de 300 ko), pour ménager l'offre gratuite de Supabase.
 - Anti-spam : champ piège invisible, limite d'envois par adresse email et par IP, modération obligatoire. Turnstile (Cloudflare) possible ensuite.
@@ -29,10 +29,17 @@ Une page `/agenda` où **n'importe qui propose un événement, sans compte**. **
 
 ## Côté site (affichage)
 
-- `/agenda` : événements à venir par date, filtre par commune.
+- **Deux pages** : `/agenda/tarn` et `/agenda/haute-garonne`. Une entrée « Agenda » dans le menu du site ; au survol, un petit menu propose **Tarn** et **Haute-Garonne** (même principe que le menu des rubriques).
+- Chaque page : événements à venir par date, filtre par commune.
 - Une page par événement (lien à partager, aperçu correct sur les réseaux : titre, photo, date).
 - Générées par le passage horaire du site (comme les articles) : un événement accepté est en ligne dans l'heure, ou tout de suite en lançant « Site statique » à la main.
-- Événements passés retirés de la liste après leur date ; leur page reste accessible quelques semaines.
+
+## Charge serveur (priorité n° 1)
+
+- Le site n'affiche que les événements **des trois prochains mois**. Dès qu'un événement est passé, il disparaît du site (liste et page) : rien d'inutile n'y reste.
+- Pages statiques : aucun accès à la base à chaque visite.
+- Photo compressée avant l'envoi ; la photo d'un événement passé est supprimée du stockage quelques jours après sa date (le texte de la proposition est conservé).
+- Limites d'envoi par adresse et par IP, et taille maximale de la photo.
 
 ## Base de données (Supabase)
 
@@ -41,10 +48,14 @@ Une page `/agenda` où **n'importe qui propose un événement, sans compte**. **
 - Bucket de stockage pour les photos, avec limite de taille.
 - Le SQL est montré à Tom avant toute application en production.
 
-## À décider
+## Décisions prises
 
-- Zone des événements : Tarn et Haute-Garonne seulement (proposé par défaut) ou toute la France.
-- Durée de conservation des propositions refusées et des coordonnées.
+- Zone : **Tarn et Haute-Garonne** (une page chacun).
+- Les propositions **refusées ne sont pas supprimées** : elles restent dans Compo (étiquette « refusé »), comme source.
+
+## À confirmer
+
+- Durée de conservation des coordonnées des organisateurs dans Compo.
 
 ## Étapes prévues
 
