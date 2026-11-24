@@ -127,6 +127,7 @@ function _asCarte(e){
     +'<div style="font-size:0.78rem;color:var(--encre);margin-top:2px;"><i class="ti ti-calendar"></i> '+esc(ligneDate)+'</div>'
     +'<div style="font-size:0.78rem;color:var(--gris);"><i class="ti ti-map-pin"></i> '+esc(e.lieu)+' · '+esc(e.commune)+'</div>'
     +(e.description ? '<div style="font-size:0.78rem;color:var(--encre);margin-top:6px;white-space:pre-wrap;">'+esc(e.description)+'</div>' : '')
+    +(e.lat != null && e.lng != null ? '<div style="font-size:0.72rem;margin-top:2px;"><a href="https://www.openstreetmap.org/?mlat='+e.lat+'&mlon='+e.lng+'#map=17/'+e.lat+'/'+e.lng+'" target="_blank" rel="noopener" style="color:var(--gris);"><i class="ti ti-map"></i> Voir sur la carte</a></div>' : '')
     +(e.lien ? '<div style="font-size:0.74rem;margin-top:4px;"><a href="'+esc(e.lien)+'" target="_blank" rel="noopener" style="color:var(--rouge);">'+esc(e.lien)+'</a></div>' : '')
     +'<div style="font-size:0.74rem;color:var(--gris);margin-top:6px;"><i class="ti ti-user"></i> '+esc(e.organisateur_nom)+' · <a href="mailto:'+esc(e.organisateur_email)+'" style="color:var(--gris);">'+esc(e.organisateur_email)+'</a>'
     +(e.prevenu_le ? ' · <span style="color:#1E7A45;">prévenu·e</span>' : '')+'</div>'
@@ -219,6 +220,8 @@ function osAgendaSiteEnregistrer(id){
   var lien = v('asm-lien');
   if(lien && !/^https?:\/\/\S+$/i.test(lien)){ notif('Le lien doit commencer par https://', 'alerte'); return; }
   var corps = { titre:v('asm-titre'), edition:v('asm-edition'), categorie:v('asm-cat'), date_debut:debut, date_fin:fin, lieu:v('asm-lieu'), commune:v('asm-commune'), description:v('asm-desc') || null, lien:lien || null };
+  // Le lieu a changé : l'ancien point sur la carte ne vaut plus
+  if(v('asm-lieu') !== e.lieu){ corps.lat = null; corps.lng = null; }
   fetch(SB_URL+'/rest/v1/agenda_public?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:_asHeaders({ 'Prefer':'return=representation' }), body:JSON.stringify(corps) })
     .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('HTTP '+r.status)); })
     .then(function(rows){ if(rows && rows[0]) Object.assign(e, rows[0]); var m = document.getElementById('as-modif'); if(m) m.remove(); notif('Proposition modifiée'); osAgendaSiteDessiner(); })
