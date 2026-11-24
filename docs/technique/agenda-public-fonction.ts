@@ -2,7 +2,7 @@
 // Déployée en production le 24 novembre 2026 (voir docs/technique/agenda-public.sql et docs/projet-agenda-public.md).
 //
 // Reçoit une proposition d'événement du formulaire public du site et l'enregistre « en attente ».
-//   POST { edition, titre, categorie, description?, debut (ISO), fin? (ISO), lieu, commune, lien?, nom, email, photo? , site }
+//   POST { edition, titre, categorie, description?, debut (ISO), fin? (ISO), lieu, commune, lien?, lat?, lng?, nom, email, photo? , site }
 //   photo : { type:'image/webp'|'image/jpeg', data:<base64> }, déjà réduite par le navigateur (≈ 300 ko maximum).
 // Sécurité : champ piège « site » (rempli = rejet silencieux), contrôle du type réel de l'image (pas seulement de ce qu'annonce
 // le navigateur), taille maximale, limites d'envoi par IP et par adresse email (dans agenda_proposer), IP jamais conservée (empreinte).
@@ -42,6 +42,9 @@ Deno.serve(async (req) => {
   const titre = texte(c.titre, 120), lieu = texte(c.lieu, 160), commune = texte(c.commune, 80), nom = texte(c.nom, 120), email = texte(c.email, 254);
   const description = String(c.description ?? "").trim().slice(0, 2000);
   const lien = texte(c.lien, 300);
+  // Coordonnées du lieu (suggestion d'adresse du formulaire) : facultatives, ignorées si elles sortent de la France métropolitaine
+  const lat = Number(c.lat), lng = Number(c.lng);
+  const coord = c.lat != null && c.lng != null && Number.isFinite(lat) && Number.isFinite(lng) && lat >= 41 && lat <= 52 && lng >= -6 && lng <= 10;
   const debut = new Date(c.debut), fin = c.fin ? new Date(c.fin) : null;
   if (!EDITIONS.includes(edition) || !CATEGORIES.includes(categorie)) return rep({ error: "invalide" }, 400);
   if (titre.length < 3 || lieu.length < 2 || commune.length < 2 || nom.length < 2) return rep({ error: "invalide" }, 400);
@@ -68,7 +71,7 @@ Deno.serve(async (req) => {
     method: "POST", headers: { apikey: CLE, Authorization: `Bearer ${CLE}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       p_edition: edition, p_titre: titre, p_categorie: categorie, p_description: description, p_debut: debut.toISOString(), p_fin: fin ? fin.toISOString() : null,
-      p_lieu: lieu, p_commune: commune, p_lien: lien || null, p_photo: cheminPhoto, p_nom: nom, p_email: email, p_ip_h: await empreinte(ip),
+      p_lieu: lieu, p_commune: commune, p_lien: lien || null, p_photo: cheminPhoto, p_nom: nom, p_email: email, p_ip_h: await empreinte(ip), p_lat: coord ? lat : null, p_lng: coord ? lng : null,
     }),
   });
   const res = r.ok ? await r.json().catch(() => null) : null;

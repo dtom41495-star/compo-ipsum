@@ -96,3 +96,9 @@ grant execute on function public.agenda_proposer(text,text,text,text,timestamptz
 -- Purge quotidienne (3 h 50) : la fonction « agenda-public-purger » supprime les photos du stockage puis les lignes
 -- (photos des événements passés depuis 5 jours ; lignes entières 3 mois après la date de l'événement).
 select cron.schedule('agenda-public-purge', '50 3 * * *', $$ select public._appel_fonction('agenda-public-purger', 60000) $$);
+
+-- Ajouté le 24 novembre 2026 (appliqué) : coordonnées du lieu (suggestion d'adresse du formulaire, carte sur la page de l'événement).
+alter table public.agenda_public add column if not exists lat double precision check (lat is null or lat between 41 and 52);
+alter table public.agenda_public add column if not exists lng double precision check (lng is null or lng between -6 and 10);
+-- agenda_proposer reçoit p_lat et p_lng (15 paramètres, ignorés hors de la France métropolitaine) et site_agenda() renvoie lat et lng :
+-- voir les définitions en base.
