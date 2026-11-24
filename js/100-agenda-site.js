@@ -2,7 +2,7 @@
 // Table agenda_public (docs/technique/agenda-public.sql). Rien n'est public avant l'acceptation ici.
 // Une proposition acceptée apparaît sur le site à la prochaine génération (toutes les heures, ou « Site statique » à la main).
 // Les refusées restent ici (comme source pour la rédaction) jusqu'à la purge, 3 mois après la date de l'événement.
-// Droits : ceux de la table (admin, vie associative, chefs de rédaction).
+// Droits : admin seulement pour l'instant (appli et règle d'accès de la table).
 
 var _asOnglet = 'attente';
 var _asListe = [];
