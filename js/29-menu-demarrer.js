@@ -11,7 +11,7 @@ var SM_CATEGORIES = [
   { id:'admin',  label:'Administration' }
 ];
 var SM_CAT_APPS = {
-  ecrire: ['redaction','mes-articles','app-correction','notes','compteur','titres','carnet','veille'],
+  ecrire: ['redaction','mes-articles','app-correction','notes','compteur','carnet','veille'],
   equipe: ['redactions','benevoles','agenda','salles','projets','tableau','boutique','notes-frais','ecran-redac','tutos'],
   com:    ['app-com','cps-admin','communique','newsletter','app-courrier','signatures'],
   outils: ['upload-medias','magneto','transcrire','flouter','visuels-pro','app-dub','mail','compo-store','minuteur'],
