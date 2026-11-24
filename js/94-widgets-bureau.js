@@ -2,7 +2,7 @@
 // Sur l'écran d'accueil plein écran (js/96-accueil.js), une grille de 8 colonnes (cases carrées) où chacun pose les widgets qu'il veut.
 //  - « Widgets » ouvre la boutique : le catalogue ci-dessous, avec « Ajouter » / « Retirer » ;
 //  - « Organiser » montre les cases libres : on fait glisser un widget d'une case à l'autre, la croix le retire ;
-//  - la sélection et la place de chaque widget sont enregistrées dans la table widgets_bureau (docs/serveur/widgets-bureau.sql),
+//  - la sélection et la place de chaque widget sont enregistrées dans la table widgets_bureau (docs/technique/widgets-bureau.sql),
 //    par membre, donc elles suivent d'un ordinateur à l'autre. Tant que la table n'existe pas ou ne répond pas : sélection par défaut,
 //    sans erreur. Une ligne « _perso » marque un bureau déjà personnalisé (un bureau vide reste vide).
 // Un widget du catalogue : { id, nom, desc, icone, largeur (1 ou 2 colonnes), auto (la hauteur suit le contenu), monter(carte) } ; « bientot » : annoncé, pas encore là.

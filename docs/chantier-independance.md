@@ -51,7 +51,7 @@ avec des systèmes de secours.
    sont conservés en les important avec les mêmes codes avant de faire pointer le domaine vers la machine.
    **Repli** si c'est trop lourd ou trop dépendant : **Shlink** (libre,
    un conteneur Docker, API avec clé, domaine personnalisé, comptage des clics). Consignes :
-   [`docs/serveur/raccourcisseur-liens.md`](serveur/raccourcisseur-liens.md).
+   [`docs/technique/raccourcisseur-liens.md`](technique/raccourcisseur-liens.md).
 
 10. **« J'aime » et commentaires sur le site** (souhait de Tom, novembre 2026). Ils remplacent ce que les lecteurs avaient sur Substack.
     - **« J'aime » : fait ✅.** Bouton sous chaque article du site ; un second clic le retire. Compté par notre fonction serveur `site-like`,
@@ -227,21 +227,21 @@ avec des systèmes de secours.
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
-Les consignes pour le serveur sont rangées dans [`docs/serveur/`](serveur/README.md) (dont le VPN WireGuard,
+Les consignes pour le serveur sont rangées dans [`docs/technique/`](technique/README.md) (dont le VPN WireGuard,
 à installer pour accéder au serveur depuis l'extérieur).
 
 | # | Étape | Fait quand… |
 |---|-------|-------------|
 | 1 | **Sauvegarde de la base Compo chaque nuit sur la machine** (pg_dump), puis copie hors de la maison (avec les sauvegardes de Vaultwarden). | Une restauration d'essai réussit. |
 | 2 | **Compo → site** (détail section 4). | Un article fictif publié en un clic apparaît sur l'adresse de test Netlify ; Tom a ouvert une dizaine de vrais liens anciens qui marchent tous. |
-| 2 bis ✅ | **Site sans Netlify** (décision 11), fait le 23 novembre sauf le déclenchement à la mise en ligne (code prêt dans `docs/serveur/site-regeneration.md`, à mettre en place) : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
+| 2 bis ✅ | **Site sans Netlify** (décision 11), fait le 23 novembre sauf le déclenchement à la mise en ligne (code prêt dans `docs/technique/site-regeneration.md`, à mettre en place) : script de génération des pages lancé par un robot GitHub Actions (le code Node actuel du site, sans réécriture), déclenché par `site_publier`, test sur l'adresse provisoire GitHub Pages, puis bascule du domaine. Script écrit pour tourner aussi sur la machine (dossier de sortie configurable, déclenchement unique). | Les pages article, commune, rubrique, accueil et 404 sont identiques à celles de Netlify sur l'adresse provisoire ; une mise en ligne, une correction et une dépublication depuis Compo se voient sur le site en deux minutes ; Tom valide la bascule du domaine. |
 | 2 ter | **Bouton « Statistiques » par article dans Compo** (décision 12, partie Umami et « J'aime »). | La fenêtre s'ouvre sur un article en ligne avec ses vraies vues ; un article sans visite affiche zéro sans erreur ; Tom valide qui la voit. |
 | 3 | **Préparer la machine** : mémoire (16 Go conseillés), onduleur, surveillance extérieure (sonde hors de la maison), sauvegardes hors site. | Tom valide. |
 | 4 | **Supabase de test sur la machine**, avec une copie des données (dont les comptes et la connexion Google, décision 15) : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. Filtrage des robots avec Caddy et CrowdSec (décision 13). | Compo et le site répondent depuis la machine ; Uptime Kuma au vert ; Googlebot, Bingbot et les aperçus de liens passent toujours. |
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
 | 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
-| 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/serveur/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
+| 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/technique/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
 | 9 | **Sortir de GitHub** (décision 14) : Forgejo sur la machine, import des deux dépôts, Compo servi par Caddy, robot du site et « nouveautés » de Compo sur la machine, secours chez Codeberg, vérification des secrets de l'historique, puis fermeture de GitHub (dépôts passés en privé, puis supprimés). | Un changement fusionné sur Forgejo met à jour Compo et le site ; les « nouveautés » s'affichent depuis Forgejo ; une restauration d'essai des dépôts réussit ; Tom valide avant d'archiver GitHub. |
 
 ## 4. Étape 2 en détail : Compo → site

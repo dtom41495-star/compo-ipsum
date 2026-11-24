@@ -8,7 +8,7 @@ regarde la note → fonction `site-regenerer` → API GitHub (lance le workflow 
 Au plus une génération par minute, même si un article en ligne est corrigé dix fois de suite. Un simple enregistrement automatique du brouillon
 ne déclenche rien.
 
-**Fichiers** : `docs/serveur/site-regeneration.sql` (table, déclencheurs, tâche planifiée) et `docs/serveur/site-regenerer-fonction.ts` (fonction).
+**Fichiers** : `docs/technique/site-regeneration.sql` (table, déclencheurs, tâche planifiée) et `docs/technique/site-regenerer-fonction.ts` (fonction).
 
 ## Mise en place (une seule fois, dans cet ordre)
 1. **Tom** crée un jeton GitHub : Settings → Developer settings → Personal access tokens → *Fine-grained tokens* → Generate new token.

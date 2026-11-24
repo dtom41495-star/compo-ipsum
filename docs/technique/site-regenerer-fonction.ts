@@ -2,7 +2,7 @@
 //
 // Demande à GitHub de relancer le workflow « Site statique » du dépôt du site (pages.yml, branche master) : le site est
 // alors régénéré et republié (environ une minute). Appelée chaque minute, s'il y a quelque chose à publier, par la fonction
-// SQL site_regenerer_si_besoin (voir docs/serveur/site-regeneration.sql), avec le secret des tâches planifiées.
+// SQL site_regenerer_si_besoin (voir docs/technique/site-regeneration.sql), avec le secret des tâches planifiées.
 // Verify JWT désactivé : le contrôle de l'appelant est ici, par comparaison exacte (comme site-meteo).
 // Secrets : GITHUB_DISPATCH_TOKEN (jeton GitHub limité à « Actions : lecture et écriture » sur le seul dépôt du site).
 // Facultatif : SITE_DEPOT (« propriétaire/dépôt »), SITE_WORKFLOW (pages.yml), SITE_BRANCHE (master).

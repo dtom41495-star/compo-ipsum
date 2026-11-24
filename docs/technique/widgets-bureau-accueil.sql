@@ -1,5 +1,5 @@
 -- Écran d'accueil en plein écran (tuiles) : la grille des widgets passe de 2 à 8 colonnes, et un widget peut occuper plusieurs lignes.
--- Étend la table widgets_bureau (docs/serveur/widgets-bureau.sql) : colonne 1 à 8, largeur 1 à 8, ligne 1 à 12, hauteur 1 à 4.
+-- Étend la table widgets_bureau (docs/technique/widgets-bureau.sql) : colonne 1 à 8, largeur 1 à 8, ligne 1 à 12, hauteur 1 à 4.
 -- La table était vide au moment de la modification (aucune ligne à convertir).
 -- Retour en arrière : remettre les anciennes contraintes (col 1 à 2, largeur 1 à 2, ligne 1 à 8) et supprimer la colonne hauteur.
 

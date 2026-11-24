@@ -4,7 +4,7 @@
 -- GitHub de relancer le workflow « Site statique ». Une correction enregistrée dix fois de suite ne donne donc qu'UNE
 -- génération par minute au plus.
 -- À appliquer APRÈS le déploiement de la fonction `site-regenerer` et l'ajout du secret GITHUB_DISPATCH_TOKEN (voir
--- docs/serveur/site-regeneration.md). Sans ces deux choses, la tâche planifiée échouerait chaque minute (rien de grave,
+-- docs/technique/site-regeneration.md). Sans ces deux choses, la tâche planifiée échouerait chaque minute (rien de grave,
 -- mais inutile).
 
 create table if not exists public.site_regeneration (
