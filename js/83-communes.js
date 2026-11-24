@@ -974,3 +974,34 @@ function osAgendaLieuCentral(ids){
     return r;
   };
 })();
+
+
+// ── Réglages de l'article : la commune qui sert au site (« Près de chez vous », page de la commune) ──
+// Elle est déduite toute seule à la publication (articles-localiser) ; ici on la voit, on la change ou on la retire.
+// Le choix à la main est protégé : la déduction automatique n'y touche plus.
+function rCommuneReglages(){
+  var zone = document.getElementById('r-commune-zone'), aide = document.getElementById('r-commune-aide');
+  if(!zone || !aide) return;
+  var id = (typeof currentDoc !== 'undefined' && currentDoc) ? currentDoc.id : null;
+  if(!id){ zone.innerHTML = ''; aide.textContent = 'Enregistre d\u2019abord l\u2019article pour choisir sa commune.'; return; }
+  zone.innerHTML = '<div class="cm-vide">Chargement…</div>'; aide.textContent = '';
+  _communeLire('articles_lieux?article_id=eq.'+encodeURIComponent(id)+'&select=commune,commune_code,lat,lng,source').then(function(rows){
+    if(!document.getElementById('r-commune-zone') || !currentDoc || currentDoc.id !== id) return;
+    var l = rows[0] || null;
+    var valeur = l && l.commune ? { commune:l.commune, commune_code:l.commune_code, commune_lat:l.lat, commune_lng:l.lng } : null;
+    zone.innerHTML = osCommuneChampHTML('r-commune-champ', valeur);
+    function dire(src, aCommune){
+      aide.textContent = src === 'manuel'
+        ? (aCommune ? 'Choisie à la main : la détection automatique n\u2019y touche plus.' : 'Aucune commune (choix à la main). Le site ne rattache pas cet article à une ville.')
+        : (aCommune ? 'Détectée automatiquement d\u2019après le titre et le texte, à la publication. Tu peux la changer ou la retirer.' : 'Pas encore détectée : c\u2019est fait toutes les heures une fois l\u2019article publié. Tu peux aussi la choisir maintenant.');
+    }
+    dire(l ? l.source : null, !!valeur);
+    osCommuneBrancher('r-commune-champ', id, valeur, function(c){ dire('manuel', !!(c && c.commune)); osCouvertureLieux(true); }, function(c){
+      return fetch(SB_URL+'/rest/v1/rpc/article_definir_commune', {
+        method:'POST',
+        headers:Object.assign({}, SB_HEADERS, { 'Authorization':'Bearer '+((_session && _session.access_token) || ''), 'Content-Type':'application/json' }),
+        body:JSON.stringify({ p_article:id, p_commune:c ? c.commune : null, p_code:c ? (c.commune_code || null) : null, p_lat:c ? c.commune_lat : null, p_lng:c ? c.commune_lng : null })
+      }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); });
+    });
+  });
+}
