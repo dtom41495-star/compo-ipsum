@@ -112,9 +112,19 @@ avec des systèmes de secours.
       met à jour **sans Netlify** : toute modification poussée sur `master` est publiée en environ une minute.
       Ce qui n'est **pas** reproduit : les en-têtes HTTP de `netlify.toml` (sécurité, cache de `sw.js`). Les 16 anciens articles Substack redirigent par une
       redirection HTML (meta refresh) au lieu d'un 302.
-    - **Reste à faire** : débrancher le site Netlify du dépôt (puis le supprimer après quelques jours) ; supprimer l'enregistrement DNS `test` ; renvoyer le plan du
-      site dans la Search Console et suivre les pages indexées pendant 1 à 2 semaines ; déclencher le robot dès qu'un article est publié dans Compo (aujourd'hui :
-      au plus une heure d'attente) ; remplacer les 9 adresses Supabase écrites en dur (voir 15) ; en-têtes de sécurité sur le futur serveur Caddy.
+    - **✅ Fait le 24 novembre 2026** : Netlify est **débranché** (enregistrements DNS repris chez Infomaniak, builds arrêtés ; le site Netlify existe encore, à supprimer
+      après quelques jours). L'adresse de Supabase et la clé publique du site sont écrites **en un seul fichier**, `assets/config.js` (PR 44 du site ; le générateur peut la
+      remplacer par `COMPO_URL` / `COMPO_CLE_PUBLIQUE`). La page « À propos » réunit « À propos », « Nos valeurs » et « Nous rejoindre » (PR 46 et 47 du site : bandeaux de
+      couleur, police Anton hébergée sur le site, vidéos YouTube muettes chargées seulement quand elles sont à l'écran) ; les anciennes adresses renvoient vers elle. « Média
+      associatif » sous le logo (PR 45). Le chiffre « bénévoles actifs » de cette page est lu en direct dans Compo par la fonction SQL `site_chiffres` (déjà appliquée en
+      production, `docs/technique/site-chiffres.sql`). Le robot horaire de GitHub Actions s'est déclenché, mais de façon irrégulière (parfois plusieurs heures sans passage).
+    - **Décision de Tom (24 novembre)** : un passage par heure suffit (environ 3 articles par semaine) ; pour un article urgent, lancer « Site statique » à la main
+      (onglet Actions du dépôt du site). Le déclenchement immédiat depuis Compo est **préparé mais non mis en place** (`docs/technique/site-regeneration.md` : jeton GitHub limité
+      à « Actions : lecture et écriture », fonction `site-regenerer`, déclencheurs SQL) : à reprendre si l'attente gêne.
+    - **Reste à faire** : supprimer le site Netlify (après quelques jours) ; supprimer l'enregistrement DNS `test` ; renvoyer le plan du site dans la Search Console et suivre les
+      pages indexées pendant 1 à 2 semaines ; en-têtes de sécurité sur le futur serveur Caddy ; relire `docs/technique` à la recherche de secrets (le dépôt de Compo est public et
+      servi par Pages, voir décision 14) ; mettre à jour la carte des rédactions de la page « À propos » (la Haute-Garonne y est encore en pointillés) ; préciser le nom du Club
+      de la presse sur la page.
     - **Liste « Dernières éditions » de l'accueil** (décision de Tom, 24 novembre) : elle vient aujourd'hui des articles Substack étiquetés « Newsletter ». Comme les articles
       viennent de Compo, elle se videra avec le temps. Le bloc newsletter du site se recentre tout seul quand elle est vide (PR 43 du site). À revoir avec Listmonk
       (étape 7) : soit une liste alimentée par les envois Listmonk, soit seulement le bouton « Recevoir la newsletter ». Pas de garde-fou « plan de secours Substack » dans
@@ -216,11 +226,8 @@ avec des systèmes de secours.
       serveur d'identité à nous (Keycloak ou équivalent, par OpenID Connect).
     - **Préparation du code** : l'adresse de Supabase et la clé publique ne sont plus écrites qu'à **un seul endroit** dans Compo
       (`js/01-core-redaction.js` : `SB_URL`, `SB_KEY`) ✅ (23 novembre : 3 appels de `js/02-auth-articles.js` en dur ont été remplacés ; la page
-      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` : le site peut de nouveau être modifié
-      (sortie de Netlify faite le 23 novembre, décision 11). Reste à faire, en une seule modification : un seul fichier de configuration `assets/config.js` pour les pages (l'adresse
-      et la clé publique sont écrites aujourd'hui en 9 endroits : `index.html` ×2, `membre.html`, `nos-valeurs.html`, `document.html`, `assets/jour.js`,
-      `assets/accueil.js`, `netlify/functions/article.js`, `lib/compo.js`) et `lib/compo.js` pour les fonctions (déjà réglable par `COMPO_URL` et
-      `COMPO_CLE_PUBLIQUE`). À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
+      d'inscription publique `inscription.html` garde sa propre ligne, c'est une page autonome). Pour le site `ipsummediasite` ✅ (24 novembre) : l'adresse et la clé publique ne sont écrites qu'à **un seul endroit**, `assets/config.js`, lu par les pages, par `lib/compo.js`
+      et par le générateur (voir décision 11). À vérifier au moment du déménagement : plus aucune occurrence de l'ancienne adresse (`grep ctmekufqaxdelgfyjwly`).
     - **Liste de vérification de l'étape 4** : connexion Google, connexion par mot de passe, mot de passe oublié, renouvellement de la session au bout d'une
       heure, déconnexion, un membre bloqué, un compte créé avant le déménagement et un compte créé après.
 
