@@ -51,7 +51,7 @@ avec des systèmes de secours.
    sont conservés en les important avec les mêmes codes avant de faire pointer le domaine vers la machine.
    **Repli** si c'est trop lourd ou trop dépendant : **Shlink** (libre,
    un conteneur Docker, API avec clé, domaine personnalisé, comptage des clics). Consignes :
-   [`docs/technique/raccourcisseur-liens.md`](serveur/raccourcisseur-liens.md).
+   [`docs/technique/raccourcisseur-liens.md`](technique/raccourcisseur-liens.md).
 
 10. **« J'aime » et commentaires sur le site** (souhait de Tom, novembre 2026). Ils remplacent ce que les lecteurs avaient sur Substack.
     - **« J'aime » : fait ✅.** Bouton sous chaque article du site ; un second clic le retire. Compté par notre fonction serveur `site-like`,
@@ -227,7 +227,7 @@ avec des systèmes de secours.
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
-Les consignes pour le serveur sont rangées dans [`docs/technique/`](serveur/README.md) (dont le VPN WireGuard,
+Les consignes pour le serveur sont rangées dans [`docs/technique/`](technique/README.md) (dont le VPN WireGuard,
 à installer pour accéder au serveur depuis l'extérieur).
 
 | # | Étape | Fait quand… |
