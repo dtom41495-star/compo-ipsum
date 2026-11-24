@@ -410,6 +410,7 @@ function setUrg(v){
 function rOuvrirReglages(){
   var d = document.getElementById('drawer-redac-reglages');
   if(d) d.style.display = 'flex';
+  if(typeof rCommuneReglages === 'function') rCommuneReglages();
 }
 function rFermerReglages(){
   var d = document.getElementById('drawer-redac-reglages');
