@@ -1,5 +1,5 @@
 -- Agenda public d'Ipsum Média (voir docs/projet-agenda-public.md) : événements proposés par n'importe qui, publiés après acceptation par l'équipe.
--- NON APPLIQUÉ en production : à relire et à valider par Tom.
+-- APPLIQUÉ en production le 24 novembre 2026 (testé avant, dans une transaction annulée : docs/technique/agenda-public-test.sql).
 --  - table agenda_public (séparée de agenda_evenements, l'agenda interne) ;
 --  - aucune lecture ni écriture directe pour le public : il envoie via la fonction « agenda-public » (service_role) et lit via site_agenda() ;
 --  - l'équipe (admin, vie associative, chefs de rédaction) lit et modifie dans Compo ;

@@ -1,5 +1,5 @@
 // Fonction Supabase Edge : agenda-public   (Verify JWT désactivé : appelée depuis le site, sans compte)
-// NON DÉPLOYÉE : à valider par Tom (voir docs/technique/agenda-public.sql et docs/projet-agenda-public.md).
+// Déployée en production le 24 novembre 2026 (voir docs/technique/agenda-public.sql et docs/projet-agenda-public.md).
 //
 // Reçoit une proposition d'événement du formulaire public du site et l'enregistre « en attente ».
 //   POST { edition, titre, categorie, description?, debut (ISO), fin? (ISO), lieu, commune, lien?, nom, email, photo? , site }

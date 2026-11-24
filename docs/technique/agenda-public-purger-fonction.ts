@@ -1,5 +1,5 @@
 // Fonction Supabase Edge : agenda-public-purger   (Verify JWT désactivé ; appelée chaque nuit par pg_cron avec le secret des tâches)
-// NON DÉPLOYÉE : à valider par Tom.
+// Déployée en production le 24 novembre 2026 (avec la table agenda_public).
 //  - photos des événements passés depuis 5 jours : supprimées du stockage (ce sont elles qui pèsent le plus) ;
 //  - lignes de plus de 3 mois après la date de l'événement (acceptées, refusées ou en attente) : supprimées, photo comprise.
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -23,8 +23,8 @@ Deno.serve(async (req) => {
   const il_y_a = (jours: number) => new Date(Date.now() - jours * 86400000).toISOString();
   try {
     // 1. Photos des événements passés depuis 5 jours
-    const vieillesPhotos = await lire(`agenda_public?photo=not.is.null&date_debut=lt.${encodeURIComponent(il_y_a(5))}&select=id,photo,date_fin`);
-    const aSupprimer = vieillesPhotos.filter((l) => new Date(l.date_fin || 0).getTime() < Date.now() - 5 * 86400000 || !l.date_fin);
+    const vieillesPhotos = await lire(`agenda_public?photo=not.is.null&date_debut=lt.${encodeURIComponent(il_y_a(5))}&select=id,photo,date_debut,date_fin`);
+    const aSupprimer = vieillesPhotos.filter((l) => new Date(l.date_fin || l.date_debut).getTime() < Date.now() - 5 * 86400000);
     await supprimerPhotos(aSupprimer.map((l) => l.photo));
     for (const l of aSupprimer) await fetch(`${SB_URL}/rest/v1/agenda_public?id=eq.${l.id}`, { method: "PATCH", headers: h, body: JSON.stringify({ photo: null }) });
     // 2. Lignes de plus de 3 mois (92 jours) après l'événement
