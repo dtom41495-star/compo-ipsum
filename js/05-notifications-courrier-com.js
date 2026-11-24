@@ -350,7 +350,7 @@ function _osOpenWindowExecuter(pageId){
   
   // Titre
   var titles = {
-    cockpit:'Cockpit', 'notes-frais':'Notes de frais', bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
+    cockpit:'Cockpit', 'notes-frais':'Notes de frais', bugs:'Bugs', 'cps-admin':'Gestion des CPs', 'stats-dashboard':'Statistiques', 'app-correction':'Secrétariat de rédaction', params:'Paramètres', agenda:'Agenda', 'agenda-site':'Agenda du site', redaction:'Rédaction', benevoles:'Tableau de bord bénévoles', tableau:'Tableau d\'affichage', carnet:'Carnet de sources', 'gestion-apps':'Admin', 'nettoyage':'Nettoyage', 'notes':'Mes notes', 'minuteur':'Minuteur', 'compteur':'Compteur', 'compo-store':'Compo Store', 'redactions':'Ma rédac\'',
     lecture:'Lecture',
     'visuels-pro':'Visuels Avancé', statut:'Statut Édition', 'mes-articles':'Mes Articles',
     guide:'Manuel', log:'Journal', 
@@ -585,6 +585,11 @@ function osLoadPageContent(pageId, winEl){
 
   if(pageId === 'snake'){
     setTimeout(function(){ osSnakeRender(); }, 50);
+    return;
+  }
+
+  if(pageId === 'agenda-site'){
+    setTimeout(function(){ osAgendaSiteRender(); }, 50);
     return;
   }
 

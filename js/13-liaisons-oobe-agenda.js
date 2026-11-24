@@ -848,6 +848,7 @@ function osAgendaRender(){
     +'<button onclick="osAgendaSetVue(\'jour\')" id="agenda-btn-jour" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Jour</button>'
     +'<button onclick="osAgendaSetVue(\'calendrier\')" id="agenda-btn-cal" style="font-family:DM Sans,sans-serif;font-size:0.72rem;font-weight:600;padding:3px 10px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:var(--gris);">Mois</button>'
     +'</div>';
+  if(isChefOuAdmin) ligne1 += '<button class="mac-btn" id="agenda-btn-site" onclick="osOpenWindow(\'agenda-site\')" title="Événements proposés sur le site public"><i class="ti ti-world"></i><span>Agenda du site</span><span id="agenda-btn-site-n" style="display:none;background:var(--rouge);color:white;border-radius:100px;font-size:0.62rem;font-weight:700;padding:1px 6px;margin-left:4px;"></span></button>';
   if(isChefOuAdmin) ligne1 += '<button class="agenda-btn-nouveau" onclick="osAgendaNouvelEvenement()" style="font-family:DM Sans,sans-serif;font-size:0.74rem;font-weight:600;padding:5px 12px;background:var(--rouge);color:white;border:none;border-radius:6px;cursor:pointer;">+ Événement</button>';
   ligne1 += '</div>';
 
@@ -871,6 +872,8 @@ function osAgendaRender(){
   body.id = 'agenda-body';
   body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
   wc.appendChild(body);
+
+  if(isChefOuAdmin && typeof osAgendaSiteCompter === 'function') osAgendaSiteCompter(function(n){ var b = document.getElementById('agenda-btn-site-n'); if(b && n > 0){ b.textContent = n; b.style.display = 'inline'; } });
 
   osAgendaCharger();
 }

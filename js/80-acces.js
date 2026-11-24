@@ -13,6 +13,7 @@
 // Applis qu'apporte une responsabilité, et laquelle (pour dire « pourquoi » dans la fiche d'un membre)
 var ACCES_RESPONSABILITES = {
   'cps-admin':      [['chef', 'rédac chef'], ['admin', 'admin']],
+  'agenda-site':    [['chef', 'rédac chef'], ['admin', 'admin']],
   'newsletter':     [['chef', 'rédac chef'], ['sr', 'SR'], ['admin', 'admin']],
   'ecran-redac':    [['chef', 'rédac chef'], ['admin', 'admin']],
   'tresorerie':     [['f:tresorier', 'trésorerie'], ['admin', 'admin']],
