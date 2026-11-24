@@ -1527,6 +1527,7 @@ var ALL_APPS_CATALOGUE = [
   { id:'compteur',       icon:'<i class="ti ti-ruler-2"></i>', label:'Compteur',       color:'#155724', roles:['redacteur','correcteur','admin'], store:true, desc:'Compte les mots, signes et estime le temps de lecture d\'un texte.' },
   { id:'compo-store',    icon:'<i class="ti ti-building-store"></i>', label:'Store',          color:'#0F6E56', roles:['redacteur','correcteur','admin'] },
   { id:'agenda',         icon:'<i class="ti ti-calendar"></i>', label:'Agenda',          color:'#C0392B', roles:['redacteur','correcteur','admin'] },
+  { id:'agenda-site',    icon:'<i class="ti ti-world"></i>', label:'Agenda du site',  color:'#C0392B', roles:['admin'] },
   { id:'notes-frais',    icon:'<i class="ti ti-receipt-2"></i>', label:'Notes de frais',  color:'#0F6E56', desc:'Dépose une dépense avec la photo du ticket : le trésorier la valide puis te rembourse.' },
   { id:'veille',         icon:'<i class="ti ti-rss"></i>', label:'Veille',          color:'#0C5460', roles:['redacteur','correcteur','admin'], desc:'Flux RSS suivis par l\'équipe — autres médias, communiqués. Repère un sujet et crée-le directement depuis un article.' },
 ];
