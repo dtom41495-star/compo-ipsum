@@ -81,5 +81,30 @@ Deno.serve(async (req) => {
     if (res && (res.statut === "limite" || res.statut === "date")) return rep({ error: res.statut }, res.statut === "limite" ? 429 : 400);
     return rep({ error: "serveur" }, 500);
   }
+  // Prévient les admins sur Google Chat (message privé du bot, comme les autres notifications de Compo).
+  // Seulement pour les 5 premières propositions de l'heure : au-delà, pas de pluie de messages (tout reste visible dans Compo).
+  // En arrière-plan : le visiteur n'attend pas Google. Le texte est nettoyé (pas de lien ni de mise en forme glissés par le visiteur).
+  const prevenir = prevenirAdmins({ titre, commune, edition, debut, nom }).catch(() => {});
+  // @ts-ignore EdgeRuntime existe sur Supabase
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(prevenir); else await prevenir;
   return rep({ ok: true });
 });
+
+const propre = (t: string) => String(t).replace(/[<>*_`~|]/g, "").replace(/\s+/g, " ").trim();
+
+async function prevenirAdmins(p: { titre: string; commune: string; edition: string; debut: Date; nom: string }) {
+  const h = { apikey: CLE, Authorization: `Bearer ${CLE}`, "Content-Type": "application/json" };
+  const depuis = new Date(Date.now() - 3600_000).toISOString();
+  const r = await fetch(`${SB_URL}/rest/v1/agenda_public?cree_le=gte.${encodeURIComponent(depuis)}&select=id`, { headers: { ...h, Prefer: "count=exact", Range: "0-0" } });
+  const total = parseInt((r.headers.get("content-range") || "").split("/")[1] || "0", 10);
+  if (total > 5) return;
+  const admins = await fetch(`${SB_URL}/rest/v1/membres?role=eq.admin&actif=eq.true&select=id,marque_inactif,dnd`, { headers: h }).then((x) => x.json()).catch(() => []);
+  if (!Array.isArray(admins)) return;
+  const date = p.debut.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
+  const heure = p.debut.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).replace(":", "h");
+  const message = `📅 Nouvelle proposition pour l'agenda du site\n« ${propre(p.titre)} » · ${propre(p.commune)} (${p.edition === "haute-garonne" ? "Haute-Garonne" : "Tarn"})\n${date} à ${heure}, proposé par ${propre(p.nom)}\nÀ traiter dans Compo : Agenda du site.`;
+  for (const a of admins) {
+    if (a.marque_inactif || a.dnd) continue;
+    await fetch(`${SB_URL}/functions/v1/envoyer-chat-dm`, { method: "POST", headers: h, body: JSON.stringify({ membreId: a.id, message, type: "agenda" }) }).catch(() => {});
+  }
+}
