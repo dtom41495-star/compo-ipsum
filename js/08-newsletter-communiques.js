@@ -2466,8 +2466,9 @@ function cpsAdminSauvegarder(statut){
 
 // ---- ADMIN : Publier depuis la liste ----
 function cpsAdminPublier(id){
-  // Publier n'envoie rien aux abonnés : l'envoi se fait à part, via "Notifier les abonnés".
-  if(!osConfirmerPuis('Publier ce communiqué ?\n\nLes abonnés ne sont pas prévenus maintenant : utilise ensuite « Notifier les abonnés ».', null, cpsAdminPublier, this, arguments)) return;
+  // Un communiqué arrivé par mail est notifié automatiquement (communiques-auto-notifier, toutes les 10 minutes, de 8 h à 20 h) ;
+  // les autres (créés à la main) se notifient à part, via "Notifier les abonnés".
+  if(!osConfirmerPuis('Publier ce communiqué ?\n\nS\'il est arrivé par mail, les abonnés sont prévenus automatiquement dans les 10 minutes (de 8 h à 20 h). Sinon, utilise ensuite « Notifier les abonnés ».', null, cpsAdminPublier, this, arguments)) return;
   fetch(SB_URL+'/rest/v1/communiques?id=eq.'+encodeURIComponent(id)+'&select=*', { headers:SB_HEADERS })
   .then(function(r){ return r.json(); })
   .then(function(data){
