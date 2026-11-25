@@ -231,6 +231,15 @@ avec des systèmes de secours.
     - **Liste de vérification de l'étape 4** : connexion Google, connexion par mot de passe, mot de passe oublié, renouvellement de la session au bout d'une
       heure, déconnexion, un membre bloqué, un compte créé avant le déménagement et un compte créé après.
 
+16. **Envoi de gros fichiers auto-hébergé, à la place de WeTransfer** (idée de Tom, 25 novembre 2026, à faire après Listmonk). Même raison que pour les autres services américains.
+    - **Besoin** : déposer un fichier (photos, vidéos, documents) et le faire télécharger par quelqu'un qui n'a pas de compte, avec un lien à durée limitée.
+    - **À étudier** (non lisible depuis la session cloud, noms cités de mémoire) : un outil libre en un conteneur Docker, du type **Pingvin Share**, **Gokapi** ou **PsiTransfer**.
+      Critères : lien qui expire, mot de passe facultatif, taille maximale réglable, envoi de plusieurs fichiers, dépôt par un tiers (« demander des fichiers »), faible consommation de mémoire,
+      maintenance active, stockage sur le disque de la machine.
+    - **Vigilance** : espace disque (suppression automatique à l'expiration), sauvegarde inutile pour les fichiers temporaires, débit montant de la fibre, protection contre les abus
+      (limites de taille et de débit, accès à l'envoi réservé aux membres ou protégé par mot de passe), adresse du type `transfert.ipsummedia.fr` derrière Caddy.
+    - **Ordre** : après l'étape 7 (Listmonk), sur la machine déjà déménagée et surveillée.
+
 ## 3. Ordre des étapes
 
 Chaque étape se termine par une vérification, et rien ne passe en production sans l'accord de Tom.
@@ -247,7 +256,7 @@ Les consignes pour le serveur sont rangées dans [`docs/technique/`](technique/R
 | 4 | **Supabase de test sur la machine**, avec une copie des données (dont les comptes et la connexion Google, décision 15) : connexions, tâches planifiées (pg_cron, pg_net), fonctions serveur, fichiers. Compo continue sur Supabase pendant ce temps. | Toutes les fonctions de Compo testées sur la copie. |
 | 5 | **Déménagement** de Compo (données + pages) et du site sur la machine, un week-end annoncé aux membres. Filtrage des robots avec Caddy et CrowdSec (décision 13). | Compo et le site répondent depuis la machine ; Uptime Kuma au vert ; Googlebot, Bingbot et les aperçus de liens passent toujours. |
 | 6 | **Raccourcisseur de liens auto-hébergé** (Dub, ou Shlink en repli) : installation, puis `dub-raccourcir` pointe dessus (adresse et clé dans les secrets). | Un lien créé depuis Compo redirige et compte ses clics ; les anciens liens dub.co marchent toujours. |
-| 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
+| 7 | **Listmonk + SMTP Mailjet** pour les trois newsletters, import des abonnés depuis Substack (export CSV). Consignes à coller : [`docs/technique/listmonk.md`](technique/listmonk.md). | Une newsletter d'essai reçue sans finir en spam (SPF, DKIM). Ensuite : les clics et ouvertures de chaque newsletter remontent dans la fenêtre « Statistiques » de Compo (décision 12). |
 | 8 | **Commentaires sur le site** (Isso, détail au point 10 des décisions) : consignes `docs/technique/commentaires.md` à écrire, installation sur la machine (sous-domaine du type `commentaires.ipsummedia.fr`, Caddy, sauvegarde du fichier de base), SMTP pour les mails de validation (Resend aujourd'hui, Mailjet ensuite), intégration sous les articles, mise à jour de la politique de confidentialité et des mentions de modération. | Un commentaire d'essai est posté, reçu en validation par mail, validé, puis visible sous l'article. |
 | 9 | **Sortir de GitHub** (décision 14) : Forgejo sur la machine, import des deux dépôts, Compo servi par Caddy, robot du site et « nouveautés » de Compo sur la machine, secours chez Codeberg, vérification des secrets de l'historique, puis fermeture de GitHub (dépôts passés en privé, puis supprimés). | Un changement fusionné sur Forgejo met à jour Compo et le site ; les « nouveautés » s'affichent depuis Forgejo ; une restauration d'essai des dépôts réussit ; Tom valide avant d'archiver GitHub. |
 
